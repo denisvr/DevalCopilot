@@ -1,0 +1,44 @@
+# .NET
+**/bin/
+**/obj/
+TestResults/
+coverage/
+*.user
+*.suo
+
+# Node and frontend
+node_modules/
+dist/
+.vite/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Tauri and Rust
+target/
+src-tauri/target/
+
+# IDEs and editors
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# Operating systems
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# DevalCopilot local runtime data
+.devalcopilot/
+artifacts/
+logs/
+*.db
+*.db-shm
+*.db-wal
