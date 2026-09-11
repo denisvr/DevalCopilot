@@ -156,6 +156,26 @@ The complete historical transcript is not replayed by default. Raw transcripts
 are artifacts available for inspection. Summaries carry source references so
 the receiving agent can distinguish derived context from primary evidence.
 
+## Token efficiency
+
+- Build a context manifest for each attempt and include only inputs required by
+  the current role and decision.
+- Retrieve project documentation and source progressively instead of attaching
+  the entire repository or documentation set.
+- Reuse one durable summary of stable facts and link it to primary evidence;
+  do not ask each agent to restate the same background.
+- Send changed hunks, unresolved findings, and relevant neighboring code before
+  considering a complete diff or file.
+- Prefer deterministic tools for discovery, validation, counting, formatting,
+  and status checks instead of spending model tokens inferring their results.
+- Do not repeat an agent attempt unless state, instructions, evidence, or the
+  expected response changed materially.
+- Track input, output, and cached token usage when the provider exposes it.
+- Stop and escalate when a stage budget is exhausted rather than silently
+  borrowing unlimited tokens from the run.
+- Select model capability and reasoning depth according to task risk, not as a
+  universal maximum setting.
+
 ## Untrusted content
 
 Repository files, comments, issue text, test output, CI logs, generated files,

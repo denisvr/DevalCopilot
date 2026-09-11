@@ -50,6 +50,7 @@ repository and producing a green draft pull request or a clear escalation.
 - Persist stages, tasks, attempts, handoffs, challenges, decisions, approvals,
   findings, checkpoints, and events.
 - Bound debate, correction, duration, process, and publication attempts.
+- Enforce stage and run token budgets and record provider usage when available.
 
 ### Agent execution
 
@@ -105,6 +106,8 @@ repository and producing a green draft pull request or a clear escalation.
 - No mutation of the running DevalCopilot checkout.
 - No success claim without recorded evidence.
 - No loss of completed run history after restart.
+- No routine replay of complete transcripts, repository trees, diffs, or
+  unchanged context when a smaller referenced selection is sufficient.
 - Representative failure and recovery paths have automated tests.
 
 ## Explicitly deferred

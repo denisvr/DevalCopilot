@@ -45,6 +45,11 @@
 - Event order is defined by a monotonic integer sequence, not wall-clock time.
 - Large logs, screenshots, patches, and generated reports are stored as hashed
   filesystem artifacts with metadata in SQLite.
+- Agent context is assembled progressively from the smallest sufficient set of
+  durable records and evidence. Complete transcripts and unchanged repository
+  content are not replayed by default.
+- Token usage is a visible, enforceable budget at attempt, stage, and run level
+  when provider data is available.
 - Git, Codex, Claude Code, and GitHub integrations are replaceable
   Infrastructure adapters behind narrow Application ports.
 - The MVP uses existing local CLI authentication and never copies provider

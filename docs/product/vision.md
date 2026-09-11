@@ -75,6 +75,16 @@ The user can see what each agent proposed, challenged, executed, reviewed, and
 changed. The interface makes current state, evidence, cost, and required action
 immediately clear.
 
+### Deliberate context and token economy
+
+Tokens are a finite engineering resource. Each agent receives the smallest
+context that is sufficient for its current decision, with references available
+for progressive retrieval. DevalCopilot avoids replaying complete transcripts,
+restating stable decisions, sending unchanged files, or repeating failed work
+without new evidence. Higher-cost reasoning is reserved for decisions whose
+risk or ambiguity justifies it, and usage remains visible against stage and run
+budgets.
+
 ### Dogfooding without self-destruction
 
 A stable DevalCopilot version may develop a candidate version in an isolated

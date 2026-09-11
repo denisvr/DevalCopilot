@@ -121,7 +121,8 @@ manual transfer.
   revision stages;
 - challenge and finding UI cards;
 - human instruction and escalation controls;
-- loop, duration, and usage budgets.
+- loop, duration, token, and usage budgets;
+- progressive context manifests and token-usage evidence.
 
 ### Exit criteria
 
@@ -130,6 +131,7 @@ manual transfer.
 - implementation is limited to the resolved plan and worktree;
 - findings map to revision responses and source changes;
 - invalid protocol output fails closed;
+- repeated attempts do not receive unchanged full context by default;
 - loop exhaustion creates a useful human escalation.
 
 ## Increment 5: Local supervised delivery loop

@@ -78,6 +78,7 @@ Readiness uses explicit states: `Ready`, `Degraded`, `Needs attention`, or
 | Budgets              | CLAUDE · Execution                   | GitHub CI              |
 | Review loops  1 / 2  | Editing GitHubRunMonitor...          | ○ backend pending      |
 | CI loops      0 / 2  |                                      | ○ frontend queued      |
+| Tokens      18k / 60k|                                      |                        |
 +----------------------+--------------------------------------+------------------------+
 | Live output · Claude Code                                             [Inject input] |
 +--------------------------------------------------------------------------------------+
@@ -98,6 +99,10 @@ The header always shows:
 The left rail shows ordered stages, blocking reasons, current budgets, and
 checkpoints. Selecting a stage filters the timeline and evidence without hiding
 the overall run state.
+
+Token usage distinguishes input, output, and cached tokens when providers make
+that information available. The UI shows current-stage and whole-run budgets
+without encouraging optimization that compromises correctness.
 
 ### Collaboration timeline
 
