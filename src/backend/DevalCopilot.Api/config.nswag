@@ -1,0 +1,22 @@
+{
+  "runtime": "Net100",
+  "defaultVariables": "Configuration=Debug",
+  "documentGenerator": {
+    "aspNetCoreToOpenApi": {
+      "project": "DevalCopilot.Api.csproj",
+      "configuration": "$(Configuration)",
+      "noBuild": true,
+      "output": null
+    }
+  },
+  "codeGenerators": {
+    "openApiToTypeScriptClient": {
+      "className": "{controller}Client",
+      "template": "Fetch",
+      "promiseType": "Promise",
+      "generateClientClasses": true,
+      "generateClientInterfaces": false,
+      "output": "../../frontend/DevalCopilot.Frontend/src/api/generated/api-client.ts"
+    }
+  }
+}

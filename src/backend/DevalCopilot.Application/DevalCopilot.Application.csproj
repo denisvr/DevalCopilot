@@ -2,4 +2,11 @@
   <ItemGroup>
     <ProjectReference Include="..\DevalCopilot.Domain\DevalCopilot.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Devalente.Shared.Cqrs.Abstractions" />
+    <PackageReference Include="Devalente.Shared.Results" />
+    <PackageReference Include="Devalente.Shared.Validation.FluentValidation" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
 </Project>

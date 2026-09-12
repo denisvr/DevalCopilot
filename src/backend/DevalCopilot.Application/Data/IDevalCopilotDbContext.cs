@@ -1,0 +1,22 @@
+using DevalCopilot.Domain.Features.Projects;
+using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
+
+namespace DevalCopilot.Application.Data;
+
+public interface IDevalCopilotDbContext
+{
+    DbSet<Project> Projects { get; }
+
+    DbSet<Run> Runs { get; }
+
+    DbSet<Attempt> Attempts { get; }
+
+    DbSet<RunEvent> Events { get; }
+
+    /// <summary>
+    /// Used only by manual-transaction commands that must read back a database-assigned
+    /// value, such as the monotonic event sequence, before returning their result.
+    /// </summary>
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+}

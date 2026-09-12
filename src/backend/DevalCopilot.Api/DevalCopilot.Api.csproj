@@ -1,6 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <DevalenteGenerateApiClients>true</DevalenteGenerateApiClients>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\DevalCopilot.Application\DevalCopilot.Application.csproj" />
     <ProjectReference Include="..\DevalCopilot.Infrastructure\DevalCopilot.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Devalente.Shared.Cqrs" />
+    <PackageReference Include="Devalente.Shared.Validation.FluentValidation" />
+    <PackageReference Include="Devalente.Shared.AspNetCore.Mvc" />
+    <PackageReference Include="Devalente.Shared.AspNetCore.Security" />
+    <PackageReference Include="Devalente.Shared.EntityFrameworkCore" />
+    <PackageReference Include="Devalente.Shared.OpenApi.NSwag" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>
