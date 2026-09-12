@@ -15,6 +15,11 @@ rewrite previous outcomes.
 A policy decision authorizing one specific consequential action, scope, and
 current state. Approval is not a reusable global permission.
 
+## Autonomous session time
+
+Accumulated time during which a run is allowed to advance. Paused and terminal
+time is excluded.
+
 ## Artifact
 
 Immutable or versioned evidence stored outside the relational event payload,
@@ -59,6 +64,12 @@ expected response between agents or workflow stages.
 
 The authoritative .NET core that owns workflow state, policy, persistence,
 process supervision, Git mutation, remote actions, and recovery.
+
+## Provider account-usage guardrail
+
+A user-configured warning or stop threshold evaluated against a fresh
+provider-reported allowance window. It is separate from DevalCopilot-owned
+attempt, stage, and run token budgets.
 
 ## Provider session
 

@@ -1,0 +1,2350 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive DevalCopilot run cockpit prototype">
+  <title>DevalCopilot — Run Cockpit Prototype</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%230c111b'/%3E%3Cpath d='M17 22h11l4-7 4 7h11v21H17z' fill='none' stroke='%236b8cff' stroke-width='5' stroke-linejoin='round'/%3E%3Ccircle cx='26' cy='32' r='2.5' fill='%23f3f6fc'/%3E%3Ccircle cx='38' cy='32' r='2.5' fill='%23f3f6fc'/%3E%3Cpath d='M25 39h14' stroke='%233bd29f' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas: #080b12;
+      --surface-nav: #0a0f18;
+      --surface-panel: #0e1420;
+      --surface-0: #0c111b;
+      --surface-1: #111824;
+      --surface-2: #172131;
+      --surface-3: #1c283a;
+      --line: #263247;
+      --line-strong: #35435a;
+      --text: #f3f6fc;
+      --muted: #9ca9bd;
+      --faint: #6f7c90;
+      --blue: #6b8cff;
+      --blue-rgb: 107 140 255;
+      --blue-soft: #1d2b55;
+      --cyan: #4ac7dc;
+      --green: #3bd29f;
+      --green-soft: #123c34;
+      --amber: #ff9638;
+      --amber-rgb: 255 150 56;
+      --amber-soft: #4b250b;
+      --red: #ff6b7a;
+      --red-soft: #461c27;
+      --track: #252f40;
+      --control: #202633;
+      --control-hover: #293141;
+      --popover: #171b22;
+      --input: #0c131e;
+      --console: #090d14;
+      --detail: #0d131e;
+      --toast: #1b2534;
+      --radius: 12px;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --canvas: #050a12;
+      --surface-nav: #07101c;
+      --surface-panel: #0a1523;
+      --surface-0: #08121f;
+      --surface-1: #0d1a2a;
+      --surface-2: #13243a;
+      --surface-3: #19304b;
+      --line: #213954;
+      --line-strong: #315170;
+      --text: #eef6ff;
+      --muted: #91a9bf;
+      --faint: #617b94;
+      --blue: #468ff7;
+      --blue-rgb: 70 143 247;
+      --blue-soft: #102f59;
+      --cyan: #43b8df;
+      --amber: #ff9638;
+      --amber-rgb: 255 150 56;
+      --amber-soft: #4b250b;
+    }
+
+    body[data-theme="light"] {
+      color-scheme: light;
+      --canvas: #edf3f8;
+      --surface-nav: #f7faff;
+      --surface-panel: #ffffff;
+      --surface-0: #f3f7fb;
+      --surface-1: #ffffff;
+      --surface-2: #eef4f9;
+      --surface-3: #e5eef6;
+      --line: #d7e1eb;
+      --line-strong: #b9c9d8;
+      --text: #102237;
+      --muted: #5b6f83;
+      --faint: #7b8ea0;
+      --blue: #246fce;
+      --blue-rgb: 36 111 206;
+      --blue-soft: #e4effc;
+      --cyan: #168fb7;
+      --green: #168264;
+      --green-soft: #e1f4ed;
+      --amber: #d8570b;
+      --amber-rgb: 216 87 11;
+      --amber-soft: #ffeadc;
+      --red: #cf3f50;
+      --red-soft: #fde8eb;
+      --track: #dfe7ef;
+      --control: #edf3f8;
+      --control-hover: #e3edf5;
+      --popover: #ffffff;
+      --input: #f7fafd;
+      --console: #f8fafc;
+      --detail: #f5f8fb;
+      --toast: #ffffff;
+      --shadow: 0 18px 60px rgba(37, 65, 89, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    button { font: inherit; }
+
+    button:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr);
+      height: 100vh;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--surface-nav);
+      border-right: 1px solid var(--line);
+      padding: 18px 14px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 2px 8px 22px;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid color-mix(in srgb, var(--blue) 62%, var(--line));
+      border-radius: 10px;
+      background: var(--blue-soft);
+      color: color-mix(in srgb, var(--blue) 55%, var(--text));
+      font-weight: 800;
+      letter-spacing: -0.08em;
+    }
+
+    .brand-name {
+      font-weight: 720;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-version {
+      color: var(--faint);
+      font: 500 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .nav-label,
+    .eyebrow {
+      color: var(--faint);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nav-label { padding: 4px 10px 8px; }
+
+    .nav-list {
+      display: grid;
+      gap: 4px;
+      margin: 0 0 22px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .nav-button {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-height: 42px;
+      gap: 11px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      padding: 0 11px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .nav-button:hover { background: var(--surface-1); color: var(--text); }
+    .nav-button.active { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+
+    .nav-icon {
+      width: 18px;
+      color: currentColor;
+      text-align: center;
+    }
+
+    .active-run {
+      padding: 0 4px;
+      overflow: auto;
+    }
+
+    .run-link {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-1);
+      color: inherit;
+      padding: 12px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .run-link:hover { border-color: var(--line-strong); }
+    .run-link + .run-link { margin-top: 8px; }
+    .run-link.selected { border-color: color-mix(in srgb, var(--blue) 62%, var(--line)); background: color-mix(in srgb, var(--blue) 13%, var(--surface-1)); box-shadow: inset 3px 0 0 var(--blue); }
+
+    .run-link-top,
+    .run-link-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .run-link-title { font-size: 0.875rem; font-weight: 680; }
+    .run-link-bottom { margin-top: 8px; color: var(--muted); font-size: 0.75rem; }
+
+    .project-identity {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 650;
+    }
+
+    .project-name {
+      color: color-mix(in srgb, var(--blue) 58%, var(--text));
+      font-weight: 760;
+    }
+
+    .project-path {
+      overflow: hidden;
+      color: var(--faint);
+      font: 500 0.6875rem ui-monospace, SFMono-Regular, Consolas, monospace;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-foot {
+      margin-top: auto;
+      border-top: 1px solid var(--line);
+      padding: 16px 8px 0;
+    }
+
+    .color-study { margin-bottom: 15px; }
+    .color-study-label { display: block; margin-bottom: 8px; color: var(--faint); font-size: 0.6875rem; font-weight: 720; letter-spacing: 0.08em; text-transform: uppercase; }
+    .theme-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .theme-option {
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 3px 6px;
+      background: var(--surface-1);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.625rem;
+    }
+    .theme-option:hover { border-color: var(--line-strong); color: var(--text); }
+    .theme-option.selected { border-color: var(--blue); color: var(--text); box-shadow: 0 0 0 1px rgb(var(--blue-rgb) / 0.14); }
+    .theme-swatch { width: 22px; height: 8px; border-radius: 999px; background: var(--swatch); box-shadow: 0 0 10px color-mix(in srgb, var(--swatch) 40%, transparent); }
+
+    .readiness {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.8125rem;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      min-width: 0;
+      height: 100vh;
+      min-height: 100vh;
+      overflow: hidden;
+      background: var(--surface-0);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 68px;
+      gap: 18px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 20px;
+    }
+
+    .run-heading { min-width: 0; }
+
+    .run-title-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    h1 {
+      overflow: hidden;
+      margin: 0;
+      font-size: 1.125rem;
+      letter-spacing: -0.02em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .run-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 5px;
+      color: var(--muted);
+      font: 500 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .separator { color: var(--line-strong); }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .top-session {
+      display: grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      gap: 1px 8px;
+      min-height: 38px;
+      border-right: 1px solid var(--line);
+      padding-right: 12px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+    }
+
+    .top-session strong {
+      grid-row: 1 / 3;
+      grid-column: 2;
+      color: var(--text);
+      font: 720 0.875rem ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .top-session-label { color: var(--faint); font-weight: 680; }
+    .top-session-state { line-height: 1; }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      gap: 8px;
+      border: 1px solid var(--line-strong);
+      border-radius: 9px;
+      padding: 0 13px;
+      background: var(--surface-1);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.8125rem;
+      font-weight: 650;
+    }
+
+    .button:hover { background: var(--surface-2); }
+    .button.primary { border-color: color-mix(in srgb, var(--blue) 75%, var(--line)); background: var(--blue); color: white; }
+    .button.primary:hover { background: color-mix(in srgb, var(--blue) 84%, black); }
+    .button.danger { color: var(--red); }
+    .button.ghost { min-height: 32px; border-color: transparent; background: transparent; color: var(--muted); }
+    .button.ghost:hover { background: var(--surface-2); color: var(--text); }
+
+    .connection {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.8125rem;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(59, 210, 159, 0.11);
+    }
+
+    .dot.amber { background: var(--amber); box-shadow: 0 0 0 4px rgb(var(--amber-rgb) / 0.14); }
+    .dot.red { background: var(--red); box-shadow: 0 0 0 4px rgba(255, 107, 122, 0.11); }
+
+    .context-strip {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1.25fr;
+      align-items: center;
+      gap: 12px;
+      min-height: 68px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 20px;
+      background: var(--surface-panel);
+    }
+
+    .context-item { min-width: 0; }
+    .context-value { margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; font-weight: 630; }
+    .context-arrow { color: var(--faint); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(210px, 0.72fr) minmax(440px, 1.55fr) minmax(300px, 1fr);
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+    }
+
+    .panel:last-child { border-right: 0; }
+
+    .panel-head {
+      position: sticky;
+      z-index: 5;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 16px;
+      background: color-mix(in srgb, var(--surface-0) 96%, transparent);
+      backdrop-filter: blur(12px);
+    }
+
+    .panel-title { font-size: 0.8125rem; font-weight: 720; }
+    .panel-count { color: var(--faint); font: 500 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .workflow-body { padding: 14px; }
+
+    .stage-list {
+      position: relative;
+      display: grid;
+      gap: 3px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .stage-list::before {
+      position: absolute;
+      top: 17px;
+      bottom: 17px;
+      left: 17px;
+      width: 1px;
+      background: var(--line);
+      content: "";
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      grid-template-columns: 35px minmax(0, 1fr) auto;
+      align-items: center;
+      min-height: 43px;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 9px;
+      padding: 3px 7px 3px 0;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .stage:hover { background: var(--surface-1); }
+    .stage.active { border-color: color-mix(in srgb, var(--blue) 42%, var(--line)); background: color-mix(in srgb, var(--blue) 13%, var(--surface-1)); color: var(--text); }
+
+    .stage-marker {
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 20px;
+      height: 20px;
+      margin-left: 7px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: var(--surface-0);
+      color: var(--faint);
+      font-size: 0.6875rem;
+      font-weight: 800;
+    }
+
+    .stage.done .stage-marker { border-color: color-mix(in srgb, var(--green) 58%, var(--line)); background: var(--green-soft); color: var(--green); }
+    .stage.active .stage-marker { border-color: var(--blue); background: var(--blue); color: white; box-shadow: 0 0 0 4px rgb(var(--blue-rgb) / 0.13); }
+    .stage-name { overflow: hidden; font-size: 0.8125rem; font-weight: 620; text-overflow: ellipsis; white-space: nowrap; }
+    .stage-state { color: var(--faint); font-size: 0.6875rem; text-transform: uppercase; }
+
+    .work-items {
+      display: grid;
+      gap: 5px;
+      margin: 3px 0 8px 27px;
+      padding: 0 0 0 13px;
+      border-left: 1px solid color-mix(in srgb, var(--blue) 42%, var(--line));
+      list-style: none;
+    }
+
+    .work-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      padding: 7px 8px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+      cursor: pointer;
+    }
+
+    .work-item:hover { background: var(--surface-1); }
+    .work-item.selected { border-color: color-mix(in srgb, var(--blue) 40%, var(--line)); background: color-mix(in srgb, var(--blue) 10%, var(--surface-1)); color: var(--text); }
+    .work-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .work-item-state { color: var(--faint); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: nowrap; }
+    .work-item.done .work-item-state { color: var(--green); }
+    .work-item.blocked .work-item-state { color: var(--amber); }
+
+    .budget-card {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: var(--surface-1);
+    }
+
+    .budget-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .budget-value { color: var(--text); font: 600 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .meter {
+      height: 5px;
+      margin-top: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--track);
+    }
+
+    .meter > span { display: block; width: 31%; height: 100%; border-radius: inherit; background: var(--blue); transition: width 500ms ease; }
+
+    .provider-budget {
+      margin-top: 12px;
+    }
+
+    .provider-budget-head,
+    .usage-provider-head,
+    .usage-window {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .provider-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 650;
+    }
+
+    .provider-mark {
+      width: 7px;
+      height: 7px;
+      border-radius: 2px;
+      background: var(--blue);
+    }
+
+    .provider-mark.claude { background: var(--amber); }
+    .meter.claude > span { background: var(--amber); }
+
+    .budget-total {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 11px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .usage-card { border-color: color-mix(in srgb, var(--blue) 24%, var(--line)); }
+
+    .usage-provider {
+      margin-top: 13px;
+    }
+
+    .usage-provider + .usage-provider {
+      border-top: 1px solid var(--line);
+      padding-top: 13px;
+    }
+
+    .usage-window {
+      margin-top: 8px;
+      color: var(--faint);
+      font-size: 0.6875rem;
+    }
+
+    .usage-track {
+      position: relative;
+      height: 6px;
+      margin-top: 6px;
+      border-radius: 999px;
+      background: var(--track);
+    }
+
+    .usage-fill {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--blue);
+    }
+
+    .usage-fill.claude { background: var(--amber); }
+
+    .usage-stop {
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      width: 2px;
+      border-radius: 2px;
+      background: var(--red);
+    }
+
+    .usage-policy {
+      margin-top: 13px;
+      border-top: 1px solid var(--line);
+      padding-top: 11px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+      line-height: 1.45;
+    }
+
+    .timeline {
+      position: relative;
+      padding: 14px 18px 28px 30px;
+    }
+
+    .timeline::before {
+      position: absolute;
+      top: 16px;
+      bottom: 22px;
+      left: 16px;
+      width: 2px;
+      border-radius: 3px;
+      background: linear-gradient(var(--blue), var(--amber) 48%, var(--cyan));
+      content: "";
+      opacity: 0.72;
+    }
+
+    .event {
+      position: relative;
+      margin-bottom: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-1);
+      box-shadow: 0 7px 22px rgba(0, 0, 0, 0.12);
+      animation: enter 260ms ease both;
+    }
+
+    .event::before {
+      position: absolute;
+      top: 18px;
+      left: -22px;
+      width: 8px;
+      height: 8px;
+      border: 2px solid var(--surface-0);
+      border-radius: 999px;
+      background: var(--blue);
+      content: "";
+    }
+
+    .event.claude::before { background: var(--amber); }
+    .event.system::before { background: var(--cyan); }
+
+    .event-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 13px;
+    }
+
+    .actor {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 8px;
+      font-size: 0.75rem;
+      font-weight: 760;
+      letter-spacing: 0.045em;
+      text-transform: uppercase;
+    }
+
+    .actor-badge {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border: 1px solid color-mix(in srgb, var(--blue) 56%, var(--line));
+      border-radius: 7px;
+      background: var(--blue-soft);
+      color: color-mix(in srgb, var(--blue) 55%, var(--text));
+      font-size: 0.6875rem;
+    }
+
+    .claude .actor-badge { border-color: color-mix(in srgb, var(--amber) 52%, var(--line)); background: var(--amber-soft); color: color-mix(in srgb, var(--amber) 70%, var(--text)); }
+    .system .actor-badge { border-color: color-mix(in srgb, var(--cyan) 55%, var(--line)); background: color-mix(in srgb, var(--cyan) 12%, var(--surface-1)); color: var(--cyan); }
+
+    .event-type { color: var(--muted); font-weight: 580; letter-spacing: 0; text-transform: none; }
+    .event-time { color: var(--faint); font: 500 0.6875rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .event-body { padding: 13px; }
+    .event-summary { margin: 0; color: var(--text); font-size: 0.875rem; line-height: 1.5; }
+
+    .evidence-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 11px;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: color-mix(in srgb, var(--blue) 76%, var(--text));
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 620;
+    }
+
+    .challenge {
+      border-color: color-mix(in srgb, var(--amber) 48%, var(--line));
+      background: color-mix(in srgb, var(--amber) 8%, var(--surface-1));
+    }
+
+    .challenge-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: color-mix(in srgb, var(--amber) 72%, var(--text));
+      font-size: 0.8125rem;
+      font-weight: 700;
+    }
+
+    .challenge-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 13px;
+    }
+
+    .micro-button {
+      min-height: 31px;
+      border: 1px solid color-mix(in srgb, var(--amber) 52%, var(--line));
+      border-radius: 7px;
+      padding: 0 10px;
+      background: var(--amber-soft);
+      color: color-mix(in srgb, var(--amber) 72%, var(--text));
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 650;
+    }
+
+    .micro-button:hover { background: color-mix(in srgb, var(--amber) 18%, var(--surface-1)); }
+
+    .working-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 11px;
+      color: var(--cyan);
+      font: 500 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .pulse {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--cyan);
+      animation: pulse 1.35s ease-in-out infinite;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 3px;
+      overflow-x: auto;
+      padding: 9px 12px 0;
+    }
+
+    .tab {
+      min-height: 34px;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      padding: 0 9px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab.active { border-bottom-color: var(--blue); color: var(--text); }
+
+    .evidence-body { padding: 14px; }
+    .tab-panel[hidden] { display: none; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 10px;
+      background: var(--surface-1);
+    }
+
+    .stat-value { margin-top: 5px; font: 700 0.9375rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+
+    .file-list,
+    .check-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .file,
+    .check {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      min-height: 42px;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.8125rem;
+    }
+
+    .file:last-child,
+    .check:last-child { border-bottom: 0; }
+    .file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .delta { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .check-main {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 9px;
+    }
+
+    .check-icon { width: 18px; color: var(--green); text-align: center; }
+    .check-icon.pending { color: var(--faint); }
+    .check-icon.failed { color: var(--red); }
+    .check-meta { color: var(--faint); font: 500 0.6875rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .fingerprint {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 11px;
+      background: var(--detail);
+    }
+
+    .fingerprint-code { display: block; overflow: hidden; margin-top: 5px; color: var(--muted); font: 500 0.75rem ui-monospace, SFMono-Regular, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+
+    .console {
+      border-top: 1px solid var(--line);
+      background: var(--console);
+    }
+
+    .console-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 40px;
+      padding: 0 18px;
+      cursor: pointer;
+    }
+
+    .console-title { display: flex; align-items: center; gap: 9px; font-size: 0.75rem; font-weight: 680; }
+    .console-body { height: 112px; overflow: auto; border-top: 1px solid var(--line); padding: 11px 18px; color: var(--muted); font: 500 0.75rem/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .console.collapsed .console-body { display: none; }
+    .console-line::before { margin-right: 9px; color: var(--faint); content: attr(data-time); }
+    .console-line.accent { color: var(--cyan); }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      gap: 6px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      padding: 0 8px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill.blue { border-color: color-mix(in srgb, var(--blue) 58%, var(--line)); background: var(--blue-soft); color: color-mix(in srgb, var(--blue) 72%, var(--text)); }
+    .pill.green { border-color: color-mix(in srgb, var(--green) 52%, var(--line)); background: var(--green-soft); color: color-mix(in srgb, var(--green) 72%, var(--text)); }
+    .pill.amber { border-color: color-mix(in srgb, var(--amber) 52%, var(--line)); background: var(--amber-soft); color: color-mix(in srgb, var(--amber) 72%, var(--text)); }
+
+    .notice {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid color-mix(in srgb, var(--amber) 52%, var(--line));
+      padding: 10px 20px;
+      background: var(--amber-soft);
+      color: color-mix(in srgb, var(--amber) 72%, var(--text));
+      font-size: 0.8125rem;
+    }
+
+    .notice.visible { display: flex; }
+
+    .modal-backdrop {
+      position: fixed;
+      z-index: 30;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(2, 4, 8, 0.74);
+    }
+
+    .modal-backdrop[hidden] { display: none; }
+
+    .modal {
+      width: min(440px, 100%);
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      padding: 20px;
+      background: var(--surface-1);
+      box-shadow: var(--shadow);
+    }
+
+    .modal h2 { margin: 0 0 8px; font-size: 1.0625rem; }
+    .modal p { margin: 0; color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+    .toast {
+      position: fixed;
+      z-index: 40;
+      right: 20px;
+      bottom: 22px;
+      max-width: 360px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      padding: 11px 14px;
+      background: var(--toast);
+      box-shadow: var(--shadow);
+      color: var(--text);
+      font-size: 0.8125rem;
+      transform: translateY(16px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.visible { transform: translateY(0); opacity: 1; }
+
+    @keyframes enter {
+      from { transform: translateY(6px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.8); opacity: 0.48; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+
+    @media (max-width: 1180px) {
+      .app { grid-template-columns: 76px minmax(0, 1fr); }
+      .brand { justify-content: center; padding-inline: 0; }
+      .brand-copy, .nav-label, .nav-text, .active-run, .sidebar-foot { display: none; }
+      .nav-button { justify-content: center; padding: 0; }
+      .workspace { grid-template-columns: 210px minmax(420px, 1.4fr) minmax(285px, 1fr); overflow-x: auto; }
+    }
+
+    @media (max-width: 820px) {
+      body { overflow: auto; }
+      .app { display: block; }
+      .sidebar { position: sticky; z-index: 20; top: 0; flex-direction: row; align-items: center; height: 58px; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
+      .brand { padding: 0 10px 0 0; }
+      .nav-list { display: flex; margin: 0; }
+      .nav-button { width: 42px; }
+      .main { min-height: calc(100vh - 58px); }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .top-actions { width: 100%; overflow-x: auto; }
+      .context-strip { grid-template-columns: 1fr; }
+      .context-arrow { display: none; }
+      .workspace { display: block; overflow: visible; }
+      .panel { max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+      .workflow-body { max-height: 420px; overflow: auto; }
+      .timeline { min-height: 560px; }
+      .console-body { height: 150px; }
+    }
+
+    /* Selected direction: collaboration-first cockpit with collapsible context rails. */
+    .app {
+      grid-template-columns: 244px minmax(0, 1fr);
+      transition: grid-template-columns 220ms ease;
+    }
+
+    .sidebar { position: relative; align-items: stretch; padding: 18px 14px; }
+    .brand { justify-content: flex-start; padding: 2px 8px 22px; }
+    .brand-copy,
+    .sidebar .nav-label,
+    .sidebar .nav-text,
+    .sidebar-foot { display: block; }
+    .nav-button { justify-content: flex-start; padding: 0 11px; }
+
+    .sidebar-collapse {
+      position: absolute;
+      z-index: 6;
+      top: 24px;
+      right: -12px;
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--line-strong);
+      border-radius: 999px;
+      background: var(--surface-1);
+      color: var(--muted);
+      cursor: pointer;
+      box-shadow: 0 5px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .sidebar-collapse:hover { border-color: var(--blue); color: var(--text); }
+    .app.nav-collapsed { grid-template-columns: 72px minmax(0, 1fr); }
+    .app.nav-collapsed .sidebar { padding: 14px 9px; }
+    .app.nav-collapsed .brand { justify-content: center; padding: 2px 0 22px; }
+    .app.nav-collapsed .brand-copy,
+    .app.nav-collapsed .sidebar .nav-label,
+    .app.nav-collapsed .sidebar .nav-text,
+    .app.nav-collapsed .sidebar-foot { display: none; }
+    .app.nav-collapsed .nav-button { justify-content: center; padding: 0; }
+
+    .main { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+
+    .project-switcher {
+      display: flex;
+      min-width: 0;
+      gap: 10px;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--line);
+      padding: 11px 16px;
+      background: var(--surface-nav);
+      scrollbar-width: thin;
+    }
+
+    .project-switcher .run-link {
+      min-width: 220px;
+      width: 220px;
+      flex: 0 0 220px;
+      padding: 10px 12px;
+      background: var(--surface-1);
+    }
+
+    .project-switcher .run-link + .run-link { margin-top: 0; }
+    .project-switcher .run-link.selected {
+      border-color: var(--blue);
+      background: color-mix(in srgb, var(--blue) 13%, var(--surface-1));
+      box-shadow: inset 3px 0 0 var(--blue), 0 0 22px rgb(var(--blue-rgb) / 0.08);
+    }
+
+    .project-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+      font-weight: 720;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .project-state .dot { width: 6px; height: 6px; box-shadow: 0 0 8px currentColor; }
+    .dot.muted { background: var(--faint); box-shadow: none; }
+
+    .add-project {
+      width: 48px;
+      min-width: 48px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.25rem;
+    }
+
+    .add-project:hover { border-color: var(--blue); color: var(--text); background: var(--surface-1); }
+
+    .workspace {
+      grid-template-columns: 250px minmax(520px, 1fr) 350px;
+      transition: grid-template-columns 220ms ease;
+    }
+
+    .workspace.workflow-collapsed { grid-template-columns: 48px minmax(520px, 1fr) 350px; }
+    .workspace.evidence-collapsed { grid-template-columns: 250px minmax(520px, 1fr) 48px; }
+    .workspace.workflow-collapsed.evidence-collapsed { grid-template-columns: 48px minmax(520px, 1fr) 48px; }
+
+    .panel-head-actions { display: flex; align-items: center; gap: 9px; min-width: 0; }
+
+    .collapse-button {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      flex: 0 0 28px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-1);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .collapse-button:hover { border-color: var(--line-strong); color: var(--text); }
+
+    .panel.is-collapsed { overflow: hidden; }
+    .workflow.is-collapsed .workflow-body,
+    .evidence.is-collapsed .right-panel-body,
+    .evidence.is-collapsed .tabs,
+    .evidence.is-collapsed .evidence-body { display: none; }
+
+    .panel.is-collapsed .panel-head {
+      position: static;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 14px;
+      padding: 10px 0;
+    }
+
+    .panel.is-collapsed .panel-head-actions { flex-direction: column; }
+    .panel.is-collapsed .panel-title {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .panel.is-collapsed .panel-count,
+    .evidence.is-collapsed .pill { display: none; }
+
+    .right-panel-body { border-bottom: 1px solid var(--line); padding: 12px; }
+    .right-panel-body .budget-card { margin-top: 0; padding: 12px; }
+    .right-panel-body .budget-card + .budget-card { margin-top: 10px; }
+
+    .budget-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      margin-top: 11px;
+      border-top: 1px solid var(--line);
+      padding-top: 9px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+    }
+
+    .budget-inline b { color: var(--text); font: 650 0.6875rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .collaboration { background: radial-gradient(circle at 50% -12%, rgb(var(--blue-rgb) / 0.09), transparent 34%); }
+    .collaboration .panel-head { padding-inline: 20px; }
+
+    .worker-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid color-mix(in srgb, var(--amber) 55%, var(--line));
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: var(--amber-soft);
+      color: color-mix(in srgb, var(--amber) 72%, var(--text));
+      font-size: 0.75rem;
+      font-weight: 680;
+    }
+
+    .worker-indicator .pulse { background: var(--amber); box-shadow: 0 0 13px rgb(var(--amber-rgb) / 0.78); }
+
+    .runtime-deck {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(260px, 1fr));
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      padding: 12px;
+      background: color-mix(in srgb, var(--surface-0) 78%, transparent);
+    }
+
+    .agent-runtime {
+      position: relative;
+      min-width: 0;
+      overflow: visible;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface-1);
+    }
+
+    .agent-runtime {
+      z-index: 1;
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr) max-content;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      transition: border-color 180ms ease, box-shadow 180ms ease;
+    }
+    .agent-runtime:focus-within { z-index: 30; }
+    .agent-runtime.active {
+      border-color: color-mix(in srgb, var(--amber) 66%, var(--line));
+      background: linear-gradient(135deg, color-mix(in srgb, var(--amber) 10%, var(--surface-1)), var(--surface-1) 62%);
+      box-shadow: 0 0 0 1px rgb(var(--amber-rgb) / 0.14), 0 10px 34px rgb(var(--amber-rgb) / 0.14);
+    }
+
+    .agent-runtime.active::before {
+      position: absolute;
+      top: 0;
+      left: -42%;
+      width: 42%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--amber) 68%, white), transparent);
+      content: "";
+      animation: working-scan 2.1s linear infinite;
+    }
+
+    .agent-runtime-head { display: contents; }
+    .agent-runtime-name { display: flex; align-items: center; min-width: 0; gap: 9px; font-size: 0.8125rem; font-weight: 750; }
+
+    .live-avatar {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border: 1px solid color-mix(in srgb, var(--blue) 58%, var(--line));
+      border-radius: 8px;
+      background: var(--blue-soft);
+      color: color-mix(in srgb, var(--blue) 55%, var(--text));
+      font: 760 0.6875rem ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .claude-runtime .live-avatar { border-color: color-mix(in srgb, var(--amber) 55%, var(--line)); background: var(--amber-soft); color: color-mix(in srgb, var(--amber) 70%, var(--text)); }
+    .agent-runtime.active .live-avatar::before {
+      position: absolute;
+      inset: -5px;
+      border: 1px solid rgb(var(--amber-rgb) / 0.68);
+      border-top-color: transparent;
+      border-radius: 11px;
+      content: "";
+      animation: working-orbit 1.5s linear infinite;
+    }
+
+    .runtime-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.6875rem;
+      font-weight: 720;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .runtime-state .state-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--faint); }
+    .agent-runtime.active .runtime-state { color: color-mix(in srgb, var(--amber) 76%, var(--text)); }
+    .agent-runtime.active .runtime-state .state-dot { background: var(--amber); box-shadow: 0 0 10px rgb(var(--amber-rgb) / 0.92); animation: pulse 1.2s ease-in-out infinite; }
+
+    .working-dots::after { content: ""; animation: working-dots 1.4s steps(4, end) infinite; }
+
+    .runtime-quick-controls {
+      grid-row: 1;
+      grid-column: 3;
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 6px;
+      margin: 0;
+    }
+
+    .agent-runtime-name { grid-row: 1; grid-column: 1; }
+    .runtime-state { grid-row: 1; grid-column: 2; justify-self: end; }
+
+    .runtime-popover-wrap { position: relative; min-width: 0; }
+    .runtime-popover-wrap.primary { flex: 0 1 auto; }
+
+    .runtime-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      min-height: 30px;
+      gap: 6px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 0 9px;
+      background: var(--control);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .runtime-trigger:hover,
+    .runtime-trigger[aria-expanded="true"] { border-color: var(--line-strong); background: var(--control-hover); color: var(--text); }
+    .runtime-trigger.primary { justify-content: flex-start; width: auto; overflow: hidden; }
+    .runtime-trigger.primary span:first-child { overflow: hidden; text-overflow: ellipsis; }
+
+    .context-trigger {
+      position: relative;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      border: 0;
+      border-radius: 50%;
+      padding: 0;
+      background: conic-gradient(var(--blue) var(--context-percent), var(--track) 0);
+      color: var(--text);
+      cursor: pointer;
+      font: 700 0.5625rem ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    .context-trigger::before { position: absolute; inset: 3px; border-radius: 50%; background: var(--surface-1); content: ""; }
+    .context-trigger span { position: relative; z-index: 1; }
+    .claude-runtime .context-trigger { background: conic-gradient(var(--amber) var(--context-percent), color-mix(in srgb, var(--amber) 16%, var(--track)) 0); }
+    .context-trigger:hover { filter: brightness(1.15); }
+
+    .runtime-popover {
+      position: absolute;
+      z-index: 20;
+      right: 0;
+      top: calc(100% + 9px);
+      width: min(260px, calc(100vw - 36px));
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--popover);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.46);
+    }
+
+    .runtime-popover[hidden] { display: none; }
+    .codex-runtime .runtime-popover { right: auto; left: 0; }
+    .runtime-popover-title { margin-bottom: 10px; color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+    .runtime-popover .runtime-controls { display: grid; grid-template-columns: 1fr 0.72fr; gap: 8px; }
+    .runtime-popover .runtime-field:last-child { grid-column: 1 / -1; }
+
+    .runtime-field { min-width: 0; }
+    .runtime-field label { display: block; margin-bottom: 4px; color: var(--faint); font-size: 0.6875rem; font-weight: 680; }
+    .runtime-select {
+      width: 100%;
+      height: 30px;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 0 7px;
+      background: var(--input);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    .runtime-select:hover { border-color: var(--line-strong); }
+
+    .context-control { display: grid; grid-template-columns: 1fr auto; gap: 7px 9px; align-items: center; }
+    .context-copy { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 0.6875rem; }
+    .context-copy strong { color: var(--text); font: 650 0.6875rem ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .context-meter { height: 5px; overflow: hidden; border-radius: 999px; background: var(--track); }
+    .context-meter span { display: block; height: 100%; border-radius: inherit; background: var(--blue); transition: width 360ms ease; }
+    .claude-runtime .context-meter span { background: var(--amber); }
+
+    .compact-button {
+      grid-row: 1 / 3;
+      grid-column: 2;
+      min-height: 35px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      padding: 0 9px;
+      background: var(--control);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.6875rem;
+      font-weight: 680;
+    }
+
+    .compact-button:hover { border-color: var(--blue); color: var(--text); }
+    .compact-button:disabled { cursor: wait; opacity: 0.7; }
+    .compact-note { grid-column: 1 / -1; margin: 1px 0 0; color: var(--faint); font-size: 0.6875rem; }
+
+    .collaboration .timeline {
+      width: 100%;
+      max-width: none;
+      margin: 0 auto;
+      padding: 20px clamp(22px, 2vw, 42px) 34px;
+    }
+
+    .collaboration .timeline::before { top: 24px; bottom: 30px; left: 50%; width: 1px; }
+    .collaboration .event { width: calc(50% - 32px); margin-bottom: 16px; }
+    .collaboration .event.codex { margin-right: auto; }
+    .collaboration .event.claude { margin-left: auto; }
+    .collaboration .event.system { width: 68%; margin-right: auto; margin-left: auto; border-color: color-mix(in srgb, var(--cyan) 52%, var(--line)); }
+    .collaboration .event.codex::before { right: -39px; left: auto; }
+    .collaboration .event.claude::before { right: auto; left: -39px; }
+    .collaboration .event.system::before { right: auto; left: calc(50% - 5px); top: -14px; }
+
+    .event.active-worker {
+      border-color: color-mix(in srgb, var(--amber) 66%, var(--line));
+      background: linear-gradient(145deg, color-mix(in srgb, var(--amber) 9%, var(--surface-1)), var(--surface-1) 62%);
+      box-shadow: 0 0 0 1px rgb(var(--amber-rgb) / 0.16), 0 16px 44px rgb(var(--amber-rgb) / 0.16);
+    }
+
+    .event.active-worker::after {
+      position: absolute;
+      top: -10px;
+      right: 12px;
+      border: 1px solid color-mix(in srgb, var(--amber) 62%, var(--line));
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: var(--amber-soft);
+      color: color-mix(in srgb, var(--amber) 72%, var(--text));
+      content: "WORKING NOW";
+      font-size: 0.625rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    @media (min-width: 901px) and (max-width: 1250px) {
+      .workspace { grid-template-columns: 220px minmax(420px, 1fr) 320px; }
+      .workspace.workflow-collapsed { grid-template-columns: 48px minmax(420px, 1fr) 320px; }
+      .workspace.evidence-collapsed { grid-template-columns: 220px minmax(420px, 1fr) 48px; }
+      .workspace.workflow-collapsed.evidence-collapsed { grid-template-columns: 48px minmax(420px, 1fr) 48px; }
+      .collaboration .timeline { padding-left: 34px; padding-right: 18px; }
+      .collaboration .timeline::before { left: 17px; }
+      .collaboration .event,
+      .collaboration .event.system { width: auto; margin-right: 0; margin-left: 0; }
+      .collaboration .event.codex::before,
+      .collaboration .event.claude::before,
+      .collaboration .event.system::before { top: 18px; right: auto; left: -23px; }
+      .runtime-deck { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (min-width: 901px) and (max-width: 1400px) {
+      .runtime-deck { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+      .app { display: block; }
+      .sidebar { position: static; flex-direction: row; align-items: center; height: 58px; border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 10px; }
+      .brand { padding: 0 10px 0 0; }
+      .brand-copy,
+      .sidebar .nav-label,
+      .sidebar .nav-text,
+      .sidebar-foot,
+      .sidebar-collapse { display: none; }
+      .nav-list { display: flex; margin: 0; }
+      .nav-button { width: 42px; }
+      .main { height: auto; min-height: calc(100vh - 58px); overflow: visible; }
+      .project-switcher { padding-inline: 10px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .top-actions { width: 100%; overflow-x: auto; }
+      .context-strip { grid-template-columns: 1fr; }
+      .context-arrow { display: none; }
+      .workspace,
+      .workspace.workflow-collapsed,
+      .workspace.evidence-collapsed,
+      .workspace.workflow-collapsed.evidence-collapsed { display: block; }
+      .panel { max-height: none; overflow: visible; border-right: 0; border-bottom: 1px solid var(--line); }
+      .collapse-button { display: none; }
+      .panel.is-collapsed .workflow-body,
+      .panel.is-collapsed .right-panel-body,
+      .panel.is-collapsed .tabs,
+      .panel.is-collapsed .evidence-body { display: block; }
+      .panel.is-collapsed .panel-head { height: auto; min-height: 48px; flex-direction: row; justify-content: space-between; padding: 0 16px; }
+      .panel.is-collapsed .panel-head-actions { flex-direction: row; }
+      .panel.is-collapsed .panel-title { writing-mode: horizontal-tb; transform: none; }
+      .panel.is-collapsed .panel-count,
+      .evidence.is-collapsed .pill { display: inline-flex; }
+      .collaboration .timeline { min-height: 0; padding: 18px 18px 26px 32px; }
+      .collaboration .timeline::before { left: 16px; }
+      .collaboration .event,
+      .collaboration .event.system { width: auto; margin-right: 0; margin-left: 0; }
+      .collaboration .event.codex::before,
+      .collaboration .event.claude::before,
+      .collaboration .event.system::before { top: 18px; right: auto; left: -22px; }
+      .runtime-deck { grid-template-columns: 1fr; }
+      .top-session { margin-right: 2px; }
+      .console-body { height: 150px; }
+    }
+
+    @media (max-width: 560px) {
+      .agent-runtime { gap: 7px; padding-inline: 8px; }
+      .agent-runtime-name { gap: 6px; }
+      .agent-runtime-name > span:last-child { display: none; }
+      .runtime-state { width: 8px; overflow: hidden; }
+      .runtime-state .state-dot { flex: 0 0 6px; }
+    }
+
+    @keyframes working-scan {
+      from { transform: translateX(0); }
+      to { transform: translateX(340%); }
+    }
+
+    @keyframes working-orbit { to { transform: rotate(360deg); } }
+    @keyframes working-dots {
+      0% { content: ""; }
+      25% { content: "."; }
+      50% { content: ".."; }
+      75%, 100% { content: "..."; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <div class="app">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <button class="sidebar-collapse" id="collapseSidebar" aria-label="Collapse primary navigation" aria-expanded="true">‹</button>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">DC</div>
+        <div class="brand-copy">
+          <div class="brand-name">DevalCopilot</div>
+          <div class="brand-version">controller v0.1</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="nav-label">Workspace</div>
+        <ul class="nav-list">
+          <li><button class="nav-button" data-nav="Projects"><span class="nav-icon" aria-hidden="true">◇</span><span class="nav-text">Projects</span></button></li>
+          <li><button class="nav-button active" data-nav="Run cockpit"><span class="nav-icon" aria-hidden="true">⌁</span><span class="nav-text">Run cockpit</span></button></li>
+          <li><button class="nav-button" data-nav="History"><span class="nav-icon" aria-hidden="true">◷</span><span class="nav-text">History</span></button></li>
+          <li><button class="nav-button" data-nav="Settings"><span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-text">Settings</span></button></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-foot">
+        <div class="color-study" role="group" aria-label="Appearance">
+          <span class="color-study-label">Appearance</span>
+          <div class="theme-options">
+            <button class="theme-option selected" data-theme-choice="dark" aria-pressed="true"><span class="theme-swatch" style="--swatch:#07101c"></span><span>Dark</span></button>
+            <button class="theme-option" data-theme-choice="light" aria-pressed="false"><span class="theme-swatch" style="--swatch:#ffffff; border:1px solid #b9c9d8"></span><span>Light</span></button>
+          </div>
+        </div>
+        <div class="readiness"><span>Tool readiness</span><span class="pill amber">4 ready · 2 missing</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="notice" id="offlineNotice" role="status">
+        <span>Connection lost. Showing durable state through event sequence 184.</span>
+        <button class="micro-button" id="reconnectButton">Reconnect</button>
+      </div>
+
+      <nav class="project-switcher" aria-label="Managed projects">
+        <button class="run-link selected" data-project-run data-project="DevalCopilot" data-path="C:\Users\denis\Desktop\AIProjects\DevalCopilot" data-run="18" data-objective="Token budget controls" data-branch="candidate/run-18-token-controls" data-hash="7f2ac91" data-status="Running · Implementation" data-worker="Claude" data-worker-event="activeWorkerEvent" data-session="8256">
+          <span class="run-link-top"><span class="run-link-title">DevalCopilot</span><span class="project-state running"><span class="dot"></span>Running</span></span>
+          <span class="run-link-bottom"><span>Execution 18 · Delivery</span><span>2 / 6</span></span>
+        </button>
+        <button class="run-link" data-project-run data-project="Verse &amp; Vestige" data-path="C:\Users\denis\Desktop\AIProjects\VerseAndVestige" data-run="42" data-objective="Historical source review" data-branch="candidate/run-42-source-review" data-hash="f2b50c3" data-status="Review · Codex" data-worker="Codex" data-worker-event="codexDecisionEvent" data-session="5580">
+          <span class="run-link-top"><span class="run-link-title">Verse &amp; Vestige</span><span class="project-state review"><span class="dot amber"></span>Review</span></span>
+          <span class="run-link-bottom"><span>Execution 42 · Review</span><span>2 / 6</span></span>
+        </button>
+        <button class="run-link" data-project-run data-project="CommitAhead" data-path="C:\Users\denis\Desktop\AIProjects\CommitAhead" data-run="7" data-objective="Repository health summary" data-branch="candidate/run-7-health-summary" data-hash="91bc228" data-status="Paused · Decision required" data-worker="Codex" data-worker-event="codexProposalEvent" data-session="2520">
+          <span class="run-link-top"><span class="run-link-title">CommitAhead</span><span class="project-state paused"><span class="dot muted"></span>Paused</span></span>
+          <span class="run-link-bottom"><span>Execution 7 · Resolution</span><span>1 / 6</span></span>
+        </button>
+        <button class="add-project" data-toast="Project onboarding would open here" aria-label="Add managed project">+</button>
+      </nav>
+
+      <header class="topbar">
+        <div class="run-heading">
+          <div class="project-identity">
+            <span>Project</span>
+            <span class="project-name" id="projectName">DevalCopilot</span>
+          </div>
+          <div class="run-title-line">
+            <h1 id="runTitle">Token budget controls</h1>
+            <span class="pill blue" id="runStatus">Running · Implementation</span>
+          </div>
+          <div class="run-meta">
+            <span id="runNumber">Execution 18</span>
+            <span class="separator">·</span>
+            <button class="connection" id="connectionButton" aria-label="Toggle connection state"><span class="dot" id="connectionDot"></span><span id="connectionText">Live</span></button>
+          </div>
+        </div>
+        <div class="top-actions">
+          <div class="top-session" title="Autonomous time for this execution">
+            <span class="top-session-label">Session</span>
+            <span class="top-session-state" id="sessionDetail">Active</span>
+            <strong id="sessionElapsed">02:17:36</strong>
+          </div>
+          <button class="button" id="simulateButton">▶ Start simulation</button>
+          <button class="button" id="pauseButton">Pause</button>
+          <button class="button danger" id="stopButton">Stop</button>
+        </div>
+      </header>
+
+      <section class="workspace" aria-label="Run workspace">
+        <section class="panel workflow" aria-labelledby="workflowTitle">
+          <div class="panel-head">
+            <div class="panel-head-actions"><button class="collapse-button" id="collapseWorkflow" aria-label="Collapse workflow" aria-expanded="true">‹</button><span class="panel-title" id="workflowTitle">Workflow</span></div>
+            <span class="panel-count">2 / 6</span>
+          </div>
+          <div class="workflow-body">
+            <ol class="stage-list" id="stageList">
+              <li class="stage done" data-stage="0"><span class="stage-marker">✓</span><span class="stage-name">Intake & baseline</span><span class="stage-state">done</span></li>
+              <li class="stage done" data-stage="1"><span class="stage-marker">✓</span><span class="stage-name">Run plan</span><span class="stage-state">done</span></li>
+              <li class="stage active" data-stage="2"><span class="stage-marker">●</span><span class="stage-name">Delivery · 1 of 4</span><span class="stage-state">active</span></li>
+              <li>
+                <ul class="work-items" aria-label="Delivery work items">
+                  <li class="work-item done"><span class="work-item-name">A · Local authentication</span><span class="work-item-state">✓ done</span></li>
+                  <li class="work-item selected"><span class="work-item-name">B · Durable persistence</span><span class="work-item-state">attempt 3</span></li>
+                  <li class="work-item blocked"><span class="work-item-name">C · Cockpit UI</span><span class="work-item-state">blocked by B</span></li>
+                  <li class="work-item"><span class="work-item-name">D · Tauri shell</span><span class="work-item-state">ready</span></li>
+                </ul>
+              </li>
+              <li class="stage" data-stage="3"><span class="stage-marker">3</span><span class="stage-name">Publication</span><span class="stage-state">gated</span></li>
+              <li class="stage" data-stage="4"><span class="stage-marker">4</span><span class="stage-name">GitHub CI</span><span class="stage-state">queued</span></li>
+              <li class="stage" data-stage="5"><span class="stage-marker">5</span><span class="stage-name">Ready for human</span><span class="stage-state">queued</span></li>
+            </ol>
+
+          </div>
+        </section>
+
+        <section class="panel collaboration" aria-labelledby="collaborationTitle">
+          <div class="panel-head">
+            <span class="panel-title" id="collaborationTitle">Agent collaboration</span>
+            <span class="worker-indicator" id="workerIndicator"><span class="pulse"></span><span id="workerLabel">Claude working · attempt 3</span></span>
+          </div>
+          <section class="runtime-deck" aria-label="Agent runtime controls">
+            <article class="agent-runtime codex-runtime" id="codexRuntime">
+              <div class="agent-runtime-head">
+                <div class="agent-runtime-name"><span class="live-avatar">CX</span><span>Codex</span></div>
+                <span class="runtime-state" id="codexRuntimeState"><span class="state-dot"></span><span>Waiting</span></span>
+              </div>
+              <div class="runtime-quick-controls">
+                <div class="runtime-popover-wrap primary">
+                  <button class="runtime-trigger primary" data-popover-target="codexSettings" aria-expanded="false"><span><span id="codexModelSummary">GPT-5.3-Codex</span> · <span id="codexEffortSummary">High</span></span><span aria-hidden="true">⌄</span></button>
+                  <div class="runtime-popover" id="codexSettings" data-popover hidden>
+                    <div class="runtime-popover-title">Codex settings</div>
+                    <div class="runtime-controls">
+                      <div class="runtime-field"><label for="codexModel">Model</label><select class="runtime-select" id="codexModel" data-provider="Codex" data-summary="codexModelSummary"><option>GPT-5.6 Sol</option><option selected>GPT-5.3-Codex</option><option>GPT-6 Astra</option></select></div>
+                      <div class="runtime-field"><label for="codexEffort">Effort</label><select class="runtime-select" id="codexEffort" data-provider="Codex" data-summary="codexEffortSummary"><option>Low</option><option>Medium</option><option selected>High</option><option>XHigh</option></select></div>
+                      <div class="runtime-field"><label for="codexMode">Mode</label><select class="runtime-select" id="codexMode" data-provider="Codex" data-summary="codexModeSummary"><option selected>Auto</option><option>Manual</option><option>Read only</option></select></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="runtime-popover-wrap">
+                  <button class="context-trigger" data-popover-target="codexContext" aria-expanded="false" style="--context-percent:46%" aria-label="Codex context: 46 percent used"><span id="codexContextTriggerValue">46%</span></button>
+                  <div class="runtime-popover" id="codexContext" data-popover hidden>
+                    <div class="runtime-popover-title">Context window</div>
+                    <div class="context-control">
+                      <div class="context-copy"><span>Used</span><strong id="codexContextValue">184k / 400k</strong></div>
+                      <div class="context-meter" aria-label="Codex context window is 46 percent used"><span id="codexContextMeter" style="width:46%"></span></div>
+                      <button class="compact-button" data-compact="codex">Compact</button>
+                      <p class="compact-note">Compacts automatically at 90%</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="agent-runtime claude-runtime active" id="claudeRuntime">
+              <div class="agent-runtime-head">
+                <div class="agent-runtime-name"><span class="live-avatar">CL</span><span>Claude</span></div>
+                <span class="runtime-state" id="claudeRuntimeState"><span class="state-dot"></span><span class="working-dots">Working</span></span>
+              </div>
+              <div class="runtime-quick-controls">
+                <div class="runtime-popover-wrap primary">
+                  <button class="runtime-trigger primary" data-popover-target="claudeSettings" aria-expanded="false"><span><span id="claudeModelSummary">Sonnet 5</span> · <span id="claudeEffortSummary">High</span></span><span aria-hidden="true">⌄</span></button>
+                  <div class="runtime-popover" id="claudeSettings" data-popover hidden>
+                    <div class="runtime-popover-title">Claude settings</div>
+                    <div class="runtime-controls">
+                      <div class="runtime-field"><label for="claudeModel">Model</label><select class="runtime-select" id="claudeModel" data-provider="Claude" data-summary="claudeModelSummary"><option selected>Sonnet 5</option><option>Opus</option><option>Haiku</option></select></div>
+                      <div class="runtime-field"><label for="claudeEffort">Effort</label><select class="runtime-select" id="claudeEffort" data-provider="Claude" data-summary="claudeEffortSummary"><option>Low</option><option>Medium</option><option selected>High</option></select></div>
+                      <div class="runtime-field"><label for="claudeMode">Mode</label><select class="runtime-select" id="claudeMode" data-provider="Claude" data-summary="claudeModeSummary"><option>Auto</option><option>Manual</option><option selected>Accept edits</option><option>Plan only</option></select></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="runtime-popover-wrap">
+                  <button class="context-trigger" data-popover-target="claudeContext" aria-expanded="false" style="--context-percent:58%" aria-label="Claude context: 58 percent used"><span id="claudeContextTriggerValue">58%</span></button>
+                  <div class="runtime-popover" id="claudeContext" data-popover hidden>
+                    <div class="runtime-popover-title">Context window</div>
+                    <div class="context-control">
+                      <div class="context-copy"><span>Used</span><strong id="claudeContextValue">116k / 200k</strong></div>
+                      <div class="context-meter" aria-label="Claude context window is 58 percent used"><span id="claudeContextMeter" style="width:58%"></span></div>
+                      <button class="compact-button" data-compact="claude">Compact</button>
+                      <p class="compact-note">Compacts automatically at 90%</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+          <div class="timeline" id="timeline" aria-live="polite">
+            <article class="event codex" id="codexProposalEvent">
+              <div class="event-head">
+                <div class="actor"><span class="actor-badge">CX</span><span>Codex</span><span class="event-type">Proposal</span></div>
+                <time class="event-time">14:32:06</time>
+              </div>
+              <div class="event-body">
+                <p class="event-summary">Track run budgets and provider limits separately.</p>
+                <button class="evidence-link" data-toast="Opened plan revision 3">Plan v3 · 7 sources ↗</button>
+              </div>
+            </article>
+
+            <article class="event claude challenge" id="challengeCard">
+              <div class="event-head">
+                <div class="actor"><span class="actor-badge">CL</span><span>Claude</span><span class="event-type">Challenge C1</span></div>
+                <time class="event-time">14:33:19</time>
+              </div>
+              <div class="event-body">
+                <div class="challenge-title"><span aria-hidden="true">△</span><span>Cached tokens use a different rate.</span></div>
+                <p class="event-summary">One total could stop the wrong provider. Keep input, output, and cached usage separate.</p>
+                <button class="evidence-link" data-toast="Opened provider usage evidence">Provider evidence ↗</button>
+                <div class="challenge-actions" id="challengeActions">
+                  <button class="micro-button" id="acceptChallenge">Accept challenge</button>
+                  <button class="micro-button" id="inspectChallenge">Inspect evidence</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="event codex" id="codexDecisionEvent">
+              <div class="event-head">
+                <div class="actor"><span class="actor-badge">CX</span><span>Codex</span><span class="event-type">Decision · Accepted</span></div>
+                <time class="event-time">14:34:02</time>
+              </div>
+              <div class="event-body">
+                <p class="event-summary">Accepted. Separate run budgets from account limits and mark estimates clearly.</p>
+                <button class="evidence-link" data-toast="Decision D4 is bound to plan revision 4">Decision D4 · Plan v4 ↗</button>
+              </div>
+            </article>
+
+            <article class="event claude active-worker" id="activeWorkerEvent">
+              <div class="event-head">
+                <div class="actor"><span class="actor-badge">CL</span><span>Claude</span><span class="event-type">Execution</span></div>
+                <time class="event-time">14:35:41</time>
+              </div>
+              <div class="event-body">
+                <p class="event-summary">Implementing provider-specific budgets and context controls.</p>
+                <div class="working-line"><span class="pulse"></span><span id="workingText">Editing RunBudgetProjection.cs</span></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel evidence" aria-labelledby="evidenceTitle">
+          <div class="panel-head">
+            <span class="panel-title" id="evidenceTitle">Usage &amp; evidence</span>
+            <div class="panel-head-actions"><span class="pill amber">Unverified</span><button class="collapse-button" id="collapseEvidence" aria-label="Collapse controls and evidence" aria-expanded="true">›</button></div>
+          </div>
+          <div class="right-panel-body">
+            <div class="budget-card">
+              <div class="eyebrow">Run budget</div>
+              <div class="provider-budget">
+                <div class="provider-budget-head"><span class="provider-label"><span class="provider-mark"></span>Codex</span><span class="budget-value" id="codexTokenValue">7.2k / 24k</span></div>
+                <div class="meter" aria-label="30 percent of the Codex run token budget used"><span id="codexTokenMeter" style="width:30%"></span></div>
+              </div>
+              <div class="provider-budget">
+                <div class="provider-budget-head"><span class="provider-label"><span class="provider-mark claude"></span>Claude</span><span class="budget-value" id="claudeTokenValue">11.2k / 36k</span></div>
+                <div class="meter claude" aria-label="31 percent of the Claude run token budget used"><span id="claudeTokenMeter" style="width:31%"></span></div>
+              </div>
+              <div class="budget-total"><span>Total</span><span class="budget-value" id="totalTokenValue">18.4k / 60k</span></div>
+            </div>
+
+            <div class="budget-card usage-card">
+              <div class="eyebrow">Usage limits</div>
+              <div class="usage-provider">
+                <div class="usage-provider-head"><span class="provider-label"><span class="provider-mark"></span>Codex</span></div>
+                <div class="usage-window"><span>5 hours</span><span>70% · limit 90%</span></div>
+                <div class="usage-track" aria-label="Codex five-hour usage is 70 percent with a stop threshold at 90 percent"><span class="usage-fill" style="width:70%"></span><span class="usage-stop" style="left:90%"></span></div>
+                <div class="usage-window"><span>Week</span><span>53% · limit 90%</span></div>
+                <div class="usage-track" aria-label="Codex weekly usage is 53 percent with a stop threshold at 90 percent"><span class="usage-fill" style="width:53%"></span><span class="usage-stop" style="left:90%"></span></div>
+              </div>
+              <div class="usage-provider">
+                <div class="usage-provider-head"><span class="provider-label"><span class="provider-mark claude"></span>Claude</span></div>
+                <div class="usage-window"><span>5 hours</span><span>62% · limit 85%</span></div>
+                <div class="usage-track" aria-label="Claude five-hour usage is 62 percent with a stop threshold at 85 percent"><span class="usage-fill claude" style="width:62%"></span><span class="usage-stop" style="left:85%"></span></div>
+                <div class="usage-window"><span>Week</span><span>41% · limit 85%</span></div>
+                <div class="usage-track" aria-label="Claude weekly usage is 41 percent with a stop threshold at 85 percent"><span class="usage-fill claude" style="width:41%"></span><span class="usage-stop" style="left:85%"></span></div>
+              </div>
+              <div class="usage-policy">Checked before each turn.</div>
+            </div>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Evidence categories">
+            <button class="tab active" role="tab" aria-selected="true" data-tab="changes">Changes</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="checks">Checks</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="ci">GitHub CI</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="approvals">Approvals</button>
+          </div>
+
+          <div class="evidence-body">
+            <div class="tab-panel" id="tab-changes" role="tabpanel">
+              <div class="stat-grid">
+                <div class="stat"><div class="eyebrow">Files</div><div class="stat-value">6</div></div>
+                <div class="stat"><div class="eyebrow">Added</div><div class="stat-value positive">+231</div></div>
+                <div class="stat"><div class="eyebrow">Removed</div><div class="stat-value negative">−44</div></div>
+              </div>
+              <ul class="file-list">
+                <li class="file"><span class="file-name">RunBudgetProjection.cs</span><span class="delta"><span class="positive">+54</span> <span class="negative">−2</span></span></li>
+                <li class="file"><span class="file-name">UsageDimension.cs</span><span class="delta"><span class="positive">+31</span></span></li>
+                <li class="file"><span class="file-name">GetRunResponse.cs</span><span class="delta"><span class="positive">+18</span> <span class="negative">−4</span></span></li>
+                <li class="file"><span class="file-name">RunBudgetCard.tsx</span><span class="delta"><span class="positive">+87</span> <span class="negative">−21</span></span></li>
+                <li class="file"><span class="file-name">run-budget.spec.ts</span><span class="delta"><span class="positive">+41</span></span></li>
+              </ul>
+              <button class="button" style="width:100%;margin-top:14px" data-toast="Complete diff would open here">Open complete diff</button>
+              <div class="fingerprint">
+                <div class="eyebrow">Technical details</div>
+                <code class="fingerprint-code" id="projectPath" title="C:\Users\denis\Desktop\AIProjects\DevalCopilot">C:\Users\denis\Desktop\AIProjects\DevalCopilot</code>
+                <code class="fingerprint-code"><span id="runBranch">candidate/run-18-token-controls</span> · <span id="runHash">7f2ac91</span></code>
+                <code class="fingerprint-code">Controller main@325ffc3 · Event 184 · Tree 90a1…c52e</code>
+              </div>
+            </div>
+
+            <div class="tab-panel" id="tab-checks" role="tabpanel" hidden>
+              <ul class="check-list">
+                <li class="check"><span class="check-main"><span class="check-icon">✓</span><span>Backend build</span></span><span class="check-meta">42s</span></li>
+                <li class="check"><span class="check-main"><span class="check-icon">✓</span><span>Unit tests</span></span><span class="check-meta">128 passed</span></li>
+                <li class="check"><span class="check-main"><span class="check-icon pending">○</span><span>API integration</span></span><span class="check-meta">queued</span></li>
+                <li class="check"><span class="check-main"><span class="check-icon pending">○</span><span>Playwright smoke</span></span><span class="check-meta">blocked</span></li>
+              </ul>
+            </div>
+
+            <div class="tab-panel" id="tab-ci" role="tabpanel" hidden>
+              <ul class="check-list">
+                <li class="check"><span class="check-main"><span class="check-icon pending">○</span><span>Backend</span></span><span class="check-meta">not published</span></li>
+                <li class="check"><span class="check-main"><span class="check-icon pending">○</span><span>Frontend</span></span><span class="check-meta">not published</span></li>
+                <li class="check"><span class="check-main"><span class="check-icon pending">○</span><span>Security</span></span><span class="check-meta">not published</span></li>
+              </ul>
+              <div class="fingerprint"><div class="eyebrow">Publication gate</div><span class="fingerprint-code">Waiting for local verification and Codex review</span></div>
+            </div>
+
+            <div class="tab-panel" id="tab-approvals" role="tabpanel" hidden>
+              <div class="fingerprint" style="margin-top:0">
+                <div class="eyebrow">No approval requested</div>
+                <p class="event-summary" style="margin-top:8px">This run is still changing local candidate files. Publication approval will be scoped to the final branch and exact head SHA.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="console" id="console">
+        <div class="console-head" id="consoleToggle" tabindex="0" role="button" aria-expanded="true">
+          <div class="console-title"><span class="dot amber"></span><span>Live output · Claude Code · attempt 04</span></div>
+          <span class="panel-count" id="consoleChevron">⌄</span>
+        </div>
+        <div class="console-body" id="consoleBody" aria-label="Bounded live output">
+          <div class="console-line" data-time="14:35:41">Reading resolved plan revision 4</div>
+          <div class="console-line" data-time="14:35:44">Opened 4 relevant files · skipped 23 unchanged files</div>
+          <div class="console-line accent" data-time="14:35:47">Applying usage dimension projection</div>
+          <div class="console-line" data-time="14:35:53">Token estimate: 1.2k input · 0.4k output · 3.8k cached</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="stopModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="stopTitle" aria-describedby="stopDescription">
+      <h2 id="stopTitle">Stop this run?</h2>
+      <p id="stopDescription">The active attempt will be cancelled. DevalCopilot will reconcile the worktree before the run becomes terminal.</p>
+      <div class="modal-actions">
+        <button class="button" id="cancelStop">Keep running</button>
+        <button class="button danger" id="confirmStop">Stop run</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const state = {
+      connected: true,
+      paused: false,
+      simulationTimer: null,
+      stage: 2,
+      codexTokens: 7.2,
+      claudeTokens: 11.2,
+      sessionSeconds: 8256,
+      stopped: false
+    };
+
+    const timeline = document.getElementById('timeline');
+    const toast = document.getElementById('toast');
+    const stopModal = document.getElementById('stopModal');
+    const pauseButton = document.getElementById('pauseButton');
+    const simulateButton = document.getElementById('simulateButton');
+    const runStatus = document.getElementById('runStatus');
+    const connectionDot = document.getElementById('connectionDot');
+    const connectionText = document.getElementById('connectionText');
+    const offlineNotice = document.getElementById('offlineNotice');
+    const workingText = document.getElementById('workingText');
+    const workspace = document.querySelector('.workspace');
+    const appShell = document.querySelector('.app');
+    const workflowPanel = document.querySelector('.workflow');
+    const evidencePanel = document.querySelector('.evidence');
+    const activeWorkerEvent = document.getElementById('activeWorkerEvent');
+    let currentWorkerEvent = activeWorkerEvent;
+    const workerLabel = document.getElementById('workerLabel');
+    const sessionElapsed = document.getElementById('sessionElapsed');
+    const sessionDetail = document.getElementById('sessionDetail');
+    const codexRuntime = document.getElementById('codexRuntime');
+    const claudeRuntime = document.getElementById('claudeRuntime');
+    const codexRuntimeState = document.getElementById('codexRuntimeState');
+    const claudeRuntimeState = document.getElementById('claudeRuntimeState');
+
+    function formatDuration(totalSeconds) {
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return [hours, minutes, seconds].map(value => String(value).padStart(2, '0')).join(':');
+    }
+
+    function renderRuntimeState(element, label, working = false) {
+      element.innerHTML = `<span class="state-dot"></span><span class="${working ? 'working-dots' : ''}">${label}</span>`;
+    }
+
+    function syncRuntimeWorker(worker) {
+      const codexWorking = !state.paused && !state.stopped && worker === 'Codex';
+      const claudeWorking = !state.paused && !state.stopped && worker === 'Claude';
+      codexRuntime.classList.toggle('active', codexWorking);
+      claudeRuntime.classList.toggle('active', claudeWorking);
+      renderRuntimeState(codexRuntimeState, state.stopped ? 'Stopped' : codexWorking ? 'Working' : state.paused && worker === 'Codex' ? 'Paused' : 'Waiting', codexWorking);
+      renderRuntimeState(claudeRuntimeState, state.stopped ? 'Stopped' : claudeWorking ? 'Working' : state.paused && worker === 'Claude' ? 'Paused' : 'Waiting', claudeWorking);
+    }
+
+    function toggleContextPanel(panel, className, button, expandedArrow, collapsedArrow) {
+      const collapsed = panel.classList.toggle('is-collapsed');
+      const title = panel.querySelector('.panel-title').textContent;
+      workspace.classList.toggle(className, collapsed);
+      button.setAttribute('aria-expanded', String(!collapsed));
+      button.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${title}`);
+      button.textContent = collapsed ? collapsedArrow : expandedArrow;
+      showToast(`${title} ${collapsed ? 'collapsed' : 'expanded'}`);
+    }
+
+    function setWorkerHighlight(worker, eventId) {
+      document.querySelectorAll('.event.active-worker').forEach(event => event.classList.remove('active-worker'));
+      currentWorkerEvent = eventId ? document.getElementById(eventId) : null;
+      if (!state.paused && currentWorkerEvent) currentWorkerEvent.classList.add('active-worker');
+      workerLabel.textContent = worker === 'None'
+        ? 'No agent working'
+        : `${worker} ${state.paused ? 'paused' : 'working'}`;
+      syncRuntimeWorker(worker);
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('visible');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('visible'), 2200);
+    }
+
+    function setConnection(connected) {
+      state.connected = connected;
+      connectionDot.className = connected ? 'dot' : 'dot red';
+      connectionText.textContent = connected ? 'Live' : 'Offline';
+      offlineNotice.classList.toggle('visible', !connected);
+      showToast(connected ? 'Connection restored' : 'Connection lost');
+    }
+
+    function setStage(index) {
+      state.stage = index;
+      document.querySelectorAll('.stage').forEach((stage, stageIndex) => {
+        const marker = stage.querySelector('.stage-marker');
+        const label = stage.querySelector('.stage-state');
+        stage.classList.toggle('done', stageIndex < index);
+        stage.classList.toggle('active', stageIndex === index);
+        if (stageIndex < index) {
+          marker.textContent = '✓';
+          label.textContent = 'done';
+        } else if (stageIndex === index) {
+          marker.textContent = '●';
+          label.textContent = 'active';
+        } else {
+          marker.textContent = String(stageIndex);
+          label.textContent = stageIndex === 3 ? 'gated' : 'queued';
+        }
+      });
+      document.querySelector('.workflow .panel-count').textContent = `${Math.min(index, 6)} / 6`;
+    }
+
+    function appendSystemEvent(summary, type = 'Event') {
+      const event = document.createElement('article');
+      event.className = 'event system';
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      event.innerHTML = `
+        <div class="event-head">
+          <div class="actor"><span class="actor-badge">DC</span><span>Orchestrator</span><span class="event-type">${type}</span></div>
+          <time class="event-time">${time}</time>
+        </div>
+        <div class="event-body"><p class="event-summary">${summary}</p></div>`;
+      timeline.appendChild(event);
+      event.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function startSimulation() {
+      if (state.simulationTimer) {
+        window.clearInterval(state.simulationTimer);
+      }
+      state.paused = false;
+      state.stopped = false;
+      pauseButton.textContent = 'Pause';
+      const selectedProject = document.querySelector('[data-project-run].selected');
+      setWorkerHighlight(selectedProject.dataset.worker, selectedProject.dataset.workerEvent);
+      sessionDetail.textContent = 'Active · simulation';
+      setStage(0);
+      runStatus.textContent = 'Running · Intake';
+      simulateButton.textContent = '↻ Restart simulation';
+      state.codexTokens = 0.8;
+      state.claudeTokens = 1.3;
+      updateRunTokens();
+      appendSystemEvent('Simulation started from saved state.', 'Started');
+
+      const steps = [
+        ['Plan', 'Codex planned; Claude raised one challenge.'],
+        ['Delivery', 'Work item B entered attempt 3.'],
+        ['Publication', 'Candidate ready for approval.'],
+        ['GitHub CI', 'GitHub checks started.'],
+        ['Ready', 'Evidence ready for review.']
+      ];
+
+      let step = 0;
+      state.simulationTimer = window.setInterval(() => {
+        if (state.paused) return;
+        step += 1;
+        const current = steps[step - 1];
+        setStage(step);
+        runStatus.textContent = `Running · ${current[0]}`;
+        appendSystemEvent(current[1], current[0]);
+        state.codexTokens += current[0].startsWith('Codex') ? 1.8 : 0.7;
+        state.claudeTokens += current[0].startsWith('Claude') ? 2.2 : 0.5;
+        updateRunTokens();
+        if (step >= steps.length) {
+          window.clearInterval(state.simulationTimer);
+          state.simulationTimer = null;
+          runStatus.textContent = 'Decision required · Publication';
+          runStatus.className = 'pill amber';
+          showToast('Simulation reached the publication approval gate');
+        }
+      }, 1150);
+    }
+
+    function updateRunTokens() {
+      const total = state.codexTokens + state.claudeTokens;
+      document.getElementById('codexTokenValue').textContent = `${state.codexTokens.toFixed(1)}k / 24k`;
+      document.getElementById('claudeTokenValue').textContent = `${state.claudeTokens.toFixed(1)}k / 36k`;
+      document.getElementById('totalTokenValue').textContent = `${total.toFixed(1)}k / 60k`;
+      document.getElementById('codexTokenMeter').style.width = `${Math.min(100, state.codexTokens / 24 * 100)}%`;
+      document.getElementById('claudeTokenMeter').style.width = `${Math.min(100, state.claudeTokens / 36 * 100)}%`;
+    }
+
+    document.querySelectorAll('[data-project-run]').forEach(projectRun => {
+      projectRun.addEventListener('click', () => {
+        document.querySelectorAll('[data-project-run]').forEach(item => item.classList.toggle('selected', item === projectRun));
+        const project = projectRun.dataset.project;
+        document.getElementById('projectName').textContent = project;
+        document.getElementById('projectPath').textContent = projectRun.dataset.path;
+        document.getElementById('projectPath').title = projectRun.dataset.path;
+        document.getElementById('runTitle').textContent = projectRun.dataset.objective;
+        document.getElementById('runNumber').textContent = `Execution ${projectRun.dataset.run}`;
+        document.getElementById('runBranch').textContent = projectRun.dataset.branch;
+        document.getElementById('runHash').textContent = projectRun.dataset.hash;
+        runStatus.textContent = projectRun.dataset.status;
+        runStatus.className = projectRun.dataset.status.startsWith('Running')
+          ? 'pill blue'
+          : projectRun.dataset.status.startsWith('Paused')
+            ? 'pill'
+            : 'pill amber';
+        state.paused = projectRun.dataset.status.startsWith('Paused');
+        state.stopped = false;
+        state.sessionSeconds = Number(projectRun.dataset.session);
+        sessionElapsed.textContent = formatDuration(state.sessionSeconds);
+        sessionDetail.textContent = state.paused ? 'Paused' : 'Active';
+        pauseButton.textContent = state.paused ? 'Resume' : 'Pause';
+        setWorkerHighlight(projectRun.dataset.worker, projectRun.dataset.workerEvent);
+        showToast(`${project} · Execution ${projectRun.dataset.run}`);
+      });
+    });
+
+    document.querySelectorAll('[data-nav]').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-nav]').forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+        showToast(`${button.dataset.nav} is represented by the cockpit prototype`);
+      });
+    });
+
+    function applyTheme(theme, announce = false) {
+      document.body.dataset.theme = theme;
+      document.querySelectorAll('[data-theme-choice]').forEach(option => {
+        const selected = option.dataset.themeChoice === theme;
+        option.classList.toggle('selected', selected);
+        option.setAttribute('aria-pressed', String(selected));
+      });
+      window.localStorage.setItem('devalcopilot-theme', theme);
+      if (announce) showToast(`${theme === 'dark' ? 'Dark' : 'Light'} mode selected`);
+    }
+
+    const savedTheme = window.localStorage.getItem('devalcopilot-theme');
+    if (savedTheme === 'dark' || savedTheme === 'light') applyTheme(savedTheme);
+    document.querySelectorAll('[data-theme-choice]').forEach(button => {
+      button.addEventListener('click', () => applyTheme(button.dataset.themeChoice, true));
+    });
+
+    document.querySelectorAll('.stage').forEach(stage => {
+      stage.addEventListener('click', () => {
+        document.querySelectorAll('.stage').forEach(item => item.classList.remove('active'));
+        stage.classList.add('active');
+        showToast(`Timeline filtered to ${stage.querySelector('.stage-name').textContent}`);
+      });
+    });
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(item => {
+          item.classList.toggle('active', item === tab);
+          item.setAttribute('aria-selected', String(item === tab));
+        });
+        document.querySelectorAll('.tab-panel').forEach(panel => panel.hidden = panel.id !== `tab-${tab.dataset.tab}`);
+      });
+    });
+
+    document.querySelectorAll('[data-toast]').forEach(button => button.addEventListener('click', () => showToast(button.dataset.toast)));
+
+    document.getElementById('acceptChallenge').addEventListener('click', () => {
+      document.getElementById('challengeActions').innerHTML = '<span class="pill green">Resolved · Accepted</span>';
+      document.getElementById('challengeCard').classList.remove('challenge');
+      showToast('Challenge resolution linked to decision D4');
+    });
+
+    document.getElementById('inspectChallenge').addEventListener('click', () => showToast('Evidence panel focused on provider usage semantics'));
+    document.getElementById('collapseSidebar').addEventListener('click', event => {
+      const collapsed = appShell.classList.toggle('nav-collapsed');
+      event.currentTarget.textContent = collapsed ? '›' : '‹';
+      event.currentTarget.setAttribute('aria-expanded', String(!collapsed));
+      event.currentTarget.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} primary navigation`);
+      showToast(`Primary navigation ${collapsed ? 'collapsed' : 'expanded'}`);
+    });
+    document.getElementById('collapseWorkflow').addEventListener('click', event => toggleContextPanel(workflowPanel, 'workflow-collapsed', event.currentTarget, '‹', '›'));
+    document.getElementById('collapseEvidence').addEventListener('click', event => toggleContextPanel(evidencePanel, 'evidence-collapsed', event.currentTarget, '›', '‹'));
+    document.getElementById('connectionButton').addEventListener('click', () => setConnection(!state.connected));
+    document.getElementById('reconnectButton').addEventListener('click', () => setConnection(true));
+    simulateButton.addEventListener('click', startSimulation);
+
+    function closeRuntimePopovers() {
+      document.querySelectorAll('[data-popover]').forEach(popover => { popover.hidden = true; });
+      document.querySelectorAll('[data-popover-target]').forEach(trigger => trigger.setAttribute('aria-expanded', 'false'));
+    }
+
+    document.querySelectorAll('[data-popover-target]').forEach(trigger => {
+      trigger.addEventListener('click', event => {
+        event.stopPropagation();
+        const popoverId = trigger.dataset.popoverTarget;
+        const popover = document.getElementById(popoverId);
+        const shouldOpen = popover.hidden;
+        closeRuntimePopovers();
+        if (shouldOpen) {
+          popover.hidden = false;
+          document.querySelectorAll(`[data-popover-target="${popoverId}"]`).forEach(linkedTrigger => linkedTrigger.setAttribute('aria-expanded', 'true'));
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-popover]').forEach(popover => popover.addEventListener('click', event => event.stopPropagation()));
+    document.addEventListener('click', closeRuntimePopovers);
+
+    document.querySelectorAll('.runtime-select').forEach(select => {
+      select.addEventListener('change', () => {
+        const field = select.closest('.runtime-field').querySelector('label').textContent.toLowerCase();
+        const summary = document.getElementById(select.dataset.summary);
+        if (summary) summary.textContent = select.value;
+        showToast(`${select.dataset.provider} ${field} set to ${select.value} · applies on the next turn`);
+      });
+    });
+
+    const contextWindows = {
+      codex: { used: 184, total: 400 },
+      claude: { used: 116, total: 200 }
+    };
+
+    document.querySelectorAll('[data-compact]').forEach(button => {
+      button.addEventListener('click', () => {
+        const provider = button.dataset.compact;
+        const displayName = provider === 'codex' ? 'Codex' : 'Claude';
+        const context = contextWindows[provider];
+        button.disabled = true;
+        button.textContent = 'Queued';
+        showToast(`${displayName} compaction queued for the next safe boundary`);
+        window.setTimeout(() => {
+          context.used = Math.max(18, Math.round(context.used * 0.38));
+          const percent = Math.round(context.used / context.total * 100);
+          document.getElementById(`${provider}ContextValue`).textContent = `${context.used}k / ${context.total}k`;
+          const meter = document.getElementById(`${provider}ContextMeter`);
+          meter.style.width = `${percent}%`;
+          meter.parentElement.setAttribute('aria-label', `${displayName} context window is ${percent} percent used`);
+          const contextTriggerValue = document.getElementById(`${provider}ContextTriggerValue`);
+          const contextTrigger = contextTriggerValue.closest('.context-trigger');
+          contextTriggerValue.textContent = `${percent}%`;
+          contextTrigger.style.setProperty('--context-percent', `${percent}%`);
+          contextTrigger.setAttribute('aria-label', `${displayName} context: ${percent} percent used`);
+          button.disabled = false;
+          button.textContent = 'Compact';
+          appendSystemEvent(`${displayName} context compacted at a safe boundary. The durable run history remains available as evidence.`, 'Context compacted');
+        }, 900);
+      });
+    });
+
+    pauseButton.addEventListener('click', () => {
+      state.paused = !state.paused;
+      state.stopped = false;
+      pauseButton.textContent = state.paused ? 'Resume' : 'Pause';
+      runStatus.textContent = state.paused ? 'Paused · Implementation' : 'Running · Implementation';
+      const selectedProject = document.querySelector('[data-project-run].selected');
+      setWorkerHighlight(selectedProject.dataset.worker, selectedProject.dataset.workerEvent);
+      sessionDetail.textContent = state.paused ? 'Paused' : 'Active';
+      showToast(state.paused ? 'No new attempt will start while paused' : 'Run resumed from durable state');
+    });
+
+    document.getElementById('stopButton').addEventListener('click', () => {
+      stopModal.hidden = false;
+      document.getElementById('cancelStop').focus();
+    });
+
+    document.getElementById('cancelStop').addEventListener('click', () => {
+      stopModal.hidden = true;
+      document.getElementById('stopButton').focus();
+    });
+
+    document.getElementById('confirmStop').addEventListener('click', () => {
+      if (state.simulationTimer) window.clearInterval(state.simulationTimer);
+      state.simulationTimer = null;
+      state.paused = true;
+      state.stopped = true;
+      stopModal.hidden = true;
+      runStatus.textContent = 'Cancelled · Reconciled';
+      runStatus.className = 'pill';
+      setWorkerHighlight('None', '');
+      workerLabel.textContent = 'No agent working · run stopped';
+      sessionDetail.textContent = 'Stopped';
+      appendSystemEvent('The active attempt was cancelled and the candidate workspace was reconciled.', 'Run cancelled');
+      showToast('Run stopped safely');
+    });
+
+    stopModal.addEventListener('click', event => {
+      if (event.target === stopModal) document.getElementById('cancelStop').click();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      if (!stopModal.hidden) document.getElementById('cancelStop').click();
+      closeRuntimePopovers();
+    });
+
+    const consolePanel = document.getElementById('console');
+    const consoleToggle = document.getElementById('consoleToggle');
+    function toggleConsole() {
+      const collapsed = consolePanel.classList.toggle('collapsed');
+      consoleToggle.setAttribute('aria-expanded', String(!collapsed));
+      document.getElementById('consoleChevron').textContent = collapsed ? '⌃' : '⌄';
+    }
+    consoleToggle.addEventListener('click', toggleConsole);
+    consoleToggle.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleConsole();
+      }
+    });
+
+    const workingFiles = ['RunBudgetProjection.cs', 'GetRunResponse.cs', 'RunBudgetCard.tsx', 'run-budget.spec.ts'];
+    let workingIndex = 0;
+    window.setInterval(() => {
+      if (state.paused || state.stopped) return;
+      state.sessionSeconds += 1;
+      sessionElapsed.textContent = formatDuration(state.sessionSeconds);
+    }, 1000);
+
+    window.setInterval(() => {
+      if (state.paused || state.stopped) return;
+      workingIndex = (workingIndex + 1) % workingFiles.length;
+      workingText.textContent = `Editing ${workingFiles[workingIndex]}`;
+    }, 2400);
+  </script>
+</body>
+</html>

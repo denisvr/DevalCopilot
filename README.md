@@ -16,8 +16,10 @@ software delivery in which:
 
 ## Current status
 
-The repository is in the planning and architecture phase. No application code
-has been scaffolded yet.
+The repository has an accepted product, architecture, and security baseline,
+and the backend and frontend project scaffolds are in place. Cockpit behavior,
+persistence, and agent collaboration are implemented incrementally against the
+approved [run cockpit specification](docs/product/run-cockpit-specification.md).
 
 The first release is intentionally local-only. It must be complete enough for a
 stable version of DevalCopilot to coordinate development of its next version
@@ -59,6 +61,7 @@ overwrites its own executable or active checkout.
 - [Product vision](docs/product/vision.md)
 - [MVP scope](docs/product/mvp-scope.md)
 - [User experience](docs/product/user-experience.md)
+- [Run cockpit functional specification](docs/product/run-cockpit-specification.md)
 - [Architecture overview](docs/architecture/system-overview.md)
 - [Workflow model](docs/architecture/workflow-model.md)
 - [Agent collaboration protocol](docs/architecture/agent-collaboration-protocol.md)

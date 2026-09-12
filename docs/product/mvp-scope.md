@@ -3,8 +3,8 @@
 ## Objective
 
 Deliver a visually complete, local application that removes manual message
-transfer between Codex, Claude Code, Git, and GitHub for one supervised software
-change at a time.
+transfer between Codex, Claude Code, Git, and GitHub for supervised software
+changes across the user's registered projects.
 
 The defining acceptance case is DevalCopilot coordinating a change to its own
 repository and producing a green draft pull request or a clear escalation.
@@ -45,16 +45,26 @@ repository and producing a green draft pull request or a clear escalation.
 
 ### Workflow
 
-- Run one active workflow at a time.
+- Run bounded workflows concurrently across distinct registered projects.
+- Default to two active mutating runs globally, allow the user to reduce the
+  limit to one, and queue additional work visibly.
+- Permit at most one mutating run per canonical repository and one writer per
+  worktree.
 - Support start, pause, resume, stop, retry, and human instruction injection.
 - Persist stages, tasks, attempts, handoffs, challenges, decisions, approvals,
   findings, checkpoints, and events.
 - Bound debate, correction, duration, process, and publication attempts.
-- Enforce stage and run token budgets and record provider usage when available.
+- Enforce provider-specific attempt, stage, and run token budgets.
+- Observe provider account-usage windows when available and stop new attempts
+  at user-configured Codex and Claude thresholds.
 
 ### Agent execution
 
 - Invoke Codex and Claude Code through independent typed adapters.
+- Persist provider session identifiers as attempt metadata and resume eligible
+  sessions without making provider history authoritative.
+- Discover supported model, effort, permission-mode, context, and compaction
+  capabilities without assuming that both providers expose the same controls.
 - Capture stdout, stderr, exit status, timing, and structured response data.
 - Preserve raw output as an artifact.
 - Reject invalid structured responses without inventing success.
@@ -82,7 +92,21 @@ repository and producing a green draft pull request or a clear escalation.
 ### User experience
 
 - Provide a project list and environment readiness view.
-- Provide a run cockpit with workflow, agent, evidence, and approval surfaces.
+- Provide the approved run cockpit defined by
+  [run-cockpit-specification.md](run-cockpit-specification.md), including
+  collapsible navigation, Workflow, Agent Collaboration, Usage & Evidence, and
+  live-output surfaces.
+- Switch atomically among concurrently active project runs without combining
+  their state.
+- Show accumulated autonomous session time and make the active participant
+  visually unmistakable.
+- Allow model, effort, and permission-mode selection at safe attempt boundaries
+  when supported by the provider.
+- Show provider context-window usage and allow safe manual compaction when
+  supported.
+- Keep Codex and Claude run budgets and account-usage guardrails separate.
+- Support Dark Navy and Light themes with accessible status and attention
+  treatment.
 - Stream durable events to the UI in near real time.
 - Show agent dialogue as typed cards rather than an undifferentiated transcript.
 - Show diffs, commands, tests, CI checks, findings, artifacts, and decisions.
@@ -104,6 +128,9 @@ repository and producing a green draft pull request or a clear escalation.
 - No generic shell execution from the frontend.
 - No credential persistence in application data.
 - No mutation of the running DevalCopilot checkout.
+- No concurrent mutating runs for the same canonical repository.
+- No new provider attempt after its configured account-usage stop threshold is
+  reached, unless a scoped human override is valid.
 - No success claim without recorded evidence.
 - No loss of completed run history after restart.
 - No routine replay of complete transcripts, repository trees, diffs, or
@@ -113,7 +140,7 @@ repository and producing a green draft pull request or a clear escalation.
 ## Explicitly deferred
 
 - Cloud hosting, accounts, tenants, and team collaboration.
-- Multiple simultaneous workflows or writers.
+- Multiple simultaneous writers for the same repository or worktree.
 - Automatic merge to the default branch.
 - Automatic release, deployment, or in-place application update.
 - Force-push, remote branch deletion, and branch protection changes.
@@ -121,7 +148,8 @@ repository and producing a green draft pull request or a clear escalation.
 - Agents beyond Codex and Claude Code.
 - Remote workers and mandatory container isolation.
 - Visual dependency graphs as the primary run interface.
-- Cost optimization beyond basic usage capture and configured budgets.
+- Cost optimization beyond usage visibility, context economy, and configured
+  run and provider-account guardrails.
 
 ## Exit demonstration
 

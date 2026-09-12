@@ -26,6 +26,8 @@
   Use a structured and bounded agent collaboration protocol.
 - [ADR-0005](decisions/0005-use-git-worktrees-and-a-policy-controlled-github-loop.md):
   Use Git worktrees and a policy-controlled GitHub/CI loop.
+- [ADR-0006](decisions/0006-support-bounded-concurrent-runs-across-projects.md):
+  Support bounded concurrent runs across projects.
 
 ## Product-specific architecture
 
@@ -42,6 +44,9 @@
   transaction. Application commands persist intent in short transactions, and
   supervised background processes perform external work.
 - SQLite writes are serialized through an application-owned ingestion boundary.
+- The run scheduler permits bounded concurrency across distinct repositories,
+  while enforcing one mutating run per canonical repository and one writer per
+  worktree.
 - Event order is defined by a monotonic integer sequence, not wall-clock time.
 - Large logs, screenshots, patches, and generated reports are stored as hashed
   filesystem artifacts with metadata in SQLite.

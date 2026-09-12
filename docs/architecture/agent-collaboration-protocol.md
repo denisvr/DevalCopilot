@@ -156,6 +156,30 @@ The complete historical transcript is not replayed by default. Raw transcripts
 are artifacts available for inspection. Summaries carry source references so
 the receiving agent can distinguish derived context from primary evidence.
 
+## Provider runtime configuration
+
+Each agent attempt records requested and effective provider configuration:
+
+- provider and provider-session identifier;
+- model and reasoning effort;
+- permission mode;
+- context-manifest revision;
+- reported context usage and compaction outcome when available.
+
+Adapters expose capabilities and supported values through typed queries. The
+application does not assume that Codex and Claude Code use equivalent names or
+offer identical controls. Unsupported or unavailable values remain explicit.
+
+A configuration change is persisted as run intent and applies only when the
+orchestrator creates the next eligible attempt. Provider permission mode cannot
+expand DevalCopilot policy. Manual context compaction is a typed between-turn
+operation that creates a new context-manifest revision; it never removes events,
+decisions, evidence, or raw artifacts from durable history.
+
+Provider account-usage snapshots are observation evidence rather than agent
+claims. A configured hard threshold participates in attempt eligibility and
+prevents a new invocation for only the affected provider.
+
 ## Token efficiency
 
 - Build a context manifest for each attempt and include only inputs required by

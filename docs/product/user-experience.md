@@ -28,6 +28,9 @@ The MVP has three top-level destinations:
 Artifacts, diffs, logs, approvals, and CI details open inside the current run
 rather than becoming independent navigation silos.
 
+The canonical behavior and information hierarchy of the approved cockpit are
+defined in [run-cockpit-specification.md](run-cockpit-specification.md).
+
 ## Projects view
 
 ```text
@@ -60,29 +63,18 @@ Readiness uses explicit states: `Ready`, `Degraded`, `Needs attention`, or
 
 ## Run cockpit
 
-```text
-+--------------------------------------------------------------------------------------+
-| Run #42  Add CI panel      RUNNING · REVIEW        branch @ a42fc91   [Pause] [Stop] |
-+----------------------+--------------------------------------+------------------------+
-| Workflow             | Agent collaboration                  | Evidence               |
-|                      |                                      |                        |
-| ✓ Intake             | CODEX · Proposal                     | Changes                |
-| ✓ Plan               | Add check polling by exact SHA...    | 8 files  +231 -44      |
-| ✓ Critical review    |                                      | [Open complete diff]   |
-| ● Implementation     | CLAUDE · Challenge                   |                        |
-| ○ Local verification | Polling must survive restart...      | Local verification     |
-| ○ Review             |                                      | ✓ build   42s          |
-| ○ Publication        | CODEX · Decision                     | ✗ tests   1 failed     |
-| ○ CI                 | Accepted; persist cursor first...    | [Open failure]         |
-|                      |                                      |                        |
-| Budgets              | CLAUDE · Execution                   | GitHub CI              |
-| Review loops  1 / 2  | Editing GitHubRunMonitor...          | ○ backend pending      |
-| CI loops      0 / 2  |                                      | ○ frontend queued      |
-| Tokens      18k / 60k|                                      |                        |
-+----------------------+--------------------------------------+------------------------+
-| Live output · Claude Code                                             [Inject input] |
-+--------------------------------------------------------------------------------------+
-```
+The approved cockpit uses a project switcher above a compact run header. The
+workspace gives Agent Collaboration the dominant responsive area, with a
+collapsible Workflow rail on the left and a collapsible Usage & Evidence rail
+on the right. A bounded live-output drawer sits below the workspace.
+
+Codex appears on the left of the collaboration timeline and Claude on the
+right. Orchestrator, tool, CI, and human events are centered. The currently
+working participant is identified with text, contrast, and restrained motion.
+
+The top project switcher may show multiple active runs, but selecting a project
+always replaces the complete cockpit projection atomically. The interface never
+combines cards, budgets, evidence, or commands from different runs.
 
 ### Header
 
@@ -90,19 +82,23 @@ The header always shows:
 
 - objective and run identifier;
 - run lifecycle and active stage;
-- branch and exact abbreviated HEAD;
-- connection freshness;
+- accumulated autonomous session time;
 - pause, stop, retry, or takeover actions when applicable.
+
+Branch, exact HEAD, provider session identifiers, attempt metadata, event
+sequence, and connection freshness remain available in Evidence without
+competing with the primary run state.
 
 ### Workflow rail
 
-The left rail shows ordered stages, blocking reasons, current budgets, and
-checkpoints. Selecting a stage filters the timeline and evidence without hiding
-the overall run state.
+The left rail shows ordered stages, blocking reasons, attempts, and checkpoints.
+Selecting a stage filters the timeline and evidence without hiding the overall
+run state. Repeated correction attempts remain inside their stage rather than
+making the rail an ever-growing sequence.
 
-Token usage distinguishes input, output, and cached tokens when providers make
-that information available. The UI shows current-stage and whole-run budgets
-without encouraging optimization that compromises correctness.
+The rail can collapse to a status strip. Loop counts and technical checkpoint
+details are available on demand rather than permanently occupying the primary
+surface.
 
 ### Collaboration timeline
 
@@ -115,9 +111,19 @@ Collapsed cards show the decision-relevant summary. Expanding a card reveals
 reasoning, evidence links, protocol metadata, and raw artifact access. Raw
 transcripts never replace the structured view.
 
-### Evidence panel
+Above the timeline, each provider has one compact runtime line containing its
+identity, working state, model, effort, and context usage. Provider-specific
+model, effort, permission-mode, and compaction controls open progressively and
+apply only at safe attempt boundaries.
 
-The right panel has contextual tabs:
+### Usage and evidence panel
+
+The top of the right panel separates Codex and Claude run budgets and provider
+account-usage windows. Provider allowance snapshots show their freshness and
+reset time. Configured stop thresholds prevent new work for only the affected
+provider and produce a visible waiting or escalation state.
+
+Below usage controls, contextual evidence tabs include:
 
 - Changes;
 - Local verification;
@@ -128,6 +134,9 @@ The right panel has contextual tabs:
 
 Every status links to the Git fingerprint or remote head SHA it proves. A stale
 result is visibly marked and cannot appear green for the current source.
+
+The panel can collapse while retaining compact failure, pending-approval, and
+unverified-change indicators.
 
 ### Live output drawer
 
@@ -212,15 +221,23 @@ Every primary view defines:
 - Live updates use appropriate announcements without reading every log line.
 - Status never depends on color alone.
 - Dense panels support zoom and resizable boundaries.
+- Global navigation, Workflow, and Usage & Evidence are independently
+  collapsible and keyboard operable.
+- The Agent Collaboration surface expands into released space.
 - Text, icons, and code views meet appropriate contrast targets.
 - Motion indicates transition but respects reduced-motion preferences.
 - The interface remains usable at a practical minimum desktop width; mobile is
   outside the MVP.
+- Dark Navy and Light themes preserve equivalent hierarchy and contrast.
 
 ## MVP design acceptance
 
 - A new user can identify the active stage and actor without opening a log.
+- A new user can identify the selected project and distinguish concurrent,
+  queued, paused, and terminal runs.
 - A material challenge and its resolution are visually connected.
+- Codex and Claude usage, account guardrails, context, and runtime settings are
+  never visually conflated.
 - A review or CI result always exposes the source fingerprint it applies to.
 - A human approval explains its exact scope before submission.
 - A restart reconstructs the same cockpit from durable state.

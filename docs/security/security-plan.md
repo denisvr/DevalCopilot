@@ -54,8 +54,8 @@ No agent response is an identity or authorization decision.
 
 | Entry point | Exposure | Policy | Abuse control |
 |---|---|---|---|
-| MVC API | Loopback only | Authenticated per launch; explicit operation policy | Request limits, cancellation, idempotency |
-| SignalR hub | Loopback only | Authenticated read notification channel | Message and connection limits; durable catch-up |
+| MVC API | Loopback only | `Authorization: Bearer <session-secret>` per launch; explicit operation policy | Request limits, cancellation, idempotency |
+| SignalR hub | Loopback only | Same bearer secret over LongPolling only; no `access_token` query string | Message and connection limits; durable catch-up |
 | Tauri commands | Bundled webview only | Minimal named capabilities | No generic shell or broad filesystem scope |
 | Project registration | Local user | Canonical approved roots | Path validation and explicit confirmation |
 | Agent output | Child-process stream | Untrusted evidence | Size, schema, rate, and artifact limits |
@@ -92,7 +92,10 @@ provider configuration into prompts, logs, SQLite, or artifacts.
 | Control | Profile | Implementation | Evidence | Status |
 |---|---|---|---|---|
 | Loopback-only API | S2 | Host binding configuration | API integration test | Planned |
-| Per-launch frontend authentication | S2 | In-memory bootstrap secret | API and browser tests | Planned |
+| Per-launch API authentication | S2 | Stdin-delivered bootstrap secret (never in argv/env); Bearer scheme; shell/host each tear down on the other's exit | API integration test: `401` for absent and incorrect credential, success for correct credential, `access_token` query-string auth rejected | Planned |
+| Bootstrap secret browser hygiene | S2 | React holds the secret in module memory only | Frontend/browser test: bootstrap context never enters browser storage or the URL | Planned |
+| Bootstrap secret log hygiene | S2 | Secret never written to stdout, stderr, or structured logs | Log-capture integration test: the known test credential never appears in captured host logs | Planned |
+| Packaged bundle secret hygiene | S2 | No development authentication endpoint in the production host; production Vite build | Build/source scan: packaged frontend bundle contains no known bootstrap credential or test-authentication bypass | Planned |
 | Explicit MVC authorization | S2 | Default deny and operation declarations | Endpoint inventory test | Planned |
 | No frontend generic shell | S2 | Tauri capability configuration | Configuration and browser test | Planned |
 | Approved-root path containment | S2 | Canonical path policy | Unit and integration tests | Planned |

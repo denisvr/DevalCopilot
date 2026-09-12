@@ -85,12 +85,50 @@ The host is the only authoritative process. It owns:
 - process supervision and cancellation;
 - Git workspace ownership;
 - permission, budget, retry, and approval policies;
+- bounded cross-project scheduling and repository mutation leases;
 - GitHub publication and CI reconciliation;
 - startup recovery.
 
-The host binds to loopback on an ephemeral port. Tauri launches it with a
-single-use bootstrap channel that communicates the port and a random session
-secret. The secret remains in memory and is not written to frontend storage.
+The host binds to loopback on an ephemeral port. The Tauri shell generates a
+cryptographically random per-launch session secret and starts the .NET sidecar
+without placing it in process arguments or environment variables. It writes
+exactly one versioned bootstrap frame to the child process's stdin, then keeps
+that stdin pipe open and never closes it while the shell runs — the open pipe
+is the shell's lifetime signal, not further bootstrap protocol. The host
+consumes the single bootstrap frame, binds its ephemeral port, and reports back
+only readiness and the port; neither process ever writes the secret to stdout
+or stderr. After consuming the frame, the host keeps monitoring the same stdin
+pipe: reaching EOF means the shell disappeared and triggers orderly host
+shutdown, and an explicit shell shutdown terminates the owned sidecar process
+tree the same way. If the host instead terminates first, the shell discards
+its retained bootstrap context and the WebView presents a
+disconnected/recovery state rather than reusing a stale secret. This is
+process-lifetime signaling owned by the shell, not domain or workflow
+authority moving into Rust.
+
+The Tauri shell retains the base URL and secret in memory and exposes them
+only through a narrowly scoped Tauri command available to the main bundled
+WebView. React keeps the bootstrap context in module memory only — never
+`localStorage`, `sessionStorage`, IndexedDB, the URL, a file, or logs — and
+every MVC request authenticates with `Authorization: Bearer <session-secret>`.
+The credential is only ever valid while both processes are alive, per the
+lifecycle above.
+
+Browser-hosted development cannot call this production bootstrap command,
+because it has no bundled WebView to expose it to. The production frontend
+entry point uses only the restricted Tauri bootstrap provider. A separate
+browser-test entry composition instead receives a session context generated
+in memory by the Playwright test harness for that run. Both compositions
+authenticate against the same production `Authorization: Bearer` handler and
+the same authorization policies — the test composition is a different way of
+obtaining a valid secret, not an anonymous-authentication bypass, and the
+production host never gains a development-only authentication endpoint. The
+test-harness secret is subject to the same hygiene rule as the production one:
+it must never appear in Vite environment files, source, URLs, browser storage,
+test snapshots, traces, or logs. Browser UI development without a running host
+may use deterministic frontend test adapters, but the Playwright
+walking-skeleton smoke test exercises the real API and the real authentication
+handler.
 
 ### External processes
 
@@ -168,6 +206,13 @@ Every notification includes a run identifier and event sequence. On initial
 connection or reconnection, the frontend queries events after its last applied
 sequence before considering the view current.
 
+Increment 1 configures the SignalR client to use the LongPolling transport
+only, so the browser can send the session secret as a normal `Authorization`
+header on every poll. `access_token` query-string authentication is rejected;
+a WebSocket or Server-Sent Events transport would force the secret into a URL
+that default HTTP logging can capture, which the per-launch secret must never
+do.
+
 ### Background work
 
 External work follows a durable-intent pattern:
@@ -180,6 +225,19 @@ External work follows a durable-intent pattern:
 
 No database transaction remains open while an agent, GitHub, or project command
 runs.
+
+### Cross-project scheduling
+
+The supervisor may claim eligible work for multiple runs up to the configured
+global limit. Eligibility is evaluated independently for global capacity,
+canonical repository mutation ownership, worktree writer ownership, provider
+allowance, run budget, and workflow gates.
+
+Distinct run supervisors may progress concurrently, but all durable state
+changes still pass through the serialized ingestion boundary. A waiting CI or
+human-approval observation does not hold an agent execution slot. Scheduling
+policy and leases are authoritative host behavior; changing projects in React
+does not start, pause, prioritize, or stop a run implicitly.
 
 ## Deployment and containers
 

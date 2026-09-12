@@ -124,6 +124,23 @@ The following gates are independent:
 Passing one gate does not pass another. In particular, a successful local build
 does not authorize push, and a green CI run does not authorize merge.
 
+## Cross-run scheduling
+
+Run state machines are independent. The host scheduler may advance eligible
+stages for distinct canonical repositories concurrently up to the configured
+global limit. Before claiming an attempt it verifies:
+
+- global execution capacity;
+- exclusive repository mutation ownership;
+- exclusive worktree writer ownership;
+- provider availability and account-usage guardrails;
+- attempt, stage, and run budgets;
+- workflow prerequisites and approvals.
+
+A conflict leaves the stage `Ready` or `Blocked` with a durable, visible wait
+reason. It never converts scheduler delay into an attempt or consumes a retry.
+Pause, stop, or exhaustion for one run does not transition an unrelated run.
+
 ## Bounded loops
 
 MVP defaults are policy values, not hard-coded domain constants:

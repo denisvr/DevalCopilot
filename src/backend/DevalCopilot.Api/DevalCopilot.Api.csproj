@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\DevalCopilot.Application\DevalCopilot.Application.csproj" />
+    <ProjectReference Include="..\DevalCopilot.Infrastructure\DevalCopilot.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

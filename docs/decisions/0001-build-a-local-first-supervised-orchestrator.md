@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Partially superseded by ADR-0006
 
 ## Context
 
@@ -23,7 +23,8 @@ Build DevalCopilot as a local-first desktop application with one authoritative
 orchestrator and supervised autonomy.
 
 - The application runs on the developer workstation.
-- One developer and one active workflow are supported initially.
+- One developer is supported initially. The original one-active-workflow
+  constraint is superseded by ADR-0006's bounded multi-project concurrency.
 - The orchestrator owns state, process execution, policies, recovery, Git, and
   GitHub actions.
 - Codex and Claude Code are participants without direct authority to bypass the

@@ -41,20 +41,51 @@ The desktop app creates and displays a persisted simulated run.
 ### Deliverables
 
 - .NET solution and four backend projects;
-- React/Tauri frontend;
-- local authenticated MVC boundary and generated client;
+- React frontend, developed browser-hosted first for iteration speed, wrapped
+  by the Tauri shell before this increment is considered done;
+- local authenticated MVC boundary using the per-launch bootstrap session
+  described in [system-overview.md](../architecture/system-overview.md), and a
+  generated TypeScript client committed under the canonical
+  `Devalente.Shared.OpenApi.NSwag` policy: a committed `config.nswag`,
+  generation with `noBuild=true` after a successful API build, generation
+  failures fail the build, and CI regenerates the client and fails on drift;
 - SQLite migrations, event journal, and current run projection;
-- SignalR post-commit notification and cursor catch-up;
+- SignalR post-commit notification and cursor catch-up over LongPolling only;
 - project list and first run cockpit;
-- deterministic simulated-agent adapter.
+- approved Dark Navy and Light cockpit shell with collapsible global navigation,
+  Workflow, and Usage & Evidence rails;
+- responsive Agent Collaboration surface, project switcher, active-participant
+  treatment, and autonomous session timer;
+- deterministic simulated-agent adapter, claimed and executed by a hosted
+  component outside the `StartRun` command transaction.
 
 ### Exit criteria
 
 - starting a simulated run produces visible sequenced events;
+- the cockpit follows the behavior and hierarchy in
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md);
+- collapsing either contextual rail releases space to Agent Collaboration;
+- switching simulated projects never combines run state;
 - closing and reopening the application preserves the run;
 - disconnecting and reconnecting the UI catches up without duplicates;
 - the frontend cannot invoke shell commands directly;
-- backend, API integration, frontend, and smoke tests run locally.
+- `Api.IntegrationTests` prove `401` for an absent or incorrect per-launch
+  credential and success for the correct one;
+- Rust, the Windows C++ build tools, and the WebView2 runtime are verified
+  present before Tauri packaging work begins;
+- the packaged Tauri shell launches the sidecar through the stdin bootstrap
+  handoff and reaches the same cockpit the browser-hosted frontend reaches,
+  confirmed by a manual smoke check;
+- backend, API integration, frontend, and browser-hosted Playwright smoke
+  tests run locally. Playwright covers the browser-hosted slice only; the
+  packaged Tauri shell is validated by the manual smoke check above. The
+  browser-hosted composition authenticates through the real API and the real
+  authentication handler using a session context the test harness generates
+  in memory — never an anonymous or development-only bypass — as described in
+  [system-overview.md](../architecture/system-overview.md). A native-shell E2E
+  tool such as WebdriverIO is not added yet and is recorded here only as the
+  likely future choice if native-only behavior later requires automated
+  coverage.
 
 ## Increment 2: Process supervision and environment readiness
 
@@ -122,7 +153,13 @@ manual transfer.
 - challenge and finding UI cards;
 - human instruction and escalation controls;
 - loop, duration, token, and usage budgets;
-- progressive context manifests and token-usage evidence.
+- progressive context manifests and token-usage evidence;
+- provider-specific model, effort, and permission-mode discovery and selection
+  at safe attempt boundaries;
+- provider session correlation and eligible resume behavior;
+- context-window visibility and safe manual compaction when supported;
+- separate Codex and Claude account-usage snapshots, warning thresholds, and
+  stop guardrails.
 
 ### Exit criteria
 
@@ -132,6 +169,10 @@ manual transfer.
 - findings map to revision responses and source changes;
 - invalid protocol output fails closed;
 - repeated attempts do not receive unchanged full context by default;
+- reaching a provider account-usage stop threshold prevents a new invocation
+  for that provider without silently stopping unrelated eligible work;
+- provider runtime controls expose `Unknown` or `Unsupported` rather than
+  inventing model, context, usage, or compaction capability;
 - loop exhaustion creates a useful human escalation.
 
 ## Increment 5: Local supervised delivery loop
@@ -143,6 +184,9 @@ One objective can reach a locally verified, reviewed commit.
 ### Deliverables
 
 - end-to-end stage coordinator;
+- bounded multi-project run scheduler with a default global limit of two active
+  mutating runs;
+- repository-level mutation lease and visible queue reasons;
 - pause, resume, stop, retry, and takeover;
 - scoped approvals and invalidation;
 - commit preparation and execution by the orchestrator;
@@ -155,6 +199,10 @@ One objective can reach a locally verified, reviewed commit.
 - a commit requires the configured review and approval state;
 - interrupted runs reconcile rather than guess;
 - a complete local run requires no manual message transfer;
+- two distinct repositories can progress concurrently while a second mutating
+  run for either repository remains queued;
+- pausing, stopping, or exhausting a budget for one run does not silently alter
+  an unrelated run;
 - the UI explains every transition and required human action.
 
 ## Increment 6: GitHub and CI evidence loop
@@ -235,7 +283,7 @@ After the MVP proves self-hosted development, candidate directions include:
 - candidate preview in an isolated data directory;
 - signed update and rollback flow;
 - optional container or OS sandbox adapters;
-- multiple concurrent projects and worktrees;
+- multiple simultaneous mutating runs within one canonical repository;
 - additional agent providers;
 - reusable workflow templates and project memory;
 - cost and quality analytics;

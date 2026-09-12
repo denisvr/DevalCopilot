@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DevalCopilot — Decision Studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink:#f3f1ec; --muted:#98978f; --faint:#666861;
+      --bg:#10110f; --panel:#171815; --raised:#1d1f1b; --line:#30332c;
+      --lime:#b8f15d; --lime-soft:#25351b; --violet:#a994ff; --violet-soft:#28233d;
+      --orange:#ffad63; --orange-soft:#38291d; --red:#ff726c; --green:#76d99b;
+      --radius:16px;
+    }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}
+    button{font:inherit;color:inherit} button:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+    .app{min-height:100vh;display:grid;grid-template-rows:auto auto 1fr}
+    .global{height:48px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 22px;background:#0d0e0c}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:750;letter-spacing:-.02em}.brand-mark{width:23px;height:23px;border:1px solid #5b634f;border-radius:7px;display:grid;place-items:center;color:var(--lime);font:700 10px ui-monospace,monospace}
+    .global-meta{display:flex;align-items:center;gap:18px;color:var(--muted);font-size:12px}.online{color:var(--green)}
+    .projectbar{min-height:82px;display:flex;align-items:center;gap:10px;padding:12px 22px;border-bottom:1px solid var(--line);overflow:auto;background:#131411}
+    .project{min-width:215px;border:1px solid var(--line);background:transparent;border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;transition:.18s ease}
+    .project:hover{background:var(--raised)}.project.active{border-color:#6c8d3c;background:var(--lime-soft);box-shadow:inset 3px 0 var(--lime)}
+    .project-top,.project-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px}.project-top{font-weight:720}.project-bottom{margin-top:7px;color:var(--muted);font-size:11px}
+    .status{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}.status::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--faint)}.status.live::before{background:var(--lime);box-shadow:0 0 9px #b8f15d88}.status.review::before{background:var(--orange)}
+    .new-project{height:50px;min-width:50px;border:1px dashed #45483f;background:none;border-radius:12px;color:var(--muted);font-size:20px;cursor:pointer}
+    .workspace{min-height:0;display:grid;grid-template-columns:260px minmax(480px,1fr) 310px}
+    .rail{min-height:0;border-right:1px solid var(--line);background:#121310;display:flex;flex-direction:column}.inspector{border-left:1px solid var(--line);border-right:0}
+    .section-head{height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line)}.eyebrow{text-transform:uppercase;letter-spacing:.11em;font-size:10px;color:var(--muted);font-weight:750}.count{font:11px ui-monospace,monospace;color:var(--faint)}
+    .tree{padding:13px 10px;overflow:auto}.tree-group{margin:3px 0}.tree-row{width:100%;border:0;background:transparent;border-radius:9px;display:grid;grid-template-columns:18px 1fr auto;gap:7px;align-items:center;padding:8px 9px;text-align:left;cursor:pointer;color:#d7d5cf}.tree-row:hover{background:var(--raised)}.tree-row.selected{background:var(--lime-soft);color:var(--ink)}
+    .tree-row .caret{color:var(--faint)}.tree-row .meta{font-size:10px;color:var(--muted)}.tree-row.done .caret{color:var(--green)}.tree-row.blocked{opacity:.55}.children{margin-left:17px;padding-left:8px;border-left:1px solid #35382f}.children .tree-row{font-size:12px;padding-block:7px}.attempt{color:var(--orange)!important}
+    .rail-foot{margin-top:auto;padding:14px;border-top:1px solid var(--line)}.tiny-note{font-size:11px;line-height:1.45;color:var(--muted)}
+    .studio{min-height:0;display:flex;flex-direction:column;background:radial-gradient(circle at 60% -10%,#27321c 0,transparent 30%),var(--bg)}
+    .studio-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:20px}.project-context{min-width:0}.project-label{color:var(--lime);font-size:11px;font-weight:700}.studio h1{font-size:20px;line-height:1.25;margin:5px 0 7px;letter-spacing:-.02em}.path{color:var(--muted);font:11px ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.actions{display:flex;gap:8px;align-items:center}.btn{border:1px solid #484b42;background:var(--raised);padding:8px 12px;border-radius:9px;cursor:pointer;font-size:12px}.btn:hover{border-color:#73776a}.btn.primary{background:var(--lime);border-color:var(--lime);color:#13170e;font-weight:750}.btn.danger{color:#ffaaa6}
+    .decision-scroll{padding:22px;overflow:auto;min-height:0}.focus-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.focus-line strong{font-size:12px}.focus-line span{color:var(--muted);font-size:11px}
+    .exchange{max-width:850px;margin:auto;position:relative}.exchange::before{content:"";position:absolute;left:50%;top:36px;bottom:42px;width:1px;background:linear-gradient(var(--violet),var(--orange),var(--lime));opacity:.35}
+    .turn{position:relative;width:calc(50% - 25px);border:1px solid var(--line);border-radius:var(--radius);background:rgba(24,25,21,.96);padding:15px 16px;margin-bottom:16px;box-shadow:0 12px 30px #00000024}.turn.left{margin-right:auto}.turn.right{margin-left:auto}.turn::after{content:"";position:absolute;top:22px;width:11px;height:11px;border-radius:50%;background:var(--bg);border:2px solid var(--faint)}.turn.left::after{right:-33px}.turn.right::after{left:-34px}.turn.codex{border-top:2px solid var(--violet)}.turn.claude{border-top:2px solid var(--orange)}.turn.resolution{border-color:#5f7d37;background:#192116}.turn.resolution::after{border-color:var(--lime);background:var(--lime)}
+    .turn-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.actor{display:flex;align-items:center;gap:8px;font-weight:720}.avatar{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;background:var(--violet-soft);color:var(--violet);font:700 9px ui-monospace,monospace}.claude .avatar{background:var(--orange-soft);color:var(--orange)}.role{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.turn p{margin:0;color:#d5d3cc;line-height:1.5;font-size:12px}.turn-tools{display:flex;gap:7px;margin-top:12px}.link{border:0;background:none;color:var(--lime);padding:0;cursor:pointer;font-size:11px}
+    .challenge-box{margin-top:12px;border:1px solid #5a4128;background:var(--orange-soft);border-radius:10px;padding:10px}.challenge-box strong{display:block;color:#ffd2ac;font-size:11px;margin-bottom:4px}.challenge-actions{display:flex;gap:7px;margin-top:10px}.mini{border:1px solid #65523d;background:#28231c;border-radius:7px;padding:6px 8px;cursor:pointer;font-size:10px}.mini.accept{color:var(--lime);border-color:#516c31}
+    .loop{width:max-content;margin:5px auto 18px;border:1px solid #544932;background:#26231b;color:#d8c69f;border-radius:999px;padding:7px 13px;font-size:10px;position:relative;z-index:2}.loop b{color:var(--orange)}
+    .execution{max-width:850px;margin:0 auto;border:1px solid var(--line);background:#11120f;border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px}.pulse{width:8px;height:8px;border-radius:50%;background:var(--lime);box-shadow:0 0 0 5px #b8f15d16}.execution-copy{flex:1}.execution-copy strong{font-size:11px}.execution-copy div{color:var(--muted);font:10px ui-monospace,monospace;margin-top:3px}.bar{height:3px;background:#2f322b;border-radius:9px;overflow:hidden;margin-top:8px}.bar span{display:block;height:100%;width:64%;background:var(--lime)}
+    .inspector-body{padding:14px;overflow:auto}.card{border:1px solid var(--line);background:var(--panel);border-radius:13px;padding:13px;margin-bottom:11px}.card-title{display:flex;justify-content:space-between;align-items:center;font-weight:720;font-size:12px;margin-bottom:11px}.policy{font-size:11px;color:var(--muted);line-height:1.5}.policy strong{color:var(--ink)}
+    .provider{padding:10px 0;border-top:1px solid var(--line)}.provider:first-of-type{border-top:0;padding-top:0}.provider-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.provider-name{display:flex;align-items:center;gap:7px;font-weight:700;font-size:11px}.provider-dot{width:8px;height:8px;border-radius:3px;background:var(--violet)}.provider-dot.claude{background:var(--orange)}.runway{font:10px ui-monospace,monospace;color:var(--green)}
+    .usage-row{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin:7px 0 4px}.track{height:6px;border-radius:99px;background:#30322c;position:relative;overflow:visible}.fill{height:100%;border-radius:99px;background:var(--violet)}.fill.claude{background:var(--orange)}.stop{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--red)}
+    .budget-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.budget-cell{background:#11120f;border-radius:9px;padding:9px}.budget-cell span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.08em}.budget-cell strong{display:block;margin-top:5px;font:13px ui-monospace,monospace}
+    .guardrail{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:var(--muted);font-size:10px;line-height:1.45}.shield{color:var(--lime)}
+    .activity{list-style:none;margin:0;padding:0}.activity li{display:grid;grid-template-columns:12px 1fr;gap:7px;padding:7px 0;border-bottom:1px solid #292b26;font-size:10px;color:var(--muted)}.activity li:last-child{border:0}.activity b{color:#d9d7d1;font-weight:600}
+    .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,18px);opacity:0;background:#efffd5;color:#17200d;padding:9px 13px;border-radius:9px;font-size:11px;font-weight:700;transition:.2s;pointer-events:none;z-index:5}.toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:1050px){.workspace{grid-template-columns:230px 1fr}.inspector{display:none}}@media(max-width:760px){.workspace{grid-template-columns:1fr}.rail{display:none}.projectbar{padding-inline:12px}.studio-head{flex-direction:column}.turn{width:calc(100% - 28px)}.exchange::before{left:10px}.turn.left,.turn.right{margin-left:28px}.turn.left::after,.turn.right::after{left:-26px;right:auto}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="global">
+      <div class="brand"><span class="brand-mark">DC</span><span>DevalCopilot</span><span class="status live">local controller</span></div>
+      <div class="global-meta"><span>3 projects</span><span>2 active runs</span><span class="online">● Durable state live</span></div>
+    </header>
+
+    <nav class="projectbar" aria-label="Managed projects">
+      <button class="project active" data-project="DevalCopilot" data-run="18" data-path="C:\Users\denis\Desktop\AIProjects\DevalCopilot">
+        <span class="project-top"><span>DevalCopilot</span><span class="status live">running</span></span><span class="project-bottom"><span>Run #18 · Delivery</span><span>2 / 6</span></span>
+      </button>
+      <button class="project" data-project="Verse &amp; Vestige" data-run="42" data-path="C:\Users\denis\Desktop\AIProjects\VerseAndVestige">
+        <span class="project-top"><span>Verse &amp; Vestige</span><span class="status review">review</span></span><span class="project-bottom"><span>Run #42 · Review</span><span>2 / 6</span></span>
+      </button>
+      <button class="project" data-project="CommitAhead" data-run="7" data-path="C:\Users\denis\Desktop\AIProjects\CommitAhead">
+        <span class="project-top"><span>CommitAhead</span><span class="status">paused</span></span><span class="project-bottom"><span>Run #7 · Resolution</span><span>1 / 6</span></span>
+      </button>
+      <button class="new-project" aria-label="Add project" data-toast="Project onboarding would open here">+</button>
+    </nav>
+
+    <main class="workspace">
+      <aside class="rail">
+        <div class="section-head"><span class="eyebrow">Work map</span><span class="count">recursive</span></div>
+        <div class="tree">
+          <div class="tree-group"><button class="tree-row done" data-node="Intake & baseline"><span class="caret">✓</span><span>Intake & baseline</span><span class="meta">done</span></button></div>
+          <div class="tree-group"><button class="tree-row done" data-node="Run plan"><span class="caret">✓</span><span>Run plan</span><span class="meta">rev 4</span></button></div>
+          <div class="tree-group">
+            <button class="tree-row selected" data-node="Delivery"><span class="caret">⌄</span><span>Delivery</span><span class="meta">1 / 4</span></button>
+            <div class="children">
+              <button class="tree-row done" data-node="Local authentication"><span class="caret">✓</span><span>A · Local authentication</span><span class="meta">done</span></button>
+              <button class="tree-row selected" data-node="Durable persistence"><span class="caret">●</span><span>B · Durable persistence</span><span class="meta attempt">attempt 3</span></button>
+              <button class="tree-row blocked" data-node="Cockpit UI"><span class="caret">⊘</span><span>C · Cockpit UI</span><span class="meta">blocked</span></button>
+              <button class="tree-row" data-node="Tauri shell"><span class="caret">○</span><span>D · Tauri shell</span><span class="meta">ready</span></button>
+            </div>
+          </div>
+          <div class="tree-group"><button class="tree-row" data-node="Publication"><span class="caret">◇</span><span>Publication</span><span class="meta">gated</span></button></div>
+          <div class="tree-group"><button class="tree-row" data-node="GitHub CI"><span class="caret">○</span><span>GitHub CI</span><span class="meta">queued</span></button></div>
+          <div class="tree-group"><button class="tree-row" data-node="Ready for human"><span class="caret">○</span><span>Ready for human</span><span class="meta">queued</span></button></div>
+        </div>
+        <div class="rail-foot"><div class="eyebrow">Why a tree?</div><p class="tiny-note">A work item may open child tasks, attempts, challenges, and review loops without distorting the six stable lifecycle phases.</p></div>
+      </aside>
+
+      <section class="studio">
+        <header class="studio-head">
+          <div class="project-context"><div class="project-label" id="projectLabel">DEVALCOPILOT · RUN #18</div><h1 id="runObjective">Make provider usage visible and enforceable</h1><div class="path" id="projectPath">C:\Users\denis\Desktop\AIProjects\DevalCopilot · candidate/run-18-token-controls · 7f2ac91</div></div>
+          <div class="actions"><button class="btn" id="pause">Pause</button><button class="btn danger" data-toast="Stop requires scoped confirmation">Stop</button><button class="btn primary" id="advance">Advance demo</button></div>
+        </header>
+        <div class="decision-scroll">
+          <div class="focus-line"><strong id="focusTitle">Decision thread · Durable persistence</strong><span>Plan revision 3 → 4</span></div>
+          <div class="exchange">
+            <article class="turn left codex">
+              <div class="turn-head"><div class="actor"><span class="avatar">CX</span><span>Codex</span></div><span class="role">Proposal</span></div>
+              <p>Normalize token usage into one total and stop execution when the project budget is exhausted.</p>
+              <div class="turn-tools"><button class="link" data-toast="Opened plan revision 3">Plan rev 3 ↗</button><button class="link" data-toast="Opened 7 evidence references">7 sources ↗</button></div>
+            </article>
+            <article class="turn right claude" id="challenge">
+              <div class="turn-head"><div class="actor"><span class="avatar">CL</span><span>Claude</span></div><span class="role">Challenge C1</span></div>
+              <p>A single total conflates two different controls: this run's token budget and each provider account's rolling allowance.</p>
+              <div class="challenge-box"><strong>Material consequence</strong>Claude may still have runway while Codex is already at its stop threshold. The orchestrator should pause only the affected provider and re-plan.</div>
+              <div class="challenge-actions"><button class="mini accept" id="accept">Accept & revise</button><button class="mini" data-toast="Provider evidence opened">Inspect evidence</button></div>
+            </article>
+            <div class="loop"><b>↻ Review loop 1</b> · material challenge accepted</div>
+            <article class="turn left codex resolution" id="resolution">
+              <div class="turn-head"><div class="actor"><span class="avatar">CX</span><span>Codex</span></div><span class="role">Resolution · Accepted</span></div>
+              <p>Separate RunTokenBudget from ProviderAllowanceGuardrail. Refresh allowance before every provider turn; stale or unavailable usage pauses that provider.</p>
+              <div class="turn-tools"><button class="link" data-toast="Opened binding decision D4">Decision D4 ↗</button><button class="link" data-toast="Plan revision 4 is authoritative">Plan rev 4 ↗</button></div>
+            </article>
+            <article class="turn right claude">
+              <div class="turn-head"><div class="actor"><span class="avatar">CL</span><span>Claude</span></div><span class="role">Execution</span></div>
+              <p>Implementing the resolved contract with independent provider snapshots, timestamps, thresholds, and visible unknown states.</p>
+            </article>
+          </div>
+          <div class="execution"><span class="pulse"></span><div class="execution-copy"><strong id="executionTitle">Claude is implementing attempt 3</strong><div id="executionDetail">RunBudgetProjection.cs · bounded context 14 files · seq 184</div><div class="bar"><span id="executionBar"></span></div></div><button class="link" data-toast="Live output opened">Live output ↗</button></div>
+        </div>
+      </section>
+
+      <aside class="rail inspector">
+        <div class="section-head"><span class="eyebrow">Autonomy contract</span><span class="status live">enforced</span></div>
+        <div class="inspector-body">
+          <section class="card"><div class="card-title"><span>Provider allowance</span><span class="count">refresh 18s</span></div>
+            <div class="provider"><div class="provider-head"><span class="provider-name"><span class="provider-dot"></span>Codex</span><span class="runway">20% runway</span></div><div class="usage-row"><span>5-hour window</span><span>70% · stop 90%</span></div><div class="track"><div class="fill" style="width:70%"></div><span class="stop" style="left:90%"></span></div><div class="usage-row"><span>Weekly window</span><span>53% · stop 90%</span></div><div class="track"><div class="fill" style="width:53%"></div><span class="stop" style="left:90%"></span></div></div>
+            <div class="provider"><div class="provider-head"><span class="provider-name"><span class="provider-dot claude"></span>Claude</span><span class="runway">23% runway</span></div><div class="usage-row"><span>5-hour window</span><span>62% · stop 85%</span></div><div class="track"><div class="fill claude" style="width:62%"></div><span class="stop" style="left:85%"></span></div><div class="usage-row"><span>Weekly window</span><span>41% · stop 85%</span></div><div class="track"><div class="fill claude" style="width:41%"></div><span class="stop" style="left:85%"></span></div></div>
+            <div class="guardrail"><span class="shield">◆</span><span>Do not start a provider turn at or above its threshold. Unknown or stale snapshots pause that provider.</span></div>
+          </section>
+          <section class="card"><div class="card-title"><span>Run token budget</span><span class="count">18.4k / 60k</span></div><div class="budget-grid"><div class="budget-cell"><span>Codex</span><strong>7.2k / 24k</strong></div><div class="budget-cell"><span>Claude</span><strong>11.2k / 36k</strong></div><div class="budget-cell"><span>Challenge loops</span><strong>1 / 2</strong></div><div class="budget-cell"><span>Review loops</span><strong>0 / 2</strong></div></div></section>
+          <section class="card"><div class="card-title"><span>Control policy</span><span class="count">local</span></div><p class="policy"><strong>Autonomous locally.</strong> File edits and bounded checks continue without interruption. Publication, destructive actions, and policy changes require scoped approval.</p></section>
+          <section class="card"><div class="card-title"><span>Recent evidence</span><span class="count">bound</span></div><ul class="activity"><li><span>✓</span><span><b>128 tests passed</b><br>candidate 7f2ac91</span></li><li><span>◇</span><span><b>Challenge C1 accepted</b><br>decision D4</span></li><li><span>↗</span><span><b>6 files changed</b><br>+231 −44</span></li></ul></section>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const toast=document.getElementById('toast');
+    function say(message){toast.textContent=message;toast.classList.add('show');clearTimeout(say.t);say.t=setTimeout(()=>toast.classList.remove('show'),1900)}
+    document.querySelectorAll('[data-toast]').forEach(x=>x.addEventListener('click',()=>say(x.dataset.toast)));
+    document.querySelectorAll('.project').forEach(project=>project.addEventListener('click',()=>{
+      document.querySelectorAll('.project').forEach(x=>x.classList.toggle('active',x===project));
+      document.getElementById('projectLabel').textContent=`${project.dataset.project.toUpperCase()} · RUN #${project.dataset.run}`;
+      document.getElementById('projectPath').textContent=`${project.dataset.path} · candidate/run-${project.dataset.run} · local`;
+      say(`Focused ${project.dataset.project}`);
+    }));
+    document.querySelectorAll('.tree-row').forEach(node=>node.addEventListener('click',()=>{
+      document.querySelectorAll('.tree-row').forEach(x=>x.classList.remove('selected'));node.classList.add('selected');
+      document.getElementById('focusTitle').textContent=`Decision thread · ${node.dataset.node}`;say(`Filtered evidence to ${node.dataset.node}`);
+    }));
+    document.getElementById('accept').addEventListener('click',()=>{document.getElementById('challenge').style.opacity='.62';document.getElementById('resolution').style.boxShadow='0 0 0 2px #b8f15d44';say('Challenge accepted · plan revision 4 is authoritative')});
+    let paused=false;document.getElementById('pause').addEventListener('click',e=>{paused=!paused;e.currentTarget.textContent=paused?'Resume':'Pause';document.getElementById('executionTitle').textContent=paused?'Attempt paused at a safe boundary':'Claude is implementing attempt 3';say(paused?'Execution paused':'Execution resumed')});
+    let progress=64;document.getElementById('advance').addEventListener('click',()=>{progress=Math.min(100,progress+9);document.getElementById('executionBar').style.width=`${progress}%`;document.getElementById('executionDetail').textContent=progress===100?'Attempt ready for verification · fingerprint captured':`Implementing resolved contract · ${progress}% · seq ${184+progress}`;say(progress===100?'Attempt ready for verification':'Durable event appended')});
+  </script>
+</body>
+</html>

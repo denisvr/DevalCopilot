@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/backend/">
+    <Project Path="src/backend/DevalCopilot.Api/DevalCopilot.Api.csproj" />
+    <Project Path="src/backend/DevalCopilot.Application/DevalCopilot.Application.csproj" />
+    <Project Path="src/backend/DevalCopilot.Domain/DevalCopilot.Domain.csproj" />
+    <Project Path="src/backend/DevalCopilot.Infrastructure/DevalCopilot.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DevalCopilot.Api.IntegrationTests/DevalCopilot.Api.IntegrationTests.csproj" />
+    <Project Path="tests/DevalCopilot.Application.Tests/DevalCopilot.Application.Tests.csproj" />
+    <Project Path="tests/DevalCopilot.Architecture.Tests/DevalCopilot.Architecture.Tests.csproj" />
+    <Project Path="tests/DevalCopilot.Domain.Tests/DevalCopilot.Domain.Tests.csproj" />
+    <Project Path="tests/DevalCopilot.Infrastructure.IntegrationTests/DevalCopilot.Infrastructure.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

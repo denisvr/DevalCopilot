@@ -23,6 +23,8 @@ become the only schema.
 | `Stage` | One workflow phase and its prerequisites |
 | `Task` | One bounded unit of intended work |
 | `Attempt` | One immutable agent, command, Git, or remote invocation |
+| `ContextManifest` | Versioned bounded input selection for an agent attempt |
+| `ProviderAllowanceSnapshot` | Time-windowed provider usage, reset, freshness, and confidence |
 | `ConversationMessage` | Typed protocol message and references |
 | `Challenge` | Disputed claim, evidence, status, and resolution |
 | `Decision` | Explicit resolution and resulting action |
@@ -30,6 +32,7 @@ become the only schema.
 | `Finding` | Review issue, severity, location, and disposition |
 | `Approval` | Scoped authority for one consequential action |
 | `GitWorkspace` | Worktree, branch, ownership, and current fingerprint |
+| `RepositoryMutationLease` | Exclusive mutation ownership for a canonical repository |
 | `GitCheckpoint` | Durable source and workflow recovery point |
 | `RemoteChangeRequest` | Provider-neutral pull request state |
 | `CheckSnapshot` | CI workflow, job, and check observations by head SHA |
@@ -118,6 +121,12 @@ secrets.
 
 One host instance owns a finite lease for an active work item. The lease records
 host instance, attempt, acquisition time, expiry, and heartbeat.
+
+A separate repository mutation lease prevents two runs from changing worktrees,
+shared Git metadata, or publication state for the same canonical repository at
+the same time. Its uniqueness is enforced by canonical repository identity, not
+display name or user-entered path spelling. Observation-only CI and history work
+does not require this mutation lease.
 
 An expired lease does not immediately authorize a retry. Startup reconciliation
 first checks process identity, Git state, and remote state. If completion cannot
