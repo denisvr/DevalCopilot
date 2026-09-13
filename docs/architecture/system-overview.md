@@ -241,6 +241,52 @@ External work follows a durable-intent pattern:
 No database transaction remains open while an agent, GitHub, or project command
 runs.
 
+### Autonomous-operation truthfulness (Increment 5 target contract)
+
+This section defines the target autonomous-operation contract — the durable
+state projections, autonomy guardian behavior, and cockpit treatment that
+[Increment 5](../roadmap/mvp-delivery-plan.md#increment-5-local-supervised-delivery-loop)
+is responsible for implementing in full. It is recorded now as an agreed
+architectural target for earlier increments to build toward, not as behavior
+any current increment already delivers.
+
+Enabling an autonomy policy is not evidence that work has started. The product
+models policy configuration and operational execution separately so that the
+cockpit never presents an inactive system as working.
+
+An autonomy-controlled run has these externally meaningful states:
+
+- **Armed**: policy is enabled, but no action has been dispatched. The UI shows
+  that it is awaiting an eligible next action and why one is not yet eligible.
+- **Dispatching**: a durable intent exists and the host is waiting for an
+  executor to claim it.
+- **Running**: an executor has claimed a durable attempt. Its current
+  objective, executor identity, finite lease, last heartbeat, and next
+  expected signal are all available from authoritative state.
+- **Waiting external**: an external executor or service owns the next signal.
+  The UI identifies the dependency, last observed progress, and deadline.
+- **Needs attention**: a prerequisite, input, lease, heartbeat, or dispatch
+  has failed or become stale. The UI presents the reason and allowed recovery
+  actions instead of implying continued progress.
+
+`Running` is an invariant, not a display preference: it cannot be projected
+without a durable intent, claimed attempt, executor identity, finite lease,
+current objective, and current heartbeat. The host records each material state
+transition atomically with its event. A policy toggle alone may produce
+`Armed`; it cannot produce `Dispatching` or `Running`.
+
+An autonomy guardian observes leases, heartbeats, and declared deadlines from
+the durable state. If expected progress is missing beyond the configured bound,
+it records a truthful `Waiting external` or `Needs attention` transition. It
+does not silently retry, invent a new objective, or claim that the original
+executor is still working. Recovery remains an explicit policy-allowed command
+such as retry, resume, cancel, or human takeover.
+
+The cockpit presents the current operational state, reason, current action,
+executor, last heartbeat, next deadline, and recovery actions at an appropriate
+level of detail. It must distinguish a UI transport disconnect from executor
+health and must retain the last authoritative state while it reconnects.
+
 ### Cross-project scheduling
 
 The supervisor may claim eligible work for multiple runs up to the configured

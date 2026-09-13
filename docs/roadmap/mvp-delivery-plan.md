@@ -188,6 +188,10 @@ One objective can reach a locally verified, reviewed commit.
   mutating runs;
 - repository-level mutation lease and visible queue reasons;
 - pause, resume, stop, retry, and takeover;
+- autonomy policy, durable dispatch intent, executor lease, heartbeat, and
+  deadline projections;
+- an autonomy guardian that marks stale or failed dispatches truthfully and
+  exposes bounded recovery actions;
 - scoped approvals and invalidation;
 - commit preparation and execution by the orchestrator;
 - final evidence summary and run replay;
@@ -203,6 +207,11 @@ One objective can reach a locally verified, reviewed commit.
   run for either repository remains queued;
 - pausing, stopping, or exhausting a budget for one run does not silently alter
   an unrelated run;
+- enabling autonomy alone presents the run as armed, never as executing;
+- a run is presented as running only while a claimed attempt has a current
+  executor, lease, objective, heartbeat, and next expected signal;
+- a stale heartbeat, lease, or dispatch becomes a visible waiting or attention
+  state with an actionable reason, not an indefinitely working indicator;
 - the UI explains every transition and required human action.
 
 ## Increment 6: GitHub and CI evidence loop
