@@ -303,6 +303,67 @@
   color: var(--dc-text-muted);
 }
 
+.dc-capability-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--dc-border);
+}
+
+.dc-capability-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--dc-surface-alt);
+  border: 1px solid var(--dc-border);
+  font-size: 0.75rem;
+}
+
+.dc-capability-chip[data-status='Unavailable'] {
+  border-color: var(--dc-danger);
+  color: var(--dc-danger);
+}
+
+.dc-capability-chip[data-status='NeedsAttention'] {
+  border-color: var(--dc-warning);
+  color: var(--dc-warning);
+}
+
+.dc-capability-chip[data-status='Degraded'] {
+  border-color: var(--dc-warning);
+}
+
+.dc-capability-chip[data-stale='true'] {
+  opacity: 0.7;
+}
+
+.dc-capability-name {
+  font-weight: 600;
+}
+
+.dc-capability-version {
+  color: var(--dc-text-muted);
+}
+
+.dc-capability-refresh {
+  border: none;
+  background: transparent;
+  color: var(--dc-text-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0;
+}
+
+.dc-capability-refresh:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .dc-empty-state {
   padding: 2rem;
   text-align: center;

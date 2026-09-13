@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ public interface IDevalCopilotDbContext
     DbSet<Attempt> Attempts { get; }
 
     DbSet<RunEvent> Events { get; }
+
+    DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots { get; }
 
     /// <summary>
     /// Used only by manual-transaction commands that must read back a database-assigned

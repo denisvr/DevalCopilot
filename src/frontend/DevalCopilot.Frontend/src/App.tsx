@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { startSimulatedRunClient } from './api/clients'
 import { StartSimulatedRunRequest } from './api/generated/api-client'
+import { CapabilityReadinessStrip } from './features/cockpit/components/CapabilityReadinessStrip'
 import { ProjectSwitcher } from './features/cockpit/components/ProjectSwitcher'
 import { RunCockpitView } from './features/cockpit/components/RunCockpitView'
+import { useHostCapabilityRefresh } from './features/cockpit/hooks/useHostCapabilityRefresh'
 import { useProjectSummaries } from './features/cockpit/hooks/useProjectSummaries'
 import { useSessionStatus } from './features/cockpit/hooks/useSessionStatus'
 import { useTheme } from './features/cockpit/hooks/useTheme'
@@ -42,6 +44,7 @@ export default function App() {
   const [theme, setTheme] = useTheme()
   const sessionStatus = useSessionStatus()
   const { projects, loading, error, refresh } = useProjectSummaries(sessionStatus === 'ready')
+  const { refreshingCapability, requestRefresh } = useHostCapabilityRefresh(refresh)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
 
@@ -96,6 +99,14 @@ export default function App() {
           {theme === 'dark-navy' ? '☾ Dark Navy' : '☀ Light'}
         </button>
       </header>
+
+      {selectedProject ? (
+        <CapabilityReadinessStrip
+          capabilities={selectedProject.capabilities ?? []}
+          refreshingCapability={refreshingCapability}
+          onRefresh={requestRefresh}
+        />
+      ) : null}
 
       {selectedProject?.runId ? (
         <RunCockpitView runId={selectedProject.runId} />

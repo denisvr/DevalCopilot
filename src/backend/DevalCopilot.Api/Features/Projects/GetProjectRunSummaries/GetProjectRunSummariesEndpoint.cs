@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetHostCapabilityReadiness;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectRunSummaries;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,9 +20,20 @@ public sealed class GetProjectRunSummariesEndpoint(IApplicationMediator mediator
                 summary.RunId,
                 summary.ExecutionNumber,
                 summary.Lifecycle?.ToString(),
-                summary.Stage?.ToString()))
+                summary.Stage?.ToString(),
+                summary.Capabilities.Select(MapCapability).ToArray()))
             .ToArray();
 
         return Ok(response);
     }
+
+    private static CapabilityReadinessResponse MapCapability(CapabilityReadinessQueryResult capability) => new(
+        capability.Capability.ToString(),
+        capability.IsRequired,
+        capability.DisplayStatus?.ToString(),
+        capability.ReasonCode.ToString(),
+        capability.ResolvedExecutablePath,
+        capability.Version,
+        capability.LastCheckedUtc,
+        capability.IsStale);
 }

@@ -2,6 +2,7 @@ import {
   GetProjectRunSummariesEndpointClient,
   GetRunCockpitEndpointClient,
   GetRunEventsEndpointClient,
+  RequestHostCapabilityRefreshEndpointClient,
   StartSimulatedRunEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
@@ -12,10 +13,13 @@ export const projectsClient = () => new GetProjectRunSummariesEndpointClient(get
 export const startSimulatedRunClient = () => new StartSimulatedRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
+  CapabilityReadinessResponse,
   GetRunCockpitResponse,
   ProjectRunSummaryResponse,
+  RequestHostCapabilityRefreshResponse,
   RunEventResponse,
   StageMapEntryResponse,
 } from './generated/api-client'

@@ -6,4 +6,5 @@ public sealed record ProjectRunSummaryResponse(
     Guid? RunId,
     int? ExecutionNumber,
     string? Lifecycle,
-    string? Stage);
+    string? Stage,
+    IReadOnlyList<CapabilityReadinessResponse> Capabilities);

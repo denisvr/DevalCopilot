@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Data;
+using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
     public DbSet<Attempt> Attempts => Set<Attempt>();
 
     public DbSet<RunEvent> Events => Set<RunEvent>();
+
+    public DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots => Set<HostCapabilitySnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

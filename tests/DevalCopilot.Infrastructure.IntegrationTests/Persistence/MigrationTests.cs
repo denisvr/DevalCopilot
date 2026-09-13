@@ -1,3 +1,4 @@
+using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +53,39 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("InitialCreate", appliedMigrations);
         Assert.Contains("AddProcessAttempts", appliedMigrations);
         Assert.Contains("AddProcessDispatchMarker", appliedMigrations);
+        Assert.Contains("AddHostCapabilitySnapshots", appliedMigrations);
+    }
+
+    [Fact]
+    public async Task Migrate_creates_a_schema_that_accepts_one_host_capability_snapshot_per_capability()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        await using var context = fixture.CreateContext();
+        await context.Database.MigrateAsync();
+
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, now);
+        snapshot.MarkDispatched(now);
+        snapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", now, now.AddMinutes(5));
+        context.HostCapabilitySnapshots.Add(snapshot);
+        await context.SaveChangesAsync();
+
+        await using var reopenedContext = fixture.CreateContext();
+        var persisted = await reopenedContext.HostCapabilitySnapshots.FindAsync(Capability.Git);
+
+        Assert.NotNull(persisted);
+        Assert.Equal(CapabilityProbeReason.None, persisted.ReasonCode);
+        Assert.Equal("2.43.0", persisted.ObservedVersion);
+        Assert.Equal(@"C:\Program Files\Git\cmd\git.exe", persisted.ResolvedExecutablePath);
+        Assert.Null(persisted.ProbeDispatchedAtUtc);
+
+        // Capability is the natural primary key: inserting a second row for the same
+        // capability must be rejected, not silently duplicated.
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+        {
+            reopenedContext.HostCapabilitySnapshots.Add(HostCapabilitySnapshot.Seed(Capability.Git, now));
+            await reopenedContext.SaveChangesAsync();
+        });
     }
 
     [Fact]

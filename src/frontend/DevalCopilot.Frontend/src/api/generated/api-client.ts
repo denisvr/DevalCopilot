@@ -264,6 +264,54 @@ export class HealthEndpointClient {
     }
 }
 
+export class RequestHostCapabilityRefreshEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestHostCapabilityRefresh(capability: string): Promise<RequestHostCapabilityRefreshResponse> {
+        let url_ = this.baseUrl + "/api/environment/capabilities/{capability}/refresh";
+        if (capability === undefined || capability === null)
+            throw new globalThis.Error("The parameter 'capability' must be defined.");
+        url_ = url_.replace("{capability}", encodeURIComponent("" + capability));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestHostCapabilityRefresh(_response);
+        });
+    }
+
+    protected processRequestHostCapabilityRefresh(response: Response): Promise<RequestHostCapabilityRefreshResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestHostCapabilityRefreshResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestHostCapabilityRefreshResponse>(null as any);
+    }
+}
+
 export class StartSimulatedRunResponse implements IStartSimulatedRunResponse {
     runId?: string;
     executionNumber?: number;
@@ -547,6 +595,7 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
     executionNumber?: number | undefined;
     lifecycle?: string | undefined;
     stage?: string | undefined;
+    capabilities?: CapabilityReadinessResponse[];
 
     constructor(data?: IProjectRunSummaryResponse) {
         if (data) {
@@ -565,6 +614,11 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
             this.executionNumber = _data["executionNumber"];
             this.lifecycle = _data["lifecycle"];
             this.stage = _data["stage"];
+            if (Array.isArray(_data["capabilities"])) {
+                this.capabilities = [] as any;
+                for (let item of _data["capabilities"])
+                    this.capabilities!.push(CapabilityReadinessResponse.fromJS(item));
+            }
         }
     }
 
@@ -583,6 +637,11 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
         data["executionNumber"] = this.executionNumber;
         data["lifecycle"] = this.lifecycle;
         data["stage"] = this.stage;
+        if (Array.isArray(this.capabilities)) {
+            data["capabilities"] = [];
+            for (let item of this.capabilities)
+                data["capabilities"].push(item ? item.toJSON() : undefined as any);
+        }
         return data;
     }
 }
@@ -594,6 +653,107 @@ export interface IProjectRunSummaryResponse {
     executionNumber?: number | undefined;
     lifecycle?: string | undefined;
     stage?: string | undefined;
+    capabilities?: CapabilityReadinessResponse[];
+}
+
+export class CapabilityReadinessResponse implements ICapabilityReadinessResponse {
+    capability?: string;
+    isRequired?: boolean;
+    displayStatus?: string | undefined;
+    reasonCode?: string;
+    resolvedExecutablePath?: string | undefined;
+    version?: string | undefined;
+    lastCheckedUtc?: Date | undefined;
+    isStale?: boolean;
+
+    constructor(data?: ICapabilityReadinessResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.capability = _data["capability"];
+            this.isRequired = _data["isRequired"];
+            this.displayStatus = _data["displayStatus"];
+            this.reasonCode = _data["reasonCode"];
+            this.resolvedExecutablePath = _data["resolvedExecutablePath"];
+            this.version = _data["version"];
+            this.lastCheckedUtc = _data["lastCheckedUtc"] ? new Date(_data["lastCheckedUtc"].toString()) : undefined as any;
+            this.isStale = _data["isStale"];
+        }
+    }
+
+    static fromJS(data: any): CapabilityReadinessResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CapabilityReadinessResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["capability"] = this.capability;
+        data["isRequired"] = this.isRequired;
+        data["displayStatus"] = this.displayStatus;
+        data["reasonCode"] = this.reasonCode;
+        data["resolvedExecutablePath"] = this.resolvedExecutablePath;
+        data["version"] = this.version;
+        data["lastCheckedUtc"] = this.lastCheckedUtc ? this.lastCheckedUtc.toISOString() : undefined as any;
+        data["isStale"] = this.isStale;
+        return data;
+    }
+}
+
+export interface ICapabilityReadinessResponse {
+    capability?: string;
+    isRequired?: boolean;
+    displayStatus?: string | undefined;
+    reasonCode?: string;
+    resolvedExecutablePath?: string | undefined;
+    version?: string | undefined;
+    lastCheckedUtc?: Date | undefined;
+    isStale?: boolean;
+}
+
+export class RequestHostCapabilityRefreshResponse implements IRequestHostCapabilityRefreshResponse {
+    nextProbeDueAtUtc?: Date;
+
+    constructor(data?: IRequestHostCapabilityRefreshResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.nextProbeDueAtUtc = _data["nextProbeDueAtUtc"] ? new Date(_data["nextProbeDueAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): RequestHostCapabilityRefreshResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestHostCapabilityRefreshResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["nextProbeDueAtUtc"] = this.nextProbeDueAtUtc ? this.nextProbeDueAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IRequestHostCapabilityRefreshResponse {
+    nextProbeDueAtUtc?: Date;
 }
 
 export interface FileResponse {

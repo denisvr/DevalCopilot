@@ -6,11 +6,15 @@ using DevalCopilot.Api.Security;
 using DevalCopilot.Api.Security.Bootstrap;
 using DevalCopilot.Api.Security.Cors;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.EnsureHostCapabilityCatalogSeeded;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileInterruptedHostCapabilityProbes;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Security.Ports;
+using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -87,6 +91,11 @@ builder.Services.AddHostedService<SimulatedRunSupervisor>();
 builder.Services.AddSingleton<IProcessExecutionAdapter, ChildProcessExecutionAdapter>();
 builder.Services.AddHostedService<ProcessAttemptSupervisor>();
 
+// Host-scoped environment readiness: composed on top of IProcessExecutionAdapter above, never
+// a second child-process path.
+builder.Services.AddSingleton<IToolDiscoveryAdapter, ToolDiscoveryAdapter>();
+builder.Services.AddHostedService<HostCapabilityReadinessSupervisor>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -150,6 +159,12 @@ using (var startupScope = app.Services.CreateScope())
     // Running was orphaned by a prior crash, never one safe to execute.
     var mediator = startupScope.ServiceProvider.GetRequiredService<IApplicationMediator>();
     await mediator.SendAsync(new ReconcileInterruptedProcessAttemptsCommand(), CancellationToken.None);
+
+    // Host-scoped, not project-scoped: seeds the fixed capability catalog exactly once
+    // regardless of how many projects are registered, then clears any dispatch marker a prior
+    // crash left stuck — both must complete before HostCapabilityReadinessSupervisor starts.
+    await mediator.SendAsync(new EnsureHostCapabilityCatalogSeededCommand(), CancellationToken.None);
+    await mediator.SendAsync(new ReconcileInterruptedHostCapabilityProbesCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

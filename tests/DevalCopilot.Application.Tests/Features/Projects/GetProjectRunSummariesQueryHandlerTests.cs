@@ -1,0 +1,104 @@
+using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.EnsureHostCapabilityCatalogSeeded;
+using DevalCopilot.Application.Features.Projects.Queries.GetProjectRunSummaries;
+using DevalCopilot.Domain.Features.EnvironmentReadiness;
+using DevalCopilot.Domain.Features.Projects;
+using Microsoft.EntityFrameworkCore;
+using Xunit;
+
+namespace DevalCopilot.Application.Tests.Features.Projects;
+
+/// <summary>
+/// Proves the host-scoped design's central property: registering any number of projects never
+/// multiplies the underlying capability observation. Owns a fresh database per test method — a
+/// shared one would let one test's seeded catalog leak into another's exact-count assertion.
+/// </summary>
+public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
+{
+    private static readonly DateTimeOffset Now = new(2026, 9, 13, 12, 0, 0, TimeSpan.Zero);
+
+    private readonly SqliteDatabaseFixture _fixture = new();
+
+    public Task InitializeAsync() => _fixture.InitializeAsync();
+
+    public Task DisposeAsync() => _fixture.DisposeAsync();
+
+    [Fact]
+    public async Task Two_registered_projects_project_the_identical_shared_capability_observation()
+    {
+        await using var dbContext = _fixture.CreateContext();
+
+        var seedHandler = new EnsureHostCapabilityCatalogSeededCommandHandler(dbContext, new FixedTimeProvider(Now));
+        await seedHandler.HandleAsync(new EnsureHostCapabilityCatalogSeededCommand(), CancellationToken.None);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var gitSnapshot = await dbContext.HostCapabilitySnapshots.FindAsync(Capability.Git);
+        gitSnapshot!.MarkDispatched(Now);
+        gitSnapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", Now, Now.AddMinutes(5));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var firstProject = Project.Register(Guid.NewGuid(), "First", $@"C:\repos\{Guid.NewGuid():N}");
+        var secondProject = Project.Register(Guid.NewGuid(), "Second", $@"C:\repos\{Guid.NewGuid():N}");
+        dbContext.Projects.AddRange(firstProject, secondProject);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new GetProjectRunSummariesQueryHandler(dbContext, new FixedTimeProvider(Now));
+        var results = await handler.HandleAsync(new GetProjectRunSummariesQuery(), CancellationToken.None);
+
+        Assert.Equal(2, results.Count);
+        var first = results.Single(r => r.ProjectId == firstProject.Id);
+        var second = results.Single(r => r.ProjectId == secondProject.Id);
+
+        // Exactly the fixed catalog size, for both projects — never per-project duplication.
+        Assert.Equal(7, first.Capabilities.Count);
+        Assert.Equal(7, second.Capabilities.Count);
+
+        var firstGit = first.Capabilities.Single(c => c.Capability == Capability.Git);
+        var secondGit = second.Capabilities.Single(c => c.Capability == Capability.Git);
+
+        Assert.Equal(firstGit.Version, secondGit.Version);
+        Assert.Equal(firstGit.LastCheckedUtc, secondGit.LastCheckedUtc);
+        Assert.Equal(firstGit.DisplayStatus, secondGit.DisplayStatus);
+        Assert.Equal("2.43.0", firstGit.Version);
+    }
+
+    [Fact]
+    public async Task Registering_five_projects_still_yields_exactly_the_fixed_catalog_size_per_project()
+    {
+        await using var dbContext = _fixture.CreateContext();
+
+        var seedHandler = new EnsureHostCapabilityCatalogSeededCommandHandler(dbContext, new FixedTimeProvider(Now));
+        await seedHandler.HandleAsync(new EnsureHostCapabilityCatalogSeededCommand(), CancellationToken.None);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        for (var i = 0; i < 5; i++)
+        {
+            dbContext.Projects.Add(Project.Register(Guid.NewGuid(), $"Project{i}", $@"C:\repos\{Guid.NewGuid():N}"));
+        }
+
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new GetProjectRunSummariesQueryHandler(dbContext, new FixedTimeProvider(Now));
+        var results = await handler.HandleAsync(new GetProjectRunSummariesQuery(), CancellationToken.None);
+
+        Assert.Equal(5, results.Count);
+        Assert.All(results, project => Assert.Equal(7, project.Capabilities.Count));
+
+        var totalSnapshotRows = await dbContext.HostCapabilitySnapshots.CountAsync();
+        Assert.Equal(7, totalSnapshotRows);
+    }
+
+    [Fact]
+    public async Task A_capability_is_presented_as_never_probed_when_the_catalog_has_not_been_seeded_yet()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        dbContext.Projects.Add(Project.Register(Guid.NewGuid(), "Unseeded", $@"C:\repos\{Guid.NewGuid():N}"));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new GetProjectRunSummariesQueryHandler(dbContext, new FixedTimeProvider(Now));
+        var results = await handler.HandleAsync(new GetProjectRunSummariesQuery(), CancellationToken.None);
+
+        var project = Assert.Single(results);
+        Assert.Equal(7, project.Capabilities.Count);
+        Assert.All(project.Capabilities, capability => Assert.Null(capability.DisplayStatus));
+    }
+}

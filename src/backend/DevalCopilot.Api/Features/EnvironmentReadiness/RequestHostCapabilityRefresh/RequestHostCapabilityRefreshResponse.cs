@@ -1,0 +1,3 @@
+namespace DevalCopilot.Api.Features.EnvironmentReadiness.RequestHostCapabilityRefresh;
+
+public sealed record RequestHostCapabilityRefreshResponse(DateTimeOffset NextProbeDueAtUtc);
