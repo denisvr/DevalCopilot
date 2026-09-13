@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Provisional MVP branding only. A "DC" monogram on the approved Dark Navy cockpit
+    background (dc-bg token, #0b1220), using the brighter orange agent accent
+    (dc-claude token, #ff7a2f) already approved in src/features/cockpit/cockpit.css. Not a
+    designed brand mark, replace when real branding exists.
+  -->
+  <rect width="512" height="512" rx="96" fill="#0b1220" />
+  <text
+    x="256"
+    y="296"
+    text-anchor="middle"
+    font-family="Segoe UI, Arial, sans-serif"
+    font-weight="700"
+    font-size="220"
+    fill="#ff7a2f"
+  >DC</text>
+</svg>

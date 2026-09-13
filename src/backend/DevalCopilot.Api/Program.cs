@@ -2,6 +2,8 @@ using Devalente.Shared.AspNetCore.Security;
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Api.RealTime;
 using DevalCopilot.Api.Security;
+using DevalCopilot.Api.Security.Bootstrap;
+using DevalCopilot.Api.Security.Cors;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -9,15 +11,52 @@ using DevalCopilot.Application.Security.Ports;
 using DevalCopilot.Infrastructure.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
+// Explicit opt-in only: the packaged Tauri shell always passes this flag when it starts
+// the sidecar. Nothing else (an ambient environment variable, a default) can enable the
+// stdin bootstrap path, so `dotnet run`, Playwright, and the xUnit test host are
+// unaffected and keep using the existing IConfiguration-based launch secret.
+var bootstrapStdin = args.Contains("--bootstrap-stdin");
+
+BootstrapReadResult? bootstrapReadResult = null;
+var stdin = bootstrapStdin ? Console.OpenStandardInput() : null;
+if (bootstrapStdin)
+{
+    var frameResult = await BootstrapFrameReader.ReadAsync(stdin!, CancellationToken.None);
+    if (frameResult.IsFailure)
+    {
+        // Fail closed: never bind or serve. Only the generic error code reaches stderr —
+        // never the raw bootstrap line, which could contain the secret.
+        await Console.Error.WriteLineAsync($"Bootstrap failed: {frameResult.Errors[0].Code}");
+        Environment.Exit(1);
+        return;
+    }
+
+    bootstrapReadResult = frameResult.Value;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
+if (bootstrapStdin)
+{
+    builder.WebHost.UseUrls("http://127.0.0.1:0");
+    builder.Configuration.AddInMemoryCollection(
+        [new KeyValuePair<string, string?>("LaunchSession:Secret", bootstrapReadResult!.Frame.Secret)]);
+
+    // stdout is reserved exclusively for the one BootstrapReadyMarker line below: nothing
+    // here can corrupt or be confused with that protocol. Ordinary logs still reach
+    // stderr, which the shell does not read as protocol input.
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+}
 // Loopback only: this host is a privileged local process and is never internet-facing.
-if (builder.Configuration["Urls"] is null && Environment.GetEnvironmentVariable("ASPNETCORE_URLS") is null)
+else if (builder.Configuration["Urls"] is null && Environment.GetEnvironmentVariable("ASPNETCORE_URLS") is null)
 {
     builder.WebHost.UseUrls("http://127.0.0.1:5080");
 }
@@ -54,13 +93,31 @@ builder.Services
         LaunchSessionAuthenticationDefaults.AuthenticationScheme, _ => { });
 builder.Services.AddDevalenteAuthorizationDefaults();
 
-// Narrowest possible allowlist: no origin is permitted unless explicitly configured, and
-// today only the browser-hosted development/test composition configures one at all. The
-// eventual Tauri-hosted production frontend is not a separate browser origin, so it does
-// not need this policy.
+// Narrowest possible allowlist: no origin is permitted unless it is a specific, known
+// trusted frontend. The Tauri shell's bundled WebView IS a separate browser origin from
+// this loopback API (http://tauri.localhost when packaged, the Vite dev origin under
+// `tauri dev`) — never AllowAnyOrigin(), and CORS is never treated as authorization: the
+// per-launch Bearer secret is still required on every protected request regardless of
+// which of these origins sent it.
+const string TauriShellCorsPolicy = "TauriShell";
 const string BrowserHostedDevelopmentCorsPolicy = "BrowserHostedDevelopment";
 var allowedBrowserOrigin = builder.Configuration["Cors:AllowedOrigin"];
-if (!string.IsNullOrEmpty(allowedBrowserOrigin))
+
+if (bootstrapStdin)
+{
+    // Both `tauri dev` and a packaged release binary launch the sidecar with the same
+    // --bootstrap-stdin flag, and the host has no reliable way to tell which one started
+    // it — so both of the shell's own possible origins are trusted together here, never a
+    // third-party page.
+    builder.Services.AddCors(options => options.AddPolicy(
+        TauriShellCorsPolicy,
+        policy => policy
+            .WithOrigins(TrustedFrontendOrigins.PackagedWindowsWebView, TrustedFrontendOrigins.TauriDevelopmentWebView)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()));
+}
+else if (!string.IsNullOrEmpty(allowedBrowserOrigin))
 {
     // SignalR's negotiate/LongPolling requests are sent with credentials included so the
     // launch secret can travel as an Authorization header rather than an access_token query
@@ -80,7 +137,11 @@ using (var startupScope = app.Services.CreateScope())
     await ProjectFixture.EnsureSeededAsync(dbContext);
 }
 
-if (!string.IsNullOrEmpty(allowedBrowserOrigin))
+if (bootstrapStdin)
+{
+    app.UseCors(TauriShellCorsPolicy);
+}
+else if (!string.IsNullOrEmpty(allowedBrowserOrigin))
 {
     app.UseCors(BrowserHostedDevelopmentCorsPolicy);
 }
@@ -91,7 +152,31 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<RunNotificationHub>("/hubs/run", options => options.Transports = HttpTransportType.LongPolling);
 
-await app.RunAsync();
+if (bootstrapStdin)
+{
+    await app.StartAsync();
+
+    var boundAddress = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.First();
+    var port = new Uri(boundAddress).Port;
+
+    // The one and only stdout line this process ever writes in bootstrap mode: never the
+    // secret, only bounded readiness information and the selected port.
+    Console.WriteLine(BootstrapReadyMarker.Format(port));
+
+    var stdinMonitorLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("BootstrapStdinMonitor");
+    _ = BootstrapStdinMonitor.RunAsync(
+        stdin!,
+        bootstrapReadResult!.Trailing,
+        app.Lifetime,
+        stdinMonitorLogger,
+        app.Lifetime.ApplicationStopping);
+
+    await app.WaitForShutdownAsync();
+}
+else
+{
+    await app.RunAsync();
+}
 
 static string DefaultConnectionString()
 {

@@ -16,7 +16,12 @@ test-results/
 
 # Tauri and Rust
 target/
-src-tauri/target/
+**/src-tauri/target/
+**/src-tauri/gen/
+# The packaged .NET sidecar is a deterministic publish output (see
+# scripts/build-sidecar.* ), never a source file — nothing under here is committed.
+**/src-tauri/binaries/*
+!**/src-tauri/binaries/.gitkeep
 
 # IDEs and editors
 .vs/

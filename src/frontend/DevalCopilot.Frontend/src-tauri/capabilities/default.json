@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Capabilities for the main DevalCopilot window: window lifecycle and events only. No shell, filesystem, or process capability is granted to the WebView — the sidecar is spawned entirely from Rust setup code (src/main.rs), never through an invokable command, so it needs no ACL entry here. The one custom command the WebView does call, get_launch_session, is an app-defined command and is allowed to every window by default without a separate permission entry.",
+  "windows": ["main"],
+  "permissions": ["core:app:default", "core:window:default", "core:event:default"]
+}

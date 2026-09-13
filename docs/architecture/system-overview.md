@@ -114,6 +114,21 @@ every MVC request authenticates with `Authorization: Bearer <session-secret>`.
 The credential is only ever valid while both processes are alive, per the
 lifecycle above.
 
+The packaged Windows WebView is not the same browser origin as this API. Tauri
+serves the bundled frontend on Windows through its own custom protocol handler
+at the fixed origin `http://tauri.localhost` (or, under `tauri dev`, the real
+WebView is pointed directly at the configured Vite dev server origin instead).
+Either way, every request from the WebView to the loopback API at
+`http://127.0.0.1:<ephemeral-port>` is cross-origin. The host therefore runs a
+narrow, explicit CORS policy that allows only these specific, known frontend
+origins — never `AllowAnyOrigin()` and never a wildcard match — so the browser
+will actually deliver the response to the page. CORS is a browser-enforced
+response-visibility rule, not authorization: allowing an origin only means a
+request from it may receive a response at all, and every protected request
+from any allowed origin still requires the correct per-launch Bearer secret,
+returning 401 exactly as it would from a disallowed origin that somehow
+reached the host directly.
+
 Browser-hosted development cannot call this production bootstrap command,
 because it has no bundled WebView to expose it to. The production frontend
 entry point uses only the restricted Tauri bootstrap provider. A separate

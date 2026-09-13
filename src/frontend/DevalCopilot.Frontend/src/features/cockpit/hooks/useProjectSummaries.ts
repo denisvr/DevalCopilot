@@ -9,7 +9,11 @@ interface UseProjectSummariesResult {
   refresh: () => void
 }
 
-export function useProjectSummaries(): UseProjectSummariesResult {
+/**
+ * @param ready Set to false to skip fetching entirely — e.g. while the launch session is
+ * still resolving. Requests must never fire before a session exists to authenticate them.
+ */
+export function useProjectSummaries(ready: boolean = true): UseProjectSummariesResult {
   const [projects, setProjects] = useState<ProjectRunSummaryResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -18,6 +22,10 @@ export function useProjectSummaries(): UseProjectSummariesResult {
   const refresh = useCallback(() => setRefreshToken((token) => token + 1), [])
 
   useEffect(() => {
+    if (!ready) {
+      return
+    }
+
     let cancelled = false
     setLoading(true)
 
@@ -43,7 +51,7 @@ export function useProjectSummaries(): UseProjectSummariesResult {
     return () => {
       cancelled = true
     }
-  }, [refreshToken])
+  }, [ready, refreshToken])
 
   return { projects, loading, error, refresh }
 }
