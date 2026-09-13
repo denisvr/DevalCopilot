@@ -107,6 +107,41 @@ public sealed class Run
         LastAdvancedAtUtc = nowUtc;
     }
 
+    /// <summary>
+    /// Its owning attempt ended without succeeding. <see cref="Stage"/> is left as-is: a
+    /// failure does not represent forward progress to a later stage.
+    /// </summary>
+    public void Fail(DateTimeOffset nowUtc)
+    {
+        if (Lifecycle != RunLifecycle.Running)
+        {
+            throw new InvalidOperationException($"Cannot fail a run whose lifecycle is {Lifecycle}.");
+        }
+
+        AccumulateAutonomousTime(nowUtc);
+        Lifecycle = RunLifecycle.Failed;
+        ActiveParticipant = ParticipantKind.None;
+        LastAdvancedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// The restart-reconciliation transition, applied atomically alongside the owning
+    /// attempt's own <see cref="Attempt.Interrupt"/>. <see cref="Stage"/> is left as-is —
+    /// this is not forward progress, and a later intentional re-run is a new run.
+    /// </summary>
+    public void MarkInterrupted(DateTimeOffset nowUtc)
+    {
+        if (Lifecycle != RunLifecycle.Running)
+        {
+            throw new InvalidOperationException($"Cannot interrupt a run whose lifecycle is {Lifecycle}.");
+        }
+
+        AccumulateAutonomousTime(nowUtc);
+        Lifecycle = RunLifecycle.Interrupted;
+        ActiveParticipant = ParticipantKind.None;
+        LastAdvancedAtUtc = nowUtc;
+    }
+
     private void AccumulateAutonomousTime(DateTimeOffset nowUtc)
     {
         var elapsed = (nowUtc - LastAdvancedAtUtc).TotalSeconds;

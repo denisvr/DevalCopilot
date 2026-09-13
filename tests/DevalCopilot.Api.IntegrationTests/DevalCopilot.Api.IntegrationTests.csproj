@@ -17,5 +17,9 @@
     <ProjectReference Include="..\..\src\backend\DevalCopilot.Api\DevalCopilot.Api.csproj">
       <AdditionalProperties>SkipNSwag=True</AdditionalProperties>
     </ProjectReference>
+    <!-- A deterministic test-double executable, not a shipped product artifact: its build
+         output (including the native apphost) is copied alongside this test project's own
+         output so the hosted-supervisor test can launch it as a real child process. -->
+    <ProjectReference Include="..\DevalCopilot.Infrastructure.IntegrationTests\Fixtures\ProcessExecutionFixture\ProcessExecutionFixture.csproj" />
   </ItemGroup>
 </Project>

@@ -1,13 +1,17 @@
 using Devalente.Shared.AspNetCore.Security;
+using Devalente.Shared.Cqrs;
 using DevalCopilot.Api.HostedServices;
 using DevalCopilot.Api.RealTime;
 using DevalCopilot.Api.Security;
 using DevalCopilot.Api.Security.Bootstrap;
 using DevalCopilot.Api.Security.Cors;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Security.Ports;
+using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
@@ -78,6 +82,11 @@ builder.Services.AddSingleton<ISimulatedAgentAdapter, DeterministicSimulatedAgen
 builder.Services.AddScoped<IRunEventNotifier, SignalRRunEventNotifier>();
 builder.Services.AddHostedService<SimulatedRunSupervisor>();
 
+// The process-execution foundation's hosted path: strictly what running it requires, no
+// controller, endpoint, or UI wiring alongside it.
+builder.Services.AddSingleton<IProcessExecutionAdapter, ChildProcessExecutionAdapter>();
+builder.Services.AddHostedService<ProcessAttemptSupervisor>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -135,6 +144,12 @@ using (var startupScope = app.Services.CreateScope())
     var dbContext = startupScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
     await dbContext.Database.MigrateAsync();
     await ProjectFixture.EnsureSeededAsync(dbContext);
+
+    // Must complete before ProcessAttemptSupervisor (started below, only once the host
+    // itself starts) can claim any work: a Process attempt this instance finds still
+    // Running was orphaned by a prior crash, never one safe to execute.
+    var mediator = startupScope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+    await mediator.SendAsync(new ReconcileInterruptedProcessAttemptsCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

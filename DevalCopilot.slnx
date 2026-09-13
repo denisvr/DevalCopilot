@@ -12,5 +12,6 @@
     <Project Path="tests/DevalCopilot.Architecture.Tests/DevalCopilot.Architecture.Tests.csproj" />
     <Project Path="tests/DevalCopilot.Domain.Tests/DevalCopilot.Domain.Tests.csproj" />
     <Project Path="tests/DevalCopilot.Infrastructure.IntegrationTests/DevalCopilot.Infrastructure.IntegrationTests.csproj" />
+    <Project Path="tests/DevalCopilot.Infrastructure.IntegrationTests/Fixtures/ProcessExecutionFixture/ProcessExecutionFixture.csproj" />
   </Folder>
 </Solution>

@@ -82,8 +82,9 @@ source repositories and connected systems.
   is the production provider. EF Core InMemory is not provider evidence.
 - MVC integration tests use `WebApplicationFactory` and a disposable SQLite
   database.
-- Agent, Git, and GitHub adapters use deterministic executable test doubles for
-  contract and failure-path tests. Automated tests do not call real providers.
+- Agent, Git, GitHub, and local process adapters use deterministic executable
+  test doubles for contract and failure-path tests. Automated tests do not
+  call real providers.
 - Browser workflows use Playwright against a test host and test adapters.
 - Docker or Testcontainers are used only when the real boundary under test
   requires a containerized provider.

@@ -3,6 +3,12 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The fixture is a separate project with its own top-level-statement entry point; the
+         default recursive glob would otherwise also compile its Program.cs into this test
+         assembly, colliding with the test SDK's own generated entry point. -->
+    <Compile Remove="Fixtures\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -12,5 +18,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\backend\DevalCopilot.Infrastructure\DevalCopilot.Infrastructure.csproj" />
+    <!-- A deterministic test-double executable, not a shipped product artifact: its build
+         output (including the native apphost) is copied alongside this test project's own
+         output so tests can launch it as a real child process. -->
+    <ProjectReference Include="Fixtures\ProcessExecutionFixture\ProcessExecutionFixture.csproj" />
   </ItemGroup>
 </Project>

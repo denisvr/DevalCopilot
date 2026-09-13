@@ -95,4 +95,48 @@ public sealed class RunTests
 
         Assert.Throws<InvalidOperationException>(() => run.Complete(BaseTime.AddSeconds(2)));
     }
+
+    [Fact]
+    public void Fail_sets_terminal_lifecycle_and_leaves_stage_unchanged()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.Claim(BaseTime);
+        run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(1));
+
+        run.Fail(BaseTime.AddSeconds(2));
+
+        Assert.Equal(RunLifecycle.Failed, run.Lifecycle);
+        Assert.Equal(RunStage.Plan, run.Stage);
+        Assert.Equal(ParticipantKind.None, run.ActiveParticipant);
+    }
+
+    [Fact]
+    public void Fail_throws_when_run_is_not_running()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        Assert.Throws<InvalidOperationException>(() => run.Fail(BaseTime.AddSeconds(1)));
+    }
+
+    [Fact]
+    public void MarkInterrupted_sets_terminal_lifecycle_and_leaves_stage_unchanged()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.Claim(BaseTime);
+        run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(1));
+
+        run.MarkInterrupted(BaseTime.AddSeconds(2));
+
+        Assert.Equal(RunLifecycle.Interrupted, run.Lifecycle);
+        Assert.Equal(RunStage.Plan, run.Stage);
+        Assert.Equal(ParticipantKind.None, run.ActiveParticipant);
+    }
+
+    [Fact]
+    public void MarkInterrupted_throws_when_run_is_not_running()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        Assert.Throws<InvalidOperationException>(() => run.MarkInterrupted(BaseTime.AddSeconds(1)));
+    }
 }

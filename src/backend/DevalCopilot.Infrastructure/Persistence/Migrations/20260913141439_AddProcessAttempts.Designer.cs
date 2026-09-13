@@ -3,6 +3,7 @@ using System;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DevalCopilot.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DevalCopilotDbContext))]
-    partial class DevalCopilotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260913141439_AddProcessAttempts")]
+    partial class AddProcessAttempts
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -72,9 +75,6 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("ProcessArguments")
                         .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("ProcessDispatchedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ProcessExecutablePath")

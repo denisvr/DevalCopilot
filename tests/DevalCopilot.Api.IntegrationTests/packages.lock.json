@@ -657,6 +657,9 @@
           "Microsoft.EntityFrameworkCore.Sqlite": "[10.0.11, )"
         }
       },
+      "processexecutionfixture": {
+        "type": "Project"
+      },
       "Devalente.Shared.AspNetCore.Mvc": {
         "type": "CentralTransitive",
         "requested": "[0.2.0, )",
