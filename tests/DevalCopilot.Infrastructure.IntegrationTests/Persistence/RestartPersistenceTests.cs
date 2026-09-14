@@ -25,7 +25,7 @@ public sealed class RestartPersistenceTests(SqliteFileFixture fixture) : IClassF
         {
             await context.Database.MigrateAsync();
 
-            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\restart-test");
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\restart-test", DateTimeOffset.UtcNow);
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 
@@ -46,7 +46,7 @@ public sealed class RestartPersistenceTests(SqliteFileFixture fixture) : IClassF
             await context.SaveChangesAsync();
         }
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={fixture.DatabasePath}"));
 
         // Second "process lifetime": a fresh context against the same on-disk file, as a
         // restarted host would open.

@@ -26,7 +26,7 @@ public sealed class SqliteFileFixture : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={DatabasePath}"));
 
         if (File.Exists(DatabasePath))
         {

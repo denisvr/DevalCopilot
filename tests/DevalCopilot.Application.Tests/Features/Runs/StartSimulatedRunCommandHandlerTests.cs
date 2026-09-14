@@ -14,7 +14,7 @@ public sealed class StartSimulatedRunCommandHandlerTests(SqliteDatabaseFixture f
     public async Task HandleAsync_records_intent_with_created_lifecycle_and_a_run_started_event()
     {
         await using var dbContext = fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\intent-test");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\intent-test", Now);
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
@@ -42,7 +42,7 @@ public sealed class StartSimulatedRunCommandHandlerTests(SqliteDatabaseFixture f
     public async Task HandleAsync_reserves_increasing_execution_numbers_for_the_same_project()
     {
         await using var dbContext = fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\execution-number-test");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\execution-number-test", Now);
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 

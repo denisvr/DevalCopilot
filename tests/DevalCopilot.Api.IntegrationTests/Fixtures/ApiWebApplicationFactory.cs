@@ -33,7 +33,7 @@ public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
     {
         base.Dispose(disposing);
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
         if (File.Exists(_databasePath))
         {
             File.Delete(_databasePath);

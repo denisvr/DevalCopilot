@@ -50,7 +50,7 @@ public sealed class ProcessAttemptCollaboratorPipelineTests : IClassFixture<Sqli
         await using var dbContext = _fixture.CreateContext();
         await dbContext.Database.MigrateAsync();
 
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\hosted-path-test");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\hosted-path-test", DateTimeOffset.UtcNow);
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync();
 

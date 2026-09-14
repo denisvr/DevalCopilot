@@ -17,11 +17,17 @@ public sealed class GetProjectRunSummariesEndpoint(IApplicationMediator mediator
             .Select(summary => new ProjectRunSummaryResponse(
                 summary.ProjectId,
                 summary.ProjectName,
+                summary.CanonicalPath,
                 summary.RunId,
                 summary.ExecutionNumber,
                 summary.Lifecycle?.ToString(),
                 summary.Stage?.ToString(),
-                summary.Capabilities.Select(MapCapability).ToArray()))
+                summary.Capabilities.Select(MapCapability).ToArray(),
+                summary.HeadState?.ToString(),
+                summary.BranchName,
+                summary.HeadCommitSha,
+                summary.IsDirty,
+                summary.BaselineObservedAtUtc))
             .ToArray();
 
         return Ok(response);

@@ -17,7 +17,7 @@ public sealed class EventOrderingTests(SqliteFileFixture fixture) : IClassFixtur
         {
             await context.Database.MigrateAsync();
 
-            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\event-ordering-test");
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\event-ordering-test", DateTimeOffset.UtcNow);
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 

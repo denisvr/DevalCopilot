@@ -11,12 +11,14 @@ using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.EnsureHost
 using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileInterruptedHostCapabilityProbes;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Security.Ports;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.Processes;
+using DevalCopilot.Infrastructure.Features.Projects;
 using DevalCopilot.Infrastructure.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
@@ -98,6 +100,11 @@ builder.Services.AddHostedService<ProcessAttemptSupervisor>();
 builder.Services.AddSingleton<IToolDiscoveryAdapter, ToolDiscoveryAdapter>();
 builder.Services.AddHostedService<HostCapabilityReadinessSupervisor>();
 
+// Repository registration: filesystem classification is pure, stateless logic; Git inspection
+// is composed on top of IProcessExecutionAdapter above, never a second child-process path.
+builder.Services.AddSingleton<IRepositoryRootPathInspector, RepositoryRootPathInspector>();
+builder.Services.AddSingleton<IGitRepositoryInspector, GitRepositoryInspector>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -154,7 +161,6 @@ using (var startupScope = app.Services.CreateScope())
 {
     var dbContext = startupScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
     await dbContext.Database.MigrateAsync();
-    await ProjectFixture.EnsureSeededAsync(dbContext);
 
     // Must complete before ProcessAttemptSupervisor (started below, only once the host
     // itself starts) can claim any work: a Process attempt this instance finds still

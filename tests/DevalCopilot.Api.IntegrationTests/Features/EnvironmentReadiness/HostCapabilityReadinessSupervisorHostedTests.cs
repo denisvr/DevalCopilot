@@ -35,7 +35,7 @@ public sealed class HostCapabilityReadinessSupervisorHostedTests : IDisposable
 
     public void Dispose()
     {
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
 
         if (File.Exists(_databasePath))
         {
@@ -216,7 +216,7 @@ public sealed class HostCapabilityReadinessSupervisorHostedTests : IDisposable
             await dbContext.SaveChangesAsync();
         }
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
 
         await using var reopenedProvider = BuildServiceProvider();
         await using (var scope = reopenedProvider.CreateAsyncScope())

@@ -28,6 +28,9 @@
   Use Git worktrees and a policy-controlled GitHub/CI loop.
 - [ADR-0006](decisions/0006-support-bounded-concurrent-runs-across-projects.md):
   Support bounded concurrent runs across projects.
+- [ADR-0007](decisions/0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md):
+  Registration-time repository identity is non-authoritative for mutation
+  exclusion.
 
 ## Product-specific architecture
 

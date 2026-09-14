@@ -17,7 +17,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         {
             await context.Database.MigrateAsync();
 
-            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\migration-test");
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\migration-test", DateTimeOffset.UtcNow);
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 
@@ -96,7 +96,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         await using var context = fixture.CreateContext();
         await context.Database.MigrateAsync();
 
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\process-migration-test");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\process-migration-test", DateTimeOffset.UtcNow);
         context.Projects.Add(project);
         await context.SaveChangesAsync();
 
@@ -151,7 +151,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         await using var context = fixture.CreateContext();
         await context.Database.MigrateAsync();
 
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\argument-immutability-test");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\argument-immutability-test", DateTimeOffset.UtcNow);
         context.Projects.Add(project);
         await context.SaveChangesAsync();
 

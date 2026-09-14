@@ -11,6 +11,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 {
     public DbSet<Project> Projects => Set<Project>();
 
+    public DbSet<RepositoryBaseline> RepositoryBaselines => Set<RepositoryBaseline>();
+
     public DbSet<Run> Runs => Set<Run>();
 
     public DbSet<Attempt> Attempts => Set<Attempt>();

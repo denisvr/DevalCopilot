@@ -40,7 +40,7 @@ public sealed class ProcessAttemptRestartReconciliationTests(SqliteFileFixture f
         {
             await context.Database.MigrateAsync();
 
-            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\reconciliation-test");
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\reconciliation-test", DateTimeOffset.UtcNow);
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 
@@ -56,7 +56,7 @@ public sealed class ProcessAttemptRestartReconciliationTests(SqliteFileFixture f
             attemptId = attempt.Id;
         }
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={fixture.DatabasePath}"));
 
         // Second "process lifetime": a fresh context against the same on-disk file, as a
         // restarted host's startup reconciliation would open before any supervisor claims
@@ -70,7 +70,7 @@ public sealed class ProcessAttemptRestartReconciliationTests(SqliteFileFixture f
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value);
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={fixture.DatabasePath}"));
 
         await using var verificationContext = fixture.CreateContext();
         var persistedAttempt = await verificationContext.Attempts.FindAsync(attemptId);
@@ -96,7 +96,7 @@ public sealed class ProcessAttemptRestartReconciliationTests(SqliteFileFixture f
         {
             await context.Database.MigrateAsync();
 
-            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\dispatched-reconciliation-test");
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\dispatched-reconciliation-test", DateTimeOffset.UtcNow);
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 
@@ -116,7 +116,7 @@ public sealed class ProcessAttemptRestartReconciliationTests(SqliteFileFixture f
             await context.SaveChangesAsync();
         }
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={fixture.DatabasePath}"));
 
         await using var reopenedContext = fixture.CreateContext();
         var handler = new ReconcileInterruptedProcessAttemptsCommandHandler(reopenedContext, new FixedTimeProvider(ReconciledAt));
@@ -127,7 +127,7 @@ public sealed class ProcessAttemptRestartReconciliationTests(SqliteFileFixture f
         Assert.True(result.IsSuccess);
         Assert.Equal(1, result.Value);
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={fixture.DatabasePath}"));
 
         await using var verificationContext = fixture.CreateContext();
         var persistedAttempt = await verificationContext.Attempts.FindAsync(attemptId);

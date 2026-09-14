@@ -12,6 +12,7 @@ supersedes it.
 - [ADR-0004: Use a structured agent collaboration protocol](0004-use-a-structured-agent-collaboration-protocol.md)
 - [ADR-0005: Use Git worktrees and a policy-controlled GitHub loop](0005-use-git-worktrees-and-a-policy-controlled-github-loop.md)
 - [ADR-0006: Support bounded concurrent runs across projects](0006-support-bounded-concurrent-runs-across-projects.md)
+- [ADR-0007: Registration-time repository identity is non-authoritative for mutation exclusion](0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md)
 
 ## Status values
 

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { startSimulatedRunClient } from './api/clients'
 import { StartSimulatedRunRequest } from './api/generated/api-client'
+import { AddProjectForm } from './features/cockpit/components/AddProjectForm'
 import { CapabilityReadinessStrip } from './features/cockpit/components/CapabilityReadinessStrip'
+import { ProjectBaselineSummary } from './features/cockpit/components/ProjectBaselineSummary'
 import { ProjectSwitcher } from './features/cockpit/components/ProjectSwitcher'
 import { RunCockpitView } from './features/cockpit/components/RunCockpitView'
 import { useHostCapabilityRefresh } from './features/cockpit/hooks/useHostCapabilityRefresh'
@@ -91,6 +93,7 @@ export default function App() {
             onSelect={setSelectedProjectId}
           />
         )}
+        <AddProjectForm onRegistered={refresh} />
         <button
           type="button"
           className="dc-theme-toggle"
@@ -99,6 +102,8 @@ export default function App() {
           {theme === 'dark-navy' ? '☾ Dark Navy' : '☀ Light'}
         </button>
       </header>
+
+      {selectedProject ? <ProjectBaselineSummary project={selectedProject} /> : null}
 
       {selectedProject ? (
         <CapabilityReadinessStrip

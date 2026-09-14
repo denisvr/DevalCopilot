@@ -9,6 +9,8 @@ public interface IDevalCopilotDbContext
 {
     DbSet<Project> Projects { get; }
 
+    DbSet<RepositoryBaseline> RepositoryBaselines { get; }
+
     DbSet<Run> Runs { get; }
 
     DbSet<Attempt> Attempts { get; }

@@ -21,7 +21,7 @@ public sealed class MarkProcessAttemptDispatchedCommandHandlerTests(SqliteDataba
 
     private static (Project Project, Run Run, Attempt Attempt) CreateClaimedProcessAttempt()
     {
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Run a real command", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -72,7 +72,7 @@ public sealed class MarkProcessAttemptDispatchedCommandHandlerTests(SqliteDataba
     public async Task HandleAsync_fails_and_does_not_mutate_a_simulated_attempt()
     {
         await using var dbContext = fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Simulated run", Now);
         run.Claim(Now);
         var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, 1, Now);

@@ -223,6 +223,55 @@ export class GetProcessAttemptOutputEndpointClient {
     }
 }
 
+export class RegisterProjectEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    registerProject(request: RegisterProjectRequest): Promise<RegisterProjectResponse> {
+        let url_ = this.baseUrl + "/api/projects";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRegisterProject(_response);
+        });
+    }
+
+    protected processRegisterProject(response: Response): Promise<RegisterProjectResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RegisterProjectResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RegisterProjectResponse>(null as any);
+    }
+}
+
 export class GetProjectRunSummariesEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -704,14 +753,96 @@ export interface IGetProcessAttemptOutputResponse {
     truncated?: boolean;
 }
 
+export class RegisterProjectResponse implements IRegisterProjectResponse {
+    projectId?: string;
+
+    constructor(data?: IRegisterProjectResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+        }
+    }
+
+    static fromJS(data: any): RegisterProjectResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RegisterProjectResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        return data;
+    }
+}
+
+export interface IRegisterProjectResponse {
+    projectId?: string;
+}
+
+export class RegisterProjectRequest implements IRegisterProjectRequest {
+    name?: string;
+    path?: string;
+
+    constructor(data?: IRegisterProjectRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+            this.path = _data["path"];
+        }
+    }
+
+    static fromJS(data: any): RegisterProjectRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RegisterProjectRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        data["path"] = this.path;
+        return data;
+    }
+}
+
+export interface IRegisterProjectRequest {
+    name?: string;
+    path?: string;
+}
+
 export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
     projectId?: string;
     projectName?: string;
+    canonicalPath?: string;
     runId?: string | undefined;
     executionNumber?: number | undefined;
     lifecycle?: string | undefined;
     stage?: string | undefined;
     capabilities?: CapabilityReadinessResponse[];
+    headState?: string | undefined;
+    branchName?: string | undefined;
+    headCommitSha?: string | undefined;
+    isDirty?: boolean;
+    baselineObservedAtUtc?: Date | undefined;
 
     constructor(data?: IProjectRunSummaryResponse) {
         if (data) {
@@ -726,6 +857,7 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
         if (_data) {
             this.projectId = _data["projectId"];
             this.projectName = _data["projectName"];
+            this.canonicalPath = _data["canonicalPath"];
             this.runId = _data["runId"];
             this.executionNumber = _data["executionNumber"];
             this.lifecycle = _data["lifecycle"];
@@ -735,6 +867,11 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
                 for (let item of _data["capabilities"])
                     this.capabilities!.push(CapabilityReadinessResponse.fromJS(item));
             }
+            this.headState = _data["headState"];
+            this.branchName = _data["branchName"];
+            this.headCommitSha = _data["headCommitSha"];
+            this.isDirty = _data["isDirty"];
+            this.baselineObservedAtUtc = _data["baselineObservedAtUtc"] ? new Date(_data["baselineObservedAtUtc"].toString()) : undefined as any;
         }
     }
 
@@ -749,6 +886,7 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
         data = typeof data === 'object' ? data : {};
         data["projectId"] = this.projectId;
         data["projectName"] = this.projectName;
+        data["canonicalPath"] = this.canonicalPath;
         data["runId"] = this.runId;
         data["executionNumber"] = this.executionNumber;
         data["lifecycle"] = this.lifecycle;
@@ -758,6 +896,11 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
             for (let item of this.capabilities)
                 data["capabilities"].push(item ? item.toJSON() : undefined as any);
         }
+        data["headState"] = this.headState;
+        data["branchName"] = this.branchName;
+        data["headCommitSha"] = this.headCommitSha;
+        data["isDirty"] = this.isDirty;
+        data["baselineObservedAtUtc"] = this.baselineObservedAtUtc ? this.baselineObservedAtUtc.toISOString() : undefined as any;
         return data;
     }
 }
@@ -765,11 +908,17 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
 export interface IProjectRunSummaryResponse {
     projectId?: string;
     projectName?: string;
+    canonicalPath?: string;
     runId?: string | undefined;
     executionNumber?: number | undefined;
     lifecycle?: string | undefined;
     stage?: string | undefined;
     capabilities?: CapabilityReadinessResponse[];
+    headState?: string | undefined;
+    branchName?: string | undefined;
+    headCommitSha?: string | undefined;
+    isDirty?: boolean;
+    baselineObservedAtUtc?: Date | undefined;
 }
 
 export class CapabilityReadinessResponse implements ICapabilityReadinessResponse {

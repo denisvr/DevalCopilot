@@ -66,15 +66,65 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("NextBaselineNumber")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("NextExecutionNumber")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset?>("RegisteredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RegistrationIdentityKey")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CanonicalPath")
+                    b.HasIndex("RegistrationIdentityKey")
                         .IsUnique();
 
                     b.ToTable("projects", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.RepositoryBaseline", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("BaselineNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BranchName")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HeadCommitSha")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HeadState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDirty")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("ObservedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "BaselineNumber")
+                        .IsUnique();
+
+                    b.ToTable("repository_baselines", (string)null);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.Artifact", b =>
@@ -305,6 +355,15 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.HasIndex("RunId", "Sequence");
 
                     b.ToTable("events", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.RepositoryBaseline", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.Artifact", b =>

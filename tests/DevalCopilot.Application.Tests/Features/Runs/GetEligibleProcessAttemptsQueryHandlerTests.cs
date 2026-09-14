@@ -23,7 +23,7 @@ public sealed class GetEligibleProcessAttemptsQueryHandlerTests(SqliteDatabaseFi
     public async Task HandleAsync_returns_an_attempt_only_when_it_is_running_process_and_its_run_is_running()
     {
         await using var dbContext = fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Eligible", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -44,7 +44,7 @@ public sealed class GetEligibleProcessAttemptsQueryHandlerTests(SqliteDatabaseFi
     public async Task HandleAsync_excludes_a_running_process_attempt_whose_run_is_no_longer_running()
     {
         await using var dbContext = fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Inconsistent state", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -68,7 +68,7 @@ public sealed class GetEligibleProcessAttemptsQueryHandlerTests(SqliteDatabaseFi
     public async Task HandleAsync_excludes_an_attempt_already_marked_dispatched()
     {
         await using var dbContext = fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Already dispatched", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);

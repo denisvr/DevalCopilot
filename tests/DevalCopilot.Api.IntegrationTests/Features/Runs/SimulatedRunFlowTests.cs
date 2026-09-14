@@ -1,10 +1,12 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using DevalCopilot.Api.Features.Projects.GetProjectRunSummaries;
 using DevalCopilot.Api.Features.Runs.GetRunCockpit;
 using DevalCopilot.Api.Features.Runs.GetRunEvents;
 using DevalCopilot.Api.Features.Runs.StartSimulatedRun;
 using DevalCopilot.Api.IntegrationTests.Fixtures;
+using DevalCopilot.Domain.Features.Projects;
+using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
@@ -29,16 +31,33 @@ public sealed class SimulatedRunFlowTests(ApiWebApplicationFactory factory) : IC
         return client;
     }
 
+    /// <summary>
+    /// Registers a project directly through the DbContext, bypassing the real registration
+    /// endpoint (and the real Git repository it requires) entirely — these tests are about the
+    /// simulated-run sequence, not registration correctness, which is proven separately. Each
+    /// call uses a fresh, uniquely named project rather than relying on any pre-seeded row, since
+    /// production startup no longer seeds one and the class-shared factory's database persists
+    /// across every test in this file.
+    /// </summary>
+    private async Task<Guid> RegisterProjectAsync(string name)
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var project = Project.Register(Guid.NewGuid(), name, $@"C:\repos\{Guid.NewGuid():N}", DateTimeOffset.UtcNow);
+        dbContext.Projects.Add(project);
+        await dbContext.SaveChangesAsync();
+        return project.Id;
+    }
+
     [Fact]
     public async Task Starting_a_simulated_run_reaches_a_visible_terminal_state_through_the_deterministic_sequence()
     {
         using var client = CreateAuthenticatedClient();
 
-        var summaries = await client.GetFromJsonAsync<List<ProjectRunSummaryResponse>>("/api/projects/run-summaries");
-        var project = Assert.Single(summaries!);
+        var projectId = await RegisterProjectAsync("Walking skeleton");
 
         var startResponse = await client.PostAsJsonAsync(
-            "/api/runs/simulated", new StartSimulatedRunRequest(project.ProjectId, "Prove the walking skeleton"));
+            "/api/runs/simulated", new StartSimulatedRunRequest(projectId, "Prove the walking skeleton"));
         startResponse.EnsureSuccessStatusCode();
         var started = await startResponse.Content.ReadFromJsonAsync<StartSimulatedRunResponse>();
 
@@ -64,11 +83,10 @@ public sealed class SimulatedRunFlowTests(ApiWebApplicationFactory factory) : IC
     {
         using var client = CreateAuthenticatedClient();
 
-        var summaries = await client.GetFromJsonAsync<List<ProjectRunSummaryResponse>>("/api/projects/run-summaries");
-        var project = Assert.Single(summaries!);
+        var projectId = await RegisterProjectAsync("Cursor catch-up");
 
         var startResponse = await client.PostAsJsonAsync(
-            "/api/runs/simulated", new StartSimulatedRunRequest(project.ProjectId, "Prove cursor catch-up"));
+            "/api/runs/simulated", new StartSimulatedRunRequest(projectId, "Prove cursor catch-up"));
         var started = await startResponse.Content.ReadFromJsonAsync<StartSimulatedRunResponse>();
 
         var cockpit = await WaitForTerminalCockpitAsync(client, started!.RunId);

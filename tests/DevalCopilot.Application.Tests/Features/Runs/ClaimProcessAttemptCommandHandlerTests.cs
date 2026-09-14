@@ -21,7 +21,7 @@ public sealed class ClaimProcessAttemptCommandHandlerTests(SqliteDatabaseFixture
 
     private static (Project Project, Run Run) CreateRun()
     {
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Run a real command", Now);
         return (project, run);
     }

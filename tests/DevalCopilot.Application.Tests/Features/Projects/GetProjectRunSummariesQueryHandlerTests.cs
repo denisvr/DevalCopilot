@@ -36,8 +36,8 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
         gitSnapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", Now, Now.AddMinutes(5));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
-        var firstProject = Project.Register(Guid.NewGuid(), "First", $@"C:\repos\{Guid.NewGuid():N}");
-        var secondProject = Project.Register(Guid.NewGuid(), "Second", $@"C:\repos\{Guid.NewGuid():N}");
+        var firstProject = Project.Register(Guid.NewGuid(), "First", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var secondProject = Project.Register(Guid.NewGuid(), "Second", $@"C:\repos\{Guid.NewGuid():N}", Now);
         dbContext.Projects.AddRange(firstProject, secondProject);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
@@ -72,7 +72,7 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
 
         for (var i = 0; i < 5; i++)
         {
-            dbContext.Projects.Add(Project.Register(Guid.NewGuid(), $"Project{i}", $@"C:\repos\{Guid.NewGuid():N}"));
+            dbContext.Projects.Add(Project.Register(Guid.NewGuid(), $"Project{i}", $@"C:\repos\{Guid.NewGuid():N}", Now));
         }
 
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -91,7 +91,7 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
     public async Task A_capability_is_presented_as_never_probed_when_the_catalog_has_not_been_seeded_yet()
     {
         await using var dbContext = _fixture.CreateContext();
-        dbContext.Projects.Add(Project.Register(Guid.NewGuid(), "Unseeded", $@"C:\repos\{Guid.NewGuid():N}"));
+        dbContext.Projects.Add(Project.Register(Guid.NewGuid(), "Unseeded", $@"C:\repos\{Guid.NewGuid():N}", Now));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new GetProjectRunSummariesQueryHandler(dbContext, new FixedTimeProvider(Now));
@@ -100,5 +100,48 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
         var project = Assert.Single(results);
         Assert.Equal(7, project.Capabilities.Count);
         Assert.All(project.Capabilities, capability => Assert.Null(capability.DisplayStatus));
+    }
+
+    [Fact]
+    public async Task A_project_with_no_baseline_at_all_projects_as_not_yet_validated()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        dbContext.Projects.Add(Project.Register(Guid.NewGuid(), "Legacy", @"C:\repos\legacy-no-baseline", Now));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new GetProjectRunSummariesQueryHandler(dbContext, new FixedTimeProvider(Now));
+        var results = await handler.HandleAsync(new GetProjectRunSummariesQuery(), CancellationToken.None);
+
+        var project = Assert.Single(results);
+        Assert.Null(project.HeadState);
+        Assert.Null(project.BranchName);
+        Assert.Null(project.HeadCommitSha);
+        Assert.False(project.IsDirty);
+        Assert.Null(project.BaselineObservedAtUtc);
+    }
+
+    [Fact]
+    public async Task The_current_baseline_is_selected_by_the_greatest_baseline_number_not_the_latest_timestamp()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "Reregistered", @"C:\repos\re-baselined", Now);
+        dbContext.Projects.Add(project);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        // Baseline 2 is deliberately given an EARLIER timestamp than baseline 1, so a
+        // timestamp-based "latest" selection would wrongly pick baseline 1 — only the greatest
+        // BaselineNumber may ever be treated as current.
+        dbContext.RepositoryBaselines.Add(RepositoryBaseline.Capture(
+            Guid.NewGuid(), project.Id, 1, Now, RepositoryHeadState.OnBranch, "main", new string('a', 40), isDirty: true));
+        dbContext.RepositoryBaselines.Add(RepositoryBaseline.Capture(
+            Guid.NewGuid(), project.Id, 2, Now.AddMinutes(-10), RepositoryHeadState.OnBranch, "main", new string('b', 40), isDirty: false));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new GetProjectRunSummariesQueryHandler(dbContext, new FixedTimeProvider(Now));
+        var results = await handler.HandleAsync(new GetProjectRunSummariesQuery(), CancellationToken.None);
+
+        var result = Assert.Single(results);
+        Assert.Equal(new string('b', 40), result.HeadCommitSha);
+        Assert.False(result.IsDirty);
     }
 }

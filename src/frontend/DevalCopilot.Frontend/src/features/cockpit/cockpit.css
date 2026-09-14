@@ -148,6 +148,47 @@
   color: white;
 }
 
+.dc-add-project-form {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.dc-add-project-form input {
+  border: 1px solid var(--dc-border);
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.dc-add-project-form .dc-empty-state {
+  flex-basis: 100%;
+  padding: 0.25rem 0;
+  text-align: left;
+  color: var(--dc-danger);
+}
+
+.dc-project-baseline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 1rem;
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+  border-bottom: 1px solid var(--dc-border);
+}
+
+.dc-project-baseline-path {
+  font-family: monospace;
+}
+
+.dc-project-baseline-dirty[data-dirty='true'] {
+  color: var(--dc-warning);
+}
+
 .dc-workspace {
   flex: 1;
   display: grid;

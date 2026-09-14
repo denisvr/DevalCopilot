@@ -56,7 +56,7 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
             Directory.Delete(_artifactRoot, recursive: true);
         }
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
 
         if (File.Exists(_databasePath))
         {
@@ -236,7 +236,7 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         // Dispose() must not race it, so this waits out the remainder before moving on.
         await Task.Delay(TimeSpan.FromSeconds(1));
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
 
         // A fresh provider against the same database file, as a restarted host would open,
         // running only startup reconciliation — never the supervisor.
@@ -542,7 +542,7 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
             Assert.True(dispatchResult.IsSuccess);
         }
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
 
         await using var reopenedProvider = BuildServiceProvider();
         await ProcessAttemptOutputRecovery.RunAsync(reopenedProvider, NullLogger.Instance, CancellationToken.None);
@@ -635,7 +635,7 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
             await supervisor.StopAsync(stopCancellation.Token);
         }
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
 
         await using var reopenedProvider = BuildServiceProvider();
         await using (var migrateScope = reopenedProvider.CreateAsyncScope())
@@ -761,7 +761,7 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
         await dbContext.Database.MigrateAsync();
 
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", DateTimeOffset.UtcNow);
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync();
 

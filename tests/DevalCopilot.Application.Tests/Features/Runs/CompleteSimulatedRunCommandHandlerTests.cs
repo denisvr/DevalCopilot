@@ -12,7 +12,7 @@ public sealed class CompleteSimulatedRunCommandHandlerTests(SqliteDatabaseFixtur
 
     private static (Project Project, Run Run) CreateRunningRun()
     {
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Add token budgets", Now);
         run.Claim(Now);
         return (project, run);

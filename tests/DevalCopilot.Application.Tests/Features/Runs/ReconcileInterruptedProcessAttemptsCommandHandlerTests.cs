@@ -34,7 +34,7 @@ public sealed class ReconcileInterruptedProcessAttemptsCommandHandlerTests : IAs
     public async Task HandleAsync_interrupts_a_running_process_attempt_and_its_running_run_together()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Orphaned by a crash", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -56,7 +56,7 @@ public sealed class ReconcileInterruptedProcessAttemptsCommandHandlerTests : IAs
     public async Task HandleAsync_never_touches_a_running_simulated_attempt()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Simulated run", Now);
         run.Claim(Now);
         var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, 1, Now);
@@ -78,7 +78,7 @@ public sealed class ReconcileInterruptedProcessAttemptsCommandHandlerTests : IAs
     public async Task HandleAsync_never_touches_an_already_terminal_process_attempt()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Already completed", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -102,7 +102,7 @@ public sealed class ReconcileInterruptedProcessAttemptsCommandHandlerTests : IAs
     public async Task HandleAsync_fails_without_mutating_anything_when_a_running_process_attempts_run_is_not_running()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Inconsistent state", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -130,7 +130,7 @@ public sealed class ReconcileInterruptedProcessAttemptsCommandHandlerTests : IAs
     public async Task HandleAsync_fails_without_mutating_anything_when_a_running_process_attempt_has_no_owning_run()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Orphaned attempt", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);

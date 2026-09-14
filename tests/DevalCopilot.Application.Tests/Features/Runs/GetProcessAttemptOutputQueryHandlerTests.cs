@@ -63,7 +63,7 @@ public sealed class GetProcessAttemptOutputQueryHandlerTests : IAsyncLifetime
     public async Task HandleAsync_reads_from_the_partial_file_while_the_attempt_is_running()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "running", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -90,7 +90,7 @@ public sealed class GetProcessAttemptOutputQueryHandlerTests : IAsyncLifetime
     public async Task HandleAsync_reads_the_verified_sealed_artifact_once_one_is_recorded()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "done", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -122,7 +122,7 @@ public sealed class GetProcessAttemptOutputQueryHandlerTests : IAsyncLifetime
     public async Task HandleAsync_surfaces_an_integrity_mismatch_rather_than_serving_unverified_bytes()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "done", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -155,7 +155,7 @@ public sealed class GetProcessAttemptOutputQueryHandlerTests : IAsyncLifetime
     public async Task HandleAsync_reports_no_output_available_for_a_terminal_attempt_with_no_recorded_artifact()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "simulated", Now);
         run.Claim(Now);
         var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, 1, Now);

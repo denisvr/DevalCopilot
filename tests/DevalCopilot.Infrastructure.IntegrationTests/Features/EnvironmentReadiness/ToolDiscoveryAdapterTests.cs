@@ -15,7 +15,16 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Features.EnvironmentReadi
 /// dummy zero-byte file on a controlled PATH entry is enough to make resolution succeed
 /// deterministically, since the fake process adapter below intercepts execution before any real
 /// process is ever started from that path.
+///
+/// <para>
+/// Shares the <see cref="EnvironmentPathMutationCollection"/> collection with
+/// <c>GitRepositoryInspectorTests</c>, which resolves and invokes the real <c>git.exe</c> —
+/// without this, xUnit's default cross-class parallelism could let this class's temporary
+/// PATH override be in effect while that one resolves git, intermittently finding this
+/// class's synthetic zero-byte stub instead.
+/// </para>
 /// </summary>
+[Collection(EnvironmentPathMutationCollection.Name)]
 public sealed class ToolDiscoveryAdapterTests : IDisposable
 {
     private readonly string _pathDirectory =

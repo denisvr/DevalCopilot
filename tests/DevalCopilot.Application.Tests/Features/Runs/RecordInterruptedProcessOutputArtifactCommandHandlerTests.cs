@@ -30,7 +30,7 @@ public sealed class RecordInterruptedProcessOutputArtifactCommandHandlerTests : 
     /// </summary>
     private static (Project Project, Run Run, Attempt Attempt) CreateDispatchedRunningProcessAttempt()
     {
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Orphaned by a crash", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), run.Id, 1, CreateIntent(), Now);
@@ -161,7 +161,7 @@ public sealed class RecordInterruptedProcessOutputArtifactCommandHandlerTests : 
     public async Task HandleAsync_fails_without_mutation_for_a_simulated_attempt()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Simulated run", Now);
         run.Claim(Now);
         var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, 1, Now);

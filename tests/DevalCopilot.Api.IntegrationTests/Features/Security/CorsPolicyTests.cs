@@ -272,9 +272,12 @@ public sealed class CorsPolicyTests : IDisposable
             process.Dispose();
         }
 
-        SqliteConnection.ClearAllPools();
         foreach (var path in _databasePaths)
         {
+            // Scoped to this fixture's own connection strings only — SqliteConnection.ClearAllPools()
+            // is a process-wide operation that can invalidate another, unrelated test class's
+            // still-in-flight connection under xUnit's default cross-class parallelism.
+            SqliteConnection.ClearPool(new SqliteConnection($"Data Source={path}"));
             try
             {
                 if (File.Exists(path))

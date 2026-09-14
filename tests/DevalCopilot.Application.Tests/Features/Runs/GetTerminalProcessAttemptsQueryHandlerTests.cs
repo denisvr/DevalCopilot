@@ -23,7 +23,7 @@ public sealed class GetTerminalProcessAttemptsQueryHandlerTests : IAsyncLifetime
     public async Task HandleAsync_returns_only_non_running_process_attempts()
     {
         await using var dbContext = _fixture.CreateContext();
-        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}");
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 

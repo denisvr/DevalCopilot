@@ -127,7 +127,7 @@ public sealed class BootstrapSidecarProcessTests : IDisposable
 
         _process?.Dispose();
 
-        SqliteConnection.ClearAllPools();
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
         if (File.Exists(_databasePath))
         {
             File.Delete(_databasePath);
