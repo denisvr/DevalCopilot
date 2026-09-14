@@ -303,6 +303,29 @@
   color: var(--dc-text-muted);
 }
 
+.dc-live-output[data-has-attempt='true'] {
+  display: flex;
+  gap: 1rem;
+  padding: 0;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.dc-live-output-stream {
+  flex: 1;
+  min-width: 0;
+}
+
+.dc-live-output-label {
+  margin: 0;
+  padding: 0.35rem 1rem 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dc-text-muted);
+}
+
 .dc-capability-strip {
   display: flex;
   flex-wrap: wrap;
@@ -368,4 +391,23 @@
   padding: 2rem;
   text-align: center;
   color: var(--dc-text-muted);
+}
+
+.dc-process-output {
+  border-top: 1px solid var(--dc-border);
+  padding: 0.5rem 1rem;
+}
+
+.dc-process-output-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8rem;
+  color: var(--dc-text);
+  margin: 0;
+}
+
+.dc-process-output-truncated {
+  color: var(--dc-warning);
+  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
 }

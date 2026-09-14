@@ -117,7 +117,7 @@ public sealed class ProcessAttemptCollaboratorPipelineTests : IClassFixture<Sqli
         var recordHandler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(RecordedAt));
         var recordResult = await recordHandler.HandleAsync(
             new RecordProcessAttemptResultCommand(
-                eligibleAttempt.RunId, eligibleAttempt.AttemptId, DomainProcessOutcome.Exited, executionResult.ExitCode),
+                eligibleAttempt.RunId, eligibleAttempt.AttemptId, DomainProcessOutcome.Exited, executionResult.ExitCode, []),
             CancellationToken.None);
         Assert.True(recordResult.IsSuccess);
         await dbContext.SaveChangesAsync();

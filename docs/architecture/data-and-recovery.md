@@ -119,18 +119,26 @@ secrets.
 
 ## Process ownership and leases
 
-One host instance owns a finite lease for an active work item. The lease records
-host instance, attempt, acquisition time, expiry, and heartbeat.
+Today, under the current local single-instance deployment, startup reconciles
+every durable Process attempt still `Running` to `Interrupted` — the attempt
+status alone is the entire test. This is safe because the application runs as
+one host process per launch on a local desktop machine, not because any lease,
+heartbeat, or process-identity check exists yet: there is no host-instance
+identity, no executor lease with acquisition time or expiry, and no heartbeat
+recorded for a Process attempt, so reconciliation cannot yet distinguish "this
+host crashed" from "a second host instance is genuinely still running this
+attempt." Host-instance identity, an executor lease with expiry and heartbeat,
+and a stronger reconciliation that checks process identity before concluding an
+attempt was interrupted are future capabilities — the executor lease, heartbeat,
+and deadline projections of Increment 5, building on the writer lease and
+ownership marker introduced for Git worktrees in Increment 3 — not current
+behavior.
 
 A separate repository mutation lease prevents two runs from changing worktrees,
 shared Git metadata, or publication state for the same canonical repository at
 the same time. Its uniqueness is enforced by canonical repository identity, not
 display name or user-entered path spelling. Observation-only CI and history work
 does not require this mutation lease.
-
-An expired lease does not immediately authorize a retry. Startup reconciliation
-first checks process identity, Git state, and remote state. If completion cannot
-be proven, the attempt becomes `Lost` and requires a safe recovery decision.
 
 ## Startup reconciliation
 

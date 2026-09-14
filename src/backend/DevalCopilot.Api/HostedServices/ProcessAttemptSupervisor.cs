@@ -3,6 +3,7 @@ using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.MarkProcessAttemptDispatched;
 using DevalCopilot.Application.Features.Runs.Commands.RecordProcessAttemptResult;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleProcessAttempts;
+using DomainArtifactPurpose = DevalCopilot.Domain.Features.Runs.ArtifactPurpose;
 using DomainProcessOutcome = DevalCopilot.Domain.Features.Runs.ProcessOutcome;
 
 namespace DevalCopilot.Api.HostedServices;
@@ -17,6 +18,7 @@ namespace DevalCopilot.Api.HostedServices;
 public sealed class ProcessAttemptSupervisor(
     IServiceScopeFactory scopeFactory,
     IProcessExecutionAdapter adapter,
+    IArtifactStore artifactStore,
     ILogger<ProcessAttemptSupervisor> logger)
     : BackgroundService
 {
@@ -96,7 +98,9 @@ public sealed class ProcessAttemptSupervisor(
         }
 
         // Reconstructed only from the persisted, non-secret intent — this slice never
-        // persists environment variables, so the request always carries an empty one.
+        // persists environment variables, so the request always carries an empty one. Sink
+        // paths are deterministic from (run, attempt, purpose) alone, so the adapter can stream
+        // accepted, redacted bytes straight to durable storage as they are captured.
         var request = new ProcessExecutionRequest
         {
             ExecutablePath = attempt.ExecutablePath,
@@ -107,10 +111,14 @@ public sealed class ProcessAttemptSupervisor(
             MaxBytesPerStream = attempt.MaxBytesPerStream,
             MaxTotalCapturedBytes = attempt.MaxTotalCapturedBytes,
             EnvironmentVariables = new Dictionary<string, string>(),
+            StandardOutputSinkPath = artifactStore.GetPartialPath(attempt.RunId, attempt.AttemptId, DomainArtifactPurpose.ProcessStandardOutput),
+            StandardErrorSinkPath = artifactStore.GetPartialPath(attempt.RunId, attempt.AttemptId, DomainArtifactPurpose.ProcessStandardError),
         };
 
         DomainProcessOutcome? outcome;
         int? exitCode = null;
+        var standardOutputTruncated = false;
+        var standardErrorTruncated = false;
         try
         {
             // Cancellable by stoppingToken: this is the only step host shutdown is allowed
@@ -118,6 +126,8 @@ public sealed class ProcessAttemptSupervisor(
             var result = await adapter.ExecuteAsync(request, stoppingToken);
             outcome = MapOutcome(result.Outcome);
             exitCode = result.ExitCode;
+            standardOutputTruncated = result.StandardOutputTruncated;
+            standardErrorTruncated = result.StandardErrorTruncated;
         }
         catch (OperationCanceledException)
         {
@@ -140,6 +150,14 @@ public sealed class ProcessAttemptSupervisor(
             outcome = null;
         }
 
+        // Whatever was captured — a real result, a shutdown cancellation, or a no-result
+        // failure — the adapter has already closed both sink write handles by the time it
+        // returns or throws, so sealing (rename + hash) is always safe to attempt here. This
+        // is plain local file I/O, entirely outside any database transaction, and finishes
+        // before the short recording transaction below even starts.
+        var sealedArtifacts = await SealCapturedOutputAsync(
+            attempt.RunId, attempt.AttemptId, standardOutputTruncated, standardErrorTruncated);
+
         // A terminal classification exists at this point — a real result, an adapter-level
         // cancellation, or a safe no-result failure — so this short recording transaction is
         // attempted with its own bounded token: neither stoppingToken (host shutdown must not
@@ -147,12 +165,13 @@ public sealed class ProcessAttemptSupervisor(
         // local write must not block shutdown forever). If it still times out or otherwise
         // fails, no terminal result is invented and nothing retries here — the attempt simply
         // stays Running, exactly like any other unrecorded attempt, for the next startup's
-        // reconciliation to mark Interrupted.
+        // reconciliation to mark Interrupted and import whichever sealed files above already
+        // exist on disk as partial evidence.
         using var recordingTimeoutSource = new CancellationTokenSource(RecordingTimeout);
         try
         {
             var recordResult = await DispatchAsync(
-                new RecordProcessAttemptResultCommand(attempt.RunId, attempt.AttemptId, outcome, exitCode),
+                new RecordProcessAttemptResultCommand(attempt.RunId, attempt.AttemptId, outcome, exitCode, sealedArtifacts),
                 recordingTimeoutSource.Token);
 
             if (recordResult.IsFailure)
@@ -166,9 +185,43 @@ public sealed class ProcessAttemptSupervisor(
         {
             // Covers the bounded timeout elapsing as well as any other dispatch failure.
             // Never the exception object, its message, or any command/environment/output
-            // detail — only a stable event code and the attempt identifier.
+            // detail — only a stable event code and the attempt identifier. The sealed files
+            // above remain on disk, unreferenced but safe — the next startup's recovery pass
+            // discovers and imports them exactly as it would after a crash.
             logger.LogError("process_attempt_result_recording_failed AttemptId={AttemptId}", attempt.AttemptId);
         }
+    }
+
+    private async Task<IReadOnlyList<SealedOutputArtifact>> SealCapturedOutputAsync(
+        Guid runId, Guid attemptId, bool standardOutputTruncated, bool standardErrorTruncated)
+    {
+        var results = new List<SealedOutputArtifact>(2);
+        var truncatedByPurpose = new Dictionary<DomainArtifactPurpose, bool>
+        {
+            [DomainArtifactPurpose.ProcessStandardOutput] = standardOutputTruncated,
+            [DomainArtifactPurpose.ProcessStandardError] = standardErrorTruncated,
+        };
+
+        foreach (var (purpose, truncated) in truncatedByPurpose)
+        {
+            try
+            {
+                var sealedFile = await artifactStore.SealAsync(runId, attemptId, purpose, CancellationToken.None);
+                if (sealedFile is not null)
+                {
+                    results.Add(new SealedOutputArtifact(purpose, sealedFile.RelativeStoragePath, sealedFile.ByteLength, sealedFile.ContentHash, truncated));
+                }
+            }
+            catch (Exception)
+            {
+                // Never blocks or alters the attempt's own terminal recording — only a stable
+                // event code and identifiers, never exception detail.
+                logger.LogError(
+                    "process_attempt_output_seal_failed AttemptId={AttemptId} Purpose={Purpose}", attemptId, purpose);
+            }
+        }
+
+        return results;
     }
 
     private static DomainProcessOutcome MapOutcome(ProcessExecutionOutcome outcome) => outcome switch

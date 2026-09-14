@@ -1,4 +1,5 @@
 import { useRunCockpit } from '../hooks/useRunCockpit'
+import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { AgentCollaboration } from './AgentCollaboration'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
@@ -25,6 +26,8 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
     return <p className="dc-empty-state">This run could not be found.</p>
   }
 
+  const currentProcessAttemptId = selectCurrentProcessAttemptId(cards)
+
   return (
     <>
       <ConnectionBanner state={connection} syncError={syncError} />
@@ -34,7 +37,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
         <AgentCollaboration cards={cards} />
         <UsageEvidenceRail />
       </div>
-      <LiveOutputDrawer />
+      <LiveOutputDrawer runId={runId} attemptId={currentProcessAttemptId} />
     </>
   )
 }

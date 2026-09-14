@@ -72,4 +72,17 @@ public sealed record ProcessExecutionRequest
     /// <summary>Combined capture cap across both streams together. Must not be negative and
     /// must not exceed <see cref="MaxAllowedTotalCapturedBytes"/>.</summary>
     public int MaxTotalCapturedBytes { get; init; } = DefaultMaxTotalCapturedBytes;
+
+    /// <summary>
+    /// When set, the adapter also streams accepted (post-redaction, post-cap) stdout bytes to
+    /// this absolute path as they are captured, in addition to returning them via
+    /// <see cref="ProcessExecutionResult.StandardOutput"/>. Null for callers that need no
+    /// durable capture. The adapter closes its own write handle before returning, so a caller
+    /// may safely rename this file once <see cref="IProcessExecutionAdapter.ExecuteAsync"/>
+    /// completes.
+    /// </summary>
+    public string? StandardOutputSinkPath { get; init; }
+
+    /// <summary>The stderr counterpart of <see cref="StandardOutputSinkPath"/>.</summary>
+    public string? StandardErrorSinkPath { get; init; }
 }

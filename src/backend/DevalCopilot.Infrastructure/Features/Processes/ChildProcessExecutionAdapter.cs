@@ -45,8 +45,10 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
 
         using var process = new Process { StartInfo = startInfo };
         var sharedBudget = new SharedCaptureBudget(request.MaxTotalCapturedBytes);
-        var standardOutput = new BoundedOutputCapture(request.MaxBytesPerStream, sharedBudget);
-        var standardError = new BoundedOutputCapture(request.MaxBytesPerStream, sharedBudget);
+        await using var standardOutput = new BoundedOutputCapture(
+            request.MaxBytesPerStream, sharedBudget, request.StandardOutputSinkPath);
+        await using var standardError = new BoundedOutputCapture(
+            request.MaxBytesPerStream, sharedBudget, request.StandardErrorSinkPath);
 
         var stopwatch = Stopwatch.StartNew();
         process.Start();

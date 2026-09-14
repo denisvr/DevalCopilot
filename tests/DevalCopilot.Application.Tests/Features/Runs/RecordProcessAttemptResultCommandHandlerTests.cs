@@ -9,6 +9,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
     : IClassFixture<SqliteDatabaseFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 12, 10, 0, 0, TimeSpan.Zero);
+    private static readonly IReadOnlyList<SealedOutputArtifact> NoArtifacts = [];
 
     private static ProcessExecutionIntent CreateIntent() => new(
         ExecutablePath: @"C:\tools\build.exe",
@@ -40,7 +41,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AttemptStatus.Completed, result.Value);
@@ -62,7 +63,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, exitCode), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, exitCode, NoArtifacts), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
@@ -83,7 +84,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, outcome, null), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, outcome, null, NoArtifacts), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
@@ -103,13 +104,26 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, Outcome: null, ExitCode: null), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, Outcome: null, ExitCode: null, SealedArtifacts: NoArtifacts),
+            CancellationToken.None);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Null(attempt.ProcessOutcome);
         Assert.Null(attempt.ProcessExitCode);
         Assert.Equal(RunLifecycle.Failed, run.Lifecycle);
+
+        // A launch-time failure (never even a sink/artifact to seal) still leaves exactly one
+        // truthful, safe event behind — the event journal is never silent about why a terminal
+        // Attempt/Run exists.
+        var events = dbContext.Events.Where(e => e.AttemptId == attempt.Id).ToList();
+        var journalEvent = Assert.Single(events);
+        Assert.Equal(RunEventType.ProcessEndedWithoutOutput, journalEvent.EventType);
+        Assert.Contains("Failed", journalEvent.PayloadJson);
+        Assert.DoesNotContain(@"C:\tools\build.exe", journalEvent.PayloadJson);
+        Assert.DoesNotContain("--verify", journalEvent.PayloadJson);
+        Assert.DoesNotContain(@"C:\repos\devalcopilot", journalEvent.PayloadJson);
     }
 
     [Fact]
@@ -125,7 +139,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(targetRun.Id, otherAttempt.Id, ProcessOutcome.Exited, 0), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(targetRun.Id, otherAttempt.Id, ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.not_found", Assert.Single(result.Errors).Code);
@@ -148,7 +162,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.not_process", Assert.Single(result.Errors).Code);
@@ -170,7 +184,7 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 1), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 1, NoArtifacts), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.not_active", Assert.Single(result.Errors).Code);
@@ -185,9 +199,46 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
 
         var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordProcessAttemptResultCommand(Guid.NewGuid(), Guid.NewGuid(), ProcessOutcome.Exited, 0), CancellationToken.None);
+            new RecordProcessAttemptResultCommand(Guid.NewGuid(), Guid.NewGuid(), ProcessOutcome.Exited, 0, NoArtifacts), CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("runs.not_found", Assert.Single(result.Errors).Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_records_sealed_artifacts_atomically_with_the_terminal_state()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedProcessAttempt();
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var sealedArtifacts = new SealedOutputArtifact[]
+        {
+            new(ArtifactPurpose.ProcessStandardOutput, @"runs\r\attempts\a\stdout.sealed", 12, "sha256:abc", false),
+            new(ArtifactPurpose.ProcessStandardError, @"runs\r\attempts\a\stderr.sealed", 0, "sha256:def", true),
+        };
+
+        var handler = new RecordProcessAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new RecordProcessAttemptResultCommand(run.Id, attempt.Id, ProcessOutcome.Exited, 0, sealedArtifacts), CancellationToken.None);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+
+        var persistedArtifacts = dbContext.Artifacts.Where(a => a.AttemptId == attempt.Id).ToList();
+        Assert.Equal(2, persistedArtifacts.Count);
+        Assert.All(persistedArtifacts, a => Assert.Equal(ArtifactCaptureOutcome.Captured, a.CaptureOutcome));
+        Assert.Contains(persistedArtifacts, a => a.Purpose == ArtifactPurpose.ProcessStandardOutput && !a.Truncated);
+        Assert.Contains(persistedArtifacts, a => a.Purpose == ArtifactPurpose.ProcessStandardError && a.Truncated);
+
+        var events = dbContext.Events.Where(e => e.AttemptId == attempt.Id && e.EventType == RunEventType.ProcessOutputCaptured).ToList();
+        Assert.Equal(2, events.Count);
+        Assert.All(events, e => Assert.DoesNotContain("stdout", e.PayloadJson, StringComparison.OrdinalIgnoreCase));
+
+        // Artifacts exist, so the no-artifact journal fact must never also fire for this attempt.
+        Assert.Empty(dbContext.Events.Where(e => e.AttemptId == attempt.Id && e.EventType == RunEventType.ProcessEndedWithoutOutput));
     }
 }

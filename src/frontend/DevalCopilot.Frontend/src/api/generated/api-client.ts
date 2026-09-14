@@ -163,6 +163,66 @@ export class GetRunCockpitEndpointClient {
     }
 }
 
+export class GetProcessAttemptOutputEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProcessAttemptOutput(runId: string, attemptId: string, stream: string, fromOffset: number | undefined, maxBytes: number | null | undefined): Promise<GetProcessAttemptOutputResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/attempts/{attemptId}/output/{stream}?";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (attemptId === undefined || attemptId === null)
+            throw new globalThis.Error("The parameter 'attemptId' must be defined.");
+        url_ = url_.replace("{attemptId}", encodeURIComponent("" + attemptId));
+        if (stream === undefined || stream === null)
+            throw new globalThis.Error("The parameter 'stream' must be defined.");
+        url_ = url_.replace("{stream}", encodeURIComponent("" + stream));
+        if (fromOffset === null)
+            throw new globalThis.Error("The parameter 'fromOffset' cannot be null.");
+        else if (fromOffset !== undefined)
+            url_ += "fromOffset=" + encodeURIComponent("" + fromOffset) + "&";
+        if (maxBytes !== undefined && maxBytes !== null)
+            url_ += "maxBytes=" + encodeURIComponent("" + maxBytes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProcessAttemptOutput(_response);
+        });
+    }
+
+    protected processGetProcessAttemptOutput(response: Response): Promise<GetProcessAttemptOutputResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetProcessAttemptOutputResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetProcessAttemptOutputResponse>(null as any);
+    }
+}
+
 export class GetProjectRunSummariesEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -586,6 +646,62 @@ export interface IStageMapEntryResponse {
     stage?: string;
     isCompleted?: boolean;
     isActive?: boolean;
+}
+
+export class GetProcessAttemptOutputResponse implements IGetProcessAttemptOutputResponse {
+    status?: string;
+    text?: string;
+    nextOffset?: number;
+    totalLengthSoFar?: number;
+    isFinal?: boolean;
+    truncated?: boolean;
+
+    constructor(data?: IGetProcessAttemptOutputResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.text = _data["text"];
+            this.nextOffset = _data["nextOffset"];
+            this.totalLengthSoFar = _data["totalLengthSoFar"];
+            this.isFinal = _data["isFinal"];
+            this.truncated = _data["truncated"];
+        }
+    }
+
+    static fromJS(data: any): GetProcessAttemptOutputResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetProcessAttemptOutputResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["text"] = this.text;
+        data["nextOffset"] = this.nextOffset;
+        data["totalLengthSoFar"] = this.totalLengthSoFar;
+        data["isFinal"] = this.isFinal;
+        data["truncated"] = this.truncated;
+        return data;
+    }
+}
+
+export interface IGetProcessAttemptOutputResponse {
+    status?: string;
+    text?: string;
+    nextOffset?: number;
+    totalLengthSoFar?: number;
+    isFinal?: boolean;
+    truncated?: boolean;
 }
 
 export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {

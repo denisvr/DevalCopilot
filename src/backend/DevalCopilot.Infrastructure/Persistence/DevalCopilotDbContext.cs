@@ -17,6 +17,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<RunEvent> Events => Set<RunEvent>();
 
+    public DbSet<Artifact> Artifacts => Set<Artifact>();
+
     public DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots => Set<HostCapabilitySnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

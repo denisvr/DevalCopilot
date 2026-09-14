@@ -98,13 +98,13 @@ provider configuration into prompts, logs, SQLite, or artifacts.
 | Packaged bundle secret hygiene | S2 | No development authentication endpoint in the production host; production Vite build | Build/source scan: packaged frontend bundle contains no known bootstrap credential or test-authentication bypass | Planned |
 | Explicit MVC authorization | S2 | Default deny and operation declarations | Endpoint inventory test | Planned |
 | No frontend generic shell | S2 | Tauri capability configuration | Configuration and browser test | Planned |
-| Approved-root path containment | S2 | Canonical path policy | Unit and integration tests | Planned |
-| Typed process arguments | S2 | Process adapter boundary | Injection test suite | Planned |
+| Approved-root path containment | S2 | Canonical path policy | Unit and integration tests: `ChildProcessExecutionAdapterTests` rejects a working directory outside the approved root, including filesystem-root edge cases | Implemented |
+| Typed process arguments | S2 | Process adapter boundary | Injection test suite: `ChildProcessExecutionAdapterTests.Arguments_containing_shell_metacharacters_reach_the_child_literally` | Implemented |
 | Single worktree writer | S2 | Ownership lease and Git policy | Concurrency and recovery tests | Planned |
 | Scoped approval and invalidation | S2 | Application policy | State-transition tests | Planned |
 | Exact-SHA CI evidence | S2 | CI correlation policy | Adapter contract tests | Planned |
 | No stored provider credentials | S2 | CLI-owned authentication | Persistence and artifact scan | Planned |
-| Bounded output and iteration | S2 | Attempt and run budgets | Failure-path tests | Planned |
+| Bounded output and iteration | S2 | Attempt and run budgets | Failure-path tests: `ChildProcessExecutionAdapterTests.Output_beyond_the_capture_caps_is_discarded_and_flagged_truncated` | Implemented |
 | Self-hosting isolation | S2 | Stable controller and candidate worktree | MVP demonstration review | Planned |
 
 ## Exceptions and residual risks

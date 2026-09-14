@@ -1,4 +1,5 @@
 import {
+  GetProcessAttemptOutputEndpointClient,
   GetProjectRunSummariesEndpointClient,
   GetRunCockpitEndpointClient,
   GetRunEventsEndpointClient,
@@ -14,9 +15,11 @@ export const startSimulatedRunClient = () => new StartSimulatedRunEndpointClient
 export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const processAttemptOutputClient = () => new GetProcessAttemptOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
+  GetProcessAttemptOutputResponse,
   GetRunCockpitResponse,
   ProjectRunSummaryResponse,
   RequestHostCapabilityRefreshResponse,

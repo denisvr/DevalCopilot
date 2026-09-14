@@ -15,6 +15,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<RunEvent> Events { get; }
 
+    DbSet<Artifact> Artifacts { get; }
+
     DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots { get; }
 
     /// <summary>

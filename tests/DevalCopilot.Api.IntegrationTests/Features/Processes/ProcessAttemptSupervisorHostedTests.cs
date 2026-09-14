@@ -1,13 +1,16 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Api.HostedServices;
+using DevalCopilot.Api.Startup;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ClaimProcessAttempt;
 using DevalCopilot.Application.Features.Runs.Commands.MarkProcessAttemptDispatched;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecordProcessAttemptResult;
+using DevalCopilot.Application.Features.Runs.Queries.GetProcessAttemptOutput;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -36,6 +39,8 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         Path.Combine(Path.GetTempPath(), $"devalcopilot-supervisor-hosted-{Guid.NewGuid():N}.db");
     private readonly string _approvedRoot =
         Path.Combine(Path.GetTempPath(), $"devalcopilot-supervisor-hosted-root-{Guid.NewGuid():N}");
+    private readonly string _artifactRoot =
+        Path.Combine(Path.GetTempPath(), $"devalcopilot-supervisor-hosted-artifacts-{Guid.NewGuid():N}");
     private readonly string _markerPath;
 
     public ProcessAttemptSupervisorHostedTests()
@@ -46,6 +51,11 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
 
     public void Dispose()
     {
+        if (Directory.Exists(_artifactRoot))
+        {
+            Directory.Delete(_artifactRoot, recursive: true);
+        }
+
         SqliteConnection.ClearAllPools();
 
         if (File.Exists(_databasePath))
@@ -115,6 +125,44 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
         Assert.Equal(ProcessOutcome.Cancelled, persistedAttempt!.ProcessOutcome);
         Assert.Null(persistedAttempt.ProcessExitCode);
+    }
+
+    [Fact]
+    public async Task A_launch_time_failure_before_any_output_sink_exists_still_leaves_one_safe_explanatory_event()
+    {
+        // A nonexistent executable path makes ChildProcessExecutionAdapter.ValidateRequest
+        // throw before a child process — or either output sink file — is ever created, the
+        // real "adapter rejected the request" path this test targets, not a simulated failure.
+        var nonExistentExecutablePath = Path.Combine(_approvedRoot, "does-not-exist.exe");
+
+        await using var provider = BuildServiceProvider();
+        var (runId, attemptId) = await ClaimAttemptAsync(
+            provider, ["exit-code", "0"], TimeSpan.FromSeconds(10), executablePath: nonExistentExecutablePath);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await AssertTerminalStateAsync(provider, runId, attemptId, AttemptStatus.Failed, RunLifecycle.Failed);
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var verificationScope = provider.CreateAsyncScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
+        Assert.Null(persistedAttempt!.ProcessOutcome);
+        Assert.Null(persistedAttempt.ProcessExitCode);
+        Assert.Empty(dbContext.Artifacts.Where(a => a.AttemptId == attemptId));
+
+        var events = dbContext.Events.Where(e => e.AttemptId == attemptId).ToList();
+        var journalEvent = Assert.Single(events);
+        Assert.Equal(RunEventType.ProcessEndedWithoutOutput, journalEvent.EventType);
+        Assert.DoesNotContain(nonExistentExecutablePath, journalEvent.PayloadJson);
+        Assert.DoesNotContain("exit-code", journalEvent.PayloadJson);
     }
 
     [Fact]
@@ -357,6 +405,271 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task Completing_a_process_attempt_records_a_durable_artifact_with_the_correct_hash_and_length()
+    {
+        await using var provider = BuildServiceProvider();
+        var (runId, attemptId) = await ClaimAttemptAsync(provider, ["echo-args", "hello-artifact-test"], TimeSpan.FromSeconds(10));
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await AssertTerminalStateAsync(provider, runId, attemptId, AttemptStatus.Completed, RunLifecycle.Completed);
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var stdoutArtifact = dbContext.Artifacts.Single(a => a.AttemptId == attemptId && a.Purpose == ArtifactPurpose.ProcessStandardOutput);
+
+        Assert.Equal(ArtifactCaptureOutcome.Captured, stdoutArtifact.CaptureOutcome);
+        Assert.False(stdoutArtifact.Truncated);
+
+        var sealedPath = Path.Combine(_artifactRoot, stdoutArtifact.RelativeStoragePath);
+        var actualBytes = await File.ReadAllBytesAsync(sealedPath);
+        Assert.Equal(actualBytes.LongLength, stdoutArtifact.ByteLength);
+        Assert.Equal("sha256:" + Convert.ToHexStringLower(SHA256.HashData(actualBytes)), stdoutArtifact.ContentHash);
+        Assert.Contains("hello-artifact-test", System.Text.Encoding.UTF8.GetString(actualBytes));
+
+        var events = dbContext.Events.Where(e => e.AttemptId == attemptId && e.EventType == RunEventType.ProcessOutputCaptured).ToList();
+        Assert.NotEmpty(events);
+        Assert.All(events, e => Assert.DoesNotContain("hello-artifact-test", e.PayloadJson));
+    }
+
+    [Fact]
+    public async Task Polling_the_output_endpoint_across_the_running_to_terminal_transition_never_loses_or_duplicates_bytes()
+    {
+        await using var provider = BuildServiceProvider();
+        var (runId, attemptId) = await ClaimAttemptAsync(
+            provider, ["write-then-sleep-then-write", "4000", "3000", "4000"], TimeSpan.FromSeconds(15));
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            var assembled = new System.Text.StringBuilder();
+            long offset = 0;
+            var isFinal = false;
+            var caughtUp = false;
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
+            var observedWhileRunning = false;
+            var pollCount = 0;
+            var maxNonFinalTextLengthSeen = 0;
+
+            // IsFinal means the artifact is sealed and will never grow further — it does not
+            // mean this one bounded read reached the end of it (maxBytes below is deliberately
+            // smaller than the total, so draining a sealed artifact still takes more than one
+            // poll). Polling must continue, cursoring forward, until a read — final or not —
+            // returns no further text, which is the actual "caught up" signal.
+            while (!caughtUp && DateTimeOffset.UtcNow < deadline)
+            {
+                pollCount++;
+                await using var scope = provider.CreateAsyncScope();
+                var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+                var result = await mediator.SendAsync(
+                    new GetProcessAttemptOutputQuery(runId, attemptId, ArtifactPurpose.ProcessStandardOutput, offset, 4096),
+                    CancellationToken.None);
+
+                Assert.Equal(ProcessAttemptOutputStatus.Ok, result.Status);
+                assembled.Append(result.Text);
+                if (!result.IsFinal)
+                {
+                    maxNonFinalTextLengthSeen = Math.Max(maxNonFinalTextLengthSeen, result.Text.Length);
+                }
+                if (result.Text.Length > 0 && !result.IsFinal)
+                {
+                    observedWhileRunning = true;
+                }
+
+                offset = result.NextOffset;
+                isFinal = result.IsFinal;
+                caughtUp = isFinal && result.Text.Length == 0;
+
+                if (!caughtUp)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(20));
+                }
+            }
+
+            Assert.True(isFinal, "Expected the output to reach a final, sealed state within the deadline.");
+            Assert.True(
+                observedWhileRunning,
+                $"Expected at least one poll to observe partial output before the attempt finished. " +
+                $"Polls: {pollCount}, max non-final text length seen: {maxNonFinalTextLengthSeen}.");
+            Assert.Equal(new string('A', 8000), assembled.ToString());
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+    }
+
+    [Fact]
+    public async Task Recovery_seals_and_imports_a_still_partial_file_left_by_a_genuine_crash_before_any_sealing_ever_happened()
+    {
+        Guid runId;
+        Guid attemptId;
+        string partialPath;
+
+        await using (var provider = BuildServiceProvider())
+        {
+            (runId, attemptId) = await ClaimAttemptAsync(provider, ["sleep-ms", "60000"], TimeSpan.FromMinutes(5));
+
+            var artifactStore = provider.GetRequiredService<IArtifactStore>();
+            partialPath = artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.ProcessStandardOutput);
+            Directory.CreateDirectory(Path.GetDirectoryName(partialPath)!);
+
+            // Simulates the exact evidence a genuine crash leaves behind: bytes were captured
+            // and are sitting in the ".partial" file, but the host never reached sealing at
+            // all (unlike the "stalled recording" scenario, where sealing already happened).
+            // Deterministic and fast rather than racing a real process mid-flight — the
+            // sealing logic this exercises is already independently proven correct by
+            // FilesystemArtifactStoreTests.
+            await File.WriteAllTextAsync(partialPath, "partial output before the crash");
+
+            // The attempt is durably marked dispatched exactly as the real supervisor would,
+            // proving this is the "dispatched, never recorded" scenario reconciliation expects.
+            await using var scope = provider.CreateAsyncScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+            var dispatchResult = await mediator.SendAsync(
+                new MarkProcessAttemptDispatchedCommand(runId, attemptId), CancellationToken.None);
+            Assert.True(dispatchResult.IsSuccess);
+        }
+
+        SqliteConnection.ClearAllPools();
+
+        await using var reopenedProvider = BuildServiceProvider();
+        await ProcessAttemptOutputRecovery.RunAsync(reopenedProvider, NullLogger.Instance, CancellationToken.None);
+
+        await using (var scope = reopenedProvider.CreateAsyncScope())
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+            await mediator.SendAsync(new ReconcileInterruptedProcessAttemptsCommand(), CancellationToken.None);
+        }
+
+        await AssertTerminalStateAsync(reopenedProvider, runId, attemptId, AttemptStatus.Interrupted, RunLifecycle.Interrupted);
+
+        var artifactStoreAfterRestart = reopenedProvider.GetRequiredService<IArtifactStore>();
+        Assert.False(artifactStoreAfterRestart.HasPartialFile(runId, attemptId, ArtifactPurpose.ProcessStandardOutput));
+        Assert.True(artifactStoreAfterRestart.HasSealedFile(runId, attemptId, ArtifactPurpose.ProcessStandardOutput));
+
+        await using var verificationScope = reopenedProvider.CreateAsyncScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var artifact = dbContext.Artifacts.Single(a => a.AttemptId == attemptId && a.Purpose == ArtifactPurpose.ProcessStandardOutput);
+        Assert.Equal(ArtifactCaptureOutcome.PartialHostInterrupted, artifact.CaptureOutcome);
+
+        var sealedPath = Path.Combine(_artifactRoot, artifact.RelativeStoragePath);
+        Assert.Equal("partial output before the crash", await File.ReadAllTextAsync(sealedPath));
+    }
+
+    [Fact]
+    public async Task A_secret_shaped_argument_echoed_to_stdout_never_reaches_the_persisted_artifact_or_the_database()
+    {
+        const string secret = "ghp_abcdefghijklmnopqrstuvwxyz0123456789AB";
+
+        await using var provider = BuildServiceProvider();
+        var (runId, attemptId) = await ClaimAttemptAsync(provider, ["echo-args", secret], TimeSpan.FromSeconds(10));
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await AssertTerminalStateAsync(provider, runId, attemptId, AttemptStatus.Completed, RunLifecycle.Completed);
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var artifact = dbContext.Artifacts.Single(a => a.AttemptId == attemptId && a.Purpose == ArtifactPurpose.ProcessStandardOutput);
+
+        var sealedPath = Path.Combine(_artifactRoot, artifact.RelativeStoragePath);
+        var sealedContent = await File.ReadAllTextAsync(sealedPath);
+        Assert.DoesNotContain(secret, sealedContent);
+        Assert.Contains("[REDACTED]", sealedContent);
+
+        Assert.DoesNotContain(secret, artifact.RelativeStoragePath);
+        Assert.DoesNotContain(secret, artifact.ContentHash);
+
+        var events = dbContext.Events.Where(e => e.AttemptId == attemptId).ToList();
+        Assert.All(events, e => Assert.DoesNotContain(secret, e.PayloadJson));
+    }
+
+    [Fact]
+    public async Task Recovery_imports_a_sealed_but_unrecorded_artifact_after_a_simulated_recording_failure_and_is_idempotent()
+    {
+        Guid runId;
+        Guid attemptId;
+        var capturedTokenSource = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var recordingCancelledSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using (var provider = BuildServiceProvider(services =>
+        {
+            services.RemoveAll<IRequestHandler<RecordProcessAttemptResultCommand, Result<AttemptStatus>>>();
+            services.AddScoped<IRequestHandler<RecordProcessAttemptResultCommand, Result<AttemptStatus>>>(
+                _ => new StallingRecordProcessAttemptResultCommandHandler(capturedTokenSource, recordingCancelledSource));
+        }))
+        {
+            (runId, attemptId) = await ClaimAttemptAsync(provider, ["echo-args", "recovery-test-content"], TimeSpan.FromSeconds(10));
+
+            var supervisor = CreateSupervisor(provider);
+            await supervisor.StartAsync(CancellationToken.None);
+
+            // By the time the stalled recording handler is invoked, the adapter has already
+            // finished and the supervisor has already sealed both output streams — sealing
+            // happens unconditionally before the recording dispatch, so a stalled or failed
+            // recording still leaves genuinely sealed, hashed files behind, simply unreferenced.
+            await capturedTokenSource.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await recordingCancelledSource.Task.WaitAsync(TimeSpan.FromSeconds(8));
+
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        SqliteConnection.ClearAllPools();
+
+        await using var reopenedProvider = BuildServiceProvider();
+        await using (var migrateScope = reopenedProvider.CreateAsyncScope())
+        {
+            await migrateScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>().Database.MigrateAsync();
+        }
+
+        // Runs recovery twice in a row, exactly as a host that crashed again mid-recovery
+        // would on its next restart — idempotency is the only thing that makes that safe.
+        await ProcessAttemptOutputRecovery.RunAsync(reopenedProvider, NullLogger.Instance, CancellationToken.None);
+        await ProcessAttemptOutputRecovery.RunAsync(reopenedProvider, NullLogger.Instance, CancellationToken.None);
+
+        await using (var scope = reopenedProvider.CreateAsyncScope())
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+            await mediator.SendAsync(new ReconcileInterruptedProcessAttemptsCommand(), CancellationToken.None);
+        }
+
+        await AssertTerminalStateAsync(reopenedProvider, runId, attemptId, AttemptStatus.Interrupted, RunLifecycle.Interrupted);
+
+        await using var verificationScope = reopenedProvider.CreateAsyncScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var stdoutArtifacts = dbContext.Artifacts
+            .Where(a => a.AttemptId == attemptId && a.Purpose == ArtifactPurpose.ProcessStandardOutput)
+            .ToList();
+
+        var stdoutArtifact = Assert.Single(stdoutArtifacts);
+        Assert.Equal(ArtifactCaptureOutcome.PartialHostInterrupted, stdoutArtifact.CaptureOutcome);
+
+        var sealedPath = Path.Combine(_artifactRoot, stdoutArtifact.RelativeStoragePath);
+        Assert.True(File.Exists(sealedPath));
+        Assert.Contains("recovery-test-content", await File.ReadAllTextAsync(sealedPath));
+    }
+
     private ServiceProvider BuildServiceProvider(Action<ServiceCollection>? configureAdditionalServices = null)
     {
         var services = new ServiceCollection();
@@ -365,6 +678,7 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         services.AddScoped<IDevalCopilotDbContext>(provider => provider.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IProcessExecutionAdapter, ChildProcessExecutionAdapter>();
+        services.AddSingleton<IArtifactStore>(new FilesystemArtifactStore(_artifactRoot));
         services.AddDevalenteMediator(typeof(ClaimProcessAttemptCommand).Assembly);
         services.AddDevalenteRequestValidation(typeof(ClaimProcessAttemptCommand).Assembly);
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -437,10 +751,11 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
     private static ProcessAttemptSupervisor CreateSupervisor(ServiceProvider provider) => new(
         provider.GetRequiredService<IServiceScopeFactory>(),
         provider.GetRequiredService<IProcessExecutionAdapter>(),
+        provider.GetRequiredService<IArtifactStore>(),
         NullLogger<ProcessAttemptSupervisor>.Instance);
 
     private async Task<(Guid RunId, Guid AttemptId)> ClaimAttemptAsync(
-        ServiceProvider provider, IReadOnlyList<string> arguments, TimeSpan timeout)
+        ServiceProvider provider, IReadOnlyList<string> arguments, TimeSpan timeout, string? executablePath = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -456,7 +771,7 @@ public sealed class ProcessAttemptSupervisorHostedTests : IDisposable
         await dbContext.SaveChangesAsync();
 
         var intent = new ProcessExecutionIntent(
-            ExecutablePath: FixtureExecutablePath,
+            ExecutablePath: executablePath ?? FixtureExecutablePath,
             Arguments: arguments,
             WorkingDirectory: _approvedRoot,
             ApprovedRoot: _approvedRoot,

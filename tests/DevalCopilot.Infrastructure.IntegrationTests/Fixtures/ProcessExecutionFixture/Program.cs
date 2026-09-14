@@ -30,6 +30,16 @@ switch (args[0])
         WriteBytes(Console.OpenStandardError(), int.Parse(args[2]));
         return 0;
 
+    case "write-then-sleep-then-write":
+        // Lets a test observe genuinely partial stdout (the process is still alive and has
+        // not exited) before the remainder arrives, rather than racing a fixture that writes
+        // everything and exits near-instantly.
+        WriteBytes(Console.OpenStandardOutput(), int.Parse(args[1]));
+        Console.Out.Flush();
+        Thread.Sleep(int.Parse(args[2]));
+        WriteBytes(Console.OpenStandardOutput(), int.Parse(args[3]));
+        return 0;
+
     case "print-env":
         Console.WriteLine(Environment.GetEnvironmentVariable(args[1]) ?? "<unset>");
         return 0;

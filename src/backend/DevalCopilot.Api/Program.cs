@@ -5,6 +5,7 @@ using DevalCopilot.Api.RealTime;
 using DevalCopilot.Api.Security;
 using DevalCopilot.Api.Security.Bootstrap;
 using DevalCopilot.Api.Security.Cors;
+using DevalCopilot.Api.Startup;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.EnsureHostCapabilityCatalogSeeded;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileInterruptedHostCapabilityProbes;
@@ -89,6 +90,7 @@ builder.Services.AddHostedService<SimulatedRunSupervisor>();
 // The process-execution foundation's hosted path: strictly what running it requires, no
 // controller, endpoint, or UI wiring alongside it.
 builder.Services.AddSingleton<IProcessExecutionAdapter, ChildProcessExecutionAdapter>();
+builder.Services.AddSingleton<IArtifactStore, FilesystemArtifactStore>();
 builder.Services.AddHostedService<ProcessAttemptSupervisor>();
 
 // Host-scoped environment readiness: composed on top of IProcessExecutionAdapter above, never
@@ -156,7 +158,13 @@ using (var startupScope = app.Services.CreateScope())
 
     // Must complete before ProcessAttemptSupervisor (started below, only once the host
     // itself starts) can claim any work: a Process attempt this instance finds still
-    // Running was orphaned by a prior crash, never one safe to execute.
+    // Running was orphaned by a prior crash, never one safe to execute. Output recovery runs
+    // first, while GetRunningProcessAttemptsQuery still sees these attempts as Running — it
+    // discovers and imports whatever a prior host session captured for them before
+    // reconciliation flips their status.
+    var startupLogger = startupScope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("StartupRecovery");
+    await ProcessAttemptOutputRecovery.RunAsync(startupScope.ServiceProvider, startupLogger, CancellationToken.None);
+
     var mediator = startupScope.ServiceProvider.GetRequiredService<IApplicationMediator>();
     await mediator.SendAsync(new ReconcileInterruptedProcessAttemptsCommand(), CancellationToken.None);
 
