@@ -3,6 +3,7 @@ using System;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DevalCopilot.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DevalCopilotDbContext))]
-    partial class DevalCopilotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260915112908_AddGitWorkspaceCheckpoints")]
+    partial class AddGitWorkspaceCheckpoints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -59,6 +62,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CheckpointId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("GitCheckpointId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("IndexStatus")
                         .IsRequired()
                         .HasMaxLength(1)
@@ -81,6 +87,8 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CheckpointId");
+
+                    b.HasIndex("GitCheckpointId");
 
                     b.ToTable("git_changed_files", (string)null);
                 });
@@ -137,9 +145,7 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("NextCheckpointNumber")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(1);
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
@@ -553,10 +559,14 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitChangedFile", b =>
                 {
                     b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
-                        .WithMany("ChangedFiles")
+                        .WithMany()
                         .HasForeignKey("CheckpointId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
+                        .WithMany("ChangedFiles")
+                        .HasForeignKey("GitCheckpointId");
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitCheckpoint", b =>

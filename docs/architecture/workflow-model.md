@@ -53,6 +53,17 @@ reconcile state before another writer starts.
 Review approval refers to one exact Git fingerprint and evidence set. A source
 change invalidates the approval.
 
+### Current Git evidence boundary
+
+Increment 3 records an append-only, per-workspace `GitCheckpoint` only after a
+bounded, internally consistent local capture. Its fingerprint covers the exact
+`HEAD`, porcelain state, complete tracked binary diff, and hashes of bounded
+untracked files; a capture that changes while it is observed, times out, or
+exceeds its bound is discarded. Changed-file metadata is durable, while complete
+diff text stays transient and is returned only after a fresh capture still
+matches the requested checkpoint. This makes a stale checkpoint an explicit
+conflict rather than silently presenting it as current source evidence.
+
 ### Approval state
 
 `NotRequired`, `Pending`, `Approved`, `Rejected`, `Expired`, or `Consumed`.

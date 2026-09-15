@@ -110,6 +110,7 @@ builder.Services.AddSingleton<IGitRepositoryInspector, GitRepositoryInspector>()
 // marker are each a narrow, independent Infrastructure capability behind their own port.
 builder.Services.AddSingleton<IRepositoryPhysicalIdentityInspector, RepositoryPhysicalIdentityInspector>();
 builder.Services.AddSingleton<IGitWorktreeAdapter, GitWorktreeAdapter>();
+builder.Services.AddSingleton<IGitWorkspaceEvidenceReader, GitWorkspaceEvidenceReader>();
 builder.Services.AddSingleton<IWorkspaceOwnershipMarkerStore, WorkspaceOwnershipMarkerStore>();
 builder.Services.AddSingleton<IWorkspaceRootPathProvider, WorkspaceRootPathProvider>();
 

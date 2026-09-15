@@ -13,6 +13,10 @@ public interface IDevalCopilotDbContext
 
     DbSet<GitWorkspace> GitWorkspaces { get; }
 
+    DbSet<GitCheckpoint> GitCheckpoints { get; }
+
+    DbSet<GitChangedFile> GitChangedFiles { get; }
+
     DbSet<RepositoryMutationLease> RepositoryMutationLeases { get; }
 
     DbSet<Run> Runs { get; }

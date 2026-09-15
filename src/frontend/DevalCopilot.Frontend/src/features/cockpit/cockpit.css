@@ -228,6 +228,61 @@
   color: var(--dc-danger);
 }
 
+.dc-workspace-evidence {
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--dc-border);
+}
+
+.dc-workspace-evidence-heading,
+.dc-workspace-evidence-details {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.dc-workspace-evidence-heading {
+  justify-content: space-between;
+}
+
+.dc-workspace-evidence-subtitle,
+.dc-workspace-evidence-empty {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-workspace-evidence-details code,
+.dc-workspace-evidence-files code {
+  color: var(--dc-codex);
+}
+
+.dc-workspace-evidence-files {
+  display: grid;
+  gap: 0.25rem;
+  max-height: 10rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  overflow: auto;
+  font-family: monospace;
+}
+
+.dc-workspace-evidence-diff {
+  max-height: 24rem;
+  margin: 0;
+  padding: 0.7rem;
+  overflow: auto;
+  color: var(--dc-text);
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-border);
+  border-radius: 0.4rem;
+  font-size: 0.75rem;
+  white-space: pre;
+}
+
 .dc-workspace {
   flex: 1;
   display: grid;

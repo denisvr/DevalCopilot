@@ -54,6 +54,11 @@ public sealed class GitWorkspace
     /// — never reused, so a retired workspace's path/branch is never recreated identically.</summary>
     public int WorkspaceNumber { get; private set; }
 
+    /// <summary>Next immutable evidence checkpoint number for this workspace. A checkpoint is
+    /// never overwritten: later source evidence reserves a new number and therefore cannot be
+    /// mistaken for the evidence that an earlier review considered.</summary>
+    public int NextCheckpointNumber { get; private set; } = 1;
+
     public string WorkspacePath { get; private set; } = string.Empty;
 
     public string BranchName { get; private set; } = string.Empty;
@@ -73,6 +78,14 @@ public sealed class GitWorkspace
     /// UI can truthfully explain it. Null while <see cref="WorkspaceStatus.Preparing"/> or
     /// <see cref="WorkspaceStatus.Ready"/>.</summary>
     public string? LastFailureReasonCode { get; private set; }
+
+    public int ReserveCheckpointNumber()
+    {
+        var checkpointNumber = NextCheckpointNumber;
+        NextCheckpointNumber++;
+
+        return checkpointNumber;
+    }
 
     /// <summary>The in-request completion transition, once the durable ownership marker has
     /// itself been written and validated.</summary>

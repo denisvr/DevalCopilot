@@ -15,6 +15,10 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<GitWorkspace> GitWorkspaces => Set<GitWorkspace>();
 
+    public DbSet<GitCheckpoint> GitCheckpoints => Set<GitCheckpoint>();
+
+    public DbSet<GitChangedFile> GitChangedFiles => Set<GitChangedFile>();
+
     public DbSet<RepositoryMutationLease> RepositoryMutationLeases => Set<RepositoryMutationLease>();
 
     public DbSet<Run> Runs => Set<Run>();

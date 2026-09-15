@@ -468,6 +468,211 @@ export class GetProjectRunSummariesEndpointClient {
     }
 }
 
+export class GetProjectGitEvidenceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectGitEvidence(projectId: string): Promise<GetProjectGitEvidenceResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/workspace/evidence";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectGitEvidence(_response);
+        });
+    }
+
+    protected processGetProjectGitEvidence(response: Response): Promise<GetProjectGitEvidenceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetProjectGitEvidenceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetProjectGitEvidenceResponse>(null as any);
+    }
+}
+
+export class GetGitCheckpointDiffEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitCheckpointDiff(projectId: string, checkpointId: string): Promise<GetGitCheckpointDiffResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/workspace/checkpoints/{checkpointId}/diff";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (checkpointId === undefined || checkpointId === null)
+            throw new globalThis.Error("The parameter 'checkpointId' must be defined.");
+        url_ = url_.replace("{checkpointId}", encodeURIComponent("" + checkpointId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitCheckpointDiff(_response);
+        });
+    }
+
+    protected processGetGitCheckpointDiff(response: Response): Promise<GetGitCheckpointDiffResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetGitCheckpointDiffResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetGitCheckpointDiffResponse>(null as any);
+    }
+}
+
+export class GetGitCheckpointChangedFilesEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitCheckpointChangedFiles(projectId: string, checkpointId: string): Promise<GitCheckpointChangedFileResponse[]> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/workspace/checkpoints/{checkpointId}/changed-files";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (checkpointId === undefined || checkpointId === null)
+            throw new globalThis.Error("The parameter 'checkpointId' must be defined.");
+        url_ = url_.replace("{checkpointId}", encodeURIComponent("" + checkpointId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitCheckpointChangedFiles(_response);
+        });
+    }
+
+    protected processGetGitCheckpointChangedFiles(response: Response): Promise<GitCheckpointChangedFileResponse[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(GitCheckpointChangedFileResponse.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GitCheckpointChangedFileResponse[]>(null as any);
+    }
+}
+
+export class CaptureGitWorkspaceCheckpointEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    captureGitWorkspaceCheckpoint(projectId: string): Promise<CaptureGitWorkspaceCheckpointResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/workspace/checkpoints";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCaptureGitWorkspaceCheckpoint(_response);
+        });
+    }
+
+    protected processCaptureGitWorkspaceCheckpoint(response: Response): Promise<CaptureGitWorkspaceCheckpointResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CaptureGitWorkspaceCheckpointResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CaptureGitWorkspaceCheckpointResponse>(null as any);
+    }
+}
+
 export class HealthEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1287,6 +1492,202 @@ export interface ICapabilityReadinessResponse {
     version?: string | undefined;
     lastCheckedUtc?: Date | undefined;
     isStale?: boolean;
+}
+
+export class GetProjectGitEvidenceResponse implements IGetProjectGitEvidenceResponse {
+    checkpointId?: string | undefined;
+    checkpointNumber?: number | undefined;
+    capturedAtUtc?: Date | undefined;
+    headCommitSha?: string | undefined;
+    fingerprintSha256?: string | undefined;
+    changedFileCount?: number;
+
+    constructor(data?: IGetProjectGitEvidenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.checkpointId = _data["checkpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.capturedAtUtc = _data["capturedAtUtc"] ? new Date(_data["capturedAtUtc"].toString()) : undefined as any;
+            this.headCommitSha = _data["headCommitSha"];
+            this.fingerprintSha256 = _data["fingerprintSha256"];
+            this.changedFileCount = _data["changedFileCount"];
+        }
+    }
+
+    static fromJS(data: any): GetProjectGitEvidenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetProjectGitEvidenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["checkpointId"] = this.checkpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["capturedAtUtc"] = this.capturedAtUtc ? this.capturedAtUtc.toISOString() : undefined as any;
+        data["headCommitSha"] = this.headCommitSha;
+        data["fingerprintSha256"] = this.fingerprintSha256;
+        data["changedFileCount"] = this.changedFileCount;
+        return data;
+    }
+}
+
+export interface IGetProjectGitEvidenceResponse {
+    checkpointId?: string | undefined;
+    checkpointNumber?: number | undefined;
+    capturedAtUtc?: Date | undefined;
+    headCommitSha?: string | undefined;
+    fingerprintSha256?: string | undefined;
+    changedFileCount?: number;
+}
+
+export class GetGitCheckpointDiffResponse implements IGetGitCheckpointDiffResponse {
+    fingerprintSha256?: string;
+    completeDiff?: string;
+
+    constructor(data?: IGetGitCheckpointDiffResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.fingerprintSha256 = _data["fingerprintSha256"];
+            this.completeDiff = _data["completeDiff"];
+        }
+    }
+
+    static fromJS(data: any): GetGitCheckpointDiffResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitCheckpointDiffResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["fingerprintSha256"] = this.fingerprintSha256;
+        data["completeDiff"] = this.completeDiff;
+        return data;
+    }
+}
+
+export interface IGetGitCheckpointDiffResponse {
+    fingerprintSha256?: string;
+    completeDiff?: string;
+}
+
+export class GitCheckpointChangedFileResponse implements IGitCheckpointChangedFileResponse {
+    path?: string;
+    previousPath?: string | undefined;
+    indexStatus?: string;
+    workTreeStatus?: string;
+
+    constructor(data?: IGitCheckpointChangedFileResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.path = _data["path"];
+            this.previousPath = _data["previousPath"];
+            this.indexStatus = _data["indexStatus"];
+            this.workTreeStatus = _data["workTreeStatus"];
+        }
+    }
+
+    static fromJS(data: any): GitCheckpointChangedFileResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitCheckpointChangedFileResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["path"] = this.path;
+        data["previousPath"] = this.previousPath;
+        data["indexStatus"] = this.indexStatus;
+        data["workTreeStatus"] = this.workTreeStatus;
+        return data;
+    }
+}
+
+export interface IGitCheckpointChangedFileResponse {
+    path?: string;
+    previousPath?: string | undefined;
+    indexStatus?: string;
+    workTreeStatus?: string;
+}
+
+export class CaptureGitWorkspaceCheckpointResponse implements ICaptureGitWorkspaceCheckpointResponse {
+    checkpointId?: string;
+    checkpointNumber?: number;
+    headCommitSha?: string;
+    fingerprintSha256?: string;
+    changedFileCount?: number;
+
+    constructor(data?: ICaptureGitWorkspaceCheckpointResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.checkpointId = _data["checkpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.headCommitSha = _data["headCommitSha"];
+            this.fingerprintSha256 = _data["fingerprintSha256"];
+            this.changedFileCount = _data["changedFileCount"];
+        }
+    }
+
+    static fromJS(data: any): CaptureGitWorkspaceCheckpointResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CaptureGitWorkspaceCheckpointResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["checkpointId"] = this.checkpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["headCommitSha"] = this.headCommitSha;
+        data["fingerprintSha256"] = this.fingerprintSha256;
+        data["changedFileCount"] = this.changedFileCount;
+        return data;
+    }
+}
+
+export interface ICaptureGitWorkspaceCheckpointResponse {
+    checkpointId?: string;
+    checkpointNumber?: number;
+    headCommitSha?: string;
+    fingerprintSha256?: string;
+    changedFileCount?: number;
 }
 
 export class RequestHostCapabilityRefreshResponse implements IRequestHostCapabilityRefreshResponse {

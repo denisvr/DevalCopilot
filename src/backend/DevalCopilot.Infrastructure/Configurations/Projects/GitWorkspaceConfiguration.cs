@@ -11,6 +11,7 @@ public sealed class GitWorkspaceConfiguration : IEntityTypeConfiguration<GitWork
         builder.ToTable("git_workspaces");
         builder.HasKey(workspace => workspace.Id);
         builder.Property(workspace => workspace.WorkspaceNumber).IsRequired();
+        builder.Property(workspace => workspace.NextCheckpointNumber).HasDefaultValue(1).IsRequired();
         builder.Property(workspace => workspace.WorkspacePath).HasMaxLength(1000).IsRequired();
         builder.Property(workspace => workspace.BranchName).HasMaxLength(512).IsRequired();
         builder.Property(workspace => workspace.SourceCommitSha).HasMaxLength(40).IsRequired();

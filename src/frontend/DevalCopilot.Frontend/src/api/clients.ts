@@ -1,5 +1,9 @@
 import {
   GetProcessAttemptOutputEndpointClient,
+  CaptureGitWorkspaceCheckpointEndpointClient,
+  GetGitCheckpointChangedFilesEndpointClient,
+  GetGitCheckpointDiffEndpointClient,
+  GetProjectGitEvidenceEndpointClient,
   GetProjectRunSummariesEndpointClient,
   GetProjectWorkspaceEndpointClient,
   GetRunCockpitEndpointClient,
@@ -24,9 +28,17 @@ export const processAttemptOutputClient = () => new GetProcessAttemptOutputEndpo
 export const projectWorkspaceClient = () => new GetProjectWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const prepareWorkspaceClient = () => new PrepareRepositoryWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const recheckPhysicalIdentityClient = () => new RecheckProjectPhysicalIdentityEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const projectGitEvidenceClient = () => new GetProjectGitEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const captureGitWorkspaceCheckpointClient = () => new CaptureGitWorkspaceCheckpointEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitCheckpointChangedFilesClient = () => new GetGitCheckpointChangedFilesEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitCheckpointDiffClient = () => new GetGitCheckpointDiffEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
+  CaptureGitWorkspaceCheckpointResponse,
+  GetGitCheckpointDiffResponse,
+  GetProjectGitEvidenceResponse,
+  GitCheckpointChangedFileResponse,
   GetProcessAttemptOutputResponse,
   GetProjectWorkspaceResponse,
   GetRunCockpitResponse,

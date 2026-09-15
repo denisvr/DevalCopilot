@@ -1,14 +1,44 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { prepareWorkspaceClient, projectWorkspaceClient, recheckPhysicalIdentityClient } from '../../../api/clients'
-import { GetProjectWorkspaceResponse, PrepareRepositoryWorkspaceResponse, RecheckProjectPhysicalIdentityResponse } from '../../../api/generated/api-client'
+import {
+  captureGitWorkspaceCheckpointClient,
+  gitCheckpointChangedFilesClient,
+  gitCheckpointDiffClient,
+  prepareWorkspaceClient,
+  projectGitEvidenceClient,
+  projectWorkspaceClient,
+  recheckPhysicalIdentityClient,
+} from '../../../api/clients'
+import {
+  GetProjectGitEvidenceResponse,
+  GetProjectWorkspaceResponse,
+  PrepareRepositoryWorkspaceResponse,
+  RecheckProjectPhysicalIdentityResponse,
+} from '../../../api/generated/api-client'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 
 vi.mock('../../../api/clients', () => ({
   projectWorkspaceClient: vi.fn(),
   prepareWorkspaceClient: vi.fn(),
   recheckPhysicalIdentityClient: vi.fn(),
+  projectGitEvidenceClient: vi.fn(),
+  captureGitWorkspaceCheckpointClient: vi.fn(),
+  gitCheckpointChangedFilesClient: vi.fn(),
+  gitCheckpointDiffClient: vi.fn(),
 }))
+
+vi.mocked(projectGitEvidenceClient).mockReturnValue({
+  getProjectGitEvidence: vi.fn().mockResolvedValue(new GetProjectGitEvidenceResponse({ changedFileCount: 0 })),
+} as unknown as ReturnType<typeof projectGitEvidenceClient>)
+vi.mocked(captureGitWorkspaceCheckpointClient).mockReturnValue({
+  captureGitWorkspaceCheckpoint: vi.fn(),
+} as unknown as ReturnType<typeof captureGitWorkspaceCheckpointClient>)
+vi.mocked(gitCheckpointChangedFilesClient).mockReturnValue({
+  getGitCheckpointChangedFiles: vi.fn(),
+} as unknown as ReturnType<typeof gitCheckpointChangedFilesClient>)
+vi.mocked(gitCheckpointDiffClient).mockReturnValue({
+  getGitCheckpointDiff: vi.fn(),
+} as unknown as ReturnType<typeof gitCheckpointDiffClient>)
 
 function mockGetWorkspace(response: GetProjectWorkspaceResponse) {
   vi.mocked(projectWorkspaceClient).mockReturnValue({

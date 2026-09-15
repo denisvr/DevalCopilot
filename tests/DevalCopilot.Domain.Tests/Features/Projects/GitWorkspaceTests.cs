@@ -19,6 +19,15 @@ public sealed class GitWorkspaceTests
     }
 
     [Fact]
+    public void ReserveCheckpointNumber_is_monotonic_and_starts_at_one()
+    {
+        var workspace = CreatePreparing();
+
+        Assert.Equal(1, workspace.ReserveCheckpointNumber());
+        Assert.Equal(2, workspace.ReserveCheckpointNumber());
+    }
+
+    [Fact]
     public void Prepare_rejects_a_workspace_number_below_one()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => GitWorkspace.Prepare(
