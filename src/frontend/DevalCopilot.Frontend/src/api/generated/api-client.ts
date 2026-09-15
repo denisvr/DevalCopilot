@@ -272,6 +272,150 @@ export class RegisterProjectEndpointClient {
     }
 }
 
+export class RecheckProjectPhysicalIdentityEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    recheckProjectPhysicalIdentity(projectId: string): Promise<RecheckProjectPhysicalIdentityResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/physical-identity/recheck";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRecheckProjectPhysicalIdentity(_response);
+        });
+    }
+
+    protected processRecheckProjectPhysicalIdentity(response: Response): Promise<RecheckProjectPhysicalIdentityResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RecheckProjectPhysicalIdentityResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RecheckProjectPhysicalIdentityResponse>(null as any);
+    }
+}
+
+export class PrepareRepositoryWorkspaceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    prepareRepositoryWorkspace(projectId: string): Promise<PrepareRepositoryWorkspaceResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/workspace/prepare";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPrepareRepositoryWorkspace(_response);
+        });
+    }
+
+    protected processPrepareRepositoryWorkspace(response: Response): Promise<PrepareRepositoryWorkspaceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PrepareRepositoryWorkspaceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PrepareRepositoryWorkspaceResponse>(null as any);
+    }
+}
+
+export class GetProjectWorkspaceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectWorkspace(projectId: string): Promise<GetProjectWorkspaceResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/workspace";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectWorkspace(_response);
+        });
+    }
+
+    protected processGetProjectWorkspace(response: Response): Promise<GetProjectWorkspaceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetProjectWorkspaceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetProjectWorkspaceResponse>(null as any);
+    }
+}
+
 export class GetProjectRunSummariesEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -827,6 +971,166 @@ export class RegisterProjectRequest implements IRegisterProjectRequest {
 export interface IRegisterProjectRequest {
     name?: string;
     path?: string;
+}
+
+export class RecheckProjectPhysicalIdentityResponse implements IRecheckProjectPhysicalIdentityResponse {
+    status?: string;
+
+    constructor(data?: IRecheckProjectPhysicalIdentityResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+        }
+    }
+
+    static fromJS(data: any): RecheckProjectPhysicalIdentityResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecheckProjectPhysicalIdentityResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        return data;
+    }
+}
+
+export interface IRecheckProjectPhysicalIdentityResponse {
+    status?: string;
+}
+
+export class PrepareRepositoryWorkspaceResponse implements IPrepareRepositoryWorkspaceResponse {
+    workspaceId?: string;
+    workspacePath?: string;
+    branchName?: string;
+    sourceCommitSha?: string;
+    sourceBranchName?: string | undefined;
+
+    constructor(data?: IPrepareRepositoryWorkspaceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.workspaceId = _data["workspaceId"];
+            this.workspacePath = _data["workspacePath"];
+            this.branchName = _data["branchName"];
+            this.sourceCommitSha = _data["sourceCommitSha"];
+            this.sourceBranchName = _data["sourceBranchName"];
+        }
+    }
+
+    static fromJS(data: any): PrepareRepositoryWorkspaceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new PrepareRepositoryWorkspaceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["workspaceId"] = this.workspaceId;
+        data["workspacePath"] = this.workspacePath;
+        data["branchName"] = this.branchName;
+        data["sourceCommitSha"] = this.sourceCommitSha;
+        data["sourceBranchName"] = this.sourceBranchName;
+        return data;
+    }
+}
+
+export interface IPrepareRepositoryWorkspaceResponse {
+    workspaceId?: string;
+    workspacePath?: string;
+    branchName?: string;
+    sourceCommitSha?: string;
+    sourceBranchName?: string | undefined;
+}
+
+export class GetProjectWorkspaceResponse implements IGetProjectWorkspaceResponse {
+    physicalIdentityStatus?: string;
+    physicalIdentityBlockedMessage?: string | undefined;
+    state?: string;
+    candidatePath?: string | undefined;
+    branchName?: string | undefined;
+    sourceCommitSha?: string | undefined;
+    sourceBranchName?: string | undefined;
+    leaseStatus?: string | undefined;
+    blockedReasonCode?: string | undefined;
+    blockedReasonMessage?: string | undefined;
+
+    constructor(data?: IGetProjectWorkspaceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.physicalIdentityStatus = _data["physicalIdentityStatus"];
+            this.physicalIdentityBlockedMessage = _data["physicalIdentityBlockedMessage"];
+            this.state = _data["state"];
+            this.candidatePath = _data["candidatePath"];
+            this.branchName = _data["branchName"];
+            this.sourceCommitSha = _data["sourceCommitSha"];
+            this.sourceBranchName = _data["sourceBranchName"];
+            this.leaseStatus = _data["leaseStatus"];
+            this.blockedReasonCode = _data["blockedReasonCode"];
+            this.blockedReasonMessage = _data["blockedReasonMessage"];
+        }
+    }
+
+    static fromJS(data: any): GetProjectWorkspaceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetProjectWorkspaceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["physicalIdentityStatus"] = this.physicalIdentityStatus;
+        data["physicalIdentityBlockedMessage"] = this.physicalIdentityBlockedMessage;
+        data["state"] = this.state;
+        data["candidatePath"] = this.candidatePath;
+        data["branchName"] = this.branchName;
+        data["sourceCommitSha"] = this.sourceCommitSha;
+        data["sourceBranchName"] = this.sourceBranchName;
+        data["leaseStatus"] = this.leaseStatus;
+        data["blockedReasonCode"] = this.blockedReasonCode;
+        data["blockedReasonMessage"] = this.blockedReasonMessage;
+        return data;
+    }
+}
+
+export interface IGetProjectWorkspaceResponse {
+    physicalIdentityStatus?: string;
+    physicalIdentityBlockedMessage?: string | undefined;
+    state?: string;
+    candidatePath?: string | undefined;
+    branchName?: string | undefined;
+    sourceCommitSha?: string | undefined;
+    sourceBranchName?: string | undefined;
+    leaseStatus?: string | undefined;
+    blockedReasonCode?: string | undefined;
+    blockedReasonMessage?: string | undefined;
 }
 
 export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {

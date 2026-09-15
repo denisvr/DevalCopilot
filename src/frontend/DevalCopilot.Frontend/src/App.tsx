@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { startSimulatedRunClient } from './api/clients'
 import { StartSimulatedRunRequest } from './api/generated/api-client'
 import { AddProjectForm } from './features/cockpit/components/AddProjectForm'
+import { CandidateWorkspacePanel } from './features/cockpit/components/CandidateWorkspacePanel'
 import { CapabilityReadinessStrip } from './features/cockpit/components/CapabilityReadinessStrip'
 import { ProjectBaselineSummary } from './features/cockpit/components/ProjectBaselineSummary'
 import { ProjectSwitcher } from './features/cockpit/components/ProjectSwitcher'
@@ -104,6 +105,8 @@ export default function App() {
       </header>
 
       {selectedProject ? <ProjectBaselineSummary project={selectedProject} /> : null}
+
+      {selectedProject?.projectId ? <CandidateWorkspacePanel projectId={selectedProject.projectId} /> : null}
 
       {selectedProject ? (
         <CapabilityReadinessStrip

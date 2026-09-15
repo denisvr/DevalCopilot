@@ -21,6 +21,14 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(project => project.RegisteredAtUtc);
         builder.Property(project => project.NextExecutionNumber).IsRequired();
         builder.Property(project => project.NextBaselineNumber).IsRequired();
+        builder.Property(project => project.NextWorkspaceNumber).IsRequired();
         builder.HasIndex(project => project.RegistrationIdentityKey).IsUnique();
+
+        // Nullable: unresolved for every project until an explicit resolution attempt runs
+        // (registration predates this capability and never captures it itself). See ADR-0008.
+        builder.Property(project => project.PhysicalVolumeSerialNumber);
+        builder.Property(project => project.PhysicalFileId).HasMaxLength(16);
+        builder.Property(project => project.PhysicalIdentityStatus).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(project => project.PhysicalIdentityFailureReason).HasConversion<string>().HasMaxLength(64).IsRequired();
     }
 }

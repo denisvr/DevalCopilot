@@ -13,6 +13,10 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<RepositoryBaseline> RepositoryBaselines => Set<RepositoryBaseline>();
 
+    public DbSet<GitWorkspace> GitWorkspaces => Set<GitWorkspace>();
+
+    public DbSet<RepositoryMutationLease> RepositoryMutationLeases => Set<RepositoryMutationLease>();
+
     public DbSet<Run> Runs => Set<Run>();
 
     public DbSet<Attempt> Attempts => Set<Attempt>();

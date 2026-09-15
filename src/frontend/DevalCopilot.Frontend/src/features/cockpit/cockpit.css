@@ -189,6 +189,45 @@
   color: var(--dc-warning);
 }
 
+/* Deliberately distinct from .dc-project-baseline (the stable checkout): a dashed accent
+   border and the alt surface color make the isolated candidate workspace visually impossible
+   to confuse with the user's active checkout. */
+.dc-candidate-workspace {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 1rem;
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+  background: var(--dc-surface-alt);
+  border-bottom: 2px dashed var(--dc-claude);
+  flex-wrap: wrap;
+}
+
+.dc-candidate-workspace-title {
+  font-weight: 600;
+  color: var(--dc-claude);
+}
+
+.dc-candidate-workspace-path {
+  font-family: monospace;
+}
+
+.dc-candidate-workspace-blocked {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--dc-warning);
+}
+
+.dc-candidate-workspace-attention {
+  color: var(--dc-warning);
+}
+
+.dc-candidate-workspace-error {
+  color: var(--dc-danger);
+}
+
 .dc-workspace {
   flex: 1;
   display: grid;

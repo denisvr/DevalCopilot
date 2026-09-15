@@ -11,6 +11,7 @@ using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.EnsureHost
 using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileInterruptedHostCapabilityProbes;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
@@ -105,6 +106,13 @@ builder.Services.AddHostedService<HostCapabilityReadinessSupervisor>();
 builder.Services.AddSingleton<IRepositoryRootPathInspector, RepositoryRootPathInspector>();
 builder.Services.AddSingleton<IGitRepositoryInspector, GitRepositoryInspector>();
 
+// Workspace preparation: physical identity resolution, worktree creation, and the ownership
+// marker are each a narrow, independent Infrastructure capability behind their own port.
+builder.Services.AddSingleton<IRepositoryPhysicalIdentityInspector, RepositoryPhysicalIdentityInspector>();
+builder.Services.AddSingleton<IGitWorktreeAdapter, GitWorktreeAdapter>();
+builder.Services.AddSingleton<IWorkspaceOwnershipMarkerStore, WorkspaceOwnershipMarkerStore>();
+builder.Services.AddSingleton<IWorkspaceRootPathProvider, WorkspaceRootPathProvider>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -179,6 +187,11 @@ using (var startupScope = app.Services.CreateScope())
     // crash left stuck — both must complete before HostCapabilityReadinessSupervisor starts.
     await mediator.SendAsync(new EnsureHostCapabilityCatalogSeededCommand(), CancellationToken.None);
     await mediator.SendAsync(new ReconcileInterruptedHostCapabilityProbesCommand(), CancellationToken.None);
+
+    // Evidence-driven workspace reconciliation: must complete before any new preparation
+    // request is accepted, so a workspace from a prior host instance is never silently
+    // adopted, orphaned, or double-leased.
+    await mediator.SendAsync(new ReconcileWorkspacesCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

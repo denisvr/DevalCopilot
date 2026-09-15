@@ -15,6 +15,13 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- Test-only: lets PrepareRepositoryWorkspaceTransactionBoundaryTests build a minimal DI
+         container wiring the real Devalente mediator and EF Core transaction pipeline —
+         AddDevalenteMediator/AddDevalenteEfCoreTransactions — the exact mechanism under test,
+         never available through DevalCopilot.Infrastructure's own package references alone. -->
+    <PackageReference Include="Devalente.Shared.Cqrs" />
+    <PackageReference Include="Devalente.Shared.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\backend\DevalCopilot.Infrastructure\DevalCopilot.Infrastructure.csproj" />

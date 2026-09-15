@@ -13,6 +13,7 @@ supersedes it.
 - [ADR-0005: Use Git worktrees and a policy-controlled GitHub loop](0005-use-git-worktrees-and-a-policy-controlled-github-loop.md)
 - [ADR-0006: Support bounded concurrent runs across projects](0006-support-bounded-concurrent-runs-across-projects.md)
 - [ADR-0007: Registration-time repository identity is non-authoritative for mutation exclusion](0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md)
+- [ADR-0008: Physical repository identity and tool-owned worktree ownership](0008-physical-repository-identity-and-tool-owned-worktree-ownership.md)
 
 ## Status values
 

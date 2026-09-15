@@ -114,4 +114,25 @@ public sealed class RegisterProjectMigrationTests : IAsyncLifetime
 
         Assert.NotNull(exception);
     }
+
+    [Fact]
+    public async Task Migrating_leaves_the_known_legacy_row_physical_identity_honestly_unresolved()
+    {
+        await MigrateToPreRegistrationShapeAsync();
+        await InsertLegacyProjectRowAsync(KnownLegacyCanonicalPath);
+
+        await MigrateToLatestAsync();
+
+        await using var context = CreateContext();
+        var project = await context.Projects.SingleAsync(p => p.CanonicalPath == KnownLegacyCanonicalPath);
+
+        // Never fabricates a resolved physical identity for a row this migration never
+        // inspected — the workspace-preparation prerequisite ADR-0008 requires stays honest.
+        Assert.Equal(PhysicalIdentityStatus.Unresolved, project.PhysicalIdentityStatus);
+        Assert.Equal(PhysicalIdentityFailureReason.None, project.PhysicalIdentityFailureReason);
+        Assert.Null(project.PhysicalVolumeSerialNumber);
+        Assert.Null(project.PhysicalFileId);
+        Assert.Equal(1, project.NextWorkspaceNumber);
+        Assert.Empty(await context.GitWorkspaces.Where(w => w.ProjectId == project.Id).ToListAsync());
+    }
 }

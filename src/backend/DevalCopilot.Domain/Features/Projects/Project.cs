@@ -39,6 +39,9 @@ public sealed class Project
             RegisteredAtUtc = registeredAtUtc,
             NextExecutionNumber = 1,
             NextBaselineNumber = 1,
+            NextWorkspaceNumber = 1,
+            PhysicalIdentityStatus = PhysicalIdentityStatus.Unresolved,
+            PhysicalIdentityFailureReason = PhysicalIdentityFailureReason.None,
         };
     }
 
@@ -62,6 +65,25 @@ public sealed class Project
 
     public int NextBaselineNumber { get; private set; }
 
+    public int NextWorkspaceNumber { get; private set; }
+
+    /// <summary>Windows physical repository identity — volume serial number plus 128-bit file
+    /// ID (<c>FILE_ID_INFO</c>), resolved via <c>GetFileInformationByHandleEx</c>. Null until
+    /// <see cref="PhysicalIdentityStatus"/> is <see cref="Projects.PhysicalIdentityStatus.Resolved"/>.
+    /// This — never <see cref="RegistrationIdentityKey"/> — is the authoritative key a
+    /// <see cref="RepositoryMutationLease"/> is keyed by. See ADR-0007 and ADR-0008.</summary>
+    public ulong? PhysicalVolumeSerialNumber { get; private set; }
+
+    /// <summary>16 bytes when set. Null until resolved.</summary>
+    public byte[]? PhysicalFileId { get; private set; }
+
+    public PhysicalIdentityStatus PhysicalIdentityStatus { get; private set; }
+
+    /// <summary>Meaningful only when <see cref="PhysicalIdentityStatus"/> is
+    /// <see cref="Projects.PhysicalIdentityStatus.Unavailable"/>; <see cref="PhysicalIdentityFailureReason.None"/>
+    /// otherwise. A closed, safe reason code — never raw Win32 error text.</summary>
+    public PhysicalIdentityFailureReason PhysicalIdentityFailureReason { get; private set; }
+
     public int ReserveExecutionNumber()
     {
         var executionNumber = NextExecutionNumber;
@@ -80,5 +102,73 @@ public sealed class Project
         NextBaselineNumber++;
 
         return baselineNumber;
+    }
+
+    /// <summary>Reserves the next monotonic <see cref="GitWorkspace.WorkspaceNumber"/> for this
+    /// project — never reused, so a retired workspace's deterministic path/branch name is never
+    /// recreated identically. Same in-aggregate-counter pattern as
+    /// <see cref="ReserveBaselineNumber"/>.</summary>
+    public int ReserveWorkspaceNumber()
+    {
+        var workspaceNumber = NextWorkspaceNumber;
+        NextWorkspaceNumber++;
+
+        return workspaceNumber;
+    }
+
+    /// <summary>True only when physical identity is already <see cref="Projects.PhysicalIdentityStatus.Resolved"/>
+    /// and matches the given tuple exactly. Application must consult this before deciding
+    /// whether a fresh resolution is a confirming re-check or a genuine mismatch.</summary>
+    public bool PhysicalIdentityMatches(ulong volumeSerialNumber, byte[] fileId)
+    {
+        ArgumentNullException.ThrowIfNull(fileId);
+
+        return PhysicalIdentityStatus == PhysicalIdentityStatus.Resolved
+            && PhysicalVolumeSerialNumber == volumeSerialNumber
+            && PhysicalFileId is not null
+            && PhysicalFileId.AsSpan().SequenceEqual(fileId);
+    }
+
+    /// <summary>Persists a successful physical-identity resolution. Refuses (a genuine
+    /// programmer-error guard, not an expected business outcome) to silently overwrite an
+    /// already-<see cref="Projects.PhysicalIdentityStatus.Resolved"/> project with a different
+    /// tuple — the caller must check <see cref="PhysicalIdentityMatches"/> first and surface a
+    /// typed conflict instead of calling this when it returns false.</summary>
+    public void RecordPhysicalIdentityResolved(ulong volumeSerialNumber, byte[] fileId)
+    {
+        ArgumentNullException.ThrowIfNull(fileId);
+
+        if (PhysicalIdentityStatus == PhysicalIdentityStatus.Resolved && !PhysicalIdentityMatches(volumeSerialNumber, fileId))
+        {
+            throw new InvalidOperationException(
+                "A resolved physical identity is never silently overwritten by a different one.");
+        }
+
+        PhysicalVolumeSerialNumber = volumeSerialNumber;
+        PhysicalFileId = fileId;
+        PhysicalIdentityStatus = PhysicalIdentityStatus.Resolved;
+        PhysicalIdentityFailureReason = PhysicalIdentityFailureReason.None;
+    }
+
+    /// <summary>Persists a failed physical-identity resolution with a closed, safe reason.
+    /// Refuses to demote an already-<see cref="Projects.PhysicalIdentityStatus.Resolved"/>
+    /// project on one transient failure — the caller must not invoke this once resolved; a
+    /// recheck that cannot currently verify a resolved identity returns its own typed outcome
+    /// without persisting anything.</summary>
+    public void RecordPhysicalIdentityUnavailable(PhysicalIdentityFailureReason reason)
+    {
+        if (reason == PhysicalIdentityFailureReason.None)
+        {
+            throw new ArgumentException("A failure reason is required.", nameof(reason));
+        }
+
+        if (PhysicalIdentityStatus == PhysicalIdentityStatus.Resolved)
+        {
+            throw new InvalidOperationException(
+                "An already-resolved physical identity is never demoted by a failed recheck.");
+        }
+
+        PhysicalIdentityStatus = PhysicalIdentityStatus.Unavailable;
+        PhysicalIdentityFailureReason = reason;
     }
 }

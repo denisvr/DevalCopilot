@@ -31,6 +31,8 @@
 - [ADR-0007](decisions/0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md):
   Registration-time repository identity is non-authoritative for mutation
   exclusion.
+- [ADR-0008](decisions/0008-physical-repository-identity-and-tool-owned-worktree-ownership.md):
+  Physical repository identity and tool-owned worktree ownership.
 
 ## Product-specific architecture
 

@@ -1,8 +1,11 @@
 import {
   GetProcessAttemptOutputEndpointClient,
   GetProjectRunSummariesEndpointClient,
+  GetProjectWorkspaceEndpointClient,
   GetRunCockpitEndpointClient,
   GetRunEventsEndpointClient,
+  PrepareRepositoryWorkspaceEndpointClient,
+  RecheckProjectPhysicalIdentityEndpointClient,
   RegisterProjectEndpointClient,
   RequestHostCapabilityRefreshEndpointClient,
   StartSimulatedRunEndpointClient,
@@ -18,12 +21,18 @@ export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBase
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const processAttemptOutputClient = () => new GetProcessAttemptOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const projectWorkspaceClient = () => new GetProjectWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const prepareWorkspaceClient = () => new PrepareRepositoryWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const recheckPhysicalIdentityClient = () => new RecheckProjectPhysicalIdentityEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
   GetProcessAttemptOutputResponse,
+  GetProjectWorkspaceResponse,
   GetRunCockpitResponse,
+  PrepareRepositoryWorkspaceResponse,
   ProjectRunSummaryResponse,
+  RecheckProjectPhysicalIdentityResponse,
   RegisterProjectResponse,
   RequestHostCapabilityRefreshResponse,
   RunEventResponse,

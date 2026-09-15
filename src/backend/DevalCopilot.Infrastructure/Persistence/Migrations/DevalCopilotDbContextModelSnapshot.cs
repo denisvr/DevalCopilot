@@ -50,6 +50,57 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("host_capability_snapshots", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitWorkspace", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BranchName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastFailureReasonCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceBranchName")
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceCommitSha")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WorkspaceNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("WorkspacePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "WorkspaceNumber")
+                        .IsUnique();
+
+                    b.ToTable("git_workspaces", (string)null);
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -70,6 +121,26 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("NextExecutionNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NextWorkspaceNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<byte[]>("PhysicalFileId")
+                        .HasMaxLength(16)
+                        .HasColumnType("BLOB");
+
+                    b.Property<string>("PhysicalIdentityFailureReason")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhysicalIdentityStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<ulong?>("PhysicalVolumeSerialNumber")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTimeOffset?>("RegisteredAtUtc")
@@ -125,6 +196,55 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("repository_baselines", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.RepositoryMutationLease", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("AcquiredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<byte[]>("PhysicalFileId")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("BLOB");
+
+                    b.Property<ulong>("PhysicalVolumeSerialNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ReleasedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("SupersededAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("WorkspaceId")
+                        .IsUnique();
+
+                    b.HasIndex("PhysicalVolumeSerialNumber", "PhysicalFileId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_repository_mutation_leases_physical_identity_active")
+                        .HasFilter("\"Status\" = 'Active'");
+
+                    b.ToTable("repository_mutation_leases", (string)null);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.Artifact", b =>
@@ -357,11 +477,35 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("events", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitWorkspace", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.RepositoryBaseline", b =>
                 {
                     b.HasOne("DevalCopilot.Domain.Features.Projects.Project", null)
                         .WithMany()
                         .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.RepositoryMutationLease", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitWorkspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
