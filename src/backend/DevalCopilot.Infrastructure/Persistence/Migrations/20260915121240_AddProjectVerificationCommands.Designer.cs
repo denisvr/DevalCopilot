@@ -3,6 +3,7 @@ using System;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DevalCopilot.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(DevalCopilotDbContext))]
-    partial class DevalCopilotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260915121240_AddProjectVerificationCommands")]
+    partial class AddProjectVerificationCommands
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -201,11 +204,6 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(1);
 
-                    b.Property<int>("NextVerificationExecutionNumber")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(1);
-
                     b.Property<int>("NextWorkspaceNumber")
                         .HasColumnType("INTEGER");
 
@@ -374,93 +372,6 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("verification_commands", (string)null);
-                });
-
-            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.VerificationExecution", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Arguments")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CheckpointFingerprintSha256")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset>("ClaimedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CommandName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CompletedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CompletionFingerprintSha256")
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("DispatchedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ExecutablePath")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("ExecutionNumber")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("ExitCode")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("GitCheckpointId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("GitWorkspaceId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Outcome")
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TimeoutSeconds")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("VerificationCommandId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("WorkspacePath")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GitCheckpointId");
-
-                    b.HasIndex("VerificationCommandId");
-
-                    b.HasIndex("GitWorkspaceId", "Status");
-
-                    b.HasIndex("ProjectId", "ExecutionNumber")
-                        .IsUnique();
-
-                    b.ToTable("verification_executions", (string)null);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.Artifact", b =>
@@ -750,33 +661,6 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.VerificationExecution", b =>
-                {
-                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
-                        .WithMany()
-                        .HasForeignKey("GitCheckpointId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitWorkspace", null)
-                        .WithMany()
-                        .HasForeignKey("GitWorkspaceId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("DevalCopilot.Domain.Features.Projects.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DevalCopilot.Domain.Features.Projects.VerificationCommand", null)
-                        .WithMany()
-                        .HasForeignKey("VerificationCommandId")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

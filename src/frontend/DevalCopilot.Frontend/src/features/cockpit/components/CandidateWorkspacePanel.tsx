@@ -1,5 +1,6 @@
 import { useProjectWorkspace } from '../hooks/useProjectWorkspace'
 import { WorkspaceEvidencePanel } from './WorkspaceEvidencePanel'
+import { VerificationCommandsPanel } from './VerificationCommandsPanel'
 
 interface CandidateWorkspacePanelProps {
   projectId: string
@@ -64,6 +65,7 @@ export function CandidateWorkspacePanel({ projectId }: CandidateWorkspacePanelPr
       ) : null}
 
       <WorkspaceEvidencePanel projectId={projectId} workspaceReady={workspace.state === 'Ready'} />
+      <VerificationCommandsPanel projectId={projectId} />
 
       {!needsIdentityRecheck && workspace.state === 'Blocked' ? (
         <div className="dc-candidate-workspace-blocked">

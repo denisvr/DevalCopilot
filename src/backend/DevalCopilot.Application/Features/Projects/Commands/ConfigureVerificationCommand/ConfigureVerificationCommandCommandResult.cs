@@ -1,0 +1,3 @@
+namespace DevalCopilot.Application.Features.Projects.Commands.ConfigureVerificationCommand;
+
+public sealed record ConfigureVerificationCommandCommandResult(Guid VerificationCommandId, int CommandNumber);

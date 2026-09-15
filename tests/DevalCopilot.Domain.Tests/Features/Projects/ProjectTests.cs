@@ -82,6 +82,27 @@ public sealed class ProjectTests
     }
 
     [Fact]
+    public void ReserveVerificationCommandNumber_returns_monotonically_increasing_values_starting_at_one()
+    {
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\DevalCopilot", DateTimeOffset.UtcNow);
+
+        var first = project.ReserveVerificationCommandNumber();
+        var second = project.ReserveVerificationCommandNumber();
+
+        Assert.Equal(1, first);
+        Assert.Equal(2, second);
+    }
+
+    [Fact]
+    public void ReserveVerificationExecutionNumber_returns_monotonically_increasing_values_starting_at_one()
+    {
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\DevalCopilot", DateTimeOffset.UtcNow);
+
+        Assert.Equal(1, project.ReserveVerificationExecutionNumber());
+        Assert.Equal(2, project.ReserveVerificationExecutionNumber());
+    }
+
+    [Fact]
     public void RecordPhysicalIdentityResolved_sets_resolved_status_and_clears_any_failure_reason()
     {
         var project = Project.Register(Guid.NewGuid(), "Name", @"C:\repos\Foo", DateTimeOffset.UtcNow);

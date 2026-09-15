@@ -22,6 +22,8 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(project => project.NextExecutionNumber).IsRequired();
         builder.Property(project => project.NextBaselineNumber).IsRequired();
         builder.Property(project => project.NextWorkspaceNumber).IsRequired();
+        builder.Property(project => project.NextVerificationCommandNumber).IsRequired().HasDefaultValue(1);
+        builder.Property(project => project.NextVerificationExecutionNumber).IsRequired().HasDefaultValue(1);
         builder.HasIndex(project => project.RegistrationIdentityKey).IsUnique();
 
         // Nullable: unresolved for every project until an explicit resolution attempt runs

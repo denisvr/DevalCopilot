@@ -283,6 +283,77 @@
   white-space: pre;
 }
 
+.dc-verification-commands {
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--dc-border);
+}
+
+.dc-verification-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.55rem;
+  border: 1px solid var(--dc-border);
+  border-radius: 0.4rem;
+  background: var(--dc-surface);
+}
+
+.dc-verification-command[data-enabled='false'] {
+  opacity: 0.62;
+}
+
+.dc-verification-command > div:first-child {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.dc-verification-command code {
+  overflow: hidden;
+  color: var(--dc-codex);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dc-verification-command span {
+  color: var(--dc-text-muted);
+  font-size: 0.75rem;
+}
+
+.dc-verification-command-actions,
+.dc-verification-command-form {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.dc-verification-command-form input,
+.dc-verification-command-form textarea {
+  border: 1px solid var(--dc-border);
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font: inherit;
+}
+
+.dc-verification-command-form textarea {
+  min-height: 3.25rem;
+  min-width: min(18rem, 100%);
+}
+
+.dc-verification-command-form label {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--dc-text-muted);
+  font-size: 0.75rem;
+}
+
 .dc-workspace {
   flex: 1;
   display: grid;

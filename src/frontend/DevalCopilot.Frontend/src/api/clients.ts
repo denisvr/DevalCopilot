@@ -4,6 +4,10 @@ import {
   GetGitCheckpointChangedFilesEndpointClient,
   GetGitCheckpointDiffEndpointClient,
   GetProjectGitEvidenceEndpointClient,
+  ConfigureVerificationCommandEndpointClient,
+  DeleteVerificationCommandEndpointClient,
+  GetProjectVerificationCommandsEndpointClient,
+  UpdateVerificationCommandEndpointClient,
   GetProjectRunSummariesEndpointClient,
   GetProjectWorkspaceEndpointClient,
   GetRunCockpitEndpointClient,
@@ -32,9 +36,15 @@ export const projectGitEvidenceClient = () => new GetProjectGitEvidenceEndpointC
 export const captureGitWorkspaceCheckpointClient = () => new CaptureGitWorkspaceCheckpointEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitCheckpointChangedFilesClient = () => new GetGitCheckpointChangedFilesEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitCheckpointDiffClient = () => new GetGitCheckpointDiffEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const projectVerificationCommandsClient = () => new GetProjectVerificationCommandsEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const configureVerificationCommandClient = () => new ConfigureVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const updateVerificationCommandClient = () => new UpdateVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const deleteVerificationCommandClient = () => new DeleteVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
+  ConfigureVerificationCommandRequest,
+  ConfigureVerificationCommandResponse,
   CaptureGitWorkspaceCheckpointResponse,
   GetGitCheckpointDiffResponse,
   GetProjectGitEvidenceResponse,
@@ -49,5 +59,7 @@ export type {
   RequestHostCapabilityRefreshResponse,
   RunEventResponse,
   StageMapEntryResponse,
+  UpdateVerificationCommandRequest,
+  VerificationCommandResponse,
 } from './generated/api-client'
 export { RegisterProjectRequest } from './generated/api-client'

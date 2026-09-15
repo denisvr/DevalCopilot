@@ -183,4 +183,39 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.NotNull(persistedAttempt);
         Assert.Equal(["--verify"], persistedAttempt.ProcessArguments);
     }
+
+    [Fact]
+    public async Task Migrate_persists_project_verification_commands_with_monotonic_numbers_and_literal_arguments()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var arguments = new List<string> { "test", "--no-restore" };
+
+        await using var context = fixture.CreateContext();
+        await context.Database.MigrateAsync();
+
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\verification-migration-test", now);
+        context.Projects.Add(project);
+        await context.SaveChangesAsync();
+
+        var verificationCommand = VerificationCommand.Configure(
+            Guid.NewGuid(),
+            project.Id,
+            project.ReserveVerificationCommandNumber(),
+            "Backend tests",
+            @"C:\Program Files\dotnet\dotnet.exe",
+            arguments,
+            300,
+            true,
+            now);
+        context.VerificationCommands.Add(verificationCommand);
+        arguments.Add("--tampered");
+        await context.SaveChangesAsync();
+
+        await using var reopenedContext = fixture.CreateContext();
+        var persisted = await reopenedContext.VerificationCommands.SingleAsync(command => command.ProjectId == project.Id);
+
+        Assert.Equal(1, persisted.CommandNumber);
+        Assert.Equal(["test", "--no-restore"], persisted.Arguments);
+        Assert.Equal(2, (await reopenedContext.Projects.SingleAsync(savedProject => savedProject.Id == project.Id)).NextVerificationCommandNumber);
+    }
 }

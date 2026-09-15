@@ -64,6 +64,15 @@ diff text stays transient and is returned only after a fresh capture still
 matches the requested checkpoint. This makes a stale checkpoint an explicit
 conflict rather than silently presenting it as current source evidence.
 
+### Current verification configuration boundary
+
+Increment 3 currently persists project-owned verification recipes as an absolute executable
+path, a bounded literal argument array, timeout, and enabled state. Configuration is visible
+and editable, but has no execution authority yet: it neither starts a child process nor claims
+that a command passed. The following slice must snapshot an enabled recipe into a durable
+attempt, run it only from the Ready isolated workspace, and bind its bounded output and result
+to an unchanged Git checkpoint before it can become local-verification evidence.
+
 ### Approval state
 
 `NotRequired`, `Pending`, `Approved`, `Rejected`, `Expired`, or `Consumed`.

@@ -19,6 +19,10 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<GitChangedFile> GitChangedFiles => Set<GitChangedFile>();
 
+    public DbSet<VerificationCommand> VerificationCommands => Set<VerificationCommand>();
+
+    public DbSet<VerificationExecution> VerificationExecutions => Set<VerificationExecution>();
+
     public DbSet<RepositoryMutationLease> RepositoryMutationLeases => Set<RepositoryMutationLease>();
 
     public DbSet<Run> Runs => Set<Run>();

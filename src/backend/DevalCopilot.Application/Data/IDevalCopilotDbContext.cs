@@ -17,6 +17,10 @@ public interface IDevalCopilotDbContext
 
     DbSet<GitChangedFile> GitChangedFiles { get; }
 
+    DbSet<VerificationCommand> VerificationCommands { get; }
+
+    DbSet<VerificationExecution> VerificationExecutions { get; }
+
     DbSet<RepositoryMutationLease> RepositoryMutationLeases { get; }
 
     DbSet<Run> Runs { get; }

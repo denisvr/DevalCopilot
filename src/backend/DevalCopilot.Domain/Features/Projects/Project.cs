@@ -40,6 +40,8 @@ public sealed class Project
             NextExecutionNumber = 1,
             NextBaselineNumber = 1,
             NextWorkspaceNumber = 1,
+            NextVerificationCommandNumber = 1,
+            NextVerificationExecutionNumber = 1,
             PhysicalIdentityStatus = PhysicalIdentityStatus.Unresolved,
             PhysicalIdentityFailureReason = PhysicalIdentityFailureReason.None,
         };
@@ -66,6 +68,13 @@ public sealed class Project
     public int NextBaselineNumber { get; private set; }
 
     public int NextWorkspaceNumber { get; private set; }
+
+    /// <summary>Reserves the next monotonic <see cref="VerificationCommand.CommandNumber"/>
+    /// for this project. Numbers are never reused, including after an explicit hard delete, so
+    /// future execution evidence can always identify the configuration that originated it.</summary>
+    public int NextVerificationCommandNumber { get; private set; }
+
+    public int NextVerificationExecutionNumber { get; private set; } = 1;
 
     /// <summary>Windows physical repository identity — volume serial number plus 128-bit file
     /// ID (<c>FILE_ID_INFO</c>), resolved via <c>GetFileInformationByHandleEx</c>. Null until
@@ -114,6 +123,22 @@ public sealed class Project
         NextWorkspaceNumber++;
 
         return workspaceNumber;
+    }
+
+    public int ReserveVerificationCommandNumber()
+    {
+        var commandNumber = NextVerificationCommandNumber;
+        NextVerificationCommandNumber++;
+
+        return commandNumber;
+    }
+
+    public int ReserveVerificationExecutionNumber()
+    {
+        var executionNumber = NextVerificationExecutionNumber;
+        NextVerificationExecutionNumber++;
+
+        return executionNumber;
     }
 
     /// <summary>True only when physical identity is already <see cref="Projects.PhysicalIdentityStatus.Resolved"/>
