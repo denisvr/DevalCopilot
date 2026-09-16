@@ -1,6 +1,7 @@
 import {
   GetProcessAttemptOutputEndpointClient,
   ClaimVerificationExecutionEndpointClient,
+  RecordCheckpointReviewEndpointClient,
   CaptureGitWorkspaceCheckpointEndpointClient,
   GetGitCheckpointChangedFilesEndpointClient,
   GetGitCheckpointDiffEndpointClient,
@@ -10,6 +11,7 @@ import {
   GetVerificationExecutionOutputEndpointClient,
   GetProjectVerificationCommandsEndpointClient,
   GetProjectVerificationExecutionsEndpointClient,
+  GetProjectCheckpointReviewsEndpointClient,
   UpdateVerificationCommandEndpointClient,
   GetProjectRunSummariesEndpointClient,
   GetProjectWorkspaceEndpointClient,
@@ -41,10 +43,12 @@ export const gitCheckpointChangedFilesClient = () => new GetGitCheckpointChanged
 export const gitCheckpointDiffClient = () => new GetGitCheckpointDiffEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectVerificationCommandsClient = () => new GetProjectVerificationCommandsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectVerificationExecutionsClient = () => new GetProjectVerificationExecutionsEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const projectCheckpointReviewsClient = () => new GetProjectCheckpointReviewsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const configureVerificationCommandClient = () => new ConfigureVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const updateVerificationCommandClient = () => new UpdateVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const deleteVerificationCommandClient = () => new DeleteVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const claimVerificationExecutionClient = () => new ClaimVerificationExecutionEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const recordCheckpointReviewClient = () => new RecordCheckpointReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const verificationExecutionOutputClient = () => new GetVerificationExecutionOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
@@ -68,5 +72,6 @@ export type {
   UpdateVerificationCommandRequest,
   VerificationCommandResponse,
   VerificationExecutionResponse,
+  CheckpointReviewResponse,
 } from './generated/api-client'
-export { ClaimVerificationExecutionRequest, RegisterProjectRequest } from './generated/api-client'
+export { ClaimVerificationExecutionRequest, RecordCheckpointReviewRequest, RegisterProjectRequest } from './generated/api-client'

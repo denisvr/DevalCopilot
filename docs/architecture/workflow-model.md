@@ -85,6 +85,19 @@ sealed stdout/stderr files for still-running executions are independently re-des
 imported once before those executions are reconciled as `Interrupted`; partial-only files are
 deleted as non-evidence, and no process outcome is fabricated or redispatched.
 
+Local review evidence is an append-only `CheckpointReview` fact. It snapshots the selected
+checkpoint fingerprint and, for a decision that cites verification evidence, the exact execution
+ID, terminal status, and truthful process outcome when one exists; interrupted executions and
+source changes detected before dispatch have no invented outcome or exit code. It never copies
+command arguments, paths, output text, or artifact metadata. The API accepts a review only when
+the isolated workspace is `Ready`, its lease is active, the selected checkpoint is the latest
+persisted checkpoint for that workspace, and a fresh bounded source capture still matches it.
+`Pending` is an execution-free recorded review state. `ChangesRequested` and `Escalated` may cite
+any terminal execution for that exact checkpoint; `Approved` additionally requires a passed
+execution. Review reads re-capture current source evidence: an older approval remains historical
+evidence but is marked not applicable with a fixed stale reason when a newer checkpoint exists or
+the source fingerprint has drifted.
+
 ### Approval state
 
 `NotRequired`, `Pending`, `Approved`, `Rejected`, `Expired`, or `Consumed`.

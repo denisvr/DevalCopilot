@@ -25,6 +25,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<VerificationOutputArtifact> VerificationOutputArtifacts => Set<VerificationOutputArtifact>();
 
+    public DbSet<CheckpointReview> CheckpointReviews => Set<CheckpointReview>();
+
     public DbSet<RepositoryMutationLease> RepositoryMutationLeases => Set<RepositoryMutationLease>();
 
     public DbSet<Run> Runs => Set<Run>();

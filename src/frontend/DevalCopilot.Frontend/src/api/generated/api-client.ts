@@ -386,6 +386,113 @@ export class RegisterProjectEndpointClient {
     }
 }
 
+export class RecordCheckpointReviewEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    recordCheckpointReview(projectId: string, request: RecordCheckpointReviewRequest): Promise<RecordCheckpointReviewResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/reviews";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRecordCheckpointReview(_response);
+        });
+    }
+
+    protected processRecordCheckpointReview(response: Response): Promise<RecordCheckpointReviewResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RecordCheckpointReviewResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RecordCheckpointReviewResponse>(null as any);
+    }
+}
+
+export class GetProjectCheckpointReviewsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectCheckpointReviews(projectId: string): Promise<CheckpointReviewResponse[]> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/reviews";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectCheckpointReviews(_response);
+        });
+    }
+
+    protected processGetProjectCheckpointReviews(response: Response): Promise<CheckpointReviewResponse[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(CheckpointReviewResponse.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CheckpointReviewResponse[]>(null as any);
+    }
+}
+
 export class RecheckProjectPhysicalIdentityEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1629,6 +1736,94 @@ export interface IRegisterProjectRequest {
     path?: string;
 }
 
+export class RecordCheckpointReviewResponse implements IRecordCheckpointReviewResponse {
+    reviewId?: string;
+    decision?: string;
+
+    constructor(data?: IRecordCheckpointReviewResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.reviewId = _data["reviewId"];
+            this.decision = _data["decision"];
+        }
+    }
+
+    static fromJS(data: any): RecordCheckpointReviewResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecordCheckpointReviewResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["reviewId"] = this.reviewId;
+        data["decision"] = this.decision;
+        return data;
+    }
+}
+
+export interface IRecordCheckpointReviewResponse {
+    reviewId?: string;
+    decision?: string;
+}
+
+export class RecordCheckpointReviewRequest implements IRecordCheckpointReviewRequest {
+    gitCheckpointId?: string;
+    verificationExecutionId?: string | undefined;
+    actorKind?: string;
+    decision?: string;
+
+    constructor(data?: IRecordCheckpointReviewRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.gitCheckpointId = _data["gitCheckpointId"];
+            this.verificationExecutionId = _data["verificationExecutionId"];
+            this.actorKind = _data["actorKind"];
+            this.decision = _data["decision"];
+        }
+    }
+
+    static fromJS(data: any): RecordCheckpointReviewRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecordCheckpointReviewRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["gitCheckpointId"] = this.gitCheckpointId;
+        data["verificationExecutionId"] = this.verificationExecutionId;
+        data["actorKind"] = this.actorKind;
+        data["decision"] = this.decision;
+        return data;
+    }
+}
+
+export interface IRecordCheckpointReviewRequest {
+    gitCheckpointId?: string;
+    verificationExecutionId?: string | undefined;
+    actorKind?: string;
+    decision?: string;
+}
+
 export class RecheckProjectPhysicalIdentityResponse implements IRecheckProjectPhysicalIdentityResponse {
     status?: string;
 
@@ -1840,6 +2035,8 @@ export interface IGetProjectWorkspaceResponse {
 export class VerificationExecutionResponse implements IVerificationExecutionResponse {
     verificationExecutionId?: string;
     verificationCommandId?: string;
+    gitCheckpointId?: string;
+    checkpointFingerprintSha256?: string;
     executionNumber?: number;
     status?: string;
     isDispatched?: boolean;
@@ -1867,6 +2064,8 @@ export class VerificationExecutionResponse implements IVerificationExecutionResp
         if (_data) {
             this.verificationExecutionId = _data["verificationExecutionId"];
             this.verificationCommandId = _data["verificationCommandId"];
+            this.gitCheckpointId = _data["gitCheckpointId"];
+            this.checkpointFingerprintSha256 = _data["checkpointFingerprintSha256"];
             this.executionNumber = _data["executionNumber"];
             this.status = _data["status"];
             this.isDispatched = _data["isDispatched"];
@@ -1894,6 +2093,8 @@ export class VerificationExecutionResponse implements IVerificationExecutionResp
         data = typeof data === 'object' ? data : {};
         data["verificationExecutionId"] = this.verificationExecutionId;
         data["verificationCommandId"] = this.verificationCommandId;
+        data["gitCheckpointId"] = this.gitCheckpointId;
+        data["checkpointFingerprintSha256"] = this.checkpointFingerprintSha256;
         data["executionNumber"] = this.executionNumber;
         data["status"] = this.status;
         data["isDispatched"] = this.isDispatched;
@@ -1914,6 +2115,8 @@ export class VerificationExecutionResponse implements IVerificationExecutionResp
 export interface IVerificationExecutionResponse {
     verificationExecutionId?: string;
     verificationCommandId?: string;
+    gitCheckpointId?: string;
+    checkpointFingerprintSha256?: string;
     executionNumber?: number;
     status?: string;
     isDispatched?: boolean;
@@ -2211,6 +2414,90 @@ export interface IGetProjectGitEvidenceResponse {
     headCommitSha?: string | undefined;
     fingerprintSha256?: string | undefined;
     changedFileCount?: number;
+}
+
+export class CheckpointReviewResponse implements ICheckpointReviewResponse {
+    reviewId?: string;
+    gitCheckpointId?: string;
+    checkpointNumber?: number;
+    checkpointFingerprintSha256?: string;
+    verificationExecutionId?: string | undefined;
+    verificationExecutionNumber?: number | undefined;
+    verificationExecutionStatus?: string | undefined;
+    verificationExecutionOutcome?: string | undefined;
+    actorKind?: string;
+    decision?: string;
+    isApplicable?: boolean;
+    staleReasonCode?: string | undefined;
+    recordedAtUtc?: Date;
+
+    constructor(data?: ICheckpointReviewResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.reviewId = _data["reviewId"];
+            this.gitCheckpointId = _data["gitCheckpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.checkpointFingerprintSha256 = _data["checkpointFingerprintSha256"];
+            this.verificationExecutionId = _data["verificationExecutionId"];
+            this.verificationExecutionNumber = _data["verificationExecutionNumber"];
+            this.verificationExecutionStatus = _data["verificationExecutionStatus"];
+            this.verificationExecutionOutcome = _data["verificationExecutionOutcome"];
+            this.actorKind = _data["actorKind"];
+            this.decision = _data["decision"];
+            this.isApplicable = _data["isApplicable"];
+            this.staleReasonCode = _data["staleReasonCode"];
+            this.recordedAtUtc = _data["recordedAtUtc"] ? new Date(_data["recordedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): CheckpointReviewResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CheckpointReviewResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["reviewId"] = this.reviewId;
+        data["gitCheckpointId"] = this.gitCheckpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["checkpointFingerprintSha256"] = this.checkpointFingerprintSha256;
+        data["verificationExecutionId"] = this.verificationExecutionId;
+        data["verificationExecutionNumber"] = this.verificationExecutionNumber;
+        data["verificationExecutionStatus"] = this.verificationExecutionStatus;
+        data["verificationExecutionOutcome"] = this.verificationExecutionOutcome;
+        data["actorKind"] = this.actorKind;
+        data["decision"] = this.decision;
+        data["isApplicable"] = this.isApplicable;
+        data["staleReasonCode"] = this.staleReasonCode;
+        data["recordedAtUtc"] = this.recordedAtUtc ? this.recordedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface ICheckpointReviewResponse {
+    reviewId?: string;
+    gitCheckpointId?: string;
+    checkpointNumber?: number;
+    checkpointFingerprintSha256?: string;
+    verificationExecutionId?: string | undefined;
+    verificationExecutionNumber?: number | undefined;
+    verificationExecutionStatus?: string | undefined;
+    verificationExecutionOutcome?: string | undefined;
+    actorKind?: string;
+    decision?: string;
+    isApplicable?: boolean;
+    staleReasonCode?: string | undefined;
+    recordedAtUtc?: Date;
 }
 
 export class GetGitCheckpointDiffResponse implements IGetGitCheckpointDiffResponse {

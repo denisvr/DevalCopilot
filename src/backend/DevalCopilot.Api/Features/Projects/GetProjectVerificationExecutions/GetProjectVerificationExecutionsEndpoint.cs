@@ -14,6 +14,8 @@ public sealed class GetProjectVerificationExecutionsEndpoint(IApplicationMediato
         return Ok(results.Select(result => new VerificationExecutionResponse(
             result.VerificationExecutionId,
             result.VerificationCommandId,
+            result.GitCheckpointId,
+            result.CheckpointFingerprintSha256,
             result.ExecutionNumber,
             result.Status.ToString(),
             result.IsDispatched,

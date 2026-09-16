@@ -11,7 +11,7 @@ namespace DevalCopilot.Api.IntegrationTests.Fixtures;
 /// never through argv, an environment variable, or a file the production bootstrap
 /// would use.
 /// </summary>
-public sealed class ApiWebApplicationFactory : WebApplicationFactory<Program>
+public class ApiWebApplicationFactory : WebApplicationFactory<Program>
 {
     public const string ValidSecret = "test-harness-launch-session-secret-0123456789abcdef";
 

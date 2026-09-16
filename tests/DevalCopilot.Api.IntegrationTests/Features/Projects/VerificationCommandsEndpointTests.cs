@@ -2,18 +2,24 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using DevalCopilot.Api.Features.Projects.ConfigureVerificationCommand;
+using DevalCopilot.Api.Features.Projects.GetProjectCheckpointReviews;
 using DevalCopilot.Api.Features.Projects.GetProjectVerificationCommands;
 using DevalCopilot.Api.Features.Projects.GetProjectVerificationExecutions;
+using DevalCopilot.Api.Features.Projects.RecordCheckpointReview;
 using DevalCopilot.Api.Features.Projects.UpdateVerificationCommand;
 using DevalCopilot.Api.IntegrationTests.Fixtures;
+using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace DevalCopilot.Api.IntegrationTests.Features.Projects;
 
-public sealed class VerificationCommandsEndpointTests(ApiWebApplicationFactory factory) : IClassFixture<ApiWebApplicationFactory>
+public sealed class VerificationCommandsEndpointTests(ReviewApiWebApplicationFactory factory) : IClassFixture<ReviewApiWebApplicationFactory>
 {
     private const string ProjectsRoute = "/api/projects";
 
@@ -57,6 +63,99 @@ public sealed class VerificationCommandsEndpointTests(ApiWebApplicationFactory f
 
         Assert.Equal(HttpStatusCode.Unauthorized, statusResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, outputResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Review_endpoints_require_an_authenticated_session()
+    {
+        using var client = factory.CreateClient();
+        var projectId = Guid.NewGuid();
+
+        var listResponse = await client.GetAsync($"{ProjectsRoute}/{projectId}/reviews");
+        var recordResponse = await client.PostAsJsonAsync($"{ProjectsRoute}/{projectId}/reviews", new
+        {
+            GitCheckpointId = Guid.NewGuid(),
+            VerificationExecutionId = Guid.NewGuid(),
+            ActorKind = "Human",
+            Decision = "Approved",
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, listResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, recordResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authenticated_review_history_returns_a_safe_success_response()
+    {
+        using var client = CreateAuthenticatedClient();
+        var projectId = await SeedProjectAsync();
+
+        var response = await client.GetAsync($"{ProjectsRoute}/{projectId}/reviews");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var reviews = await response.Content.ReadFromJsonAsync<List<CheckpointReviewResponse>>();
+        Assert.NotNull(reviews);
+        Assert.Empty(reviews);
+    }
+
+    [Fact]
+    public async Task Missing_review_project_returns_a_safe_not_found_response()
+    {
+        using var client = CreateAuthenticatedClient();
+
+        var response = await client.GetAsync($"{ProjectsRoute}/{Guid.NewGuid()}/reviews");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.DoesNotContain("C:\\", body);
+        Assert.DoesNotContain("System.", body);
+    }
+
+    [Fact]
+    public async Task Authenticated_review_recording_returns_created_and_binds_passed_evidence()
+    {
+        using var client = CreateAuthenticatedClient();
+        var data = await SeedReviewReadyProjectAsync();
+
+        var response = await client.PostAsJsonAsync($"{ProjectsRoute}/{data.ProjectId}/reviews", new
+        {
+            GitCheckpointId = data.CheckpointId,
+            VerificationExecutionId = data.ExecutionId,
+            ActorKind = "Human",
+            Decision = "Approved",
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var recorded = await response.Content.ReadFromJsonAsync<RecordCheckpointReviewResponse>();
+        Assert.NotNull(recorded);
+        Assert.Equal("Approved", recorded!.Decision);
+    }
+
+    [Fact]
+    public async Task Pending_review_with_execution_evidence_returns_safe_conflict_without_persisting_a_review()
+    {
+        using var client = CreateAuthenticatedClient();
+        var projectId = await SeedProjectAsync();
+        var executionId = Guid.NewGuid();
+
+        var response = await client.PostAsJsonAsync($"{ProjectsRoute}/{projectId}/reviews", new
+        {
+            GitCheckpointId = Guid.NewGuid(),
+            VerificationExecutionId = executionId,
+            ActorKind = "Human",
+            Decision = "Pending",
+        });
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("reviews.pending_cannot_include_evidence", body);
+        Assert.DoesNotContain("C:\\", body);
+        Assert.DoesNotContain("--", body);
+        Assert.DoesNotContain("System.", body);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Empty(dbContext.CheckpointReviews.Where(review => review.ProjectId == projectId));
     }
 
     [Fact]
@@ -148,5 +247,53 @@ public sealed class VerificationCommandsEndpointTests(ApiWebApplicationFactory f
         dbContext.VerificationOutputArtifacts.Add(artifact);
         await dbContext.SaveChangesAsync(CancellationToken.None);
         return project.Id;
+    }
+
+    private async Task<(Guid ProjectId, Guid CheckpointId, Guid ExecutionId)> SeedReviewReadyProjectAsync()
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var project = Project.Register(Guid.NewGuid(), "Review project", $@"C:\repos\{Guid.NewGuid():N}", now);
+        var workspace = GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", now);
+        workspace.MarkReady();
+        var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, now, new string('a', 40), new string('a', 64), []);
+        var command = VerificationCommand.Configure(Guid.NewGuid(), project.Id, 1, "Backend tests", @"C:\dotnet.exe", ["test"], 60, true, now);
+        var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, now);
+        execution.MarkDispatched(now);
+        execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now);
+
+        dbContext.Projects.Add(project);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(checkpoint);
+        dbContext.VerificationCommands.Add(command);
+        dbContext.RepositoryMutationLeases.Add(RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, Guid.NewGuid().ToByteArray(), now));
+        dbContext.VerificationExecutions.Add(execution);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        return (project.Id, checkpoint.Id, execution.Id);
+    }
+}
+
+public sealed class ReviewApiWebApplicationFactory : ApiWebApplicationFactory
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IGitWorkspaceEvidenceReader>();
+            services.AddSingleton<IGitWorkspaceEvidenceReader>(new FixedEvidenceReader());
+        });
+    }
+
+    private sealed class FixedEvidenceReader : IGitWorkspaceEvidenceReader
+    {
+        public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
+            Task.FromResult(new GitWorkspaceEvidenceResult(
+                GitWorkspaceEvidenceOutcome.Success,
+                new string('a', 40),
+                new string('a', 64),
+                [],
+                null));
     }
 }
