@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { startSimulatedRunClient } from './api/clients'
 import { StartSimulatedRunRequest } from './api/generated/api-client'
 import { AddProjectForm } from './features/cockpit/components/AddProjectForm'
 import { CandidateWorkspacePanel } from './features/cockpit/components/CandidateWorkspacePanel'
 import { CapabilityReadinessStrip } from './features/cockpit/components/CapabilityReadinessStrip'
+import { ProviderRuntimePreflight } from './features/cockpit/components/ProviderRuntimePreflight'
 import { ProjectBaselineSummary } from './features/cockpit/components/ProjectBaselineSummary'
 import { ProjectSwitcher } from './features/cockpit/components/ProjectSwitcher'
 import { RunCockpitView } from './features/cockpit/components/RunCockpitView'
 import { useHostCapabilityRefresh } from './features/cockpit/hooks/useHostCapabilityRefresh'
 import { useProjectSummaries } from './features/cockpit/hooks/useProjectSummaries'
+import { useProviderRuntimePreflight } from './features/cockpit/hooks/useProviderRuntimePreflight'
 import { useSessionStatus } from './features/cockpit/hooks/useSessionStatus'
 import { useTheme } from './features/cockpit/hooks/useTheme'
 import './features/cockpit/cockpit.css'
@@ -47,7 +49,17 @@ export default function App() {
   const [theme, setTheme] = useTheme()
   const sessionStatus = useSessionStatus()
   const { projects, loading, error, refresh } = useProjectSummaries(sessionStatus === 'ready')
-  const { refreshingCapability, requestRefresh } = useHostCapabilityRefresh(refresh)
+  const {
+    providers: providerRuntimes,
+    loading: providerRuntimeLoading,
+    error: providerRuntimeError,
+    refresh: refreshProviderRuntimes,
+  } = useProviderRuntimePreflight(sessionStatus === 'ready')
+  const refreshReadiness = useCallback(() => {
+    refresh()
+    refreshProviderRuntimes()
+  }, [refresh, refreshProviderRuntimes])
+  const { refreshingCapability, requestRefresh } = useHostCapabilityRefresh(refreshReadiness)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
 
@@ -115,6 +127,14 @@ export default function App() {
           onRefresh={requestRefresh}
         />
       ) : null}
+
+      <ProviderRuntimePreflight
+        providers={providerRuntimes}
+        loading={providerRuntimeLoading}
+        error={providerRuntimeError}
+        refreshingCapability={refreshingCapability}
+        onRefresh={requestRefresh}
+      />
 
       {selectedProject?.runId ? (
         <RunCockpitView runId={selectedProject.runId} />

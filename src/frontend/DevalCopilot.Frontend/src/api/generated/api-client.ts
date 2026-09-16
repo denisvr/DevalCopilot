@@ -1268,6 +1268,58 @@ export class RequestHostCapabilityRefreshEndpointClient {
     }
 }
 
+export class GetProviderRuntimePreflightEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProviderRuntimePreflight(): Promise<ProviderRuntimePreflightResponse[]> {
+        let url_ = this.baseUrl + "/api/environment/provider-runtimes";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProviderRuntimePreflight(_response);
+        });
+    }
+
+    protected processGetProviderRuntimePreflight(response: Response): Promise<ProviderRuntimePreflightResponse[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(ProviderRuntimePreflightResponse.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ProviderRuntimePreflightResponse[]>(null as any);
+    }
+}
+
 export class StartSimulatedRunResponse implements IStartSimulatedRunResponse {
     runId?: string;
     executionNumber?: number;
@@ -2301,7 +2353,6 @@ export class CapabilityReadinessResponse implements ICapabilityReadinessResponse
     isRequired?: boolean;
     displayStatus?: string | undefined;
     reasonCode?: string;
-    resolvedExecutablePath?: string | undefined;
     version?: string | undefined;
     lastCheckedUtc?: Date | undefined;
     isStale?: boolean;
@@ -2321,7 +2372,6 @@ export class CapabilityReadinessResponse implements ICapabilityReadinessResponse
             this.isRequired = _data["isRequired"];
             this.displayStatus = _data["displayStatus"];
             this.reasonCode = _data["reasonCode"];
-            this.resolvedExecutablePath = _data["resolvedExecutablePath"];
             this.version = _data["version"];
             this.lastCheckedUtc = _data["lastCheckedUtc"] ? new Date(_data["lastCheckedUtc"].toString()) : undefined as any;
             this.isStale = _data["isStale"];
@@ -2341,7 +2391,6 @@ export class CapabilityReadinessResponse implements ICapabilityReadinessResponse
         data["isRequired"] = this.isRequired;
         data["displayStatus"] = this.displayStatus;
         data["reasonCode"] = this.reasonCode;
-        data["resolvedExecutablePath"] = this.resolvedExecutablePath;
         data["version"] = this.version;
         data["lastCheckedUtc"] = this.lastCheckedUtc ? this.lastCheckedUtc.toISOString() : undefined as any;
         data["isStale"] = this.isStale;
@@ -2354,7 +2403,6 @@ export interface ICapabilityReadinessResponse {
     isRequired?: boolean;
     displayStatus?: string | undefined;
     reasonCode?: string;
-    resolvedExecutablePath?: string | undefined;
     version?: string | undefined;
     lastCheckedUtc?: Date | undefined;
     isStale?: boolean;
@@ -2850,6 +2898,98 @@ export class RequestHostCapabilityRefreshResponse implements IRequestHostCapabil
 
 export interface IRequestHostCapabilityRefreshResponse {
     nextProbeDueAtUtc?: Date;
+}
+
+export class ProviderRuntimePreflightResponse implements IProviderRuntimePreflightResponse {
+    provider?: string;
+    status?: string;
+    observedVersion?: string | undefined;
+    evidenceObservedAtUtc?: Date | undefined;
+    evidenceFreshness?: string;
+    reasonCode?: string;
+    reasonMessage?: string;
+    authentication?: string;
+    modelCatalog?: string;
+    reasoningEffort?: string;
+    permissionMode?: string;
+    contextUsage?: string;
+    compaction?: string;
+    sessions?: string;
+    accountUsage?: string;
+
+    constructor(data?: IProviderRuntimePreflightResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.provider = _data["provider"];
+            this.status = _data["status"];
+            this.observedVersion = _data["observedVersion"];
+            this.evidenceObservedAtUtc = _data["evidenceObservedAtUtc"] ? new Date(_data["evidenceObservedAtUtc"].toString()) : undefined as any;
+            this.evidenceFreshness = _data["evidenceFreshness"];
+            this.reasonCode = _data["reasonCode"];
+            this.reasonMessage = _data["reasonMessage"];
+            this.authentication = _data["authentication"];
+            this.modelCatalog = _data["modelCatalog"];
+            this.reasoningEffort = _data["reasoningEffort"];
+            this.permissionMode = _data["permissionMode"];
+            this.contextUsage = _data["contextUsage"];
+            this.compaction = _data["compaction"];
+            this.sessions = _data["sessions"];
+            this.accountUsage = _data["accountUsage"];
+        }
+    }
+
+    static fromJS(data: any): ProviderRuntimePreflightResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProviderRuntimePreflightResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["provider"] = this.provider;
+        data["status"] = this.status;
+        data["observedVersion"] = this.observedVersion;
+        data["evidenceObservedAtUtc"] = this.evidenceObservedAtUtc ? this.evidenceObservedAtUtc.toISOString() : undefined as any;
+        data["evidenceFreshness"] = this.evidenceFreshness;
+        data["reasonCode"] = this.reasonCode;
+        data["reasonMessage"] = this.reasonMessage;
+        data["authentication"] = this.authentication;
+        data["modelCatalog"] = this.modelCatalog;
+        data["reasoningEffort"] = this.reasoningEffort;
+        data["permissionMode"] = this.permissionMode;
+        data["contextUsage"] = this.contextUsage;
+        data["compaction"] = this.compaction;
+        data["sessions"] = this.sessions;
+        data["accountUsage"] = this.accountUsage;
+        return data;
+    }
+}
+
+export interface IProviderRuntimePreflightResponse {
+    provider?: string;
+    status?: string;
+    observedVersion?: string | undefined;
+    evidenceObservedAtUtc?: Date | undefined;
+    evidenceFreshness?: string;
+    reasonCode?: string;
+    reasonMessage?: string;
+    authentication?: string;
+    modelCatalog?: string;
+    reasoningEffort?: string;
+    permissionMode?: string;
+    contextUsage?: string;
+    compaction?: string;
+    sessions?: string;
+    accountUsage?: string;
 }
 
 export interface FileResponse {

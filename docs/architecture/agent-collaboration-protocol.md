@@ -158,6 +158,14 @@ the receiving agent can distinguish derived context from primary evidence.
 
 ## Provider runtime configuration
 
+Host runtime preflight is intentionally narrower than provider runtime configuration. A
+successful direct executable version probe proves only that DevalCopilot observed one local
+runtime version at a point in time. It does not prove authentication, model availability,
+permission mode, context capacity, account usage, session continuity, or that an invocation is
+eligible. Those facts remain explicit `Unknown` until a later provider-owned adapter observes
+them through a reviewed contract. A future `Unsupported` value requires affirmative provider
+evidence; it is never inferred from the absence of a preflight probe.
+
 Each agent attempt records requested and effective provider configuration:
 
 - provider and provider-session identifier;

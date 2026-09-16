@@ -9,7 +9,6 @@ public sealed record CapabilityReadinessResponse(
     bool IsRequired,
     string? DisplayStatus,
     string ReasonCode,
-    string? ResolvedExecutablePath,
     string? Version,
     DateTimeOffset? LastCheckedUtc,
     bool IsStale);

@@ -38,7 +38,6 @@ public sealed class GetProjectRunSummariesEndpoint(IApplicationMediator mediator
         capability.IsRequired,
         capability.DisplayStatus?.ToString(),
         capability.ReasonCode.ToString(),
-        capability.ResolvedExecutablePath,
         capability.Version,
         capability.LastCheckedUtc,
         capability.IsStale);

@@ -593,6 +593,91 @@
   opacity: 0.6;
 }
 
+.dc-provider-runtime-preflight {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--dc-border);
+}
+
+.dc-provider-runtime-preflight h2,
+.dc-provider-runtime-preflight p {
+  margin: 0;
+}
+
+.dc-provider-runtime-preflight h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dc-text-muted);
+}
+
+.dc-provider-runtime-preflight p,
+.dc-provider-runtime-preflight-state {
+  padding: 0.55rem 1rem;
+  margin: 0;
+  color: var(--dc-text-muted);
+  font-size: 0.75rem;
+}
+
+.dc-provider-runtime-preflight ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dc-provider-runtime-row {
+  display: grid;
+  grid-template-columns: minmax(13rem, auto) 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--dc-border);
+  border-radius: 0.4rem;
+  background: var(--dc-surface-alt);
+  font-size: 0.75rem;
+}
+
+.dc-provider-runtime-row[data-status='Unavailable'] {
+  border-color: var(--dc-danger);
+}
+
+.dc-provider-runtime-row[data-status='NeedsAttention'],
+.dc-provider-runtime-row[data-status='Degraded'] {
+  border-color: var(--dc-warning);
+}
+
+.dc-provider-runtime-row[data-stale='true'] {
+  opacity: 0.72;
+}
+
+.dc-provider-runtime-row > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.dc-provider-runtime-row code {
+  color: var(--dc-codex);
+}
+
+.dc-provider-runtime-unknown {
+  color: var(--dc-text-muted);
+}
+
+@media (max-width: 56rem) {
+  .dc-provider-runtime-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .dc-provider-runtime-unknown {
+    grid-column: 1 / -1;
+  }
+}
+
 .dc-empty-state {
   padding: 2rem;
   text-align: center;

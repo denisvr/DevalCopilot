@@ -9,7 +9,6 @@ function capability(overrides: Partial<CapabilityReadinessResponse>): Capability
     isRequired: true,
     displayStatus: 'Ready',
     reasonCode: 'None',
-    resolvedExecutablePath: 'C:\\Program Files\\Git\\cmd\\git.exe',
     version: '2.43.0',
     lastCheckedUtc: new Date('2026-09-13T12:00:00Z'),
     isStale: false,
