@@ -21,6 +21,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<VerificationExecution> VerificationExecutions { get; }
 
+    DbSet<VerificationOutputArtifact> VerificationOutputArtifacts { get; }
+
     DbSet<RepositoryMutationLease> RepositoryMutationLeases { get; }
 
     DbSet<Run> Runs { get; }

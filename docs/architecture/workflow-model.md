@@ -64,14 +64,26 @@ diff text stays transient and is returned only after a fresh capture still
 matches the requested checkpoint. This makes a stale checkpoint an explicit
 conflict rather than silently presenting it as current source evidence.
 
-### Current verification configuration boundary
+### Current verification configuration and execution boundary
 
-Increment 3 currently persists project-owned verification recipes as an absolute executable
-path, a bounded literal argument array, timeout, and enabled state. Configuration is visible
-and editable, but has no execution authority yet: it neither starts a child process nor claims
-that a command passed. The following slice must snapshot an enabled recipe into a durable
-attempt, run it only from the Ready isolated workspace, and bind its bounded output and result
-to an unchanged Git checkpoint before it can become local-verification evidence.
+Increment 3 persists project-owned verification recipes as an absolute executable path, a
+bounded literal argument array, timeout, and enabled state. A claim snapshots an enabled recipe
+and the selected Git checkpoint only when the workspace is `Ready`, its mutation lease is
+`Active`, and a fresh evidence capture still matches that checkpoint. The host persists the
+claim and a dispatch marker before starting the child process; the process uses no shell, no
+PATH lookup, and no ambient environment, and its working directory is the isolated workspace.
+
+The host captures only redacted, bounded stdout/stderr under the application artifact root,
+seals and hashes each file outside the database transaction, then persists the metadata and
+completion evidence. Same-host result metadata records whether each stream was truncated;
+restart-recovered output records host interruption with truncation unknown. The protected output
+query rechecks path containment, byte length, and SHA-256 before returning a bounded window. A
+changed completion fingerprint records `SourceChanged` even when the process exits with code 0.
+Undispatched claims are pending,
+dispatched claims are running, and terminal results remain durable and queryable. On restart,
+sealed stdout/stderr files for still-running executions are independently re-described and
+imported once before those executions are reconciled as `Interrupted`; partial-only files are
+deleted as non-evidence, and no process outcome is fabricated or redispatched.
 
 ### Approval state
 

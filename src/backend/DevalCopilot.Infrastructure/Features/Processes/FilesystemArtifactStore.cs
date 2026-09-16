@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Infrastructure.Features.Processes;
@@ -14,7 +16,7 @@ namespace DevalCopilot.Infrastructure.Features.Processes;
 /// explicit containment check; nothing read from the database is ever combined with the root
 /// blindly.
 /// </summary>
-public sealed class FilesystemArtifactStore : IArtifactStore
+public sealed class FilesystemArtifactStore : IArtifactStore, IVerificationOutputArtifactStore
 {
     private readonly string _root;
 
@@ -35,6 +37,70 @@ public sealed class FilesystemArtifactStore : IArtifactStore
 
     public string GetSealedRelativePath(Guid runId, Guid attemptId, ArtifactPurpose purpose) =>
         Path.Combine(RelativeDirectory(runId, attemptId), $"{FileStem(purpose)}.sealed");
+
+    public string GetPartialPath(Guid verificationExecutionId, VerificationOutputPurpose purpose) =>
+        Path.Combine(_root, VerificationRelativeDirectory(verificationExecutionId), $"{VerificationFileStem(purpose)}.partial");
+
+    public void DeletePartialFile(Guid verificationExecutionId, VerificationOutputPurpose purpose)
+    {
+        try
+        {
+            File.Delete(GetPartialPath(verificationExecutionId, purpose));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    public async Task<SealedVerificationOutputFile?> SealAsync(
+        Guid verificationExecutionId,
+        VerificationOutputPurpose purpose,
+        CancellationToken cancellationToken)
+    {
+        var partialPath = GetPartialPath(verificationExecutionId, purpose);
+        if (!File.Exists(partialPath))
+        {
+            return null;
+        }
+
+        var relativePath = Path.Combine(VerificationRelativeDirectory(verificationExecutionId), $"{VerificationFileStem(purpose)}.sealed");
+        var sealedPath = Path.Combine(_root, relativePath);
+        try
+        {
+            File.Move(partialPath, sealedPath);
+            var (length, hash) = await ComputeLengthAndHashAsync(sealedPath, cancellationToken).ConfigureAwait(false);
+            return new SealedVerificationOutputFile(relativePath, length, hash);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<SealedVerificationOutputFile?> DescribeSealedFileAsync(
+        Guid verificationExecutionId,
+        VerificationOutputPurpose purpose,
+        CancellationToken cancellationToken)
+    {
+        var relativePath = Path.Combine(
+            VerificationRelativeDirectory(verificationExecutionId),
+            $"{VerificationFileStem(purpose)}.sealed");
+        var sealedPath = Path.Combine(_root, relativePath);
+        if (!File.Exists(sealedPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            var (length, hash) = await ComputeLengthAndHashAsync(sealedPath, cancellationToken).ConfigureAwait(false);
+            return new SealedVerificationOutputFile(relativePath, length, hash);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 
     public bool HasSealedFile(Guid runId, Guid attemptId, ArtifactPurpose purpose) =>
         File.Exists(Path.Combine(_root, GetSealedRelativePath(runId, attemptId, purpose)));
@@ -228,10 +294,20 @@ public sealed class FilesystemArtifactStore : IArtifactStore
     private static string RelativeDirectory(Guid runId, Guid attemptId) =>
         Path.Combine("runs", runId.ToString(), "attempts", attemptId.ToString());
 
+    private static string VerificationRelativeDirectory(Guid verificationExecutionId) =>
+        Path.Combine("verifications", verificationExecutionId.ToString());
+
     private static string FileStem(ArtifactPurpose purpose) => purpose switch
     {
         ArtifactPurpose.ProcessStandardOutput => "stdout",
         ArtifactPurpose.ProcessStandardError => "stderr",
+        _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null),
+    };
+
+    private static string VerificationFileStem(VerificationOutputPurpose purpose) => purpose switch
+    {
+        VerificationOutputPurpose.StandardOutput => "stdout",
+        VerificationOutputPurpose.StandardError => "stderr",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null),
     };
 }

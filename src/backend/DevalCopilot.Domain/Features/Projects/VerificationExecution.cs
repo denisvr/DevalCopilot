@@ -101,6 +101,19 @@ public sealed class VerificationExecution
         DispatchedAtUtc = nowUtc;
     }
 
+    public void MarkSourceChangedBeforeDispatch(string completionFingerprintSha256, DateTimeOffset nowUtc)
+    {
+        if (Status != VerificationExecutionStatus.Running || DispatchedAtUtc.HasValue)
+        {
+            throw new InvalidOperationException("Only an undispatched running verification execution can be invalidated.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(completionFingerprintSha256);
+        CompletionFingerprintSha256 = completionFingerprintSha256;
+        Status = VerificationExecutionStatus.SourceChanged;
+        CompletedAtUtc = nowUtc;
+    }
+
     public void Complete(
         VerificationExecutionOutcome outcome,
         int? exitCode,
@@ -129,6 +142,7 @@ public sealed class VerificationExecution
                 VerificationExecutionOutcome.Exited => VerificationExecutionStatus.Failed,
                 VerificationExecutionOutcome.TimedOut => VerificationExecutionStatus.TimedOut,
                 VerificationExecutionOutcome.Cancelled => VerificationExecutionStatus.Cancelled,
+                VerificationExecutionOutcome.Failed => VerificationExecutionStatus.Failed,
                 _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, null),
             };
         CompletedAtUtc = nowUtc;

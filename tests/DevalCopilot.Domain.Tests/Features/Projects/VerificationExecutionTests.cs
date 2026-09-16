@@ -71,4 +71,44 @@ public sealed class VerificationExecutionTests
         Assert.Throws<ArgumentException>(
             () => execution.Complete(VerificationExecutionOutcome.TimedOut, 1, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow));
     }
+
+    [Fact]
+    public void Complete_marks_a_process_start_failure_as_failed_without_an_exit_code()
+    {
+        var project = Project.Register(Guid.NewGuid(), "Project", @"C:\repos\Project", DateTimeOffset.UtcNow);
+        var workspace = GitWorkspace.Prepare(
+            Guid.NewGuid(), project.Id, 1, @"C:\workspaces\Project", "branch", new string('a', 40), "main", DateTimeOffset.UtcNow);
+        workspace.MarkReady();
+        var checkpoint = GitCheckpoint.Capture(
+            Guid.NewGuid(), workspace.Id, 1, DateTimeOffset.UtcNow, new string('a', 40), new string('b', 64), []);
+        var command = VerificationCommand.Configure(
+            Guid.NewGuid(), project.Id, 1, "Tests", @"C:\tools\dotnet.exe", [], 120, true, DateTimeOffset.UtcNow);
+        var execution = VerificationExecution.Claim(
+            Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, DateTimeOffset.UtcNow);
+
+        execution.MarkDispatched(DateTimeOffset.UtcNow);
+        execution.Complete(VerificationExecutionOutcome.Failed, null, checkpoint.FingerprintSha256, DateTimeOffset.UtcNow);
+
+        Assert.Equal(VerificationExecutionStatus.Failed, execution.Status);
+    }
+
+    [Fact]
+    public void An_undispatched_execution_is_closed_as_source_changed_before_process_start()
+    {
+        var project = Project.Register(Guid.NewGuid(), "Project", @"C:\repos\Project", DateTimeOffset.UtcNow);
+        var workspace = GitWorkspace.Prepare(
+            Guid.NewGuid(), project.Id, 1, @"C:\workspaces\Project", "branch", new string('a', 40), "main", DateTimeOffset.UtcNow);
+        workspace.MarkReady();
+        var checkpoint = GitCheckpoint.Capture(
+            Guid.NewGuid(), workspace.Id, 1, DateTimeOffset.UtcNow, new string('a', 40), new string('b', 64), []);
+        var command = VerificationCommand.Configure(
+            Guid.NewGuid(), project.Id, 1, "Tests", @"C:\tools\dotnet.exe", [], 120, true, DateTimeOffset.UtcNow);
+        var execution = VerificationExecution.Claim(
+            Guid.NewGuid(), project.Id, 1, workspace, checkpoint, command, DateTimeOffset.UtcNow);
+
+        execution.MarkSourceChangedBeforeDispatch(new string('c', 64), DateTimeOffset.UtcNow);
+
+        Assert.Equal(VerificationExecutionStatus.SourceChanged, execution.Status);
+        Assert.Null(execution.DispatchedAtUtc);
+    }
 }

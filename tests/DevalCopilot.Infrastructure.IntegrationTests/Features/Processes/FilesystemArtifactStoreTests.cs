@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
 using Xunit;
@@ -127,6 +128,43 @@ public sealed class FilesystemArtifactStoreTests : IDisposable
         var read = await _store.VerifyAndReadSealedAsync(maliciousPath, 0, "sha256:anything", 0, 1024, CancellationToken.None);
 
         Assert.Equal(SealedReadStatus.Missing, read.Status);
+    }
+
+    [Fact]
+    public async Task Verification_output_is_sealed_under_the_application_artifact_root_and_can_be_verified()
+    {
+        var executionId = Guid.NewGuid();
+        var partialPath = _store.GetPartialPath(executionId, VerificationOutputPurpose.StandardOutput);
+        Directory.CreateDirectory(Path.GetDirectoryName(partialPath)!);
+        await File.WriteAllTextAsync(partialPath, "redacted output");
+
+        var sealedFile = await _store.SealAsync(executionId, VerificationOutputPurpose.StandardOutput, CancellationToken.None);
+
+        Assert.NotNull(sealedFile);
+        Assert.StartsWith("verifications", sealedFile.RelativeStoragePath, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(Path.GetFullPath(_root), Path.GetFullPath(Path.Combine(_root, sealedFile.RelativeStoragePath)), StringComparison.OrdinalIgnoreCase);
+        var read = await _store.VerifyAndReadSealedAsync(
+            sealedFile.RelativeStoragePath, sealedFile.ByteLength, sealedFile.ContentHash, 0, 1024, CancellationToken.None);
+
+        Assert.Equal(SealedReadStatus.Ok, read.Status);
+        Assert.Equal("redacted output", read.Text);
+    }
+
+    [Fact]
+    public async Task Verification_output_integrity_mismatch_returns_no_text()
+    {
+        var executionId = Guid.NewGuid();
+        var partialPath = _store.GetPartialPath(executionId, VerificationOutputPurpose.StandardError);
+        Directory.CreateDirectory(Path.GetDirectoryName(partialPath)!);
+        await File.WriteAllTextAsync(partialPath, "original");
+        var sealedFile = await _store.SealAsync(executionId, VerificationOutputPurpose.StandardError, CancellationToken.None);
+
+        await File.WriteAllTextAsync(Path.Combine(_root, sealedFile!.RelativeStoragePath), "tampered");
+        var read = await _store.VerifyAndReadSealedAsync(
+            sealedFile.RelativeStoragePath, sealedFile.ByteLength, sealedFile.ContentHash, 0, 1024, CancellationToken.None);
+
+        Assert.Equal(SealedReadStatus.IntegrityMismatch, read.Status);
+        Assert.Empty(read.Text);
     }
 
     [Fact]

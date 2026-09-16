@@ -5,8 +5,8 @@ namespace DevalCopilot.Domain.Features.Projects;
 /// <summary>
 /// A user-configured, project-owned local verification recipe. It is deliberately only a typed
 /// executable plus literal arguments: no shell command text, script interpolation, environment
-/// values, or authority to execute belongs in configuration. Execution and its evidence are a
-/// later slice and must snapshot this configuration before starting a process.
+/// values, or authority to execute belongs in configuration. A checkpoint-bound execution
+/// snapshots this configuration before starting a process.
 /// </summary>
 public sealed class VerificationCommand
 {

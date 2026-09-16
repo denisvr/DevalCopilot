@@ -1,12 +1,15 @@
 import {
   GetProcessAttemptOutputEndpointClient,
+  ClaimVerificationExecutionEndpointClient,
   CaptureGitWorkspaceCheckpointEndpointClient,
   GetGitCheckpointChangedFilesEndpointClient,
   GetGitCheckpointDiffEndpointClient,
   GetProjectGitEvidenceEndpointClient,
   ConfigureVerificationCommandEndpointClient,
   DeleteVerificationCommandEndpointClient,
+  GetVerificationExecutionOutputEndpointClient,
   GetProjectVerificationCommandsEndpointClient,
+  GetProjectVerificationExecutionsEndpointClient,
   UpdateVerificationCommandEndpointClient,
   GetProjectRunSummariesEndpointClient,
   GetProjectWorkspaceEndpointClient,
@@ -37,9 +40,12 @@ export const captureGitWorkspaceCheckpointClient = () => new CaptureGitWorkspace
 export const gitCheckpointChangedFilesClient = () => new GetGitCheckpointChangedFilesEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitCheckpointDiffClient = () => new GetGitCheckpointDiffEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectVerificationCommandsClient = () => new GetProjectVerificationCommandsEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const projectVerificationExecutionsClient = () => new GetProjectVerificationExecutionsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const configureVerificationCommandClient = () => new ConfigureVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const updateVerificationCommandClient = () => new UpdateVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const deleteVerificationCommandClient = () => new DeleteVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const claimVerificationExecutionClient = () => new ClaimVerificationExecutionEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const verificationExecutionOutputClient = () => new GetVerificationExecutionOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -61,5 +67,6 @@ export type {
   StageMapEntryResponse,
   UpdateVerificationCommandRequest,
   VerificationCommandResponse,
+  VerificationExecutionResponse,
 } from './generated/api-client'
-export { RegisterProjectRequest } from './generated/api-client'
+export { ClaimVerificationExecutionRequest, RegisterProjectRequest } from './generated/api-client'

@@ -482,6 +482,66 @@ export class PrepareRepositoryWorkspaceEndpointClient {
     }
 }
 
+export class GetVerificationExecutionOutputEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getVerificationExecutionOutput(projectId: string, verificationExecutionId: string, purpose: string, fromOffset: number | undefined, maxBytes: number | null | undefined): Promise<VerificationExecutionOutputQueryResult> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/verification-executions/{verificationExecutionId}/output/{purpose}?";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (verificationExecutionId === undefined || verificationExecutionId === null)
+            throw new globalThis.Error("The parameter 'verificationExecutionId' must be defined.");
+        url_ = url_.replace("{verificationExecutionId}", encodeURIComponent("" + verificationExecutionId));
+        if (purpose === undefined || purpose === null)
+            throw new globalThis.Error("The parameter 'purpose' must be defined.");
+        url_ = url_.replace("{purpose}", encodeURIComponent("" + purpose));
+        if (fromOffset === null)
+            throw new globalThis.Error("The parameter 'fromOffset' cannot be null.");
+        else if (fromOffset !== undefined)
+            url_ += "fromOffset=" + encodeURIComponent("" + fromOffset) + "&";
+        if (maxBytes !== undefined && maxBytes !== null)
+            url_ += "maxBytes=" + encodeURIComponent("" + maxBytes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetVerificationExecutionOutput(_response);
+        });
+    }
+
+    protected processGetVerificationExecutionOutput(response: Response): Promise<VerificationExecutionOutputQueryResult> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = VerificationExecutionOutputQueryResult.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VerificationExecutionOutputQueryResult>(null as any);
+    }
+}
+
 export class GetProjectWorkspaceEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -527,6 +587,61 @@ export class GetProjectWorkspaceEndpointClient {
             });
         }
         return Promise.resolve<GetProjectWorkspaceResponse>(null as any);
+    }
+}
+
+export class GetProjectVerificationExecutionsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectVerificationExecutions(projectId: string): Promise<VerificationExecutionResponse[]> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/verification-executions";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectVerificationExecutions(_response);
+        });
+    }
+
+    protected processGetProjectVerificationExecutions(response: Response): Promise<VerificationExecutionResponse[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(VerificationExecutionResponse.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VerificationExecutionResponse[]>(null as any);
     }
 }
 
@@ -843,6 +958,61 @@ export class GetGitCheckpointChangedFilesEndpointClient {
             });
         }
         return Promise.resolve<GitCheckpointChangedFileResponse[]>(null as any);
+    }
+}
+
+export class ClaimVerificationExecutionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    claimVerificationExecution(projectId: string, verificationCommandId: string, request: ClaimVerificationExecutionRequest): Promise<ClaimVerificationExecutionResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/verification-commands/{verificationCommandId}/executions";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (verificationCommandId === undefined || verificationCommandId === null)
+            throw new globalThis.Error("The parameter 'verificationCommandId' must be defined.");
+        url_ = url_.replace("{verificationCommandId}", encodeURIComponent("" + verificationCommandId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processClaimVerificationExecution(_response);
+        });
+    }
+
+    protected processClaimVerificationExecution(response: Response): Promise<ClaimVerificationExecutionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ClaimVerificationExecutionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ClaimVerificationExecutionResponse>(null as any);
     }
 }
 
@@ -1547,6 +1717,54 @@ export interface IPrepareRepositoryWorkspaceResponse {
     sourceBranchName?: string | undefined;
 }
 
+export class VerificationExecutionOutputQueryResult implements IVerificationExecutionOutputQueryResult {
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+    isFinal?: boolean;
+
+    constructor(data?: IVerificationExecutionOutputQueryResult) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.text = _data["text"];
+            this.nextOffset = _data["nextOffset"];
+            this.totalLength = _data["totalLength"];
+            this.isFinal = _data["isFinal"];
+        }
+    }
+
+    static fromJS(data: any): VerificationExecutionOutputQueryResult {
+        data = typeof data === 'object' ? data : {};
+        let result = new VerificationExecutionOutputQueryResult();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["text"] = this.text;
+        data["nextOffset"] = this.nextOffset;
+        data["totalLength"] = this.totalLength;
+        data["isFinal"] = this.isFinal;
+        return data;
+    }
+}
+
+export interface IVerificationExecutionOutputQueryResult {
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+    isFinal?: boolean;
+}
+
 export class GetProjectWorkspaceResponse implements IGetProjectWorkspaceResponse {
     physicalIdentityStatus?: string;
     physicalIdentityBlockedMessage?: string | undefined;
@@ -1617,6 +1835,98 @@ export interface IGetProjectWorkspaceResponse {
     leaseStatus?: string | undefined;
     blockedReasonCode?: string | undefined;
     blockedReasonMessage?: string | undefined;
+}
+
+export class VerificationExecutionResponse implements IVerificationExecutionResponse {
+    verificationExecutionId?: string;
+    verificationCommandId?: string;
+    executionNumber?: number;
+    status?: string;
+    isDispatched?: boolean;
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    hasStandardOutput?: boolean;
+    hasStandardError?: boolean;
+    standardOutputTruncated?: boolean | undefined;
+    standardErrorTruncated?: boolean | undefined;
+    standardOutputCaptureOutcome?: string | undefined;
+    standardErrorCaptureOutcome?: string | undefined;
+    claimedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+
+    constructor(data?: IVerificationExecutionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.verificationExecutionId = _data["verificationExecutionId"];
+            this.verificationCommandId = _data["verificationCommandId"];
+            this.executionNumber = _data["executionNumber"];
+            this.status = _data["status"];
+            this.isDispatched = _data["isDispatched"];
+            this.outcome = _data["outcome"];
+            this.exitCode = _data["exitCode"];
+            this.hasStandardOutput = _data["hasStandardOutput"];
+            this.hasStandardError = _data["hasStandardError"];
+            this.standardOutputTruncated = _data["standardOutputTruncated"];
+            this.standardErrorTruncated = _data["standardErrorTruncated"];
+            this.standardOutputCaptureOutcome = _data["standardOutputCaptureOutcome"];
+            this.standardErrorCaptureOutcome = _data["standardErrorCaptureOutcome"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): VerificationExecutionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new VerificationExecutionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["verificationExecutionId"] = this.verificationExecutionId;
+        data["verificationCommandId"] = this.verificationCommandId;
+        data["executionNumber"] = this.executionNumber;
+        data["status"] = this.status;
+        data["isDispatched"] = this.isDispatched;
+        data["outcome"] = this.outcome;
+        data["exitCode"] = this.exitCode;
+        data["hasStandardOutput"] = this.hasStandardOutput;
+        data["hasStandardError"] = this.hasStandardError;
+        data["standardOutputTruncated"] = this.standardOutputTruncated;
+        data["standardErrorTruncated"] = this.standardErrorTruncated;
+        data["standardOutputCaptureOutcome"] = this.standardOutputCaptureOutcome;
+        data["standardErrorCaptureOutcome"] = this.standardErrorCaptureOutcome;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IVerificationExecutionResponse {
+    verificationExecutionId?: string;
+    verificationCommandId?: string;
+    executionNumber?: number;
+    status?: string;
+    isDispatched?: boolean;
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    hasStandardOutput?: boolean;
+    hasStandardError?: boolean;
+    standardOutputTruncated?: boolean | undefined;
+    standardErrorTruncated?: boolean | undefined;
+    standardOutputCaptureOutcome?: string | undefined;
+    standardErrorCaptureOutcome?: string | undefined;
+    claimedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
 }
 
 export class VerificationCommandResponse implements IVerificationCommandResponse {
@@ -2089,6 +2399,82 @@ export interface IConfigureVerificationCommandRequest {
     arguments?: string[];
     timeoutSeconds?: number;
     isEnabled?: boolean;
+}
+
+export class ClaimVerificationExecutionResponse implements IClaimVerificationExecutionResponse {
+    verificationExecutionId?: string;
+    executionNumber?: number;
+
+    constructor(data?: IClaimVerificationExecutionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.verificationExecutionId = _data["verificationExecutionId"];
+            this.executionNumber = _data["executionNumber"];
+        }
+    }
+
+    static fromJS(data: any): ClaimVerificationExecutionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ClaimVerificationExecutionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["verificationExecutionId"] = this.verificationExecutionId;
+        data["executionNumber"] = this.executionNumber;
+        return data;
+    }
+}
+
+export interface IClaimVerificationExecutionResponse {
+    verificationExecutionId?: string;
+    executionNumber?: number;
+}
+
+export class ClaimVerificationExecutionRequest implements IClaimVerificationExecutionRequest {
+    gitCheckpointId?: string;
+
+    constructor(data?: IClaimVerificationExecutionRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.gitCheckpointId = _data["gitCheckpointId"];
+        }
+    }
+
+    static fromJS(data: any): ClaimVerificationExecutionRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new ClaimVerificationExecutionRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["gitCheckpointId"] = this.gitCheckpointId;
+        return data;
+    }
+}
+
+export interface IClaimVerificationExecutionRequest {
+    gitCheckpointId?: string;
 }
 
 export class CaptureGitWorkspaceCheckpointResponse implements ICaptureGitWorkspaceCheckpointResponse {

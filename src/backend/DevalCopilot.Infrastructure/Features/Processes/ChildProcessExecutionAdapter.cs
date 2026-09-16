@@ -9,7 +9,8 @@ namespace DevalCopilot.Infrastructure.Features.Processes;
 /// arguments passed through <see cref="ProcessStartInfo.ArgumentList"/> only — there is never
 /// a command-line string for a shell to parse, so arguments containing shell metacharacters
 /// reach the child exactly as given. This is the foundation adapter for Increment 2: it owns
-/// no durable state, attempt, or reconciliation concept — those are wired in a later slice.
+/// no durable state, attempt, or reconciliation concept — the verification supervisor owns
+/// those concerns above this provider-neutral adapter.
 /// </summary>
 public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
 {

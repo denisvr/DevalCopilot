@@ -1,0 +1,3 @@
+namespace DevalCopilot.Application.Features.Projects.Commands.ClaimVerificationExecution;
+
+public sealed record ClaimVerificationExecutionCommandResult(Guid VerificationExecutionId, int ExecutionNumber);

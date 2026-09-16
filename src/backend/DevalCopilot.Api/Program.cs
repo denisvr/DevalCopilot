@@ -12,6 +12,8 @@ using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileI
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
+using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVerificationExecutions;
+using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
@@ -94,6 +96,7 @@ builder.Services.AddHostedService<SimulatedRunSupervisor>();
 // controller, endpoint, or UI wiring alongside it.
 builder.Services.AddSingleton<IProcessExecutionAdapter, ChildProcessExecutionAdapter>();
 builder.Services.AddSingleton<IArtifactStore, FilesystemArtifactStore>();
+builder.Services.AddSingleton<IVerificationOutputArtifactStore, FilesystemArtifactStore>();
 builder.Services.AddHostedService<ProcessAttemptSupervisor>();
 
 // Host-scoped environment readiness: composed on top of IProcessExecutionAdapter above, never
@@ -113,6 +116,7 @@ builder.Services.AddSingleton<IGitWorktreeAdapter, GitWorktreeAdapter>();
 builder.Services.AddSingleton<IGitWorkspaceEvidenceReader, GitWorkspaceEvidenceReader>();
 builder.Services.AddSingleton<IWorkspaceOwnershipMarkerStore, WorkspaceOwnershipMarkerStore>();
 builder.Services.AddSingleton<IWorkspaceRootPathProvider, WorkspaceRootPathProvider>();
+builder.Services.AddHostedService<VerificationExecutionSupervisor>();
 
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
@@ -193,6 +197,11 @@ using (var startupScope = app.Services.CreateScope())
     // request is accepted, so a workspace from a prior host instance is never silently
     // adopted, orphaned, or double-leased.
     await mediator.SendAsync(new ReconcileWorkspacesCommand(), CancellationToken.None);
+    // Recover only sealed verification output for executions that are still Running. This
+    // must precede interruption reconciliation so a crash after sealing but before result
+    // metadata commit cannot lose truthful output, while partial files remain non-evidence.
+    await mediator.SendAsync(new RecoverInterruptedVerificationOutputArtifactsCommand(), CancellationToken.None);
+    await mediator.SendAsync(new ReconcileInterruptedVerificationExecutionsCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

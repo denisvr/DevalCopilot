@@ -463,6 +463,52 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("verification_executions", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.VerificationOutputArtifact", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ByteLength")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CaptureOutcome")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelativeStoragePath")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("Truncated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("VerificationExecutionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VerificationExecutionId", "Purpose")
+                        .IsUnique();
+
+                    b.ToTable("verification_output_artifacts", (string)null);
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.Artifact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -777,6 +823,15 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("VerificationCommandId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.VerificationOutputArtifact", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.VerificationExecution", null)
+                        .WithMany()
+                        .HasForeignKey("VerificationExecutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
