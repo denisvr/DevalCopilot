@@ -17,6 +17,8 @@ public sealed class HostCapabilitySnapshotConfiguration : IEntityTypeConfigurati
 
         builder.Property(snapshot => snapshot.ReasonCode).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(snapshot => snapshot.ResolvedExecutablePath).HasMaxLength(1024);
+        builder.Property(snapshot => snapshot.LaunchKind).HasConversion<string>().HasMaxLength(32);
+        builder.Property(snapshot => snapshot.ResolvedScriptPath).HasMaxLength(1024);
         builder.Property(snapshot => snapshot.ObservedVersion).HasMaxLength(128);
     }
 }

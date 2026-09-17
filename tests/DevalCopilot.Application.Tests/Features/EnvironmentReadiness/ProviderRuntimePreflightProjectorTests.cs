@@ -66,6 +66,7 @@ public sealed class ProviderRuntimePreflightProjectorTests
     [InlineData(CapabilityProbeReason.ExecutableInaccessible)]
     [InlineData(CapabilityProbeReason.ProbeTimedOut)]
     [InlineData(CapabilityProbeReason.ProbeInterruptedByRestart)]
+    [InlineData(CapabilityProbeReason.LaunchTargetAmbiguous)]
     public void Attention_reasons_reuse_the_generic_readiness_mapping(CapabilityProbeReason reason)
     {
         var codex = CreateSnapshot(Capability.CodexCli, reason, Now.AddMinutes(5));
@@ -73,6 +74,17 @@ public sealed class ProviderRuntimePreflightProjectorTests
         var runtime = Assert.Single(Project([codex]), candidate => candidate.Provider == ProviderRuntime.Codex);
 
         Assert.Equal(ProviderRuntimeStatus.NeedsAttention, runtime.Status);
+    }
+
+    [Fact]
+    public void An_ambiguous_launch_target_reports_its_own_reason_code_and_no_path_or_manifest_data()
+    {
+        var codex = CreateSnapshot(Capability.CodexCli, CapabilityProbeReason.LaunchTargetAmbiguous, Now.AddMinutes(5));
+
+        var runtime = Assert.Single(Project([codex]), candidate => candidate.Provider == ProviderRuntime.Codex);
+
+        Assert.Equal("provider_runtime.launch_target_ambiguous", runtime.ReasonCode);
+        Assert.Null(runtime.ObservedVersion);
     }
 
     [Fact]
@@ -102,7 +114,7 @@ public sealed class ProviderRuntimePreflightProjectorTests
         snapshot.MarkDispatched(Now);
         if (reason == CapabilityProbeReason.None)
         {
-            snapshot.RecordSuccess(@"C:\provider\runtime.exe", "1.2.3", Now, nextProbeDueAtUtc);
+            snapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\provider\runtime.exe", null, "1.2.3", Now, nextProbeDueAtUtc);
         }
         else if (reason == CapabilityProbeReason.ProbeInterruptedByRestart)
         {

@@ -55,6 +55,78 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddProcessDispatchMarker", appliedMigrations);
         Assert.Contains("AddHostCapabilitySnapshots", appliedMigrations);
         Assert.Contains("AddCollaborationMessages", appliedMigrations);
+        Assert.Contains("AddProviderLaunchTargets", appliedMigrations);
+    }
+
+    [Fact]
+    public async Task Migrate_backfills_launch_kind_truthfully_for_every_pre_existing_snapshot_shape()
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Stops one migration short of AddProviderLaunchTargets, so the table genuinely has
+            // no LaunchKind/ResolvedScriptPath columns yet — exactly the shape a pre-existing
+            // installation's database has right before upgrading.
+            await context.Database.MigrateAsync("AddCollaborationMessages");
+
+            // (a) An old successful direct-executable snapshot: before this migration, the only
+            // way ResolvedExecutablePath could ever be set was through the direct-executable
+            // path — this row must become DirectExecutable, not stay null.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO host_capability_snapshots
+                       (Capability, ReasonCode, ResolvedExecutablePath, ObservedVersion, EvidenceObservedAtUtc, NextProbeDueAtUtc, ProbeDispatchedAtUtc)
+                   VALUES
+                       ({nameof(Capability.CodexCli)}, {nameof(CapabilityProbeReason.None)}, {@"C:\Program Files\nodejs\node.exe"}, {"0.9.0"}, {now}, {now.AddMinutes(5)}, {(DateTimeOffset?)null})");
+
+            // (b) A failed probe that still retains last-known-good executable evidence from an
+            // earlier success — must also be backfilled as DirectExecutable, not left null just
+            // because its current ReasonCode is not None.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO host_capability_snapshots
+                       (Capability, ReasonCode, ResolvedExecutablePath, ObservedVersion, EvidenceObservedAtUtc, NextProbeDueAtUtc, ProbeDispatchedAtUtc)
+                   VALUES
+                       ({nameof(Capability.ClaudeCli)}, {nameof(CapabilityProbeReason.ProbeTimedOut)}, {@"C:\Program Files\ClaudeCliStub\claude.exe"}, {"0.5.0"}, {now}, {now.AddMinutes(5)}, {(DateTimeOffset?)null})");
+
+            // (c) A row that has never had a successful probe at all — must remain without a
+            // launch target after the backfill, not gain one just because the migration ran.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO host_capability_snapshots
+                       (Capability, ReasonCode, ResolvedExecutablePath, ObservedVersion, EvidenceObservedAtUtc, NextProbeDueAtUtc, ProbeDispatchedAtUtc)
+                   VALUES
+                       ({nameof(Capability.GitHubCli)}, {nameof(CapabilityProbeReason.ExecutableNotFound)}, {(string?)null}, {(string?)null}, {(DateTimeOffset?)null}, {now.AddMinutes(5)}, {(DateTimeOffset?)null})");
+        }
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Brings the schema fully up to date, including AddProviderLaunchTargets.
+            await context.Database.MigrateAsync();
+        }
+
+        await using var reopenedContext = fixture.CreateContext();
+
+        var successfulRow = await reopenedContext.HostCapabilitySnapshots.FindAsync(Capability.CodexCli);
+        Assert.NotNull(successfulRow);
+        Assert.Equal(CapabilityProbeReason.None, successfulRow.ReasonCode);
+        Assert.Equal(CapabilityLaunchKind.DirectExecutable, successfulRow.LaunchKind);
+        Assert.Equal(@"C:\Program Files\nodejs\node.exe", successfulRow.ResolvedExecutablePath);
+        Assert.Equal("0.9.0", successfulRow.ObservedVersion);
+        Assert.Equal(now, successfulRow.EvidenceObservedAtUtc);
+        // Never fabricated: a pre-existing row can never have observed a script path.
+        Assert.Null(successfulRow.ResolvedScriptPath);
+
+        var failedButRetainingEvidenceRow = await reopenedContext.HostCapabilitySnapshots.FindAsync(Capability.ClaudeCli);
+        Assert.NotNull(failedButRetainingEvidenceRow);
+        Assert.Equal(CapabilityProbeReason.ProbeTimedOut, failedButRetainingEvidenceRow.ReasonCode);
+        Assert.Equal(CapabilityLaunchKind.DirectExecutable, failedButRetainingEvidenceRow.LaunchKind);
+        Assert.Equal(@"C:\Program Files\ClaudeCliStub\claude.exe", failedButRetainingEvidenceRow.ResolvedExecutablePath);
+        Assert.Null(failedButRetainingEvidenceRow.ResolvedScriptPath);
+
+        var neverSuccessfulRow = await reopenedContext.HostCapabilitySnapshots.FindAsync(Capability.GitHubCli);
+        Assert.NotNull(neverSuccessfulRow);
+        Assert.Null(neverSuccessfulRow.ResolvedExecutablePath);
+        Assert.Null(neverSuccessfulRow.LaunchKind);
+        Assert.Null(neverSuccessfulRow.ResolvedScriptPath);
     }
 
     [Fact]
@@ -96,7 +168,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
 
         var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, now);
         snapshot.MarkDispatched(now);
-        snapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", now, now.AddMinutes(5));
+        snapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", now, now.AddMinutes(5));
         context.HostCapabilitySnapshots.Add(snapshot);
         await context.SaveChangesAsync();
 

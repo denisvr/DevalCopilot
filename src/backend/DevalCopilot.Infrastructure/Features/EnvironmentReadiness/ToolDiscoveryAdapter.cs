@@ -19,26 +19,16 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
     public async Task<ToolDiscoveryResult> DiscoverAsync(Capability capability, CancellationToken cancellationToken)
     {
         var descriptor = HostCapabilityCatalog.Get(capability);
-        var resolvedExecutablePath = HostExecutableResolver.TryResolve(
-            descriptor.CandidateExecutableNames, descriptor.FallbackDirectories);
+        var resolution = ResolveLaunchTarget(capability, descriptor);
 
-        if (resolvedExecutablePath is null)
+        if (resolution.FailureReason.HasValue)
         {
-            return new ToolDiscoveryResult { Reason = CapabilityProbeReason.ExecutableNotFound };
+            return ToolDiscoveryResult.Failed(resolution.FailureReason.Value);
         }
 
+        var launchTarget = resolution.Target!;
         var scratchDirectory = HostScratchDirectory.EnsureExists();
-        var request = new ProcessExecutionRequest
-        {
-            ExecutablePath = resolvedExecutablePath,
-            Arguments = descriptor.ProbeArguments,
-            WorkingDirectory = scratchDirectory,
-            ApprovedRoot = scratchDirectory,
-            Timeout = ProbeTimeout,
-            MaxBytesPerStream = MaxCapturedBytes,
-            MaxTotalCapturedBytes = MaxCapturedBytes,
-            EnvironmentVariables = new Dictionary<string, string>(),
-        };
+        var request = BuildProbeRequest(launchTarget, descriptor.ProbeArguments, scratchDirectory);
 
         ProcessExecutionResult result;
         try
@@ -54,7 +44,7 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
             // The adapter rejected the request or could not start the resolved executable —
             // the path genuinely exists, so this is inaccessibility, never "not found". Never
             // the exception object or its message.
-            return new ToolDiscoveryResult { Reason = CapabilityProbeReason.ExecutableInaccessible };
+            return ToolDiscoveryResult.Failed(CapabilityProbeReason.ExecutableInaccessible);
         }
 
         switch (result.Outcome)
@@ -66,22 +56,103 @@ public sealed class ToolDiscoveryAdapter(IProcessExecutionAdapter processExecuti
                 throw new OperationCanceledException(cancellationToken);
 
             case ProcessExecutionOutcome.TimedOut:
-                return new ToolDiscoveryResult { Reason = CapabilityProbeReason.ProbeTimedOut };
+                return ToolDiscoveryResult.Failed(CapabilityProbeReason.ProbeTimedOut);
 
             case ProcessExecutionOutcome.Exited when result.ExitCode != 0:
                 // An unexpected non-zero exit from a fixed "--version" probe — never invents a
                 // version from it, and never persists the captured output.
-                return new ToolDiscoveryResult { Reason = CapabilityProbeReason.ExecutableInaccessible };
+                return ToolDiscoveryResult.Failed(CapabilityProbeReason.ExecutableInaccessible);
         }
 
         var version = ProbeOutputVersionParser.TryExtractVersion(result.StandardOutput);
-        return version is null
-            ? new ToolDiscoveryResult { Reason = CapabilityProbeReason.VersionProbeUnparseable }
-            : new ToolDiscoveryResult
-            {
-                Reason = CapabilityProbeReason.None,
-                ResolvedExecutablePath = resolvedExecutablePath,
-                Version = version,
-            };
+        if (version is null)
+        {
+            return ToolDiscoveryResult.Failed(CapabilityProbeReason.VersionProbeUnparseable);
+        }
+
+        return launchTarget switch
+        {
+            ProviderLaunchTarget.DirectExecutable direct =>
+                ToolDiscoveryResult.DirectExecutableSuccess(direct.ExecutablePath, version),
+            ProviderLaunchTarget.NodeScript nodeScript =>
+                ToolDiscoveryResult.NodeScriptSuccess(nodeScript.NodeExecutablePath, nodeScript.ScriptPath, version),
+            _ => throw new InvalidOperationException($"Unknown launch target type '{launchTarget.GetType()}'."),
+        };
+    }
+
+    /// <summary>
+    /// Tries the direct <c>.exe</c> resolver first, preserving today's behavior for every
+    /// capability unchanged. Only when that fails, and only for a capability that declares a
+    /// <see cref="PackageEntrypointDescriptor"/>, falls back to the bounded npm-package
+    /// entrypoint strategy. A capability with neither is reported <see
+    /// cref="CapabilityProbeReason.ExecutableNotFound"/>, exactly as before this slice.
+    /// </summary>
+    private static LaunchTargetResolution ResolveLaunchTarget(Capability capability, CapabilityProbeDescriptor descriptor)
+    {
+        var directExecutablePath = HostExecutableResolver.TryResolve(descriptor.CandidateExecutableNames, descriptor.FallbackDirectories);
+        if (directExecutablePath is not null)
+        {
+            return LaunchTargetResolution.Found(new ProviderLaunchTarget.DirectExecutable(directExecutablePath));
+        }
+
+        var packageDescriptor = HostCapabilityCatalog.GetPackageEntrypointDescriptor(capability);
+        if (packageDescriptor is null)
+        {
+            return LaunchTargetResolution.Failed(CapabilityProbeReason.ExecutableNotFound);
+        }
+
+        var nodeDescriptor = HostCapabilityCatalog.Get(Capability.Node);
+        var packageResolution = PackageEntrypointResolver.Resolve(
+            packageDescriptor, nodeDescriptor.CandidateExecutableNames, nodeDescriptor.FallbackDirectories);
+
+        return packageResolution.Kind switch
+        {
+            PackageEntrypointResolutionKind.Resolved => LaunchTargetResolution.Found(packageResolution.Target!),
+            PackageEntrypointResolutionKind.Ambiguous => LaunchTargetResolution.Failed(CapabilityProbeReason.LaunchTargetAmbiguous),
+            _ => LaunchTargetResolution.Failed(CapabilityProbeReason.ExecutableNotFound),
+        };
+    }
+
+    /// <summary>
+    /// Builds the exact, safe <see cref="ProcessExecutionRequest"/> for a resolved launch target:
+    /// a direct executable carries no argument prefix, a Node script's entrypoint becomes the
+    /// first <see cref="System.Diagnostics.ProcessStartInfo.ArgumentList"/> item ahead of the
+    /// fixed probe arguments. Internal (rather than private) so this exact shape is directly,
+    /// deterministically testable without resolving anything from the real filesystem.
+    /// </summary>
+    internal static ProcessExecutionRequest BuildProbeRequest(
+        ProviderLaunchTarget launchTarget, IReadOnlyList<string> probeArguments, string scratchDirectory)
+    {
+        var (executablePath, argumentPrefix) = launchTarget switch
+        {
+            ProviderLaunchTarget.DirectExecutable direct => (direct.ExecutablePath, (IReadOnlyList<string>)[]),
+            ProviderLaunchTarget.NodeScript nodeScript => (nodeScript.NodeExecutablePath, (IReadOnlyList<string>)[nodeScript.ScriptPath]),
+            _ => throw new InvalidOperationException($"Unknown launch target type '{launchTarget.GetType()}'."),
+        };
+
+        return new ProcessExecutionRequest
+        {
+            ExecutablePath = executablePath,
+            Arguments = [.. argumentPrefix, .. probeArguments],
+            WorkingDirectory = scratchDirectory,
+            ApprovedRoot = scratchDirectory,
+            Timeout = ProbeTimeout,
+            MaxBytesPerStream = MaxCapturedBytes,
+            MaxTotalCapturedBytes = MaxCapturedBytes,
+            EnvironmentVariables = new Dictionary<string, string>(),
+        };
+    }
+
+    /// <summary>Either a usable launch target, or a closed failure reason — never both, never
+    /// neither.</summary>
+    private readonly record struct LaunchTargetResolution
+    {
+        public ProviderLaunchTarget? Target { get; private init; }
+
+        public CapabilityProbeReason? FailureReason { get; private init; }
+
+        public static LaunchTargetResolution Found(ProviderLaunchTarget target) => new() { Target = target };
+
+        public static LaunchTargetResolution Failed(CapabilityProbeReason reason) => new() { FailureReason = reason };
     }
 }

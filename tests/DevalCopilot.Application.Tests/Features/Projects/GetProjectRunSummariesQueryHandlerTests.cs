@@ -33,7 +33,7 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
 
         var gitSnapshot = await dbContext.HostCapabilitySnapshots.FindAsync(Capability.Git);
         gitSnapshot!.MarkDispatched(Now);
-        gitSnapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", Now, Now.AddMinutes(5));
+        gitSnapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", Now, Now.AddMinutes(5));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var firstProject = Project.Register(Guid.NewGuid(), "First", $@"C:\repos\{Guid.NewGuid():N}", Now);

@@ -32,4 +32,10 @@ public enum CapabilityProbeReason
     /// no recorded result — a stalled or crashed probe, not a terminal failure. Cleared and
     /// immediately re-eligible, never retried automatically within the same host instance.</summary>
     ProbeInterruptedByRestart = 6,
+
+    /// <summary>More than one distinct, independently viable launch target was found for the
+    /// same capability (for example, two catalog-owned package-root candidates each resolving a
+    /// different real entrypoint). Fails closed rather than silently choosing one by enumeration
+    /// or timestamp order.</summary>
+    LaunchTargetAmbiguous = 7,
 }

@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,14 +38,48 @@ public sealed class RecordHostCapabilityProbeResultCommandHandler(IDevalCopilotD
 
         if (command.Outcome.Reason == CapabilityProbeReason.None)
         {
+            // Defense in depth: ToolDiscoveryResult's own factories already make an invalid
+            // success combination impossible to construct, but this handler never trusts that
+            // guarantee alone — it fails safely with a stable, project-owned error rather than
+            // risking a NullReferenceException/InvalidOperationException/ArgumentOutOfRangeException
+            // from an adapter result that reached here some other way, and it never partially
+            // mutates the snapshot first. Rejects an undefined launch kind and a relative
+            // executable/script path here too — not just blank ones — since HostCapabilitySnapshot
+            // is the durable owner of these paths and this is the boundary in front of it.
+            if (command.Outcome.LaunchKind is not { } launchKind ||
+                !Enum.IsDefined(launchKind) ||
+                string.IsNullOrWhiteSpace(command.Outcome.ResolvedExecutablePath) ||
+                !Path.IsPathFullyQualified(command.Outcome.ResolvedExecutablePath) ||
+                string.IsNullOrWhiteSpace(command.Outcome.Version) ||
+                (launchKind == CapabilityLaunchKind.NodeScript &&
+                    (string.IsNullOrWhiteSpace(command.Outcome.ResolvedScriptPath) ||
+                     !Path.IsPathFullyQualified(command.Outcome.ResolvedScriptPath))) ||
+                (launchKind == CapabilityLaunchKind.DirectExecutable && command.Outcome.ResolvedScriptPath is not null))
+            {
+                return InvalidProbeResult();
+            }
+
             snapshot.RecordSuccess(
-                command.Outcome.ResolvedExecutablePath!, command.Outcome.Version!, nowUtc, nextProbeDueAtUtc);
+                launchKind,
+                command.Outcome.ResolvedExecutablePath,
+                command.Outcome.ResolvedScriptPath,
+                command.Outcome.Version,
+                nowUtc,
+                nextProbeDueAtUtc);
+        }
+        else if (ToolDiscoveryResult.IsValidFailureReason(command.Outcome.Reason))
+        {
+            snapshot.RecordFailure(command.Outcome.Reason, nextProbeDueAtUtc);
         }
         else
         {
-            snapshot.RecordFailure(command.Outcome.Reason, nextProbeDueAtUtc);
+            return InvalidProbeResult();
         }
 
         return Result<CapabilityProbeReason>.Success(snapshot.ReasonCode);
     }
+
+    private static Result<CapabilityProbeReason> InvalidProbeResult() =>
+        Result<CapabilityProbeReason>.Failure(
+            Error.Conflict("host_capabilities.invalid_probe_result", "The capability probe result was invalid."));
 }

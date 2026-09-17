@@ -52,7 +52,7 @@ public sealed class EnsureHostCapabilityCatalogSeededCommandHandlerTests : IAsyn
 
         var gitSnapshot = await dbContext.HostCapabilitySnapshots.SingleAsync(s => s.Capability == Capability.Git);
         gitSnapshot.MarkDispatched(Now);
-        gitSnapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", Now, Now.AddMinutes(5));
+        gitSnapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", Now, Now.AddMinutes(5));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var secondHandler = new EnsureHostCapabilityCatalogSeededCommandHandler(dbContext, new FixedTimeProvider(Now.AddHours(1)));

@@ -161,7 +161,7 @@ public sealed class PrepareRepositoryWorkspaceTransactionBoundaryTests : IAsyncL
 
         var gitReady = HostCapabilitySnapshot.Seed(Capability.Git, Now);
         gitReady.MarkDispatched(Now);
-        gitReady.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.45.0", Now, Now.AddMinutes(5));
+        gitReady.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.45.0", Now, Now.AddMinutes(5));
         dbContext.HostCapabilitySnapshots.Add(gitReady);
 
         await dbContext.SaveChangesAsync(CancellationToken.None);

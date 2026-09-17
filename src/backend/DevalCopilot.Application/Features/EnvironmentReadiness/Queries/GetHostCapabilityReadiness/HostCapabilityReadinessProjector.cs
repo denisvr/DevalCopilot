@@ -10,7 +10,8 @@ namespace DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetHost
 /// <list type="bullet">
 /// <item>required + not found → Unavailable</item>
 /// <item>optional (Docker) + not found → Degraded</item>
-/// <item>timeout / inaccessible / interrupted-by-restart → Needs attention</item>
+/// <item>timeout / inaccessible / interrupted-by-restart / ambiguous launch target → Needs
+/// attention</item>
 /// <item>unparseable version → Degraded</item>
 /// <item>successful parsed probe → Ready</item>
 /// <item>never probed → no display status yet (loading), not a fifth state</item>
@@ -75,6 +76,7 @@ public static class HostCapabilityReadinessProjector
         CapabilityProbeReason.ProbeTimedOut => CapabilityDisplayStatus.NeedsAttention,
         CapabilityProbeReason.VersionProbeUnparseable => CapabilityDisplayStatus.Degraded,
         CapabilityProbeReason.ProbeInterruptedByRestart => CapabilityDisplayStatus.NeedsAttention,
+        CapabilityProbeReason.LaunchTargetAmbiguous => CapabilityDisplayStatus.NeedsAttention,
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null),
     };
 }

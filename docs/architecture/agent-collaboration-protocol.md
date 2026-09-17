@@ -189,13 +189,38 @@ the receiving agent can distinguish derived context from primary evidence.
 
 ## Provider runtime configuration
 
-Host runtime preflight is intentionally narrower than provider runtime configuration. A
-successful direct executable version probe proves only that DevalCopilot observed one local
-runtime version at a point in time. It does not prove authentication, model availability,
-permission mode, context capacity, account usage, session continuity, or that an invocation is
-eligible. Those facts remain explicit `Unknown` until a later provider-owned adapter observes
-them through a reviewed contract. A future `Unsupported` value requires affirmative provider
-evidence; it is never inferred from the absence of a preflight probe.
+Host runtime preflight is intentionally narrower than provider runtime configuration, and is
+itself layered into four distinct stages that must not be confused with one another:
+
+1. **Executable discovery** — resolving a fixed candidate name to an absolute, existing path
+   using only the host's normalized `PATH` and a small set of fixed fallback directories. Never a
+   shell, never `PATHEXT`, never a filesystem enumeration.
+2. **Launch-target validation** — for a provider whose only local discovery in Increment 2 is a
+   native executable, discovery and launch-target validation coincide. Increment 4 adds one
+   further, still narrowly bounded discovery path for a provider distributed as an npm package: a
+   fixed, catalog-owned package-root candidate's `package.json` is read directly (strict size
+   limit, strict parsing, exact expected package identity), and only its own declared `bin` entry
+   is resolved, and only when that entrypoint remains beneath the package root. This never
+   executes npm, npx, a package-manager shim, `.cmd`, `.bat`, cmd.exe, PowerShell, or any shell.
+   More than one independently valid launch target is treated as ambiguous and fails closed —
+   never chosen between silently.
+3. **Version observation** — a successful direct executable version probe (or, for a validated
+   npm-package launch target, a direct, fully qualified Node executable running that validated
+   entrypoint) proves only that DevalCopilot observed one local runtime version at a point in
+   time.
+4. **Authentication/invocation readiness** — everything beyond an observed version: model
+   availability, permission mode, context capacity, account usage, session continuity, and
+   whether an invocation is actually eligible. These facts remain explicit `Unknown` until a
+   later provider-owned adapter observes them through a reviewed contract. A future `Unsupported`
+   value requires affirmative provider evidence; it is never inferred from the absence of a
+   preflight probe.
+
+A locally installed Codex desktop application's own private, versioned installation layout was
+observed once, manually, through read-only inspection outside this discovery contract. That
+layout is evidence that a directly executable Codex CLI can exist on a host — it is not an
+approved stable discovery contract, and it is never added as an automatic fallback: it belongs to
+a different application, is not catalog-owned, and carries no stability guarantee DevalCopilot
+can rely on.
 
 Each agent attempt records requested and effective provider configuration:
 

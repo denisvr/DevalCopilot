@@ -17,6 +17,8 @@ public sealed class HostCapabilitySnapshotTests
         Assert.Equal(BaseTime, snapshot.NextProbeDueAtUtc);
         Assert.Null(snapshot.ProbeDispatchedAtUtc);
         Assert.Null(snapshot.ResolvedExecutablePath);
+        Assert.Null(snapshot.LaunchKind);
+        Assert.Null(snapshot.ResolvedScriptPath);
         Assert.Null(snapshot.ObservedVersion);
         Assert.Null(snapshot.EvidenceObservedAtUtc);
     }
@@ -46,7 +48,8 @@ public sealed class HostCapabilitySnapshotTests
         var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, BaseTime);
 
         Assert.Throws<InvalidOperationException>(
-            () => snapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", BaseTime, BaseTime.AddMinutes(5)));
+            () => snapshot.RecordSuccess(
+                CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", BaseTime, BaseTime.AddMinutes(5)));
     }
 
     [Fact]
@@ -56,14 +59,139 @@ public sealed class HostCapabilitySnapshotTests
         snapshot.MarkDispatched(BaseTime);
 
         var nextDue = BaseTime.AddMinutes(5);
-        snapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", BaseTime, nextDue);
+        snapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", BaseTime, nextDue);
 
         Assert.Equal(CapabilityProbeReason.None, snapshot.ReasonCode);
+        Assert.Equal(CapabilityLaunchKind.DirectExecutable, snapshot.LaunchKind);
         Assert.Equal(@"C:\Program Files\Git\cmd\git.exe", snapshot.ResolvedExecutablePath);
+        Assert.Null(snapshot.ResolvedScriptPath);
         Assert.Equal("2.43.0", snapshot.ObservedVersion);
         Assert.Equal(BaseTime, snapshot.EvidenceObservedAtUtc);
         Assert.Null(snapshot.ProbeDispatchedAtUtc);
         Assert.Equal(nextDue, snapshot.NextProbeDueAtUtc);
+    }
+
+    [Fact]
+    public void RecordSuccess_with_a_node_script_launch_kind_records_the_script_path_alongside_the_node_executable()
+    {
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.CodexCli, BaseTime);
+        snapshot.MarkDispatched(BaseTime);
+
+        snapshot.RecordSuccess(
+            CapabilityLaunchKind.NodeScript,
+            @"C:\Program Files\nodejs\node.exe",
+            @"C:\Users\dev\AppData\Roaming\npm\node_modules\@openai\codex\bin\codex.js",
+            "1.0.0",
+            BaseTime,
+            BaseTime.AddMinutes(5));
+
+        Assert.Equal(CapabilityLaunchKind.NodeScript, snapshot.LaunchKind);
+        Assert.Equal(@"C:\Program Files\nodejs\node.exe", snapshot.ResolvedExecutablePath);
+        Assert.Equal(
+            @"C:\Users\dev\AppData\Roaming\npm\node_modules\@openai\codex\bin\codex.js", snapshot.ResolvedScriptPath);
+    }
+
+    [Fact]
+    public void RecordSuccess_rejects_a_node_script_launch_kind_without_a_script_path()
+    {
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.CodexCli, BaseTime);
+        snapshot.MarkDispatched(BaseTime);
+
+        Assert.ThrowsAny<ArgumentException>(() => snapshot.RecordSuccess(
+            CapabilityLaunchKind.NodeScript, @"C:\Program Files\nodejs\node.exe", null, "1.0.0", BaseTime, BaseTime.AddMinutes(5)));
+    }
+
+    [Fact]
+    public void RecordSuccess_rejects_a_direct_executable_launch_kind_carrying_a_script_path()
+    {
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, BaseTime);
+        snapshot.MarkDispatched(BaseTime);
+
+        Assert.Throws<ArgumentException>(() => snapshot.RecordSuccess(
+            CapabilityLaunchKind.DirectExecutable,
+            @"C:\Program Files\Git\cmd\git.exe",
+            @"C:\unexpected\script.js",
+            "2.43.0",
+            BaseTime,
+            BaseTime.AddMinutes(5)));
+    }
+
+    [Fact]
+    public void RecordSuccess_rejects_an_undefined_launch_kind_and_mutates_nothing()
+    {
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, BaseTime);
+        snapshot.MarkDispatched(BaseTime);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => snapshot.RecordSuccess(
+            (CapabilityLaunchKind)999, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", BaseTime, BaseTime.AddMinutes(5)));
+
+        Assert.Equal(CapabilityProbeReason.NeverProbed, snapshot.ReasonCode);
+        Assert.NotNull(snapshot.ProbeDispatchedAtUtc);
+        Assert.Null(snapshot.ResolvedExecutablePath);
+        Assert.Null(snapshot.LaunchKind);
+    }
+
+    [Theory]
+    [InlineData("git.exe")]
+    [InlineData(@"relative\git.exe")]
+    [InlineData(@".\git.exe")]
+    public void RecordSuccess_rejects_a_relative_direct_executable_path_and_mutates_nothing(string relativePath)
+    {
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, BaseTime);
+        snapshot.MarkDispatched(BaseTime);
+
+        Assert.Throws<ArgumentException>(() => snapshot.RecordSuccess(
+            CapabilityLaunchKind.DirectExecutable, relativePath, null, "2.43.0", BaseTime, BaseTime.AddMinutes(5)));
+
+        Assert.Equal(CapabilityProbeReason.NeverProbed, snapshot.ReasonCode);
+        Assert.NotNull(snapshot.ProbeDispatchedAtUtc);
+        Assert.Null(snapshot.ResolvedExecutablePath);
+        Assert.Null(snapshot.LaunchKind);
+    }
+
+    [Theory]
+    [InlineData("node.exe")]
+    [InlineData(@"relative\node.exe")]
+    public void RecordSuccess_rejects_a_relative_node_executable_path_and_mutates_nothing(string relativeNodePath)
+    {
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.CodexCli, BaseTime);
+        snapshot.MarkDispatched(BaseTime);
+
+        Assert.Throws<ArgumentException>(() => snapshot.RecordSuccess(
+            CapabilityLaunchKind.NodeScript,
+            relativeNodePath,
+            @"C:\npm\node_modules\@openai\codex\bin\codex.js",
+            "1.0.0",
+            BaseTime,
+            BaseTime.AddMinutes(5)));
+
+        Assert.Equal(CapabilityProbeReason.NeverProbed, snapshot.ReasonCode);
+        Assert.NotNull(snapshot.ProbeDispatchedAtUtc);
+        Assert.Null(snapshot.ResolvedExecutablePath);
+        Assert.Null(snapshot.LaunchKind);
+    }
+
+    [Theory]
+    [InlineData("codex.js")]
+    [InlineData(@"bin\codex.js")]
+    public void RecordSuccess_rejects_a_relative_script_path_and_mutates_nothing(string relativeScriptPath)
+    {
+        var snapshot = HostCapabilitySnapshot.Seed(Capability.CodexCli, BaseTime);
+        snapshot.MarkDispatched(BaseTime);
+
+        Assert.Throws<ArgumentException>(() => snapshot.RecordSuccess(
+            CapabilityLaunchKind.NodeScript,
+            @"C:\Program Files\nodejs\node.exe",
+            relativeScriptPath,
+            "1.0.0",
+            BaseTime,
+            BaseTime.AddMinutes(5)));
+
+        Assert.Equal(CapabilityProbeReason.NeverProbed, snapshot.ReasonCode);
+        Assert.NotNull(snapshot.ProbeDispatchedAtUtc);
+        Assert.Null(snapshot.ResolvedExecutablePath);
+        Assert.Null(snapshot.LaunchKind);
+        Assert.Null(snapshot.ResolvedScriptPath);
     }
 
     [Fact]
@@ -106,7 +234,7 @@ public sealed class HostCapabilitySnapshotTests
     {
         var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, BaseTime);
         snapshot.MarkDispatched(BaseTime);
-        snapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", BaseTime, BaseTime.AddMinutes(5));
+        snapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", BaseTime, BaseTime.AddMinutes(5));
 
         snapshot.MarkDispatched(BaseTime.AddMinutes(5));
         snapshot.RecordFailure(CapabilityProbeReason.ProbeTimedOut, BaseTime.AddMinutes(10));

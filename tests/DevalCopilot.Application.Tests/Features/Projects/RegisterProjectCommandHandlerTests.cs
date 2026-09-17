@@ -57,7 +57,7 @@ public sealed class RegisterProjectCommandHandlerTests : IAsyncLifetime
     {
         var snapshot = HostCapabilitySnapshot.Seed(Capability.Git, Now);
         snapshot.MarkDispatched(Now);
-        snapshot.RecordSuccess("C:\\Program Files\\Git\\cmd\\git.exe", "2.45.0", Now, Now.AddMinutes(5));
+        snapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, "C:\\Program Files\\Git\\cmd\\git.exe", null, "2.45.0", Now, Now.AddMinutes(5));
         dbContext.HostCapabilitySnapshots.Add(snapshot);
         await dbContext.SaveChangesAsync(CancellationToken.None);
     }

@@ -20,7 +20,7 @@ public sealed class GetProviderRuntimePreflightQueryHandlerTests : IAsyncLifetim
         await using var dbContext = _fixture.CreateContext();
         var codex = HostCapabilitySnapshot.Seed(Capability.CodexCli, Now);
         codex.MarkDispatched(Now);
-        codex.RecordSuccess(@"C:\safe\codex.exe", "1.2.3", Now, Now.AddMinutes(5));
+        codex.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\safe\codex.exe", null, "1.2.3", Now, Now.AddMinutes(5));
 
         dbContext.HostCapabilitySnapshots.Add(codex);
         dbContext.HostCapabilitySnapshots.Add(HostCapabilitySnapshot.Seed(Capability.ClaudeCli, Now));

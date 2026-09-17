@@ -52,12 +52,8 @@ public sealed class HostCapabilityReadinessSupervisorHostedTests : IDisposable
             services.AddSingleton<IToolDiscoveryAdapter>(new FakeToolDiscoveryAdapter((_, _) =>
             {
                 Interlocked.Increment(ref invocationCount);
-                return Task.FromResult(new ToolDiscoveryResult
-                {
-                    Reason = CapabilityProbeReason.None,
-                    ResolvedExecutablePath = @"C:\Program Files\Git\cmd\git.exe",
-                    Version = "2.43.0",
-                });
+                return Task.FromResult(
+                    ToolDiscoveryResult.DirectExecutableSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0"));
             }));
         });
         await SeedCatalogAsync(provider);
@@ -101,7 +97,7 @@ public sealed class HostCapabilityReadinessSupervisorHostedTests : IDisposable
                 Interlocked.Increment(ref invocationCount);
                 probeStartedSource.TrySetResult();
                 await releaseProbeSource.Task;
-                return new ToolDiscoveryResult { Reason = CapabilityProbeReason.None, ResolvedExecutablePath = "x", Version = "1.0.0" };
+                return ToolDiscoveryResult.DirectExecutableSuccess(@"C:\fake\git.exe", "1.0.0");
             }));
         });
         await SeedCatalogAsync(provider);
@@ -175,7 +171,7 @@ public sealed class HostCapabilityReadinessSupervisorHostedTests : IDisposable
             services.AddSingleton<IToolDiscoveryAdapter>(new FakeToolDiscoveryAdapter((_, _) =>
             {
                 invoked = true;
-                return Task.FromResult(new ToolDiscoveryResult { Reason = CapabilityProbeReason.None, ResolvedExecutablePath = "x", Version = "1.0.0" });
+                return Task.FromResult(ToolDiscoveryResult.DirectExecutableSuccess(@"C:\fake\git.exe", "1.0.0"));
             }));
             services.RemoveAll<IRequestHandler<MarkHostCapabilityProbeDispatchedCommand, Result<DateTimeOffset>>>();
             services.AddScoped<IRequestHandler<MarkHostCapabilityProbeDispatchedCommand, Result<DateTimeOffset>>>(
@@ -289,7 +285,7 @@ public sealed class HostCapabilityReadinessSupervisorHostedTests : IDisposable
         foreach (var snapshot in otherSnapshots)
         {
             snapshot.MarkDispatched(DateTimeOffset.UtcNow);
-            snapshot.RecordSuccess("x", "1.0.0", DateTimeOffset.UtcNow, farFuture);
+            snapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\fake\tool.exe", null, "1.0.0", DateTimeOffset.UtcNow, farFuture);
         }
 
         await dbContext.SaveChangesAsync();

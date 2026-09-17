@@ -93,6 +93,8 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
         Assert.Equal("2.43.0", result.Version);
         Assert.NotNull(result.ResolvedExecutablePath);
         Assert.EndsWith("git.exe", result.ResolvedExecutablePath);
+        Assert.Equal(CapabilityLaunchKind.DirectExecutable, result.LaunchKind);
+        Assert.Null(result.ResolvedScriptPath);
 
         // Fixed probe arguments only — never anything project- or user-influenced.
         Assert.Equal(["--version"], fake.Requests[0].Arguments);
@@ -184,5 +186,34 @@ public sealed class ToolDiscoveryAdapterTests : IDisposable
 
         Assert.Equal("2.43.0", first.Version);
         Assert.Equal("2.44.1", second.Version);
+    }
+
+    // The exact ProcessExecutionRequest shape for each launch kind is deterministic and does not
+    // depend on the filesystem at all, so it is verified directly against
+    // ToolDiscoveryAdapter.BuildProbeRequest rather than through a real resolution — resolution
+    // itself (direct .exe vs. npm-package entrypoint, including ambiguity) is fully covered by
+    // HostExecutableResolverTests and PackageEntrypointResolverTests.
+
+    [Fact]
+    public void BuildProbeRequest_for_a_direct_executable_carries_no_argument_prefix()
+    {
+        var target = new ProviderLaunchTarget.DirectExecutable(@"C:\Program Files\Git\cmd\git.exe");
+
+        var request = ToolDiscoveryAdapter.BuildProbeRequest(target, ["--version"], @"C:\scratch");
+
+        Assert.Equal(@"C:\Program Files\Git\cmd\git.exe", request.ExecutablePath);
+        Assert.Equal(["--version"], request.Arguments);
+    }
+
+    [Fact]
+    public void BuildProbeRequest_for_a_node_script_puts_the_entrypoint_first_and_never_invokes_a_shell()
+    {
+        var target = new ProviderLaunchTarget.NodeScript(
+            @"C:\Program Files\nodejs\node.exe", @"C:\npm\node_modules\@openai\codex\bin\codex.js");
+
+        var request = ToolDiscoveryAdapter.BuildProbeRequest(target, ["--version"], @"C:\scratch");
+
+        Assert.Equal(@"C:\Program Files\nodejs\node.exe", request.ExecutablePath);
+        Assert.Equal([@"C:\npm\node_modules\@openai\codex\bin\codex.js", "--version"], request.Arguments);
     }
 }

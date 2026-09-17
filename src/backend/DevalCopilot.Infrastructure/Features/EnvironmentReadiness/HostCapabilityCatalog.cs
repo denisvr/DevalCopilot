@@ -70,6 +70,32 @@ internal static class HostCapabilityCatalog
         _ => throw new ArgumentOutOfRangeException(nameof(capability), capability, null),
     };
 
+    /// <summary>
+    /// The fixed, catalog-owned package-entrypoint descriptor for a capability that can be
+    /// launched as a Node script when no direct <c>.exe</c> resolves, or <c>null</c> for a
+    /// capability that has no such fallback. Only the npm global-install root is a candidate:
+    /// this deliberately does not add the private Codex desktop application's own installation
+    /// layout as an automatic fallback — that layout was observed only through manual, read-only
+    /// inspection, is versioned and owned by a different application, and is not an approved
+    /// stable discovery contract for this slice.
+    /// </summary>
+    public static PackageEntrypointDescriptor? GetPackageEntrypointDescriptor(Capability capability) => capability switch
+    {
+        Capability.CodexCli => new PackageEntrypointDescriptor
+        {
+            PackageRootCandidates = AppDataPaths(Path.Combine("npm", "node_modules", "@openai", "codex")),
+            ExpectedPackageName = "@openai/codex",
+            ExpectedCommandName = "codex",
+        },
+        Capability.ClaudeCli => new PackageEntrypointDescriptor
+        {
+            PackageRootCandidates = AppDataPaths(Path.Combine("npm", "node_modules", "@anthropic-ai", "claude-code")),
+            ExpectedPackageName = "@anthropic-ai/claude-code",
+            ExpectedCommandName = "claude",
+        },
+        _ => null,
+    };
+
     private static IReadOnlyList<string> ProgramFilesPaths(params string[] relativePaths)
     {
         var programFiles = System.Environment.GetFolderPath(System.Environment.SpecialFolder.ProgramFiles);

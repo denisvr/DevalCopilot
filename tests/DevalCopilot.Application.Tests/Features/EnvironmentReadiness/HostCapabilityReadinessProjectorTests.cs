@@ -24,7 +24,7 @@ public sealed class HostCapabilityReadinessProjectorTests
         snapshot.MarkDispatched(BaseTime);
         if (reason == CapabilityProbeReason.None)
         {
-            snapshot.RecordSuccess(@"C:\Program Files\Git\cmd\git.exe", "2.43.0", BaseTime, nextProbeDueAtUtc);
+            snapshot.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\Program Files\Git\cmd\git.exe", null, "2.43.0", BaseTime, nextProbeDueAtUtc);
         }
         else if (reason == CapabilityProbeReason.ProbeInterruptedByRestart)
         {
@@ -68,7 +68,8 @@ public sealed class HostCapabilityReadinessProjectorTests
     [InlineData(CapabilityProbeReason.ProbeTimedOut)]
     [InlineData(CapabilityProbeReason.ExecutableInaccessible)]
     [InlineData(CapabilityProbeReason.ProbeInterruptedByRestart)]
-    public void Timeout_inaccessible_and_interrupted_by_restart_are_needs_attention(CapabilityProbeReason reason)
+    [InlineData(CapabilityProbeReason.LaunchTargetAmbiguous)]
+    public void Timeout_inaccessible_interrupted_by_restart_and_ambiguous_launch_target_are_needs_attention(CapabilityProbeReason reason)
     {
         var snapshot = CreateSnapshot(Capability.Git, reason, BaseTime.AddMinutes(5));
 

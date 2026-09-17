@@ -28,8 +28,22 @@ public sealed class HostCapabilitySnapshot
     public CapabilityProbeReason ReasonCode { get; private set; }
 
     /// <summary>Path resolved by the last *successful* probe. Left untouched by a later
-    /// failure — this is last-known-good evidence, not "current" evidence.</summary>
+    /// failure — this is last-known-good evidence, not "current" evidence. For
+    /// <see cref="CapabilityLaunchKind.NodeScript"/>, this is the direct, fully qualified
+    /// <c>node.exe</c> path — the actual OS executable invoked — never the JavaScript
+    /// entrypoint.</summary>
     public string? ResolvedExecutablePath { get; private set; }
+
+    /// <summary>How the last *successful* probe launched <see cref="ResolvedExecutablePath"/>.
+    /// Null only when no probe has ever succeeded. Left untouched by a later failure, for the
+    /// same reason as <see cref="ResolvedExecutablePath"/>.</summary>
+    public CapabilityLaunchKind? LaunchKind { get; private set; }
+
+    /// <summary>The JavaScript entrypoint invoked as the first launch argument. Set only when
+    /// <see cref="LaunchKind"/> is <see cref="CapabilityLaunchKind.NodeScript"/>; always null for
+    /// <see cref="CapabilityLaunchKind.DirectExecutable"/>. Left untouched by a later failure,
+    /// for the same reason as <see cref="ResolvedExecutablePath"/>.</summary>
+    public string? ResolvedScriptPath { get; private set; }
 
     /// <summary>Version parsed by the last *successful* probe. Left untouched by a later
     /// failure, for the same reason as <see cref="ResolvedExecutablePath"/>.</summary>
@@ -62,21 +76,61 @@ public sealed class HostCapabilitySnapshot
 
     /// <summary>
     /// Records a successful probe: updates the last-known-good evidence, clears the dispatch
-    /// marker, and schedules the next probe.
+    /// marker, and schedules the next probe. This method is the durable owner of these paths and
+    /// independently validates every component — it never relies on a caller (including
+    /// <c>ToolDiscoveryResult</c>'s own factories) having behaved correctly, since a malformed
+    /// value that reaches here would otherwise be persisted as fact. Every check below runs
+    /// before <see cref="RequireDispatched"/> and before any field is mutated.
     /// </summary>
+    /// <param name="resolvedExecutablePath">Must be a non-blank, fully qualified path.</param>
+    /// <param name="resolvedScriptPath">Required, non-blank, and fully qualified when
+    /// <paramref name="launchKind"/> is <see cref="CapabilityLaunchKind.NodeScript"/>; must be
+    /// null for <see cref="CapabilityLaunchKind.DirectExecutable"/> — enforced here so an invalid
+    /// launch combination can never reach durable storage.</param>
     public void RecordSuccess(
-        string resolvedExecutablePath, string observedVersion, DateTimeOffset nowUtc, DateTimeOffset nextProbeDueAtUtc)
+        CapabilityLaunchKind launchKind,
+        string resolvedExecutablePath,
+        string? resolvedScriptPath,
+        string observedVersion,
+        DateTimeOffset nowUtc,
+        DateTimeOffset nextProbeDueAtUtc)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(resolvedExecutablePath);
+        if (!Enum.IsDefined(launchKind))
+        {
+            throw new ArgumentOutOfRangeException(nameof(launchKind), launchKind, "Not a defined launch kind.");
+        }
+
+        RequireAbsolutePath(resolvedExecutablePath, nameof(resolvedExecutablePath));
         ArgumentException.ThrowIfNullOrWhiteSpace(observedVersion);
+
+        switch (launchKind)
+        {
+            case CapabilityLaunchKind.NodeScript:
+                RequireAbsolutePath(resolvedScriptPath, nameof(resolvedScriptPath));
+                break;
+            case CapabilityLaunchKind.DirectExecutable when resolvedScriptPath is not null:
+                throw new ArgumentException(
+                    "A direct-executable launch never carries a script path.", nameof(resolvedScriptPath));
+        }
+
         RequireDispatched();
 
         ReasonCode = CapabilityProbeReason.None;
         ResolvedExecutablePath = resolvedExecutablePath;
+        LaunchKind = launchKind;
+        ResolvedScriptPath = resolvedScriptPath;
         ObservedVersion = observedVersion;
         EvidenceObservedAtUtc = nowUtc;
         ProbeDispatchedAtUtc = null;
         NextProbeDueAtUtc = nextProbeDueAtUtc;
+    }
+
+    private static void RequireAbsolutePath(string? path, string paramName)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path))
+        {
+            throw new ArgumentException($"'{paramName}' must be a non-blank, absolute path.", paramName);
+        }
     }
 
     /// <summary>

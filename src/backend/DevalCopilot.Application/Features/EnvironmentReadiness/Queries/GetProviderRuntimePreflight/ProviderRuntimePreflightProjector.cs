@@ -69,6 +69,7 @@ public static class ProviderRuntimePreflightProjector
         CapabilityProbeReason.ProbeTimedOut => "provider_runtime.version_probe_timed_out",
         CapabilityProbeReason.VersionProbeUnparseable => "provider_runtime.version_probe_unparseable",
         CapabilityProbeReason.ProbeInterruptedByRestart => "provider_runtime.version_probe_interrupted",
+        CapabilityProbeReason.LaunchTargetAmbiguous => "provider_runtime.launch_target_ambiguous",
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null),
     };
 
@@ -81,6 +82,7 @@ public static class ProviderRuntimePreflightProjector
         CapabilityProbeReason.ProbeTimedOut => "Runtime version probe timed out.",
         CapabilityProbeReason.VersionProbeUnparseable => "Runtime version was not recognized.",
         CapabilityProbeReason.ProbeInterruptedByRestart => "Runtime version probe was interrupted by host restart.",
+        CapabilityProbeReason.LaunchTargetAmbiguous => "More than one runtime installation was found; resolution was stopped rather than guessed.",
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, null),
     };
 }
