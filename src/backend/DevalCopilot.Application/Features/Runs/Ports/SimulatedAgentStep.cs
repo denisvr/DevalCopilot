@@ -7,4 +7,12 @@ namespace DevalCopilot.Application.Features.Runs.Ports;
 /// A real Codex/Claude Code adapter later replaces this port; the hosted supervisor
 /// and the commands that record steps do not change shape when that happens.
 /// </summary>
-public sealed record SimulatedAgentStep(RunStage Stage, ParticipantKind Actor, string EventType, string Summary);
+public sealed record SimulatedAgentStep(
+    RunStage Stage,
+    ParticipantKind Actor,
+    ParticipantKind Recipient,
+    string EventType,
+    CollaborationMessageType MessageType,
+    int? InReplyToStepIndex,
+    string Summary,
+    string StructuredContentJson);

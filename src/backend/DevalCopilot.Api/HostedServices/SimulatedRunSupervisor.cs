@@ -62,13 +62,36 @@ public sealed class SimulatedRunSupervisor(
         }
 
         var attemptId = claimResult.Value.AttemptId;
+        var messageIds = new List<Guid>();
 
         foreach (var step in adapter.GetSteps())
         {
             await Task.Delay(StepDelay, stoppingToken);
 
+            Guid? inReplyToMessageId = null;
+            if (step.InReplyToStepIndex.HasValue)
+            {
+                if (step.InReplyToStepIndex.Value < 0 || step.InReplyToStepIndex.Value >= messageIds.Count)
+                {
+                    logger.LogError("Simulated run {RunId} has an invalid collaboration reply reference.", runId);
+                    return;
+                }
+
+                inReplyToMessageId = messageIds[step.InReplyToStepIndex.Value];
+            }
+
             var stepResult = await DispatchAsync(
-                new RecordSimulatedAgentStepCommand(runId, attemptId, step.Stage, step.Actor, step.EventType, step.Summary),
+                new RecordSimulatedAgentStepCommand(
+                    runId,
+                    attemptId,
+                    step.Stage,
+                    step.Actor,
+                    step.Recipient,
+                    step.EventType,
+                    step.MessageType,
+                    inReplyToMessageId,
+                    step.Summary,
+                    step.StructuredContentJson),
                 stoppingToken);
 
             if (stepResult.IsFailure)
@@ -79,7 +102,8 @@ public sealed class SimulatedRunSupervisor(
                 return;
             }
 
-            await NotifyAsync(runId, stepResult.Value, stoppingToken);
+            messageIds.Add(stepResult.Value.MessageId);
+            await NotifyAsync(runId, stepResult.Value.EventSequence, stoppingToken);
         }
 
         await Task.Delay(StepDelay, stoppingToken);

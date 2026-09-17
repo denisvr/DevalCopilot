@@ -1,9 +1,8 @@
 namespace DevalCopilot.Domain.Features.Runs;
 
 /// <summary>
-/// The bounded, deterministic simulated-agent-collaboration event sequence for the
-/// walking-skeleton run. Later increments replace these with real protocol messages;
-/// the string values are a durable schema, not a UI label.
+/// The bounded deterministic event journal for the walking-skeleton run. Typed protocol
+/// envelopes supplement these operational facts; the string values are durable schema, not UI labels.
 /// </summary>
 public static class RunEventType
 {
@@ -13,6 +12,9 @@ public static class RunEventType
     public const string CodexResolution = "codex.resolution";
     public const string ClaudeExecution = "claude.execution";
     public const string RunCompleted = "run.completed";
+
+    /// <summary>Metadata-only journal fact that a bounded collaboration envelope was recorded.</summary>
+    public const string CollaborationMessageRecorded = "collaboration.message_recorded";
 
     /// <summary>Metadata-only fact: an <see cref="Artifact"/> was durably recorded for an
     /// attempt. The payload carries the artifact id, purpose, byte length, truncation flag, and

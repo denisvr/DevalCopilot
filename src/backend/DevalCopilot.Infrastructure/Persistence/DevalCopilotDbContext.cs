@@ -35,6 +35,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<RunEvent> Events => Set<RunEvent>();
 
+    public DbSet<CollaborationMessage> CollaborationMessages => Set<CollaborationMessage>();
+
     public DbSet<Artifact> Artifacts => Set<Artifact>();
 
     public DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots => Set<HostCapabilitySnapshot>();

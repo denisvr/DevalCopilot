@@ -223,6 +223,61 @@ export class GetProcessAttemptOutputEndpointClient {
     }
 }
 
+export class GetCollaborationTimelineEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCollaborationTimeline(runId: string): Promise<CollaborationMessageTimelineResponse[]> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/collaboration-timeline";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCollaborationTimeline(_response);
+        });
+    }
+
+    protected processGetCollaborationTimeline(response: Response): Promise<CollaborationMessageTimelineResponse[]> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(CollaborationMessageTimelineResponse.fromJS(item));
+            }
+            else {
+                result200 = null as any;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CollaborationMessageTimelineResponse[]>(null as any);
+    }
+}
+
 export class UpdateVerificationCommandEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1650,6 +1705,86 @@ export interface IGetProcessAttemptOutputResponse {
     totalLengthSoFar?: number;
     isFinal?: boolean;
     truncated?: boolean;
+}
+
+export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {
+    sequence?: number;
+    id?: string;
+    attemptId?: string | undefined;
+    protocolVersion?: string;
+    actor?: string;
+    recipient?: string;
+    type?: string;
+    inReplyToMessageId?: string | undefined;
+    summary?: string;
+    structuredContentJson?: string;
+    provenance?: string;
+    occurredAtUtc?: Date;
+
+    constructor(data?: ICollaborationMessageTimelineResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sequence = _data["sequence"];
+            this.id = _data["id"];
+            this.attemptId = _data["attemptId"];
+            this.protocolVersion = _data["protocolVersion"];
+            this.actor = _data["actor"];
+            this.recipient = _data["recipient"];
+            this.type = _data["type"];
+            this.inReplyToMessageId = _data["inReplyToMessageId"];
+            this.summary = _data["summary"];
+            this.structuredContentJson = _data["structuredContentJson"];
+            this.provenance = _data["provenance"];
+            this.occurredAtUtc = _data["occurredAtUtc"] ? new Date(_data["occurredAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): CollaborationMessageTimelineResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CollaborationMessageTimelineResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sequence"] = this.sequence;
+        data["id"] = this.id;
+        data["attemptId"] = this.attemptId;
+        data["protocolVersion"] = this.protocolVersion;
+        data["actor"] = this.actor;
+        data["recipient"] = this.recipient;
+        data["type"] = this.type;
+        data["inReplyToMessageId"] = this.inReplyToMessageId;
+        data["summary"] = this.summary;
+        data["structuredContentJson"] = this.structuredContentJson;
+        data["provenance"] = this.provenance;
+        data["occurredAtUtc"] = this.occurredAtUtc ? this.occurredAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface ICollaborationMessageTimelineResponse {
+    sequence?: number;
+    id?: string;
+    attemptId?: string | undefined;
+    protocolVersion?: string;
+    actor?: string;
+    recipient?: string;
+    type?: string;
+    inReplyToMessageId?: string | undefined;
+    summary?: string;
+    structuredContentJson?: string;
+    provenance?: string;
+    occurredAtUtc?: Date;
 }
 
 export class UpdateVerificationCommandRequest implements IUpdateVerificationCommandRequest {

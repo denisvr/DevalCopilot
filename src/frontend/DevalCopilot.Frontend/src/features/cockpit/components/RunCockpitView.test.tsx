@@ -1,17 +1,29 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { processAttemptOutputClient } from '../../../api/clients'
 import { GetRunCockpitResponse } from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
+import * as useCollaborationTimelineModule from '../hooks/useCollaborationTimeline'
 import type { CollaborationCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
 vi.mock('../hooks/useRunCockpit')
+vi.mock('../hooks/useCollaborationTimeline')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
 }))
 
 const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)
+const useCollaborationTimelineMock = vi.mocked(useCollaborationTimelineModule.useCollaborationTimeline)
+
+beforeEach(() => {
+  useCollaborationTimelineMock.mockReturnValue({
+    cards: [],
+    loading: false,
+    error: null,
+    hasSuccessfulResponse: true,
+  })
+})
 
 function mockProcessOutputClient(getProcessAttemptOutput: ReturnType<typeof vi.fn>) {
   vi.mocked(processAttemptOutputClient).mockReturnValue({

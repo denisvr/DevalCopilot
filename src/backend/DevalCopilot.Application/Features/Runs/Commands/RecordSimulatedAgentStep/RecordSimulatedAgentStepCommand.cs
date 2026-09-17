@@ -13,5 +13,9 @@ public sealed record RecordSimulatedAgentStepCommand(
     Guid AttemptId,
     RunStage Stage,
     ParticipantKind Actor,
+    ParticipantKind Recipient,
     string EventType,
-    string Summary) : IManualTransactionCommand<Result<long>>;
+    CollaborationMessageType MessageType,
+    Guid? InReplyToMessageId,
+    string Summary,
+    string StructuredContentJson) : IManualTransactionCommand<Result<RecordSimulatedAgentStepCommandResult>>;

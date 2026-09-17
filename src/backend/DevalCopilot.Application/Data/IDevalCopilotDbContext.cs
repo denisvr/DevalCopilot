@@ -33,6 +33,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<RunEvent> Events { get; }
 
+    DbSet<CollaborationMessage> CollaborationMessages { get; }
+
     DbSet<Artifact> Artifacts { get; }
 
     DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots { get; }

@@ -31,8 +31,7 @@ public sealed class RecordSimulatedAgentStepCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordSimulatedAgentStepCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordSimulatedAgentStepCommand(
-                run.Id, attempt.Id, RunStage.Plan, ParticipantKind.Codex, RunEventType.CodexProposal, "Proposal"),
+            CreateProposalCommand(run.Id, attempt.Id),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -51,8 +50,7 @@ public sealed class RecordSimulatedAgentStepCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordSimulatedAgentStepCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordSimulatedAgentStepCommand(
-                run.Id, Guid.NewGuid(), RunStage.Plan, ParticipantKind.Codex, RunEventType.CodexProposal, "Proposal"),
+            CreateProposalCommand(run.Id, Guid.NewGuid()),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -75,8 +73,7 @@ public sealed class RecordSimulatedAgentStepCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordSimulatedAgentStepCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordSimulatedAgentStepCommand(
-                targetRun.Id, attemptForOtherRun.Id, RunStage.Plan, ParticipantKind.Codex, RunEventType.CodexProposal, "Proposal"),
+            CreateProposalCommand(targetRun.Id, attemptForOtherRun.Id),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -101,13 +98,27 @@ public sealed class RecordSimulatedAgentStepCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordSimulatedAgentStepCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordSimulatedAgentStepCommand(
-                run.Id, attempt.Id, RunStage.Plan, ParticipantKind.Codex, RunEventType.CodexProposal, "Proposal"),
+            CreateProposalCommand(run.Id, attempt.Id),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.not_active", Assert.Single(result.Errors).Code);
         Assert.Equal(RunStage.Intake, run.Stage);
         Assert.Empty(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
+    }
+
+    private static RecordSimulatedAgentStepCommand CreateProposalCommand(Guid runId, Guid attemptId)
+    {
+        return new RecordSimulatedAgentStepCommand(
+            runId,
+            attemptId,
+            RunStage.Plan,
+            ParticipantKind.Codex,
+            ParticipantKind.Claude,
+            RunEventType.CodexProposal,
+            CollaborationMessageType.Proposal,
+            null,
+            "Proposal",
+            "{\"scope\":\"Test scope\",\"assumptions\":\"Test assumption\",\"verification\":\"Test verification\",\"risks\":\"Test risk\"}");
     }
 }

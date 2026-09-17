@@ -54,6 +54,36 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddProcessAttempts", appliedMigrations);
         Assert.Contains("AddProcessDispatchMarker", appliedMigrations);
         Assert.Contains("AddHostCapabilitySnapshots", appliedMigrations);
+        Assert.Contains("AddCollaborationMessages", appliedMigrations);
+    }
+
+    [Fact]
+    public async Task Migrate_creates_a_schema_that_accepts_a_bounded_collaboration_message()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var context = fixture.CreateContext();
+        await context.Database.MigrateAsync();
+
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\ledger-migration-test", now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, project.ReserveExecutionNumber(), "Prove the ledger schema", now);
+        context.AddRange(project, run);
+        context.CollaborationMessages.Add(CollaborationMessage.Record(
+            Guid.NewGuid(),
+            run.Id,
+            null,
+            CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Codex,
+            ParticipantKind.Claude,
+            CollaborationMessageType.Proposal,
+            null,
+            "Record a bounded proposal.",
+            "{\"scope\":\"Schema\",\"assumptions\":\"SQLite\",\"verification\":\"Migration test\",\"risks\":\"Schema drift\"}",
+            CollaborationMessageProvenance.Simulated,
+            now));
+
+        await context.SaveChangesAsync();
+
+        Assert.True(await context.CollaborationMessages.AnyAsync());
     }
 
     [Fact]

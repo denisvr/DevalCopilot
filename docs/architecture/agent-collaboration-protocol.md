@@ -36,6 +36,18 @@ Every accepted agent message maps to a project-owned envelope:
 Provider session identifiers and raw response locations are metadata on the
 attempt. They do not replace the project envelope.
 
+## Current durable ledger boundary
+
+The current implementation persists a project-owned, append-only ledger of
+validated `1.0` envelopes for one run, with an optional owning attempt and a
+monotonic timeline sequence. It records bounded summaries and typed structured
+details only; it does not persist a provider-native transcript, executable
+path, environment value, credential, provider configuration, or raw output.
+The deterministic walking-skeleton sequence writes envelopes marked
+`Simulated`; this label is not evidence of provider observation, authentication,
+or invocation. Raw provider transcripts and artifact references remain deferred
+until a provider adapter owns a reviewed capture contract.
+
 ## Message types
 
 ### Proposal
@@ -91,6 +103,25 @@ with evidence and resulting source changes.
 
 Summarizes the unresolved decision, available options, consequences, evidence,
 and recommended choice. It contains no hidden default action.
+
+## Version 1.0 reply semantics
+
+The durable ledger validates each reply against this closed relationship table.
+A proposal starts a thread and cannot reply. Every other message type must reply
+to an earlier message in the same run.
+
+| Message type | Allowed parent type |
+|---|---|
+| Acceptance, Challenge | Proposal |
+| Decision | Proposal or Challenge |
+| Execution report | Decision |
+| Review finding | Execution report |
+| Revision response | Review finding |
+| Question | Proposal, Challenge, Decision, Execution report, or Review finding |
+| Escalation | Proposal, Challenge, Decision, Execution report, Review finding, Revision response, or Question |
+
+Question and escalation are therefore bounded by the fact that needs an answer
+or cannot be resolved; neither starts an ungrounded side conversation.
 
 ## Default interaction
 

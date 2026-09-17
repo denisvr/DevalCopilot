@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using DevalCopilot.Api.Features.Runs.GetRunCockpit;
+using DevalCopilot.Api.Features.Runs.GetCollaborationTimeline;
 using DevalCopilot.Api.Features.Runs.GetRunEvents;
 using DevalCopilot.Api.Features.Runs.StartSimulatedRun;
 using DevalCopilot.Api.IntegrationTests.Fixtures;
@@ -76,6 +77,13 @@ public sealed class SimulatedRunFlowTests(ApiWebApplicationFactory factory) : IC
         Assert.Equal(ExpectedEventTypesInOrder, events.Select(runEvent => runEvent.EventType));
         Assert.Equal(events.Select(e => e.Sequence).OrderBy(s => s), events.Select(e => e.Sequence));
         Assert.Equal(events[^1].Sequence, cockpit.LatestSequence);
+
+        var timeline = await client.GetFromJsonAsync<List<CollaborationMessageTimelineResponse>>(
+            $"/api/runs/{started.RunId}/collaboration-timeline");
+        Assert.NotNull(timeline);
+        Assert.Equal(["Proposal", "Challenge", "Decision", "ExecutionReport"], timeline.Select(message => message.Type));
+        Assert.All(timeline, message => Assert.Equal("Simulated", message.Provenance));
+        Assert.Equal(timeline[1].Id, timeline[2].InReplyToMessageId);
     }
 
     [Fact]

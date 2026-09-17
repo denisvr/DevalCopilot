@@ -1,4 +1,5 @@
 import { useRunCockpit } from '../hooks/useRunCockpit'
+import { useCollaborationTimeline } from '../hooks/useCollaborationTimeline'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { AgentCollaboration } from './AgentCollaboration'
 import { ConnectionBanner } from './ConnectionBanner'
@@ -13,6 +14,7 @@ interface RunCockpitViewProps {
 
 export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError } = useRunCockpit(runId)
+  const collaborationTimeline = useCollaborationTimeline(runId, cockpit?.latestSequence)
 
   if (loading && !cockpit) {
     return <p className="dc-empty-state">Loading run…</p>
@@ -34,7 +36,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
       <RunHeader cockpit={cockpit} />
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
-        <AgentCollaboration cards={cards} />
+        <AgentCollaboration {...collaborationTimeline} />
         <UsageEvidenceRail />
       </div>
       <LiveOutputDrawer runId={runId} attemptId={currentProcessAttemptId} />

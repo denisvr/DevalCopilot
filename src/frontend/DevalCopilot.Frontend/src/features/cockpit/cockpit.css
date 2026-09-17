@@ -446,6 +446,12 @@
   gap: 0.65rem;
 }
 
+.dc-collaboration-status {
+  margin: 0;
+  color: var(--dc-warning-text);
+  font-size: 0.85rem;
+}
+
 .dc-card {
   max-width: min(32rem, 80%);
   border: 1px solid var(--dc-border);
@@ -483,6 +489,21 @@
 .dc-card-summary {
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.dc-card-reply,
+.dc-card-timestamp {
+  margin: 0.5rem 0 0;
+  color: var(--dc-text-muted);
+  font-size: 0.8rem;
+}
+
+.dc-card-details {
+  margin-top: 0.75rem;
+}
+
+.dc-card-details summary {
+  cursor: pointer;
 }
 
 .dc-placeholder {
