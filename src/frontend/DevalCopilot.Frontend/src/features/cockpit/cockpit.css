@@ -492,6 +492,43 @@
   color: var(--dc-warning-text);
 }
 
+.dc-claude-critical-review-action {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--dc-border);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.dc-claude-critical-review-request {
+  border: 1px solid var(--dc-border);
+  background: var(--dc-surface-alt);
+  color: var(--dc-text);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dc-claude-critical-review-request:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.dc-claude-critical-review-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-claude-critical-review-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dc-warning-text);
+}
+
 .dc-collaboration-status {
   margin: 0;
   color: var(--dc-warning-text);
@@ -530,6 +567,11 @@
   letter-spacing: 0.03em;
   color: var(--dc-text-muted);
   margin-bottom: 0.25rem;
+}
+
+.dc-card[data-type='Acceptance'] .dc-card-actor,
+.dc-card[data-type='Challenge'] .dc-card-actor {
+  font-weight: 600;
 }
 
 .dc-card-summary {

@@ -20,6 +20,13 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
 {
     public const string WorkspaceNoLongerEligibleCode = "agent_attempts.workspace_no_longer_eligible";
 
+    /// <summary>Distinct from <see cref="WorkspaceNoLongerEligibleCode"/> on purpose: the run,
+    /// workspace, lease, and checkpoint all remain fully eligible here — only the reviewed
+    /// Proposal's applicability was lost to a competing, already-completed critical review. A
+    /// caller must never conflate the two; each maps to its own terminal
+    /// <see cref="AgentOutcome"/> and its own dedicated recording command.</summary>
+    public const string InputAlreadyReviewedCode = "agent_attempts.input_already_reviewed";
+
     public async Task<Result<DateTimeOffset>> HandleAsync(
         MarkAgentAttemptDispatchedCommand command, CancellationToken cancellationToken)
     {
@@ -77,6 +84,32 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         if (currentCheckpointId != attempt.AgentGitCheckpointId)
         {
             return WorkspaceNoLongerEligible();
+        }
+
+        // The critical-review-specific half of the same authoritative last gate: the reviewed
+        // Proposal's applicability can also have been lost between the eligibility snapshot and
+        // this call — a competing critical review could have committed an Accepted/Challenged
+        // result for the very same Proposal in that window. Codex planning attempts have no
+        // input message to revalidate here.
+        if (attempt.AgentRole == AgentRole.CriticalReviewer)
+        {
+            var inputMessageId = attempt.AgentInputCollaborationMessageId;
+            var alreadyReviewed = await dbContext.Attempts.AnyAsync(
+                candidate =>
+                    candidate.Id != attempt.Id
+                    && candidate.Kind == AttemptKind.Agent
+                    && candidate.AgentProvider == AgentProvider.ClaudeCode
+                    && candidate.AgentRole == AgentRole.CriticalReviewer
+                    && candidate.AgentInputCollaborationMessageId == inputMessageId
+                    && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
+                cancellationToken);
+            if (alreadyReviewed)
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        InputAlreadyReviewedCode,
+                        "Another critical-review attempt already completed a successful review of this exact proposal."));
+            }
         }
 
         var nowUtc = timeProvider.GetUtcNow();

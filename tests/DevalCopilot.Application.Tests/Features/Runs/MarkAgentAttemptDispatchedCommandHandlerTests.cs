@@ -286,4 +286,84 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.not_found", Assert.Single(result.Errors).Code);
     }
+
+    /// <summary>
+    /// The critical-review-specific half of the same authoritative last gate: a competing
+    /// critical-review attempt can have committed a successful (Accepted/Challenged) review of
+    /// the exact same reviewed Proposal strictly between the eligibility snapshot and this call —
+    /// this attempt must never be dispatched to review a Proposal that already has a successful
+    /// review, reported with the same safe <c>WorkspaceNoLongerEligibleCode</c> conflict as every
+    /// other last-gate rejection.
+    /// </summary>
+    [Fact]
+    public async Task HandleAsync_rejects_dispatch_of_a_critical_review_attempt_when_the_same_proposal_already_has_a_successful_review()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the next increment", Now);
+        run.Claim(Now);
+        var workspace = GitWorkspace.Prepare(
+            Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", Now);
+        workspace.MarkReady();
+        var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
+        var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, Guid.NewGuid().ToByteArray(), Now);
+
+        var reviewedProposalId = Guid.NewGuid();
+        var attempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, reviewedProposalId, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+
+        // A competing critical-review attempt already recorded a successful review of the exact
+        // same Proposal message — this one must never be dispatched.
+        var competingReview = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, reviewedProposalId, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        competingReview.MarkAgentDispatched(Now);
+        competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(checkpoint);
+        dbContext.RepositoryMutationLeases.Add(lease);
+        dbContext.Attempts.AddRange(attempt, competingReview);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(MarkAgentAttemptDispatchedCommandHandler.InputAlreadyReviewedCode, Assert.Single(result.Errors).Code);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+    }
+
+    /// <summary>
+    /// The already-reviewed check is scoped to <see cref="AgentRole.CriticalReviewer"/> attempts
+    /// only — a Codex planning attempt is dispatched normally even while another attempt in the
+    /// database (a critical review that already succeeded) exists, since Codex planning attempts
+    /// have no reviewed-Proposal identity for that check to ever apply to.
+    /// </summary>
+    [Fact]
+    public async Task HandleAsync_dispatches_a_codex_planning_attempt_unaffected_by_the_already_reviewed_check()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (run, planningAttempt) = await SeedEligibleAttemptAsync(dbContext);
+
+        var reviewedProposalId = Guid.NewGuid();
+        var unrelatedCompletedReview = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 99, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, reviewedProposalId, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        unrelatedCompletedReview.MarkAgentDispatched(Now);
+        unrelatedCompletedReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        dbContext.Attempts.Add(unrelatedCompletedReview);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, planningAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now, planningAttempt.AgentDispatchedAtUtc);
+    }
 }

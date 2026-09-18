@@ -26,6 +26,8 @@ import {
   StartSimulatedRunEndpointClient,
   RequestCodexPlanningAttemptEndpointClient,
   GetAgentAttemptStatusEndpointClient,
+  RequestClaudeCriticalReviewEndpointClient,
+  GetClaudeCriticalReviewAttemptStatusEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -58,6 +60,8 @@ export const recordCheckpointReviewClient = () => new RecordCheckpointReviewEndp
 export const verificationExecutionOutputClient = () => new GetVerificationExecutionOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestCodexPlanningAttemptClient = () => new RequestCodexPlanningAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptStatusClient = () => new GetAgentAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestClaudeCriticalReviewClient = () => new RequestClaudeCriticalReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const claudeCriticalReviewAttemptStatusClient = () => new GetClaudeCriticalReviewAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -86,5 +90,12 @@ export type {
   RequestCodexPlanningAttemptResponse,
   AgentAttemptStatusResponse,
   AgentAttemptArtifactMetadataResponse,
+  RequestClaudeCriticalReviewResponse,
+  ClaudeCriticalReviewAttemptStatusResponse,
 } from './generated/api-client'
-export { ClaimVerificationExecutionRequest, RecordCheckpointReviewRequest, RegisterProjectRequest } from './generated/api-client'
+export {
+  ClaimVerificationExecutionRequest,
+  RecordCheckpointReviewRequest,
+  RegisterProjectRequest,
+  RequestClaudeCriticalReviewRequest,
+} from './generated/api-client'

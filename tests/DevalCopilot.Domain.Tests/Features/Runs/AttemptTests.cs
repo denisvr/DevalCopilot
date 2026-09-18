@@ -566,4 +566,242 @@ public sealed class AttemptTests
         Assert.Equal(BaseTime.AddSeconds(1), attempt.CompletedAtUtc);
         Assert.Null(attempt.AgentOutcome);
     }
+
+    private static Attempt ClaimAgentCriticalReviewAttempt(
+        string checkpointFingerprintSha256 = "fingerprint-1",
+        Guid? inputCollaborationMessageId = null,
+        TimeSpan? timeout = null,
+        int maxBytesPerStream = 262144,
+        int maxTotalCapturedBytes = 524288) => Attempt.ClaimAgentCriticalReview(
+        Guid.NewGuid(),
+        Guid.NewGuid(),
+        attemptNumber: 1,
+        gitWorkspaceId: Guid.NewGuid(),
+        gitCheckpointId: Guid.NewGuid(),
+        checkpointFingerprintSha256: checkpointFingerprintSha256,
+        inputCollaborationMessageId: inputCollaborationMessageId ?? Guid.NewGuid(),
+        contextManifestArtifactId: Guid.NewGuid(),
+        timeout: timeout ?? TimeSpan.FromMinutes(10),
+        maxBytesPerStream: maxBytesPerStream,
+        maxTotalCapturedBytes: maxTotalCapturedBytes,
+        claimedAtUtc: BaseTime);
+
+    [Fact]
+    public void ClaimAgentCriticalReview_creates_a_critical_review_attempt_with_its_durable_intent_persisted()
+    {
+        var workspaceId = Guid.NewGuid();
+        var checkpointId = Guid.NewGuid();
+        var inputMessageId = Guid.NewGuid();
+        var manifestArtifactId = Guid.NewGuid();
+        var timeout = TimeSpan.FromMinutes(10);
+
+        var attempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, workspaceId, checkpointId,
+            "fingerprint-1", inputMessageId, manifestArtifactId, timeout, 262144, 524288, BaseTime);
+
+        Assert.Equal(AttemptKind.Agent, attempt.Kind);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Equal(AgentProvider.ClaudeCode, attempt.AgentProvider);
+        Assert.Equal(AgentRole.CriticalReviewer, attempt.AgentRole);
+        Assert.Equal(AgentResponseContract.CriticalReview, attempt.AgentResponseContract);
+        // Documents the explicit design note on ClaimAgentCriticalReview: the claimed intent is
+        // still, in protocol terms, "expect to produce one Proposal-replying message" — the real
+        // Accepted/Challenged union is represented by AgentResponseContract above, never by this
+        // field being anything other than Proposal for a critical-review attempt.
+        Assert.Equal(CollaborationMessageType.Proposal, attempt.AgentExpectedMessageType);
+        Assert.Equal(CollaborationMessage.ProtocolVersionOne, attempt.AgentProtocolVersion);
+        Assert.Equal(inputMessageId, attempt.AgentInputCollaborationMessageId);
+        Assert.Equal(workspaceId, attempt.AgentGitWorkspaceId);
+        Assert.Equal(checkpointId, attempt.AgentGitCheckpointId);
+        Assert.Equal("fingerprint-1", attempt.AgentCheckpointFingerprintSha256);
+        Assert.Equal(manifestArtifactId, attempt.AgentContextManifestArtifactId);
+        Assert.Equal(timeout, attempt.AgentTimeout);
+        Assert.Equal(262144, attempt.AgentMaxBytesPerStream);
+        Assert.Equal(524288, attempt.AgentMaxTotalCapturedBytes);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+        Assert.Null(attempt.AgentOutcome);
+        Assert.Null(attempt.AgentProviderSessionId);
+        // A Process-shaped field is never populated by an Agent claim.
+        Assert.Null(attempt.ProcessExecutablePath);
+    }
+
+    [Fact]
+    public void ClaimAgentCriticalReview_throws_for_a_non_positive_attempt_number()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 0, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentCriticalReview_throws_for_an_empty_git_workspace_id()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.Empty, Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentCriticalReview_throws_for_an_empty_git_checkpoint_id()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.Empty,
+            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ClaimAgentCriticalReview_throws_for_a_missing_checkpoint_fingerprint(string? fingerprint)
+    {
+        Assert.ThrowsAny<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            fingerprint!, Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentCriticalReview_throws_for_an_empty_input_collaboration_message_id()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.Empty, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentCriticalReview_throws_for_an_empty_context_manifest_artifact_id()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void ClaimAgentCriticalReview_throws_for_a_non_positive_timeout(int timeoutSeconds)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromSeconds(timeoutSeconds), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentCriticalReview_throws_for_a_negative_max_bytes_per_stream()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), -1, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentCriticalReview_throws_for_a_negative_max_total_captured_bytes()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, -1, BaseTime));
+    }
+
+    [Theory]
+    [InlineData(AgentOutcome.Accepted)]
+    [InlineData(AgentOutcome.Challenged)]
+    public void CompleteAgent_completes_successfully_for_a_critical_review_outcome_matching_its_own_contract(AgentOutcome outcome)
+    {
+        var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteAgent(outcome, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Completed, attempt.Status);
+        Assert.Equal(outcome, attempt.AgentOutcome);
+        Assert.Equal(BaseTime.AddSeconds(2), attempt.CompletedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(AgentOutcome.Accepted)]
+    [InlineData(AgentOutcome.Challenged)]
+    public void CompleteAgent_throws_when_a_critical_review_outcome_is_reported_for_a_planning_attempt(AgentOutcome outcome)
+    {
+        var attempt = ClaimAgentAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(outcome, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_when_a_proposed_outcome_is_reported_for_a_critical_review_attempt()
+    {
+        var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteAgent_overrides_to_source_changed_for_a_critical_review_attempt_when_the_completion_fingerprint_no_longer_matches()
+    {
+        var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.SourceChanged, attempt.AgentOutcome);
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_for_an_accepted_outcome_on_a_never_dispatched_critical_review_attempt()
+    {
+        var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1)));
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_for_an_accepted_outcome_without_a_completion_fingerprint()
+    {
+        var attempt = ClaimAgentCriticalReviewAttempt();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: null, BaseTime.AddSeconds(2)));
+    }
+
+    /// <summary>
+    /// <see cref="AgentOutcome.InputAlreadyReviewed"/> is a terminal failure, exactly like
+    /// <see cref="AgentOutcome.WorkspaceNoLongerEligible"/> and <see cref="AgentOutcome.SourceChanged"/>
+    /// — detected before the provider was ever invoked, so it never requires dispatch or a
+    /// completion fingerprint, and it never counts as a Domain-level success regardless of this
+    /// attempt's own response contract.
+    /// </summary>
+    [Fact]
+    public void CompleteAgent_completes_with_input_already_reviewed_for_a_never_dispatched_critical_review_attempt()
+    {
+        var attempt = ClaimAgentCriticalReviewAttempt();
+
+        attempt.CompleteAgent(AgentOutcome.InputAlreadyReviewed, completionFingerprintSha256: null, BaseTime.AddSeconds(1));
+
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.InputAlreadyReviewed, attempt.AgentOutcome);
+        Assert.Equal(BaseTime.AddSeconds(1), attempt.CompletedAtUtc);
+    }
+
+    [Fact]
+    public void CompleteAgent_completes_with_input_already_reviewed_for_a_planning_attempt_too()
+    {
+        // Domain itself never restricts InputAlreadyReviewed to critical-review attempts — it is
+        // a plain terminal failure like SourceChanged/WorkspaceNoLongerEligible, so it carries no
+        // contract check of its own. The Application-layer closed caller-selectable policy is
+        // what actually keeps this outcome scoped to the one dedicated command that ever records
+        // it for a real critical-review attempt; this test only proves the Domain-level fact.
+        var attempt = ClaimAgentAttempt();
+
+        attempt.CompleteAgent(AgentOutcome.InputAlreadyReviewed, completionFingerprintSha256: null, BaseTime.AddSeconds(1));
+
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.InputAlreadyReviewed, attempt.AgentOutcome);
+    }
 }

@@ -19,9 +19,14 @@ public sealed class GetAgentAttemptStatusQueryHandler(IDevalCopilotDbContext dbC
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
+        // Planner-only: this query's own contract (see GetAgentAttemptStatusQuery's doc comment)
+        // is "the most recent Codex planning attempt" — without this filter, once a run also has
+        // ClaudeCode critical-review attempts, "most recent Agent attempt of any role" would
+        // silently start returning the wrong attempt's status under this same endpoint.
         var attempt = await dbContext.Attempts
             .AsNoTracking()
-            .Where(candidate => candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent)
+            .Where(candidate =>
+                candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.Planner)
             .OrderByDescending(candidate => candidate.AttemptNumber)
             .FirstOrDefaultAsync(cancellationToken);
 

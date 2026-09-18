@@ -58,6 +58,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddProviderLaunchTargets", appliedMigrations);
         Assert.Contains("AddCodexPlanningAttempts", appliedMigrations);
         Assert.Contains("AgentAttemptCorrectionRound1", appliedMigrations);
+        Assert.Contains("AddClaudeCriticalReviewAttempts", appliedMigrations);
     }
 
     /// <summary>
@@ -94,10 +95,17 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             runId = run.Id;
 
             run.Claim(now);
-            var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, 1, now);
-            context.Attempts.Add(attempt);
-            await context.SaveChangesAsync();
-            attemptId = attempt.Id;
+            attemptId = Guid.NewGuid();
+
+            // Raw SQL, not Attempt.Claim(...) + context.Attempts.Add(...): at this schema
+            // checkpoint the attempts table has neither AgentResponseContract nor
+            // AgentInputCollaborationMessageId yet, but the currently compiled Attempt/
+            // AttemptConfiguration model already reflects both new nullable columns, so EF's own
+            // insert would name columns this historical schema does not have — the same
+            // rationale as the HostCapabilitySnapshot backfill test below.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments)
+                   VALUES ({attemptId}, {run.Id}, {1}, {nameof(AttemptKind.Simulated)}, {nameof(AttemptStatus.Running)}, {now}, {""})");
 
             // Raw SQL: at this schema checkpoint Truncated is NOT NULL, but the currently compiled
             // Artifact/ArtifactConfiguration model already reflects the *new* nullable shape, so
@@ -218,6 +226,142 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Null(neverSuccessfulRow.ResolvedExecutablePath);
         Assert.Null(neverSuccessfulRow.LaunchKind);
         Assert.Null(neverSuccessfulRow.ResolvedScriptPath);
+    }
+
+    [Fact]
+    public async Task Migrate_backfills_agent_response_contract_to_proposal_for_every_pre_existing_agent_attempt_but_never_for_other_kinds()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var agentAttemptId = Guid.NewGuid();
+        var simulatedAttemptId = Guid.NewGuid();
+        Guid runId;
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Stops one migration short of AddClaudeCriticalReviewAttempts, so the table
+            // genuinely has no AgentResponseContract/AgentInputCollaborationMessageId columns
+            // yet — exactly the shape a pre-existing installation's database has right before
+            // upgrading.
+            await context.Database.MigrateAsync("AgentAttemptCorrectionRound1");
+
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\migration-response-contract-test", now);
+            context.Projects.Add(project);
+            await context.SaveChangesAsync();
+
+            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Prove response contract backfill", now);
+            context.Runs.Add(run);
+            await context.SaveChangesAsync();
+            runId = run.Id;
+
+            // (a) A pre-existing Codex planning Agent attempt — before this migration, the only
+            // response contract any Agent attempt could ever have was Proposal, so this row must
+            // be truthfully backfilled to it, never left null.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments)
+                   VALUES ({agentAttemptId}, {runId}, {1}, {nameof(AttemptKind.Agent)}, {nameof(AttemptStatus.Completed)}, {now}, {""})");
+
+            // (b) A pre-existing Simulated attempt — never touched by this migration's backfill,
+            // which is scoped to Kind = 'Agent' only.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments)
+                   VALUES ({simulatedAttemptId}, {runId}, {2}, {nameof(AttemptKind.Simulated)}, {nameof(AttemptStatus.Completed)}, {now}, {""})");
+        }
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Brings the schema fully up to date, including AddClaudeCriticalReviewAttempts.
+            await context.Database.MigrateAsync();
+        }
+
+        await using var reopenedContext = fixture.CreateContext();
+
+        var agentRow = await reopenedContext.Attempts.FindAsync(agentAttemptId);
+        Assert.NotNull(agentRow);
+        Assert.Equal(AgentResponseContract.Proposal, agentRow.AgentResponseContract);
+        Assert.Null(agentRow.AgentInputCollaborationMessageId);
+
+        var simulatedRow = await reopenedContext.Attempts.FindAsync(simulatedAttemptId);
+        Assert.NotNull(simulatedRow);
+        Assert.Null(simulatedRow.AgentResponseContract);
+    }
+
+    [Fact]
+    public async Task Migrate_creates_a_schema_that_accepts_a_claude_critical_review_attempt_and_its_resulting_acceptance()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var context = fixture.CreateContext();
+        await context.Database.MigrateAsync();
+
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\critical-review-migration-test", now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, project.ReserveExecutionNumber(), "Prove the critical-review schema", now);
+        context.AddRange(project, run);
+        await context.SaveChangesAsync();
+
+        var proposal = CollaborationMessage.Record(
+            Guid.NewGuid(),
+            run.Id,
+            null,
+            CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Codex,
+            ParticipantKind.Claude,
+            CollaborationMessageType.Proposal,
+            null,
+            "Record a bounded proposal.",
+            "{\"scope\":\"Schema\",\"implementationSteps\":\"Add the migration\",\"risks\":\"Schema drift\",\"verificationPlan\":\"Migration test\",\"escalationPoints\":\"None expected\"}",
+            CollaborationMessageProvenance.ProviderObserved,
+            now);
+        context.CollaborationMessages.Add(proposal);
+        await context.SaveChangesAsync();
+
+        var attempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(),
+            run.Id,
+            attemptNumber: 2,
+            gitWorkspaceId: Guid.NewGuid(),
+            gitCheckpointId: Guid.NewGuid(),
+            checkpointFingerprintSha256: "sha256:fingerprint",
+            inputCollaborationMessageId: proposal.Id,
+            contextManifestArtifactId: Guid.NewGuid(),
+            timeout: TimeSpan.FromMinutes(10),
+            maxBytesPerStream: 1024,
+            maxTotalCapturedBytes: 2048,
+            claimedAtUtc: now);
+        context.Attempts.Add(attempt);
+        await context.SaveChangesAsync();
+
+        attempt.MarkAgentDispatched(now);
+        attempt.CompleteAgent(AgentOutcome.Accepted, "sha256:fingerprint", now);
+
+        var acceptance = CollaborationMessage.Record(
+            Guid.NewGuid(),
+            run.Id,
+            attempt.Id,
+            CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Claude,
+            ParticipantKind.Codex,
+            CollaborationMessageType.Acceptance,
+            proposal.Id,
+            "The proposal is sound.",
+            "{\"rationale\":\"The plan matches the objective and the diff evidence.\"}",
+            CollaborationMessageProvenance.ProviderObserved,
+            now);
+        context.CollaborationMessages.Add(acceptance);
+        await context.SaveChangesAsync();
+
+        await using var reopenedContext = fixture.CreateContext();
+        var reopenedAttempt = await reopenedContext.Attempts.FindAsync(attempt.Id);
+        Assert.NotNull(reopenedAttempt);
+        Assert.Equal(AgentProvider.ClaudeCode, reopenedAttempt.AgentProvider);
+        Assert.Equal(AgentRole.CriticalReviewer, reopenedAttempt.AgentRole);
+        Assert.Equal(AgentResponseContract.CriticalReview, reopenedAttempt.AgentResponseContract);
+        Assert.Equal(proposal.Id, reopenedAttempt.AgentInputCollaborationMessageId);
+        Assert.Equal(AgentOutcome.Accepted, reopenedAttempt.AgentOutcome);
+        Assert.Equal(AttemptStatus.Completed, reopenedAttempt.Status);
+
+        var reopenedAcceptance = await reopenedContext.CollaborationMessages.SingleOrDefaultAsync(message => message.Id == acceptance.Id);
+        Assert.NotNull(reopenedAcceptance);
+        Assert.Equal(CollaborationMessageType.Acceptance, reopenedAcceptance.Type);
+        Assert.Equal(proposal.Id, reopenedAcceptance.InReplyToMessageId);
     }
 
     [Fact]

@@ -47,17 +47,24 @@ The deterministic walking-skeleton sequence writes envelopes marked
 `Simulated`; this label is not evidence of provider observation, authentication,
 or invocation.
 
-Codex's Planning step is the first message type with a real, live provider
-invocation: a durable Agent attempt records a bounded context manifest, runs
-the Codex CLI as a real child process, and preserves its raw stdout, stderr,
-and final-response content only as bounded sealed artifacts outside the
-database — never as ledger or API content. A structurally valid Proposal is
-still appended to the ledger only after passing the same protocol/schema
-validation as any other message; an invalid, failed, or source-drifted
-attempt appends none. Claude Code invocation, challenge resolution, and
-review remain deferred: no message type beyond Codex's Proposal has a live
-provider adapter yet, and every other envelope in the durable ledger is still
-produced by the `Simulated` walking-skeleton sequence described above.
+Codex's Planning step and Claude Code's Critical review step are the first two
+message-producing stages with a real, live provider invocation. A durable
+Agent attempt of either provider records a bounded context manifest, runs the
+provider's own CLI as a real child process, and preserves its raw stdout,
+stderr, and final-response content only as bounded sealed artifacts outside
+the database — never as ledger or API content. A structurally valid Proposal,
+Acceptance, or Challenge set is appended to the ledger only after passing the
+same protocol/schema validation as any other message; an invalid, failed, or
+source-drifted attempt appends none. A Claude critical-review attempt reviews
+exactly one already-recorded, provider-observed Codex Proposal bound to the
+same run, isolated workspace, checkpoint, and fresh Git fingerprint; it never
+edits the repository, and it returns exactly one Acceptance or one to five
+Challenge messages, never both and never neither. Challenge resolution,
+Claude's later execution/review stages, and every remaining message type
+remain deferred: no live provider adapter exists yet for Decision, Execution
+report, Review finding, or Revision response, and every such envelope in the
+durable ledger is still produced by the `Simulated` walking-skeleton sequence
+described above.
 
 ## Message types
 
@@ -150,6 +157,11 @@ return either:
 - an acceptance with feasibility rationale; or
 - one or more material challenges.
 
+This stage is real today, bound to one durable attempt per requested review:
+resolving a Challenge set (accepting, disputing, or deferring each item) is a
+deferred Codex-side capability, so a Challenged outcome currently leaves the
+plan awaiting that future resolution rather than looping automatically.
+
 ### Resolution
 
 Codex resolves every challenge explicitly. A partially accepted or rejected
@@ -237,6 +249,91 @@ Codex Planning attempt only reuses the durable `HostCapabilitySnapshot` row's re
 capability discovery's own last successful probe, and only when that snapshot's reason code is
 still `None` — it is revalidated, never re-searched, by this narrower dispatch-time read.
 
+### Claude Code critical-review CLI safety contract
+
+The installed `@anthropic-ai/claude-code` package (version `2.1.276` at the time this contract
+was evidenced) ships a native `claude.exe` as its declared `bin` entry — a `DirectExecutable`
+launch target, never a Node-hosted script. Every fact below was proven from authoritative local
+evidence only (`claude --version`, `claude --help`, the package's own `package.json` and bundled
+`cli-wrapper.cjs`, and embedded literal strings in the compiled binary) — never by invoking a real
+authenticated model to discover a flag. A Claude critical-review attempt invokes this exact,
+fixed argument list, with the context manifest delivered over stdin and no argument ever
+containing prompt text, repository content, or a credential:
+
+```
+--print
+--input-format text
+--output-format json
+--json-schema <inline JSON Schema for the Acceptance/Challenge union>
+--safe-mode
+--restricted
+--disable-slash-commands
+--no-chrome
+--permission-prompts none
+--prompt-suggestions false
+--tools ""
+--strict-mcp-config
+--permission-mode plan
+--no-session-persistence
+--session-id <fresh random GUID>
+--max-turns 1
+```
+
+- **Non-interactive**: `--print` runs one bounded turn and exits; it is never given a TTY.
+- **Stdin, never argv**: `--input-format text` (the default) reads the prompt/context from
+  stdin; the CLI's own embedded strings confirm a bounded stdin-wait and UTF-8 stdin handling.
+- **Structured output**: `--output-format json` wraps the result in one JSON envelope on stdout
+  (fields observed in the binary's own string table: `is_error`, `result`, `session_id`,
+  `subtype`, `num_turns`, `total_cost_usd`, `duration_ms`); `--json-schema` constrains the
+  provider's own `result` field to this slice's fixed Acceptance/Challenge schema. Unlike Codex,
+  Claude's print mode has no file-based final-response flag — the adapter extracts `result` from
+  this envelope and writes it to the same sealed final-response artifact Codex's CLI writes
+  directly, so every later parsing/recording step is identical between both providers.
+- **Fully isolated from local customizations and indirect execution**: `--tools ""` and
+  `--strict-mcp-config` alone disable built-in tools and non-declared MCP servers, but the
+  installed CLI's own `--help` proves neither one disables hooks, plugins, skills, CLAUDE.md
+  auto-discovery, Claude-in-Chrome, or user/project/local settings files — a `SessionStart` hook
+  or a project-local setting could otherwise still cause a command to run with no built-in tool
+  ever invoked. `--safe-mode` disables CLAUDE.md, skills, plugins, hooks, MCP servers, custom
+  commands/agents, output styles, workflows, themes, and keybindings outright; `--restricted`
+  independently removes command/code-running tools and WebFetch and ignores user/project/local
+  settings files (a second, independent path to the same guarantee); `--disable-slash-commands`
+  disables all skills; `--no-chrome` disables the Claude-in-Chrome integration entirely;
+  `--permission-prompts none` denies anything that would otherwise prompt, independent of the
+  permission mode; and `--permission-mode plan` is the strongest available permission mode — it
+  never executes an action, only plans one, even if every tool were somehow still reachable.
+  `--prompt-suggestions false` suppresses the provider's own predicted-next-prompt side output.
+  `--bare` is deliberately never passed: the installed version's own `--help` states it changes
+  the authentication contract itself (Anthropic auth becomes strictly
+  `ANTHROPIC_API_KEY`/`apiKeyHelper`; OAuth and keychain are never read), which would silently
+  break this slice's reliance on existing local CLI authentication.
+- **No session resume**: `--no-session-persistence` plus a fresh, per-attempt random
+  `--session-id` guarantee this invocation can never continue or fork an unrelated prior session;
+  `--continue`, `--resume`, and `--fork-session` are never passed.
+- **Bounded turns**: `--max-turns 1` bounds the agentic loop to a single turn; `--max-turns` was
+  confirmed present in the compiled binary's embedded string table (alongside a corroborating
+  `error_max_turns` result subtype) even though it is not listed in the CLI's own abbreviated
+  `--help` output.
+- **Cancellation and process-tree compatibility**: proven generically by the same process-tree
+  termination infrastructure already established for Codex — a `DirectExecutable` launch target
+  is handled identically regardless of which provider resolved to it.
+
+The stdout envelope itself is also validated, not merely parsed: `is_error` must be present and a
+genuine JSON boolean (only a literal `false` is ever treated as success — a missing or
+non-boolean value fails the whole envelope closed), `result` must be present, and a present
+`session_id` must be a well-shaped bounded string (a genuine JSON `null` is tolerated exactly like
+an absent field, since `--no-session-persistence` means the provider may legitimately have no
+session to report; anything else malformed rejects the whole envelope, never just that field, on
+the reasoning that a provider which cannot even shape its own bookkeeping field correctly is not
+a source whose `result` should be trusted either).
+
+One material limitation, honestly disclosed rather than assumed away: the exact shape of the
+`result` field when `--json-schema` is supplied (a JSON string containing schema-conformant text,
+versus the schema-conformant JSON value directly) was inferred from embedded evidence and general
+knowledge of the CLI's public contract, not observed from a real authenticated invocation — the
+adapter therefore normalizes either shape defensively, and the downstream parser fails closed
+(`InvalidStructuredOutput`, never a false Acceptance) if that inference is ever wrong.
+
 Each agent attempt is intended to eventually record requested and effective
 provider configuration:
 
@@ -246,16 +343,17 @@ provider configuration:
 - context-manifest revision;
 - reported context usage and compaction outcome when available.
 
-The Codex Planning attempt records only a subset of this today: the provider
-and role are fixed by the attempt's own factory (never caller-supplied), and a
-provider-session identifier is captured on a best-effort basis only when
-Codex's own JSONL stdout reports one — never required, never trusted for
-anything beyond this closed, cosmetic field, and not currently exposed through
-any API response. Model, reasoning effort, permission mode, context usage,
-and account usage are not recorded by an Agent attempt in this slice at all;
-they remain `Unknown` exactly as the host-runtime-preflight projection above
-already reports them, and no doc, response, or stored fact should be read as
-tracking or enforcing them yet.
+The Codex Planning attempt and the Claude critical-review attempt each record
+only a subset of this today: the provider, role, and response contract are
+each fixed by the attempt's own dedicated factory (never caller-supplied),
+and a provider-session identifier is captured on a best-effort basis only
+when the provider's own JSON output reports one — never required, never
+trusted for anything beyond this closed, cosmetic field, and not currently
+exposed through any API response. Model, reasoning effort, permission mode,
+context usage, and account usage are not recorded by an Agent attempt in this
+slice at all; they remain `Unknown` exactly as the host-runtime-preflight
+projection above already reports them, and no doc, response, or stored fact
+should be read as tracking or enforcing them yet.
 
 Adapters expose capabilities and supported values through typed queries. The
 application does not assume that Codex and Claude Code use equivalent names or

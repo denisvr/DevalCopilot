@@ -141,4 +141,48 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         Assert.True(result.Value.HasAttempt);
         Assert.Equal(agentAttempt.Id, result.Value.AttemptId);
     }
+
+    /// <summary>
+    /// Regression for a real bug this handler now fixes: it used to pick "the most recent Agent
+    /// attempt of any role", so once a run also had ClaudeCode critical-review attempts, this
+    /// query could silently start returning a critical-review attempt's status under what is
+    /// documented as the Codex planning status endpoint. With both present on the same run, this
+    /// query must return the Codex Planner attempt and exclude the Claude CriticalReviewer one
+    /// even though the CriticalReviewer attempt has the higher, more recent attempt number.
+    /// </summary>
+    [Fact]
+    public async Task HandleAsync_returns_the_planner_attempt_and_excludes_a_more_recent_critical_reviewer_attempt_on_the_same_run()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Plan then review", Now);
+        run.Claim(Now);
+        var planningAttempt = ClaimAgentAttempt(run.Id, 1, Now);
+        planningAttempt.MarkAgentDispatched(Now.AddSeconds(1));
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now.AddSeconds(2));
+
+        // More recent (higher AttemptNumber) than the planning attempt, and Completed rather than
+        // Running, so both attempts can legally coexist on the same run under the run-wide
+        // "at most one Running attempt" invariant — never mistaken for the Planner attempt this
+        // query reports on despite being the more recent of the two.
+        var reviewAttempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now.AddSeconds(3));
+        reviewAttempt.MarkAgentDispatched(Now.AddSeconds(4));
+        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(5));
+
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.AddRange(planningAttempt, reviewAttempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new GetAgentAttemptStatusQueryHandler(dbContext);
+        var result = await handler.HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.HasAttempt);
+        Assert.Equal(planningAttempt.Id, result.Value.AttemptId);
+        Assert.Equal(1, result.Value.AttemptNumber);
+        Assert.Equal(AgentOutcome.Proposed, result.Value.Outcome);
+    }
 }

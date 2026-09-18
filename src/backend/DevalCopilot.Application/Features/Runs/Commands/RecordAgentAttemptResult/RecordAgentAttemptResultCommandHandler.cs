@@ -17,6 +17,27 @@ public sealed class RecordAgentAttemptResultCommandHandler(IDevalCopilotDbContex
         ArtifactPurpose.AgentFinalResponse,
     };
 
+    /// <summary>
+    /// The explicit, closed policy for what a Codex planning attempt may report directly through
+    /// this command. <see cref="AgentOutcome.SourceChanged"/> and
+    /// <see cref="AgentOutcome.WorkspaceNoLongerEligible"/> are derived exclusively by their own
+    /// dedicated pre-dispatch commands; <see cref="AgentOutcome.InputAlreadyReviewed"/> and the
+    /// critical-review success outcomes (<see cref="AgentOutcome.Accepted"/>,
+    /// <see cref="AgentOutcome.Challenged"/>) belong to the Claude critical-review contract, never
+    /// this one. Checking membership in this set — rather than singling out one excluded value at
+    /// a time — is what makes the rejection exhaustive: every outcome this handler does not
+    /// explicitly allow is rejected the same safe way, with zero mutation, before
+    /// <see cref="Attempt.CompleteAgent"/> is ever called. That call remains an independent
+    /// Domain-level backstop, never the only line of defense.
+    /// </summary>
+    private static readonly IReadOnlySet<AgentOutcome> CallerSelectableOutcomes = new HashSet<AgentOutcome>
+    {
+        AgentOutcome.Proposed,
+        AgentOutcome.InvalidStructuredOutput,
+        AgentOutcome.ProviderInvocationFailed,
+        AgentOutcome.CheckpointEvidenceUnavailable,
+    };
+
     /// <summary>Matches both the EF column bound and the adapter's own scan bound — never
     /// silently truncated or left to fail unpredictably at save time.</summary>
     private const int MaxProviderSessionIdLength = 256;
@@ -63,12 +84,12 @@ public sealed class RecordAgentAttemptResultCommandHandler(IDevalCopilotDbContex
                 Error.Failure("agent_attempts.invalid_outcome", "The reported outcome is not a defined agent outcome."));
         }
 
-        if (command.Outcome == AgentOutcome.SourceChanged)
+        if (!CallerSelectableOutcomes.Contains(command.Outcome))
         {
             return Result<RecordAgentAttemptResultCommandResult>.Failure(
                 Error.Failure(
-                    "agent_attempts.source_changed_not_caller_selectable",
-                    "SourceChanged is derived from a fingerprint mismatch, never reported directly — use the dedicated pre-dispatch command instead."));
+                    "agent_attempts.outcome_not_caller_selectable",
+                    $"{command.Outcome} belongs to a dedicated host-derived recording path and cannot be reported directly here."));
         }
 
         if (command.Outcome == AgentOutcome.Proposed)

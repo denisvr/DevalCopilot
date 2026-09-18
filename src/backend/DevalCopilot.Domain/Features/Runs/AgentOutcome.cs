@@ -41,4 +41,26 @@ public enum AgentOutcome
     /// for this outcome — it is recorded instead of leaving the attempt to poll forever without
     /// ever becoming eligible again.</summary>
     WorkspaceNoLongerEligible = 5,
+
+    /// <summary>A Claude critical-review attempt accepted the reviewed Proposal outright: exactly
+    /// one <see cref="CollaborationMessageType.Acceptance"/> was parsed, validated, and appended
+    /// to the collaboration ledger. Valid only for the ClaudeCode + CriticalReviewer + CriticalReview
+    /// combination.</summary>
+    Accepted = 6,
+
+    /// <summary>A Claude critical-review attempt raised one or more material challenges against
+    /// the reviewed Proposal: one to five <see cref="CollaborationMessageType.Challenge"/>
+    /// messages were parsed, validated, and appended to the collaboration ledger. Valid only for
+    /// the ClaudeCode + CriticalReviewer + CriticalReview combination.</summary>
+    Challenged = 7,
+
+    /// <summary>Detected immediately before dispatch, distinct from
+    /// <see cref="WorkspaceNoLongerEligible"/>: the run/workspace/lease/checkpoint remain fully
+    /// eligible, but another Claude critical-review attempt already completed a successful
+    /// (<see cref="Accepted"/> or <see cref="Challenged"/>) review of the exact same input
+    /// Proposal in the meantime. The provider is never invoked for this outcome. Recorded only by
+    /// a dedicated command that independently re-verifies the competing review exists before ever
+    /// mutating this attempt — never inferred or trusted from a caller's own claim. Valid only for
+    /// the ClaudeCode + CriticalReviewer + CriticalReview combination.</summary>
+    InputAlreadyReviewed = 8,
 }

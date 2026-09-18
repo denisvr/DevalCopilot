@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json;
 
@@ -29,7 +30,10 @@ internal readonly record struct PackageEntrypointResolution
 {
     public required PackageEntrypointResolutionKind Kind { get; init; }
 
-    public ProviderLaunchTarget.NodeScript? Target { get; init; }
+    /// <summary>Either shape <see cref="ProviderLaunchTarget"/> supports: a package's own
+    /// "bin" entry can be a JavaScript entrypoint run through a Node host, or — for a package
+    /// that ships a compiled native binary directly — the executable itself.</summary>
+    public ProviderLaunchTarget? Target { get; init; }
 
     public static readonly PackageEntrypointResolution NotFound =
         new() { Kind = PackageEntrypointResolutionKind.NotFound };
@@ -37,15 +41,18 @@ internal readonly record struct PackageEntrypointResolution
     public static readonly PackageEntrypointResolution Ambiguous =
         new() { Kind = PackageEntrypointResolutionKind.Ambiguous };
 
-    public static PackageEntrypointResolution Resolved(ProviderLaunchTarget.NodeScript target) =>
+    public static PackageEntrypointResolution Resolved(ProviderLaunchTarget target) =>
         new() { Kind = PackageEntrypointResolutionKind.Resolved, Target = target };
 }
 
 /// <summary>
-/// Resolves a provider's npm-distributed CLI to a direct <see cref="ProviderLaunchTarget.NodeScript"/>
-/// without ever executing npm, npx, a package-manager shim, a shell, or <c>PATHEXT</c> expansion,
-/// and without ever trusting a lexically-contained path that a reparse point could physically
-/// redirect elsewhere.
+/// Resolves a provider's npm-distributed CLI to a <see cref="ProviderLaunchTarget"/> — either a
+/// <see cref="ProviderLaunchTarget.NodeScript"/> run through a fixed, catalog-owned Node host, or,
+/// for a package whose <c>bin</c> entry is itself a genuine native Windows executable (verified by
+/// a bounded PE-header check, never by file extension alone), a
+/// <see cref="ProviderLaunchTarget.DirectExecutable"/> — without ever executing npm, npx, a
+/// package-manager shim, a shell, or <c>PATHEXT</c> expansion, and without ever trusting a
+/// lexically-contained path that a reparse point could physically redirect elsewhere.
 ///
 /// <para>
 /// Only fixed, catalog-owned absolute directories are ever inspected — never a filesystem
@@ -104,6 +111,27 @@ internal static class PackageEntrypointResolver
             return PackageEntrypointResolution.Ambiguous;
         }
 
+        var resolvedPath = distinctScriptPaths[0];
+
+        // A package's own "bin" entry is not always a JavaScript entrypoint: a package that
+        // ships a compiled native binary directly (observed for real in
+        // "@anthropic-ai/claude-code", whose postinstall step replaces "bin/claude.exe" with an
+        // actual platform-specific native executable, never a script) must be launched
+        // directly — running it *through* a Node host would try to parse a PE binary as
+        // JavaScript source and fail. Extension alone is never trusted, and neither is the bare
+        // two-byte "MZ" signature alone — that is only the DOS-stub magic number, present in any
+        // DOS-executable-shaped file, and proves nothing about the PE header a genuine Windows
+        // executable also carries. A bounded structural check (MZ, then a sane e_lfanew pointer,
+        // then the "PE\0\0" signature it points to) is performed before this is ever treated as
+        // directly executable, so a ".exe"-suffixed file that is not actually a real PE image
+        // fails closed to NotFound, never silently re-interpreted as a script.
+        if (resolvedPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            return LooksLikeNativeWindowsExecutable(resolvedPath)
+                ? PackageEntrypointResolution.Resolved(new ProviderLaunchTarget.DirectExecutable(resolvedPath))
+                : PackageEntrypointResolution.NotFound;
+        }
+
         // Deliberately never the general, PATH-searching HostExecutableResolver: the Node host
         // that runs a provider's script comes only from a fixed, catalog-owned installation root
         // — never this process's ambient PATH, which a repository-controlled directory could
@@ -114,7 +142,67 @@ internal static class PackageEntrypointResolver
             return PackageEntrypointResolution.NotFound;
         }
 
-        return PackageEntrypointResolution.Resolved(new ProviderLaunchTarget.NodeScript(nodeExecutablePath, distinctScriptPaths[0]));
+        return PackageEntrypointResolution.Resolved(new ProviderLaunchTarget.NodeScript(nodeExecutablePath, resolvedPath));
+    }
+
+    /// <summary>A bounded, real DOS+PE header check — never trusts a ".exe" extension, and never
+    /// trusts the bare two-byte "MZ" signature alone, since that magic number is only the DOS
+    /// stub's own marker and says nothing about whether a PE header actually follows it (any file
+    /// starting with those two bytes would otherwise pass). Three structural facts are verified,
+    /// each with a bounded read, before this is ever treated as a genuine native Windows
+    /// executable: (1) the "MZ" signature at offset 0; (2) a sane <c>e_lfanew</c> pointer at the
+    /// fixed DOS-header offset 0x3C — it must land at or past the end of the DOS header itself and
+    /// within a small fixed bound, and must not point past the end of the file; (3) the literal
+    /// "PE\0\0" signature at the offset <c>e_lfanew</c> names. Fails closed (<see langword="false"/>)
+    /// on a short file, a malformed or out-of-range <c>e_lfanew</c>, a missing "PE\0\0" signature,
+    /// or any read failure.</summary>
+    private static bool LooksLikeNativeWindowsExecutable(string path)
+    {
+        // The DOS header is exactly 64 (0x40) bytes, with e_lfanew as its last field — no
+        // well-formed PE image ever points its PE header inside that range. The upper bound is
+        // not a format requirement, only a defensive cap: a real toolchain's DOS stub is always a
+        // few hundred bytes at most, so a value this large is itself a sign of a hostile or
+        // corrupt file, not a legitimate one this bounded read should keep chasing.
+        const int MinPeHeaderOffset = 0x40;
+        const int MaxPeHeaderOffset = 64 * 1024;
+
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+            Span<byte> dosSignature = stackalloc byte[2];
+            if (stream.Read(dosSignature) != 2 || dosSignature[0] != (byte)'M' || dosSignature[1] != (byte)'Z')
+            {
+                return false;
+            }
+
+            if (stream.Length < MinPeHeaderOffset)
+            {
+                return false;
+            }
+
+            stream.Position = 0x3C;
+            Span<byte> peHeaderOffsetBytes = stackalloc byte[4];
+            if (stream.Read(peHeaderOffsetBytes) != 4)
+            {
+                return false;
+            }
+
+            var peHeaderOffset = BinaryPrimitives.ReadInt32LittleEndian(peHeaderOffsetBytes);
+            if (peHeaderOffset < MinPeHeaderOffset || peHeaderOffset > MaxPeHeaderOffset || peHeaderOffset > stream.Length - 4)
+            {
+                return false;
+            }
+
+            stream.Position = peHeaderOffset;
+            Span<byte> peSignature = stackalloc byte[4];
+            return stream.Read(peSignature) == 4
+                && peSignature[0] == (byte)'P' && peSignature[1] == (byte)'E' && peSignature[2] == 0 && peSignature[3] == 0;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static string? TryResolveEntrypoint(string packageRoot, string expectedPackageName, string expectedCommandName)

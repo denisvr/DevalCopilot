@@ -124,6 +124,13 @@ builder.Services.AddHostedService<VerificationExecutionSupervisor>();
 builder.Services.AddSingleton<ICodexPlanningAdapter, CodexPlanningAdapter>();
 builder.Services.AddHostedService<AgentAttemptSupervisor>();
 
+// Claude critical review: an entirely separate provider/role-specific execution path from
+// Codex planning above — its own adapter, its own supervisor, its own eligibility feed and
+// result-recording command — composed on the same IProcessExecutionAdapter, IArtifactStore, and
+// IGitWorkspaceEvidenceReader, never a second child-process or Git evidence path.
+builder.Services.AddSingleton<ICriticalReviewAdapter, ClaudeCriticalReviewAdapter>();
+builder.Services.AddHostedService<ClaudeCriticalReviewSupervisor>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();

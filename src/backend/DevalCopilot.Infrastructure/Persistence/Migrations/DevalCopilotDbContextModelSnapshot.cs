@@ -680,6 +680,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AgentGitWorkspaceId")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("AgentInputCollaborationMessageId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("AgentMaxBytesPerStream")
                         .HasColumnType("INTEGER");
 
@@ -700,6 +703,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("AgentProviderSessionId")
                         .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentResponseContract")
+                        .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AgentRole")

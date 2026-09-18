@@ -56,6 +56,30 @@ describe('AgentCollaboration', () => {
     expect(screen.getByText('Challenge').closest('article')).toHaveAttribute('data-align', 'right')
   })
 
+  it('renders a readable label for every collaboration message type, distinguishing Acceptance/Challenge from a bare Proposal', () => {
+    const cards: CollaborationTimelineCard[] = [
+      fixture({ sequence: 1, type: 'Proposal', summary: 'Proposal card' }),
+      fixture({ sequence: 2, type: 'Acceptance', summary: 'Acceptance card' }),
+      fixture({ sequence: 3, type: 'Challenge', summary: 'Challenge card' }),
+      fixture({ sequence: 4, type: 'ExecutionReport', summary: 'Execution report card' }),
+      fixture({ sequence: 5, type: 'ReviewFinding', summary: 'Review finding card' }),
+      fixture({ sequence: 6, type: 'RevisionResponse', summary: 'Revision response card' }),
+    ]
+
+    render(<AgentCollaboration cards={cards} />)
+
+    expect(screen.getByText('Proposal card').closest('article')).toHaveAttribute('data-type', 'Proposal')
+    expect(screen.getByText('Acceptance card').closest('article')).toHaveAttribute('data-type', 'Acceptance')
+    expect(screen.getByText('Challenge card').closest('article')).toHaveAttribute('data-type', 'Challenge')
+    expect(screen.getByText(/Execution report card/).closest('article')).toHaveTextContent('Execution report')
+    expect(screen.getByText(/Review finding card/).closest('article')).toHaveTextContent('Review finding')
+    expect(screen.getByText(/Revision response card/).closest('article')).toHaveTextContent('Revision response')
+    // Never falls through to the raw enum identifier as user-facing copy.
+    expect(screen.queryByText(/ExecutionReport/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/ReviewFinding/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/RevisionResponse/)).not.toBeInTheDocument()
+  })
+
   it('labels simulation and presents bounded structured details without claiming a provider transcript', () => {
     render(<AgentCollaboration cards={[fixture({ details: ['rationale: Durable facts'], inReplyToMessageId: 'prior-message' })]} />)
 

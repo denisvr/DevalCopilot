@@ -83,8 +83,164 @@ public sealed class PackageEntrypointResolverTests : IDisposable
         var result = PackageEntrypointResolver.Resolve(Descriptor(root), NodeCandidateNames, NodeFallbackDirectories);
 
         Assert.Equal(PackageEntrypointResolutionKind.Resolved, result.Kind);
-        Assert.Equal(Path.Combine(root, "bin", "codex.js"), result.Target!.ScriptPath);
-        Assert.EndsWith(_nodeCandidateName, result.Target.NodeExecutablePath);
+        var nodeScript = Assert.IsType<ProviderLaunchTarget.NodeScript>(result.Target);
+        Assert.Equal(Path.Combine(root, "bin", "codex.js"), nodeScript.ScriptPath);
+        Assert.EndsWith(_nodeCandidateName, nodeScript.NodeExecutablePath);
+    }
+
+    // The real-world case this resolver did not originally handle: "@anthropic-ai/claude-code"
+    // ships a "bin" entry that, after a normal install, is replaced with an actual native
+    // executable — never a JavaScript file requiring a Node host. Running it *through* Node
+    // would try to parse a PE binary as JavaScript source and fail.
+    [Fact]
+    public void Resolve_treats_an_exe_suffixed_bin_target_with_a_real_pe_header_as_a_direct_executable()
+    {
+        var root = CreatePackageRootWithBinaryScript(
+            "native-exe-bin",
+            """{"name": "@anthropic-ai/claude-code", "bin": {"claude": "bin/claude.exe"}}""",
+            Path.Combine("bin", "claude.exe"),
+            CreateMinimalValidPeBytes());
+
+        var descriptor = new PackageEntrypointDescriptor
+        {
+            PackageRootCandidates = [root],
+            ExpectedPackageName = "@anthropic-ai/claude-code",
+            ExpectedCommandName = "claude",
+        };
+        var result = PackageEntrypointResolver.Resolve(descriptor, NodeCandidateNames, NodeFallbackDirectories);
+
+        Assert.Equal(PackageEntrypointResolutionKind.Resolved, result.Kind);
+        var direct = Assert.IsType<ProviderLaunchTarget.DirectExecutable>(result.Target);
+        Assert.Equal(Path.Combine(root, "bin", "claude.exe"), direct.ExecutablePath);
+    }
+
+    // Extension alone is never trusted: a ".exe"-suffixed file whose content is not actually a
+    // PE binary fails closed to NotFound — it is never silently re-interpreted as a JavaScript
+    // entrypoint and run through Node either, since that would be equally unsafe.
+    [Fact]
+    public void Resolve_fails_closed_when_an_exe_suffixed_bin_target_lacks_a_real_pe_header()
+    {
+        var root = CreatePackageRootWithBinaryScript(
+            "fake-exe-bin",
+            """{"name": "@anthropic-ai/claude-code", "bin": {"claude": "bin/claude.exe"}}""",
+            Path.Combine("bin", "claude.exe"),
+            "#!/usr/bin/env node\nconsole.log('not actually a PE binary');"u8.ToArray());
+
+        var descriptor = new PackageEntrypointDescriptor
+        {
+            PackageRootCandidates = [root],
+            ExpectedPackageName = "@anthropic-ai/claude-code",
+            ExpectedCommandName = "claude",
+        };
+        var result = PackageEntrypointResolver.Resolve(descriptor, NodeCandidateNames, NodeFallbackDirectories);
+
+        Assert.Equal(PackageEntrypointResolutionKind.NotFound, result.Kind);
+    }
+
+    // The exact regression this hardening closes: a bare two-byte "MZ" signature alone used to
+    // be trusted as proof of a native executable. A file that genuinely starts with "MZ" and is
+    // long enough to carry a plausible e_lfanew pointer, but whose e_lfanew points at bytes that
+    // are not the literal "PE\0\0" signature, must still fail closed — "MZ" is only the DOS stub
+    // marker, never sufficient proof by itself.
+    [Fact]
+    public void Resolve_fails_closed_when_an_exe_suffixed_bin_target_has_the_mz_signature_but_no_valid_pe_signature_at_e_lfanew()
+    {
+        var bytes = new byte[0x44];
+        bytes[0] = (byte)'M';
+        bytes[1] = (byte)'Z';
+        // e_lfanew = 0x40, little-endian, at the fixed DOS-header offset 0x3C.
+        bytes[0x3C] = 0x40;
+        bytes[0x3D] = 0x00;
+        bytes[0x3E] = 0x00;
+        bytes[0x3F] = 0x00;
+        // Bytes at 0x40 are deliberately NOT "PE\0\0".
+        bytes[0x40] = (byte)'X';
+        bytes[0x41] = (byte)'X';
+        bytes[0x42] = 0x00;
+        bytes[0x43] = 0x00;
+
+        var root = CreatePackageRootWithBinaryScript(
+            "mz-only-exe-bin",
+            """{"name": "@anthropic-ai/claude-code", "bin": {"claude": "bin/claude.exe"}}""",
+            Path.Combine("bin", "claude.exe"),
+            bytes);
+
+        var descriptor = new PackageEntrypointDescriptor
+        {
+            PackageRootCandidates = [root],
+            ExpectedPackageName = "@anthropic-ai/claude-code",
+            ExpectedCommandName = "claude",
+        };
+        var result = PackageEntrypointResolver.Resolve(descriptor, NodeCandidateNames, NodeFallbackDirectories);
+
+        Assert.Equal(PackageEntrypointResolutionKind.NotFound, result.Kind);
+    }
+
+    // A malformed e_lfanew that points past the end of the (short) file must also fail closed
+    // rather than let a bounded read silently come up short and be misinterpreted.
+    [Fact]
+    public void Resolve_fails_closed_when_an_exe_suffixed_bin_target_has_an_e_lfanew_pointer_past_the_end_of_the_file()
+    {
+        var bytes = new byte[0x40];
+        bytes[0] = (byte)'M';
+        bytes[1] = (byte)'Z';
+        // e_lfanew = 0x1000: far past this 0x40-byte file.
+        bytes[0x3C] = 0x00;
+        bytes[0x3D] = 0x10;
+        bytes[0x3E] = 0x00;
+        bytes[0x3F] = 0x00;
+
+        var root = CreatePackageRootWithBinaryScript(
+            "mz-out-of-range-exe-bin",
+            """{"name": "@anthropic-ai/claude-code", "bin": {"claude": "bin/claude.exe"}}""",
+            Path.Combine("bin", "claude.exe"),
+            bytes);
+
+        var descriptor = new PackageEntrypointDescriptor
+        {
+            PackageRootCandidates = [root],
+            ExpectedPackageName = "@anthropic-ai/claude-code",
+            ExpectedCommandName = "claude",
+        };
+        var result = PackageEntrypointResolver.Resolve(descriptor, NodeCandidateNames, NodeFallbackDirectories);
+
+        Assert.Equal(PackageEntrypointResolutionKind.NotFound, result.Kind);
+    }
+
+    /// <summary>The smallest byte sequence this resolver's structural check actually requires to
+    /// accept a file as a genuine native Windows executable: "MZ" at offset 0, a valid
+    /// <c>e_lfanew</c> at offset 0x3C pointing immediately past the minimal 64-byte DOS header,
+    /// and a literal "PE\0\0" signature at that offset. Never a real, loadable PE image (no COFF
+    /// or optional header) — this resolver never inspects anything beyond these three facts.</summary>
+    private static byte[] CreateMinimalValidPeBytes()
+    {
+        const int PeHeaderOffset = 0x40;
+        var bytes = new byte[PeHeaderOffset + 4];
+        bytes[0] = (byte)'M';
+        bytes[1] = (byte)'Z';
+        bytes[0x3C] = PeHeaderOffset;
+        bytes[0x3D] = 0x00;
+        bytes[0x3E] = 0x00;
+        bytes[0x3F] = 0x00;
+        bytes[PeHeaderOffset] = (byte)'P';
+        bytes[PeHeaderOffset + 1] = (byte)'E';
+        bytes[PeHeaderOffset + 2] = 0x00;
+        bytes[PeHeaderOffset + 3] = 0x00;
+        return bytes;
+    }
+
+    private string CreatePackageRootWithBinaryScript(
+        string subdirectory, string packageJson, string scriptRelativePath, byte[] scriptContent)
+    {
+        var packageRoot = Path.Combine(_rootDirectory, subdirectory);
+        Directory.CreateDirectory(packageRoot);
+        File.WriteAllText(Path.Combine(packageRoot, "package.json"), packageJson);
+
+        var scriptPath = Path.Combine(packageRoot, scriptRelativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(scriptPath)!);
+        File.WriteAllBytes(scriptPath, scriptContent);
+
+        return packageRoot;
     }
 
     [Fact]
@@ -98,7 +254,8 @@ public sealed class PackageEntrypointResolverTests : IDisposable
         var result = PackageEntrypointResolver.Resolve(Descriptor(root), NodeCandidateNames, NodeFallbackDirectories);
 
         Assert.Equal(PackageEntrypointResolutionKind.Resolved, result.Kind);
-        Assert.Equal(Path.Combine(root, "cli.js"), result.Target!.ScriptPath);
+        var nodeScript = Assert.IsType<ProviderLaunchTarget.NodeScript>(result.Target);
+        Assert.Equal(Path.Combine(root, "cli.js"), nodeScript.ScriptPath);
     }
 
     [Fact]

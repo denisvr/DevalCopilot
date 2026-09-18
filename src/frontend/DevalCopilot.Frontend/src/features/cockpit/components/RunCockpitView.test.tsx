@@ -1,18 +1,26 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { processAttemptOutputClient } from '../../../api/clients'
-import { AgentAttemptStatusResponse, GetRunCockpitResponse } from '../../../api/generated/api-client'
+import {
+  AgentAttemptStatusResponse,
+  ClaudeCriticalReviewAttemptStatusResponse,
+  GetRunCockpitResponse,
+} from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
 import * as useCollaborationTimelineModule from '../hooks/useCollaborationTimeline'
 import * as useAgentAttemptStatusModule from '../hooks/useAgentAttemptStatus'
 import * as useRequestCodexPlanningAttemptModule from '../hooks/useRequestCodexPlanningAttempt'
-import type { CollaborationCard } from '../types'
+import * as useClaudeCriticalReviewAttemptStatusModule from '../hooks/useClaudeCriticalReviewAttemptStatus'
+import * as useRequestClaudeCriticalReviewModule from '../hooks/useRequestClaudeCriticalReview'
+import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
 vi.mock('../hooks/useRunCockpit')
 vi.mock('../hooks/useCollaborationTimeline')
 vi.mock('../hooks/useAgentAttemptStatus')
 vi.mock('../hooks/useRequestCodexPlanningAttempt')
+vi.mock('../hooks/useClaudeCriticalReviewAttemptStatus')
+vi.mock('../hooks/useRequestClaudeCriticalReview')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
 }))
@@ -21,6 +29,27 @@ const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)
 const useCollaborationTimelineMock = vi.mocked(useCollaborationTimelineModule.useCollaborationTimeline)
 const useAgentAttemptStatusMock = vi.mocked(useAgentAttemptStatusModule.useAgentAttemptStatus)
 const useRequestCodexPlanningAttemptMock = vi.mocked(useRequestCodexPlanningAttemptModule.useRequestCodexPlanningAttempt)
+const useClaudeCriticalReviewAttemptStatusMock = vi.mocked(
+  useClaudeCriticalReviewAttemptStatusModule.useClaudeCriticalReviewAttemptStatus,
+)
+const useRequestClaudeCriticalReviewMock = vi.mocked(useRequestClaudeCriticalReviewModule.useRequestClaudeCriticalReview)
+
+function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {
+  return {
+    sequence: 1,
+    id: 'message-1',
+    attemptId: null,
+    actor: 'Codex',
+    recipient: 'Claude',
+    type: 'Proposal',
+    inReplyToMessageId: null,
+    summary: 'A bounded proposal',
+    details: [],
+    provenance: 'ProviderObserved',
+    occurredAtUtc: '2026-09-16T12:00:00Z',
+    ...overrides,
+  }
+}
 
 beforeEach(() => {
   useCollaborationTimelineMock.mockReturnValue({
@@ -36,6 +65,17 @@ beforeEach(() => {
     refresh: vi.fn(),
   })
   useRequestCodexPlanningAttemptMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+    status: null,
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  })
+  useRequestClaudeCriticalReviewMock.mockReturnValue({
     requesting: false,
     error: null,
     request: vi.fn(),
@@ -406,6 +446,130 @@ describe('RunCockpitView', () => {
 
       rerender(<RunCockpitView runId="run-2" />)
       expect(useAgentAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
+    })
+  })
+
+  describe('Claude critical review wiring', () => {
+    it('withholds the request action until a real Codex Proposal exists for this run', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useCollaborationTimelineMock.mockReturnValue({
+        cards: [],
+        loading: false,
+        error: null,
+        hasSuccessfulResponse: true,
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
+    })
+
+    it('requests a Claude critical review of the latest real Codex Proposal when the action is used', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useCollaborationTimelineMock.mockReturnValue({
+        cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
+        loading: false,
+        error: null,
+        hasSuccessfulResponse: true,
+      })
+      const request = vi.fn()
+      useRequestClaudeCriticalReviewMock.mockReturnValue({ requesting: false, error: null, request })
+
+      render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Request Claude review' }))
+
+      expect(request).toHaveBeenCalledWith('run-1', 'message-1')
+    })
+
+    it('shows a visibly-working state while the review is running, without implying it already reached a verdict', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useCollaborationTimelineMock.mockReturnValue({
+        cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
+        loading: false,
+        error: null,
+        hasSuccessfulResponse: true,
+      })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: new ClaudeCriticalReviewAttemptStatusResponse({
+          attemptId: 'attempt-1',
+          attemptNumber: 1,
+          status: 'Running',
+          reviewedProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByText(/pending/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
+    })
+
+    it('surfaces a safe conflict message from a failed request without losing the rest of the cockpit', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useCollaborationTimelineMock.mockReturnValue({
+        cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
+        loading: false,
+        error: null,
+        hasSuccessfulResponse: true,
+      })
+      useRequestClaudeCriticalReviewMock.mockReturnValue({
+        requesting: false,
+        error: 'This run already has a Claude critical-review attempt in progress.',
+        request: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByText('This run already has a Claude critical-review attempt in progress.')).toBeInTheDocument()
+      expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
+    })
+
+    it('re-reads status for the newly selected run when the cockpit switches runs', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      expect(useClaudeCriticalReviewAttemptStatusMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
+
+      rerender(<RunCockpitView runId="run-2" />)
+      expect(useClaudeCriticalReviewAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
     })
   })
 })

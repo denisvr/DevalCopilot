@@ -152,6 +152,106 @@ export class GetAgentAttemptStatusEndpointClient {
     }
 }
 
+export class RequestClaudeCriticalReviewEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestClaudeCriticalReview(runId: string, request: RequestClaudeCriticalReviewRequest): Promise<RequestClaudeCriticalReviewResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/claude-critical-review";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestClaudeCriticalReview(_response);
+        });
+    }
+
+    protected processRequestClaudeCriticalReview(response: Response): Promise<RequestClaudeCriticalReviewResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestClaudeCriticalReviewResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestClaudeCriticalReviewResponse>(null as any);
+    }
+}
+
+export class GetClaudeCriticalReviewAttemptStatusEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getClaudeCriticalReviewAttemptStatus(runId: string): Promise<ClaudeCriticalReviewAttemptStatusResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/claude-critical-review";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetClaudeCriticalReviewAttemptStatus(_response);
+        });
+    }
+
+    protected processGetClaudeCriticalReviewAttemptStatus(response: Response): Promise<ClaudeCriticalReviewAttemptStatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ClaudeCriticalReviewAttemptStatusResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ClaudeCriticalReviewAttemptStatusResponse>(null as any);
+    }
+}
+
 export class GetRunEventsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1591,6 +1691,82 @@ export interface IRequestCodexPlanningAttemptResponse {
     attemptNumber?: number;
 }
 
+export class RequestClaudeCriticalReviewResponse implements IRequestClaudeCriticalReviewResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+
+    constructor(data?: IRequestClaudeCriticalReviewResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+        }
+    }
+
+    static fromJS(data: any): RequestClaudeCriticalReviewResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestClaudeCriticalReviewResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        return data;
+    }
+}
+
+export interface IRequestClaudeCriticalReviewResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+}
+
+export class RequestClaudeCriticalReviewRequest implements IRequestClaudeCriticalReviewRequest {
+    proposalMessageId?: string;
+
+    constructor(data?: IRequestClaudeCriticalReviewRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.proposalMessageId = _data["proposalMessageId"];
+        }
+    }
+
+    static fromJS(data: any): RequestClaudeCriticalReviewRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestClaudeCriticalReviewRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["proposalMessageId"] = this.proposalMessageId;
+        return data;
+    }
+}
+
+export interface IRequestClaudeCriticalReviewRequest {
+    proposalMessageId?: string;
+}
+
 export class RunEventResponse implements IRunEventResponse {
     sequence?: number;
     id?: string;
@@ -1923,6 +2099,134 @@ export interface ICollaborationMessageTimelineResponse {
     occurredAtUtc?: Date;
 }
 
+export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCriticalReviewAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    reviewedProposalMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+
+    constructor(data?: IClaudeCriticalReviewAttemptStatusResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.hasAttempt = _data["hasAttempt"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.reviewedProposalMessageId = _data["reviewedProposalMessageId"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["artifacts"])) {
+                this.artifacts = [] as any;
+                for (let item of _data["artifacts"])
+                    this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ClaudeCriticalReviewAttemptStatusResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ClaudeCriticalReviewAttemptStatusResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["hasAttempt"] = this.hasAttempt;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["reviewedProposalMessageId"] = this.reviewedProposalMessageId;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.artifacts)) {
+            data["artifacts"] = [];
+            for (let item of this.artifacts)
+                data["artifacts"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IClaudeCriticalReviewAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    reviewedProposalMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+}
+
+export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+
+    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.purpose = _data["purpose"];
+            this.byteLength = _data["byteLength"];
+            this.truncated = _data["truncated"];
+            this.captureOutcome = _data["captureOutcome"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptArtifactMetadataResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["purpose"] = this.purpose;
+        data["byteLength"] = this.byteLength;
+        data["truncated"] = this.truncated;
+        data["captureOutcome"] = this.captureOutcome;
+        return data;
+    }
+}
+
+export interface IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+}
+
 export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
     hasAttempt?: boolean;
     attemptId?: string | undefined;
@@ -1997,54 +2301,6 @@ export interface IAgentAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
-}
-
-export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
-
-    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.purpose = _data["purpose"];
-            this.byteLength = _data["byteLength"];
-            this.truncated = _data["truncated"];
-            this.captureOutcome = _data["captureOutcome"];
-        }
-    }
-
-    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new AgentAttemptArtifactMetadataResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["purpose"] = this.purpose;
-        data["byteLength"] = this.byteLength;
-        data["truncated"] = this.truncated;
-        data["captureOutcome"] = this.captureOutcome;
-        return data;
-    }
-}
-
-export interface IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
 }
 
 export class UpdateVerificationCommandRequest implements IUpdateVerificationCommandRequest {

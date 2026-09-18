@@ -226,4 +226,52 @@ public sealed class GetEligibleAgentAttemptsQueryHandlerTests : IAsyncLifetime
 
         Assert.Empty(eligible);
     }
+
+    /// <summary>
+    /// Regression for a real bug this handler now fixes: it used to match any Agent attempt
+    /// regardless of provider, so a claimed Claude critical-review attempt would have been handed
+    /// to this Codex-only supervisor, which only knows how to invoke the Codex CLI. Seeded as two
+    /// separate runs rather than one — the run-wide "at most one Running attempt per run"
+    /// invariant (the filtered unique index on Attempts) makes a Codex attempt and a Claude
+    /// attempt simultaneously Running on the very same run impossible in the first place — but
+    /// this still proves the fix: with both an otherwise-eligible Codex planning attempt and an
+    /// otherwise-eligible Claude critical-review attempt present in the database at once, this
+    /// query returns only the Codex one.
+    /// </summary>
+    [Fact]
+    public async Task HandleAsync_excludes_an_eligible_claude_critical_review_attempt_and_returns_only_the_codex_one()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, _, _, codexAttempt, _) = await SeedEligibleAttemptAsync(dbContext);
+
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var claudeRun = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the next increment", Now);
+        claudeRun.Claim(Now);
+        var workspace = GitWorkspace.Prepare(
+            Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", Now);
+        workspace.MarkReady();
+        var checkpointId = Guid.NewGuid();
+        var claudeManifestArtifactId = Guid.NewGuid();
+        var claudeAttempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), claudeRun.Id, 1, workspace.Id, checkpointId, Fingerprint, Guid.NewGuid(), claudeManifestArtifactId,
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(claudeRun);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(GitCheckpoint.Capture(checkpointId, workspace.Id, 1, Now, new string('a', 40), Fingerprint, []));
+        dbContext.RepositoryMutationLeases.Add(RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, Guid.NewGuid().ToByteArray(), Now));
+        dbContext.Attempts.Add(claudeAttempt);
+        dbContext.Artifacts.Add(Artifact.Record(
+            claudeManifestArtifactId, claudeRun.Id, claudeAttempt.Id, ArtifactPurpose.AgentContextManifest, "application/json",
+            @"runs\r\attempts\b\manifest.sealed", "sha256:manifest-b", 256, false,
+            ArtifactCaptureOutcome.Captured, ArtifactSensitivity.HostConstructedContent, ArtifactRetentionPolicy.RetainUntilRunDeleted, Now));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new GetEligibleAgentAttemptsQueryHandler(dbContext);
+        var eligible = await handler.HandleAsync(new GetEligibleAgentAttemptsQuery(), CancellationToken.None);
+
+        var result = Assert.Single(eligible);
+        Assert.Equal(codexAttempt.Id, result.AttemptId);
+    }
 }

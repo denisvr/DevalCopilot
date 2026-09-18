@@ -154,8 +154,24 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
     /// outcome reported directly to this handler. Zero mutation: the attempt, its artifacts, and
     /// the ledger are left completely untouched by a rejected call.
     /// </summary>
-    [Fact]
-    public async Task HandleAsync_rejects_source_changed_as_a_caller_selected_outcome_without_mutating_the_attempt()
+    /// <summary>
+    /// The closed caller-selectable policy for a Codex planning attempt: <see cref="AgentOutcome.SourceChanged"/>
+    /// and <see cref="AgentOutcome.WorkspaceNoLongerEligible"/> belong exclusively to their own
+    /// dedicated pre-dispatch commands; <see cref="AgentOutcome.InputAlreadyReviewed"/> belongs
+    /// exclusively to its own dedicated command; and <see cref="AgentOutcome.Accepted"/>/
+    /// <see cref="AgentOutcome.Challenged"/> belong exclusively to the Claude critical-review
+    /// contract. Every one of them must be rejected with a safe, stable error and zero mutation —
+    /// never allowed to reach <c>Attempt.CompleteAgent</c>, whose own contract check would
+    /// otherwise be the only thing standing between a cross-contract outcome and an unhandled
+    /// exception escaping this handler.
+    /// </summary>
+    [Theory]
+    [InlineData(AgentOutcome.SourceChanged)]
+    [InlineData(AgentOutcome.WorkspaceNoLongerEligible)]
+    [InlineData(AgentOutcome.InputAlreadyReviewed)]
+    [InlineData(AgentOutcome.Accepted)]
+    [InlineData(AgentOutcome.Challenged)]
+    public async Task HandleAsync_rejects_every_non_caller_selectable_outcome_without_mutating_the_attempt(AgentOutcome outcome)
     {
         await using var dbContext = fixture.CreateContext();
         var (project, run, attempt) = CreateClaimedAgentAttempt();
@@ -167,11 +183,36 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.SourceChanged, Fingerprint, NoArtifacts, null, null),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, outcome, Fingerprint, NoArtifacts, null, null),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("agent_attempts.source_changed_not_caller_selectable", Assert.Single(result.Errors).Code);
+        Assert.Equal("agent_attempts.outcome_not_caller_selectable", Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Null(attempt.AgentOutcome);
+        Assert.Empty(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
+        Assert.Empty(dbContext.Events.Where(e => e.AttemptId == attempt.Id));
+        Assert.Empty(dbContext.Artifacts.Where(a => a.AttemptId == attempt.Id));
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_an_undefined_outcome_without_mutating_the_attempt()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, (AgentOutcome)999, Fingerprint, NoArtifacts, null, null),
+            CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.invalid_outcome", Assert.Single(result.Errors).Code);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
         Assert.Null(attempt.AgentOutcome);
         Assert.Empty(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));

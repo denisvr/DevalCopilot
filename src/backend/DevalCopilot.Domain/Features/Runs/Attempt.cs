@@ -143,6 +143,107 @@ public sealed class Attempt
             AgentRole = Runs.AgentRole.Planner,
             AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
             AgentExpectedMessageType = CollaborationMessageType.Proposal,
+            AgentResponseContract = Runs.AgentResponseContract.Proposal,
+            AgentGitWorkspaceId = gitWorkspaceId,
+            AgentGitCheckpointId = gitCheckpointId,
+            AgentCheckpointFingerprintSha256 = checkpointFingerprintSha256,
+            AgentContextManifestArtifactId = contextManifestArtifactId,
+            AgentTimeout = timeout,
+            AgentMaxBytesPerStream = maxBytesPerStream,
+            AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+        };
+    }
+
+    /// <summary>
+    /// Claims a Claude Code critical-review Agent attempt — a durable, real invocation reviewing
+    /// one exact, already-recorded Codex Proposal. This slice accepts only ClaudeCode, the
+    /// CriticalReviewer role, protocol 1.0, and the <see cref="Runs.AgentResponseContract.CriticalReview"/>
+    /// contract: those four facts are fixed by this factory, not caller-supplied, so no caller can
+    /// construct any other combination — a dedicated factory per attempt shape, never a shared,
+    /// loosely validated bag of nullable arguments with <see cref="ClaimAgent"/>. Unlike planning,
+    /// <paramref name="inputCollaborationMessageId"/> is required and immutable: a review attempt
+    /// is meaningless without the exact Proposal it reviews. Workspace/checkpoint/message identity
+    /// are passed as bare identifiers — cross-checking that the checkpoint belongs to the
+    /// workspace, that the message belongs to the run, and that both belong to the intended
+    /// project, is the calling Application handler's responsibility (it already loads all three
+    /// entities), keeping this Domain feature independent of the Projects feature.
+    /// </summary>
+    public static Attempt ClaimAgentCriticalReview(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid inputCollaborationMessageId,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc)
+    {
+        if (attemptNumber < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(attemptNumber));
+        }
+
+        if (gitWorkspaceId == Guid.Empty)
+        {
+            throw new ArgumentException("A Git workspace identity is required.", nameof(gitWorkspaceId));
+        }
+
+        if (gitCheckpointId == Guid.Empty)
+        {
+            throw new ArgumentException("A Git checkpoint identity is required.", nameof(gitCheckpointId));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointFingerprintSha256);
+
+        if (inputCollaborationMessageId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "A critical-review attempt requires the exact input collaboration message it reviews.",
+                nameof(inputCollaborationMessageId));
+        }
+
+        if (contextManifestArtifactId == Guid.Empty)
+        {
+            throw new ArgumentException("A context manifest artifact identity is required.", nameof(contextManifestArtifactId));
+        }
+
+        if (timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Must be a positive, bounded timeout.");
+        }
+
+        if (maxBytesPerStream < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxBytesPerStream));
+        }
+
+        if (maxTotalCapturedBytes < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxTotalCapturedBytes));
+        }
+
+        return new Attempt
+        {
+            Id = id,
+            RunId = runId,
+            AttemptNumber = attemptNumber,
+            Kind = AttemptKind.Agent,
+            Status = AttemptStatus.Running,
+            ClaimedAtUtc = claimedAtUtc,
+            AgentProvider = Runs.AgentProvider.ClaudeCode,
+            AgentRole = Runs.AgentRole.CriticalReviewer,
+            AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
+            // A critical-review attempt's own claimed intent is still, in protocol terms, "expect
+            // to produce one Proposal-replying message" — the actual Acceptance/Challenge union
+            // this really returns is represented by AgentResponseContract below, never by this
+            // field, and never by encoding that union as null.
+            AgentExpectedMessageType = CollaborationMessageType.Proposal,
+            AgentResponseContract = Runs.AgentResponseContract.CriticalReview,
+            AgentInputCollaborationMessageId = inputCollaborationMessageId,
             AgentGitWorkspaceId = gitWorkspaceId,
             AgentGitCheckpointId = gitCheckpointId,
             AgentCheckpointFingerprintSha256 = checkpointFingerprintSha256,
@@ -217,8 +318,24 @@ public sealed class Attempt
     public string? AgentProtocolVersion { get; private set; }
 
     /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Always
-    /// <see cref="CollaborationMessageType.Proposal"/> in this slice.</summary>
+    /// <see cref="CollaborationMessageType.Proposal"/> in this slice — the single message type an
+    /// attempt's own claimed intent expects. Never used to represent the Accepted/Challenged
+    /// union a critical-review attempt may really produce; see <see cref="AgentResponseContract"/>
+    /// for that.</summary>
     public CollaborationMessageType? AgentExpectedMessageType { get; private set; }
+
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. The closed
+    /// shape of durable collaboration fact this attempt is expected to produce — fixed by exactly
+    /// one Domain factory (<see cref="ClaimAgent"/> always sets <see cref="Runs.AgentResponseContract.Proposal"/>;
+    /// <see cref="ClaimAgentCriticalReview"/> always sets <see cref="Runs.AgentResponseContract.CriticalReview"/>),
+    /// never caller-selected.</summary>
+    public AgentResponseContract? AgentResponseContract { get; private set; }
+
+    /// <summary>The exact <see cref="CollaborationMessage"/> this attempt reviews. Required and
+    /// immutable for a <see cref="Runs.AgentRole.CriticalReviewer"/> attempt; always
+    /// <see langword="null"/> for a <see cref="Runs.AgentRole.Planner"/> attempt, which has no
+    /// input message to review.</summary>
+    public Guid? AgentInputCollaborationMessageId { get; private set; }
 
     /// <summary>The Ready workspace this attempt is evidence about. Only set when
     /// <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>.</summary>
@@ -409,18 +526,22 @@ public sealed class Attempt
 
     /// <summary>
     /// The single atomic completion transition for an Agent attempt: records the outcome and
-    /// derives the resulting <see cref="AttemptStatus"/> in one step. Only
-    /// <see cref="Runs.AgentOutcome.Proposed"/> completes successfully; every other outcome is a
-    /// truthful failure. Callable whether or not <see cref="AgentDispatchedAtUtc"/> was ever set —
-    /// a pre-dispatch source-change detection completes an Agent attempt that was never actually
-    /// dispatched to the provider, which is itself a truthful outcome, never an invented one.
+    /// derives the resulting <see cref="AttemptStatus"/> in one step. Only a successful outcome
+    /// for this attempt's own <see cref="AgentResponseContract"/> — <see cref="Runs.AgentOutcome.Proposed"/>
+    /// for <see cref="Runs.AgentResponseContract.Proposal"/>; <see cref="Runs.AgentOutcome.Accepted"/>
+    /// or <see cref="Runs.AgentOutcome.Challenged"/> for <see cref="Runs.AgentResponseContract.CriticalReview"/> —
+    /// completes successfully; every other outcome, and any success outcome that does not match
+    /// this attempt's own contract, is a truthful failure. Callable whether or not
+    /// <see cref="AgentDispatchedAtUtc"/> was ever set — a pre-dispatch source-change detection
+    /// completes an Agent attempt that was never actually dispatched to the provider, which is
+    /// itself a truthful outcome, never an invented one.
     /// </summary>
     /// <param name="completionFingerprintSha256">When provided, this is the freshest Git evidence
     /// fingerprint observed for this attempt's workspace. If it does not match the fingerprint
     /// this attempt committed to at claim time, the recorded outcome is unconditionally
     /// <see cref="Runs.AgentOutcome.SourceChanged"/> regardless of <paramref name="outcome"/> —
     /// the same rule <c>VerificationExecution.Complete</c> applies, so a caller can never record a
-    /// successful Proposal (or any other outcome) as evidence about a checkpoint that no longer
+    /// successful outcome (or any other outcome) as evidence about a checkpoint that no longer
     /// reflects the workspace's real content. Null only when the caller already knows the outcome
     /// is source drift detected before the provider was ever invoked (no fresh completion
     /// evidence to compare — the pre-dispatch fingerprint mismatch itself was already the entire
@@ -447,26 +568,38 @@ public sealed class Attempt
                 ? Runs.AgentOutcome.SourceChanged
                 : outcome;
 
+        var isSuccess = effectiveOutcome is Runs.AgentOutcome.Proposed or Runs.AgentOutcome.Accepted or Runs.AgentOutcome.Challenged;
+
         // Independent Domain-level backstop, never the only line of defense (the Application
         // boundary that records a provider result rejects both cases before ever reaching this
-        // call) — a Proposal is never observable for an attempt that was never actually
+        // call) — a successful outcome is never observable for an attempt that was never actually
         // dispatched to the provider, or for one recorded without fresh evidence confirming the
-        // checkpoint it claims to be about.
-        if (effectiveOutcome == Runs.AgentOutcome.Proposed)
+        // checkpoint it claims to be about, or for one that does not match this attempt's own
+        // response contract (a Proposal can never be recorded for a critical-review attempt, and
+        // an Accepted/Challenged can never be recorded for a planning attempt).
+        if (isSuccess)
         {
             if (!AgentDispatchedAtUtc.HasValue)
             {
-                throw new InvalidOperationException("A Proposal cannot be recorded for an attempt that was never dispatched.");
+                throw new InvalidOperationException($"{effectiveOutcome} cannot be recorded for an attempt that was never dispatched.");
             }
 
             if (string.IsNullOrWhiteSpace(completionFingerprintSha256))
             {
-                throw new InvalidOperationException("A Proposal cannot be recorded without fresh completion evidence.");
+                throw new InvalidOperationException($"{effectiveOutcome} cannot be recorded without fresh completion evidence.");
+            }
+
+            var contractAllows = effectiveOutcome == Runs.AgentOutcome.Proposed
+                ? AgentResponseContract == Runs.AgentResponseContract.Proposal
+                : AgentResponseContract == Runs.AgentResponseContract.CriticalReview;
+            if (!contractAllows)
+            {
+                throw new InvalidOperationException($"{effectiveOutcome} is not a valid outcome for this attempt's response contract.");
             }
         }
 
         AgentOutcome = effectiveOutcome;
-        Status = effectiveOutcome == Runs.AgentOutcome.Proposed ? AttemptStatus.Completed : AttemptStatus.Failed;
+        Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
     }
 

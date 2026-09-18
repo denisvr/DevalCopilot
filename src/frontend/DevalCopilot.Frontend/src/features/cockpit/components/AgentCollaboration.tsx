@@ -17,6 +17,24 @@ function alignmentFor(actor: string): 'left' | 'right' | 'center' {
   return 'center'
 }
 
+/** Mirrors the backend's `CollaborationMessageType` enum with a readable label, so a card
+ * never falls back to showing the raw enum identifier as its type. */
+const TYPE_LABEL: Record<string, string> = {
+  Proposal: 'Proposal',
+  Acceptance: 'Acceptance',
+  Challenge: 'Challenge',
+  Question: 'Question',
+  Decision: 'Decision',
+  ExecutionReport: 'Execution report',
+  ReviewFinding: 'Review finding',
+  RevisionResponse: 'Revision response',
+  Escalation: 'Escalation',
+}
+
+function typeLabelFor(type: string): string {
+  return TYPE_LABEL[type] ?? type
+}
+
 /**
  * Codex cards align left, Claude cards align right, orchestrator/human/system events
  * are centered. Reconstructed from durable events only — there is no dependency on
@@ -56,9 +74,9 @@ export function AgentCollaboration({
     <section className="dc-collaboration" aria-label="Agent collaboration">
       {error && <p className="dc-collaboration-status" role="status">{error}</p>}
       {cards.map((card) => (
-        <article key={card.sequence} className="dc-card" data-align={alignmentFor(card.actor)}>
+        <article key={card.sequence} className="dc-card" data-align={alignmentFor(card.actor)} data-type={card.type}>
           <div className="dc-card-actor">
-            {card.actor} → {card.recipient} · {card.type} · {card.provenance}
+            {card.actor} → {card.recipient} · {typeLabelFor(card.type)} · {card.provenance}
           </div>
           <p className="dc-card-summary">{card.summary}</p>
           {card.inReplyToMessageId && <p className="dc-card-reply">In reply to an earlier message.</p>}
