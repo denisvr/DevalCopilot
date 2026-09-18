@@ -4,11 +4,14 @@ import { useAgentAttemptStatus } from '../hooks/useAgentAttemptStatus'
 import { useRequestCodexPlanningAttempt } from '../hooks/useRequestCodexPlanningAttempt'
 import { useClaudeCriticalReviewAttemptStatus } from '../hooks/useClaudeCriticalReviewAttemptStatus'
 import { useRequestClaudeCriticalReview } from '../hooks/useRequestClaudeCriticalReview'
+import { useChallengeResolutionAttemptStatus } from '../hooks/useChallengeResolutionAttemptStatus'
+import { useRequestChallengeResolution } from '../hooks/useRequestChallengeResolution'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
+import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { RunHeader } from './RunHeader'
@@ -26,7 +29,18 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestCodexPlanningAttempt = useRequestCodexPlanningAttempt(agentAttemptStatus.refresh)
   const claudeCriticalReviewAttemptStatus = useClaudeCriticalReviewAttemptStatus(runId, cockpit?.latestSequence)
   const requestClaudeCriticalReview = useRequestClaudeCriticalReview(claudeCriticalReviewAttemptStatus.refresh)
+  const challengeResolutionAttemptStatus = useChallengeResolutionAttemptStatus(runId, cockpit?.latestSequence)
+  const requestChallengeResolution = useRequestChallengeResolution(challengeResolutionAttemptStatus.refresh)
   const latestCodexProposalMessageId = selectLatestCodexProposalMessageId(collaborationTimeline.cards)
+  // Only the latest Claude critical-review attempt's own Challenged outcome ever makes a
+  // resolution requestable — never an older, since-superseded review, and never a review still
+  // Running or one that settled as Accepted.
+  const latestChallengedReviewAttemptId =
+    claudeCriticalReviewAttemptStatus.status?.outcome === 'Challenged' ? claudeCriticalReviewAttemptStatus.status.attemptId ?? null : null
+  const latestChallengedReviewProposalId =
+    claudeCriticalReviewAttemptStatus.status?.outcome === 'Challenged'
+      ? claudeCriticalReviewAttemptStatus.status.reviewedProposalMessageId ?? null
+      : null
 
   if (loading && !cockpit) {
     return <p className="dc-empty-state">Loading run…</p>
@@ -66,6 +80,18 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             requestError={requestClaudeCriticalReview.error}
             onRequest={() =>
               latestCodexProposalMessageId && void requestClaudeCriticalReview.request(runId, latestCodexProposalMessageId)
+            }
+          />
+          <ChallengeResolutionAction
+            challengedReviewAttemptId={latestChallengedReviewAttemptId}
+            reviewedProposalMessageId={latestChallengedReviewProposalId}
+            status={challengeResolutionAttemptStatus.status}
+            statusLoading={challengeResolutionAttemptStatus.loading}
+            statusError={challengeResolutionAttemptStatus.error}
+            requesting={requestChallengeResolution.requesting}
+            requestError={requestChallengeResolution.error}
+            onRequest={() =>
+              latestChallengedReviewAttemptId && void requestChallengeResolution.request(runId, latestChallengedReviewAttemptId)
             }
           />
           <AgentCollaboration {...collaborationTimeline} />

@@ -59,9 +59,6 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         // Every Agent attempt recorded before this column existed is backfilled truthfully to
         // Proposal — the only response contract any Agent attempt ever had before this slice.
         builder.Property(attempt => attempt.AgentResponseContract).HasConversion<string>().HasMaxLength(32);
-        // Only set for a CriticalReviewer attempt; no explicit FK, consistent with how
-        // AgentGitWorkspaceId/AgentGitCheckpointId are mapped without one.
-        builder.Property(attempt => attempt.AgentInputCollaborationMessageId);
         builder.Property(attempt => attempt.AgentCheckpointFingerprintSha256).HasMaxLength(64);
         builder.Property(attempt => attempt.AgentOutcome).HasConversion<string>().HasMaxLength(32);
         builder.Property(attempt => attempt.AgentProviderSessionId).HasMaxLength(256);

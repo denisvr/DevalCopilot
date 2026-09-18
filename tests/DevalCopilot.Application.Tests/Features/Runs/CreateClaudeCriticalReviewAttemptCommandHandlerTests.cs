@@ -243,7 +243,9 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         Assert.Equal(AgentProvider.ClaudeCode, attempt.AgentProvider);
         Assert.Equal(AgentRole.CriticalReviewer, attempt.AgentRole);
         Assert.Equal(AgentResponseContract.CriticalReview, attempt.AgentResponseContract);
-        Assert.Equal(proposalMessage.Id, attempt.AgentInputCollaborationMessageId);
+        var inputMessage = Assert.Single(dbContext.AttemptInputMessages, m => m.AttemptId == attempt.Id);
+        Assert.Equal(proposalMessage.Id, inputMessage.CollaborationMessageId);
+        Assert.Equal(0, inputMessage.Sequence);
         Assert.Equal(workspace.Id, attempt.AgentGitWorkspaceId);
         Assert.Equal(checkpoint.Id, attempt.AgentGitCheckpointId);
         Assert.Equal(Fingerprint, attempt.AgentCheckpointFingerprintSha256);
@@ -539,7 +541,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);
 
         var reviewAttempt = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         // Must not be left Running: the run-wide "at most one Running attempt" invariant would
         // otherwise reject this request with attempts.run_has_active_attempt before the handler
@@ -646,11 +648,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         dbContext.CollaborationMessages.Add(proposalMessage);
 
         var priorReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, proposalMessage.Id, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         priorReview.MarkAgentDispatched(Now);
         priorReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
         dbContext.Attempts.Add(priorReview);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorReview.Id, proposalMessage.Id, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
@@ -673,11 +676,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         dbContext.CollaborationMessages.Add(proposalMessage);
 
         var priorReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, proposalMessage.Id, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         priorReview.MarkAgentDispatched(Now);
         priorReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now);
         dbContext.Attempts.Add(priorReview);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorReview.Id, proposalMessage.Id, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
@@ -702,11 +706,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         dbContext.CollaborationMessages.Add(proposalMessage);
 
         var priorFailedReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, proposalMessage.Id, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         priorFailedReview.MarkAgentDispatched(Now);
         priorFailedReview.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
         dbContext.Attempts.Add(priorFailedReview);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorFailedReview.Id, proposalMessage.Id, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(

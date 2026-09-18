@@ -32,26 +32,29 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         return ValidatedCriticalReview.ForChallenges(challenges, challengeSetSummary);
     }
 
-    private static (Project Project, Run Run, Attempt Attempt) CreateClaimedCriticalReviewAttempt(string? checkpointFingerprint = null)
+    private static (Project Project, Run Run, Attempt Attempt, AttemptInputMessage InputMessage) CreateClaimedCriticalReviewAttempt(
+        string? checkpointFingerprint = null)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the next increment", Now);
         run.Claim(Now);
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), checkpointFingerprint ?? Fingerprint,
-            Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
-        return (project, run, attempt);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), sequence: 0);
+        return (project, run, attempt, inputMessage);
     }
 
     [Fact]
     public async Task HandleAsync_records_exactly_one_acceptance_message_replying_to_the_reviewed_proposal()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = AcceptanceReview("The proposal correctly scopes the ledger change.");
@@ -74,7 +77,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         Assert.Equal(CollaborationMessageProvenance.ProviderObserved, message.Provenance);
         Assert.Equal("The proposal correctly scopes the ledger change.", message.Summary);
         Assert.Equal(review.Acceptance!.StructuredContentJson, message.StructuredContentJson);
-        Assert.Equal(attempt.AgentInputCollaborationMessageId, message.InReplyToMessageId);
+        Assert.Equal(inputMessage.CollaborationMessageId, message.InReplyToMessageId);
         Assert.NotEqual(Guid.Empty, message.Id);
 
         var journalEvent = Assert.Single(dbContext.Events.Where(e => e.AttemptId == attempt.Id));
@@ -89,11 +92,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_records_one_challenge_message_per_challenge_all_replying_to_the_same_reviewed_proposal(int challengeCount)
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = ChallengesReview(challengeCount);
@@ -114,7 +118,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
             Assert.Equal(ParticipantKind.Claude, message.Actor);
             Assert.Equal(ParticipantKind.Codex, message.Recipient);
             Assert.Equal(CollaborationMessageType.Challenge, message.Type);
-            Assert.Equal(attempt.AgentInputCollaborationMessageId, message.InReplyToMessageId);
+            Assert.Equal(inputMessage.CollaborationMessageId, message.InReplyToMessageId);
             Assert.Equal(CollaborationMessageProvenance.ProviderObserved, message.Provenance);
         });
 
@@ -128,11 +132,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_records_all_challenge_messages_and_events_atomically_in_a_single_save()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = ChallengesReview(3);
@@ -172,11 +177,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_every_non_caller_selectable_outcome_without_mutating_the_attempt(AgentOutcome outcome)
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
@@ -197,11 +203,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_an_undefined_outcome_without_mutating_the_attempt()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
@@ -222,11 +229,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_a_proposed_outcome_that_carries_a_review()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = AcceptanceReview();
@@ -247,11 +255,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_records_a_provider_invocation_failure_without_appending_a_collaboration_message()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
@@ -273,11 +282,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_overrides_to_source_changed_and_appends_no_review_when_fresh_evidence_no_longer_matches_the_claimed_checkpoint()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt(checkpointFingerprint: Fingerprint);
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt(checkpointFingerprint: Fingerprint);
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = AcceptanceReview("Should never be recorded.");
@@ -343,11 +353,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_fails_and_does_not_mutate_an_already_terminal_attempt()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
@@ -364,10 +375,11 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_a_result_for_an_attempt_that_was_never_dispatched()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now));
@@ -384,11 +396,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_an_accepted_outcome_without_a_completion_fingerprint()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
@@ -406,11 +419,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_an_accepted_outcome_without_a_review()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
@@ -428,11 +442,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_an_accepted_outcome_that_carries_a_challenge_set()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = ChallengesReview(1);
@@ -452,11 +467,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_a_challenged_outcome_that_carries_an_acceptance()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = AcceptanceReview();
@@ -476,11 +492,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_an_accepted_outcome_with_an_unsafe_summary_without_mutating_the_attempt()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var review = AcceptanceReview("Uses a hardcoded password for the ledger.");
@@ -501,11 +518,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_records_sealed_artifacts_with_the_correct_media_type_per_purpose()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var sealedArtifacts = new SealedCriticalReviewArtifact[]
@@ -534,11 +552,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_records_the_provider_session_id_when_present()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now));
@@ -555,11 +574,12 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     public async Task HandleAsync_rejects_an_overlong_provider_session_id()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var overlongSessionId = new string('s', 257);

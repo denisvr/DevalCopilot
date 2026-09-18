@@ -47,23 +47,46 @@ The deterministic walking-skeleton sequence writes envelopes marked
 `Simulated`; this label is not evidence of provider observation, authentication,
 or invocation.
 
-Codex's Planning step and Claude Code's Critical review step are the first two
-message-producing stages with a real, live provider invocation. A durable
-Agent attempt of either provider records a bounded context manifest, runs the
-provider's own CLI as a real child process, and preserves its raw stdout,
-stderr, and final-response content only as bounded sealed artifacts outside
-the database — never as ledger or API content. A structurally valid Proposal,
-Acceptance, or Challenge set is appended to the ledger only after passing the
-same protocol/schema validation as any other message; an invalid, failed, or
-source-drifted attempt appends none. A Claude critical-review attempt reviews
-exactly one already-recorded, provider-observed Codex Proposal bound to the
-same run, isolated workspace, checkpoint, and fresh Git fingerprint; it never
-edits the repository, and it returns exactly one Acceptance or one to five
-Challenge messages, never both and never neither. Challenge resolution,
-Claude's later execution/review stages, and every remaining message type
-remain deferred: no live provider adapter exists yet for Decision, Execution
-report, Review finding, or Revision response, and every such envelope in the
-durable ledger is still produced by the `Simulated` walking-skeleton sequence
+Codex's Planning step, Claude Code's Critical review step, and Codex's
+challenge-resolution step are the first three message-producing stages with a
+real, live provider invocation. A durable Agent attempt of either provider
+records a bounded context manifest, runs the provider's own CLI as a real
+child process, and preserves its raw stdout, stderr, and final-response
+content only as bounded sealed artifacts outside the database — never as
+ledger or API content. A structurally valid Proposal, Acceptance, Challenge
+set, or Decision-set-plus-revised-Proposal is appended to the ledger only
+after passing the same protocol/schema validation as any other message; an
+invalid, failed, or source-drifted attempt appends none. A Claude
+critical-review attempt reviews exactly one already-recorded,
+provider-observed Codex Proposal bound to the same run, isolated workspace,
+checkpoint, and fresh Git fingerprint; it never edits the repository, and it
+returns exactly one Acceptance or one to five Challenge messages, never both
+and never neither.
+
+A Codex challenge-resolution attempt is claimed only against one specific,
+already-completed Challenged Claude critical-review attempt, and persists the
+exact ordered input set that attempt is bound to as `AttemptInputMessage`
+rows: the original Proposal at sequence 0, then every Challenge that review
+raised, in the same timeline order the review itself recorded them — never a
+caller-selected subset, never a different order. Given that fixed context, the
+provider resolves every Challenge explicitly and proposes a revision; on
+success, the attempt atomically appends one Decision per Challenge (each
+replying to the Challenge it resolves) plus exactly one revised Proposal
+(replying to the original Proposal) in a single transaction — never a partial
+set, never a Decision left unresolved. Before that provider invocation ever
+starts, and again in the same short transaction that commits the dispatch
+marker, the run/workspace/lease/checkpoint eligibility is revalidated and the
+attempt's own exact ordered input set is independently re-checked against
+every other already-Resolved challenge-resolution attempt; a resolution of the
+identical ordered Proposal-plus-Challenge-set already existing supersedes this
+attempt with a truthful `InputAlreadyResolved` outcome before the provider is
+ever invoked — never a duplicated resolution, and never silently retried. The
+revised Proposal a resolution produces can re-enter the critical-review path
+above as an ordinary Proposal; Acceptance remains terminal for that review
+cycle. Claude's later execution/review stages and every remaining message
+type stay deferred: no live provider adapter exists yet for Execution report,
+Review finding, or Revision response, and every such envelope in the durable
+ledger is still produced by the `Simulated` walking-skeleton sequence
 described above.
 
 ## Message types
@@ -157,16 +180,24 @@ return either:
 - an acceptance with feasibility rationale; or
 - one or more material challenges.
 
-This stage is real today, bound to one durable attempt per requested review:
-resolving a Challenge set (accepting, disputing, or deferring each item) is a
-deferred Codex-side capability, so a Challenged outcome currently leaves the
-plan awaiting that future resolution rather than looping automatically.
+This stage is real today, bound to one durable attempt per requested review. A
+Challenged outcome leaves the plan awaiting an explicit resolution request
+rather than looping automatically; resolution itself is a separate, real,
+requested attempt described next.
 
 ### Resolution
 
-Codex resolves every challenge explicitly. A partially accepted or rejected
-challenge must include reasoning. Changes become a new plan revision rather
-than silently editing history.
+This stage is also real today, bound to one durable attempt per requested
+resolution of one specific Challenged review. Codex receives that review's
+original Proposal and its complete, ordered Challenge set, and resolves every
+challenge explicitly as `accepted`, `partiallyAccepted`, or `rejected`; a
+partially accepted or rejected challenge must include reasoning. Resolving
+never edits the repository. Changes become a new plan revision — one revised
+Proposal replying to the original — rather than silently editing history, and
+that revision can re-enter Critical review above like any other Proposal.
+Never a duplicated resolution of the exact same review: a resolution already
+recorded for the identical ordered Proposal-plus-Challenge-set supersedes any
+further attempt at claim or dispatch time.
 
 ### Execution and review
 

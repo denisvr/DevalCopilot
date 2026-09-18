@@ -31,6 +31,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<Attempt> Attempts { get; }
 
+    DbSet<AttemptInputMessage> AttemptInputMessages { get; }
+
     DbSet<RunEvent> Events { get; }
 
     DbSet<CollaborationMessage> CollaborationMessages { get; }

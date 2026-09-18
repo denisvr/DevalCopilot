@@ -63,4 +63,23 @@ public enum AgentOutcome
     /// mutating this attempt — never inferred or trusted from a caller's own claim. Valid only for
     /// the ClaudeCode + CriticalReviewer + CriticalReview combination.</summary>
     InputAlreadyReviewed = 8,
+
+    /// <summary>A Codex challenge-resolution attempt explicitly resolved every input Challenge and
+    /// emitted one revised Proposal: one <see cref="CollaborationMessageType.Decision"/> per
+    /// Challenge plus exactly one revised <see cref="CollaborationMessageType.Proposal"/>, all
+    /// parsed, validated, and appended to the collaboration ledger atomically. Valid only for the
+    /// Codex + Resolver + ChallengeResolution combination.</summary>
+    Resolved = 9,
+
+    /// <summary>Detected immediately before dispatch, distinct from
+    /// <see cref="WorkspaceNoLongerEligible"/>: the run/workspace/lease/checkpoint remain fully
+    /// eligible, but another challenge-resolution attempt already completed a successful
+    /// (<see cref="Resolved"/>) resolution of the exact same ordered input set — the original
+    /// Proposal plus its complete, ordered Challenge set — in the meantime. The provider is never
+    /// invoked for this outcome. Recorded only by a dedicated command that independently
+    /// re-verifies the competing resolution exists before ever mutating this attempt — never
+    /// inferred or trusted from a caller's own claim. Mirrors
+    /// <see cref="InputAlreadyReviewed"/> exactly, one level further down the collaboration
+    /// protocol. Valid only for the Codex + Resolver + ChallengeResolution combination.</summary>
+    InputAlreadyResolved = 10,
 }

@@ -1,6 +1,7 @@
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests;
@@ -13,13 +14,21 @@ public sealed class SqliteDatabaseFixture : IAsyncLifetime
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-app-tests-{Guid.NewGuid():N}.db");
 
-    public DevalCopilotDbContext CreateContext()
+    /// <summary>The optional <paramref name="interceptors"/> overload exists solely so a test can
+    /// attach a deterministic command-counting interceptor (e.g. to prove a query path issues a
+    /// fixed number of database round trips regardless of data volume) — never for anything
+    /// production code depends on. Every existing no-argument call site is unaffected.</summary>
+    public DevalCopilotDbContext CreateContext(params IInterceptor[] interceptors)
     {
-        var options = new DbContextOptionsBuilder<DevalCopilotDbContext>()
-            .UseSqlite($"Data Source={_databasePath}")
-            .Options;
+        var optionsBuilder = new DbContextOptionsBuilder<DevalCopilotDbContext>()
+            .UseSqlite($"Data Source={_databasePath}");
 
-        return new DevalCopilotDbContext(options);
+        if (interceptors.Length > 0)
+        {
+            optionsBuilder.AddInterceptors(interceptors);
+        }
+
+        return new DevalCopilotDbContext(optionsBuilder.Options);
     }
 
     public async Task InitializeAsync()

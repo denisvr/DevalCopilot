@@ -23,7 +23,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandlerTests : I
 
     public Task DisposeAsync() => _fixture.DisposeAsync();
 
-    private async Task<(Project Project, Run Run, GitWorkspace Workspace, Attempt Attempt, Artifact Manifest)> SeedEligibleAttemptAsync(
+    private async Task<(Project Project, Run Run, GitWorkspace Workspace, Attempt Attempt, Artifact Manifest, Guid InputCollaborationMessageId)> SeedEligibleAttemptAsync(
         DevalCopilotDbContext dbContext,
         bool runIsRunning = true,
         bool seedWorkspace = true,
@@ -50,12 +50,12 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandlerTests : I
 
         var manifestArtifactId = Guid.NewGuid();
         var checkpointId = Guid.NewGuid();
+        var inputCollaborationMessageId = Guid.NewGuid();
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 1,
             seedWorkspace ? workspace.Id : Guid.NewGuid(),
             checkpointId,
             Fingerprint,
-            Guid.NewGuid(),
             manifestArtifactId,
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         if (markDispatched)
@@ -65,6 +65,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandlerTests : I
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, inputCollaborationMessageId, sequence: 0));
         if (seedWorkspace)
         {
             dbContext.GitWorkspaces.Add(workspace);
@@ -100,14 +101,14 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandlerTests : I
 
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
-        return (project, run, workspace, attempt, manifest!);
+        return (project, run, workspace, attempt, manifest!, inputCollaborationMessageId);
     }
 
     [Fact]
     public async Task HandleAsync_returns_an_eligible_attempt_with_its_full_bounded_projection()
     {
         await using var dbContext = _fixture.CreateContext();
-        var (_, run, workspace, attempt, manifest) = await SeedEligibleAttemptAsync(dbContext);
+        var (_, run, workspace, attempt, manifest, inputCollaborationMessageId) = await SeedEligibleAttemptAsync(dbContext);
 
         var handler = new GetEligibleClaudeCriticalReviewAttemptsQueryHandler(dbContext);
         var eligible = await handler.HandleAsync(new GetEligibleClaudeCriticalReviewAttemptsQuery(), CancellationToken.None);
@@ -125,7 +126,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandlerTests : I
         Assert.Equal(TimeSpan.FromMinutes(10), result.Timeout);
         Assert.Equal(262144, result.MaxBytesPerStream);
         Assert.Equal(524288, result.MaxTotalCapturedBytes);
-        Assert.Equal(attempt.AgentInputCollaborationMessageId, result.InputCollaborationMessageId);
+        Assert.Equal(inputCollaborationMessageId, result.InputCollaborationMessageId);
     }
 
     [Fact]

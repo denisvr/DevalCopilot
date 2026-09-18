@@ -14,11 +14,15 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
     private static readonly DateTimeOffset Now = new(2026, 9, 17, 19, 0, 0, TimeSpan.Zero);
     private static readonly string Fingerprint = new('a', 64);
 
-    private static Attempt ClaimCriticalReviewAttempt(
-        Guid runId, int attemptNumber, DateTimeOffset claimedAtUtc, Guid? inputCollaborationMessageId = null) => Attempt.ClaimAgentCriticalReview(
-        Guid.NewGuid(), runId, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-        inputCollaborationMessageId ?? Guid.NewGuid(), Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc);
+    private static (Attempt Attempt, AttemptInputMessage InputMessage) ClaimCriticalReviewAttempt(
+        Guid runId, int attemptNumber, DateTimeOffset claimedAtUtc, Guid? inputCollaborationMessageId = null)
+    {
+        var attempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), runId, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc);
+        var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, inputCollaborationMessageId ?? Guid.NewGuid(), sequence: 0);
+        return (attempt, inputMessage);
+    }
 
     [Fact]
     public async Task HandleAsync_returns_an_explicit_no_attempt_result_for_a_run_with_no_critical_review_attempt_yet()
@@ -60,12 +64,13 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the next increment", Now);
         run.Claim(Now);
         var reviewedProposalId = Guid.NewGuid();
-        var attempt = ClaimCriticalReviewAttempt(run.Id, 1, Now, reviewedProposalId);
+        var (attempt, inputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now, reviewedProposalId);
         attempt.MarkAgentDispatched(Now.AddSeconds(1));
         attempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(2));
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         dbContext.Artifacts.Add(Artifact.Record(
             Guid.NewGuid(), run.Id, attempt.Id, ArtifactPurpose.AgentFinalResponse, "application/json",
             @"runs\r\attempts\a\final.sealed", "sha256:final", 128, false,
@@ -100,12 +105,13 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Retried review", Now);
         run.Claim(Now);
-        var firstAttempt = ClaimCriticalReviewAttempt(run.Id, 1, Now);
+        var (firstAttempt, firstInputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now);
         firstAttempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now.AddSeconds(1));
-        var secondAttempt = ClaimCriticalReviewAttempt(run.Id, 2, Now.AddSeconds(2));
+        var (secondAttempt, secondInputMessage) = ClaimCriticalReviewAttempt(run.Id, 2, Now.AddSeconds(2));
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.AddRange(firstAttempt, secondAttempt);
+        dbContext.AttemptInputMessages.AddRange(firstInputMessage, secondInputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new GetClaudeCriticalReviewAttemptStatusQueryHandler(dbContext);
@@ -126,7 +132,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Mixed agent roles", Now);
         run.Claim(Now);
-        var reviewAttempt = ClaimCriticalReviewAttempt(run.Id, 1, Now);
+        var (reviewAttempt, reviewInputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now);
         // A later, higher-numbered Codex planning attempt on the same run must never be mistaken
         // for the Claude critical-review attempt this query reports on. The run-wide "one
         // Running attempt" invariant forbids two attempts Running at once regardless of kind, so
@@ -140,6 +146,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.AddRange(reviewAttempt, planningAttempt);
+        dbContext.AttemptInputMessages.Add(reviewInputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new GetClaudeCriticalReviewAttemptStatusQueryHandler(dbContext);

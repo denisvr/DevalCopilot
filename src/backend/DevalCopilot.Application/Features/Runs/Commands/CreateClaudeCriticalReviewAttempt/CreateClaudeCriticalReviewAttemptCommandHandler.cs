@@ -115,14 +115,19 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
 
         var proposalMessage = proposalValidation.Message!;
 
-        var alreadyReviewed = await dbContext.Attempts.AnyAsync(
-            candidate =>
-                candidate.Kind == AttemptKind.Agent
-                && candidate.AgentProvider == AgentProvider.ClaudeCode
-                && candidate.AgentRole == AgentRole.CriticalReviewer
-                && candidate.AgentInputCollaborationMessageId == proposalMessage.Id
-                && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
-            cancellationToken);
+        var alreadyReviewed = await dbContext.Attempts
+            .Join(
+                dbContext.AttemptInputMessages.Where(inputMessage => inputMessage.CollaborationMessageId == proposalMessage.Id),
+                attempt => attempt.Id,
+                inputMessage => inputMessage.AttemptId,
+                (attempt, inputMessage) => attempt)
+            .AnyAsync(
+                candidate =>
+                    candidate.Kind == AttemptKind.Agent
+                    && candidate.AgentProvider == AgentProvider.ClaudeCode
+                    && candidate.AgentRole == AgentRole.CriticalReviewer
+                    && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
+                cancellationToken);
         if (alreadyReviewed)
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
@@ -172,13 +177,17 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             workspace.Id,
             checkpoint.Id,
             checkpoint.FingerprintSha256,
-            proposalMessage.Id,
             manifestArtifactId,
             InvocationTimeout,
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
             nowUtc);
         dbContext.Attempts.Add(attempt);
+
+        // The one authoritative record of which message this attempt reviews — sequence 0, the
+        // attempt's only input. Never a second, competing column on Attempt itself.
+        var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attemptId, proposalMessage.Id, sequence: 0);
+        dbContext.AttemptInputMessages.Add(inputMessage);
 
         var manifestArtifact = Artifact.Record(
             manifestArtifactId,
@@ -231,6 +240,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             // accidentally re-attempt to persist a known-failed insert if its scope continues.
             artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
             dbContext.Attempts.Remove(attempt);
+            dbContext.AttemptInputMessages.Remove(inputMessage);
             dbContext.Artifacts.Remove(manifestArtifact);
 
             var competingRunningAttemptExists = await dbContext.Attempts

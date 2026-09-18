@@ -38,11 +38,17 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
             .Select(artifact => new AgentAttemptArtifactMetadata(artifact.Purpose, artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome))
             .ToArrayAsync(cancellationToken);
 
+        var reviewedProposalMessageId = await dbContext.AttemptInputMessages
+            .AsNoTracking()
+            .Where(inputMessage => inputMessage.AttemptId == attempt.Id && inputMessage.Sequence == 0)
+            .Select(inputMessage => (Guid?)inputMessage.CollaborationMessageId)
+            .SingleOrDefaultAsync(cancellationToken);
+
         return Result<ClaudeCriticalReviewAttemptStatusQueryResult>.Success(new ClaudeCriticalReviewAttemptStatusQueryResult(
             true,
             attempt.Id,
             attempt.AttemptNumber,
-            attempt.AgentInputCollaborationMessageId,
+            reviewedProposalMessageId,
             attempt.Status,
             attempt.AgentOutcome,
             attempt.ClaimedAtUtc,

@@ -753,10 +753,12 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
                 var now = DateTimeOffset.UtcNow;
                 var competing = Attempt.ClaimAgentCriticalReview(
                     Guid.NewGuid(), _runId, _competingAttemptNumber, _workspaceId, _checkpointId, fingerprintSha256,
-                    _proposalMessageId, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now);
+                    Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now);
                 competing.MarkAgentDispatched(now);
                 competing.CompleteAgent(AgentOutcome.Accepted, fingerprintSha256, now);
                 freshDbContext.Attempts.Add(competing);
+                freshDbContext.AttemptInputMessages.Add(
+                    AttemptInputMessage.Record(Guid.NewGuid(), competing.Id, _proposalMessageId, sequence: 0));
                 await freshDbContext.SaveChangesAsync(cancellationToken);
             }
 

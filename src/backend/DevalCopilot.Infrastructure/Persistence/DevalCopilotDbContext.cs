@@ -33,6 +33,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<Attempt> Attempts => Set<Attempt>();
 
+    public DbSet<AttemptInputMessage> AttemptInputMessages => Set<AttemptInputMessage>();
+
     public DbSet<RunEvent> Events => Set<RunEvent>();
 
     public DbSet<CollaborationMessage> CollaborationMessages => Set<CollaborationMessage>();

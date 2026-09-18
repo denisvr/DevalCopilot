@@ -7,6 +7,7 @@ public sealed class CollaborationMessageReplyPolicyTests
 {
     [Theory]
     [InlineData(CollaborationMessageType.Proposal, null)]
+    [InlineData(CollaborationMessageType.Proposal, CollaborationMessageType.Proposal)]
     [InlineData(CollaborationMessageType.Acceptance, CollaborationMessageType.Proposal)]
     [InlineData(CollaborationMessageType.Challenge, CollaborationMessageType.Proposal)]
     [InlineData(CollaborationMessageType.Decision, CollaborationMessageType.Proposal)]
@@ -26,6 +27,7 @@ public sealed class CollaborationMessageReplyPolicyTests
     }
 
     [Theory]
+    [InlineData(CollaborationMessageType.Proposal, CollaborationMessageType.Challenge)]
     [InlineData(CollaborationMessageType.Acceptance, CollaborationMessageType.Challenge)]
     [InlineData(CollaborationMessageType.Challenge, CollaborationMessageType.Decision)]
     [InlineData(CollaborationMessageType.Decision, CollaborationMessageType.ExecutionReport)]
@@ -60,10 +62,12 @@ public sealed class CollaborationMessageReplyPolicyTests
     }
 
     [Fact]
-    public void Evaluate_rejects_a_reply_on_a_proposal()
+    public void EvaluateReference_never_requires_or_forbids_a_reply_for_a_proposal()
     {
-        var result = CollaborationMessageReplyPolicy.Evaluate(CollaborationMessageType.Proposal, CollaborationMessageType.Proposal);
-
-        Assert.Equal(CollaborationMessageReplyViolation.ReplyNotAllowed, result);
+        // A root Proposal has no reply; a revised Proposal replies to the prior Proposal it
+        // supersedes — both are valid at the reference-only level. Application-layer validation
+        // is what actually requires the parent to be an older Proposal from the same run.
+        Assert.Equal(CollaborationMessageReplyViolation.None, CollaborationMessageReplyPolicy.EvaluateReference(CollaborationMessageType.Proposal, hasReply: false));
+        Assert.Equal(CollaborationMessageReplyViolation.None, CollaborationMessageReplyPolicy.EvaluateReference(CollaborationMessageType.Proposal, hasReply: true));
     }
 }

@@ -166,7 +166,7 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         // "at most one Running attempt" invariant — never mistaken for the Planner attempt this
         // query reports on despite being the more recent of the two.
         var reviewAttempt = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(), Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now.AddSeconds(3));
         reviewAttempt.MarkAgentDispatched(Now.AddSeconds(4));
         reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(5));

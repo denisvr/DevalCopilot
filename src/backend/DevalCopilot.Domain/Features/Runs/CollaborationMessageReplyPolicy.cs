@@ -17,9 +17,11 @@ public static class CollaborationMessageReplyPolicy
 
         if (type == CollaborationMessageType.Proposal)
         {
-            return hasReply
-                ? CollaborationMessageReplyViolation.ReplyNotAllowed
-                : CollaborationMessageReplyViolation.None;
+            // A reply is optional, not forbidden: a root Proposal starts a thread with no reply,
+            // while a revised Proposal replies to the prior Proposal it supersedes. Either shape
+            // is valid at this reference-only level; IsAllowedParent below still requires that a
+            // Proposal's parent, when one exists, is itself a Proposal.
+            return CollaborationMessageReplyViolation.None;
         }
 
         return hasReply
@@ -56,6 +58,11 @@ public static class CollaborationMessageReplyPolicy
     {
         return type switch
         {
+            // A revised Proposal's only valid parent is the prior Proposal it supersedes —
+            // Application-layer validation additionally requires that parent to be an older
+            // Proposal from the same run, never a cross-run, self-referential, or
+            // forward-referencing one; this policy only owns the type-level shape.
+            CollaborationMessageType.Proposal => parentType == CollaborationMessageType.Proposal,
             CollaborationMessageType.Acceptance or CollaborationMessageType.Challenge =>
                 parentType == CollaborationMessageType.Proposal,
             CollaborationMessageType.Decision =>

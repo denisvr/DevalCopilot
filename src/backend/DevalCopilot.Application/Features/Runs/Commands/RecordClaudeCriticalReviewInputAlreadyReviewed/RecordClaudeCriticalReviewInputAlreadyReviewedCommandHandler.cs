@@ -36,17 +36,27 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         // real, so it is re-verified fresh here rather than accepted on the strength of whatever
         // earlier check (e.g. MarkAgentAttemptDispatchedCommand's own last-gate check) led the
         // caller to dispatch this command in the first place.
-        var inputMessageId = attempt.AgentInputCollaborationMessageId;
-        var competingReviewExists = await dbContext.Attempts.AnyAsync(
-            candidate =>
-                candidate.Id != attempt.Id
-                && candidate.Kind == AttemptKind.Agent
-                && candidate.AgentProvider == AgentProvider.ClaudeCode
-                && candidate.AgentRole == AgentRole.CriticalReviewer
-                && candidate.AgentInputCollaborationMessageId == inputMessageId
-                && candidate.Status == AttemptStatus.Completed
-                && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
-            cancellationToken);
+        var inputMessageId = await dbContext.AttemptInputMessages
+            .Where(inputMessage => inputMessage.AttemptId == attempt.Id && inputMessage.Sequence == 0)
+            .Select(inputMessage => inputMessage.CollaborationMessageId)
+            .SingleAsync(cancellationToken);
+
+        var competingReviewExists = await dbContext.Attempts
+            .Join(
+                dbContext.AttemptInputMessages.Where(
+                    inputMessage => inputMessage.CollaborationMessageId == inputMessageId && inputMessage.Sequence == 0),
+                candidate => candidate.Id,
+                inputMessage => inputMessage.AttemptId,
+                (candidate, inputMessage) => candidate)
+            .AnyAsync(
+                candidate =>
+                    candidate.Id != attempt.Id
+                    && candidate.Kind == AttemptKind.Agent
+                    && candidate.AgentProvider == AgentProvider.ClaudeCode
+                    && candidate.AgentRole == AgentRole.CriticalReviewer
+                    && candidate.Status == AttemptStatus.Completed
+                    && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
+                cancellationToken);
 
         if (!competingReviewExists)
         {

@@ -98,12 +98,13 @@ public sealed class GetClaudeCriticalReviewAttemptStatusEndpointTests(ClaudeCrit
             var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             var manifestArtifactId = Guid.NewGuid();
             var attempt = Attempt.ClaimAgentCriticalReview(
-                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, reviewedProposalMessageId, manifestArtifactId,
+                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             attempt.MarkAgentDispatched(now.AddSeconds(1));
             attempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, now.AddSeconds(5));
             attemptId = attempt.Id;
             dbContext.Attempts.Add(attempt);
+            dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, reviewedProposalMessageId, sequence: 0));
 
             dbContext.Artifacts.Add(Artifact.Record(
                 manifestArtifactId, runId, attempt.Id, ArtifactPurpose.AgentContextManifest, "application/json",
@@ -169,13 +170,13 @@ public sealed class GetClaudeCriticalReviewAttemptStatusEndpointTests(ClaudeCrit
             var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
 
             var firstAttempt = Attempt.ClaimAgentCriticalReview(
-                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             firstAttempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, now.AddSeconds(1));
             dbContext.Attempts.Add(firstAttempt);
 
             var secondAttempt = Attempt.ClaimAgentCriticalReview(
-                Guid.NewGuid(), runId, 2, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), runId, 2, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2));
             secondAttempt.MarkAgentDispatched(now.AddSeconds(3));
             secondAttempt.CompleteAgent(AgentOutcome.Challenged, Fingerprint, now.AddSeconds(4));
@@ -213,7 +214,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusEndpointTests(ClaudeCrit
             var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
 
             var attempt = Attempt.ClaimAgentCriticalReview(
-                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             attempt.CompleteAgent(AgentOutcome.InputAlreadyReviewed, completionFingerprintSha256: null, now.AddSeconds(1));
             attemptId = attempt.Id;
@@ -247,7 +248,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusEndpointTests(ClaudeCrit
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             var attempt = Attempt.ClaimAgentCriticalReview(
-                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(), Guid.NewGuid(),
+                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             attempt.MarkAgentDispatched(now.AddSeconds(1));
             attempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, now.AddSeconds(2));

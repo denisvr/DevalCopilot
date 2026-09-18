@@ -86,10 +86,24 @@ public sealed class CollaborationMessageTests
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
             ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge,
             null, "A challenge", ChallengeContent, CollaborationMessageProvenance.Simulated, Now));
-        Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
+    }
+
+    /// <summary>
+    /// A reply is optional for a Proposal, not forbidden: a revised Proposal replies to the prior
+    /// Proposal it supersedes. This Domain-level factory only owns the type-level shape (a reply
+    /// reference may or may not be present); verifying that the referenced message is actually an
+    /// older Proposal from the same run is the Application layer's own responsibility, exercised
+    /// separately via <c>CollaborationMessageReplyPolicy.Evaluate</c>.
+    /// </summary>
+    [Fact]
+    public void Record_accepts_a_proposal_that_replies_to_a_prior_message()
+    {
+        var message = CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
             ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal,
-            Guid.NewGuid(), "A proposal", ProposalContent, CollaborationMessageProvenance.Simulated, Now));
+            Guid.NewGuid(), "A revised proposal", ProposalContent, CollaborationMessageProvenance.ProviderObserved, Now);
+
+        Assert.NotNull(message.InReplyToMessageId);
     }
 
     [Fact]

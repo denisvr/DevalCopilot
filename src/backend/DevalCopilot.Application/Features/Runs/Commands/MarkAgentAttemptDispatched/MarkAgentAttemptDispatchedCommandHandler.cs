@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,13 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// caller must never conflate the two; each maps to its own terminal
     /// <see cref="AgentOutcome"/> and its own dedicated recording command.</summary>
     public const string InputAlreadyReviewedCode = "agent_attempts.input_already_reviewed";
+
+    /// <summary>The challenge-resolution counterpart to <see cref="InputAlreadyReviewedCode"/>,
+    /// one level further down the collaboration protocol: the run, workspace, lease, and
+    /// checkpoint remain fully eligible, but another challenge-resolution attempt already
+    /// completed a successful resolution of the exact same ordered input set (the original
+    /// Proposal plus its complete Challenge set) in the meantime.</summary>
+    public const string InputAlreadyResolvedCode = "agent_attempts.input_already_resolved";
 
     public async Task<Result<DateTimeOffset>> HandleAsync(
         MarkAgentAttemptDispatchedCommand command, CancellationToken cancellationToken)
@@ -93,22 +101,53 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         // input message to revalidate here.
         if (attempt.AgentRole == AgentRole.CriticalReviewer)
         {
-            var inputMessageId = attempt.AgentInputCollaborationMessageId;
-            var alreadyReviewed = await dbContext.Attempts.AnyAsync(
-                candidate =>
-                    candidate.Id != attempt.Id
-                    && candidate.Kind == AttemptKind.Agent
-                    && candidate.AgentProvider == AgentProvider.ClaudeCode
-                    && candidate.AgentRole == AgentRole.CriticalReviewer
-                    && candidate.AgentInputCollaborationMessageId == inputMessageId
-                    && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
-                cancellationToken);
+            var inputMessageId = await dbContext.AttemptInputMessages
+                .Where(inputMessage => inputMessage.AttemptId == attempt.Id && inputMessage.Sequence == 0)
+                .Select(inputMessage => inputMessage.CollaborationMessageId)
+                .SingleAsync(cancellationToken);
+
+            var alreadyReviewed = await dbContext.Attempts
+                .Join(
+                    dbContext.AttemptInputMessages.Where(
+                        inputMessage => inputMessage.CollaborationMessageId == inputMessageId && inputMessage.Sequence == 0),
+                    candidate => candidate.Id,
+                    inputMessage => inputMessage.AttemptId,
+                    (candidate, inputMessage) => candidate)
+                .AnyAsync(
+                    candidate =>
+                        candidate.Id != attempt.Id
+                        && candidate.Kind == AttemptKind.Agent
+                        && candidate.AgentProvider == AgentProvider.ClaudeCode
+                        && candidate.AgentRole == AgentRole.CriticalReviewer
+                        && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
+                    cancellationToken);
             if (alreadyReviewed)
             {
                 return Result<DateTimeOffset>.Failure(
                     Error.Conflict(
                         InputAlreadyReviewedCode,
                         "Another critical-review attempt already completed a successful review of this exact proposal."));
+            }
+        }
+
+        // The challenge-resolution-specific half of the same authoritative last gate, mirroring
+        // the CriticalReviewer branch above exactly: this attempt's own exact, ordered input
+        // identity (the original Proposal plus its complete Challenge set) can also have lost
+        // applicability between the eligibility snapshot and this call — a competing resolution
+        // attempt could have committed a successful Resolved result for the very same ordered
+        // input set in that window.
+        if (attempt.AgentRole == AgentRole.Resolver)
+        {
+            var orderedInputMessageIds = await ChallengeResolutionInputIdentity.GetOrderedInputMessageIdsAsync(
+                dbContext, attempt.Id, cancellationToken);
+            var alreadyResolved = await ChallengeResolutionInputIdentity.HasCompetingExactResolutionAsync(
+                dbContext, attempt.RunId, attempt.Id, orderedInputMessageIds, cancellationToken);
+            if (alreadyResolved)
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        InputAlreadyResolvedCode,
+                        "Another challenge-resolution attempt already completed a successful resolution of this exact input set."));
             }
         }
 

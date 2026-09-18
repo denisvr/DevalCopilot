@@ -350,11 +350,12 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
             var now = DateTimeOffset.UtcNow;
 
             var priorReview = Attempt.ClaimAgentCriticalReview(
-                Guid.NewGuid(), runId, 2, workspaceId, checkpointId, MatchingFingerprint, proposalMessageId, Guid.NewGuid(),
+                Guid.NewGuid(), runId, 2, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             priorReview.MarkAgentDispatched(now.AddSeconds(1));
             priorReview.CompleteAgent(AgentOutcome.Accepted, MatchingFingerprint, now.AddSeconds(2));
             dbContext.Attempts.Add(priorReview);
+            dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorReview.Id, proposalMessageId, sequence: 0));
             await dbContext.SaveChangesAsync();
         }
 

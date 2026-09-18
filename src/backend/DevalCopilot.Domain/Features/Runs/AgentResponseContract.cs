@@ -20,4 +20,10 @@ public enum AgentResponseContract
     /// <see cref="CollaborationMessageType.Acceptance"/>, or one to five
     /// <see cref="CollaborationMessageType.Challenge"/> messages — never both, never zero.</summary>
     CriticalReview = 1,
+
+    /// <summary>Codex + Resolver. The attempt's real output is one
+    /// <see cref="CollaborationMessageType.Decision"/> per input Challenge, plus exactly one
+    /// revised <see cref="CollaborationMessageType.Proposal"/> replying to the original
+    /// Proposal.</summary>
+    ChallengeResolution = 2,
 }

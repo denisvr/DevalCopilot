@@ -131,6 +131,14 @@ builder.Services.AddHostedService<AgentAttemptSupervisor>();
 builder.Services.AddSingleton<ICriticalReviewAdapter, ClaudeCriticalReviewAdapter>();
 builder.Services.AddHostedService<ClaudeCriticalReviewSupervisor>();
 
+// Codex challenge resolution: shares the Codex provider and its bounded invocation machinery
+// (CodexProcessInvoker) with Codex planning above, but is otherwise an entirely separate
+// role-specific execution path — its own adapter, its own supervisor, its own eligibility feed
+// and result-recording command, never shared with either AgentAttemptSupervisor or
+// ClaudeCriticalReviewSupervisor.
+builder.Services.AddSingleton<ICodexChallengeResolutionAdapter, CodexChallengeResolutionAdapter>();
+builder.Services.AddHostedService<ChallengeResolutionSupervisor>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();

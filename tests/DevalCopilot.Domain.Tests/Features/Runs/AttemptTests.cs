@@ -569,7 +569,6 @@ public sealed class AttemptTests
 
     private static Attempt ClaimAgentCriticalReviewAttempt(
         string checkpointFingerprintSha256 = "fingerprint-1",
-        Guid? inputCollaborationMessageId = null,
         TimeSpan? timeout = null,
         int maxBytesPerStream = 262144,
         int maxTotalCapturedBytes = 524288) => Attempt.ClaimAgentCriticalReview(
@@ -579,7 +578,23 @@ public sealed class AttemptTests
         gitWorkspaceId: Guid.NewGuid(),
         gitCheckpointId: Guid.NewGuid(),
         checkpointFingerprintSha256: checkpointFingerprintSha256,
-        inputCollaborationMessageId: inputCollaborationMessageId ?? Guid.NewGuid(),
+        contextManifestArtifactId: Guid.NewGuid(),
+        timeout: timeout ?? TimeSpan.FromMinutes(10),
+        maxBytesPerStream: maxBytesPerStream,
+        maxTotalCapturedBytes: maxTotalCapturedBytes,
+        claimedAtUtc: BaseTime);
+
+    private static Attempt ClaimAgentChallengeResolutionAttempt(
+        string checkpointFingerprintSha256 = "fingerprint-1",
+        TimeSpan? timeout = null,
+        int maxBytesPerStream = 262144,
+        int maxTotalCapturedBytes = 524288) => Attempt.ClaimAgentChallengeResolution(
+        Guid.NewGuid(),
+        Guid.NewGuid(),
+        attemptNumber: 1,
+        gitWorkspaceId: Guid.NewGuid(),
+        gitCheckpointId: Guid.NewGuid(),
+        checkpointFingerprintSha256: checkpointFingerprintSha256,
         contextManifestArtifactId: Guid.NewGuid(),
         timeout: timeout ?? TimeSpan.FromMinutes(10),
         maxBytesPerStream: maxBytesPerStream,
@@ -591,13 +606,12 @@ public sealed class AttemptTests
     {
         var workspaceId = Guid.NewGuid();
         var checkpointId = Guid.NewGuid();
-        var inputMessageId = Guid.NewGuid();
         var manifestArtifactId = Guid.NewGuid();
         var timeout = TimeSpan.FromMinutes(10);
 
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, workspaceId, checkpointId,
-            "fingerprint-1", inputMessageId, manifestArtifactId, timeout, 262144, 524288, BaseTime);
+            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime);
 
         Assert.Equal(AttemptKind.Agent, attempt.Kind);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
@@ -610,7 +624,6 @@ public sealed class AttemptTests
         // field being anything other than Proposal for a critical-review attempt.
         Assert.Equal(CollaborationMessageType.Proposal, attempt.AgentExpectedMessageType);
         Assert.Equal(CollaborationMessage.ProtocolVersionOne, attempt.AgentProtocolVersion);
-        Assert.Equal(inputMessageId, attempt.AgentInputCollaborationMessageId);
         Assert.Equal(workspaceId, attempt.AgentGitWorkspaceId);
         Assert.Equal(checkpointId, attempt.AgentGitCheckpointId);
         Assert.Equal("fingerprint-1", attempt.AgentCheckpointFingerprintSha256);
@@ -630,7 +643,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 0, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
     }
 
     [Fact]
@@ -638,7 +651,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.Empty, Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
     }
 
     [Fact]
@@ -646,7 +659,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.Empty,
-            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
     }
 
     [Theory]
@@ -657,15 +670,7 @@ public sealed class AttemptTests
     {
         Assert.ThrowsAny<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            fingerprint!, Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
-    }
-
-    [Fact]
-    public void ClaimAgentCriticalReview_throws_for_an_empty_input_collaboration_message_id()
-    {
-        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.Empty, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            fingerprint!, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
     }
 
     [Fact]
@@ -673,7 +678,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
     }
 
     [Theory]
@@ -683,7 +688,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromSeconds(timeoutSeconds), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromSeconds(timeoutSeconds), 262144, 524288, BaseTime));
     }
 
     [Fact]
@@ -691,7 +696,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), -1, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), -1, 524288, BaseTime));
     }
 
     [Fact]
@@ -699,7 +704,63 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, -1, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, -1, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentChallengeResolution_creates_a_challenge_resolution_attempt_with_its_durable_intent_persisted()
+    {
+        var workspaceId = Guid.NewGuid();
+        var checkpointId = Guid.NewGuid();
+        var manifestArtifactId = Guid.NewGuid();
+        var timeout = TimeSpan.FromMinutes(10);
+
+        var attempt = Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, workspaceId, checkpointId,
+            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime);
+
+        Assert.Equal(AttemptKind.Agent, attempt.Kind);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Equal(AgentProvider.Codex, attempt.AgentProvider);
+        Assert.Equal(AgentRole.Resolver, attempt.AgentRole);
+        Assert.Equal(AgentResponseContract.ChallengeResolution, attempt.AgentResponseContract);
+        Assert.Equal(CollaborationMessageType.Proposal, attempt.AgentExpectedMessageType);
+        Assert.Equal(CollaborationMessage.ProtocolVersionOne, attempt.AgentProtocolVersion);
+        Assert.Equal(workspaceId, attempt.AgentGitWorkspaceId);
+        Assert.Equal(checkpointId, attempt.AgentGitCheckpointId);
+        Assert.Equal("fingerprint-1", attempt.AgentCheckpointFingerprintSha256);
+        Assert.Equal(manifestArtifactId, attempt.AgentContextManifestArtifactId);
+        Assert.Equal(timeout, attempt.AgentTimeout);
+        Assert.Equal(262144, attempt.AgentMaxBytesPerStream);
+        Assert.Equal(524288, attempt.AgentMaxTotalCapturedBytes);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+        Assert.Null(attempt.AgentOutcome);
+        Assert.Null(attempt.AgentProviderSessionId);
+        Assert.Null(attempt.ProcessExecutablePath);
+    }
+
+    [Fact]
+    public void ClaimAgentChallengeResolution_throws_for_a_non_positive_attempt_number()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), Guid.NewGuid(), 0, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentChallengeResolution_throws_for_an_empty_git_workspace_id()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.Empty, Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void ClaimAgentChallengeResolution_throws_for_an_empty_context_manifest_artifact_id()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
     }
 
     [Theory]
@@ -803,5 +864,91 @@ public sealed class AttemptTests
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(AgentOutcome.InputAlreadyReviewed, attempt.AgentOutcome);
+    }
+
+    [Fact]
+    public void CompleteAgent_completes_successfully_for_a_resolved_outcome_matching_its_own_contract()
+    {
+        var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Completed, attempt.Status);
+        Assert.Equal(AgentOutcome.Resolved, attempt.AgentOutcome);
+        Assert.Equal(BaseTime.AddSeconds(2), attempt.CompletedAtUtc);
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_when_a_resolved_outcome_is_reported_for_a_planning_attempt()
+    {
+        var attempt = ClaimAgentAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_when_a_resolved_outcome_is_reported_for_a_critical_review_attempt()
+    {
+        var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_when_a_proposed_outcome_is_reported_for_a_challenge_resolution_attempt()
+    {
+        var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+    }
+
+    [Theory]
+    [InlineData(AgentOutcome.Accepted)]
+    [InlineData(AgentOutcome.Challenged)]
+    public void CompleteAgent_throws_when_a_critical_review_outcome_is_reported_for_a_challenge_resolution_attempt(AgentOutcome outcome)
+    {
+        var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(outcome, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteAgent_overrides_to_source_changed_for_a_challenge_resolution_attempt_when_the_completion_fingerprint_no_longer_matches()
+    {
+        var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.SourceChanged, attempt.AgentOutcome);
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_for_a_resolved_outcome_on_a_never_dispatched_challenge_resolution_attempt()
+    {
+        var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1)));
+    }
+
+    [Fact]
+    public void CompleteAgent_throws_for_a_resolved_outcome_without_a_completion_fingerprint()
+    {
+        var attempt = ClaimAgentChallengeResolutionAttempt();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: null, BaseTime.AddSeconds(2)));
     }
 }

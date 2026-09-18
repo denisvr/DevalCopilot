@@ -4,6 +4,7 @@ import { processAttemptOutputClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
   ClaudeCriticalReviewAttemptStatusResponse,
+  ChallengeResolutionAttemptStatusResponse,
   GetRunCockpitResponse,
 } from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
@@ -12,6 +13,8 @@ import * as useAgentAttemptStatusModule from '../hooks/useAgentAttemptStatus'
 import * as useRequestCodexPlanningAttemptModule from '../hooks/useRequestCodexPlanningAttempt'
 import * as useClaudeCriticalReviewAttemptStatusModule from '../hooks/useClaudeCriticalReviewAttemptStatus'
 import * as useRequestClaudeCriticalReviewModule from '../hooks/useRequestClaudeCriticalReview'
+import * as useChallengeResolutionAttemptStatusModule from '../hooks/useChallengeResolutionAttemptStatus'
+import * as useRequestChallengeResolutionModule from '../hooks/useRequestChallengeResolution'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -21,6 +24,8 @@ vi.mock('../hooks/useAgentAttemptStatus')
 vi.mock('../hooks/useRequestCodexPlanningAttempt')
 vi.mock('../hooks/useClaudeCriticalReviewAttemptStatus')
 vi.mock('../hooks/useRequestClaudeCriticalReview')
+vi.mock('../hooks/useChallengeResolutionAttemptStatus')
+vi.mock('../hooks/useRequestChallengeResolution')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
 }))
@@ -33,6 +38,10 @@ const useClaudeCriticalReviewAttemptStatusMock = vi.mocked(
   useClaudeCriticalReviewAttemptStatusModule.useClaudeCriticalReviewAttemptStatus,
 )
 const useRequestClaudeCriticalReviewMock = vi.mocked(useRequestClaudeCriticalReviewModule.useRequestClaudeCriticalReview)
+const useChallengeResolutionAttemptStatusMock = vi.mocked(
+  useChallengeResolutionAttemptStatusModule.useChallengeResolutionAttemptStatus,
+)
+const useRequestChallengeResolutionMock = vi.mocked(useRequestChallengeResolutionModule.useRequestChallengeResolution)
 
 function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {
   return {
@@ -76,6 +85,17 @@ beforeEach(() => {
     refresh: vi.fn(),
   })
   useRequestClaudeCriticalReviewMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useChallengeResolutionAttemptStatusMock.mockReturnValue({
+    status: null,
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  })
+  useRequestChallengeResolutionMock.mockReturnValue({
     requesting: false,
     error: null,
     request: vi.fn(),
@@ -570,6 +590,161 @@ describe('RunCockpitView', () => {
 
       rerender(<RunCockpitView runId="run-2" />)
       expect(useClaudeCriticalReviewAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
+    })
+  })
+
+  describe('Challenge resolution wiring', () => {
+    it('withholds the request action until the latest Claude critical review is Challenged', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: new ClaudeCriticalReviewAttemptStatusResponse({
+          attemptId: 'review-1',
+          attemptNumber: 1,
+          status: 'Completed',
+          outcome: 'Accepted',
+          reviewedProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+    })
+
+    it('requests a resolution of the latest Challenged review when the action is used', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: new ClaudeCriticalReviewAttemptStatusResponse({
+          attemptId: 'review-1',
+          attemptNumber: 1,
+          status: 'Completed',
+          outcome: 'Challenged',
+          reviewedProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+      const request = vi.fn()
+      useRequestChallengeResolutionMock.mockReturnValue({ requesting: false, error: null, request })
+
+      render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Resolve challenges with Codex' }))
+
+      expect(request).toHaveBeenCalledWith('run-1', 'review-1')
+    })
+
+    it('shows a visibly-working state while the resolution is running', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: new ClaudeCriticalReviewAttemptStatusResponse({
+          attemptId: 'review-1',
+          attemptNumber: 1,
+          status: 'Completed',
+          outcome: 'Challenged',
+          reviewedProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+      useChallengeResolutionAttemptStatusMock.mockReturnValue({
+        status: new ChallengeResolutionAttemptStatusResponse({
+          attemptId: 'attempt-1',
+          attemptNumber: 3,
+          status: 'Running',
+          originalProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByText(/pending/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+    })
+
+    it('hides the action once the exact challenged review has already been resolved', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: new ClaudeCriticalReviewAttemptStatusResponse({
+          attemptId: 'review-1',
+          attemptNumber: 1,
+          status: 'Completed',
+          outcome: 'Challenged',
+          reviewedProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+      useChallengeResolutionAttemptStatusMock.mockReturnValue({
+        status: new ChallengeResolutionAttemptStatusResponse({
+          attemptId: 'attempt-1',
+          attemptNumber: 3,
+          status: 'Completed',
+          outcome: 'Resolved',
+          originalProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+      expect(screen.getByText('Last attempt #3: Challenges resolved.')).toBeInTheDocument()
+    })
+
+    it('re-reads status for the newly selected run when the cockpit switches runs', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      expect(useChallengeResolutionAttemptStatusMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
+
+      rerender(<RunCockpitView runId="run-2" />)
+      expect(useChallengeResolutionAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
     })
   })
 })

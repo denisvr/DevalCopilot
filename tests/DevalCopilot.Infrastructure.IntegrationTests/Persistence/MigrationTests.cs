@@ -59,6 +59,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddCodexPlanningAttempts", appliedMigrations);
         Assert.Contains("AgentAttemptCorrectionRound1", appliedMigrations);
         Assert.Contains("AddClaudeCriticalReviewAttempts", appliedMigrations);
+        Assert.Contains("AddAttemptInputMessages", appliedMigrations);
     }
 
     /// <summary>
@@ -278,11 +279,76 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         var agentRow = await reopenedContext.Attempts.FindAsync(agentAttemptId);
         Assert.NotNull(agentRow);
         Assert.Equal(AgentResponseContract.Proposal, agentRow.AgentResponseContract);
-        Assert.Null(agentRow.AgentInputCollaborationMessageId);
+        // Never fabricated: a pre-existing Codex planning attempt never recorded an input
+        // message (that concept did not exist until Claude critical review), so no
+        // attempt_input_messages row is ever backfilled for it.
+        Assert.False(await reopenedContext.AttemptInputMessages.AnyAsync(m => m.AttemptId == agentAttemptId));
 
         var simulatedRow = await reopenedContext.Attempts.FindAsync(simulatedAttemptId);
         Assert.NotNull(simulatedRow);
         Assert.Null(simulatedRow.AgentResponseContract);
+    }
+
+    [Fact]
+    public async Task Migrate_backfills_attempt_input_messages_truthfully_from_the_retired_column_then_drops_it()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var criticalReviewAttemptId = Guid.NewGuid();
+        var planningAttemptId = Guid.NewGuid();
+        var reviewedProposalId = Guid.NewGuid();
+        Guid runId;
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Stops one migration short of AddAttemptInputMessages, so the table genuinely has
+            // the retired AgentInputCollaborationMessageId column and no attempt_input_messages
+            // table yet — exactly the shape a pre-existing installation's database has right
+            // before upgrading.
+            await context.Database.MigrateAsync("AddClaudeCriticalReviewAttempts");
+
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\migration-input-messages-test", now);
+            context.Projects.Add(project);
+            await context.SaveChangesAsync();
+
+            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Prove attempt input message backfill", now);
+            context.Runs.Add(run);
+            await context.SaveChangesAsync();
+            runId = run.Id;
+
+            // (a) A pre-existing critical-review attempt with a real reviewed Proposal — must be
+            // truthfully backfilled as this attempt's sole input, at Sequence 0.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments, AgentInputCollaborationMessageId)
+                   VALUES ({criticalReviewAttemptId}, {runId}, {1}, {nameof(AttemptKind.Agent)}, {nameof(AttemptStatus.Completed)}, {now}, {""}, {reviewedProposalId})");
+
+            // (b) A pre-existing Codex planning attempt, which never had an input message at
+            // all — must gain no attempt_input_messages row just because the migration ran.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments, AgentInputCollaborationMessageId)
+                   VALUES ({planningAttemptId}, {runId}, {2}, {nameof(AttemptKind.Agent)}, {nameof(AttemptStatus.Completed)}, {now}, {""}, {(Guid?)null})");
+        }
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Brings the schema fully up to date, including AddAttemptInputMessages.
+            await context.Database.MigrateAsync();
+        }
+
+        await using var reopenedContext = fixture.CreateContext();
+
+        var backfilledInputMessage = await reopenedContext.AttemptInputMessages.SingleAsync(m => m.AttemptId == criticalReviewAttemptId);
+        Assert.Equal(reviewedProposalId, backfilledInputMessage.CollaborationMessageId);
+        Assert.Equal(0, backfilledInputMessage.Sequence);
+
+        Assert.False(await reopenedContext.AttemptInputMessages.AnyAsync(m => m.AttemptId == planningAttemptId));
+
+        // The retired column is genuinely gone — a raw read proves it, since the compiled
+        // Attempt/AttemptConfiguration model no longer maps it at all and so could never prove
+        // its absence on its own.
+        var remainingColumnNames = await reopenedContext.Database
+            .SqlQuery<string>($"SELECT name AS \"Value\" FROM pragma_table_info('attempts')")
+            .ToListAsync();
+        Assert.DoesNotContain("AgentInputCollaborationMessageId", remainingColumnNames);
     }
 
     [Fact]
@@ -320,13 +386,13 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             gitWorkspaceId: Guid.NewGuid(),
             gitCheckpointId: Guid.NewGuid(),
             checkpointFingerprintSha256: "sha256:fingerprint",
-            inputCollaborationMessageId: proposal.Id,
             contextManifestArtifactId: Guid.NewGuid(),
             timeout: TimeSpan.FromMinutes(10),
             maxBytesPerStream: 1024,
             maxTotalCapturedBytes: 2048,
             claimedAtUtc: now);
         context.Attempts.Add(attempt);
+        context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, proposal.Id, sequence: 0));
         await context.SaveChangesAsync();
 
         attempt.MarkAgentDispatched(now);
@@ -354,7 +420,9 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Equal(AgentProvider.ClaudeCode, reopenedAttempt.AgentProvider);
         Assert.Equal(AgentRole.CriticalReviewer, reopenedAttempt.AgentRole);
         Assert.Equal(AgentResponseContract.CriticalReview, reopenedAttempt.AgentResponseContract);
-        Assert.Equal(proposal.Id, reopenedAttempt.AgentInputCollaborationMessageId);
+        var reopenedInputMessage = await reopenedContext.AttemptInputMessages.SingleAsync(m => m.AttemptId == attempt.Id);
+        Assert.Equal(proposal.Id, reopenedInputMessage.CollaborationMessageId);
+        Assert.Equal(0, reopenedInputMessage.Sequence);
         Assert.Equal(AgentOutcome.Accepted, reopenedAttempt.AgentOutcome);
         Assert.Equal(AttemptStatus.Completed, reopenedAttempt.Status);
 

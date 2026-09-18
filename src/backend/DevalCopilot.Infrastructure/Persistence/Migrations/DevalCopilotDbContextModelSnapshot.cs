@@ -680,9 +680,6 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AgentGitWorkspaceId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("AgentInputCollaborationMessageId")
-                        .HasColumnType("TEXT");
-
                     b.Property<int?>("AgentMaxBytesPerStream")
                         .HasColumnType("INTEGER");
 
@@ -786,6 +783,32 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("attempts", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.AttemptInputMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CollaborationMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId", "CollaborationMessageId")
+                        .IsUnique();
+
+                    b.HasIndex("AttemptId", "Sequence")
+                        .IsUnique();
+
+                    b.ToTable("attempt_input_messages", (string)null);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.CollaborationMessage", b =>
@@ -1088,6 +1111,15 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
                         .WithMany()
                         .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.AttemptInputMessage", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

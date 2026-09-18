@@ -46,7 +46,12 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandler(IDevalCo
                 dbContext.Artifacts.AsNoTracking(),
                 combined => combined.attempt.AgentContextManifestArtifactId!.Value,
                 artifact => artifact.Id,
-                (combined, artifact) => new
+                (combined, artifact) => new { combined.attempt, combined.workspace, artifact })
+            .Join(
+                dbContext.AttemptInputMessages.AsNoTracking().Where(inputMessage => inputMessage.Sequence == 0),
+                combined => combined.attempt.Id,
+                inputMessage => inputMessage.AttemptId,
+                (combined, inputMessage) => new
                 {
                     combined.attempt.Id,
                     combined.attempt.RunId,
@@ -55,13 +60,13 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandler(IDevalCo
                     combined.workspace.WorkspacePath,
                     GitCheckpointId = combined.attempt.AgentGitCheckpointId!.Value,
                     CheckpointFingerprintSha256 = combined.attempt.AgentCheckpointFingerprintSha256!,
-                    ContextManifestRelativeStoragePath = artifact.RelativeStoragePath,
-                    ContextManifestByteLength = artifact.ByteLength,
-                    ContextManifestContentHash = artifact.ContentHash,
+                    ContextManifestRelativeStoragePath = combined.artifact.RelativeStoragePath,
+                    ContextManifestByteLength = combined.artifact.ByteLength,
+                    ContextManifestContentHash = combined.artifact.ContentHash,
                     Timeout = combined.attempt.AgentTimeout!.Value,
                     MaxBytesPerStream = combined.attempt.AgentMaxBytesPerStream!.Value,
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
-                    InputCollaborationMessageId = combined.attempt.AgentInputCollaborationMessageId!.Value,
+                    InputCollaborationMessageId = inputMessage.CollaborationMessageId,
                 })
             .ToListAsync(cancellationToken);
 

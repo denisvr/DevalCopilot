@@ -167,7 +167,10 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
         // attempt actually completed as Accepted/Challenged — never the caller's pre-override
         // intent, so a review is never appended for an attempt that source-drift silently
         // downgraded.
-        var inputMessageId = attempt.AgentInputCollaborationMessageId!.Value;
+        var inputMessageId = await dbContext.AttemptInputMessages
+            .Where(inputMessage => inputMessage.AttemptId == attempt.Id && inputMessage.Sequence == 0)
+            .Select(inputMessage => inputMessage.CollaborationMessageId)
+            .SingleAsync(cancellationToken);
         RunEvent latestEvent;
         if (attempt.AgentOutcome == AgentOutcome.Accepted && command.Review is { IsAcceptance: true } acceptedReview)
         {

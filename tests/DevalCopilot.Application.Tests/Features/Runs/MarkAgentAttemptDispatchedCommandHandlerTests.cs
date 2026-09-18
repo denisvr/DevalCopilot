@@ -310,13 +310,13 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
 
         var reviewedProposalId = Guid.NewGuid();
         var attempt = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, reviewedProposalId, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
 
         // A competing critical-review attempt already recorded a successful review of the exact
         // same Proposal message — this one must never be dispatched.
         var competingReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, reviewedProposalId, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingReview.MarkAgentDispatched(Now);
         competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
@@ -327,6 +327,9 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
         dbContext.GitCheckpoints.Add(checkpoint);
         dbContext.RepositoryMutationLeases.Add(lease);
         dbContext.Attempts.AddRange(attempt, competingReview);
+        dbContext.AttemptInputMessages.AddRange(
+            AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, reviewedProposalId, sequence: 0),
+            AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, reviewedProposalId, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
@@ -352,11 +355,13 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
 
         var reviewedProposalId = Guid.NewGuid();
         var unrelatedCompletedReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 99, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, reviewedProposalId, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 99, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         unrelatedCompletedReview.MarkAgentDispatched(Now);
         unrelatedCompletedReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
         dbContext.Attempts.Add(unrelatedCompletedReview);
+        dbContext.AttemptInputMessages.Add(
+            AttemptInputMessage.Record(Guid.NewGuid(), unrelatedCompletedReview.Id, reviewedProposalId, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
@@ -365,5 +370,161 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
 
         Assert.True(result.IsSuccess);
         Assert.Equal(Now, planningAttempt.AgentDispatchedAtUtc);
+    }
+
+    /// <summary>Seeds one fully eligible, undispatched Resolver attempt whose ordered input set
+    /// (original Proposal at sequence 0, then every Challenge in order) is exactly
+    /// <paramref name="ownInputIds"/>, plus one already-Completed/Resolved competing Resolver
+    /// attempt whose own ordered input set is exactly <paramref name="competingInputIds"/> —
+    /// deliberately allowed to differ in length, membership, or order from
+    /// <paramref name="ownInputIds"/> so a test can prove the dispatch-time gate compares the
+    /// complete ordered sequence, never a set/overlap check.</summary>
+    private static async Task<(Run Run, Attempt Attempt)> SeedResolverAttemptWithCompetingResolutionAsync(
+        DevalCopilotDbContext dbContext, IReadOnlyList<Guid> ownInputIds, IReadOnlyList<Guid> competingInputIds)
+    {
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Resolve the challenged proposal", Now);
+        run.Claim(Now);
+        var workspace = GitWorkspace.Prepare(
+            Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", Now);
+        workspace.MarkReady();
+        var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
+        var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, Guid.NewGuid().ToByteArray(), Now);
+
+        var attempt = Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+
+        var competingResolution = Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        competingResolution.MarkAgentDispatched(Now);
+        competingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(checkpoint);
+        dbContext.RepositoryMutationLeases.Add(lease);
+        dbContext.Attempts.AddRange(attempt, competingResolution);
+
+        for (var index = 0; index < ownInputIds.Count; index++)
+        {
+            dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, ownInputIds[index], sequence: index));
+        }
+
+        for (var index = 0; index < competingInputIds.Count; index++)
+        {
+            dbContext.AttemptInputMessages.Add(
+                AttemptInputMessage.Record(Guid.NewGuid(), competingResolution.Id, competingInputIds[index], sequence: index));
+        }
+
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        return (run, attempt);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_dispatch_of_a_challenge_resolution_attempt_when_the_exact_same_ordered_input_set_already_has_a_successful_resolution()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var proposalId = Guid.NewGuid();
+        var challenge1Id = Guid.NewGuid();
+        var challenge2Id = Guid.NewGuid();
+        var (run, attempt) = await SeedResolverAttemptWithCompetingResolutionAsync(
+            dbContext,
+            ownInputIds: [proposalId, challenge1Id, challenge2Id],
+            competingInputIds: [proposalId, challenge1Id, challenge2Id]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(MarkAgentAttemptDispatchedCommandHandler.InputAlreadyResolvedCode, Assert.Single(result.Errors).Code);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_dispatches_normally_when_a_prior_resolution_only_partially_covers_the_input_set()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var proposalId = Guid.NewGuid();
+        var challenge1Id = Guid.NewGuid();
+        var challenge2Id = Guid.NewGuid();
+        var (run, attempt) = await SeedResolverAttemptWithCompetingResolutionAsync(
+            dbContext,
+            ownInputIds: [proposalId, challenge1Id, challenge2Id],
+            // A prior resolution of only the first challenge — a partial match must never block.
+            competingInputIds: [proposalId, challenge1Id]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_dispatches_normally_when_a_prior_resolution_belongs_to_an_entirely_foreign_input_set()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (run, attempt) = await SeedResolverAttemptWithCompetingResolutionAsync(
+            dbContext,
+            ownInputIds: [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()],
+            // A different Proposal and different Challenges entirely — no shared identity at all.
+            competingInputIds: [Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_dispatches_normally_when_a_prior_resolution_has_the_identical_elements_in_a_different_order()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var proposalId = Guid.NewGuid();
+        var challenge1Id = Guid.NewGuid();
+        var challenge2Id = Guid.NewGuid();
+        var (run, attempt) = await SeedResolverAttemptWithCompetingResolutionAsync(
+            dbContext,
+            ownInputIds: [proposalId, challenge1Id, challenge2Id],
+            // The identical three ids, but the two Challenges swapped — same set, different
+            // sequence. Never a false match: this is not the same ordered input identity.
+            competingInputIds: [proposalId, challenge2Id, challenge1Id]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_dispatches_normally_when_a_prior_resolution_merely_overlaps_with_one_extra_challenge()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var proposalId = Guid.NewGuid();
+        var challenge1Id = Guid.NewGuid();
+        var challenge2Id = Guid.NewGuid();
+        var (run, attempt) = await SeedResolverAttemptWithCompetingResolutionAsync(
+            dbContext,
+            ownInputIds: [proposalId, challenge1Id, challenge2Id],
+            // A superset — the same two challenges plus a third that never belonged to this
+            // attempt's own review. Overlap is never enough to match.
+            competingInputIds: [proposalId, challenge1Id, challenge2Id, Guid.NewGuid()]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
     }
 }

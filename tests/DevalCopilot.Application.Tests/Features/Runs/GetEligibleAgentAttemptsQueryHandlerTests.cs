@@ -253,7 +253,7 @@ public sealed class GetEligibleAgentAttemptsQueryHandlerTests : IAsyncLifetime
         var checkpointId = Guid.NewGuid();
         var claudeManifestArtifactId = Guid.NewGuid();
         var claudeAttempt = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), claudeRun.Id, 1, workspace.Id, checkpointId, Fingerprint, Guid.NewGuid(), claudeManifestArtifactId,
+            Guid.NewGuid(), claudeRun.Id, 1, workspace.Id, checkpointId, Fingerprint, claudeManifestArtifactId,
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
 
         dbContext.Projects.Add(project);

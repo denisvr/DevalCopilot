@@ -12,4 +12,10 @@ public enum AgentRole
     /// isolated workspace, checkpoint, and fresh Git fingerprint. Never resolution, revision, or
     /// execution — those remain deferred.</summary>
     CriticalReviewer = 1,
+
+    /// <summary>Codex resolving a real, current Claude critical-review Challenge set against the
+    /// same run, isolated workspace, checkpoint, and fresh Git fingerprint — explicitly deciding
+    /// every Challenge and emitting one revised Proposal. Never execution or later review stages;
+    /// those remain deferred.</summary>
+    Resolver = 2,
 }

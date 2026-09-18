@@ -17,7 +17,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     private static readonly DateTimeOffset Now = new(2026, 9, 18, 20, 0, 0, TimeSpan.Zero);
     private static readonly string Fingerprint = new('a', 64);
 
-    private static (Project Project, Run Run, Attempt Attempt) CreateClaimedCriticalReviewAttempt(
+    private static (Project Project, Run Run, Attempt Attempt, AttemptInputMessage InputMessage) CreateClaimedCriticalReviewAttempt(
         Guid? reviewedProposalId = null, int attemptNumber = 1)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
@@ -25,8 +25,9 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         run.Claim(Now);
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            reviewedProposalId ?? Guid.NewGuid(), Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
-        return (project, run, attempt);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, reviewedProposalId ?? Guid.NewGuid(), sequence: 0);
+        return (project, run, attempt, inputMessage);
     }
 
     [Fact]
@@ -34,17 +35,19 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     {
         await using var dbContext = fixture.CreateContext();
         var reviewedProposalId = Guid.NewGuid();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
 
         var competingReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, reviewedProposalId,
+            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingReview.MarkAgentDispatched(Now);
         competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        var competingInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, reviewedProposalId, sequence: 0);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.AddRange(attempt, competingReview);
+        dbContext.AttemptInputMessages.AddRange(inputMessage, competingInputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler(dbContext, new FixedTimeProvider(Now.AddSeconds(1)));
@@ -69,17 +72,19 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     {
         await using var dbContext = fixture.CreateContext();
         var reviewedProposalId = Guid.NewGuid();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
 
         var competingReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, reviewedProposalId,
+            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingReview.MarkAgentDispatched(Now);
         competingReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now);
+        var competingInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, reviewedProposalId, sequence: 0);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.AddRange(attempt, competingReview);
+        dbContext.AttemptInputMessages.AddRange(inputMessage, competingInputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler(dbContext, new FixedTimeProvider(Now.AddSeconds(1)));
@@ -100,10 +105,11 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     public async Task HandleAsync_fails_and_does_not_mutate_when_no_competing_review_exists_at_all()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler(dbContext, new FixedTimeProvider(Now.AddSeconds(1)));
@@ -122,7 +128,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     {
         await using var dbContext = fixture.CreateContext();
         var reviewedProposalId = Guid.NewGuid();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
 
         // The run-wide "one Running attempt" invariant forbids a second Running attempt on the
         // very same run, so the still-running competing attempt is seeded on an entirely
@@ -131,14 +137,16 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         // this still proves the real code path. Not yet a fact this command may act on: the
         // competing attempt has not itself completed successfully yet, so there is nothing to
         // supersede this attempt with.
-        var (otherProject, otherRun, _) = CreateClaimedCriticalReviewAttempt();
+        var (otherProject, otherRun, _, _) = CreateClaimedCriticalReviewAttempt();
         var stillRunningCompetingReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), otherRun.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, reviewedProposalId,
+            Guid.NewGuid(), otherRun.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        var stillRunningInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), stillRunningCompetingReview.Id, reviewedProposalId, sequence: 0);
 
         dbContext.Projects.AddRange(project, otherProject);
         dbContext.Runs.AddRange(run, otherRun);
         dbContext.Attempts.AddRange(attempt, stillRunningCompetingReview);
+        dbContext.AttemptInputMessages.AddRange(inputMessage, stillRunningInputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler(dbContext, new FixedTimeProvider(Now.AddSeconds(1)));
@@ -156,19 +164,21 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     {
         await using var dbContext = fixture.CreateContext();
         var reviewedProposalId = Guid.NewGuid();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt(reviewedProposalId, attemptNumber: 1);
 
         // Completed, but never a successful review — a failure outcome for the same proposal is
         // never evidence that this attempt was superseded.
         var failedCompetingAttempt = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, reviewedProposalId,
+            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         failedCompetingAttempt.MarkAgentDispatched(Now);
         failedCompetingAttempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
+        var failedInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), failedCompetingAttempt.Id, reviewedProposalId, sequence: 0);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.AddRange(attempt, failedCompetingAttempt);
+        dbContext.AttemptInputMessages.AddRange(inputMessage, failedInputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler(dbContext, new FixedTimeProvider(Now.AddSeconds(1)));
@@ -184,19 +194,21 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     public async Task HandleAsync_fails_and_does_not_mutate_when_the_completed_successful_review_is_for_a_different_proposal()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt(Guid.NewGuid(), attemptNumber: 1);
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt(Guid.NewGuid(), attemptNumber: 1);
 
         // A real, successful review — but of a different Proposal entirely. Never evidence for
         // this attempt's own input proposal.
         var unrelatedSuccessfulReview = Attempt.ClaimAgentCriticalReview(
-            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         unrelatedSuccessfulReview.MarkAgentDispatched(Now);
         unrelatedSuccessfulReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        var unrelatedInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), unrelatedSuccessfulReview.Id, Guid.NewGuid(), sequence: 0);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.AddRange(attempt, unrelatedSuccessfulReview);
+        dbContext.AttemptInputMessages.AddRange(inputMessage, unrelatedInputMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler(dbContext, new FixedTimeProvider(Now.AddSeconds(1)));
@@ -224,8 +236,8 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     public async Task HandleAsync_fails_when_the_attempt_belongs_to_a_different_run()
     {
         await using var dbContext = fixture.CreateContext();
-        var (targetProject, targetRun, _) = CreateClaimedCriticalReviewAttempt();
-        var (otherProject, otherRun, otherAttempt) = CreateClaimedCriticalReviewAttempt();
+        var (targetProject, targetRun, _, _) = CreateClaimedCriticalReviewAttempt();
+        var (otherProject, otherRun, otherAttempt, _) = CreateClaimedCriticalReviewAttempt();
         dbContext.Projects.AddRange(targetProject, otherProject);
         dbContext.Runs.AddRange(targetRun, otherRun);
         dbContext.Attempts.Add(otherAttempt);
@@ -268,7 +280,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     public async Task HandleAsync_fails_and_does_not_mutate_an_already_dispatched_attempt()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, _) = CreateClaimedCriticalReviewAttempt();
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -289,7 +301,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
     public async Task HandleAsync_fails_and_does_not_mutate_an_already_terminal_attempt()
     {
         await using var dbContext = fixture.CreateContext();
-        var (project, run, attempt) = CreateClaimedCriticalReviewAttempt();
+        var (project, run, attempt, _) = CreateClaimedCriticalReviewAttempt();
         attempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
