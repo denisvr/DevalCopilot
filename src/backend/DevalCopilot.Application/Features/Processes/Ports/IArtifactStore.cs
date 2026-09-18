@@ -55,6 +55,16 @@ public interface IArtifactStore
     void DeleteOrphanedPartialFile(Guid runId, Guid attemptId, ArtifactPurpose purpose);
 
     /// <summary>
+    /// Deletes an orphaned <em>sealed</em> file — for the narrow case where sealing itself
+    /// already succeeded but the database write that was meant to record it lost a race (e.g. a
+    /// concurrency conflict on a unique constraint) and will never happen. Callers must only
+    /// invoke this when certain no <see cref="Artifact"/> row will ever reference this file; this
+    /// method itself performs no such check. Best-effort: a failed delete leaves harmless
+    /// orphaned bytes behind, never data loss, since nothing durable ever references this file.
+    /// </summary>
+    void DeleteOrphanedSealedFile(Guid runId, Guid attemptId, ArtifactPurpose purpose);
+
+    /// <summary>
     /// Reads a bounded window from the in-progress (not yet sealed) capture file, tolerant of
     /// the host concurrently appending to it. Used only while the owning attempt is still
     /// <c>Running</c>.

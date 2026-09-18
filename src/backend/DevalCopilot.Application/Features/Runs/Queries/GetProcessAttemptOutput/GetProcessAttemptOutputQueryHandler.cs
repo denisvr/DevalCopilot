@@ -40,6 +40,9 @@ public sealed class GetProcessAttemptOutputQueryHandler(IDevalCopilotDbContext d
                 _ => throw new ArgumentOutOfRangeException(),
             };
 
+            // Preserved as-is, including a genuinely unknown (null) truncation for an artifact
+            // recovered from a host interruption — never coalesced to a false claim of "known
+            // not truncated".
             return new GetProcessAttemptOutputQueryResult(
                 status, sealedRead.Text, sealedRead.NextOffset, sealedRead.TotalLengthSoFar, IsFinal: true, artifact.Truncated);
         }

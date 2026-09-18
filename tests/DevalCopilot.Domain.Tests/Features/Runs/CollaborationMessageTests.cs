@@ -122,7 +122,7 @@ public sealed class CollaborationMessageTests
     }
 
     private const string ProposalContent =
-        "{\"scope\":\"Ledger\",\"assumptions\":\"Host is authoritative\",\"verification\":\"Tests\",\"risks\":\"Unbounded content\"}";
+        "{\"scope\":\"Ledger\",\"implementationSteps\":\"Add the table then the query\",\"risks\":\"Unbounded content\",\"verificationPlan\":\"Tests\",\"escalationPoints\":\"None expected\"}";
     private const string ChallengeContent =
         "{\"disputedItem\":\"Claim\",\"materialImpact\":\"Impact\",\"reasoning\":\"Reasoning\",\"alternativeOrQuestion\":\"Alternative\"}";
 }

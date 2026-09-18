@@ -168,6 +168,21 @@ public sealed class FilesystemArtifactStore : IArtifactStore, IVerificationOutpu
         }
     }
 
+    public void DeleteOrphanedSealedFile(Guid runId, Guid attemptId, ArtifactPurpose purpose)
+    {
+        var sealedPath = Path.Combine(_root, GetSealedRelativePath(runId, attemptId, purpose));
+
+        try
+        {
+            File.Delete(sealedPath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Best-effort: a failed cleanup leaves harmless orphaned bytes behind, never data
+            // loss — nothing durable ever referenced this file.
+        }
+    }
+
     public async Task<PartialReadWindow> ReadPartialAsync(
         Guid runId, Guid attemptId, ArtifactPurpose purpose, long fromOffset, int maxBytes, CancellationToken cancellationToken)
     {
@@ -301,6 +316,10 @@ public sealed class FilesystemArtifactStore : IArtifactStore, IVerificationOutpu
     {
         ArtifactPurpose.ProcessStandardOutput => "stdout",
         ArtifactPurpose.ProcessStandardError => "stderr",
+        ArtifactPurpose.AgentContextManifest => "context-manifest",
+        ArtifactPurpose.AgentStandardOutput => "stdout",
+        ArtifactPurpose.AgentStandardError => "stderr",
+        ArtifactPurpose.AgentFinalResponse => "final-response",
         _ => throw new ArgumentOutOfRangeException(nameof(purpose), purpose, null),
     };
 

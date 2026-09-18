@@ -19,4 +19,13 @@ public enum ArtifactSensitivity
     /// not "verified safe."
     /// </summary>
     RedactedBestEffort = 0,
+
+    /// <summary>
+    /// Content is composed entirely by DevalCopilot's own application code from already-curated
+    /// durable fields — an Agent attempt's context manifest, for example — never raw external
+    /// process output, repository text, or user input passed through unexamined. There is
+    /// nothing to redact because nothing came from an unredacted external source; this is a
+    /// distinct, stronger classification than <see cref="RedactedBestEffort"/>, not a weaker one.
+    /// </summary>
+    HostConstructedContent = 1,
 }

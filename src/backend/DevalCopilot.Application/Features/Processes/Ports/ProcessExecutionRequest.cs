@@ -85,4 +85,31 @@ public sealed record ProcessExecutionRequest
 
     /// <summary>The stderr counterpart of <see cref="StandardOutputSinkPath"/>.</summary>
     public string? StandardErrorSinkPath { get; init; }
+
+    /// <summary>The most UTF-8 bytes <see cref="StandardInput"/> may contain. The adapter
+    /// rejects the request before starting any process if this is exceeded.</summary>
+    public const int MaxStandardInputBytes = 1024 * 1024;
+
+    /// <summary>
+    /// When set, these exact bytes are written to the child process's standard input, then the
+    /// input stream is closed — never appended to <see cref="Arguments"/> or any command line.
+    /// <see langword="null"/> (the default) means standard input is never redirected at all,
+    /// identical to every caller's behavior before this property existed. An empty array still
+    /// redirects standard input and immediately closes it (giving the child a real, empty,
+    /// EOF-terminated stream) — a deliberately different case from <see langword="null"/>.
+    /// </summary>
+    public byte[]? StandardInput { get; init; }
+
+    /// <summary>
+    /// Deliberately omits <see cref="StandardInput"/> (and its byte count) so a caller that logs
+    /// or formats a request — including via string interpolation or an uncaught exception's
+    /// default message — can never leak stdin content. This overrides the compiler-generated
+    /// record <c>ToString</c>, which would otherwise print every public property.
+    /// </summary>
+    public override string ToString() =>
+        $"{nameof(ProcessExecutionRequest)} {{ {nameof(ExecutablePath)} = {ExecutablePath}, " +
+        $"{nameof(Arguments)}.Count = {Arguments.Count}, {nameof(WorkingDirectory)} = {WorkingDirectory}, " +
+        $"{nameof(ApprovedRoot)} = {ApprovedRoot}, {nameof(Timeout)} = {Timeout}, " +
+        $"{nameof(MaxBytesPerStream)} = {MaxBytesPerStream}, {nameof(MaxTotalCapturedBytes)} = {MaxTotalCapturedBytes}, " +
+        $"HasStandardInput = {StandardInput is not null} }}";
 }

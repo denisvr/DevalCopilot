@@ -15,6 +15,7 @@ using DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVerificationExecutions;
 using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -118,6 +119,11 @@ builder.Services.AddSingleton<IWorkspaceOwnershipMarkerStore, WorkspaceOwnership
 builder.Services.AddSingleton<IWorkspaceRootPathProvider, WorkspaceRootPathProvider>();
 builder.Services.AddHostedService<VerificationExecutionSupervisor>();
 
+// Codex planning: composed on top of IProcessExecutionAdapter, IArtifactStore, and
+// IGitWorkspaceEvidenceReader above — never a second child-process or Git evidence path.
+builder.Services.AddSingleton<ICodexPlanningAdapter, CodexPlanningAdapter>();
+builder.Services.AddHostedService<AgentAttemptSupervisor>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -202,6 +208,12 @@ using (var startupScope = app.Services.CreateScope())
     // metadata commit cannot lose truthful output, while partial files remain non-evidence.
     await mediator.SendAsync(new RecoverInterruptedVerificationOutputArtifactsCommand(), CancellationToken.None);
     await mediator.SendAsync(new ReconcileInterruptedVerificationExecutionsCommand(), CancellationToken.None);
+
+    // Same ordering rule as ProcessAttemptOutputRecovery above: must complete before
+    // AgentAttemptSupervisor can claim any work, and output recovery must run first, while
+    // GetRunningAgentAttemptsQuery still sees these attempts as Running.
+    await AgentAttemptOutputRecovery.RunAsync(startupScope.ServiceProvider, startupLogger, CancellationToken.None);
+    await mediator.SendAsync(new ReconcileInterruptedAgentAttemptsCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

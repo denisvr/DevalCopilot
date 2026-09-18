@@ -9,4 +9,10 @@ public enum AttemptKind
 {
     Simulated = 0,
     Process = 1,
+
+    /// <summary>A durable, real invocation of an external agent provider — Codex planning in this
+    /// slice. Distinct from <see cref="Process"/>: an Agent attempt's committed intent describes
+    /// a provider/role/protocol contract and a Git checkpoint it is evidence about, never a bare
+    /// executable/arguments/working-directory triple.</summary>
+    Agent = 2,
 }

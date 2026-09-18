@@ -24,6 +24,8 @@ import {
   RegisterProjectEndpointClient,
   RequestHostCapabilityRefreshEndpointClient,
   StartSimulatedRunEndpointClient,
+  RequestCodexPlanningAttemptEndpointClient,
+  GetAgentAttemptStatusEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -54,6 +56,8 @@ export const deleteVerificationCommandClient = () => new DeleteVerificationComma
 export const claimVerificationExecutionClient = () => new ClaimVerificationExecutionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const recordCheckpointReviewClient = () => new RecordCheckpointReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const verificationExecutionOutputClient = () => new GetVerificationExecutionOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestCodexPlanningAttemptClient = () => new RequestCodexPlanningAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const agentAttemptStatusClient = () => new GetAgentAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -79,5 +83,8 @@ export type {
   VerificationCommandResponse,
   VerificationExecutionResponse,
   CheckpointReviewResponse,
+  RequestCodexPlanningAttemptResponse,
+  AgentAttemptStatusResponse,
+  AgentAttemptArtifactMetadataResponse,
 } from './generated/api-client'
 export { ClaimVerificationExecutionRequest, RecordCheckpointReviewRequest, RegisterProjectRequest } from './generated/api-client'

@@ -119,6 +119,6 @@ public sealed class RecordSimulatedAgentStepCommandHandlerTests(SqliteDatabaseFi
             CollaborationMessageType.Proposal,
             null,
             "Proposal",
-            "{\"scope\":\"Test scope\",\"assumptions\":\"Test assumption\",\"verification\":\"Test verification\",\"risks\":\"Test risk\"}");
+            "{\"scope\":\"Test scope\",\"implementationSteps\":\"Test steps\",\"risks\":\"Test risk\",\"verificationPlan\":\"Test verification\",\"escalationPoints\":\"None expected\"}");
     }
 }

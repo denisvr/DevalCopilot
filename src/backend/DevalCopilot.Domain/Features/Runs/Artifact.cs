@@ -21,7 +21,7 @@ public sealed class Artifact
         string relativeStoragePath,
         string contentHash,
         long byteLength,
-        bool truncated,
+        bool? truncated,
         ArtifactCaptureOutcome captureOutcome,
         ArtifactSensitivity sensitivity,
         ArtifactRetentionPolicy retentionPolicy,
@@ -34,6 +34,22 @@ public sealed class Artifact
         if (byteLength < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(byteLength), byteLength, "Must not be negative.");
+        }
+
+        // A known capture outcome always carries a known true/false — never left ambiguous.
+        // A host-interrupted recovery's truncation was never actually observed and must never
+        // be reported as a known `false` just because the caller didn't have a real value handy.
+        if (captureOutcome == ArtifactCaptureOutcome.Captured && truncated is null)
+        {
+            throw new ArgumentException(
+                "A Captured artifact must record a known truncation value.", nameof(truncated));
+        }
+
+        if (captureOutcome == ArtifactCaptureOutcome.PartialHostInterrupted && truncated is not null)
+        {
+            throw new ArgumentException(
+                "A PartialHostInterrupted artifact's truncation was never actually observed and must be recorded as unknown (null).",
+                nameof(truncated));
         }
 
         return new Artifact
@@ -73,7 +89,12 @@ public sealed class Artifact
 
     public long ByteLength { get; private set; }
 
-    public bool Truncated { get; private set; }
+    /// <summary><see langword="null"/> means truncation is genuinely unknown — only true for an
+    /// artifact imported from an interrupted host session's partial capture, where whether the
+    /// original capture was ever truncated before the host stopped writing was never observed.
+    /// A known capture (<see cref="ArtifactCaptureOutcome.Captured"/>) always carries a definite
+    /// <see langword="true"/>/<see langword="false"/> here, never <see langword="null"/>.</summary>
+    public bool? Truncated { get; private set; }
 
     public ArtifactCaptureOutcome CaptureOutcome { get; private set; }
 

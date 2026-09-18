@@ -28,5 +28,7 @@ public enum ProcessAttemptOutputStatus
 
 /// <param name="IsFinal">True once the underlying artifact is sealed and recorded — the caller
 /// should stop polling.</param>
+/// <param name="Truncated">Null exactly when genuinely unknown — an artifact recovered from a
+/// host interruption, whose truncation at the point of interruption was never observed.</param>
 public sealed record GetProcessAttemptOutputQueryResult(
-    ProcessAttemptOutputStatus Status, string Text, long NextOffset, long TotalLengthSoFar, bool IsFinal, bool Truncated);
+    ProcessAttemptOutputStatus Status, string Text, long NextOffset, long TotalLengthSoFar, bool IsFinal, bool? Truncated);

@@ -437,13 +437,59 @@
   background: var(--dc-codex);
 }
 
+.dc-collaboration-column {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .dc-collaboration {
   min-width: 0;
+  min-height: 0;
+  flex: 1;
   overflow-y: auto;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.dc-codex-planning-action {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--dc-border);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.dc-codex-planning-request {
+  border: 1px solid var(--dc-border);
+  background: var(--dc-surface-alt);
+  color: var(--dc-text);
+  border-radius: 6px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.dc-codex-planning-request:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.dc-codex-planning-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-codex-planning-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dc-warning-text);
 }
 
 .dc-collaboration-status {
@@ -720,6 +766,12 @@
 
 .dc-process-output-truncated {
   color: var(--dc-warning);
+  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
+}
+
+.dc-process-output-truncation-unknown {
+  color: var(--dc-text-muted);
   font-size: 0.75rem;
   margin: 0.25rem 0 0;
 }

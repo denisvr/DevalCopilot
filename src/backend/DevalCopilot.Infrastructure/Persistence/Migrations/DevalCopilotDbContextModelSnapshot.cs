@@ -643,7 +643,7 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("Truncated")
+                    b.Property<bool?>("Truncated")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -659,6 +659,55 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentCheckpointFingerprintSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AgentContextManifestArtifactId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("AgentDispatchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentExpectedMessageType")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AgentGitCheckpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AgentGitWorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("AgentMaxBytesPerStream")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AgentMaxTotalCapturedBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AgentOutcome")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentProtocolVersion")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentProvider")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentProviderSessionId")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AgentRole")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("AgentTimeout")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("AttemptNumber")
                         .HasColumnType("INTEGER");
@@ -720,6 +769,11 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RunId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_attempts_run_id_one_running")
+                        .HasFilter("\"Status\" = 'Running'");
 
                     b.HasIndex("RunId", "AttemptNumber")
                         .IsUnique();

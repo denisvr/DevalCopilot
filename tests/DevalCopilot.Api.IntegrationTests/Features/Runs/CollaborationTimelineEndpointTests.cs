@@ -83,7 +83,7 @@ public sealed class CollaborationTimelineEndpointTests(ApiWebApplicationFactory 
             CollaborationMessageType.Proposal,
             null,
             "Expose a bounded protocol card.",
-            "{\"scope\":\"Timeline\",\"assumptions\":\"Authenticated host\",\"verification\":\"MVC test\",\"risks\":\"Sensitive fields\"}",
+            "{\"scope\":\"Timeline\",\"implementationSteps\":\"Add the endpoint\",\"risks\":\"Sensitive fields\",\"verificationPlan\":\"MVC test\",\"escalationPoints\":\"None expected\"}",
             CollaborationMessageProvenance.Simulated,
             now));
         await dbContext.SaveChangesAsync();

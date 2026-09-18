@@ -53,6 +53,23 @@ switch (args[0])
         File.AppendAllText(args[1], Guid.NewGuid() + Environment.NewLine);
         return 0;
 
+    case "echo-stdin":
+        // Reads standard input through to its natural end and writes the exact same bytes back
+        // to stdout — lets a test assert byte-for-byte stdin transmission (including non-ASCII
+        // UTF-8 content and literal shell metacharacters) without this fixture ever interpreting
+        // the bytes as anything but opaque data.
+        await EchoStandardInputAsync();
+        return 0;
+
+    case "sleep-then-echo-stdin":
+        // Sleeps before touching standard input at all, so a caller writing a large payload can
+        // observe the write genuinely still in flight (blocked on the OS pipe buffer) for the
+        // whole sleep duration — used to test cancellation/timeout while a stdin write is still
+        // in progress.
+        Thread.Sleep(int.Parse(args[1]));
+        await EchoStandardInputAsync();
+        return 0;
+
     default:
         await Console.Error.WriteLineAsync($"Unknown mode: {args[0]}");
         return 64;
@@ -72,6 +89,13 @@ static void WriteBytes(Stream stream, int count)
     }
 
     stream.Flush();
+}
+
+static async Task EchoStandardInputAsync()
+{
+    await using var input = Console.OpenStandardInput();
+    await using var output = Console.OpenStandardOutput();
+    await input.CopyToAsync(output);
 }
 
 static int SpawnTree(int sleepMilliseconds)

@@ -1,20 +1,26 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { processAttemptOutputClient } from '../../../api/clients'
-import { GetRunCockpitResponse } from '../../../api/generated/api-client'
+import { AgentAttemptStatusResponse, GetRunCockpitResponse } from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
 import * as useCollaborationTimelineModule from '../hooks/useCollaborationTimeline'
+import * as useAgentAttemptStatusModule from '../hooks/useAgentAttemptStatus'
+import * as useRequestCodexPlanningAttemptModule from '../hooks/useRequestCodexPlanningAttempt'
 import type { CollaborationCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
 vi.mock('../hooks/useRunCockpit')
 vi.mock('../hooks/useCollaborationTimeline')
+vi.mock('../hooks/useAgentAttemptStatus')
+vi.mock('../hooks/useRequestCodexPlanningAttempt')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
 }))
 
 const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)
 const useCollaborationTimelineMock = vi.mocked(useCollaborationTimelineModule.useCollaborationTimeline)
+const useAgentAttemptStatusMock = vi.mocked(useAgentAttemptStatusModule.useAgentAttemptStatus)
+const useRequestCodexPlanningAttemptMock = vi.mocked(useRequestCodexPlanningAttemptModule.useRequestCodexPlanningAttempt)
 
 beforeEach(() => {
   useCollaborationTimelineMock.mockReturnValue({
@@ -22,6 +28,17 @@ beforeEach(() => {
     loading: false,
     error: null,
     hasSuccessfulResponse: true,
+  })
+  useAgentAttemptStatusMock.mockReturnValue({
+    status: null,
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  })
+  useRequestCodexPlanningAttemptMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
   })
 })
 
@@ -308,6 +325,87 @@ describe('RunCockpitView', () => {
       expect(Object.keys(sessionStorage)).toHaveLength(0)
       expect(document.cookie).not.toContain(sentinel)
       expect(window.location.href).not.toContain(sentinel)
+    })
+  })
+
+  describe('Codex planning wiring', () => {
+    it('requests a Codex plan for the current run when the action is used', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      const request = vi.fn()
+      useRequestCodexPlanningAttemptMock.mockReturnValue({ requesting: false, error: null, request })
+
+      render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Request Codex plan' }))
+
+      expect(request).toHaveBeenCalledWith('run-1')
+    })
+
+    it('shows a visibly-working state while the attempt is running, without implying a review happened', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useAgentAttemptStatusMock.mockReturnValue({
+        status: new AgentAttemptStatusResponse({ attemptId: 'attempt-1', attemptNumber: 1, status: 'Running' }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByText(/pending/i)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+    })
+
+    it('surfaces a safe conflict message from a failed request without losing the rest of the cockpit', async () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      const request = vi.fn().mockResolvedValue(false)
+      useRequestCodexPlanningAttemptMock.mockReturnValue({
+        requesting: false,
+        error: 'This run already has a Codex planning attempt in progress.',
+        request,
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByText('This run already has a Codex planning attempt in progress.')).toBeInTheDocument()
+      expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
+    })
+
+    it('re-reads status for the newly selected run when the cockpit switches runs', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      expect(useAgentAttemptStatusMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
+
+      rerender(<RunCockpitView runId="run-2" />)
+      expect(useAgentAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
     })
   })
 })

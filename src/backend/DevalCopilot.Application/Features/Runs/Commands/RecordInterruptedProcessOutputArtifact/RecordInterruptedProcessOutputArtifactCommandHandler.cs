@@ -72,7 +72,10 @@ public sealed class RecordInterruptedProcessOutputArtifactCommandHandler(IDevalC
             command.RelativeStoragePath,
             command.ContentHash,
             command.ByteLength,
-            truncated: false,
+            // Genuinely unknown: whether the interrupted host session's partial capture had
+            // already been truncated before it stopped writing was never observed, so this is
+            // never reported as a known `false`.
+            truncated: null,
             ArtifactCaptureOutcome.PartialHostInterrupted,
             ArtifactSensitivity.RedactedBestEffort,
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
@@ -84,7 +87,7 @@ public sealed class RecordInterruptedProcessOutputArtifactCommandHandler(IDevalC
             artifactId = artifact.Id,
             purpose = command.Purpose.ToString(),
             byteLength = command.ByteLength,
-            truncated = false,
+            truncated = (bool?)null,
             captureOutcome = ArtifactCaptureOutcome.PartialHostInterrupted.ToString(),
             sensitivity = artifact.Sensitivity.ToString(),
             retentionPolicy = artifact.RetentionPolicy.ToString(),

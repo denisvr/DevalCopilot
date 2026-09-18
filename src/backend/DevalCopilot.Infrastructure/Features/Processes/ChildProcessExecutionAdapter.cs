@@ -28,6 +28,10 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            // Only redirected when the caller actually supplied stdin content — null (the
+            // default) leaves this false, identical to every caller's behavior before stdin
+            // support existed.
+            RedirectStandardInput = request.StandardInput is not null,
             CreateNoWindow = true,
         };
 
@@ -59,6 +63,8 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
 
         using var timeoutSource = new CancellationTokenSource(request.Timeout);
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token);
+
+        var standardInputWrite = WriteStandardInputAsync(process, request.StandardInput, linkedSource.Token);
 
         ProcessExecutionOutcome outcome;
         int? exitCode;
@@ -100,7 +106,7 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
         }
 
         stopwatch.Stop();
-        await Task.WhenAll(standardOutputDrain, standardErrorDrain).ConfigureAwait(false);
+        await Task.WhenAll(standardOutputDrain, standardErrorDrain, standardInputWrite).ConfigureAwait(false);
 
         return new ProcessExecutionResult
         {
@@ -112,6 +118,43 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
             StandardErrorTruncated = standardError.Truncated,
             Duration = stopwatch.Elapsed,
         };
+    }
+
+    /// <summary>
+    /// Writes the caller's exact stdin bytes and closes the input stream, signaling EOF to the
+    /// child — never appended to <see cref="ProcessStartInfo.ArgumentList"/> or any command
+    /// line. A no-op when <paramref name="standardInput"/> is <see langword="null"/>: standard
+    /// input was never redirected in that case (see <see cref="ExecuteAsync"/>), so there is
+    /// nothing to write or close. Tolerates the child exiting, or the process tree being killed
+    /// for cancellation/timeout, while this write is still in flight — a stuck or refused write
+    /// is not itself a new execution failure to report; the process's own exit classification
+    /// already tells the real story.
+    /// </summary>
+    private static async Task WriteStandardInputAsync(Process process, byte[]? standardInput, CancellationToken cancellationToken)
+    {
+        if (standardInput is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await process.StandardInput.BaseStream.WriteAsync(standardInput, cancellationToken).ConfigureAwait(false);
+            await process.StandardInput.BaseStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or ObjectDisposedException or OperationCanceledException)
+        {
+        }
+        finally
+        {
+            try
+            {
+                process.StandardInput.Close();
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException)
+            {
+            }
+        }
     }
 
     /// <summary>
@@ -139,6 +182,14 @@ public sealed class ChildProcessExecutionAdapter : IProcessExecutionAdapter
         {
             throw new ArgumentException(
                 $"Approved root '{request.ApprovedRoot}' must be an absolute path.", nameof(request.ApprovedRoot));
+        }
+
+        if (request.StandardInput is { Length: var standardInputLength } && standardInputLength > ProcessExecutionRequest.MaxStandardInputBytes)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request.StandardInput),
+                standardInputLength,
+                $"Standard input must not exceed {ProcessExecutionRequest.MaxStandardInputBytes} bytes.");
         }
 
         if (request.Arguments.Count > ProcessExecutionRequest.MaxArgumentCount)

@@ -27,10 +27,24 @@ export function ProcessAttemptOutputViewer({ runId, attemptId, stream }: Process
     return <p className="dc-empty-state">No output was captured for this stream.</p>
   }
 
+  // A `null`/`undefined` truncation only ever occurs once the underlying artifact is final
+  // (a sealed artifact recovered from a host interruption, whose truncation at the point of
+  // interruption was never observed) — never during the initial pre-response loading state,
+  // and never for a live in-progress capture (always a definite `false`). Gating on `isFinal`
+  // keeps this indicator from ever flashing before the first poll response arrives.
+  const truncationUnknown = isFinal && (truncated === undefined || truncated === null)
+
   return (
     <div className="dc-process-output" data-stream={stream} data-final={isFinal}>
       <pre className="dc-process-output-text">{text || (isFinal ? '(empty)' : 'Loading…')}</pre>
-      {truncated ? <p className="dc-process-output-truncated">Output was truncated at the capture limit.</p> : null}
+      {truncated === true ? (
+        <p className="dc-process-output-truncated">Output was truncated at the capture limit.</p>
+      ) : null}
+      {truncationUnknown ? (
+        <p className="dc-process-output-truncation-unknown">
+          Truncation status unknown (recovered after an interruption).
+        </p>
+      ) : null}
     </div>
   )
 }

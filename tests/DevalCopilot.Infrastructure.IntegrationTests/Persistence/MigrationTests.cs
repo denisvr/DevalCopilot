@@ -56,6 +56,97 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddHostCapabilitySnapshots", appliedMigrations);
         Assert.Contains("AddCollaborationMessages", appliedMigrations);
         Assert.Contains("AddProviderLaunchTargets", appliedMigrations);
+        Assert.Contains("AddCodexPlanningAttempts", appliedMigrations);
+        Assert.Contains("AgentAttemptCorrectionRound1", appliedMigrations);
+    }
+
+    /// <summary>
+    /// The correction round's own required "migration round-trip/backfill evidence": proves the
+    /// <c>ArtifactCorrectionRound1</c> migration's <c>ALTER COLUMN Truncated</c> (NOT NULL bool ->
+    /// nullable bool) preserves every pre-existing row's already-known true/false value verbatim
+    /// — it never resets existing data to null or to a fixed default just because the column
+    /// itself became nullable. A brand-new row inserted only after the migration (the Agent
+    /// interrupted-recovery path) is the only case ever allowed to be null.
+    /// </summary>
+    [Fact]
+    public async Task Migrate_preserves_every_pre_existing_artifacts_truncated_value_truthfully_when_the_column_becomes_nullable()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var truncatedTrueArtifactId = Guid.NewGuid();
+        var truncatedFalseArtifactId = Guid.NewGuid();
+        Guid runId;
+        Guid attemptId;
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Stops one migration short of AgentAttemptCorrectionRound1, so artifacts.Truncated is
+            // still the original NOT NULL column exactly as a pre-existing installation's database
+            // has it right before upgrading.
+            await context.Database.MigrateAsync("AddCodexPlanningAttempts");
+
+            var project = Project.Register(Guid.NewGuid(), "DevalCopilot", @"C:\repos\migration-truncated-test", now);
+            context.Projects.Add(project);
+            await context.SaveChangesAsync();
+
+            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Prove truncated backfill", now);
+            context.Runs.Add(run);
+            await context.SaveChangesAsync();
+            runId = run.Id;
+
+            run.Claim(now);
+            var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, 1, now);
+            context.Attempts.Add(attempt);
+            await context.SaveChangesAsync();
+            attemptId = attempt.Id;
+
+            // Raw SQL: at this schema checkpoint Truncated is NOT NULL, but the currently compiled
+            // Artifact/ArtifactConfiguration model already reflects the *new* nullable shape, so
+            // EF's own Add(...) can't be trusted to match this historical schema — the same
+            // rationale as the HostCapabilitySnapshot backfill test above.
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO artifacts
+                       (Id, RunId, AttemptId, Purpose, MediaType, RelativeStoragePath, ContentHash, ByteLength, Truncated, CaptureOutcome, Sensitivity, RetentionPolicy, CreatedAtUtc)
+                   VALUES
+                       ({truncatedTrueArtifactId}, {run.Id}, {attemptId}, {nameof(ArtifactPurpose.ProcessStandardOutput)}, {"text/plain; charset=utf-8"}, {"runs/r/attempts/a/stdout.sealed"}, {"sha256:aaa"}, {128L}, {true}, {nameof(ArtifactCaptureOutcome.Captured)}, {nameof(ArtifactSensitivity.RedactedBestEffort)}, {nameof(ArtifactRetentionPolicy.RetainUntilRunDeleted)}, {now})");
+
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO artifacts
+                       (Id, RunId, AttemptId, Purpose, MediaType, RelativeStoragePath, ContentHash, ByteLength, Truncated, CaptureOutcome, Sensitivity, RetentionPolicy, CreatedAtUtc)
+                   VALUES
+                       ({truncatedFalseArtifactId}, {run.Id}, {attemptId}, {nameof(ArtifactPurpose.ProcessStandardError)}, {"text/plain; charset=utf-8"}, {"runs/r/attempts/a/stderr.sealed"}, {"sha256:bbb"}, {64L}, {false}, {nameof(ArtifactCaptureOutcome.Captured)}, {nameof(ArtifactSensitivity.RedactedBestEffort)}, {nameof(ArtifactRetentionPolicy.RetainUntilRunDeleted)}, {now})");
+        }
+
+        await using (var context = fixture.CreateContext())
+        {
+            // Brings the schema fully up to date, including AgentAttemptCorrectionRound1's
+            // ALTER COLUMN making Truncated nullable.
+            await context.Database.MigrateAsync();
+        }
+
+        await using var reopenedContext = fixture.CreateContext();
+
+        var truncatedTrueRow = await reopenedContext.Artifacts.FindAsync(truncatedTrueArtifactId);
+        Assert.NotNull(truncatedTrueRow);
+        Assert.Equal(true, truncatedTrueRow.Truncated);
+
+        var truncatedFalseRow = await reopenedContext.Artifacts.FindAsync(truncatedFalseArtifactId);
+        Assert.NotNull(truncatedFalseRow);
+        Assert.Equal(false, truncatedFalseRow.Truncated);
+
+        // The only case ever allowed to be null: a brand-new row inserted after the migration,
+        // through the real Agent interrupted-recovery path's own Truncated: null convention.
+        var recoveredArtifact = Artifact.Record(
+            Guid.NewGuid(), runId, attemptId, ArtifactPurpose.AgentStandardOutput, "text/plain; charset=utf-8",
+            "runs/r/attempts/a/recovered-stdout.sealed", "sha256:ccc", 32, truncated: null,
+            ArtifactCaptureOutcome.PartialHostInterrupted, ArtifactSensitivity.RedactedBestEffort,
+            ArtifactRetentionPolicy.RetainUntilRunDeleted, now);
+        reopenedContext.Artifacts.Add(recoveredArtifact);
+        await reopenedContext.SaveChangesAsync();
+
+        await using var finalContext = fixture.CreateContext();
+        var recoveredRow = await finalContext.Artifacts.FindAsync(recoveredArtifact.Id);
+        Assert.NotNull(recoveredRow);
+        Assert.Null(recoveredRow.Truncated);
     }
 
     [Fact]
@@ -149,7 +240,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             CollaborationMessageType.Proposal,
             null,
             "Record a bounded proposal.",
-            "{\"scope\":\"Schema\",\"assumptions\":\"SQLite\",\"verification\":\"Migration test\",\"risks\":\"Schema drift\"}",
+            "{\"scope\":\"Schema\",\"implementationSteps\":\"Add the migration\",\"risks\":\"Schema drift\",\"verificationPlan\":\"Migration test\",\"escalationPoints\":\"None expected\"}",
             CollaborationMessageProvenance.Simulated,
             now));
 

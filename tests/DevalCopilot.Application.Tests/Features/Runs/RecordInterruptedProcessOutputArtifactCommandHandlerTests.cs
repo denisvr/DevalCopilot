@@ -61,7 +61,10 @@ public sealed class RecordInterruptedProcessOutputArtifactCommandHandlerTests : 
         var persisted = dbContext.Artifacts.Single(a => a.AttemptId == attempt.Id);
         Assert.Equal(ArtifactCaptureOutcome.PartialHostInterrupted, persisted.CaptureOutcome);
         Assert.Equal(123, persisted.ByteLength);
-        Assert.False(persisted.Truncated);
+        // Genuinely unknown, never a stand-in for a known false: whether the interrupted host
+        // session's partial capture had already been truncated before it stopped writing was
+        // never observed.
+        Assert.Null(persisted.Truncated);
         Assert.Equal(ArtifactSensitivity.RedactedBestEffort, persisted.Sensitivity);
         Assert.Equal(ArtifactRetentionPolicy.RetainUntilRunDeleted, persisted.RetentionPolicy);
 

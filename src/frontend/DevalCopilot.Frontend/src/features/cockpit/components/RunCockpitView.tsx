@@ -1,7 +1,10 @@
 import { useRunCockpit } from '../hooks/useRunCockpit'
 import { useCollaborationTimeline } from '../hooks/useCollaborationTimeline'
+import { useAgentAttemptStatus } from '../hooks/useAgentAttemptStatus'
+import { useRequestCodexPlanningAttempt } from '../hooks/useRequestCodexPlanningAttempt'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { AgentCollaboration } from './AgentCollaboration'
+import { CodexPlanningAction } from './CodexPlanningAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { RunHeader } from './RunHeader'
@@ -15,6 +18,8 @@ interface RunCockpitViewProps {
 export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError } = useRunCockpit(runId)
   const collaborationTimeline = useCollaborationTimeline(runId, cockpit?.latestSequence)
+  const agentAttemptStatus = useAgentAttemptStatus(runId, cockpit?.latestSequence)
+  const requestCodexPlanningAttempt = useRequestCodexPlanningAttempt(agentAttemptStatus.refresh)
 
   if (loading && !cockpit) {
     return <p className="dc-empty-state">Loading run…</p>
@@ -36,7 +41,17 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
       <RunHeader cockpit={cockpit} />
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
-        <AgentCollaboration {...collaborationTimeline} />
+        <div className="dc-collaboration-column">
+          <CodexPlanningAction
+            status={agentAttemptStatus.status}
+            statusLoading={agentAttemptStatus.loading}
+            statusError={agentAttemptStatus.error}
+            requesting={requestCodexPlanningAttempt.requesting}
+            requestError={requestCodexPlanningAttempt.error}
+            onRequest={() => void requestCodexPlanningAttempt.request(runId)}
+          />
+          <AgentCollaboration {...collaborationTimeline} />
+        </div>
         <UsageEvidenceRail />
       </div>
       <LiveOutputDrawer runId={runId} attemptId={currentProcessAttemptId} />

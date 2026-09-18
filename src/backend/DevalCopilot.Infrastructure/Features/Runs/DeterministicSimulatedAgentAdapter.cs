@@ -20,7 +20,7 @@ public sealed class DeterministicSimulatedAgentAdapter : ISimulatedAgentAdapter
             CollaborationMessageType.Proposal,
             null,
             "Add attempt, stage, and run token budgets to the authoritative host, then expose current consumption through the cockpit projection.",
-            "{\"scope\":\"Run and attempt budget projection\",\"assumptions\":\"The host remains authoritative\",\"verification\":\"Exercise the cockpit projection\",\"risks\":\"A command could hold a transaction too long\"}"),
+            "{\"scope\":\"Run and attempt budget projection\",\"implementationSteps\":\"Add the budget fields then the cockpit projection\",\"risks\":\"A command could hold a transaction too long\",\"verificationPlan\":\"Exercise the cockpit projection\",\"escalationPoints\":\"None expected\"}"),
         new SimulatedAgentStep(
             RunStage.Critique,
             ParticipantKind.Claude,

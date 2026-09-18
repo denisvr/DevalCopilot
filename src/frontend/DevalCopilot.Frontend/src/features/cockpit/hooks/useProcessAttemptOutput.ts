@@ -7,7 +7,10 @@ interface UseProcessAttemptOutputResult {
   text: string
   status: string
   isFinal: boolean
-  truncated: boolean
+  // `undefined` means genuinely unknown — an artifact recovered from a host interruption,
+  // whose truncation at the point of interruption was never observed. Never coalesced to a
+  // definite `false`, which would be a false claim of "known not truncated".
+  truncated: boolean | undefined
   error: string | null
 }
 
@@ -27,7 +30,7 @@ export function useProcessAttemptOutput(
   const [text, setText] = useState('')
   const [status, setStatus] = useState('Ok')
   const [isFinal, setIsFinal] = useState(false)
-  const [truncated, setTruncated] = useState(false)
+  const [truncated, setTruncated] = useState<boolean | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const offsetRef = useRef(0)
 
@@ -36,7 +39,7 @@ export function useProcessAttemptOutput(
     setText('')
     setStatus('Ok')
     setIsFinal(false)
-    setTruncated(false)
+    setTruncated(undefined)
     setError(null)
 
     if (!runId || !attemptId) {
@@ -58,7 +61,10 @@ export function useProcessAttemptOutput(
         if (cancelled) return
 
         setStatus(result.status ?? 'Ok')
-        setTruncated(result.truncated ?? false)
+        // A `null`/`undefined` truncation here is genuinely unknown (an artifact recovered
+        // from a host interruption) and must remain visibly unknown — never coalesced to a
+        // false claim of "known not truncated".
+        setTruncated(result.truncated)
         if (result.text) {
           setText((previous) => previous + result.text)
         }

@@ -32,6 +32,36 @@ describe('ProcessAttemptOutputViewer', () => {
     render(<ProcessAttemptOutputViewer runId="run-1" attemptId="attempt-1" stream="stdout" />)
 
     expect(await screen.findByText(/truncated at the capture limit/i)).toBeInTheDocument()
+    expect(screen.queryByText(/truncation status unknown/i)).not.toBeInTheDocument()
+  })
+
+  it('shows no truncation copy at all when truncation is definitely false', async () => {
+    mockClient(
+      vi.fn().mockResolvedValue({ status: 'Ok', text: 'complete', nextOffset: 8, totalLengthSoFar: 8, isFinal: true, truncated: false }),
+    )
+
+    render(<ProcessAttemptOutputViewer runId="run-1" attemptId="attempt-1" stream="stdout" />)
+
+    expect(await screen.findByText('complete')).toBeInTheDocument()
+    expect(screen.queryByText(/truncated at the capture limit/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/truncation status unknown/i)).not.toBeInTheDocument()
+  })
+
+  // A recovered-from-interruption artifact reports `truncated: undefined` (genuinely unknown)
+  // rather than a known true/false. The viewer must show a distinct "unknown" indicator, and
+  // must never show the definite-truncated copy for this case.
+  it('shows a distinct unknown-truncation notice when truncation was never observed, never the definite-truncated copy', async () => {
+    // Empty text lets the hook's own "caught up" polling contract latch `isFinal` on the
+    // first response — the unknown-truncation indicator is gated on `isFinal`, since a
+    // genuinely-unknown truncation only ever occurs for an already-sealed artifact.
+    mockClient(
+      vi.fn().mockResolvedValue({ status: 'Ok', text: '', nextOffset: 7, totalLengthSoFar: 7, isFinal: true, truncated: undefined }),
+    )
+
+    render(<ProcessAttemptOutputViewer runId="run-1" attemptId="attempt-1" stream="stdout" />)
+
+    expect(await screen.findByText(/truncation status unknown/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^Output was truncated at the capture limit\.$/)).not.toBeInTheDocument()
   })
 
   it('shows an integrity-mismatch message rather than any content', async () => {

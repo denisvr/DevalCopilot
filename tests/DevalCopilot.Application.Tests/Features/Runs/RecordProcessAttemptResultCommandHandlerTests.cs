@@ -231,8 +231,8 @@ public sealed class RecordProcessAttemptResultCommandHandlerTests(SqliteDatabase
         var persistedArtifacts = dbContext.Artifacts.Where(a => a.AttemptId == attempt.Id).ToList();
         Assert.Equal(2, persistedArtifacts.Count);
         Assert.All(persistedArtifacts, a => Assert.Equal(ArtifactCaptureOutcome.Captured, a.CaptureOutcome));
-        Assert.Contains(persistedArtifacts, a => a.Purpose == ArtifactPurpose.ProcessStandardOutput && !a.Truncated);
-        Assert.Contains(persistedArtifacts, a => a.Purpose == ArtifactPurpose.ProcessStandardError && a.Truncated);
+        Assert.Contains(persistedArtifacts, a => a.Purpose == ArtifactPurpose.ProcessStandardOutput && a.Truncated == false);
+        Assert.Contains(persistedArtifacts, a => a.Purpose == ArtifactPurpose.ProcessStandardError && a.Truncated == true);
 
         var events = dbContext.Events.Where(e => e.AttemptId == attempt.Id && e.EventType == RunEventType.ProcessOutputCaptured).ToList();
         Assert.Equal(2, events.Count);

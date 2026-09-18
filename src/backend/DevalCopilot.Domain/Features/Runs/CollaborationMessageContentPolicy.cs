@@ -11,9 +11,12 @@ public static class CollaborationMessageContentPolicy
     public const int MaximumSummaryLength = 600;
     public const int MaximumStructuredContentLength = 5000;
     private const int MaximumFieldLength = 900;
+    /// <summary>Matches <c>docs/architecture/agent-collaboration-protocol.md</c>'s "Planning"
+    /// description exactly: "a proposal with scope, sequence, risks, verification, and
+    /// escalation points."</summary>
     private static readonly IReadOnlySet<string> ProposalFields = new HashSet<string>(StringComparer.Ordinal)
     {
-        "scope", "assumptions", "verification", "risks",
+        "scope", "implementationSteps", "risks", "verificationPlan", "escalationPoints",
     };
     private static readonly IReadOnlySet<string> AcceptanceFields = new HashSet<string>(StringComparer.Ordinal)
     {

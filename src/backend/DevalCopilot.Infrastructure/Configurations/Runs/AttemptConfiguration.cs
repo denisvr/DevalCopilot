@@ -50,7 +50,32 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
                 timeout => timeout.HasValue ? (long?)timeout.Value.TotalMilliseconds : null,
                 milliseconds => milliseconds.HasValue ? TimeSpan.FromMilliseconds(milliseconds.Value) : (TimeSpan?)null);
 
+        // Agent-only columns: null for every Simulated/Process attempt. Never a prompt,
+        // transcript, path, environment value, or credential — see Attempt.ClaimAgent.
+        builder.Property(attempt => attempt.AgentProvider).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentRole).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentProtocolVersion).HasMaxLength(16);
+        builder.Property(attempt => attempt.AgentExpectedMessageType).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentCheckpointFingerprintSha256).HasMaxLength(64);
+        builder.Property(attempt => attempt.AgentOutcome).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentProviderSessionId).HasMaxLength(256);
+
+        builder.Property(attempt => attempt.AgentTimeout)
+            .HasConversion(
+                timeout => timeout.HasValue ? (long?)timeout.Value.TotalMilliseconds : null,
+                milliseconds => milliseconds.HasValue ? TimeSpan.FromMilliseconds(milliseconds.Value) : (TimeSpan?)null);
+
         builder.HasOne<Run>().WithMany().HasForeignKey(attempt => attempt.RunId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(attempt => new { attempt.RunId, attempt.AttemptNumber }).IsUnique();
+
+        // The run-wide active-attempt invariant's database backstop: at most one Running attempt
+        // of ANY kind per run, ever concurrently observable. The primary defense is the
+        // application-level eligibility check before an attempt is claimed; this filtered unique
+        // index is what turns a lost race into a safe conflict instead of two Running attempts
+        // silently coexisting.
+        builder.HasIndex(attempt => attempt.RunId)
+            .IsUnique()
+            .HasDatabaseName("ix_attempts_run_id_one_running")
+            .HasFilter("\"Status\" = 'Running'");
     }
 }

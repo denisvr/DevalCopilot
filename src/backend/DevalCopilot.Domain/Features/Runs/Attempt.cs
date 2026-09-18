@@ -71,6 +71,88 @@ public sealed class Attempt
         return attempt;
     }
 
+    /// <summary>
+    /// Claims an Agent attempt — a durable, real invocation of an external agent provider —
+    /// persisting its complete non-secret intent in the same call that starts it. This slice
+    /// accepts only Codex, the Planner role, protocol 1.0, and an expected Proposal: those four
+    /// facts are fixed by this factory, not caller-supplied, so no caller can construct any other
+    /// combination. Workspace/checkpoint identity are passed as bare identifiers — cross-checking
+    /// that the checkpoint actually belongs to that workspace, and that both belong to the
+    /// intended project, is the calling Application handler's responsibility (it already loads
+    /// both entities), keeping this Domain feature independent of the Projects feature.
+    /// </summary>
+    public static Attempt ClaimAgent(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc)
+    {
+        if (attemptNumber < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(attemptNumber));
+        }
+
+        if (gitWorkspaceId == Guid.Empty)
+        {
+            throw new ArgumentException("A Git workspace identity is required.", nameof(gitWorkspaceId));
+        }
+
+        if (gitCheckpointId == Guid.Empty)
+        {
+            throw new ArgumentException("A Git checkpoint identity is required.", nameof(gitCheckpointId));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointFingerprintSha256);
+
+        if (contextManifestArtifactId == Guid.Empty)
+        {
+            throw new ArgumentException("A context manifest artifact identity is required.", nameof(contextManifestArtifactId));
+        }
+
+        if (timeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Must be a positive, bounded timeout.");
+        }
+
+        if (maxBytesPerStream < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxBytesPerStream));
+        }
+
+        if (maxTotalCapturedBytes < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxTotalCapturedBytes));
+        }
+
+        return new Attempt
+        {
+            Id = id,
+            RunId = runId,
+            AttemptNumber = attemptNumber,
+            Kind = AttemptKind.Agent,
+            Status = AttemptStatus.Running,
+            ClaimedAtUtc = claimedAtUtc,
+            AgentProvider = Runs.AgentProvider.Codex,
+            AgentRole = Runs.AgentRole.Planner,
+            AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
+            AgentExpectedMessageType = CollaborationMessageType.Proposal,
+            AgentGitWorkspaceId = gitWorkspaceId,
+            AgentGitCheckpointId = gitCheckpointId,
+            AgentCheckpointFingerprintSha256 = checkpointFingerprintSha256,
+            AgentContextManifestArtifactId = contextManifestArtifactId,
+            AgentTimeout = timeout,
+            AgentMaxBytesPerStream = maxBytesPerStream,
+            AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+        };
+    }
+
     public Guid Id { get; private set; }
 
     public Guid RunId { get; private set; }
@@ -121,6 +203,64 @@ public sealed class Attempt
     /// must never be invoked again, even if it later never reaches a terminal result).
     /// </summary>
     public DateTimeOffset? ProcessDispatchedAtUtc { get; private set; }
+
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Fixed to
+    /// <see cref="Runs.AgentProvider.Codex"/> in this slice.</summary>
+    public AgentProvider? AgentProvider { get; private set; }
+
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Fixed to
+    /// <see cref="Runs.AgentRole.Planner"/> in this slice.</summary>
+    public AgentRole? AgentRole { get; private set; }
+
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Always
+    /// <see cref="CollaborationMessage.ProtocolVersionOne"/> in this slice.</summary>
+    public string? AgentProtocolVersion { get; private set; }
+
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Always
+    /// <see cref="CollaborationMessageType.Proposal"/> in this slice.</summary>
+    public CollaborationMessageType? AgentExpectedMessageType { get; private set; }
+
+    /// <summary>The Ready workspace this attempt is evidence about. Only set when
+    /// <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>.</summary>
+    public Guid? AgentGitWorkspaceId { get; private set; }
+
+    /// <summary>The exact checkpoint this attempt committed to at claim time. Only set when
+    /// <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>.</summary>
+    public Guid? AgentGitCheckpointId { get; private set; }
+
+    /// <summary>The checkpoint's fingerprint at claim time — compared against a fresh capture
+    /// both immediately before dispatch and immediately after the provider exits. Only set when
+    /// <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>.</summary>
+    public string? AgentCheckpointFingerprintSha256 { get; private set; }
+
+    /// <summary>Identity of the bounded, versioned context-manifest <see cref="Artifact"/> this
+    /// attempt was launched with. The manifest's content lives only in the artifact store; this
+    /// is the durable link to it. Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>.</summary>
+    public Guid? AgentContextManifestArtifactId { get; private set; }
+
+    public TimeSpan? AgentTimeout { get; private set; }
+
+    public int? AgentMaxBytesPerStream { get; private set; }
+
+    public int? AgentMaxTotalCapturedBytes { get; private set; }
+
+    /// <summary>When the provider was durably committed to being invoked — set once, before the
+    /// adapter is ever invoked, and never cleared. Distinguishes "claimed but not yet dispatched"
+    /// (<see langword="null"/>) from "dispatched" (the provider has been invoked at most once for
+    /// this attempt and must never be invoked again). Left <see langword="null"/> forever when
+    /// source drift is detected before dispatch — that attempt still completes truthfully via
+    /// <see cref="CompleteAgent"/> without ever having been dispatched.</summary>
+    public DateTimeOffset? AgentDispatchedAtUtc { get; private set; }
+
+    /// <summary>How this Agent attempt's terminal state was reached. Only set once <see cref="Kind"/>
+    /// is <see cref="AttemptKind.Agent"/> and the attempt reaches <see cref="AttemptStatus.Completed"/>
+    /// or <see cref="AttemptStatus.Failed"/>.</summary>
+    public AgentOutcome? AgentOutcome { get; private set; }
+
+    /// <summary>A provider-reported session identifier, recorded only when the provider's own
+    /// output actually reported one — never invented, never required, never used by this slice
+    /// to authorize or correlate anything.</summary>
+    public string? AgentProviderSessionId { get; private set; }
 
     public void Complete(DateTimeOffset nowUtc)
     {
@@ -211,6 +351,123 @@ public sealed class Attempt
         }
 
         ProcessDispatchedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// The execution-start claim for an Agent attempt: durably committed in its own short
+    /// transaction before the provider is ever invoked. Once set, this attempt is never eligible
+    /// for dispatch again — the guard against invoking the provider more than once, independent
+    /// of whether a terminal result is ever later recorded.
+    /// </summary>
+    public void MarkAgentDispatched(DateTimeOffset nowUtc)
+    {
+        if (Kind != AttemptKind.Agent)
+        {
+            throw new InvalidOperationException("Only an Agent attempt can be marked dispatched.");
+        }
+
+        if (Status != AttemptStatus.Running)
+        {
+            throw new InvalidOperationException($"Cannot mark an attempt dispatched that is {Status}.");
+        }
+
+        if (AgentDispatchedAtUtc.HasValue)
+        {
+            throw new InvalidOperationException("This attempt was already marked dispatched.");
+        }
+
+        AgentDispatchedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// Records a provider-reported session identifier. Only callable before the attempt reaches
+    /// a terminal state, and only ever once — a later report never silently overwrites an earlier
+    /// one, since that would suggest two different provider sessions were conflated into one
+    /// attempt.
+    /// </summary>
+    public void RecordAgentProviderSessionId(string providerSessionId)
+    {
+        if (Kind != AttemptKind.Agent)
+        {
+            throw new InvalidOperationException("Only an Agent attempt can record a provider session identifier.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerSessionId);
+
+        if (Status != AttemptStatus.Running)
+        {
+            throw new InvalidOperationException($"Cannot record a provider session identifier for an attempt that is {Status}.");
+        }
+
+        if (AgentProviderSessionId is not null)
+        {
+            throw new InvalidOperationException("A provider session identifier was already recorded for this attempt.");
+        }
+
+        AgentProviderSessionId = providerSessionId;
+    }
+
+    /// <summary>
+    /// The single atomic completion transition for an Agent attempt: records the outcome and
+    /// derives the resulting <see cref="AttemptStatus"/> in one step. Only
+    /// <see cref="Runs.AgentOutcome.Proposed"/> completes successfully; every other outcome is a
+    /// truthful failure. Callable whether or not <see cref="AgentDispatchedAtUtc"/> was ever set —
+    /// a pre-dispatch source-change detection completes an Agent attempt that was never actually
+    /// dispatched to the provider, which is itself a truthful outcome, never an invented one.
+    /// </summary>
+    /// <param name="completionFingerprintSha256">When provided, this is the freshest Git evidence
+    /// fingerprint observed for this attempt's workspace. If it does not match the fingerprint
+    /// this attempt committed to at claim time, the recorded outcome is unconditionally
+    /// <see cref="Runs.AgentOutcome.SourceChanged"/> regardless of <paramref name="outcome"/> —
+    /// the same rule <c>VerificationExecution.Complete</c> applies, so a caller can never record a
+    /// successful Proposal (or any other outcome) as evidence about a checkpoint that no longer
+    /// reflects the workspace's real content. Null only when the caller already knows the outcome
+    /// is source drift detected before the provider was ever invoked (no fresh completion
+    /// evidence to compare — the pre-dispatch fingerprint mismatch itself was already the entire
+    /// evidence).</param>
+    public void CompleteAgent(AgentOutcome outcome, string? completionFingerprintSha256, DateTimeOffset nowUtc)
+    {
+        if (Kind != AttemptKind.Agent)
+        {
+            throw new InvalidOperationException("Only an Agent attempt can record an agent outcome.");
+        }
+
+        if (Status != AttemptStatus.Running)
+        {
+            throw new InvalidOperationException($"Cannot complete an attempt that is {Status}.");
+        }
+
+        if (!Enum.IsDefined(outcome))
+        {
+            throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
+        }
+
+        var effectiveOutcome = completionFingerprintSha256 is not null
+            && !string.Equals(completionFingerprintSha256, AgentCheckpointFingerprintSha256, StringComparison.Ordinal)
+                ? Runs.AgentOutcome.SourceChanged
+                : outcome;
+
+        // Independent Domain-level backstop, never the only line of defense (the Application
+        // boundary that records a provider result rejects both cases before ever reaching this
+        // call) — a Proposal is never observable for an attempt that was never actually
+        // dispatched to the provider, or for one recorded without fresh evidence confirming the
+        // checkpoint it claims to be about.
+        if (effectiveOutcome == Runs.AgentOutcome.Proposed)
+        {
+            if (!AgentDispatchedAtUtc.HasValue)
+            {
+                throw new InvalidOperationException("A Proposal cannot be recorded for an attempt that was never dispatched.");
+            }
+
+            if (string.IsNullOrWhiteSpace(completionFingerprintSha256))
+            {
+                throw new InvalidOperationException("A Proposal cannot be recorded without fresh completion evidence.");
+            }
+        }
+
+        AgentOutcome = effectiveOutcome;
+        Status = effectiveOutcome == Runs.AgentOutcome.Proposed ? AttemptStatus.Completed : AttemptStatus.Failed;
+        CompletedAtUtc = nowUtc;
     }
 
     /// <summary>

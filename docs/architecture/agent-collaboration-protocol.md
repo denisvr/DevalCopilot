@@ -45,8 +45,19 @@ details only; it does not persist a provider-native transcript, executable
 path, environment value, credential, provider configuration, or raw output.
 The deterministic walking-skeleton sequence writes envelopes marked
 `Simulated`; this label is not evidence of provider observation, authentication,
-or invocation. Raw provider transcripts and artifact references remain deferred
-until a provider adapter owns a reviewed capture contract.
+or invocation.
+
+Codex's Planning step is the first message type with a real, live provider
+invocation: a durable Agent attempt records a bounded context manifest, runs
+the Codex CLI as a real child process, and preserves its raw stdout, stderr,
+and final-response content only as bounded sealed artifacts outside the
+database — never as ledger or API content. A structurally valid Proposal is
+still appended to the ledger only after passing the same protocol/schema
+validation as any other message; an invalid, failed, or source-drifted
+attempt appends none. Claude Code invocation, challenge resolution, and
+review remain deferred: no message type beyond Codex's Proposal has a live
+provider adapter yet, and every other envelope in the durable ledger is still
+produced by the `Simulated` walking-skeleton sequence described above.
 
 ## Message types
 
@@ -220,15 +231,31 @@ observed once, manually, through read-only inspection outside this discovery con
 layout is evidence that a directly executable Codex CLI can exist on a host — it is not an
 approved stable discovery contract, and it is never added as an automatic fallback: it belongs to
 a different application, is not catalog-owned, and carries no stability guarantee DevalCopilot
-can rely on.
+can rely on. In particular, an app-private or portable Codex desktop installation layout is never
+searched for automatically at attempt-dispatch time; resolving the actual launch target for a new
+Codex Planning attempt only reuses the durable `HostCapabilitySnapshot` row's resolved path from
+capability discovery's own last successful probe, and only when that snapshot's reason code is
+still `None` — it is revalidated, never re-searched, by this narrower dispatch-time read.
 
-Each agent attempt records requested and effective provider configuration:
+Each agent attempt is intended to eventually record requested and effective
+provider configuration:
 
 - provider and provider-session identifier;
 - model and reasoning effort;
 - permission mode;
 - context-manifest revision;
 - reported context usage and compaction outcome when available.
+
+The Codex Planning attempt records only a subset of this today: the provider
+and role are fixed by the attempt's own factory (never caller-supplied), and a
+provider-session identifier is captured on a best-effort basis only when
+Codex's own JSONL stdout reports one — never required, never trusted for
+anything beyond this closed, cosmetic field, and not currently exposed through
+any API response. Model, reasoning effort, permission mode, context usage,
+and account usage are not recorded by an Agent attempt in this slice at all;
+they remain `Unknown` exactly as the host-runtime-preflight projection above
+already reports them, and no doc, response, or stored fact should be read as
+tracking or enforcing them yet.
 
 Adapters expose capabilities and supported values through typed queries. The
 application does not assume that Codex and Claude Code use equivalent names or

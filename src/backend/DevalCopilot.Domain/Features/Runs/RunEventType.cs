@@ -26,4 +26,19 @@ public static class RunEventType
     /// there was never anything to seal or capture. The payload carries only the attempt's
     /// final status; never exception text, arguments, environment values, or output.</summary>
     public const string ProcessEndedWithoutOutput = "process.ended_without_output";
+
+    /// <summary>Metadata-only fact: a Codex planning Agent attempt was durably committed to
+    /// being invoked. The payload carries only the attempt id and timestamp.</summary>
+    public const string AgentAttemptDispatched = "agent.attempt_dispatched";
+
+    /// <summary>Metadata-only fact: an Agent attempt reached a terminal state. The payload
+    /// carries the attempt's final status and closed <see cref="AgentOutcome"/>; never raw
+    /// provider output, exception text, or credentials.</summary>
+    public const string AgentAttemptCompleted = "agent.attempt_completed";
+
+    /// <summary>Metadata-only fact: a partial Agent-attempt output artifact left behind by a host
+    /// interruption was imported by restart recovery. Distinct from
+    /// <see cref="AgentAttemptCompleted"/> — the owning attempt is still <c>Running</c> when this
+    /// is recorded, and recovering one artifact is never itself a terminal result.</summary>
+    public const string AgentOutputRecovered = "agent.output_recovered";
 }

@@ -35,6 +35,8 @@ public sealed class GetProcessAttemptOutputQueryHandlerTests : IAsyncLifetime
             Task.FromResult<SealedOutputFile?>(null);
         public void DeleteOrphanedPartialFile(Guid runId, Guid attemptId, ArtifactPurpose purpose) { }
 
+        public void DeleteOrphanedSealedFile(Guid runId, Guid attemptId, ArtifactPurpose purpose) { }
+
         public Task<PartialReadWindow> ReadPartialAsync(
             Guid runId, Guid attemptId, ArtifactPurpose purpose, long fromOffset, int maxBytes, CancellationToken ct) =>
             Task.FromResult(PartialResponse ?? new PartialReadWindow(string.Empty, fromOffset, 0));
