@@ -67,7 +67,13 @@ public static class CollaborationMessageReplyPolicy
                 parentType == CollaborationMessageType.Proposal,
             CollaborationMessageType.Decision =>
                 parentType is CollaborationMessageType.Proposal or CollaborationMessageType.Challenge,
-            CollaborationMessageType.ExecutionReport => parentType == CollaborationMessageType.Decision,
+            // A Decision-driven execution report remains the aspirational, later full-loop
+            // shape; the Increment 4 Implementer role's real, evidenced execution report always
+            // replies directly to the implemented Proposal instead — there is no single
+            // Decision to reply to for either eligible resolved-plan form (an accepted original
+            // Proposal has an Acceptance, not a Decision; a resolved revised Proposal has many
+            // Decisions, one per Challenge, none of them uniquely "the" one implemented).
+            CollaborationMessageType.ExecutionReport => parentType is CollaborationMessageType.Decision or CollaborationMessageType.Proposal,
             CollaborationMessageType.ReviewFinding => parentType == CollaborationMessageType.ExecutionReport,
             CollaborationMessageType.RevisionResponse => parentType == CollaborationMessageType.ReviewFinding,
             // A question is scoped to a concrete piece of active collaboration rather than

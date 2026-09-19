@@ -11,8 +11,14 @@ public sealed class ReconcileInterruptedAgentAttemptsCommandHandler(IDevalCopilo
 {
     public async Task<Result<int>> HandleAsync(ReconcileInterruptedAgentAttemptsCommand command, CancellationToken cancellationToken)
     {
+        // Implementer attempts are excluded: unlike every other Agent role, a dispatched
+        // implementation attempt may have mutated the worktree before the host was lost, so it
+        // is never safe to just mark it Interrupted here — ReconcileInterruptedImplementationAttemptsCommand
+        // independently re-reads fresh Git evidence outside any EF transaction before deciding
+        // whether the workspace must also be flagged NeedsAttention.
         var interruptedAttempts = await dbContext.Attempts
-            .Where(attempt => attempt.Kind == AttemptKind.Agent && attempt.Status == AttemptStatus.Running)
+            .Where(attempt =>
+                attempt.Kind == AttemptKind.Agent && attempt.AgentRole != AgentRole.Implementer && attempt.Status == AttemptStatus.Running)
             .ToListAsync(cancellationToken);
 
         if (interruptedAttempts.Count == 0)

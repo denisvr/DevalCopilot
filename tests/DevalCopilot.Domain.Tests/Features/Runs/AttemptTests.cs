@@ -951,4 +951,165 @@ public sealed class AttemptTests
         Assert.Throws<InvalidOperationException>(
             () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: null, BaseTime.AddSeconds(2)));
     }
+
+    private static Attempt ClaimAgentImplementationAttempt(
+        string checkpointFingerprintSha256 = "fingerprint-1",
+        TimeSpan? timeout = null,
+        int maxBytesPerStream = 262144,
+        int maxTotalCapturedBytes = 524288) => Attempt.ClaimAgentImplementation(
+        Guid.NewGuid(),
+        Guid.NewGuid(),
+        attemptNumber: 1,
+        gitWorkspaceId: Guid.NewGuid(),
+        gitCheckpointId: Guid.NewGuid(),
+        checkpointFingerprintSha256: checkpointFingerprintSha256,
+        contextManifestArtifactId: Guid.NewGuid(),
+        timeout: timeout ?? TimeSpan.FromMinutes(10),
+        maxBytesPerStream: maxBytesPerStream,
+        maxTotalCapturedBytes: maxTotalCapturedBytes,
+        claimedAtUtc: BaseTime);
+
+    [Fact]
+    public void ClaimAgentImplementation_creates_an_implementation_attempt_with_its_durable_intent_persisted()
+    {
+        var workspaceId = Guid.NewGuid();
+        var checkpointId = Guid.NewGuid();
+        var manifestArtifactId = Guid.NewGuid();
+        var timeout = TimeSpan.FromMinutes(20);
+
+        var attempt = Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            attemptNumber: 1,
+            gitWorkspaceId: workspaceId,
+            gitCheckpointId: checkpointId,
+            checkpointFingerprintSha256: "fingerprint-1",
+            contextManifestArtifactId: manifestArtifactId,
+            timeout: timeout,
+            maxBytesPerStream: 262144,
+            maxTotalCapturedBytes: 524288,
+            claimedAtUtc: BaseTime);
+
+        Assert.Equal(AttemptKind.Agent, attempt.Kind);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Equal(AgentProvider.ClaudeCode, attempt.AgentProvider);
+        Assert.Equal(AgentRole.Implementer, attempt.AgentRole);
+        Assert.Equal(AgentResponseContract.ImplementationReport, attempt.AgentResponseContract);
+        Assert.Equal(workspaceId, attempt.AgentGitWorkspaceId);
+        Assert.Equal(checkpointId, attempt.AgentGitCheckpointId);
+        Assert.Equal("fingerprint-1", attempt.AgentCheckpointFingerprintSha256);
+        Assert.Equal(manifestArtifactId, attempt.AgentContextManifestArtifactId);
+        Assert.Equal(timeout, attempt.AgentTimeout);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(0)]
+    public void ClaimAgentImplementation_throws_for_a_non_positive_attempt_number(int attemptNumber)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+    }
+
+    [Fact]
+    public void CompleteImplementation_completes_successfully_and_records_the_result_checkpoint()
+    {
+        var attempt = ClaimAgentImplementationAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+        var resultCheckpointId = Guid.NewGuid();
+
+        attempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Completed, attempt.Status);
+        Assert.Equal(AgentOutcome.Implemented, attempt.AgentOutcome);
+        Assert.Equal(resultCheckpointId, attempt.AgentResultGitCheckpointId);
+        Assert.Equal(BaseTime.AddSeconds(2), attempt.CompletedAtUtc);
+        // The starting checkpoint is never overwritten by the result.
+        Assert.NotEqual(resultCheckpointId, attempt.AgentGitCheckpointId);
+    }
+
+    [Fact]
+    public void CompleteImplementation_never_overrides_to_source_changed_despite_a_changed_fingerprint()
+    {
+        // The whole point of this attempt shape: CompleteAgent's fingerprint-mismatch override
+        // must never apply here, since a real implementation is expected to change the
+        // fingerprint. CompleteImplementation takes no fingerprint parameter at all — the caller
+        // has already independently decided the outcome from fresh Git evidence.
+        var attempt = ClaimAgentImplementationAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(2));
+
+        Assert.Equal(AgentOutcome.Implemented, attempt.AgentOutcome);
+        Assert.NotEqual(AgentOutcome.SourceChanged, attempt.AgentOutcome);
+    }
+
+    [Fact]
+    public void CompleteImplementation_completes_as_failed_for_no_changes_produced_with_no_result_checkpoint()
+    {
+        var attempt = ClaimAgentImplementationAttempt();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteImplementation(AgentOutcome.NoChangesProduced, resultGitCheckpointId: null, BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.NoChangesProduced, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+    }
+
+    [Theory]
+    [InlineData(AgentOutcome.InvalidStructuredOutput)]
+    [InlineData(AgentOutcome.ProviderInvocationFailed)]
+    [InlineData(AgentOutcome.CheckpointEvidenceUnavailable)]
+    public void CompleteImplementation_completes_as_failed_for_every_closed_failure_outcome(AgentOutcome outcome)
+    {
+        var attempt = ClaimAgentImplementationAttempt();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteImplementation(outcome, resultGitCheckpointId: null, BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(outcome, attempt.AgentOutcome);
+    }
+
+    [Fact]
+    public void CompleteImplementation_throws_when_implemented_is_reported_for_a_never_dispatched_attempt()
+    {
+        var attempt = ClaimAgentImplementationAttempt();
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(1)));
+    }
+
+    [Fact]
+    public void CompleteImplementation_throws_when_implemented_is_reported_without_a_result_checkpoint_identity()
+    {
+        var attempt = ClaimAgentImplementationAttempt();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<ArgumentException>(
+            () => attempt.CompleteImplementation(AgentOutcome.Implemented, resultGitCheckpointId: null, BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteImplementation_throws_when_a_non_implemented_outcome_carries_a_result_checkpoint_identity()
+    {
+        var attempt = ClaimAgentImplementationAttempt();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<ArgumentException>(
+            () => attempt.CompleteImplementation(AgentOutcome.NoChangesProduced, Guid.NewGuid(), BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteImplementation_throws_when_called_for_a_non_implementer_attempt()
+    {
+        var attempt = ClaimAgentChallengeResolutionAttempt();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(2)));
+    }
 }

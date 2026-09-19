@@ -267,6 +267,62 @@ public sealed class Attempt
         };
     }
 
+    /// <summary>
+    /// Claims a Claude Code implementation Agent attempt — a durable, real invocation
+    /// implementing one exact, already-resolved plan (an accepted original Proposal or a
+    /// resolved revised Proposal) inside the owned worktree. This slice accepts only ClaudeCode,
+    /// the Implementer role, protocol 1.0, and the <see cref="Runs.AgentResponseContract.ImplementationReport"/>
+    /// contract. <paramref name="gitCheckpointId"/> is this attempt's own immutable STARTING
+    /// checkpoint — never overwritten by a later result; a successful implementation's resulting
+    /// checkpoint is recorded separately via <see cref="CompleteImplementation"/> as
+    /// <see cref="AgentResultGitCheckpointId"/>. Exactly like <see cref="ClaimAgentChallengeResolution"/>,
+    /// the exact ordered input identity (the implemented Proposal, then its Acceptance or ordered
+    /// Decision set) is never a field on this entity — it is recorded separately, immediately
+    /// after this call, as this attempt's own ordered <see cref="AttemptInputMessage"/> rows.
+    /// </summary>
+    public static Attempt ClaimAgentImplementation(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc)
+    {
+        ValidateAgentClaimArguments(
+            attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
+            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+
+        return new Attempt
+        {
+            Id = id,
+            RunId = runId,
+            AttemptNumber = attemptNumber,
+            Kind = AttemptKind.Agent,
+            Status = AttemptStatus.Running,
+            ClaimedAtUtc = claimedAtUtc,
+            AgentProvider = Runs.AgentProvider.ClaudeCode,
+            AgentRole = Runs.AgentRole.Implementer,
+            AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
+            // Mirrors ClaimAgentCriticalReview/ClaimAgentChallengeResolution's own reasoning:
+            // the real ExecutionReport this attempt produces is represented by
+            // AgentResponseContract below, never by this placeholder.
+            AgentExpectedMessageType = CollaborationMessageType.Proposal,
+            AgentResponseContract = Runs.AgentResponseContract.ImplementationReport,
+            AgentGitWorkspaceId = gitWorkspaceId,
+            AgentGitCheckpointId = gitCheckpointId,
+            AgentCheckpointFingerprintSha256 = checkpointFingerprintSha256,
+            AgentContextManifestArtifactId = contextManifestArtifactId,
+            AgentTimeout = timeout,
+            AgentMaxBytesPerStream = maxBytesPerStream,
+            AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+        };
+    }
+
     /// <summary>Shared argument validation for every Agent-attempt claim factory beyond the
     /// original <see cref="ClaimAgent"/> — kept as one private helper rather than copy-pasted so
     /// the bounds can never silently drift apart between shapes.</summary>
@@ -437,6 +493,13 @@ public sealed class Attempt
     /// output actually reported one — never invented, never required, never used by this slice
     /// to authorize or correlate anything.</summary>
     public string? AgentProviderSessionId { get; private set; }
+
+    /// <summary>The new, immutable <c>GitCheckpoint</c> this attempt's own real, verified source
+    /// mutation produced — distinct from <see cref="AgentGitCheckpointId"/>, this attempt's
+    /// immutable STARTING checkpoint, which is never overwritten by a result. Only ever set by
+    /// <see cref="CompleteImplementation"/>, and only when its outcome is
+    /// <see cref="Runs.AgentOutcome.Implemented"/>.</summary>
+    public Guid? AgentResultGitCheckpointId { get; private set; }
 
     public void Complete(DateTimeOffset nowUtc)
     {
@@ -665,6 +728,71 @@ public sealed class Attempt
         }
 
         AgentOutcome = effectiveOutcome;
+        Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
+        CompletedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// The single atomic completion transition for a Claude Code implementation attempt —
+    /// deliberately independent of <see cref="CompleteAgent"/> and its fingerprint-mismatch-to-
+    /// <see cref="Runs.AgentOutcome.SourceChanged"/> override, which must never apply here: a
+    /// real, successful implementation is EXPECTED and REQUIRED to change the workspace's
+    /// fingerprint away from <see cref="AgentCheckpointFingerprintSha256"/> (the immutable
+    /// starting checkpoint), so reusing that override would silently reclassify every genuine
+    /// success as spurious drift. The caller (the recording Application handler) has already
+    /// independently captured fresh Git evidence and decided <paramref name="outcome"/> before
+    /// this call — this method only records that decision atomically, and is the only transition
+    /// that may ever set <see cref="AgentResultGitCheckpointId"/>, and only for
+    /// <see cref="Runs.AgentOutcome.Implemented"/>.
+    /// </summary>
+    public void CompleteImplementation(AgentOutcome outcome, Guid? resultGitCheckpointId, DateTimeOffset nowUtc)
+    {
+        if (Kind != AttemptKind.Agent || AgentRole != Runs.AgentRole.Implementer)
+        {
+            throw new InvalidOperationException("Only an Implementer Agent attempt can record an implementation outcome.");
+        }
+
+        if (Status != AttemptStatus.Running)
+        {
+            throw new InvalidOperationException($"Cannot complete an attempt that is {Status}.");
+        }
+
+        if (!Enum.IsDefined(outcome))
+        {
+            throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
+        }
+
+        var isSuccess = outcome == Runs.AgentOutcome.Implemented;
+
+        // Independent Domain-level backstop, never the only line of defense — mirrors
+        // CompleteAgent's own isSuccess-gated checks exactly, minus the fingerprint-override
+        // this attempt shape must never apply.
+        if (isSuccess)
+        {
+            if (!AgentDispatchedAtUtc.HasValue)
+            {
+                throw new InvalidOperationException($"{outcome} cannot be recorded for an attempt that was never dispatched.");
+            }
+
+            if (AgentResponseContract != Runs.AgentResponseContract.ImplementationReport)
+            {
+                throw new InvalidOperationException($"{outcome} is not a valid outcome for this attempt's response contract.");
+            }
+
+            if (resultGitCheckpointId is null || resultGitCheckpointId == Guid.Empty)
+            {
+                throw new ArgumentException(
+                    "An Implemented outcome requires the resulting checkpoint identity.", nameof(resultGitCheckpointId));
+            }
+        }
+        else if (resultGitCheckpointId.HasValue)
+        {
+            throw new ArgumentException(
+                "Only an Implemented outcome may carry a resulting checkpoint identity.", nameof(resultGitCheckpointId));
+        }
+
+        AgentOutcome = outcome;
+        AgentResultGitCheckpointId = resultGitCheckpointId;
         Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
     }

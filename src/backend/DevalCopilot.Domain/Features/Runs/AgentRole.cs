@@ -18,4 +18,11 @@ public enum AgentRole
     /// every Challenge and emitting one revised Proposal. Never execution or later review stages;
     /// those remain deferred.</summary>
     Resolver = 2,
+
+    /// <summary>Claude Code implementing a real, resolved plan (an accepted original Proposal or
+    /// a resolved revised Proposal) inside the owned worktree, against the same run, isolated
+    /// workspace, and starting checkpoint. Real, evidenced source mutation is expected and
+    /// required for success — never a read-only role. Automatic verification, code review, and
+    /// publication remain deferred to later slices.</summary>
+    Implementer = 3,
 }

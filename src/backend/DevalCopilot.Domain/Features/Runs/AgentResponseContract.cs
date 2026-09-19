@@ -26,4 +26,10 @@ public enum AgentResponseContract
     /// revised <see cref="CollaborationMessageType.Proposal"/> replying to the original
     /// Proposal.</summary>
     ChallengeResolution = 2,
+
+    /// <summary>ClaudeCode + Implementer. The attempt's real output is exactly one
+    /// <see cref="CollaborationMessageType.ExecutionReport"/> replying to the implemented
+    /// Proposal, backed by an independently observed, immutable resulting
+    /// <c>GitCheckpoint</c>.</summary>
+    ImplementationReport = 3,
 }

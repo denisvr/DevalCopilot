@@ -706,6 +706,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("AgentResultGitCheckpointId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("AgentRole")
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");

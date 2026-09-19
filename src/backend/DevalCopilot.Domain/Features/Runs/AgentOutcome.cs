@@ -82,4 +82,50 @@ public enum AgentOutcome
     /// <see cref="InputAlreadyReviewed"/> exactly, one level further down the collaboration
     /// protocol. Valid only for the Codex + Resolver + ChallengeResolution combination.</summary>
     InputAlreadyResolved = 10,
+
+    /// <summary>A Claude Code implementation attempt produced a real, verified source change:
+    /// the process exited successfully, the structured ImplementationReport passed protocol
+    /// validation, the freshly observed Git fingerprint genuinely differs from the immutable
+    /// starting checkpoint, and the report's own changed-path set exactly matches the
+    /// independently observed Git changed-path set. A new immutable <c>GitCheckpoint</c> is
+    /// recorded and referenced by <see cref="Attempt.AgentResultGitCheckpointId"/>. Never
+    /// recorded through <see cref="Attempt.CompleteAgent"/> — <see cref="Attempt.CompleteImplementation"/>
+    /// is the only transition that may ever produce this outcome, deliberately without
+    /// <see cref="Attempt.CompleteAgent"/>'s own fingerprint-mismatch-to-<see cref="SourceChanged"/>
+    /// override, since a changed fingerprint is this outcome's own expected, required evidence
+    /// of success, never drift. Valid only for the ClaudeCode + Implementer +
+    /// ImplementationReport combination.</summary>
+    Implemented = 11,
+
+    /// <summary>A Claude Code implementation attempt's process exited successfully and produced
+    /// a structurally valid ImplementationReport, but the freshly observed Git fingerprint is
+    /// unchanged from the immutable starting checkpoint — no source mutation actually occurred.
+    /// Never treated as a provider or evidence failure: the process and structured output were
+    /// both genuinely valid: there was simply nothing to implement, or the provider concluded no
+    /// change was required. No <c>GitCheckpoint</c> is recorded; the workspace remains Ready.
+    /// Valid only for the ClaudeCode + Implementer + ImplementationReport combination.</summary>
+    NoChangesProduced = 12,
+
+    /// <summary>Detected immediately before dispatch, distinct from
+    /// <see cref="WorkspaceNoLongerEligible"/>: the run/workspace/lease/checkpoint remain fully
+    /// eligible, but another implementation attempt already completed a successful
+    /// (<see cref="Implemented"/>) implementation of the exact same resolved plan and starting
+    /// checkpoint in the meantime. The provider is never invoked for this outcome. Recorded only
+    /// by a dedicated command that independently re-verifies the competing implementation exists
+    /// before ever mutating this attempt — never inferred or trusted from a caller's own claim.
+    /// Mirrors <see cref="InputAlreadyResolved"/> exactly, one stage further down the
+    /// collaboration protocol. Valid only for the ClaudeCode + Implementer +
+    /// ImplementationReport combination.</summary>
+    InputAlreadyImplemented = 13,
+
+    /// <summary>A Claude Code implementation attempt's process exited successfully, but the
+    /// freshly observed HEAD commit SHA no longer matches the immutable starting checkpoint's own
+    /// HEAD commit SHA. Claude's implementation tool allowlist never includes Git or any process
+    /// tool, so it can never move HEAD itself — a changed HEAD is proof of an external or
+    /// unauthorized mutation of the worktree during this attempt, never a trustworthy
+    /// implementation, regardless of whether the report's own claimed changed-path set happens to
+    /// match observed evidence. No <c>GitCheckpoint</c> is recorded and no ExecutionReport is
+    /// appended; the workspace is always flagged NeedsAttention. Valid only for the ClaudeCode +
+    /// Implementer + ImplementationReport combination.</summary>
+    ImplementationHeadChanged = 14,
 }

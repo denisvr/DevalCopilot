@@ -83,11 +83,69 @@ attempt with a truthful `InputAlreadyResolved` outcome before the provider is
 ever invoked — never a duplicated resolution, and never silently retried. The
 revised Proposal a resolution produces can re-enter the critical-review path
 above as an ordinary Proposal; Acceptance remains terminal for that review
-cycle. Claude's later execution/review stages and every remaining message
-type stay deferred: no live provider adapter exists yet for Execution report,
-Review finding, or Revision response, and every such envelope in the durable
-ledger is still produced by the `Simulated` walking-skeleton sequence
-described above.
+cycle.
+
+Claude Code's Implementer step is the fourth message-producing stage with a
+real, live provider invocation: it durably implements exactly one
+authoritative resolved plan, edited entirely inside the run's owned worktree.
+Exactly two resolved-plan forms are eligible, identified only by the plan's
+own Proposal message id, never reconstructed from display text: an original,
+provider-observed Codex Proposal with a completed, successful Claude Accepted
+review; or the provider-observed revised Proposal a completed, successful
+Codex Resolver attempt itself produced. The attempt persists the exact
+ordered input identity that form is bound to as `AttemptInputMessage` rows —
+the Proposal at sequence 0, then either its Acceptance or its complete
+ordered Decision set, never both. Claude never runs Git, a verification
+command, a commit, a push, a package install, or any network operation during
+this attempt; its only capability is reading and editing files inside the
+worktree. Because Claude's implementation tool allowlist never includes Git
+or any process tool, it can never move `HEAD` itself: after the process
+exits, the orchestrator independently re-reads fresh Git evidence and first
+checks whether `HEAD` itself still matches the immutable starting
+checkpoint's own `HEAD` — a changed `HEAD` is proof of an external or
+unauthorized mutation and is recorded as `ImplementationHeadChanged`, never
+`Implemented`, regardless of what the report itself claims to have changed.
+Only when `HEAD` is unchanged, the process succeeded, and a valid, schema-
+conformant implementation report's self-reported changed-path set exactly
+matches that independently observed evidence does the attempt record one new
+immutable Git checkpoint plus its changed-file rows, mark itself
+`Implemented`, and append exactly one Execution report replying to the
+implemented Proposal — all atomically, after every external process has
+already finished. Any other outcome — a failed invocation, an invalid or
+untrustworthy report, a changed `HEAD`, or evidence that could not be
+captured — is recorded truthfully instead (`NoChangesProduced`,
+`InvalidStructuredOutput`, `ProviderInvocationFailed`,
+`ImplementationHeadChanged`, or `CheckpointEvidenceUnavailable`), and the
+filesystem is never rolled back or silently discarded; whenever the worktree
+may have changed without a verified, trustworthy result, the workspace is
+also flagged `NeedsAttention` for a human to inspect, and no further attempt
+is auto-retried against it. Every boundary value a recording command
+receives — the starting checkpoint reference, the completion `HEAD`/
+fingerprint shapes, every independently observed changed path, the sealed
+artifacts, and the implementation report itself (even one a caller
+constructed by hand rather than through the schema parser) — is
+independently re-validated before any mutation, through the same shared
+validation both the parser and the recording command call, so the two can
+never silently drift apart.
+Before that provider invocation ever starts, and again in the same short
+transaction that commits the dispatch marker, eligibility is revalidated and
+this attempt's exact plan-and-starting-checkpoint identity is independently
+re-checked against every other already-`Implemented` attempt; an
+implementation of the identical plan and checkpoint already existing
+supersedes this attempt with a truthful `InputAlreadyImplemented` outcome
+before the provider is ever invoked. A host restart that finds a
+dispatched-but-unrecorded implementation attempt never guesses its outcome:
+reconciliation independently re-reads fresh Git evidence before marking the
+attempt `Interrupted` and, if the fingerprint no longer matches (or that
+evidence itself could not be captured), the workspace `NeedsAttention` as
+well.
+
+Claude Code's Review-finding and Revision-response stages, and Codex's own
+review of Claude's implementation, remain deferred: no live provider adapter
+exists yet for Review finding or Revision response, this slice never claims
+automatic verification, Codex code review, or publication of an
+implementation's changes, and every such envelope in the durable ledger is
+still produced by the `Simulated` walking-skeleton sequence described above.
 
 ## Message types
 
@@ -202,8 +260,16 @@ further attempt at claim or dispatch time.
 ### Execution and review
 
 Claude Code implements only the resolved plan and records unexpected discoveries
-as challenges or questions. Codex reviews the exact Git fingerprint and
-verification evidence. Findings and responses remain linked across iterations.
+as challenges or questions. This stage is real today, bound to one durable
+attempt per requested implementation of one specific resolved plan (an
+accepted original Proposal, or a resolved revised Proposal); execution never
+edits anything outside the run's owned worktree, and it never runs Git, a
+verification command, or any network operation itself. Codex reviewing the
+exact Git fingerprint and verification evidence, and Claude's own Review
+finding/Revision response loop, remain deferred — this slice records only the
+implementation's own Execution report and the new Git checkpoint its
+independently observed changes produced; it never claims automatic
+verification, review, or publication of those changes.
 
 ## Authority matrix
 
@@ -365,6 +431,81 @@ knowledge of the CLI's public contract, not observed from a real authenticated i
 adapter therefore normalizes either shape defensively, and the downstream parser fails closed
 (`InvalidStructuredOutput`, never a false Acceptance) if that inference is ever wrong.
 
+### Claude Code implementation CLI safety contract
+
+The Claude implementation attempt invokes the same installed `claude.exe` `DirectExecutable`
+launch target as the critical-review attempt above, using a dedicated argument list — never the
+critical-review adapter reused by changing flags, since this role's tool allowlist and permission
+mode differ in kind (mutating repository edits) from every other Claude usage in this protocol.
+The context manifest is delivered over stdin exactly as above:
+
+```
+--print
+--input-format text
+--output-format json
+--json-schema <inline JSON Schema for the implementation report>
+--safe-mode
+--restricted
+--disable-slash-commands
+--no-chrome
+--permission-prompts none
+--prompt-suggestions false
+--tools "Read,Edit,Write,Glob,Grep"
+--strict-mcp-config
+--permission-mode acceptEdits
+--no-session-persistence
+--session-id <fresh random GUID>
+```
+
+Every hardening flag shared with the critical-review contract above (`--safe-mode`,
+`--restricted`, `--disable-slash-commands`, `--no-chrome`, `--permission-prompts none`,
+`--prompt-suggestions false`, `--strict-mcp-config`, `--no-session-persistence`, and the same
+never-`--bare`/`--continue`/`--resume`/`--fork-session`/`--dangerously-skip-permissions` set)
+applies identically. Two differences are deliberate:
+
+- **An explicit tool allowlist, not the empty one**: `--tools "Read,Edit,Write,Glob,Grep"` grants
+  only file-reading and file-editing tools. The installed CLI's own `--help` states this option
+  supplies "the list of available tools" — never "additional" tools, the wording `--add-dir` uses
+  for its own genuinely additive option — and its three parallel forms (`""` disables all tools,
+  `"default"` restores every tool, an explicit list names exactly the available set) are only
+  coherent under replacement semantics: `""` could not mean "no tools" if a passed list were
+  merely added to an existing default set. The compiled binary's own embedded implementation
+  corroborates this: the CLI computes a `baseToolsCli`/`getAllBaseTools` tool universe distinct
+  from the separate `allowedToolsCli`/`disallowedToolsCli` permission-grant layer used by the
+  unrelated `--allowedTools`/`--disallowedTools` flags this adapter never passes, and applies it
+  through a coordinator tool filter (`applyCoordinatorToolFilter`). Every name in the allowlist —
+  and every name deliberately absent from it (Bash, WebFetch, WebSearch, NotebookEdit, Task/Agent,
+  ExitPlanMode) — is confirmed present as a literal, capitalized tool identifier in the installed
+  CLI binary: this attempt never runs a shell, script, or arbitrary process, never browses the
+  web, and never spawns a sub-agent. `--restricted`'s own `--help` text independently confirms
+  Bash/PowerShell/REPL/code-running tools and WebFetch are removed "unless `--tools` names them"
+  (this allowlist never does) and that it "confines the file tools to the working directories". No
+  Git command, verification command, commit, push, package install, or network operation is ever
+  reachable through this allowlist.
+- **`--permission-mode acceptEdits`, not `plan`**: the strongest available mode still compatible
+  with real file mutation, since `plan` never edits anything and `bypassPermissions` is explicitly
+  refused by `--restricted`. Beyond the enum name and the corroborating embedded string
+  "auto-accept edits", the compiled binary contains an actual `realpathSync`-backed, cached
+  path-resolution utility (`realpathSync(path) { val = lazyFs().realpathSync(path); }`) together
+  with a `blockReadsOutsideWorkingDirectories` permission concept and a `checkPathSafetyForAutoEdit`
+  function named specifically for this mode's own auto-applied-edit path — real implementation
+  evidence, not merely a flag description, that edits accepted under this mode are checked against
+  a working-directory boundary using symlink/junction-resolving real-path comparison, consistent
+  with `--restricted`'s own textual confinement guarantee above. The one point that remains a
+  disclosed inference rather than a directly observed behavior is the mode's precise interactive
+  consequence (that it truly never blocks on a prompt for an in-boundary edit) — the CLI ships no
+  bundled documentation asserting this in so many words, and confirming it further would require
+  an authenticated invocation this project's evidence discipline forbids. Mirrors the
+  `result`-field-shape limitation the critical-review contract above already discloses in kind.
+- **No `--max-turns`**: implementation is inherently multi-step (read, edit, re-read), unlike a
+  single-turn critical review; the actual bound remains the process-level timeout, cancellation,
+  and process-tree termination already established for every other provider adapter.
+
+Because this is the one Claude role whose invocation can genuinely mutate the worktree, the
+orchestrator always independently re-reads fresh Git evidence after this adapter returns —
+regardless of whether the process succeeded, failed, or threw — and never assumes a failed or
+cancelled process left the worktree untouched.
+
 Each agent attempt is intended to eventually record requested and effective
 provider configuration:
 
@@ -374,9 +515,10 @@ provider configuration:
 - context-manifest revision;
 - reported context usage and compaction outcome when available.
 
-The Codex Planning attempt and the Claude critical-review attempt each record
-only a subset of this today: the provider, role, and response contract are
-each fixed by the attempt's own dedicated factory (never caller-supplied),
+The Codex Planning attempt, the Claude critical-review attempt, the Codex
+challenge-resolution attempt, and the Claude implementation attempt each
+record only a subset of this today: the provider, role, and response
+contract are each fixed by the attempt's own dedicated factory (never caller-supplied),
 and a provider-session identifier is captured on a best-effort basis only
 when the provider's own JSON output reports one — never required, never
 trusted for anything beyond this closed, cosmetic field, and not currently

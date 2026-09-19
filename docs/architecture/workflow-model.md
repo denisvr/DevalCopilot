@@ -98,6 +98,25 @@ execution. Review reads re-capture current source evidence: an older approval re
 evidence but is marked not applicable with a fixed stale reason when a newer checkpoint exists or
 the source fingerprint has drifted.
 
+### Current agent-implementation boundary
+
+The `Execute["Claude implementation"]` node in the MVP workflow diagram below
+names the full, aspirational loop; only its first half is real today. A
+Claude implementation attempt durably implements exactly one authoritative
+resolved plan (an accepted original Proposal, or a resolved revised
+Proposal) entirely inside the run's owned worktree, and — on success —
+records one new immutable `GitCheckpoint` plus its changed-file rows and
+exactly one Execution report. It never runs the configured local
+verification commands, a commit, a push, or any network operation itself,
+and it is never followed automatically by `LocalVerify`, `Review`, or
+`PublishGate` below: those stages, the diagram's correction loops back into
+`Execute`, and Codex's own review of the implementation all remain
+unimplemented. A failed, invalid, or evidence-unavailable attempt never
+rolls back or discards whatever the worktree already holds; when the
+worktree may have changed without a verified, trustworthy result to show for
+it, the workspace is flagged `NeedsAttention` instead of being silently
+retried.
+
 ### Approval state
 
 `NotRequired`, `Pending`, `Approved`, `Rejected`, `Expired`, or `Consumed`.

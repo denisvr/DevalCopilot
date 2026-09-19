@@ -144,8 +144,12 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
+        // ExecutionReport replying to Proposal is a valid parent relationship (the real
+        // Implementer role's execution report always replies directly to the implemented
+        // Proposal); ReviewFinding replying to Proposal remains an invalid parent relationship,
+        // so it still exercises this rejection path.
         var invalidParent = await handler.HandleAsync(
-            CreateMessageCommand(run.Id, attempt.Id, CollaborationMessageType.ExecutionReport, proposal.Id), CancellationToken.None);
+            CreateMessageCommand(run.Id, attempt.Id, CollaborationMessageType.ReviewFinding, proposal.Id), CancellationToken.None);
         var selfReply = await handler.HandleAsync(
             CreateMessageCommand(run.Id, attempt.Id, CollaborationMessageType.Challenge, proposal.Id) with
             {

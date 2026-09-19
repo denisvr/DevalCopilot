@@ -56,6 +56,106 @@ export class StartSimulatedRunEndpointClient {
     }
 }
 
+export class RequestImplementationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestImplementation(runId: string, request: RequestImplementationRequest): Promise<RequestImplementationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/implementation";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestImplementation(_response);
+        });
+    }
+
+    protected processRequestImplementation(response: Response): Promise<RequestImplementationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestImplementationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestImplementationResponse>(null as any);
+    }
+}
+
+export class GetImplementationAttemptStatusEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getImplementationAttemptStatus(runId: string): Promise<ImplementationAttemptStatusResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/implementation";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetImplementationAttemptStatus(_response);
+        });
+    }
+
+    protected processGetImplementationAttemptStatus(response: Response): Promise<ImplementationAttemptStatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ImplementationAttemptStatusResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ImplementationAttemptStatusResponse>(null as any);
+    }
+}
+
 export class RequestCodexPlanningAttemptEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1751,6 +1851,82 @@ export interface IStartSimulatedRunRequest {
     objective?: string;
 }
 
+export class RequestImplementationResponse implements IRequestImplementationResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+
+    constructor(data?: IRequestImplementationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+        }
+    }
+
+    static fromJS(data: any): RequestImplementationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestImplementationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        return data;
+    }
+}
+
+export interface IRequestImplementationResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+}
+
+export class RequestImplementationRequest implements IRequestImplementationRequest {
+    planProposalMessageId?: string;
+
+    constructor(data?: IRequestImplementationRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.planProposalMessageId = _data["planProposalMessageId"];
+        }
+    }
+
+    static fromJS(data: any): RequestImplementationRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestImplementationRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["planProposalMessageId"] = this.planProposalMessageId;
+        return data;
+    }
+}
+
+export interface IRequestImplementationRequest {
+    planProposalMessageId?: string;
+}
+
 export class RequestCodexPlanningAttemptResponse implements IRequestCodexPlanningAttemptResponse {
     attemptId?: string;
     attemptNumber?: number;
@@ -2195,6 +2371,166 @@ export interface IGetProcessAttemptOutputResponse {
     truncated?: boolean | undefined;
 }
 
+export class ImplementationAttemptStatusResponse implements IImplementationAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    planProposalMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    startingGitCheckpointId?: string | undefined;
+    startingCheckpointFingerprintSha256?: string | undefined;
+    resultGitCheckpointId?: string | undefined;
+    resultCheckpointFingerprintSha256?: string | undefined;
+    executionReportSummary?: string | undefined;
+    changedRelativePaths?: string[];
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+
+    constructor(data?: IImplementationAttemptStatusResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.hasAttempt = _data["hasAttempt"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.planProposalMessageId = _data["planProposalMessageId"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.startingGitCheckpointId = _data["startingGitCheckpointId"];
+            this.startingCheckpointFingerprintSha256 = _data["startingCheckpointFingerprintSha256"];
+            this.resultGitCheckpointId = _data["resultGitCheckpointId"];
+            this.resultCheckpointFingerprintSha256 = _data["resultCheckpointFingerprintSha256"];
+            this.executionReportSummary = _data["executionReportSummary"];
+            if (Array.isArray(_data["changedRelativePaths"])) {
+                this.changedRelativePaths = [] as any;
+                for (let item of _data["changedRelativePaths"])
+                    this.changedRelativePaths!.push(item);
+            }
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["artifacts"])) {
+                this.artifacts = [] as any;
+                for (let item of _data["artifacts"])
+                    this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ImplementationAttemptStatusResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ImplementationAttemptStatusResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["hasAttempt"] = this.hasAttempt;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["planProposalMessageId"] = this.planProposalMessageId;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["startingGitCheckpointId"] = this.startingGitCheckpointId;
+        data["startingCheckpointFingerprintSha256"] = this.startingCheckpointFingerprintSha256;
+        data["resultGitCheckpointId"] = this.resultGitCheckpointId;
+        data["resultCheckpointFingerprintSha256"] = this.resultCheckpointFingerprintSha256;
+        data["executionReportSummary"] = this.executionReportSummary;
+        if (Array.isArray(this.changedRelativePaths)) {
+            data["changedRelativePaths"] = [];
+            for (let item of this.changedRelativePaths)
+                data["changedRelativePaths"].push(item);
+        }
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.artifacts)) {
+            data["artifacts"] = [];
+            for (let item of this.artifacts)
+                data["artifacts"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IImplementationAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    planProposalMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    startingGitCheckpointId?: string | undefined;
+    startingCheckpointFingerprintSha256?: string | undefined;
+    resultGitCheckpointId?: string | undefined;
+    resultCheckpointFingerprintSha256?: string | undefined;
+    executionReportSummary?: string | undefined;
+    changedRelativePaths?: string[];
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+}
+
+export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+
+    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.purpose = _data["purpose"];
+            this.byteLength = _data["byteLength"];
+            this.truncated = _data["truncated"];
+            this.captureOutcome = _data["captureOutcome"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptArtifactMetadataResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["purpose"] = this.purpose;
+        data["byteLength"] = this.byteLength;
+        data["truncated"] = this.truncated;
+        data["captureOutcome"] = this.captureOutcome;
+        return data;
+    }
+}
+
+export interface IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+}
+
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {
     sequence?: number;
     id?: string;
@@ -2353,54 +2689,6 @@ export interface IClaudeCriticalReviewAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
-}
-
-export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
-
-    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.purpose = _data["purpose"];
-            this.byteLength = _data["byteLength"];
-            this.truncated = _data["truncated"];
-            this.captureOutcome = _data["captureOutcome"];
-        }
-    }
-
-    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new AgentAttemptArtifactMetadataResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["purpose"] = this.purpose;
-        data["byteLength"] = this.byteLength;
-        data["truncated"] = this.truncated;
-        data["captureOutcome"] = this.captureOutcome;
-        return data;
-    }
-}
-
-export interface IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
 }
 
 export class ChallengeResolutionAttemptStatusResponse implements IChallengeResolutionAttemptStatusResponse {

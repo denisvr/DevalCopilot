@@ -16,6 +16,7 @@ using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVe
 using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
+using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedImplementationAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -139,6 +140,14 @@ builder.Services.AddHostedService<ClaudeCriticalReviewSupervisor>();
 builder.Services.AddSingleton<ICodexChallengeResolutionAdapter, CodexChallengeResolutionAdapter>();
 builder.Services.AddHostedService<ChallengeResolutionSupervisor>();
 
+// Claude implementation: a dedicated adapter and supervisor, never the critical-review adapter
+// reused by changing flags — this role's tool allowlist and permission mode differ in kind
+// (mutating repository edits) from every other Claude usage in this protocol. Shares the same
+// IProcessExecutionAdapter, IArtifactStore, and IGitWorkspaceEvidenceReader as every sibling
+// supervisor, never a second child-process or Git evidence path.
+builder.Services.AddSingleton<IClaudeImplementationAdapter, ClaudeImplementationAdapter>();
+builder.Services.AddHostedService<ImplementationSupervisor>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -229,6 +238,13 @@ using (var startupScope = app.Services.CreateScope())
     // GetRunningAgentAttemptsQuery still sees these attempts as Running.
     await AgentAttemptOutputRecovery.RunAsync(startupScope.ServiceProvider, startupLogger, CancellationToken.None);
     await mediator.SendAsync(new ReconcileInterruptedAgentAttemptsCommand(), CancellationToken.None);
+    // Implementer attempts are excluded from the generic command above and reconciled here
+    // instead: unlike every other Agent role, a dispatched implementation attempt may have
+    // mutated the owned worktree before the host was lost, so this independently re-reads fresh
+    // Git evidence for each affected workspace before ever deciding whether it must also be
+    // flagged NeedsAttention. Must still complete before ImplementationSupervisor can claim any
+    // work, same ordering rule as above.
+    await mediator.SendAsync(new ReconcileInterruptedImplementationAttemptsCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

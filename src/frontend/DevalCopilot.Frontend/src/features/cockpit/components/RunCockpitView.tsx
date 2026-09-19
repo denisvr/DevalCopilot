@@ -6,12 +6,15 @@ import { useClaudeCriticalReviewAttemptStatus } from '../hooks/useClaudeCritical
 import { useRequestClaudeCriticalReview } from '../hooks/useRequestClaudeCriticalReview'
 import { useChallengeResolutionAttemptStatus } from '../hooks/useChallengeResolutionAttemptStatus'
 import { useRequestChallengeResolution } from '../hooks/useRequestChallengeResolution'
+import { useImplementationAttemptStatus } from '../hooks/useImplementationAttemptStatus'
+import { useRequestImplementation } from '../hooks/useRequestImplementation'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
+import { ImplementationAction } from './ImplementationAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { RunHeader } from './RunHeader'
@@ -31,6 +34,8 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestClaudeCriticalReview = useRequestClaudeCriticalReview(claudeCriticalReviewAttemptStatus.refresh)
   const challengeResolutionAttemptStatus = useChallengeResolutionAttemptStatus(runId, cockpit?.latestSequence)
   const requestChallengeResolution = useRequestChallengeResolution(challengeResolutionAttemptStatus.refresh)
+  const implementationAttemptStatus = useImplementationAttemptStatus(runId, cockpit?.latestSequence)
+  const requestImplementation = useRequestImplementation(implementationAttemptStatus.refresh)
   const latestCodexProposalMessageId = selectLatestCodexProposalMessageId(collaborationTimeline.cards)
   // Only the latest Claude critical-review attempt's own Challenged outcome ever makes a
   // resolution requestable — never an older, since-superseded review, and never a review still
@@ -41,6 +46,20 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
     claudeCriticalReviewAttemptStatus.status?.outcome === 'Challenged'
       ? claudeCriticalReviewAttemptStatus.status.reviewedProposalMessageId ?? null
       : null
+  // The one authoritative resolved plan eligible for implementation, identified only by its
+  // Proposal message id — never reconstructed from display text. `latestCodexProposalMessageId`
+  // already tracks the highest-sequence real Codex Proposal, which becomes the resolver's
+  // revised Proposal once a resolution completes, so the same selector serves both eligible
+  // forms: an accepted original Proposal (no resolution has happened yet), or a resolved
+  // revised Proposal (the latest Proposal now belongs to the completed resolution attempt).
+  // The backend independently re-verifies this eligibility in full before ever acting on it —
+  // this is only a display hint for when to offer the action.
+  const isAcceptedOriginalProposal =
+    claudeCriticalReviewAttemptStatus.status?.outcome === 'Accepted'
+    && claudeCriticalReviewAttemptStatus.status.reviewedProposalMessageId === latestCodexProposalMessageId
+  const isResolvedRevisedProposal = challengeResolutionAttemptStatus.status?.outcome === 'Resolved'
+  const eligiblePlanProposalMessageId =
+    isAcceptedOriginalProposal || isResolvedRevisedProposal ? latestCodexProposalMessageId : null
 
   if (loading && !cockpit) {
     return <p className="dc-empty-state">Loading run…</p>
@@ -92,6 +111,17 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             requestError={requestChallengeResolution.error}
             onRequest={() =>
               latestChallengedReviewAttemptId && void requestChallengeResolution.request(runId, latestChallengedReviewAttemptId)
+            }
+          />
+          <ImplementationAction
+            planProposalMessageId={eligiblePlanProposalMessageId}
+            status={implementationAttemptStatus.status}
+            statusLoading={implementationAttemptStatus.loading}
+            statusError={implementationAttemptStatus.error}
+            requesting={requestImplementation.requesting}
+            requestError={requestImplementation.error}
+            onRequest={() =>
+              eligiblePlanProposalMessageId && void requestImplementation.request(runId, eligiblePlanProposalMessageId)
             }
           />
           <AgentCollaboration {...collaborationTimeline} />

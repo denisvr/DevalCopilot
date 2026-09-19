@@ -30,6 +30,8 @@ import {
   GetClaudeCriticalReviewAttemptStatusEndpointClient,
   RequestChallengeResolutionEndpointClient,
   GetChallengeResolutionAttemptStatusEndpointClient,
+  RequestImplementationEndpointClient,
+  GetImplementationAttemptStatusEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -66,6 +68,8 @@ export const requestClaudeCriticalReviewClient = () => new RequestClaudeCritical
 export const claudeCriticalReviewAttemptStatusClient = () => new GetClaudeCriticalReviewAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestChallengeResolutionClient = () => new RequestChallengeResolutionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const challengeResolutionAttemptStatusClient = () => new GetChallengeResolutionAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestImplementationClient = () => new RequestImplementationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const implementationAttemptStatusClient = () => new GetImplementationAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -98,6 +102,8 @@ export type {
   ClaudeCriticalReviewAttemptStatusResponse,
   RequestChallengeResolutionResponse,
   ChallengeResolutionAttemptStatusResponse,
+  RequestImplementationResponse,
+  ImplementationAttemptStatusResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,
@@ -105,4 +111,5 @@ export {
   RegisterProjectRequest,
   RequestClaudeCriticalReviewRequest,
   RequestChallengeResolutionRequest,
+  RequestImplementationRequest,
 } from './generated/api-client'

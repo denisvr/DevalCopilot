@@ -35,6 +35,12 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// Proposal plus its complete Challenge set) in the meantime.</summary>
     public const string InputAlreadyResolvedCode = "agent_attempts.input_already_resolved";
 
+    /// <summary>The implementation counterpart to <see cref="InputAlreadyResolvedCode"/>: the
+    /// run, workspace, lease, and checkpoint remain fully eligible, but another implementation
+    /// attempt already completed a successful implementation of the exact same resolved plan
+    /// against the exact same starting checkpoint in the meantime.</summary>
+    public const string InputAlreadyImplementedCode = "agent_attempts.input_already_implemented";
+
     public async Task<Result<DateTimeOffset>> HandleAsync(
         MarkAgentAttemptDispatchedCommand command, CancellationToken cancellationToken)
     {
@@ -148,6 +154,26 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                     Error.Conflict(
                         InputAlreadyResolvedCode,
                         "Another challenge-resolution attempt already completed a successful resolution of this exact input set."));
+            }
+        }
+
+        // The implementation-specific half of the same authoritative last gate, mirroring the
+        // Resolver branch above: this attempt's exact resolved-plan identity (its sequence-0
+        // Proposal message, bound to its own starting checkpoint) can also have lost
+        // applicability between the eligibility snapshot and this call — a competing
+        // implementation attempt could have committed a successful Implemented result for the
+        // very same plan and checkpoint in that window.
+        if (attempt.AgentRole == AgentRole.Implementer)
+        {
+            var planProposalMessageId = await ImplementationInputIdentity.GetPlanProposalMessageIdAsync(dbContext, attempt.Id, cancellationToken);
+            var alreadyImplemented = await ImplementationInputIdentity.HasCompetingSuccessfulImplementationAsync(
+                dbContext, attempt.RunId, attempt.Id, planProposalMessageId, attempt.AgentGitCheckpointId!.Value, cancellationToken);
+            if (alreadyImplemented)
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        InputAlreadyImplementedCode,
+                        "Another implementation attempt already completed a successful implementation of this exact plan and checkpoint."));
             }
         }
 
