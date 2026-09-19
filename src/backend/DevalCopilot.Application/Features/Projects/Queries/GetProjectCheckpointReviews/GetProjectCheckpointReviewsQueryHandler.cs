@@ -46,6 +46,7 @@ public sealed class GetProjectCheckpointReviewsQueryHandler(
 
         var reviews = await dbContext.CheckpointReviews
             .AsNoTracking()
+            .Include(review => review.Evidence)
             .Where(review => review.ProjectId == query.ProjectId)
             .OrderByDescending(review => review.RecordedAtUtcTicks)
             .ThenByDescending(review => review.Id)
@@ -69,10 +70,14 @@ public sealed class GetProjectCheckpointReviewsQueryHandler(
                 review.GitCheckpointId,
                 review.CheckpointNumber,
                 review.CheckpointFingerprintSha256,
-                review.VerificationExecutionId,
-                review.VerificationExecutionNumber,
-                review.VerificationExecutionStatus,
-                review.VerificationExecutionOutcome,
+                review.Evidence
+                    .Select(evidence => new CheckpointReviewEvidenceQueryResult(
+                        evidence.VerificationCommandId,
+                        evidence.VerificationExecutionId,
+                        evidence.VerificationExecutionNumber,
+                        evidence.VerificationExecutionStatus,
+                        evidence.VerificationExecutionOutcome))
+                    .ToArray(),
                 review.ActorKind,
                 review.Decision,
                 isApplicable,

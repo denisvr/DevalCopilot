@@ -75,6 +75,10 @@ public static class CollaborationMessageReplyPolicy
             // Decisions, one per Challenge, none of them uniquely "the" one implemented).
             CollaborationMessageType.ExecutionReport => parentType is CollaborationMessageType.Decision or CollaborationMessageType.Proposal,
             CollaborationMessageType.ReviewFinding => parentType == CollaborationMessageType.ExecutionReport,
+            // A Codex implementation review's approval fact always replies directly to the
+            // Execution report it approved — never the Proposal, and never overloading Acceptance,
+            // which is scoped to a not-yet-implemented plan.
+            CollaborationMessageType.ReviewApproval => parentType == CollaborationMessageType.ExecutionReport,
             CollaborationMessageType.RevisionResponse => parentType == CollaborationMessageType.ReviewFinding,
             // A question is scoped to a concrete piece of active collaboration rather than
             // being an unbounded side conversation.

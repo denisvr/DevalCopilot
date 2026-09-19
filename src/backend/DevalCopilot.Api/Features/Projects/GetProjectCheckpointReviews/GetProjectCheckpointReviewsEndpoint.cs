@@ -24,10 +24,14 @@ public sealed class GetProjectCheckpointReviewsEndpoint(
             review.GitCheckpointId,
             review.CheckpointNumber,
             review.CheckpointFingerprintSha256,
-            review.VerificationExecutionId,
-            review.VerificationExecutionNumber,
-            review.VerificationExecutionStatus?.ToString(),
-            review.VerificationExecutionOutcome?.ToString(),
+            review.Evidence
+                .Select(evidence => new CheckpointReviewEvidenceResponse(
+                    evidence.VerificationCommandId,
+                    evidence.VerificationExecutionId,
+                    evidence.VerificationExecutionNumber,
+                    evidence.VerificationExecutionStatus.ToString(),
+                    evidence.VerificationExecutionOutcome?.ToString()))
+                .ToArray(),
             review.ActorKind.ToString(),
             review.Decision.ToString(),
             review.IsApplicable,

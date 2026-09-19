@@ -30,16 +30,17 @@ public sealed class RecordCheckpointReviewCommandHandlerTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess);
         var review = Assert.Single(dbContext.CheckpointReviews);
-        Assert.Equal(data.Execution.Id, review.VerificationExecutionId);
-        Assert.Equal(VerificationExecutionStatus.Interrupted, review.VerificationExecutionStatus);
-        Assert.Null(review.VerificationExecutionOutcome);
+        var evidence = Assert.Single(review.Evidence);
+        Assert.Equal(data.Execution.Id, evidence.VerificationExecutionId);
+        Assert.Equal(VerificationExecutionStatus.Interrupted, evidence.VerificationExecutionStatus);
+        Assert.Null(evidence.VerificationExecutionOutcome);
 
         var second = await handler.HandleAsync(new RecordCheckpointReviewCommand(
             data.Project.Id, data.Checkpoint.Id, null, ReviewActorKind.FutureAgent, ReviewDecision.Pending), CancellationToken.None);
         Assert.True(second.IsSuccess);
         Assert.Equal(2, dbContext.CheckpointReviews.Count());
         var persistedReviews = dbContext.CheckpointReviews.ToArray();
-        Assert.Contains(persistedReviews, review => review.Decision == ReviewDecision.Pending && review.VerificationExecutionId is null);
+        Assert.Contains(persistedReviews, review => review.Decision == ReviewDecision.Pending && review.Evidence.Count == 0);
     }
 
     [Fact]
@@ -224,11 +225,13 @@ public sealed class RecordCheckpointReviewCommandHandlerTests : IAsyncLifetime
             var data = await AddReadyEvidenceAsync(dbContext, VerificationExecutionStatus.Passed, VerificationExecutionOutcome.Exited, 0);
             for (var index = 0; index < 51; index++)
             {
+                var reviewId = Guid.NewGuid();
+                var member = CheckpointReviewEvidence.Observe(
+                    Guid.NewGuid(), reviewId, data.Execution.VerificationCommandId, data.Execution.Id, data.Execution.ExecutionNumber,
+                    data.Execution.CheckpointFingerprintSha256, data.Execution.Status, data.Execution.Outcome, data.Execution.ExitCode);
                 dbContext.CheckpointReviews.Add(CheckpointReview.Record(
-                    Guid.NewGuid(), data.Project.Id, data.Workspace.Id, data.Checkpoint.Id, data.Checkpoint.CheckpointNumber,
-                    data.Checkpoint.FingerprintSha256, data.Execution.Id, data.Execution.ExecutionNumber,
-                    data.Execution.CheckpointFingerprintSha256, data.Execution.Status, data.Execution.Outcome,
-                    data.Execution.ExitCode, ReviewActorKind.Human, ReviewDecision.ChangesRequested, Now.AddSeconds(index)));
+                    reviewId, data.Project.Id, data.Workspace.Id, data.Checkpoint.Id, data.Checkpoint.CheckpointNumber,
+                    data.Checkpoint.FingerprintSha256, ReviewActorKind.Human, ReviewDecision.ChangesRequested, Now.AddSeconds(index), [member]));
             }
 
             await dbContext.SaveChangesAsync(CancellationToken.None);

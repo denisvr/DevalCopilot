@@ -46,7 +46,7 @@ vi.mock('../hooks/useProjectCheckpointReviews', () => ({
       decision: 'Approved',
       isApplicable: false,
       staleReasonCode: 'review.source_changed',
-      verificationExecutionNumber: 4,
+      evidence: [{ verificationExecutionNumber: 4 }],
       actorKind: 'Human',
     }],
     error: null,

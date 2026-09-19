@@ -128,4 +128,32 @@ public enum AgentOutcome
     /// appended; the workspace is always flagged NeedsAttention. Valid only for the ClaudeCode +
     /// Implementer + ImplementationReport combination.</summary>
     ImplementationHeadChanged = 14,
+
+    /// <summary>A Codex implementation-review attempt approved the reviewed Execution report
+    /// outright: exactly one <see cref="CollaborationMessageType.ReviewApproval"/> was parsed,
+    /// validated, and appended to the collaboration ledger, alongside one immutable
+    /// <see cref="CheckpointReview"/> fact recording the complete verification evidence set every
+    /// enabled command's Passed execution formed. Valid only for the Codex + CodeReviewer +
+    /// ImplementationReview combination.</summary>
+    ReviewApproved = 15,
+
+    /// <summary>A Codex implementation-review attempt raised one or more structured findings
+    /// against the reviewed Execution report: one to ten <see cref="CollaborationMessageType.ReviewFinding"/>
+    /// messages were parsed, validated, and appended to the collaboration ledger, alongside one
+    /// immutable <see cref="CheckpointReview"/> fact recording the complete verification evidence
+    /// set. Valid only for the Codex + CodeReviewer + ImplementationReview combination.</summary>
+    ReviewChangesRequested = 16,
+
+    /// <summary>Detected immediately before dispatch, distinct from
+    /// <see cref="WorkspaceNoLongerEligible"/>: the run/workspace/lease/checkpoint remain fully
+    /// eligible, but another code-review attempt already completed a successful
+    /// (<see cref="ReviewApproved"/> or <see cref="ReviewChangesRequested"/>) review of the exact
+    /// same Execution report, result checkpoint, and ordered verification-execution set in the
+    /// meantime. The provider is never invoked for this outcome. Recorded only by a dedicated
+    /// command that independently re-verifies the competing review exists before ever mutating
+    /// this attempt — never inferred or trusted from a caller's own claim. Mirrors
+    /// <see cref="InputAlreadyImplemented"/> exactly, one stage further down the collaboration
+    /// protocol. Valid only for the Codex + CodeReviewer + ImplementationReview
+    /// combination.</summary>
+    InputAlreadyCodeReviewed = 17,
 }

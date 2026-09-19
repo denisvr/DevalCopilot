@@ -17,6 +17,8 @@ import * as useChallengeResolutionAttemptStatusModule from '../hooks/useChalleng
 import * as useRequestChallengeResolutionModule from '../hooks/useRequestChallengeResolution'
 import * as useImplementationAttemptStatusModule from '../hooks/useImplementationAttemptStatus'
 import * as useRequestImplementationModule from '../hooks/useRequestImplementation'
+import * as useCodeReviewAttemptStatusModule from '../hooks/useCodeReviewAttemptStatus'
+import * as useRequestCodeReviewModule from '../hooks/useRequestCodeReview'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -30,6 +32,8 @@ vi.mock('../hooks/useChallengeResolutionAttemptStatus')
 vi.mock('../hooks/useRequestChallengeResolution')
 vi.mock('../hooks/useImplementationAttemptStatus')
 vi.mock('../hooks/useRequestImplementation')
+vi.mock('../hooks/useCodeReviewAttemptStatus')
+vi.mock('../hooks/useRequestCodeReview')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
 }))
@@ -48,6 +52,8 @@ const useChallengeResolutionAttemptStatusMock = vi.mocked(
 const useRequestChallengeResolutionMock = vi.mocked(useRequestChallengeResolutionModule.useRequestChallengeResolution)
 const useImplementationAttemptStatusMock = vi.mocked(useImplementationAttemptStatusModule.useImplementationAttemptStatus)
 const useRequestImplementationMock = vi.mocked(useRequestImplementationModule.useRequestImplementation)
+const useCodeReviewAttemptStatusMock = vi.mocked(useCodeReviewAttemptStatusModule.useCodeReviewAttemptStatus)
+const useRequestCodeReviewMock = vi.mocked(useRequestCodeReviewModule.useRequestCodeReview)
 
 function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {
   return {
@@ -113,6 +119,17 @@ beforeEach(() => {
     refresh: vi.fn(),
   })
   useRequestImplementationMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useCodeReviewAttemptStatusMock.mockReturnValue({
+    status: null,
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  })
+  useRequestCodeReviewMock.mockReturnValue({
     requesting: false,
     error: null,
     request: vi.fn(),

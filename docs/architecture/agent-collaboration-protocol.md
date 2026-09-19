@@ -264,12 +264,41 @@ as challenges or questions. This stage is real today, bound to one durable
 attempt per requested implementation of one specific resolved plan (an
 accepted original Proposal, or a resolved revised Proposal); execution never
 edits anything outside the run's owned worktree, and it never runs Git, a
-verification command, or any network operation itself. Codex reviewing the
-exact Git fingerprint and verification evidence, and Claude's own Review
-finding/Revision response loop, remain deferred — this slice records only the
+verification command, or any network operation itself. It records only the
 implementation's own Execution report and the new Git checkpoint its
 independently observed changes produced; it never claims automatic
 verification, review, or publication of those changes.
+
+Codex reviewing the implementation is also real today, bound to one durable
+attempt per requested review of one specific Execution report. Codex receives
+that report, the resolved plan it claims to satisfy, fresh bounded Git
+evidence for its exact result checkpoint, and the exact status of every
+currently enabled verification command's latest execution against that
+checkpoint — every one of which must already be Passed, or the review is
+never claimable. Codex never runs a verification command itself, and it
+never edits the worktree: this stage is read-only, using the same bounded,
+non-interactive invocation contract as Planning and Resolution above. It
+returns either:
+
+- an approval with a bounded rationale and residual risks, and zero
+  findings; or
+- one to ten material findings, each with a closed severity, a closed
+  category, evidence, and the required change — never mixed with an
+  approval in the same response.
+
+A finding's optional repository-relative affected path is never recorded to
+the durable collaboration ledger; it is surfaced only through the sealed,
+redacted final-response artifact, exactly like every other bounded field
+this protocol keeps out of structured content. Never a duplicated review of
+the exact same evidence: a review already recorded for the identical
+Execution report plus the identical ordered verification-execution set
+supersedes any further attempt at claim or dispatch time — mirroring
+Resolution's own exact-input-identity rule one level further down the
+protocol. Claude's own Review finding/Revision response loop back into
+Execution — resuming implementation automatically from a changes-requested
+review — remains deferred; a changes-requested review is durably recorded
+and visible, but nothing in this slice re-enters Execution from it
+automatically.
 
 ## Authority matrix
 

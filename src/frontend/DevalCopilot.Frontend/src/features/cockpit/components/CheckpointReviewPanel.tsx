@@ -87,7 +87,13 @@ export function CheckpointReviewPanel({ projectId }: CheckpointReviewPanelProps)
       {reviews.map(review => (
         <div className="dc-verification-command" key={review.reviewId}>
           <strong>{decisionLabel(review.decision)}</strong>
-          <span>Checkpoint #{review.checkpointNumber}{review.verificationExecutionNumber ? ` · verification #${review.verificationExecutionNumber}` : ''} · {review.actorKind}</span>
+          <span>
+            Checkpoint #{review.checkpointNumber}
+            {review.evidence && review.evidence.length > 0
+              ? ` · verification ${review.evidence.map(item => `#${item.verificationExecutionNumber}`).join(', ')}`
+              : ''}
+            {' · '}{review.actorKind}
+          </span>
           <span>{review.isApplicable ? 'Current checkpoint' : `Historical review · ${staleReasonDescription(review.staleReasonCode)}`}</span>
         </div>
       ))}

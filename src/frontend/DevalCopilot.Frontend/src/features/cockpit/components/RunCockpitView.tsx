@@ -8,13 +8,17 @@ import { useChallengeResolutionAttemptStatus } from '../hooks/useChallengeResolu
 import { useRequestChallengeResolution } from '../hooks/useRequestChallengeResolution'
 import { useImplementationAttemptStatus } from '../hooks/useImplementationAttemptStatus'
 import { useRequestImplementation } from '../hooks/useRequestImplementation'
+import { useCodeReviewAttemptStatus } from '../hooks/useCodeReviewAttemptStatus'
+import { useRequestCodeReview } from '../hooks/useRequestCodeReview'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
+import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
 import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ImplementationAction } from './ImplementationAction'
+import { CodeReviewAction } from './CodeReviewAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { RunHeader } from './RunHeader'
@@ -36,7 +40,16 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestChallengeResolution = useRequestChallengeResolution(challengeResolutionAttemptStatus.refresh)
   const implementationAttemptStatus = useImplementationAttemptStatus(runId, cockpit?.latestSequence)
   const requestImplementation = useRequestImplementation(implementationAttemptStatus.refresh)
+  const codeReviewAttemptStatus = useCodeReviewAttemptStatus(runId, cockpit?.latestSequence)
+  const requestCodeReview = useRequestCodeReview(codeReviewAttemptStatus.refresh)
   const latestCodexProposalMessageId = selectLatestCodexProposalMessageId(collaborationTimeline.cards)
+  // Only a real, successful implementation ever makes a code review requestable — never a
+  // failed or not-yet-attempted implementation. The backend independently re-verifies this
+  // eligibility in full before ever acting on it; this is only a display hint.
+  const latestExecutionReportMessageId =
+    implementationAttemptStatus.status?.outcome === 'Implemented'
+      ? selectLatestExecutionReportMessageId(collaborationTimeline.cards)
+      : null
   // Only the latest Claude critical-review attempt's own Challenged outcome ever makes a
   // resolution requestable — never an older, since-superseded review, and never a review still
   // Running or one that settled as Accepted.
@@ -122,6 +135,17 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             requestError={requestImplementation.error}
             onRequest={() =>
               eligiblePlanProposalMessageId && void requestImplementation.request(runId, eligiblePlanProposalMessageId)
+            }
+          />
+          <CodeReviewAction
+            executionReportMessageId={latestExecutionReportMessageId}
+            status={codeReviewAttemptStatus.status}
+            statusLoading={codeReviewAttemptStatus.loading}
+            statusError={codeReviewAttemptStatus.error}
+            requesting={requestCodeReview.requesting}
+            requestError={requestCodeReview.error}
+            onRequest={() =>
+              latestExecutionReportMessageId && void requestCodeReview.request(runId, latestExecutionReportMessageId)
             }
           />
           <AgentCollaboration {...collaborationTimeline} />

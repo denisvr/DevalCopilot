@@ -268,6 +268,61 @@ public sealed class Attempt
     }
 
     /// <summary>
+    /// Claims a Codex implementation-review Agent attempt — a durable, real, read-only
+    /// invocation reviewing one exact, already-completed Claude implementation result: its
+    /// Execution report, its immutable result checkpoint, and the complete set of currently
+    /// enabled verification-command executions bound to that same checkpoint. This slice accepts
+    /// only Codex, the CodeReviewer role, protocol 1.0, and the
+    /// <see cref="Runs.AgentResponseContract.ImplementationReview"/> contract. Exactly like
+    /// <see cref="ClaimAgentChallengeResolution"/>, the exact ordered input identity (the
+    /// Execution report, then every claimed verification-execution in a deterministic order) is
+    /// never a field on this entity — it is recorded separately, immediately after this call, as
+    /// this attempt's own ordered <see cref="AttemptInputMessage"/> rows.
+    /// </summary>
+    public static Attempt ClaimAgentCodeReview(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc)
+    {
+        ValidateAgentClaimArguments(
+            attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
+            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+
+        return new Attempt
+        {
+            Id = id,
+            RunId = runId,
+            AttemptNumber = attemptNumber,
+            Kind = AttemptKind.Agent,
+            Status = AttemptStatus.Running,
+            ClaimedAtUtc = claimedAtUtc,
+            AgentProvider = Runs.AgentProvider.Codex,
+            AgentRole = Runs.AgentRole.CodeReviewer,
+            AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
+            // Mirrors ClaimAgentChallengeResolution's own reasoning: the real Approval-or-Findings
+            // union this attempt produces is represented by AgentResponseContract below, never by
+            // this placeholder.
+            AgentExpectedMessageType = CollaborationMessageType.ReviewFinding,
+            AgentResponseContract = Runs.AgentResponseContract.ImplementationReview,
+            AgentGitWorkspaceId = gitWorkspaceId,
+            AgentGitCheckpointId = gitCheckpointId,
+            AgentCheckpointFingerprintSha256 = checkpointFingerprintSha256,
+            AgentContextManifestArtifactId = contextManifestArtifactId,
+            AgentTimeout = timeout,
+            AgentMaxBytesPerStream = maxBytesPerStream,
+            AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+        };
+    }
+
+    /// <summary>
     /// Claims a Claude Code implementation Agent attempt — a durable, real invocation
     /// implementing one exact, already-resolved plan (an accepted original Proposal or a
     /// resolved revised Proposal) inside the owned worktree. This slice accepts only ClaudeCode,
@@ -692,7 +747,8 @@ public sealed class Attempt
                 : outcome;
 
         var isSuccess = effectiveOutcome is Runs.AgentOutcome.Proposed or Runs.AgentOutcome.Accepted
-            or Runs.AgentOutcome.Challenged or Runs.AgentOutcome.Resolved;
+            or Runs.AgentOutcome.Challenged or Runs.AgentOutcome.Resolved
+            or Runs.AgentOutcome.ReviewApproved or Runs.AgentOutcome.ReviewChangesRequested;
 
         // Independent Domain-level backstop, never the only line of defense (the Application
         // boundary that records a provider result rejects both cases before ever reaching this
@@ -719,6 +775,8 @@ public sealed class Attempt
                 Runs.AgentOutcome.Accepted or Runs.AgentOutcome.Challenged =>
                     AgentResponseContract == Runs.AgentResponseContract.CriticalReview,
                 Runs.AgentOutcome.Resolved => AgentResponseContract == Runs.AgentResponseContract.ChallengeResolution,
+                Runs.AgentOutcome.ReviewApproved or Runs.AgentOutcome.ReviewChangesRequested =>
+                    AgentResponseContract == Runs.AgentResponseContract.ImplementationReview,
                 _ => false,
             };
             if (!contractAllows)

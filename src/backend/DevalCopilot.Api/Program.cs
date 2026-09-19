@@ -140,6 +140,16 @@ builder.Services.AddHostedService<ClaudeCriticalReviewSupervisor>();
 builder.Services.AddSingleton<ICodexChallengeResolutionAdapter, CodexChallengeResolutionAdapter>();
 builder.Services.AddHostedService<ChallengeResolutionSupervisor>();
 
+// Codex implementation (code) review: a read-only Codex role reviewing a real, complete Claude
+// implementation result against its bounded local-verification evidence — shares the Codex
+// provider and CodexProcessInvoker with Codex planning and challenge resolution above, but is
+// otherwise an entirely separate role-specific execution path — its own adapter, its own
+// supervisor, its own eligibility feed and result-recording command, never shared with any
+// sibling supervisor. Never granted Git, process, or network capability: this role never mutates
+// the worktree.
+builder.Services.AddSingleton<ICodexImplementationReviewAdapter, CodexImplementationReviewAdapter>();
+builder.Services.AddHostedService<ImplementationReviewSupervisor>();
+
 // Claude implementation: a dedicated adapter and supervisor, never the critical-review adapter
 // reused by changing flags — this role's tool allowlist and permission mode differ in kind
 // (mutating repository edits) from every other Claude usage in this protocol. Shares the same

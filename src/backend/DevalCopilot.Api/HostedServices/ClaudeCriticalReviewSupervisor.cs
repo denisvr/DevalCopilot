@@ -1,4 +1,5 @@
 using Devalente.Shared.Cqrs;
+using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched;
@@ -239,16 +240,35 @@ public sealed class ClaudeCriticalReviewSupervisor(
             };
         }
 
+        // A terminal classification exists at this point, so this short recording transaction is
+        // attempted with its own bounded token: neither stoppingToken (host shutdown must not
+        // cancel it early and lose a known outcome) nor CancellationToken.None (a stalled local
+        // write must not block shutdown forever). If it still times out or otherwise fails, no
+        // terminal result is invented, Claude is never invoked again for this attempt here, and
+        // nothing retries in this pass — the attempt simply stays Running and Dispatched, exactly
+        // like any other unrecorded attempt, for the next startup's reconciliation.
         using var recordingTimeoutSource = new CancellationTokenSource(RecordingTimeout);
-        var recordResult = await DispatchAsync(
-            new RecordClaudeCriticalReviewResultCommand(
-                attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, review, providerSessionId),
-            recordingTimeoutSource.Token);
+        Result<RecordClaudeCriticalReviewResultCommandResult> recordResult;
+        try
+        {
+            recordResult = await DispatchAsync(
+                new RecordClaudeCriticalReviewResultCommand(
+                    attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, review, providerSessionId),
+                recordingTimeoutSource.Token);
+        }
+        catch (Exception)
+        {
+            // Covers the bounded timeout elapsing as well as any other dispatch failure. Never
+            // the exception object, its message, or any command/environment/output/repository
+            // detail — only a stable event code and the attempt identifier.
+            logger.LogError("claude_critical_review_result_recording_failed AttemptId={AttemptId}", attempt.AttemptId);
+            return;
+        }
 
         if (recordResult.IsFailure)
         {
             logger.LogError(
-                "claude_critical_review_result_recording_failed AttemptId={AttemptId} ErrorCode={ErrorCode}",
+                "claude_critical_review_result_recording_rejected AttemptId={AttemptId} ErrorCode={ErrorCode}",
                 attempt.AttemptId, recordResult.Errors[0].Code);
             return;
         }

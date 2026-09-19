@@ -25,4 +25,12 @@ public enum AgentRole
     /// required for success — never a read-only role. Automatic verification, code review, and
     /// publication remain deferred to later slices.</summary>
     Implementer = 3,
+
+    /// <summary>Codex reviewing a real, complete Claude implementation result — the exact
+    /// Execution report, its immutable result checkpoint, and the exact ordered set of currently
+    /// enabled verification-command executions bound to that same checkpoint, every one of them
+    /// Passed. Read-only: this role never mutates the worktree, runs Git, runs a verification
+    /// command itself, or has network/process capability. Claude's own revision/correction
+    /// response to a changes-requested review remains deferred to a later slice.</summary>
+    CodeReviewer = 4,
 }

@@ -121,6 +121,7 @@ public sealed class CollaborationMessage
             CollaborationMessageType.ReviewFinding => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Human,
             CollaborationMessageType.RevisionResponse => actor is ParticipantKind.Codex or ParticipantKind.Claude,
             CollaborationMessageType.Escalation => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Orchestrator,
+            CollaborationMessageType.ReviewApproval => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Human,
             _ => false,
         };
 

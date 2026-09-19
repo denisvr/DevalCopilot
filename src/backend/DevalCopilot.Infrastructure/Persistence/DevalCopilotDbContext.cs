@@ -27,6 +27,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<CheckpointReview> CheckpointReviews => Set<CheckpointReview>();
 
+    public DbSet<CheckpointReviewEvidence> CheckpointReviewEvidence => Set<CheckpointReviewEvidence>();
+
     public DbSet<RepositoryMutationLease> RepositoryMutationLeases => Set<RepositoryMutationLease>();
 
     public DbSet<Run> Runs => Set<Run>();
@@ -34,6 +36,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
     public DbSet<Attempt> Attempts => Set<Attempt>();
 
     public DbSet<AttemptInputMessage> AttemptInputMessages => Set<AttemptInputMessage>();
+
+    public DbSet<AttemptVerificationEvidence> AttemptVerificationEvidence => Set<AttemptVerificationEvidence>();
 
     public DbSet<RunEvent> Events => Set<RunEvent>();
 

@@ -32,4 +32,11 @@ public enum AgentResponseContract
     /// Proposal, backed by an independently observed, immutable resulting
     /// <c>GitCheckpoint</c>.</summary>
     ImplementationReport = 3,
+
+    /// <summary>Codex + CodeReviewer. The attempt's real output is exactly one
+    /// <see cref="CollaborationMessageType.ReviewApproval"/> replying to the reviewed Execution
+    /// report (zero findings), or exactly one to ten <see cref="CollaborationMessageType.ReviewFinding"/>
+    /// messages each replying to that same Execution report — never both, never zero of
+    /// either.</summary>
+    ImplementationReview = 4,
 }

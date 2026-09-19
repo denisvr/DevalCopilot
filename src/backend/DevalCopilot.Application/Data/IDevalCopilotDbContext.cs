@@ -25,6 +25,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<CheckpointReview> CheckpointReviews { get; }
 
+    DbSet<CheckpointReviewEvidence> CheckpointReviewEvidence { get; }
+
     DbSet<RepositoryMutationLease> RepositoryMutationLeases { get; }
 
     DbSet<Run> Runs { get; }
@@ -32,6 +34,8 @@ public interface IDevalCopilotDbContext
     DbSet<Attempt> Attempts { get; }
 
     DbSet<AttemptInputMessage> AttemptInputMessages { get; }
+
+    DbSet<AttemptVerificationEvidence> AttemptVerificationEvidence { get; }
 
     DbSet<RunEvent> Events { get; }
 

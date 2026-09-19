@@ -101,21 +101,66 @@ the source fingerprint has drifted.
 ### Current agent-implementation boundary
 
 The `Execute["Claude implementation"]` node in the MVP workflow diagram below
-names the full, aspirational loop; only its first half is real today. A
-Claude implementation attempt durably implements exactly one authoritative
-resolved plan (an accepted original Proposal, or a resolved revised
-Proposal) entirely inside the run's owned worktree, and — on success —
-records one new immutable `GitCheckpoint` plus its changed-file rows and
-exactly one Execution report. It never runs the configured local
-verification commands, a commit, a push, or any network operation itself,
-and it is never followed automatically by `LocalVerify`, `Review`, or
-`PublishGate` below: those stages, the diagram's correction loops back into
-`Execute`, and Codex's own review of the implementation all remain
-unimplemented. A failed, invalid, or evidence-unavailable attempt never
-rolls back or discards whatever the worktree already holds; when the
-worktree may have changed without a verified, trustworthy result to show for
-it, the workspace is flagged `NeedsAttention` instead of being silently
-retried.
+names the full, aspirational loop; only part of it is real today. A Claude
+implementation attempt durably implements exactly one authoritative resolved
+plan (an accepted original Proposal, or a resolved revised Proposal) entirely
+inside the run's owned worktree, and — on success — records one new immutable
+`GitCheckpoint` plus its changed-file rows and exactly one Execution report.
+It never runs the configured local verification commands, a commit, a push,
+or any network operation itself. A failed, invalid, or evidence-unavailable
+attempt never rolls back or discards whatever the worktree already holds;
+when the worktree may have changed without a verified, trustworthy result to
+show for it, the workspace is flagged `NeedsAttention` instead of being
+silently retried.
+
+### `LocalVerify` → `Review["Codex review"]` boundary
+
+`LocalVerify` (the existing verification-command claim/dispatch/completion
+lifecycle) and the diagram's `Review["Codex review"]` node are now both real,
+and the boundary between them is real too. A Codex code-review attempt
+(`AgentRole.CodeReviewer`, `AgentResponseContract.ImplementationReview`) is
+claimable only against: the exact real, complete implementation result — a
+Claude Implementer attempt that completed `Implemented`, whose immutable
+result `GitCheckpoint` is exactly the workspace's current checkpoint, and
+whose one provider-observed Execution report is unique for that attempt —
+and a closed, complete verification-evidence chain: every currently enabled
+verification command has a latest execution bound to that exact checkpoint,
+terminal, and Passed. The claimed Execution report and the exact ordered
+verification-execution set are both recorded durably before Codex is ever
+invoked (an `AttemptInputMessage` row and a dedicated
+`AttemptVerificationEvidence` membership per claimed execution, mirroring the
+plan/challenge input-identity pattern one level further down the protocol) —
+never a JSON blob standing in as the authoritative set, and never an
+arbitrarily selected execution when several enabled commands exist. Missing,
+running, failed, interrupted, timed-out, cancelled, source-changed, foreign,
+duplicate, disabled, or stale evidence all fail the claim closed with a
+stable, path-free reason code.
+
+Codex's review is strictly read-only: the adapter reuses the same bounded,
+non-interactive `CodexProcessInvoker` contract as Codex planning and
+challenge resolution, with no Git, process, network, or repository-mutation
+capability, constrained to a closed discriminated response —
+`ReviewApproved` (a bounded rationale and residual risks, zero findings) or
+`ReviewChangesRequested` (one to ten bounded material findings, each with a
+closed severity/category, evidence, and the required change; an optional
+repository-relative affected path that is surfaced only through the sealed
+final-response artifact, never duplicated into the durable collaboration
+ledger). Fresh Git evidence is re-captured immediately before dispatch and
+again after the provider exits; any drift downgrades the result to
+`SourceChanged` unconditionally — an approval or a finding set is never
+recorded against a checkpoint the review did not actually evaluate. On
+success, the review's exact claimed verification-execution set is
+materialized into one immutable `CheckpointReview` and its complete
+`CheckpointReviewEvidence` set (`ReviewActorKind.FutureAgent`), atomically
+alongside either one `ReviewApproval` collaboration message or one
+`ReviewFinding` message per finding — each replying to the reviewed Execution
+report, never to the original plan.
+
+`Review["changes requested"] --> Execute` (Claude's own revision/correction
+response to a changes-requested review) remains explicitly deferred, exactly
+like `PublishGate` and everything after it in the diagram below: a
+changes-requested review is durably recorded and visible, but nothing in this
+slice automatically resumes `Execute` from it yet.
 
 ### Approval state
 

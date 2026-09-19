@@ -88,23 +88,36 @@ public sealed class RecordCheckpointReviewCommandHandler(
                 Error.Conflict("reviews.approval_requires_passed_verification", "Approval requires a passed verification execution."));
         }
 
+        var reviewId = Guid.NewGuid();
+        var evidenceMembers = execution is null
+            ? []
+            : new[]
+            {
+                CheckpointReviewEvidence.Observe(
+                    Guid.NewGuid(),
+                    reviewId,
+                    execution.VerificationCommandId,
+                    execution.Id,
+                    execution.ExecutionNumber,
+                    execution.CheckpointFingerprintSha256,
+                    execution.Status,
+                    execution.Outcome,
+                    execution.ExitCode),
+            };
+
         var review = CheckpointReview.Record(
-            Guid.NewGuid(),
+            reviewId,
             command.ProjectId,
             workspace.Id,
             checkpoint.Id,
             checkpoint.CheckpointNumber,
             checkpoint.FingerprintSha256,
-            execution?.Id,
-            execution?.ExecutionNumber,
-            execution?.CheckpointFingerprintSha256,
-            execution?.Status,
-            execution?.Outcome,
-            execution?.ExitCode,
             command.ActorKind,
             command.Decision,
-            timeProvider.GetUtcNow());
+            timeProvider.GetUtcNow(),
+            evidenceMembers);
         dbContext.CheckpointReviews.Add(review);
+        dbContext.CheckpointReviewEvidence.AddRange(evidenceMembers);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Result<RecordCheckpointReviewCommandResult>.Success(new(review.Id, review.Decision));

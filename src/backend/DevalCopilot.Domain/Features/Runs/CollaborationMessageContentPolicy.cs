@@ -38,9 +38,19 @@ public static class CollaborationMessageContentPolicy
     {
         "completedWork", "verification",
     };
+    /// <summary>Revised for this stage's first real use (a Codex implementation review's
+    /// findings): a closed severity, a closed category, the evidence/rationale for the finding,
+    /// and the change required to resolve it. The affected repository-relative path, when the
+    /// provider names one, is never duplicated into the ledger — it stays only in the sealed
+    /// final-response artifact, exactly like every other bounded free-text field this protocol
+    /// keeps out of durable structured content.</summary>
     private static readonly IReadOnlySet<string> ReviewFindingFields = new HashSet<string>(StringComparer.Ordinal)
     {
-        "severity", "affectedArea", "expectedBehavior", "evidence", "requiredDisposition",
+        "severity", "category", "evidence", "requiredChange",
+    };
+    private static readonly IReadOnlySet<string> ReviewApprovalFields = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "rationale", "residualRisks",
     };
     private static readonly IReadOnlySet<string> RevisionResponseFields = new HashSet<string>(StringComparer.Ordinal)
     {
@@ -118,6 +128,7 @@ public static class CollaborationMessageContentPolicy
             CollaborationMessageType.ReviewFinding => ReviewFindingFields,
             CollaborationMessageType.RevisionResponse => RevisionResponseFields,
             CollaborationMessageType.Escalation => EscalationFields,
+            CollaborationMessageType.ReviewApproval => ReviewApprovalFields,
             _ => throw new ArgumentOutOfRangeException(nameof(type)),
         };
     }

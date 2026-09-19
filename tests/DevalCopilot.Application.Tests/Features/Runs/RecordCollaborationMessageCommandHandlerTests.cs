@@ -284,7 +284,7 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
     private const string ExecutionReportContent =
         "{\"completedWork\":\"Completed\",\"verification\":\"Verified\"}";
     private const string ReviewFindingContent =
-        "{\"severity\":\"Minor\",\"affectedArea\":\"Ledger\",\"expectedBehavior\":\"Bounded\",\"evidence\":\"Review\",\"requiredDisposition\":\"Fix\"}";
+        "{\"severity\":\"low\",\"category\":\"correctness\",\"evidence\":\"Review\",\"requiredChange\":\"Fix\"}";
     private const string RevisionResponseContent =
         "{\"disposition\":\"Fixed\",\"evidence\":\"Tests\",\"resultingSourceChanges\":\"Updated policy\"}";
 }

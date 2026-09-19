@@ -252,6 +252,106 @@ export class GetAgentAttemptStatusEndpointClient {
     }
 }
 
+export class RequestCodeReviewEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestCodeReview(runId: string, request: RequestCodeReviewRequest): Promise<RequestCodeReviewResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/code-review";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestCodeReview(_response);
+        });
+    }
+
+    protected processRequestCodeReview(response: Response): Promise<RequestCodeReviewResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestCodeReviewResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestCodeReviewResponse>(null as any);
+    }
+}
+
+export class GetCodeReviewAttemptStatusEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCodeReviewAttemptStatus(runId: string): Promise<CodeReviewAttemptStatusResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/code-review";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCodeReviewAttemptStatus(_response);
+        });
+    }
+
+    protected processGetCodeReviewAttemptStatus(response: Response): Promise<CodeReviewAttemptStatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CodeReviewAttemptStatusResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CodeReviewAttemptStatusResponse>(null as any);
+    }
+}
+
 export class RequestClaudeCriticalReviewEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1967,6 +2067,82 @@ export interface IRequestCodexPlanningAttemptResponse {
     attemptNumber?: number;
 }
 
+export class RequestCodeReviewResponse implements IRequestCodeReviewResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+
+    constructor(data?: IRequestCodeReviewResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+        }
+    }
+
+    static fromJS(data: any): RequestCodeReviewResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestCodeReviewResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        return data;
+    }
+}
+
+export interface IRequestCodeReviewResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+}
+
+export class RequestCodeReviewRequest implements IRequestCodeReviewRequest {
+    executionReportMessageId?: string;
+
+    constructor(data?: IRequestCodeReviewRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.executionReportMessageId = _data["executionReportMessageId"];
+        }
+    }
+
+    static fromJS(data: any): RequestCodeReviewRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestCodeReviewRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["executionReportMessageId"] = this.executionReportMessageId;
+        return data;
+    }
+}
+
+export interface IRequestCodeReviewRequest {
+    executionReportMessageId?: string;
+}
+
 export class RequestClaudeCriticalReviewResponse implements IRequestClaudeCriticalReviewResponse {
     attemptId?: string;
     attemptNumber?: number;
@@ -2609,6 +2785,86 @@ export interface ICollaborationMessageTimelineResponse {
     structuredContentJson?: string;
     provenance?: string;
     occurredAtUtc?: Date;
+}
+
+export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    executionReportMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+
+    constructor(data?: ICodeReviewAttemptStatusResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.hasAttempt = _data["hasAttempt"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.executionReportMessageId = _data["executionReportMessageId"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["artifacts"])) {
+                this.artifacts = [] as any;
+                for (let item of _data["artifacts"])
+                    this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): CodeReviewAttemptStatusResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodeReviewAttemptStatusResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["hasAttempt"] = this.hasAttempt;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["executionReportMessageId"] = this.executionReportMessageId;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.artifacts)) {
+            data["artifacts"] = [];
+            for (let item of this.artifacts)
+                data["artifacts"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface ICodeReviewAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    executionReportMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
 }
 
 export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCriticalReviewAttemptStatusResponse {
@@ -3676,10 +3932,7 @@ export class CheckpointReviewResponse implements ICheckpointReviewResponse {
     gitCheckpointId?: string;
     checkpointNumber?: number;
     checkpointFingerprintSha256?: string;
-    verificationExecutionId?: string | undefined;
-    verificationExecutionNumber?: number | undefined;
-    verificationExecutionStatus?: string | undefined;
-    verificationExecutionOutcome?: string | undefined;
+    evidence?: CheckpointReviewEvidenceResponse[];
     actorKind?: string;
     decision?: string;
     isApplicable?: boolean;
@@ -3701,10 +3954,11 @@ export class CheckpointReviewResponse implements ICheckpointReviewResponse {
             this.gitCheckpointId = _data["gitCheckpointId"];
             this.checkpointNumber = _data["checkpointNumber"];
             this.checkpointFingerprintSha256 = _data["checkpointFingerprintSha256"];
-            this.verificationExecutionId = _data["verificationExecutionId"];
-            this.verificationExecutionNumber = _data["verificationExecutionNumber"];
-            this.verificationExecutionStatus = _data["verificationExecutionStatus"];
-            this.verificationExecutionOutcome = _data["verificationExecutionOutcome"];
+            if (Array.isArray(_data["evidence"])) {
+                this.evidence = [] as any;
+                for (let item of _data["evidence"])
+                    this.evidence!.push(CheckpointReviewEvidenceResponse.fromJS(item));
+            }
             this.actorKind = _data["actorKind"];
             this.decision = _data["decision"];
             this.isApplicable = _data["isApplicable"];
@@ -3726,10 +3980,11 @@ export class CheckpointReviewResponse implements ICheckpointReviewResponse {
         data["gitCheckpointId"] = this.gitCheckpointId;
         data["checkpointNumber"] = this.checkpointNumber;
         data["checkpointFingerprintSha256"] = this.checkpointFingerprintSha256;
-        data["verificationExecutionId"] = this.verificationExecutionId;
-        data["verificationExecutionNumber"] = this.verificationExecutionNumber;
-        data["verificationExecutionStatus"] = this.verificationExecutionStatus;
-        data["verificationExecutionOutcome"] = this.verificationExecutionOutcome;
+        if (Array.isArray(this.evidence)) {
+            data["evidence"] = [];
+            for (let item of this.evidence)
+                data["evidence"].push(item ? item.toJSON() : undefined as any);
+        }
         data["actorKind"] = this.actorKind;
         data["decision"] = this.decision;
         data["isApplicable"] = this.isApplicable;
@@ -3744,15 +3999,64 @@ export interface ICheckpointReviewResponse {
     gitCheckpointId?: string;
     checkpointNumber?: number;
     checkpointFingerprintSha256?: string;
-    verificationExecutionId?: string | undefined;
-    verificationExecutionNumber?: number | undefined;
-    verificationExecutionStatus?: string | undefined;
-    verificationExecutionOutcome?: string | undefined;
+    evidence?: CheckpointReviewEvidenceResponse[];
     actorKind?: string;
     decision?: string;
     isApplicable?: boolean;
     staleReasonCode?: string | undefined;
     recordedAtUtc?: Date;
+}
+
+export class CheckpointReviewEvidenceResponse implements ICheckpointReviewEvidenceResponse {
+    verificationCommandId?: string;
+    verificationExecutionId?: string;
+    verificationExecutionNumber?: number;
+    verificationExecutionStatus?: string;
+    verificationExecutionOutcome?: string | undefined;
+
+    constructor(data?: ICheckpointReviewEvidenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.verificationCommandId = _data["verificationCommandId"];
+            this.verificationExecutionId = _data["verificationExecutionId"];
+            this.verificationExecutionNumber = _data["verificationExecutionNumber"];
+            this.verificationExecutionStatus = _data["verificationExecutionStatus"];
+            this.verificationExecutionOutcome = _data["verificationExecutionOutcome"];
+        }
+    }
+
+    static fromJS(data: any): CheckpointReviewEvidenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CheckpointReviewEvidenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["verificationCommandId"] = this.verificationCommandId;
+        data["verificationExecutionId"] = this.verificationExecutionId;
+        data["verificationExecutionNumber"] = this.verificationExecutionNumber;
+        data["verificationExecutionStatus"] = this.verificationExecutionStatus;
+        data["verificationExecutionOutcome"] = this.verificationExecutionOutcome;
+        return data;
+    }
+}
+
+export interface ICheckpointReviewEvidenceResponse {
+    verificationCommandId?: string;
+    verificationExecutionId?: string;
+    verificationExecutionNumber?: number;
+    verificationExecutionStatus?: string;
+    verificationExecutionOutcome?: string | undefined;
 }
 
 export class GetGitCheckpointDiffResponse implements IGetGitCheckpointDiffResponse {

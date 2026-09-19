@@ -527,4 +527,135 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
         Assert.True(result.IsSuccess);
         Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
     }
+
+    /// <summary>Seeds one fully eligible, undispatched CodeReviewer attempt whose exact input
+    /// identity (the reviewed ExecutionReport plus its ordered claimed verification-execution set)
+    /// is exactly <paramref name="ownExecutionIds"/>, plus one already-Completed/ReviewApproved
+    /// competing CodeReviewer attempt whose own claimed set is exactly
+    /// <paramref name="competingExecutionIds"/> — deliberately allowed to differ in length,
+    /// membership, or order so a test can prove the dispatch-time gate compares the complete
+    /// ordered sequence on both parts, never a set/overlap check.</summary>
+    private static async Task<(Run Run, Attempt Attempt)> SeedCodeReviewAttemptWithCompetingReviewAsync(
+        DevalCopilotDbContext dbContext,
+        Guid executionReportMessageId,
+        Guid competingExecutionReportMessageId,
+        IReadOnlyList<Guid> ownExecutionIds,
+        IReadOnlyList<Guid> competingExecutionIds)
+    {
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the implementation", Now);
+        run.Claim(Now);
+        var workspace = GitWorkspace.Prepare(
+            Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", Now);
+        workspace.MarkReady();
+        var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
+        var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, Guid.NewGuid().ToByteArray(), Now);
+
+        var attempt = Attempt.ClaimAgentCodeReview(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+
+        var competingReview = Attempt.ClaimAgentCodeReview(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        competingReview.MarkAgentDispatched(Now);
+        competingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now);
+
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(checkpoint);
+        dbContext.RepositoryMutationLeases.Add(lease);
+        dbContext.Attempts.AddRange(attempt, competingReview);
+
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, executionReportMessageId, sequence: 0));
+        dbContext.AttemptInputMessages.Add(
+            AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, competingExecutionReportMessageId, sequence: 0));
+
+        // One distinct VerificationCommand per distinct execution: attempt_verification_evidence
+        // enforces uniqueness on (AttemptId, VerificationCommandId), so two evidence rows on the
+        // same attempt can never legitimately share a command.
+        var allExecutionIds = ownExecutionIds.Concat(competingExecutionIds).Distinct().ToList();
+        var commandIdByExecutionId = new Dictionary<Guid, Guid>();
+        var executions = new List<VerificationExecution>();
+        var commands = new List<VerificationCommand>();
+        for (var index = 0; index < allExecutionIds.Count; index++)
+        {
+            var command = VerificationCommand.Configure(
+                Guid.NewGuid(), project.Id, index + 1, $"Command {index + 1}", @"C:\dotnet.exe", ["test"], 300, true, Now);
+            var execution = VerificationExecution.Claim(allExecutionIds[index], project.Id, index + 1, workspace, checkpoint, command, Now);
+            execution.MarkDispatched(Now);
+            execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, Now);
+            commandIdByExecutionId[allExecutionIds[index]] = command.Id;
+            commands.Add(command);
+            executions.Add(execution);
+        }
+
+        dbContext.VerificationCommands.AddRange(commands);
+        dbContext.VerificationExecutions.AddRange(executions);
+
+        for (var index = 0; index < ownExecutionIds.Count; index++)
+        {
+            dbContext.AttemptVerificationEvidence.Add(AttemptVerificationEvidence.Record(
+                Guid.NewGuid(), attempt.Id, commandIdByExecutionId[ownExecutionIds[index]], ownExecutionIds[index], sequence: index));
+        }
+
+        for (var index = 0; index < competingExecutionIds.Count; index++)
+        {
+            dbContext.AttemptVerificationEvidence.Add(AttemptVerificationEvidence.Record(
+                Guid.NewGuid(), competingReview.Id, commandIdByExecutionId[competingExecutionIds[index]], competingExecutionIds[index], sequence: index));
+        }
+
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        return (run, attempt);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_dispatch_of_a_code_review_attempt_when_the_exact_same_input_identity_already_has_a_successful_review()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var executionReportMessageId = Guid.NewGuid();
+        var executionIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var (run, attempt) = await SeedCodeReviewAttemptWithCompetingReviewAsync(
+            dbContext, executionReportMessageId, executionReportMessageId, executionIds, executionIds);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(MarkAgentAttemptDispatchedCommandHandler.InputAlreadyCodeReviewedCode, Assert.Single(result.Errors).Code);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_dispatches_a_code_review_attempt_normally_when_a_prior_review_covers_a_different_execution_report()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var executionIds = new[] { Guid.NewGuid() };
+        var (run, attempt) = await SeedCodeReviewAttemptWithCompetingReviewAsync(
+            dbContext, Guid.NewGuid(), Guid.NewGuid(), executionIds, executionIds);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_dispatches_a_code_review_attempt_normally_when_a_prior_review_only_partially_covers_the_verification_set()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var executionReportMessageId = Guid.NewGuid();
+        var ownExecutionIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+        var (run, attempt) = await SeedCodeReviewAttemptWithCompetingReviewAsync(
+            dbContext, executionReportMessageId, executionReportMessageId, ownExecutionIds, [ownExecutionIds[0]]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Now, attempt.AgentDispatchedAtUtc);
+    }
 }

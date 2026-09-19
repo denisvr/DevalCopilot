@@ -5,12 +5,16 @@ public sealed record CheckpointReviewResponse(
     Guid GitCheckpointId,
     int CheckpointNumber,
     string CheckpointFingerprintSha256,
-    Guid? VerificationExecutionId,
-    int? VerificationExecutionNumber,
-    string? VerificationExecutionStatus,
-    string? VerificationExecutionOutcome,
+    IReadOnlyList<CheckpointReviewEvidenceResponse> Evidence,
     string ActorKind,
     string Decision,
     bool IsApplicable,
     string? StaleReasonCode,
     DateTimeOffset RecordedAtUtc);
+
+public sealed record CheckpointReviewEvidenceResponse(
+    Guid VerificationCommandId,
+    Guid VerificationExecutionId,
+    int VerificationExecutionNumber,
+    string VerificationExecutionStatus,
+    string? VerificationExecutionOutcome);

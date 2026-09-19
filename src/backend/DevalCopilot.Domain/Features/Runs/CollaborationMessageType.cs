@@ -12,4 +12,10 @@ public enum CollaborationMessageType
     ReviewFinding = 6,
     RevisionResponse = 7,
     Escalation = 8,
+
+    /// <summary>A bounded collaboration approval fact replying to an Execution report — appended
+    /// rather than overloading <see cref="Acceptance"/>, since an implementation approval is a
+    /// distinct protocol fact about completed work, not agreement with a not-yet-implemented
+    /// Proposal.</summary>
+    ReviewApproval = 9,
 }

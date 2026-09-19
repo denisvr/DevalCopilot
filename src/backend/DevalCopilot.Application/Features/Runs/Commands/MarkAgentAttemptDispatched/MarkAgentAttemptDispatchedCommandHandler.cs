@@ -41,6 +41,13 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// against the exact same starting checkpoint in the meantime.</summary>
     public const string InputAlreadyImplementedCode = "agent_attempts.input_already_implemented";
 
+    /// <summary>The code-review counterpart to <see cref="InputAlreadyResolvedCode"/>, one level
+    /// further down the collaboration protocol: the run, workspace, lease, and checkpoint remain
+    /// fully eligible, but another code-review attempt already completed a successful review of
+    /// the exact same ExecutionReport-plus-verification-evidence input identity in the
+    /// meantime.</summary>
+    public const string InputAlreadyCodeReviewedCode = "agent_attempts.input_already_code_reviewed";
+
     public async Task<Result<DateTimeOffset>> HandleAsync(
         MarkAgentAttemptDispatchedCommand command, CancellationToken cancellationToken)
     {
@@ -174,6 +181,28 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                     Error.Conflict(
                         InputAlreadyImplementedCode,
                         "Another implementation attempt already completed a successful implementation of this exact plan and checkpoint."));
+            }
+        }
+
+        // The code-review-specific half of the same authoritative last gate, mirroring the
+        // Resolver branch above exactly: this attempt's own exact input identity (the reviewed
+        // ExecutionReport plus its exact ordered claimed verification-execution set) can also have
+        // lost applicability between the eligibility snapshot and this call — a competing review
+        // attempt could have committed a successful ReviewApproved/ReviewChangesRequested result
+        // for the very same input identity in that window.
+        if (attempt.AgentRole == AgentRole.CodeReviewer)
+        {
+            var executionReportMessageId = await CodeReviewInputIdentity.GetExecutionReportMessageIdAsync(dbContext, attempt.Id, cancellationToken);
+            var orderedVerificationExecutionIds = await CodeReviewInputIdentity.GetOrderedVerificationExecutionIdsAsync(
+                dbContext, attempt.Id, cancellationToken);
+            var alreadyCodeReviewed = await CodeReviewInputIdentity.HasCompetingSuccessfulReviewAsync(
+                dbContext, attempt.RunId, attempt.Id, executionReportMessageId, orderedVerificationExecutionIds, cancellationToken);
+            if (alreadyCodeReviewed)
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        InputAlreadyCodeReviewedCode,
+                        "Another code-review attempt already completed a successful review of this exact input identity."));
             }
         }
 

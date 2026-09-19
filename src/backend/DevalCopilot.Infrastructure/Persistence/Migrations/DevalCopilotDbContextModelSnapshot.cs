@@ -97,17 +97,41 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<long>("RecordedAtUtcTicks")
                         .HasColumnType("INTEGER");
 
+                    b.HasKey("Id");
+
+                    b.HasIndex("GitCheckpointId");
+
+                    b.HasIndex("GitWorkspaceId");
+
+                    b.HasIndex("ProjectId", "RecordedAtUtcTicks", "Id");
+
+                    b.ToTable("checkpoint_reviews", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.CheckpointReviewEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CheckpointReviewId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VerificationCommandId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("VerificationExecutionCheckpointFingerprintSha256")
+                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("VerificationExecutionExitCode")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid?>("VerificationExecutionId")
+                    b.Property<Guid>("VerificationExecutionId")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("VerificationExecutionNumber")
+                    b.Property<int>("VerificationExecutionNumber")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("VerificationExecutionOutcome")
@@ -115,20 +139,23 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("VerificationExecutionStatus")
+                        .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GitWorkspaceId");
+                    b.HasIndex("VerificationCommandId");
 
                     b.HasIndex("VerificationExecutionId");
 
-                    b.HasIndex("GitCheckpointId", "VerificationExecutionId");
+                    b.HasIndex("CheckpointReviewId", "VerificationCommandId")
+                        .IsUnique();
 
-                    b.HasIndex("ProjectId", "RecordedAtUtcTicks", "Id");
+                    b.HasIndex("CheckpointReviewId", "VerificationExecutionId")
+                        .IsUnique();
 
-                    b.ToTable("checkpoint_reviews", (string)null);
+                    b.ToTable("checkpoint_review_evidence", (string)null);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitChangedFile", b =>
@@ -814,6 +841,42 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("attempt_input_messages", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.AttemptVerificationEvidence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("VerificationCommandId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VerificationExecutionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VerificationCommandId");
+
+                    b.HasIndex("VerificationExecutionId");
+
+                    b.HasIndex("AttemptId", "Sequence")
+                        .IsUnique();
+
+                    b.HasIndex("AttemptId", "VerificationCommandId")
+                        .IsUnique();
+
+                    b.HasIndex("AttemptId", "VerificationExecutionId")
+                        .IsUnique();
+
+                    b.ToTable("attempt_verification_evidence", (string)null);
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.CollaborationMessage", b =>
                 {
                     b.Property<long>("Sequence")
@@ -997,11 +1060,27 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.CheckpointReviewEvidence", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.CheckpointReview", null)
+                        .WithMany("Evidence")
+                        .HasForeignKey("CheckpointReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.VerificationCommand", null)
+                        .WithMany()
+                        .HasForeignKey("VerificationCommandId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("DevalCopilot.Domain.Features.Projects.VerificationExecution", null)
                         .WithMany()
                         .HasForeignKey("VerificationExecutionId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitChangedFile", b =>
@@ -1127,6 +1206,27 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.AttemptVerificationEvidence", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.VerificationCommand", null)
+                        .WithMany()
+                        .HasForeignKey("VerificationCommandId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.VerificationExecution", null)
+                        .WithMany()
+                        .HasForeignKey("VerificationExecutionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.CollaborationMessage", b =>
                 {
                     b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
@@ -1162,6 +1262,11 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasForeignKey("RunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.CheckpointReview", b =>
+                {
+                    b.Navigation("Evidence");
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitCheckpoint", b =>
