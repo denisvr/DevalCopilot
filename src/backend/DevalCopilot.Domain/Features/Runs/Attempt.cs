@@ -131,7 +131,7 @@ public sealed class Attempt
             throw new ArgumentOutOfRangeException(nameof(maxTotalCapturedBytes));
         }
 
-        var contract = AgentAttemptContract.For(Runs.AgentRole.Planner);
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.Proposal);
 
         return new Attempt
         {
@@ -189,7 +189,7 @@ public sealed class Attempt
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes);
 
-        var contract = AgentAttemptContract.For(Runs.AgentRole.CriticalReviewer);
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.CriticalReview);
 
         return new Attempt
         {
@@ -245,7 +245,7 @@ public sealed class Attempt
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes);
 
-        var contract = AgentAttemptContract.For(Runs.AgentRole.Resolver);
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ChallengeResolution);
 
         return new Attempt
         {
@@ -302,7 +302,7 @@ public sealed class Attempt
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes);
 
-        var contract = AgentAttemptContract.For(Runs.AgentRole.CodeReviewer);
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReview);
 
         return new Attempt
         {
@@ -360,7 +360,7 @@ public sealed class Attempt
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes);
 
-        var contract = AgentAttemptContract.For(Runs.AgentRole.Implementer);
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReport);
 
         return new Attempt
         {
@@ -377,6 +377,66 @@ public sealed class Attempt
             // the real ExecutionReport this attempt produces is represented by
             // AgentResponseContract below, never by this placeholder.
             AgentExpectedMessageType = CollaborationMessageType.Proposal,
+            AgentResponseContract = contract.ResponseContract,
+            AgentGitWorkspaceId = gitWorkspaceId,
+            AgentGitCheckpointId = gitCheckpointId,
+            AgentCheckpointFingerprintSha256 = checkpointFingerprintSha256,
+            AgentContextManifestArtifactId = contextManifestArtifactId,
+            AgentTimeout = timeout,
+            AgentMaxBytesPerStream = maxBytesPerStream,
+            AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+        };
+    }
+
+    /// <summary>
+    /// Claims an Implementer review-correction Agent attempt — a durable, real, workspace-mutating
+    /// invocation that corrects the implementation in response to one exact, already-recorded set
+    /// of Codex ReviewFinding messages. This slice accepts only ClaudeCode, the Implementer role,
+    /// protocol 1.0, and the <see cref="Runs.AgentResponseContract.ReviewCorrection"/> contract:
+    /// those four facts are fixed by this factory, not caller-supplied — a dedicated factory per
+    /// attempt shape, never a shared, loosely validated bag of nullable arguments. Exactly like
+    /// <see cref="ClaimAgentImplementation"/>, <paramref name="gitCheckpointId"/> is this attempt's
+    /// own immutable STARTING checkpoint — a successful correction's resulting checkpoint is
+    /// recorded separately via <see cref="CompleteReviewCorrection"/> as
+    /// <see cref="AgentResultGitCheckpointId"/>. The exact ordered input identity (the previous
+    /// ExecutionReport, then every ReviewFinding in timeline order) is never a field on this entity
+    /// — it is recorded separately, immediately after this call, as this attempt's own ordered
+    /// <see cref="AttemptInputMessage"/> rows.
+    /// </summary>
+    public static Attempt ClaimAgentReviewCorrection(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc)
+    {
+        ValidateAgentClaimArguments(
+            attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
+            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ReviewCorrection);
+
+        return new Attempt
+        {
+            Id = id,
+            RunId = runId,
+            AttemptNumber = attemptNumber,
+            Kind = AttemptKind.Agent,
+            Status = AttemptStatus.Running,
+            ClaimedAtUtc = claimedAtUtc,
+            AgentProvider = Runs.AgentProvider.ClaudeCode,
+            AgentRole = contract.Role,
+            AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
+            // The real output of a ReviewCorrection attempt is one RevisionResponse per ReviewFinding
+            // plus one ExecutionReport — both are represented by AgentResponseContract below, never
+            // by this placeholder, which signals the primary conversational message type expected.
+            AgentExpectedMessageType = CollaborationMessageType.RevisionResponse,
             AgentResponseContract = contract.ResponseContract,
             AgentGitWorkspaceId = gitWorkspaceId,
             AgentGitCheckpointId = gitCheckpointId,
@@ -502,18 +562,19 @@ public sealed class Attempt
     /// <see cref="CollaborationMessage.ProtocolVersionOne"/> in this slice.</summary>
     public string? AgentProtocolVersion { get; private set; }
 
-    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Always
-    /// <see cref="CollaborationMessageType.Proposal"/> in this slice — the single message type an
-    /// attempt's own claimed intent expects. Never used to represent the Accepted/Challenged
-    /// union a critical-review attempt may really produce; see <see cref="AgentResponseContract"/>
-    /// for that.</summary>
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. The
+    /// factory-selected primary message type an attempt's own claimed intent expects. It is never
+    /// used to represent the Accepted/Challenged critical-review union or the
+    /// RevisionResponse-plus-ExecutionReport correction contract; see
+    /// <see cref="AgentResponseContract"/> for those closed shapes.</summary>
     public CollaborationMessageType? AgentExpectedMessageType { get; private set; }
 
     /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. The closed
     /// shape of durable collaboration fact this attempt is expected to produce — fixed by exactly
-    /// one Domain factory (<see cref="ClaimAgent"/> always sets <see cref="Runs.AgentResponseContract.Proposal"/>;
-    /// <see cref="ClaimAgentCriticalReview"/> always sets <see cref="Runs.AgentResponseContract.CriticalReview"/>;
-    /// <see cref="ClaimAgentChallengeResolution"/> always sets <see cref="Runs.AgentResponseContract.ChallengeResolution"/>),
+    /// one Domain factory (<see cref="ClaimAgent"/> sets <see cref="Runs.AgentResponseContract.Proposal"/>;
+    /// <see cref="ClaimAgentCriticalReview"/> sets <see cref="Runs.AgentResponseContract.CriticalReview"/>;
+    /// <see cref="ClaimAgentChallengeResolution"/> sets <see cref="Runs.AgentResponseContract.ChallengeResolution"/>;
+    /// <see cref="ClaimAgentReviewCorrection"/> sets <see cref="Runs.AgentResponseContract.ReviewCorrection"/>),
     /// never caller-selected.</summary>
     public AgentResponseContract? AgentResponseContract { get; private set; }
 
@@ -554,12 +615,13 @@ public sealed class Attempt
     /// or <see cref="AttemptStatus.Failed"/>.</summary>
     public AgentOutcome? AgentOutcome { get; private set; }
 
-    /// <summary>The ADR-0009 execution-effect classification of this attempt's own role — a pure,
-    /// non-persisted function of <see cref="AgentRole"/> via <see cref="AgentAttemptContract"/>,
-    /// never separately stored or caller-set. <see langword="null"/> unless <see cref="Kind"/> is
-    /// <see cref="AttemptKind.Agent"/>. Fails closed (throws) rather than returning a default if
-    /// an Agent attempt somehow holds no role or an undefined role — that shape is never produced
-    /// by any factory on this type today, but this property never silently treats it as
+    /// <summary>The ADR-0009 execution-effect classification of this attempt's own response
+    /// contract — a pure, non-persisted function of <see cref="AgentResponseContract"/> via
+    /// <see cref="AgentAttemptContract"/>, never separately stored or caller-set.
+    /// <see langword="null"/> unless <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>.
+    /// Fails closed (throws) rather than returning a default if an Agent attempt somehow holds
+    /// no response contract or an undefined one — that shape is never produced by any factory
+    /// on this type today, but this property never silently treats it as
     /// <see cref="AgentEffectKind.ReadOnly"/>.</summary>
     public AgentEffectKind? AgentEffect
     {
@@ -570,12 +632,12 @@ public sealed class Attempt
                 return null;
             }
 
-            if (AgentRole is not { } role)
+            if (AgentResponseContract is not { } responseContract)
             {
-                throw new InvalidOperationException("An Agent attempt must have a role.");
+                throw new InvalidOperationException("An Agent attempt must have a response contract.");
             }
 
-            return AgentAttemptContract.For(role).Effect;
+            return AgentAttemptContract.For(responseContract).Effect;
         }
     }
 
@@ -776,21 +838,21 @@ public sealed class Attempt
             throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
         }
 
-        var contract = AgentAttemptContract.For(AgentRole!.Value);
+        var contract = AgentAttemptContract.For(AgentResponseContract!.Value);
 
-        // CompleteAgent remains the shared transition for every role's pre-dispatch and generic
+        // CompleteAgent remains the shared transition for every contract's pre-dispatch and generic
         // failure classifications (SourceChanged, WorkspaceNoLongerEligible,
-        // CheckpointEvidenceUnavailable, and each role's own "input already handled" outcome),
-        // including a WorkspaceMutating role — those callers always pass a null completion
+        // CheckpointEvidenceUnavailable, and each contract's own "input already handled" outcome),
+        // including a WorkspaceMutating contract — those callers always pass a null completion
         // fingerprint, so the override below never spuriously fires for them. What CompleteAgent
-        // must never do is record a WorkspaceMutating role's own real success outcome: only its
-        // dedicated transition (CompleteImplementation) may skip the override and record the
-        // resulting checkpoint identity.
+        // must never do is record a WorkspaceMutating contract's own real success outcome: only its
+        // dedicated transition (CompleteImplementation or CompleteReviewCorrection) may skip the
+        // override and record the resulting checkpoint identity.
         if (contract.Effect != AgentEffectKind.ReadOnly && contract.CompletedOutcomes.Contains(outcome))
         {
             throw new InvalidOperationException(
-                $"{outcome} is this attempt's own contract's success outcome for a WorkspaceMutating role; it must " +
-                "be recorded through that role's dedicated completion transition, never CompleteAgent.");
+                $"{outcome} is this attempt's own contract's success outcome for a WorkspaceMutating response contract; it must " +
+                "be recorded through that contract's dedicated completion transition, never CompleteAgent.");
         }
 
         var effectiveOutcome = completionFingerprintSha256 is not null
@@ -848,19 +910,20 @@ public sealed class Attempt
     /// </summary>
     public void CompleteImplementation(AgentOutcome outcome, Guid? resultGitCheckpointId, DateTimeOffset nowUtc)
     {
-        if (Kind != AttemptKind.Agent || AgentRole != Runs.AgentRole.Implementer)
+        if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ImplementationReport)
         {
-            throw new InvalidOperationException("Only an Implementer Agent attempt can record an implementation outcome.");
+            throw new InvalidOperationException(
+                "Only an Agent attempt with the ImplementationReport response contract can record an implementation outcome.");
         }
 
-        // Resolve and verify the Implementer contract itself — a static, always-true invariant of
-        // AgentAttemptContract's own fixed table today, checked explicitly rather than assumed, so
-        // a future change to that table can never silently make this transition inconsistent with
-        // its own declared contract.
-        var contract = AgentAttemptContract.For(Runs.AgentRole.Implementer);
-        if (contract.Effect != AgentEffectKind.WorkspaceMutating || contract.ResponseContract != Runs.AgentResponseContract.ImplementationReport)
+        // Resolve and verify the ImplementationReport contract itself — a static, always-true
+        // invariant of AgentAttemptContract's own fixed table today, checked explicitly rather than
+        // assumed, so a future change to that table can never silently make this transition
+        // inconsistent with its own declared contract.
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReport);
+        if (contract.Effect != AgentEffectKind.WorkspaceMutating || contract.Role != Runs.AgentRole.Implementer)
         {
-            throw new InvalidOperationException("The Implementer contract must be WorkspaceMutating over ImplementationReport.");
+            throw new InvalidOperationException("The ImplementationReport contract must be WorkspaceMutating with role Implementer.");
         }
 
         if (Status != AttemptStatus.Running)
@@ -885,11 +948,6 @@ public sealed class Attempt
                 throw new InvalidOperationException($"{outcome} cannot be recorded for an attempt that was never dispatched.");
             }
 
-            if (AgentResponseContract != contract.ResponseContract)
-            {
-                throw new InvalidOperationException($"{outcome} is not a valid outcome for this attempt's response contract.");
-            }
-
             if (resultGitCheckpointId is null || resultGitCheckpointId == Guid.Empty)
             {
                 throw new ArgumentException(
@@ -900,6 +958,86 @@ public sealed class Attempt
         {
             throw new ArgumentException(
                 "Only an Implemented outcome may carry a resulting checkpoint identity.", nameof(resultGitCheckpointId));
+        }
+
+        AgentOutcome = outcome;
+        AgentResultGitCheckpointId = resultGitCheckpointId;
+        Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
+        CompletedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// The single atomic completion transition for an Implementer review-correction attempt —
+    /// deliberately independent of <see cref="CompleteAgent"/> and its fingerprint-mismatch-to-
+    /// <see cref="Runs.AgentOutcome.SourceChanged"/> override, which must never apply here: a
+    /// real, successful correction is EXPECTED and REQUIRED to change the workspace's fingerprint
+    /// away from <see cref="AgentCheckpointFingerprintSha256"/> (the immutable starting
+    /// checkpoint), so reusing that override would silently reclassify every genuine success as
+    /// spurious drift. The caller (the recording Application handler) has already independently
+    /// captured fresh Git evidence and decided <paramref name="outcome"/> before this call — this
+    /// method only records that decision atomically, and is the only transition that may ever set
+    /// <see cref="AgentResultGitCheckpointId"/> for a ReviewCorrection attempt, and only for
+    /// <see cref="Runs.AgentOutcome.CorrectionApplied"/>.
+    /// </summary>
+    public void CompleteReviewCorrection(AgentOutcome outcome, Guid? resultGitCheckpointId, DateTimeOffset nowUtc)
+    {
+        if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ReviewCorrection)
+        {
+            throw new InvalidOperationException(
+                "Only an Agent attempt with the ReviewCorrection response contract can record a review-correction outcome.");
+        }
+
+        // Resolve and verify the ReviewCorrection contract itself — a static, always-true invariant
+        // of AgentAttemptContract's own fixed table today, checked explicitly rather than assumed.
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ReviewCorrection);
+        if (contract.Effect != AgentEffectKind.WorkspaceMutating || contract.Role != Runs.AgentRole.Implementer)
+        {
+            throw new InvalidOperationException("The ReviewCorrection contract must be WorkspaceMutating with role Implementer.");
+        }
+
+        if (Status != AttemptStatus.Running)
+        {
+            throw new InvalidOperationException($"Cannot complete an attempt that is {Status}.");
+        }
+
+        if (!Enum.IsDefined(outcome))
+        {
+            throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
+        }
+
+        if (outcome is Runs.AgentOutcome.Proposed
+            or Runs.AgentOutcome.Accepted
+            or Runs.AgentOutcome.Challenged
+            or Runs.AgentOutcome.Resolved
+            or Runs.AgentOutcome.Implemented
+            or Runs.AgentOutcome.ReviewApproved
+            or Runs.AgentOutcome.ReviewChangesRequested)
+        {
+            throw new InvalidOperationException(
+                $"{outcome} is not a valid terminal outcome for a ReviewCorrection attempt.");
+        }
+
+        var isSuccess = contract.CompletedOutcomes.Contains(outcome);
+
+        // Independent Domain-level backstop — mirrors CompleteImplementation's own isSuccess-gated
+        // checks exactly, minus the fingerprint-override this attempt shape must never apply.
+        if (isSuccess)
+        {
+            if (!AgentDispatchedAtUtc.HasValue)
+            {
+                throw new InvalidOperationException($"{outcome} cannot be recorded for an attempt that was never dispatched.");
+            }
+
+            if (resultGitCheckpointId is null || resultGitCheckpointId == Guid.Empty)
+            {
+                throw new ArgumentException(
+                    "A CorrectionApplied outcome requires the resulting checkpoint identity.", nameof(resultGitCheckpointId));
+            }
+        }
+        else if (resultGitCheckpointId.HasValue)
+        {
+            throw new ArgumentException(
+                "Only a CorrectionApplied outcome may carry a resulting checkpoint identity.", nameof(resultGitCheckpointId));
         }
 
         AgentOutcome = outcome;

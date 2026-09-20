@@ -22,7 +22,7 @@ public sealed class RecordCodeReviewInputAlreadyCodeReviewedCommandHandler(IDeva
 
         if (attempt.Kind != AttemptKind.Agent
             || attempt.AgentRole != AgentRole.CodeReviewer
-            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.CodeReviewer).ResponseContract)
+            || attempt.AgentResponseContract != AgentResponseContract.ImplementationReview)
         {
             return Result.Failure(Error.Conflict("attempts.not_code_review", "The attempt is not a code-review attempt."));
         }

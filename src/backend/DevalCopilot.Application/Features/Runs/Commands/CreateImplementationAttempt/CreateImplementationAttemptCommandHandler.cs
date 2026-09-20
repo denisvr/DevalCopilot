@@ -292,7 +292,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         }
 
         if (owningAttempt.AgentRole == AgentRole.Planner
-            && owningAttempt.AgentResponseContract == AgentAttemptContract.For(AgentRole.Planner).ResponseContract
+            && owningAttempt.AgentResponseContract == AgentResponseContract.Proposal
             && owningAttempt.AgentOutcome == AgentOutcome.Proposed)
         {
             return await ValidateAcceptedOriginalProposalAsync(
@@ -300,7 +300,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         }
 
         if (owningAttempt.AgentRole == AgentRole.Resolver
-            && owningAttempt.AgentResponseContract == AgentAttemptContract.For(AgentRole.Resolver).ResponseContract
+            && owningAttempt.AgentResponseContract == AgentResponseContract.ChallengeResolution
             && owningAttempt.AgentOutcome == AgentOutcome.Resolved)
         {
             return await ValidateResolvedRevisedProposalAsync(

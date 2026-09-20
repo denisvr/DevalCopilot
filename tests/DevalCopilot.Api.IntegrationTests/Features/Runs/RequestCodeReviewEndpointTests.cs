@@ -332,6 +332,7 @@ public sealed class CodeReviewApiWebApplicationFactory : ApiWebApplicationFactor
             CodexPlanningTestHostSeams.RemoveHostedService<ChallengeResolutionSupervisor>(services);
             CodexPlanningTestHostSeams.RemoveHostedService<ImplementationSupervisor>(services);
             CodexPlanningTestHostSeams.RemoveHostedService<ImplementationReviewSupervisor>(services);
+            CodexPlanningTestHostSeams.RemoveHostedService<ReviewCorrectionSupervisor>(services);
             CodexPlanningTestHostSeams.RemoveHostedService<SimulatedRunSupervisor>(services);
         });
     }
@@ -363,6 +364,7 @@ public sealed class CodeReviewCheckpointDriftApiWebApplicationFactory : ApiWebAp
             CodexPlanningTestHostSeams.RemoveHostedService<ChallengeResolutionSupervisor>(services);
             CodexPlanningTestHostSeams.RemoveHostedService<ImplementationSupervisor>(services);
             CodexPlanningTestHostSeams.RemoveHostedService<ImplementationReviewSupervisor>(services);
+            CodexPlanningTestHostSeams.RemoveHostedService<ReviewCorrectionSupervisor>(services);
             CodexPlanningTestHostSeams.RemoveHostedService<SimulatedRunSupervisor>(services);
         });
     }

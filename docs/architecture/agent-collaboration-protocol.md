@@ -595,6 +595,39 @@ orchestrator always independently re-reads fresh Git evidence after this adapter
 regardless of whether the process succeeded, failed, or threw — and never assumes a failed or
 cancelled process left the worktree untouched.
 
+### Review correction
+
+The first review-guided correction loop is represented by a separate
+`AgentResponseContract.ReviewCorrection`, mapped to the existing
+`AgentRole.Implementer` and `AgentEffectKind.WorkspaceMutating`. This is why a
+contract lookup is keyed by response contract rather than role: one role may
+perform more than one bounded job while role remains the authorization
+dimension.
+
+A correction claim is eligible only when the applicable implementation review
+completed with `ReviewChangesRequested`, has at least one bounded finding, and
+the reviewed ExecutionReport and result checkpoint still belong to the same
+run, project, workspace, and current checkpoint chain. Its durable ordered
+input identity is exactly the previous ExecutionReport followed by every
+ReviewFinding in collaboration-timeline order. A duplicate dispatch gate uses
+bounded bulk candidate loading and exact ordered comparison; partial,
+reordered, foreign, or cross-run input sets never match.
+
+The bounded correction result contains one `RevisionResponse` for every input
+finding, each replying to its exact finding, plus exactly one new
+`ExecutionReport`. A valid mutation requires fresh Git evidence, unchanged
+`HEAD`, a changed fingerprint, non-empty observed paths, and an exact changed
+path match with the report. The resulting immutable checkpoint, workspace
+advance, collaboration messages, artifacts, and events are committed
+atomically. A no-change result fails truthfully without a checkpoint; an
+unexpected `HEAD` change flags the workspace for attention.
+
+The correction context is a versioned manifest of structured evidence only.
+Complete provider transcripts are never persisted or replayed. The current
+Claude adapter is concrete provenance and is not an end-to-end guarantee that
+another provider can safely substitute; Gemini, assignment snapshots,
+fallback, parallel executors, and automatic re-review remain deferred.
+
 Each agent attempt is intended to eventually record requested and effective
 provider configuration:
 

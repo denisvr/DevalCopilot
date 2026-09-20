@@ -21,7 +21,7 @@ public sealed class RecordImplementationInputAlreadyImplementedCommandHandler(ID
 
         if (attempt.Kind != AttemptKind.Agent
             || attempt.AgentRole != AgentRole.Implementer
-            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.Implementer).ResponseContract)
+            || attempt.AgentResponseContract != AgentResponseContract.ImplementationReport)
         {
             return Result.Failure(Error.Conflict("attempts.not_implementation", "The attempt is not an implementation attempt."));
         }

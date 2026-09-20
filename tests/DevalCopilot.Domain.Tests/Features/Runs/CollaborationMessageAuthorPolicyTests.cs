@@ -41,12 +41,13 @@ public sealed class CollaborationMessageAuthorPolicyTests
     }
 
     [Fact]
-    public void AllowedMessageTypes_returns_exactly_execution_report_question_and_escalation_for_implementer()
+    public void AllowedMessageTypes_returns_exactly_execution_report_revision_response_question_and_escalation_for_implementer()
     {
         Assert.Equal(
             new HashSet<CollaborationMessageType>
             {
-                CollaborationMessageType.ExecutionReport, CollaborationMessageType.Question, CollaborationMessageType.Escalation,
+                CollaborationMessageType.ExecutionReport, CollaborationMessageType.RevisionResponse,
+                CollaborationMessageType.Question, CollaborationMessageType.Escalation,
             },
             CollaborationMessageAuthorPolicy.AllowedMessageTypes(AgentRole.Implementer));
     }
@@ -63,15 +64,12 @@ public sealed class CollaborationMessageAuthorPolicyTests
             CollaborationMessageAuthorPolicy.AllowedMessageTypes(AgentRole.CodeReviewer));
     }
 
-    /// <summary>No AgentRole/AgentResponseContract pair authorizes RevisionResponse today — no
-    /// Reviser role or contract exists yet.</summary>
     [Theory]
     [InlineData(AgentRole.Planner)]
     [InlineData(AgentRole.CriticalReviewer)]
     [InlineData(AgentRole.Resolver)]
-    [InlineData(AgentRole.Implementer)]
     [InlineData(AgentRole.CodeReviewer)]
-    public void AllowedMessageTypes_never_authorizes_revision_response_for_any_current_role(AgentRole role)
+    public void AllowedMessageTypes_rejects_revision_response_for_non_implementer_roles(AgentRole role)
     {
         Assert.DoesNotContain(CollaborationMessageType.RevisionResponse, CollaborationMessageAuthorPolicy.AllowedMessageTypes(role));
     }

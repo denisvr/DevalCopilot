@@ -72,11 +72,12 @@ public sealed class CollaborationMessage
                 "An Agent attempt must have a defined role, provider, response contract, and protocol version.", nameof(attempt));
         }
 
-        // Resolve and verify coherence rather than assume it — mirrors Attempt.CompleteImplementation's
-        // own "resolve and verify" reasoning: the role/response-contract pairing is always coherent
-        // today because every ClaimAgent* factory sets both from the same AgentAttemptContract, but
-        // this factory never trusts that silently.
-        if (AgentAttemptContract.For(role).ResponseContract != responseContract)
+        // Resolve and verify coherence rather than assume it — the contract table is keyed by
+        // AgentResponseContract, so the authoritative check is: does this response contract's
+        // declared role match the role this attempt actually holds? Both ImplementationReport and
+        // ReviewCorrection map to Implementer; that is intentional and must not be flattened into
+        // a one-role-per-factory lookup.
+        if (AgentAttemptContract.For(responseContract).Role != role)
         {
             throw new ArgumentException("The attempt's role and response contract are not coherent.", nameof(attempt));
         }

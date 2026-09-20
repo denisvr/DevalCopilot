@@ -280,7 +280,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
 
         if (challengedReviewAttempt.Kind != AttemptKind.Agent
             || challengedReviewAttempt.AgentRole != AgentRole.CriticalReviewer
-            || challengedReviewAttempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.CriticalReviewer).ResponseContract
+            || challengedReviewAttempt.AgentResponseContract != AgentResponseContract.CriticalReview
             || challengedReviewAttempt.AgentProvider is not { } challengedReviewProvider
             || !Enum.IsDefined(challengedReviewProvider)
             || challengedReviewAttempt.Status != AttemptStatus.Completed

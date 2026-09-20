@@ -36,7 +36,8 @@ public static class CollaborationMessageAuthorPolicy
                 CollaborationMessageType.Decision, CollaborationMessageType.Proposal,
                 CollaborationMessageType.Question, CollaborationMessageType.Escalation),
             [AgentRole.Implementer] = Frozen(
-                CollaborationMessageType.ExecutionReport, CollaborationMessageType.Question, CollaborationMessageType.Escalation),
+                CollaborationMessageType.ExecutionReport, CollaborationMessageType.RevisionResponse,
+                CollaborationMessageType.Question, CollaborationMessageType.Escalation),
             [AgentRole.CodeReviewer] = Frozen(
                 CollaborationMessageType.ReviewApproval, CollaborationMessageType.ReviewFinding,
                 CollaborationMessageType.Question, CollaborationMessageType.Escalation),

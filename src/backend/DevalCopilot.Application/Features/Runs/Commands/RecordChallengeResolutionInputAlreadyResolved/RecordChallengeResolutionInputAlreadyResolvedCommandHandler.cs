@@ -21,7 +21,7 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandler(
 
         if (attempt.Kind != AttemptKind.Agent
             || attempt.AgentRole != AgentRole.Resolver
-            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.Resolver).ResponseContract)
+            || attempt.AgentResponseContract != AgentResponseContract.ChallengeResolution)
         {
             return Result.Failure(Error.Conflict("attempts.not_challenge_resolution", "The attempt is not a challenge-resolution attempt."));
         }

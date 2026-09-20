@@ -34,6 +34,8 @@ import {
   GetImplementationAttemptStatusEndpointClient,
   RequestCodeReviewEndpointClient,
   GetCodeReviewAttemptStatusEndpointClient,
+  RequestReviewCorrectionEndpointClient,
+  GetReviewCorrectionAttemptStatusEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -74,6 +76,8 @@ export const requestImplementationClient = () => new RequestImplementationEndpoi
 export const implementationAttemptStatusClient = () => new GetImplementationAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestCodeReviewClient = () => new RequestCodeReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const codeReviewAttemptStatusClient = () => new GetCodeReviewAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestReviewCorrectionClient = () => new RequestReviewCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const reviewCorrectionAttemptStatusClient = () => new GetReviewCorrectionAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -111,6 +115,8 @@ export type {
   ImplementationAttemptStatusResponse,
   RequestCodeReviewResponse,
   CodeReviewAttemptStatusResponse,
+  RequestReviewCorrectionResponse,
+  ReviewCorrectionAttemptStatusResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,
@@ -120,4 +126,5 @@ export {
   RequestChallengeResolutionRequest,
   RequestImplementationRequest,
   RequestCodeReviewRequest,
+  RequestReviewCorrectionRequest,
 } from './generated/api-client'

@@ -2,9 +2,9 @@ namespace DevalCopilot.Domain.Features.Runs;
 
 /// <summary>
 /// A truthful, closed classification of how a terminal <see cref="AttemptKind.Agent"/> attempt
-/// ended. Only <see cref="Proposed"/> represents a validated collaboration fact reaching the
-/// ledger; every other value is a failure that preserves raw evidence as artifacts but appends no
-/// <see cref="CollaborationMessage"/>.
+/// ended. A contract-specific successful outcome represents a validated collaboration fact
+/// reaching the ledger; failure and pre-dispatch race outcomes preserve raw evidence as artifacts
+/// but append no <see cref="CollaborationMessage"/>.
 /// </summary>
 public enum AgentOutcome
 {
@@ -156,4 +156,33 @@ public enum AgentOutcome
     /// protocol. Valid only for the Codex + CodeReviewer + ImplementationReview
     /// combination.</summary>
     InputAlreadyCodeReviewed = 17,
+
+    /// <summary>An Implementer + ReviewCorrection attempt produced a real, verified source change:
+    /// the process exited successfully, the structured ReviewCorrection output passed protocol
+    /// validation, the freshly observed Git fingerprint genuinely differs from the immutable
+    /// starting checkpoint, and the report's own changed-path set exactly matches the
+    /// independently observed Git changed-path set. A new immutable <c>GitCheckpoint</c> is
+    /// recorded and referenced by <see cref="Attempt.AgentResultGitCheckpointId"/>. Valid only for
+    /// the Implementer + ReviewCorrection combination. The current provider assignment is
+    /// ClaudeCode, but provider assignment is not part of this semantic outcome contract.</summary>
+    CorrectionApplied = 18,
+
+    /// <summary>An Implementer + ReviewCorrection attempt's process exited successfully and produced
+    /// a structurally valid ReviewCorrection output, but the freshly observed Git fingerprint is
+    /// unchanged from the immutable starting checkpoint — no source mutation actually occurred.
+    /// Valid only for the Implementer + ReviewCorrection combination.</summary>
+    CorrectionNoChangesProduced = 19,
+
+    /// <summary>Detected immediately before dispatch: another review-correction attempt already
+    /// completed a successful (<see cref="CorrectionApplied"/>) correction for the exact same
+    /// ordered input identity and starting checkpoint in the meantime. The provider is never
+    /// invoked for this outcome. Valid only for the Implementer + ReviewCorrection combination.</summary>
+    InputAlreadyCorrected = 20,
+
+    /// <summary>An Implementer + ReviewCorrection attempt's process exited successfully, but the
+    /// freshly observed HEAD commit SHA no longer matches the immutable starting checkpoint's own
+    /// HEAD commit SHA. Proof of an external or unauthorized mutation during this attempt. The
+    /// workspace is always flagged NeedsAttention. Valid only for the Implementer + ReviewCorrection
+    /// combination.</summary>
+    CorrectionHeadChanged = 21,
 }

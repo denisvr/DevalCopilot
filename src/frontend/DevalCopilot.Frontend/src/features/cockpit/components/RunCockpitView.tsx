@@ -10,6 +10,8 @@ import { useImplementationAttemptStatus } from '../hooks/useImplementationAttemp
 import { useRequestImplementation } from '../hooks/useRequestImplementation'
 import { useCodeReviewAttemptStatus } from '../hooks/useCodeReviewAttemptStatus'
 import { useRequestCodeReview } from '../hooks/useRequestCodeReview'
+import { useReviewCorrectionAttemptStatus } from '../hooks/useReviewCorrectionAttemptStatus'
+import { useRequestReviewCorrection } from '../hooks/useRequestReviewCorrection'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
@@ -19,6 +21,7 @@ import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ImplementationAction } from './ImplementationAction'
 import { CodeReviewAction } from './CodeReviewAction'
+import { ReviewCorrectionAction } from './ReviewCorrectionAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { RunHeader } from './RunHeader'
@@ -42,6 +45,8 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestImplementation = useRequestImplementation(implementationAttemptStatus.refresh)
   const codeReviewAttemptStatus = useCodeReviewAttemptStatus(runId, cockpit?.latestSequence)
   const requestCodeReview = useRequestCodeReview(codeReviewAttemptStatus.refresh)
+  const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
+  const requestReviewCorrection = useRequestReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
   const latestCodexProposalMessageId = selectLatestCodexProposalMessageId(collaborationTimeline.cards)
   // Only a real, successful implementation ever makes a code review requestable — never a
   // failed or not-yet-attempted implementation. The backend independently re-verifies this
@@ -147,6 +152,19 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             onRequest={() =>
               latestExecutionReportMessageId && void requestCodeReview.request(runId, latestExecutionReportMessageId)
             }
+          />
+          <ReviewCorrectionAction
+            reviewAttemptId={codeReviewAttemptStatus.status?.attemptId ?? null}
+            reviewOutcome={codeReviewAttemptStatus.status?.outcome ?? null}
+            status={reviewCorrectionAttemptStatus.status}
+            statusLoading={reviewCorrectionAttemptStatus.loading}
+            statusError={reviewCorrectionAttemptStatus.error}
+            requesting={requestReviewCorrection.requesting}
+            requestError={requestReviewCorrection.error}
+            onRequest={() => {
+              const reviewAttemptId = codeReviewAttemptStatus.status?.attemptId
+              if (reviewAttemptId) void requestReviewCorrection.request(runId, reviewAttemptId)
+            }}
           />
           <AgentCollaboration {...collaborationTimeline} />
         </div>

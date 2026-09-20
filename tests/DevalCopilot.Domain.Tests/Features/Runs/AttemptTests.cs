@@ -33,6 +33,19 @@ public sealed class AttemptTests
         maxTotalCapturedBytes: maxTotalCapturedBytes,
         claimedAtUtc: BaseTime);
 
+    private static Attempt ClaimReviewCorrectionAttempt() => Attempt.ClaimAgentReviewCorrection(
+        Guid.NewGuid(),
+        Guid.NewGuid(),
+        attemptNumber: 1,
+        gitWorkspaceId: Guid.NewGuid(),
+        gitCheckpointId: Guid.NewGuid(),
+        checkpointFingerprintSha256: "fingerprint-1",
+        contextManifestArtifactId: Guid.NewGuid(),
+        timeout: TimeSpan.FromMinutes(20),
+        maxBytesPerStream: 262144,
+        maxTotalCapturedBytes: 524288,
+        claimedAtUtc: BaseTime);
+
     [Fact]
     public void Claim_creates_a_simulated_attempt()
     {
@@ -110,6 +123,63 @@ public sealed class AttemptTests
         attempt.Complete(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(() => attempt.Complete(BaseTime.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void CompleteReviewCorrection_records_a_successful_correction_with_its_result_checkpoint()
+    {
+        var attempt = ClaimReviewCorrectionAttempt();
+        var resultCheckpointId = Guid.NewGuid();
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        attempt.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, resultCheckpointId, BaseTime.AddSeconds(2));
+
+        Assert.Equal(AttemptStatus.Completed, attempt.Status);
+        Assert.Equal(AgentOutcome.CorrectionApplied, attempt.AgentOutcome);
+        Assert.Equal(resultCheckpointId, attempt.AgentResultGitCheckpointId);
+        Assert.Equal(BaseTime.AddSeconds(2), attempt.CompletedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(AgentOutcome.CorrectionNoChangesProduced)]
+    [InlineData(AgentOutcome.InputAlreadyCorrected)]
+    [InlineData(AgentOutcome.CorrectionHeadChanged)]
+    [InlineData(AgentOutcome.CheckpointEvidenceUnavailable)]
+    [InlineData(AgentOutcome.ProviderInvocationFailed)]
+    [InlineData(AgentOutcome.InvalidStructuredOutput)]
+    public void CompleteReviewCorrection_records_non_successful_outcomes_without_a_result_checkpoint(AgentOutcome outcome)
+    {
+        var attempt = ClaimReviewCorrectionAttempt();
+
+        attempt.CompleteReviewCorrection(outcome, resultGitCheckpointId: null, BaseTime.AddSeconds(1));
+
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(outcome, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+    }
+
+    [Fact]
+    public void CompleteReviewCorrection_rejects_success_before_dispatch()
+    {
+        var attempt = ClaimReviewCorrectionAttempt();
+
+        Assert.Throws<InvalidOperationException>(() => attempt.CompleteReviewCorrection(
+            AgentOutcome.CorrectionApplied, Guid.NewGuid(), BaseTime.AddSeconds(1)));
+    }
+
+    [Theory]
+    [InlineData(AgentOutcome.Proposed)]
+    [InlineData(AgentOutcome.Accepted)]
+    [InlineData(AgentOutcome.Challenged)]
+    [InlineData(AgentOutcome.Resolved)]
+    [InlineData(AgentOutcome.Implemented)]
+    [InlineData(AgentOutcome.ReviewApproved)]
+    [InlineData(AgentOutcome.ReviewChangesRequested)]
+    public void CompleteReviewCorrection_rejects_an_outcome_from_another_agent_contract(AgentOutcome outcome)
+    {
+        var attempt = ClaimReviewCorrectionAttempt();
+
+        Assert.Throws<InvalidOperationException>(() => attempt.CompleteReviewCorrection(outcome, null, BaseTime.AddSeconds(1)));
     }
 
     [Fact]
@@ -1156,10 +1226,15 @@ public sealed class AttemptTests
             Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
                 Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+        AssertMatchesItsOwnContract(
+            Attempt.ClaimAgentReviewCorrection(
+                Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
+                Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, BaseTime));
 
         static void AssertMatchesItsOwnContract(Attempt attempt)
         {
-            var contract = AgentAttemptContract.For(attempt.AgentRole!.Value);
+            var contract = AgentAttemptContract.For(attempt.AgentResponseContract!.Value);
+            Assert.Equal(contract.Role, attempt.AgentRole);
             Assert.Equal(contract.ResponseContract, attempt.AgentResponseContract);
             Assert.Equal(contract.Effect, attempt.AgentEffect);
         }

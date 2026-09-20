@@ -21,7 +21,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
 
         if (attempt.Kind != AttemptKind.Agent
             || attempt.AgentRole != AgentRole.CriticalReviewer
-            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.CriticalReviewer).ResponseContract)
+            || attempt.AgentResponseContract != AgentResponseContract.CriticalReview)
         {
             return Result.Failure(Error.Conflict("attempts.not_critical_review", "The attempt is not a critical-review attempt."));
         }

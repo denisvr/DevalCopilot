@@ -3,34 +3,33 @@ using System.Collections.Frozen;
 namespace DevalCopilot.Domain.Features.Runs;
 
 /// <summary>
-/// The closed, Domain-owned semantic contract for an Agent attempt's workflow role, per ADR-0009:
-/// workflow role, response contract, execution effect, and the outcomes that produce
+/// The closed, Domain-owned semantic contract table for an Agent attempt, per ADR-0009 and ADR-0010:
+/// response contract, workflow role, execution effect, and the outcomes that produce
 /// <see cref="AttemptStatus.Completed"/>. Provider identity is deliberately absent — it is
-/// execution provenance, never part of this semantic contract. Exactly one instance per
-/// <see cref="AgentRole"/>, resolved by <see cref="For"/>; never caller-constructed. Adding a role
-/// requires adding its contract to <see cref="BuildContracts"/> in the same change — <see cref="For"/>
-/// throws for any <see cref="AgentRole"/> it does not recognize, so a new role can never silently
-/// fall through with an assumed effect.
+/// execution provenance, never part of this semantic contract. Keyed by <see cref="AgentResponseContract"/>,
+/// resolved by <see cref="For"/>; never caller-constructed. AgentRole remains the sole collaboration-authority
+/// dimension; multiple response contracts (e.g. ImplementationReport and ReviewCorrection) may belong
+/// to AgentRole.Implementer.
 /// </summary>
 public sealed class AgentAttemptContract
 {
-    private static readonly FrozenDictionary<AgentRole, AgentAttemptContract> ByRole = BuildContracts();
+    private static readonly FrozenDictionary<AgentResponseContract, AgentAttemptContract> ByResponseContract = BuildContracts();
 
     private AgentAttemptContract(
-        AgentRole role,
         AgentResponseContract responseContract,
+        AgentRole role,
         AgentEffectKind effect,
         IReadOnlySet<AgentOutcome> completedOutcomes)
     {
-        Role = role;
         ResponseContract = responseContract;
+        Role = role;
         Effect = effect;
         CompletedOutcomes = completedOutcomes;
     }
 
-    public AgentRole Role { get; }
-
     public AgentResponseContract ResponseContract { get; }
+
+    public AgentRole Role { get; }
 
     public AgentEffectKind Effect { get; }
 
@@ -46,13 +45,13 @@ public sealed class AgentAttemptContract
     /// centralize the complete allowed-failure matrix.</summary>
     public IReadOnlySet<AgentOutcome> CompletedOutcomes { get; }
 
-    /// <summary>Resolves the one fixed contract for a role. Fails closed — throws rather than
-    /// returning a default — for any <see cref="AgentRole"/> this contract table does not
+    /// <summary>Resolves the one fixed contract for a response contract. Fails closed — throws rather than
+    /// returning a default — for any <see cref="AgentResponseContract"/> this contract table does not
     /// recognize.</summary>
-    public static AgentAttemptContract For(AgentRole role) =>
-        ByRole.TryGetValue(role, out var contract)
+    public static AgentAttemptContract For(AgentResponseContract responseContract) =>
+        ByResponseContract.TryGetValue(responseContract, out var contract)
             ? contract
-            : throw new ArgumentOutOfRangeException(nameof(role), role, "No agent attempt contract is defined for this role.");
+            : throw new ArgumentOutOfRangeException(nameof(responseContract), responseContract, "No agent attempt contract is defined for this response contract.");
 
     /// <summary>Every defined <see cref="AgentRole"/> whose contract has the given effect —
     /// immutable and caller-safe. Fails closed for an undefined <see cref="AgentEffectKind"/>
@@ -64,7 +63,10 @@ public sealed class AgentAttemptContract
             throw new ArgumentOutOfRangeException(nameof(effect), effect, "Not a defined agent effect kind.");
         }
 
-        return ByRole.Values.Where(contract => contract.Effect == effect).Select(contract => contract.Role).ToFrozenSet();
+        return ByResponseContract.Values
+            .Where(contract => contract.Effect == effect)
+            .Select(contract => contract.Role)
+            .ToFrozenSet();
     }
 
     /// <summary>The union of every completed-outcome value across every contract sharing the given
@@ -78,28 +80,30 @@ public sealed class AgentAttemptContract
             throw new ArgumentOutOfRangeException(nameof(effect), effect, "Not a defined agent effect kind.");
         }
 
-        return ByRole.Values
+        return ByResponseContract.Values
             .Where(contract => contract.Effect == effect)
             .SelectMany(contract => contract.CompletedOutcomes)
             .ToFrozenSet();
     }
 
-    private static FrozenDictionary<AgentRole, AgentAttemptContract> BuildContracts()
+    private static FrozenDictionary<AgentResponseContract, AgentAttemptContract> BuildContracts()
     {
         AgentAttemptContract[] contracts =
         [
-            new(AgentRole.Planner, AgentResponseContract.Proposal, AgentEffectKind.ReadOnly,
+            new(AgentResponseContract.Proposal, AgentRole.Planner, AgentEffectKind.ReadOnly,
                 new HashSet<AgentOutcome> { AgentOutcome.Proposed }.ToFrozenSet()),
-            new(AgentRole.CriticalReviewer, AgentResponseContract.CriticalReview, AgentEffectKind.ReadOnly,
+            new(AgentResponseContract.CriticalReview, AgentRole.CriticalReviewer, AgentEffectKind.ReadOnly,
                 new HashSet<AgentOutcome> { AgentOutcome.Accepted, AgentOutcome.Challenged }.ToFrozenSet()),
-            new(AgentRole.Resolver, AgentResponseContract.ChallengeResolution, AgentEffectKind.ReadOnly,
+            new(AgentResponseContract.ChallengeResolution, AgentRole.Resolver, AgentEffectKind.ReadOnly,
                 new HashSet<AgentOutcome> { AgentOutcome.Resolved }.ToFrozenSet()),
-            new(AgentRole.Implementer, AgentResponseContract.ImplementationReport, AgentEffectKind.WorkspaceMutating,
+            new(AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentEffectKind.WorkspaceMutating,
                 new HashSet<AgentOutcome> { AgentOutcome.Implemented }.ToFrozenSet()),
-            new(AgentRole.CodeReviewer, AgentResponseContract.ImplementationReview, AgentEffectKind.ReadOnly,
+            new(AgentResponseContract.ImplementationReview, AgentRole.CodeReviewer, AgentEffectKind.ReadOnly,
                 new HashSet<AgentOutcome> { AgentOutcome.ReviewApproved, AgentOutcome.ReviewChangesRequested }.ToFrozenSet()),
+            new(AgentResponseContract.ReviewCorrection, AgentRole.Implementer, AgentEffectKind.WorkspaceMutating,
+                new HashSet<AgentOutcome> { AgentOutcome.CorrectionApplied }.ToFrozenSet()),
         ];
 
-        return contracts.ToFrozenDictionary(contract => contract.Role);
+        return contracts.ToFrozenDictionary(contract => contract.ResponseContract);
     }
 }

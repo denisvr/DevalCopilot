@@ -156,11 +156,15 @@ alongside either one `ReviewApproval` collaboration message or one
 `ReviewFinding` message per finding — each replying to the reviewed Execution
 report, never to the original plan.
 
-`Review["changes requested"] --> Execute` (Claude's own revision/correction
-response to a changes-requested review) remains explicitly deferred, exactly
-like `PublishGate` and everything after it in the diagram below: a
-changes-requested review is durably recorded and visible, but nothing in this
-slice automatically resumes `Execute` from it yet.
+`Review["changes requested"] --> Execute` is now a bounded correction re-entry:
+the current `ReviewCorrection` contract belongs to the Implementer role and
+consumes the previous ExecutionReport followed by every ReviewFinding in exact
+collaboration-timeline order. Claim, dispatch, duplicate protection, and result
+recording all bind to the same starting checkpoint. A successful correction
+creates a new immutable checkpoint and appends one RevisionResponse per finding
+plus one new ExecutionReport atomically. Re-review of that new checkpoint is a
+later explicit request; no automatic provider fallback or parallel executor is
+introduced.
 
 ### Approval state
 

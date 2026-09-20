@@ -35,6 +35,8 @@
   Physical repository identity and tool-owned worktree ownership.
 - [ADR-0009](decisions/0009-separate-agent-roles-effects-and-provider-assignments.md):
   Separate agent roles, effects, and provider assignments.
+- [ADR-0010](decisions/0010-add-review-correction-response-contract.md): Add a
+  role-scoped review-correction response contract.
 
 ## Product-specific architecture
 

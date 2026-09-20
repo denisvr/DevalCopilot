@@ -15,6 +15,7 @@ supersedes it.
 - [ADR-0007: Registration-time repository identity is non-authoritative for mutation exclusion](0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md)
 - [ADR-0008: Physical repository identity and tool-owned worktree ownership](0008-physical-repository-identity-and-tool-owned-worktree-ownership.md)
 - [ADR-0009: Separate agent roles, effects, and provider assignments](0009-separate-agent-roles-effects-and-provider-assignments.md)
+- [ADR-0010: Add a role-scoped review-correction response contract](0010-add-review-correction-response-contract.md)
 
 ## Status values
 

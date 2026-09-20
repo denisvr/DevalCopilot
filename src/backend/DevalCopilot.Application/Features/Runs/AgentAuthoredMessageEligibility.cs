@@ -50,7 +50,8 @@ internal static class AgentAuthoredMessageEligibility
             || attempt.RunId != runId
             || attempt.Kind != AttemptKind.Agent
             || attempt.AgentRole != expectedRole
-            || attempt.AgentResponseContract != AgentAttemptContract.For(expectedRole).ResponseContract
+            || attempt.AgentResponseContract is not { } responseContract
+            || AgentAttemptContract.For(responseContract).Role != expectedRole
             || attempt.AgentProvider is not { } provider
             || !Enum.IsDefined(provider)
             || message.Actor != ParticipantIdentity.ForAgent(expectedRole, provider))

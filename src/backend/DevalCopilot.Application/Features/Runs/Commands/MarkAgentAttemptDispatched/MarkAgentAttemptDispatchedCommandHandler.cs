@@ -48,6 +48,11 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// meantime.</summary>
     public const string InputAlreadyCodeReviewedCode = "agent_attempts.input_already_code_reviewed";
 
+    /// <summary>The correction counterpart to <see cref="InputAlreadyCodeReviewedCode"/>:
+    /// another ReviewCorrection attempt completed the exact same ordered input identity from the
+    /// exact same starting checkpoint while this attempt was waiting to dispatch.</summary>
+    public const string InputAlreadyCorrectedCode = "agent_attempts.input_already_corrected";
+
     public async Task<Result<DateTimeOffset>> HandleAsync(
         MarkAgentAttemptDispatchedCommand command, CancellationToken cancellationToken)
     {
@@ -75,7 +80,8 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             || !Enum.IsDefined(role)
             || attempt.AgentProvider is not { } provider
             || !Enum.IsDefined(provider)
-            || attempt.AgentResponseContract != AgentAttemptContract.For(role).ResponseContract)
+            || attempt.AgentResponseContract is not { } responseContract
+            || AgentAttemptContract.For(responseContract).Role != role)
         {
             return Result<DateTimeOffset>.Failure(
                 Error.Conflict(
@@ -187,7 +193,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         // applicability between the eligibility snapshot and this call — a competing
         // implementation attempt could have committed a successful Implemented result for the
         // very same plan and checkpoint in that window.
-        if (attempt.AgentRole == AgentRole.Implementer)
+        if (attempt.AgentResponseContract == AgentResponseContract.ImplementationReport)
         {
             var planProposalMessageId = await ImplementationInputIdentity.GetPlanProposalMessageIdAsync(dbContext, attempt.Id, cancellationToken);
             var alreadyImplemented = await ImplementationInputIdentity.HasCompetingSuccessfulImplementationAsync(
@@ -198,6 +204,26 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                     Error.Conflict(
                         InputAlreadyImplementedCode,
                         "Another implementation attempt already completed a successful implementation of this exact plan and checkpoint."));
+            }
+        }
+
+        if (attempt.AgentResponseContract == AgentResponseContract.ReviewCorrection)
+        {
+            var orderedInputMessageIds = await ReviewCorrectionInputIdentity.GetOrderedInputMessageIdsAsync(
+                dbContext, attempt.Id, cancellationToken);
+            var alreadyCorrected = await ReviewCorrectionInputIdentity.HasCompetingSuccessfulCorrectionAsync(
+                dbContext,
+                attempt.RunId,
+                attempt.Id,
+                attempt.AgentGitCheckpointId!.Value,
+                orderedInputMessageIds,
+                cancellationToken);
+            if (alreadyCorrected)
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        InputAlreadyCorrectedCode,
+                        "Another correction attempt already completed a successful correction of this exact input identity."));
             }
         }
 

@@ -2,11 +2,11 @@ namespace DevalCopilot.Domain.Features.Runs;
 
 /// <summary>
 /// The closed shape of durable collaboration fact an <see cref="AttemptKind.Agent"/> attempt is
-/// expected to produce. Distinct from <see cref="CollaborationMessageType"/> (the single message
-/// type an Agent <em>attempt's own claimed intent</em> expects — always <c>Proposal</c> today, for
-/// both combinations) because a critical-review attempt's real output is a union of one Acceptance
-/// or one-to-several Challenge messages, which is never represented by encoding that union as a
-/// bare <see langword="null"/> or by silently overloading a single expected-message-type field.
+/// expected to produce. Distinct from <see cref="CollaborationMessageType"/> (the single primary
+/// message type an Agent <em>attempt's own claimed intent</em> expects) because critical review and
+/// review correction produce bounded multi-message contracts, which are never represented by
+/// encoding a union as a bare <see langword="null"/> or by silently overloading a single expected-
+/// message-type field.
 /// Every combination below is fixed by exactly one Domain factory — never caller-selected, never a
 /// loosely validated bag of nullable arguments.
 /// </summary>
@@ -27,7 +27,8 @@ public enum AgentResponseContract
     /// Proposal.</summary>
     ChallengeResolution = 2,
 
-    /// <summary>ClaudeCode + Implementer. The attempt's real output is exactly one
+    /// <summary>AgentRole.Implementer + AgentResponseContract.ImplementationReport. ClaudeCode is
+    /// the current provider assignment/provenance only, not semantic authority. The attempt's real output is exactly one
     /// <see cref="CollaborationMessageType.ExecutionReport"/> replying to the implemented
     /// Proposal, backed by an independently observed, immutable resulting
     /// <c>GitCheckpoint</c>.</summary>
@@ -39,4 +40,12 @@ public enum AgentResponseContract
     /// messages each replying to that same Execution report — never both, never zero of
     /// either.</summary>
     ImplementationReview = 4,
+
+    /// <summary>AgentRole.Implementer + AgentResponseContract.ReviewCorrection. ClaudeCode is the
+    /// current provider assignment/provenance only, not semantic authority. The attempt's real output is exactly one
+    /// <see cref="CollaborationMessageType.RevisionResponse"/> for every input ReviewFinding,
+    /// plus exactly one <see cref="CollaborationMessageType.ExecutionReport"/> replying to the
+    /// implemented Proposal, backed by an independently observed, immutable resulting
+    /// <c>GitCheckpoint</c>.</summary>
+    ReviewCorrection = 5,
 }

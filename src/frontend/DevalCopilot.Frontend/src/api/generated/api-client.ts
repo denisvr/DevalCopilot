@@ -56,6 +56,106 @@ export class StartSimulatedRunEndpointClient {
     }
 }
 
+export class RequestReviewCorrectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestReviewCorrection(runId: string, request: RequestReviewCorrectionRequest): Promise<RequestReviewCorrectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/review-correction";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestReviewCorrection(_response);
+        });
+    }
+
+    protected processRequestReviewCorrection(response: Response): Promise<RequestReviewCorrectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestReviewCorrectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestReviewCorrectionResponse>(null as any);
+    }
+}
+
+export class GetReviewCorrectionAttemptStatusEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getReviewCorrectionAttemptStatus(runId: string): Promise<ReviewCorrectionAttemptStatusResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/review-correction";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetReviewCorrectionAttemptStatus(_response);
+        });
+    }
+
+    protected processGetReviewCorrectionAttemptStatus(response: Response): Promise<ReviewCorrectionAttemptStatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ReviewCorrectionAttemptStatusResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ReviewCorrectionAttemptStatusResponse>(null as any);
+    }
+}
+
 export class RequestImplementationEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1951,6 +2051,82 @@ export interface IStartSimulatedRunRequest {
     objective?: string;
 }
 
+export class RequestReviewCorrectionResponse implements IRequestReviewCorrectionResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+
+    constructor(data?: IRequestReviewCorrectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+        }
+    }
+
+    static fromJS(data: any): RequestReviewCorrectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestReviewCorrectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        return data;
+    }
+}
+
+export interface IRequestReviewCorrectionResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+}
+
+export class RequestReviewCorrectionRequest implements IRequestReviewCorrectionRequest {
+    implementationReviewAttemptId?: string;
+
+    constructor(data?: IRequestReviewCorrectionRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.implementationReviewAttemptId = _data["implementationReviewAttemptId"];
+        }
+    }
+
+    static fromJS(data: any): RequestReviewCorrectionRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestReviewCorrectionRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["implementationReviewAttemptId"] = this.implementationReviewAttemptId;
+        return data;
+    }
+}
+
+export interface IRequestReviewCorrectionRequest {
+    implementationReviewAttemptId?: string;
+}
+
 export class RequestImplementationResponse implements IRequestImplementationResponse {
     attemptId?: string;
     attemptNumber?: number;
@@ -2535,6 +2711,146 @@ export interface IStageMapEntryResponse {
     isActive?: boolean;
 }
 
+export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    implementationReviewAttemptId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    startingGitCheckpointId?: string | undefined;
+    resultGitCheckpointId?: string | undefined;
+    revisionResponseCount?: number;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+
+    constructor(data?: IReviewCorrectionAttemptStatusResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.hasAttempt = _data["hasAttempt"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.implementationReviewAttemptId = _data["implementationReviewAttemptId"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.startingGitCheckpointId = _data["startingGitCheckpointId"];
+            this.resultGitCheckpointId = _data["resultGitCheckpointId"];
+            this.revisionResponseCount = _data["revisionResponseCount"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["artifacts"])) {
+                this.artifacts = [] as any;
+                for (let item of _data["artifacts"])
+                    this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): ReviewCorrectionAttemptStatusResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ReviewCorrectionAttemptStatusResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["hasAttempt"] = this.hasAttempt;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["implementationReviewAttemptId"] = this.implementationReviewAttemptId;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["startingGitCheckpointId"] = this.startingGitCheckpointId;
+        data["resultGitCheckpointId"] = this.resultGitCheckpointId;
+        data["revisionResponseCount"] = this.revisionResponseCount;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.artifacts)) {
+            data["artifacts"] = [];
+            for (let item of this.artifacts)
+                data["artifacts"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IReviewCorrectionAttemptStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    implementationReviewAttemptId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    startingGitCheckpointId?: string | undefined;
+    resultGitCheckpointId?: string | undefined;
+    revisionResponseCount?: number;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+}
+
+export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+
+    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.purpose = _data["purpose"];
+            this.byteLength = _data["byteLength"];
+            this.truncated = _data["truncated"];
+            this.captureOutcome = _data["captureOutcome"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptArtifactMetadataResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["purpose"] = this.purpose;
+        data["byteLength"] = this.byteLength;
+        data["truncated"] = this.truncated;
+        data["captureOutcome"] = this.captureOutcome;
+        return data;
+    }
+}
+
+export interface IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+}
+
 export class GetProcessAttemptOutputResponse implements IGetProcessAttemptOutputResponse {
     status?: string;
     text?: string;
@@ -2701,54 +3017,6 @@ export interface IImplementationAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
-}
-
-export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
-
-    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.purpose = _data["purpose"];
-            this.byteLength = _data["byteLength"];
-            this.truncated = _data["truncated"];
-            this.captureOutcome = _data["captureOutcome"];
-        }
-    }
-
-    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new AgentAttemptArtifactMetadataResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["purpose"] = this.purpose;
-        data["byteLength"] = this.byteLength;
-        data["truncated"] = this.truncated;
-        data["captureOutcome"] = this.captureOutcome;
-        return data;
-    }
-}
-
-export interface IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {

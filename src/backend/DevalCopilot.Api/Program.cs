@@ -158,6 +158,12 @@ builder.Services.AddHostedService<ImplementationReviewSupervisor>();
 builder.Services.AddSingleton<IClaudeImplementationAdapter, ClaudeImplementationAdapter>();
 builder.Services.AddHostedService<ImplementationSupervisor>();
 
+// Claude review correction: a separate mutating supervisor and adapter keep the correction
+// lifecycle, duplicate gate, and recording contract independent from the first implementation
+// stage while reusing the shared process, artifact, and Git-evidence infrastructure.
+builder.Services.AddSingleton<IClaudeReviewCorrectionAdapter, ClaudeReviewCorrectionAdapter>();
+builder.Services.AddHostedService<ReviewCorrectionSupervisor>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
