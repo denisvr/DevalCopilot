@@ -145,6 +145,10 @@ manual transfer.
 
 ### Deliverables
 
+- bounded role-first architecture stabilization before the revision stage,
+  separating workflow role, response contract, execution effect, provider
+  assignment, and collaboration provenance as defined by
+  [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md);
 - Codex adapter and provider health checks;
 - Claude Code adapter and provider health checks;
 - protocol validation and raw transcript artifacts;
@@ -289,11 +293,18 @@ Every increment runs the checks applicable to its current boundaries:
 
 After the MVP proves self-hosted development, candidate directions include:
 
+- Gemini as an alternative Implementer, introduced together with immutable
+  assignment history and manual provider selection; manual fallback follows as
+  a separate policy slice, and automatic fallback follows only after safe
+  terminal classifications, reconciliation, and budgets are explicit;
 - candidate preview in an isolated data directory;
 - signed update and rollback flow;
 - optional container or OS sandbox adapters;
 - multiple simultaneous mutating runs within one canonical repository;
-- additional agent providers;
+- additional agent providers beyond Gemini;
+- parallel candidate executors, requiring their own candidate, workspace,
+  lease, checkpoint-selection, review, budget, and cleanup decision rather than
+  being inferred from multi-provider support;
 - reusable workflow templates and project memory;
 - cost and quality analytics;
 - GitHub App authentication for team use;

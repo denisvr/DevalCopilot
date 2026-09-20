@@ -2,6 +2,7 @@ using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedImplementationAttempts;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -24,8 +25,13 @@ public sealed class ReconcileInterruptedImplementationAttemptsCommandHandlerTest
 
     private sealed class FakeGitWorkspaceEvidenceReader(GitWorkspaceEvidenceResult result) : IGitWorkspaceEvidenceReader
     {
-        public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
-            Task.FromResult(result);
+        public int CallCount { get; private set; }
+
+        public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult(result);
+        }
     }
 
     private async Task<(Run Run, GitWorkspace Workspace, Attempt Attempt)> SeedRunningImplementerAttemptAsync(
@@ -125,5 +131,46 @@ public sealed class ReconcileInterruptedImplementationAttemptsCommandHandlerTest
         Assert.True(result.IsSuccess);
         Assert.Equal(AttemptStatus.Interrupted, attempt.Status);
         Assert.Equal(WorkspaceStatus.NeedsAttention, workspace.Status);
+    }
+
+    // The role/effect partition this handler relies on: only the WorkspaceMutating role
+    // (Implementer) is ever reconciled here — a ReadOnly-contract role's own Running attempt is
+    // reconciled instead by ReconcileInterruptedAgentAttemptsCommandHandler, and its evidence is
+    // never read by this handler at all. Proves the AgentAttemptContract-derived role set produces
+    // exactly today's partition, not a behavior change.
+    [Fact]
+    public async Task HandleAsync_reconciles_only_the_workspace_mutating_attempt_and_never_reads_evidence_for_a_read_only_attempt()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (implementationRun, implementationWorkspace, implementationAttempt) =
+            await SeedRunningImplementerAttemptAsync(dbContext, dispatched: true);
+
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var plannerRun = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Orphaned planning", Now);
+        plannerRun.Claim(Now);
+        var plannerAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), plannerRun.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(plannerRun);
+        dbContext.Attempts.Add(plannerAttempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var evidence = new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null);
+        var evidenceReader = new FakeGitWorkspaceEvidenceReader(evidence);
+        var handler = new ReconcileInterruptedImplementationAttemptsCommandHandler(dbContext, evidenceReader, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new ReconcileInterruptedImplementationAttemptsCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value);
+        Assert.Equal(1, evidenceReader.CallCount);
+        Assert.Equal(AttemptStatus.Interrupted, implementationAttempt.Status);
+        Assert.Equal(RunLifecycle.Interrupted, implementationRun.Lifecycle);
+        Assert.Equal(WorkspaceStatus.Ready, implementationWorkspace.Status);
+
+        dbContext.ChangeTracker.Clear();
+        var persistedPlannerAttempt = await dbContext.Attempts.SingleAsync(a => a.Id == plannerAttempt.Id);
+        Assert.Equal(AttemptStatus.Running, persistedPlannerAttempt.Status);
     }
 }

@@ -174,4 +174,69 @@ public sealed class ReconcileInterruptedAgentAttemptsCommandHandlerTests : IAsyn
         Assert.True(result.IsSuccess);
         Assert.Equal(0, result.Value);
     }
+
+    // The role/effect partition this handler relies on: every ReadOnly-contract role (Planner,
+    // CriticalReviewer, Resolver, CodeReviewer) is reconciled here, and the one WorkspaceMutating
+    // role (Implementer) is excluded — reconciled instead by
+    // ReconcileInterruptedImplementationAttemptsCommandHandler. Proves the AgentAttemptContract-
+    // derived role set produces exactly today's partition, not a behavior change.
+    [Fact]
+    public async Task HandleAsync_reconciles_exactly_the_four_read_only_roles_and_never_the_workspace_mutating_role()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        dbContext.Projects.Add(project);
+
+        var attemptsByRole = new Dictionary<AgentRole, Attempt>();
+        var attemptNumber = 1;
+        foreach (var role in Enum.GetValues<AgentRole>())
+        {
+            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, attemptNumber++, $"{role}", Now);
+            run.Claim(Now);
+            var attempt = ClaimAttemptForRole(role, run.Id);
+
+            dbContext.Runs.Add(run);
+            dbContext.Attempts.Add(attempt);
+            attemptsByRole[role] = attempt;
+        }
+
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        // Invoked directly, bypassing the mediator's own ambient SaveChangesAsync (this command is
+        // not an IManualTransactionCommand) — mirrors every other test in this file, which asserts
+        // on the same tracked entity reference the handler mutated in memory, never a fresh query.
+        var handler = new ReconcileInterruptedAgentAttemptsCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(new ReconcileInterruptedAgentAttemptsCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(4, result.Value);
+
+        foreach (var (role, attempt) in attemptsByRole)
+        {
+            var expectedStatus = role == AgentRole.Implementer ? AttemptStatus.Running : AttemptStatus.Interrupted;
+            Assert.True(
+                expectedStatus == attempt.Status,
+                $"role={role} agentRole={attempt.AgentRole} expected={expectedStatus} actual={attempt.Status}");
+        }
+    }
+
+    private static Attempt ClaimAttemptForRole(AgentRole role, Guid runId) => role switch
+    {
+        AgentRole.Planner => Attempt.ClaimAgent(
+            Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+        AgentRole.CriticalReviewer => Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+        AgentRole.Resolver => Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+        AgentRole.Implementer => Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+        AgentRole.CodeReviewer => Attempt.ClaimAgentCodeReview(
+            Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+        _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unhandled role in test setup."),
+    };
 }

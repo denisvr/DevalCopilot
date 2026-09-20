@@ -1112,4 +1112,70 @@ public sealed class AttemptTests
         Assert.Throws<InvalidOperationException>(
             () => attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(2)));
     }
+
+    [Fact]
+    public void AgentEffect_is_null_for_a_non_agent_attempt()
+    {
+        var processAttempt = Attempt.ClaimProcess(Guid.NewGuid(), Guid.NewGuid(), 1, CreateIntent(), BaseTime);
+        var simulatedAttempt = Attempt.Claim(Guid.NewGuid(), Guid.NewGuid(), 1, BaseTime);
+
+        Assert.Null(processAttempt.AgentEffect);
+        Assert.Null(simulatedAttempt.AgentEffect);
+    }
+
+    [Fact]
+    public void AgentEffect_is_read_only_for_every_non_implementer_claim_factory()
+    {
+        Assert.Equal(AgentEffectKind.ReadOnly, ClaimAgentAttempt().AgentEffect);
+        Assert.Equal(AgentEffectKind.ReadOnly, ClaimAgentCriticalReviewAttempt().AgentEffect);
+        Assert.Equal(AgentEffectKind.ReadOnly, ClaimAgentChallengeResolutionAttempt().AgentEffect);
+        Assert.Equal(
+            AgentEffectKind.ReadOnly,
+            Attempt.ClaimAgentCodeReview(
+                Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
+                Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime).AgentEffect);
+    }
+
+    [Fact]
+    public void AgentEffect_is_workspace_mutating_for_the_implementer_claim_factory()
+    {
+        Assert.Equal(AgentEffectKind.WorkspaceMutating, ClaimAgentImplementationAttempt().AgentEffect);
+    }
+
+    // Every ClaimAgent* factory must set Role and ResponseContract from the same
+    // AgentAttemptContract its AgentEffect is computed from — never a value that could drift apart
+    // from the contract table.
+    [Fact]
+    public void Every_claim_agent_factory_produces_role_response_contract_and_effect_matching_its_own_contract()
+    {
+        AssertMatchesItsOwnContract(ClaimAgentAttempt());
+        AssertMatchesItsOwnContract(ClaimAgentCriticalReviewAttempt());
+        AssertMatchesItsOwnContract(ClaimAgentChallengeResolutionAttempt());
+        AssertMatchesItsOwnContract(ClaimAgentImplementationAttempt());
+        AssertMatchesItsOwnContract(
+            Attempt.ClaimAgentCodeReview(
+                Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
+                Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+
+        static void AssertMatchesItsOwnContract(Attempt attempt)
+        {
+            var contract = AgentAttemptContract.For(attempt.AgentRole!.Value);
+            Assert.Equal(contract.ResponseContract, attempt.AgentResponseContract);
+            Assert.Equal(contract.Effect, attempt.AgentEffect);
+        }
+    }
+
+    // This proves the new ReadOnly-effect guard added to CompleteAgent per the role-first
+    // stabilization: it is never reachable through any production call path today (only
+    // CompleteImplementation ever completes an Implementer attempt), but it is now an explicit,
+    // enforced Domain invariant rather than an implicit assumption.
+    [Fact]
+    public void CompleteAgent_throws_for_a_workspace_mutating_contract()
+    {
+        var attempt = ClaimAgentImplementationAttempt(checkpointFingerprintSha256: "fingerprint-1");
+        attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => attempt.CompleteAgent(AgentOutcome.Implemented, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+    }
 }

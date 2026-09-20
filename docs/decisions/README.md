@@ -14,6 +14,7 @@ supersedes it.
 - [ADR-0006: Support bounded concurrent runs across projects](0006-support-bounded-concurrent-runs-across-projects.md)
 - [ADR-0007: Registration-time repository identity is non-authoritative for mutation exclusion](0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md)
 - [ADR-0008: Physical repository identity and tool-owned worktree ownership](0008-physical-repository-identity-and-tool-owned-worktree-ownership.md)
+- [ADR-0009: Separate agent roles, effects, and provider assignments](0009-separate-agent-roles-effects-and-provider-assignments.md)
 
 ## Status values
 

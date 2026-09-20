@@ -33,6 +33,8 @@
   exclusion.
 - [ADR-0008](decisions/0008-physical-repository-identity-and-tool-owned-worktree-ownership.md):
   Physical repository identity and tool-owned worktree ownership.
+- [ADR-0009](decisions/0009-separate-agent-roles-effects-and-provider-assignments.md):
+  Separate agent roles, effects, and provider assignments.
 
 ## Product-specific architecture
 

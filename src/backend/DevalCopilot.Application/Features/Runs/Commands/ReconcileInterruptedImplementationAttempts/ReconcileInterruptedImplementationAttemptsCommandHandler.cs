@@ -26,9 +26,13 @@ public sealed class ReconcileInterruptedImplementationAttemptsCommandHandler(
 
     public async Task<Result<int>> HandleAsync(ReconcileInterruptedImplementationAttemptsCommand command, CancellationToken cancellationToken)
     {
+        // The role set is derived from AgentAttemptContract's WorkspaceMutating effect, not a
+        // hardcoded role literal, and materialized before the query so EF Core translates the
+        // check to a closed SQL IN (...) predicate.
+        var mutatingRoles = AgentAttemptContract.RolesForEffect(AgentEffectKind.WorkspaceMutating).ToArray();
         var interruptedAttemptIds = await dbContext.Attempts
             .AsNoTracking()
-            .Where(attempt => attempt.Kind == AttemptKind.Agent && attempt.AgentRole == AgentRole.Implementer && attempt.Status == AttemptStatus.Running)
+            .Where(attempt => attempt.Kind == AttemptKind.Agent && mutatingRoles.Contains(attempt.AgentRole!.Value) && attempt.Status == AttemptStatus.Running)
             .Select(attempt => attempt.Id)
             .ToListAsync(cancellationToken);
 
