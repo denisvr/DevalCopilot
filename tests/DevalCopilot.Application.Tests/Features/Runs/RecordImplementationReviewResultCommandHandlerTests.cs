@@ -99,6 +99,8 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
         var events = dbContext.Events.Where(e => e.AttemptId == attempt.Id).ToList();
         Assert.Single(events);
         Assert.Equal(result.Value.LatestEventSequence, events[0].Sequence);
+        Assert.Equal(approvalMessage.Actor, events[0].Actor);
+        Assert.Equal(AgentProviderParticipant.For(attempt.AgentProvider!.Value), approvalMessage.Actor);
     }
 
     [Fact]

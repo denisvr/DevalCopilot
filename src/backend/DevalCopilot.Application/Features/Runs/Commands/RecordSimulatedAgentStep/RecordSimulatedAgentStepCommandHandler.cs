@@ -39,6 +39,19 @@ public sealed class RecordSimulatedAgentStepCommandHandler(IDevalCopilotDbContex
                 Error.NotFound("attempts.not_found", "The requested attempt was not found for this run."));
         }
 
+        // This command's caller-selected Actor/Recipient/MessageType are validated only by the
+        // legacy participant policy, never by role authorization — legitimate only for the
+        // deterministic Simulated walking-skeleton sequence. A real Agent or Process attempt must
+        // never reach that legacy path: an Agent attempt's protocol output belongs exclusively to
+        // its own role-specific result handler (see RecordCollaborationMessageCommandHandler's own
+        // identical reasoning), and a Process attempt has no collaboration role at all.
+        if (attempt.Kind != AttemptKind.Simulated)
+        {
+            return Result<RecordSimulatedAgentStepCommandResult>.Failure(Error.Conflict(
+                "collaboration_messages.simulated_step_requires_simulated_attempt",
+                "A simulated collaboration step can only be recorded for a Simulated attempt."));
+        }
+
         if (attempt.Status != AttemptStatus.Running)
         {
             return Result<RecordSimulatedAgentStepCommandResult>.Failure(

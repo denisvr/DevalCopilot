@@ -253,7 +253,7 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
         if (outcome == AgentOutcome.Implemented)
         {
             var planProposalMessageId = await ImplementationInputIdentity.GetPlanProposalMessageIdAsync(dbContext, attempt.Id, cancellationToken);
-            latestEvent = RecordExecutionReport(run.Id, attempt.Id, planProposalMessageId, command.Report!, nowUtc);
+            latestEvent = RecordExecutionReport(attempt, planProposalMessageId, command.Report!, nowUtc);
         }
         else
         {
@@ -346,7 +346,7 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
     }
 
     private RunEvent RecordExecutionReport(
-        Guid runId, Guid attemptId, Guid planProposalMessageId, ValidatedImplementationReport report, DateTimeOffset nowUtc)
+        Attempt attempt, Guid planProposalMessageId, ValidatedImplementationReport report, DateTimeOffset nowUtc)
     {
         var structuredContentJson = JsonSerializer.Serialize(new
         {
@@ -354,27 +354,23 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             verification = report.RecommendedVerification,
         });
 
-        var message = CollaborationMessage.Record(
+        var message = CollaborationMessage.RecordAgent(
+            attempt,
             Guid.NewGuid(),
-            runId,
-            attemptId,
-            CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude,
             ParticipantKind.Codex,
             CollaborationMessageType.ExecutionReport,
             planProposalMessageId,
             report.Summary,
             structuredContentJson,
-            CollaborationMessageProvenance.ProviderObserved,
             nowUtc);
         dbContext.CollaborationMessages.Add(message);
 
         var runEvent = RunEvent.Record(
             Guid.NewGuid(),
-            runId,
-            attemptId,
+            attempt.RunId,
+            attempt.Id,
             RunEventType.CollaborationMessageRecorded,
-            ParticipantKind.Claude,
+            message.Actor,
             JsonSerializer.Serialize(new
             {
                 messageId = message.Id,

@@ -24,7 +24,112 @@ public sealed class CollaborationMessage
         string summary,
         string structuredContentJson,
         CollaborationMessageProvenance provenance,
+        DateTimeOffset occurredAtUtc) =>
+        RecordCore(
+            id, runId, attemptId, protocolVersion, actor, recipient, type, inReplyToMessageId, summary, structuredContentJson,
+            provenance, occurredAtUtc,
+            authorValidation: () => ValidateActorForType(actor, type));
+
+    /// <summary>
+    /// The single factory for a real Agent attempt's own collaboration output. Receives the actual
+    /// Domain <see cref="Attempt"/> rather than separately caller-supplied identifiers, role,
+    /// provider, response contract, protocol version, or provenance — every one of those facts is
+    /// derived from the attempt itself, so no caller can select a role/provider/attempt
+    /// combination that does not truthfully exist. Authorization is decided solely by
+    /// <see cref="CollaborationMessageAuthorPolicy"/> against the attempt's own
+    /// <see cref="Runs.AgentRole"/> — this factory never calls <see cref="ValidateActorForType"/>,
+    /// the legacy participant-kind gate reserved for <see cref="Record"/>'s Human, Orchestrator,
+    /// and Simulated callers.
+    /// </summary>
+    public static CollaborationMessage RecordAgent(
+        Attempt attempt,
+        Guid id,
+        ParticipantKind recipient,
+        CollaborationMessageType type,
+        Guid? inReplyToMessageId,
+        string summary,
+        string structuredContentJson,
         DateTimeOffset occurredAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(attempt);
+
+        if (attempt.Kind != AttemptKind.Agent)
+        {
+            throw new ArgumentException("RecordAgent requires an Agent attempt.", nameof(attempt));
+        }
+
+        if (attempt.Id == Guid.Empty || attempt.RunId == Guid.Empty)
+        {
+            throw new ArgumentException("An Agent attempt requires durable identifiers.", nameof(attempt));
+        }
+
+        if (attempt.AgentRole is not { } role
+            || attempt.AgentProvider is not { } provider
+            || attempt.AgentResponseContract is not { } responseContract
+            || attempt.AgentProtocolVersion is not { } protocolVersion)
+        {
+            throw new ArgumentException(
+                "An Agent attempt must have a defined role, provider, response contract, and protocol version.", nameof(attempt));
+        }
+
+        // Resolve and verify coherence rather than assume it — mirrors Attempt.CompleteImplementation's
+        // own "resolve and verify" reasoning: the role/response-contract pairing is always coherent
+        // today because every ClaimAgent* factory sets both from the same AgentAttemptContract, but
+        // this factory never trusts that silently.
+        if (AgentAttemptContract.For(role).ResponseContract != responseContract)
+        {
+            throw new ArgumentException("The attempt's role and response contract are not coherent.", nameof(attempt));
+        }
+
+        // The dispatch marker, not Attempt.Status, is the authoritative proof that a real provider
+        // invocation could have produced provider-observed output: a role-specific result handler
+        // may apply the terminal Domain transition before constructing the collaboration message(s)
+        // in the same atomic unit, so Status may already be Completed/Failed by the time this is
+        // called.
+        if (!attempt.AgentDispatchedAtUtc.HasValue)
+        {
+            throw new ArgumentException(
+                "A collaboration message can only be recorded for an attempt that was actually dispatched to its provider.",
+                nameof(attempt));
+        }
+
+        var actor = AgentProviderParticipant.For(provider);
+
+        return RecordCore(
+            id, attempt.RunId, attempt.Id, protocolVersion, actor, recipient, type, inReplyToMessageId, summary,
+            structuredContentJson, CollaborationMessageProvenance.ProviderObserved, occurredAtUtc,
+            authorValidation: () =>
+            {
+                if (!CollaborationMessageAuthorPolicy.AllowedMessageTypes(role).Contains(type))
+                {
+                    throw new ArgumentException("This role is not authorized to author this message type.", nameof(type));
+                }
+            });
+    }
+
+    /// <summary>
+    /// The shared envelope validation and construction both <see cref="Record"/> and
+    /// <see cref="RecordAgent"/> use — common pre-author validations (identifiers, participant/type/
+    /// provenance definedness, reply-reference shape, summary safety), then the caller's own
+    /// factory-specific author validation (the legacy participant policy for <see cref="Record"/>,
+    /// the role policy for <see cref="RecordAgent"/>), then content-policy validation, then entity
+    /// construction — in exactly this order, matching <see cref="Record"/>'s own pre-extraction
+    /// order exactly so its observable validation and exception behavior are unchanged.
+    /// </summary>
+    private static CollaborationMessage RecordCore(
+        Guid id,
+        Guid runId,
+        Guid? attemptId,
+        string protocolVersion,
+        ParticipantKind actor,
+        ParticipantKind recipient,
+        CollaborationMessageType type,
+        Guid? inReplyToMessageId,
+        string summary,
+        string structuredContentJson,
+        CollaborationMessageProvenance provenance,
+        DateTimeOffset occurredAtUtc,
+        Action authorValidation)
     {
         if (id == Guid.Empty || runId == Guid.Empty)
         {
@@ -62,7 +167,7 @@ public sealed class CollaborationMessage
             throw new ArgumentException("The collaboration summary is invalid.", nameof(summary));
         }
 
-        ValidateActorForType(actor, type);
+        authorValidation();
         CollaborationMessageContentPolicy.Validate(type, structuredContentJson);
 
         return new CollaborationMessage

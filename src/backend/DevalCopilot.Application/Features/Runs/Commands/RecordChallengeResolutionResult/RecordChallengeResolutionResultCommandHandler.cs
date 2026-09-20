@@ -182,12 +182,12 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             foreach (var decision in resolution.Decisions)
             {
                 latestEvent = RecordCollaborationMessage(
-                    run.Id, attempt.Id, decision.ChallengeMessageId, CollaborationMessageType.Decision,
+                    attempt, decision.ChallengeMessageId, CollaborationMessageType.Decision,
                     decision.Summary, decision.StructuredContentJson, nowUtc);
             }
 
             latestEvent = RecordCollaborationMessage(
-                run.Id, attempt.Id, originalProposalMessageId, CollaborationMessageType.Proposal,
+                attempt, originalProposalMessageId, CollaborationMessageType.Proposal,
                 resolution.RevisedProposal.Summary, resolution.RevisedProposal.StructuredContentJson, nowUtc);
         }
         else
@@ -283,35 +283,30 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
     }
 
     private RunEvent RecordCollaborationMessage(
-        Guid runId,
-        Guid attemptId,
+        Attempt attempt,
         Guid inReplyToMessageId,
         CollaborationMessageType type,
         string summary,
         string structuredContentJson,
         DateTimeOffset nowUtc)
     {
-        var message = CollaborationMessage.Record(
+        var message = CollaborationMessage.RecordAgent(
+            attempt,
             Guid.NewGuid(),
-            runId,
-            attemptId,
-            CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
             ParticipantKind.Claude,
             type,
             inReplyToMessageId,
             summary,
             structuredContentJson,
-            CollaborationMessageProvenance.ProviderObserved,
             nowUtc);
         dbContext.CollaborationMessages.Add(message);
 
         var runEvent = RunEvent.Record(
             Guid.NewGuid(),
-            runId,
-            attemptId,
+            attempt.RunId,
+            attempt.Id,
             RunEventType.CollaborationMessageRecorded,
-            ParticipantKind.Codex,
+            message.Actor,
             JsonSerializer.Serialize(new
             {
                 messageId = message.Id,

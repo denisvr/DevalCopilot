@@ -22,10 +22,12 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         var result = await handler.HandleAsync(CreateProposalCommand(run.Id, attempt.Id), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(result.Value.MessageId, Assert.Single(dbContext.CollaborationMessages.Where(message => message.RunId == run.Id)).Id);
+        var message = Assert.Single(dbContext.CollaborationMessages.Where(message => message.RunId == run.Id));
+        Assert.Equal(result.Value.MessageId, message.Id);
         var eventRecord = Assert.Single(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
         Assert.Equal(RunEventType.CollaborationMessageRecorded, eventRecord.EventType);
         Assert.Equal(result.Value.EventSequence, eventRecord.Sequence);
+        Assert.Equal(message.Actor, eventRecord.Actor);
     }
 
     [Fact]
@@ -202,6 +204,149 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         return (project, run, attempt);
     }
 
+    private static (Project Project, Run Run, Attempt Attempt) CreateRunningAgentAttempt()
+    {
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Record ledger", Now);
+        run.Claim(Now);
+        var attempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        return (project, run, attempt);
+    }
+
+    private static (Project Project, Run Run, Attempt Attempt) CreateRunningProcessAttempt()
+    {
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Record ledger", Now);
+        run.Claim(Now);
+        var attempt = Attempt.ClaimProcess(
+            Guid.NewGuid(), run.Id, 1,
+            new ProcessExecutionIntent(@"C:\tools\build.exe", ["--verify"], @"C:\repos\devalcopilot", @"C:\repos", TimeSpan.FromMinutes(5), 65536, 131072),
+            Now);
+        return (project, run, attempt);
+    }
+
+    // A Process attempt has no AgentRole or collaboration-authorship contract at all — nothing
+    // could validate the caller's chosen actor/type against it, so it must never reach
+    // CollaborationMessage.Record (which would falsely associate the resulting message and event
+    // with an attempt that never had any collaboration role).
+    [Fact]
+    public async Task HandleAsync_rejects_a_process_attempt_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateRunningProcessAttempt();
+        dbContext.AddRange(project, run, attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(CreateProposalCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("collaboration_messages.attempt_requires_simulated_kind", Assert.Single(result.Errors).Code);
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.RunId == run.Id));
+        Assert.Empty(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
+    }
+
+    // A real Agent attempt's protocol output belongs exclusively to its own role-specific atomic
+    // result handler — routing it through this generic, caller-selected path would let a caller
+    // append an extra message, bypass role authorization, cardinality, and terminal-outcome
+    // invariants entirely.
+    [Fact]
+    public async Task HandleAsync_rejects_a_real_agent_attempt_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateRunningAgentAttempt();
+        dbContext.AddRange(project, run, attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(CreateProposalCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("collaboration_messages.agent_attempt_requires_result_handler", Assert.Single(result.Errors).Code);
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.RunId == run.Id));
+        Assert.Empty(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
+    }
+
+    [Theory]
+    [InlineData(ParticipantKind.Codex)]
+    [InlineData(ParticipantKind.Claude)]
+    public async Task HandleAsync_rejects_an_agent_provider_actor_with_no_owning_attempt(ParticipantKind actor)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, _) = CreateRunningAttempt();
+        dbContext.AddRange(project, run);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var command = new RecordCollaborationMessageCommand(
+            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, actor,
+            actor == ParticipantKind.Codex ? ParticipantKind.Claude : ParticipantKind.Codex,
+            CollaborationMessageType.Proposal, null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated);
+
+        var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("collaboration_messages.actor_requires_attempt", Assert.Single(result.Errors).Code);
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.RunId == run.Id));
+        Assert.Empty(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
+    }
+
+    [Fact]
+    public async Task HandleAsync_still_records_a_human_authored_proposal_with_no_owning_attempt()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, _) = CreateRunningAttempt();
+        dbContext.AddRange(project, run);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var command = new RecordCollaborationMessageCommand(
+            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantKind.Human, ParticipantKind.Orchestrator,
+            CollaborationMessageType.Proposal, null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated);
+
+        var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var message = Assert.Single(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
+        Assert.Equal(ParticipantKind.Human, message.Actor);
+        var eventRecord = Assert.Single(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
+        Assert.Equal(ParticipantKind.Human, eventRecord.Actor);
+    }
+
+    [Fact]
+    public async Task HandleAsync_still_records_an_orchestrator_authored_message_with_no_owning_attempt()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, _) = CreateRunningAttempt();
+        dbContext.AddRange(project, run);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var proposalResult = await handler.HandleAsync(
+            new RecordCollaborationMessageCommand(
+                Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantKind.Human, ParticipantKind.Orchestrator,
+                CollaborationMessageType.Proposal, null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated),
+            CancellationToken.None);
+        Assert.True(proposalResult.IsSuccess);
+
+        // Orchestrator is never a valid Proposal author (ValidateActorForType), so this exercises
+        // the one type it is allowed to author: an Escalation replying to that Proposal.
+        var command = new RecordCollaborationMessageCommand(
+            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantKind.Orchestrator, ParticipantKind.Human,
+            CollaborationMessageType.Escalation, proposalResult.Value.MessageId, "An escalation", EscalationContent,
+            CollaborationMessageProvenance.Simulated);
+        var result = await handler.HandleAsync(command, CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var message = Assert.Single(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id && m.Type == CollaborationMessageType.Escalation));
+        Assert.Equal(ParticipantKind.Orchestrator, message.Actor);
+        var eventRecord = Assert.Single(
+            dbContext.Events.Where(runEvent => runEvent.RunId == run.Id && runEvent.Sequence == result.Value.EventSequence));
+        Assert.Equal(ParticipantKind.Orchestrator, eventRecord.Actor);
+    }
+
     private static RecordCollaborationMessageCommand CreateProposalCommand(Guid runId, Guid attemptId)
     {
         return new RecordCollaborationMessageCommand(
@@ -287,4 +432,6 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         "{\"severity\":\"low\",\"category\":\"correctness\",\"evidence\":\"Review\",\"requiredChange\":\"Fix\"}";
     private const string RevisionResponseContent =
         "{\"disposition\":\"Fixed\",\"evidence\":\"Tests\",\"resultingSourceChanges\":\"Updated policy\"}";
+    private const string EscalationContent =
+        "{\"unresolvedDecision\":\"Which approach\",\"options\":\"A or B\",\"consequences\":\"Delay\",\"evidence\":\"Review\",\"recommendedChoice\":\"A\"}";
 }

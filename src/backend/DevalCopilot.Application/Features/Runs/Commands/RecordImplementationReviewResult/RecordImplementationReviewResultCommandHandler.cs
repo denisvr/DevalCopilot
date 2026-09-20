@@ -169,8 +169,7 @@ public sealed class RecordImplementationReviewResultCommandHandler(IDevalCopilot
             RecordCheckpointReview(attempt, reviewProjectId, reviewCheckpointNumber, ReviewDecision.Approved, claimedExecutions, nowUtc);
 
             latestEvent = RecordCollaborationMessage(
-                run.Id,
-                attempt.Id,
+                attempt,
                 executionReportMessageId,
                 CollaborationMessageType.ReviewApproval,
                 approvedReview.Summary,
@@ -187,8 +186,7 @@ public sealed class RecordImplementationReviewResultCommandHandler(IDevalCopilot
             foreach (var finding in changesRequestedReview.Findings)
             {
                 latestEvent = RecordCollaborationMessage(
-                    run.Id,
-                    attempt.Id,
+                    attempt,
                     executionReportMessageId,
                     CollaborationMessageType.ReviewFinding,
                     finding.Summary,
@@ -375,35 +373,30 @@ public sealed class RecordImplementationReviewResultCommandHandler(IDevalCopilot
     }
 
     private RunEvent RecordCollaborationMessage(
-        Guid runId,
-        Guid attemptId,
+        Attempt attempt,
         Guid inReplyToMessageId,
         CollaborationMessageType type,
         string summary,
         string structuredContentJson,
         DateTimeOffset nowUtc)
     {
-        var message = CollaborationMessage.Record(
+        var message = CollaborationMessage.RecordAgent(
+            attempt,
             Guid.NewGuid(),
-            runId,
-            attemptId,
-            CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
             ParticipantKind.Claude,
             type,
             inReplyToMessageId,
             summary,
             structuredContentJson,
-            CollaborationMessageProvenance.ProviderObserved,
             nowUtc);
         dbContext.CollaborationMessages.Add(message);
 
         var runEvent = RunEvent.Record(
             Guid.NewGuid(),
-            runId,
-            attemptId,
+            attempt.RunId,
+            attempt.Id,
             RunEventType.CollaborationMessageRecorded,
-            ParticipantKind.Codex,
+            message.Actor,
             JsonSerializer.Serialize(new
             {
                 messageId = message.Id,

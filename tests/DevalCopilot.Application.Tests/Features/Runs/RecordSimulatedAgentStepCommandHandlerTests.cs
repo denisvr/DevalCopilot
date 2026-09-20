@@ -84,6 +84,58 @@ public sealed class RecordSimulatedAgentStepCommandHandlerTests(SqliteDatabaseFi
         Assert.Empty(dbContext.Events.Where(runEvent => runEvent.RunId == targetRun.Id || runEvent.RunId == otherRun.Id));
     }
 
+    // A real Agent attempt's protocol output belongs exclusively to its own role-specific atomic
+    // result handler; a Process attempt has no collaboration role at all. Neither may reach the
+    // legacy participant policy this command otherwise applies unconditionally.
+    [Fact]
+    public async Task HandleAsync_rejects_a_real_agent_attempt_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run) = CreateRunningRun();
+        var attempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordSimulatedAgentStepCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(CreateProposalCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("collaboration_messages.simulated_step_requires_simulated_attempt", Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Equal(RunStage.Intake, run.Stage);
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.RunId == run.Id));
+        Assert.Empty(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_a_process_attempt_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run) = CreateRunningRun();
+        var attempt = Attempt.ClaimProcess(
+            Guid.NewGuid(), run.Id, 1,
+            new ProcessExecutionIntent(@"C:\tools\build.exe", ["--verify"], @"C:\repos\devalcopilot", @"C:\repos", TimeSpan.FromMinutes(5), 65536, 131072),
+            Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordSimulatedAgentStepCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(CreateProposalCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("collaboration_messages.simulated_step_requires_simulated_attempt", Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Equal(RunStage.Intake, run.Stage);
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.RunId == run.Id));
+        Assert.Empty(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
+    }
+
     [Fact]
     public async Task HandleAsync_fails_when_the_attempt_is_already_terminal()
     {

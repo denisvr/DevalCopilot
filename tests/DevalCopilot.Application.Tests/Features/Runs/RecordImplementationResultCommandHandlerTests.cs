@@ -90,6 +90,11 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         var executionReport = Assert.Single(
             dbContext.CollaborationMessages, m => m.AttemptId == attempt.Id && m.Type == CollaborationMessageType.ExecutionReport);
         Assert.Equal(ParticipantKind.Claude, executionReport.Actor);
+
+        var journalEvent = Assert.Single(
+            dbContext.Events, e => e.AttemptId == attempt.Id && e.EventType == RunEventType.CollaborationMessageRecorded);
+        Assert.Equal(executionReport.Actor, journalEvent.Actor);
+        Assert.Equal(AgentProviderParticipant.For(attempt.AgentProvider!.Value), executionReport.Actor);
     }
 
     [Fact]

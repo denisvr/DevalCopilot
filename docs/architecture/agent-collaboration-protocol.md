@@ -36,6 +36,46 @@ Every accepted agent message maps to a project-owned envelope:
 Provider session identifiers and raw response locations are metadata on the
 attempt. They do not replace the project envelope.
 
+## Role-first message authorization
+
+Per ADR-0009, a real Agent attempt's own message-authoring authority is
+decided by its immutable role, never by which provider produced it. The
+attempt's `AgentRole` is resolved once, at claim time, and never changes
+afterward; `CollaborationMessageAuthorPolicy` maps that role to the closed set
+of message types the role may author. Provider identity (`AgentProvider`) is
+derived separately, as provenance only, through a single closed mapping
+(`AgentProviderParticipant`) — it is recorded truthfully on every message and
+event, but it grants no authoring authority and is never consulted when
+deciding whether a message type is allowed.
+
+Real terminal protocol output — a Proposal, an Acceptance or Challenge, a
+Decision and revised Proposal, an Execution report, or a Review approval or
+finding — is written only by that role's own atomic result handler
+(`RecordAgentAttemptResult`, `RecordClaudeCriticalReviewResult`,
+`RecordChallengeResolutionResult`, `RecordImplementationResult`,
+`RecordImplementationReviewResult`), alongside the terminal Domain transition,
+cardinality, artifact, checkpoint, and review-evidence invariants that
+handler alone enforces. The generic collaboration-recording command cannot
+write this output for a real Agent attempt: it rejects one outright, so a
+caller can never append an extra message, record output with no corresponding
+terminal outcome, or bypass a role's cardinality or evidence rules through
+that path.
+
+Human-authored, Orchestrator-authored, and the deterministic Simulated
+walking-skeleton sequence's messages retain the legacy participant-kind
+policy (`ValidateActorForType`) — these have no owning Agent attempt, or no
+role at all, so no role-based authorization can apply to them. That legacy
+policy is unchanged and unweakened by this stabilization.
+
+Recipient remains provider-named compatibility metadata: today's literal
+"the other provider" value pending a later recipient/read-side stabilization
+slice. This stabilization removes provider identity from author
+authorization only — it does not yet make real provider substitution (for
+example, assigning a role to a different provider) end-to-end safe, since
+recipient literals, actor/recipient inequality, provider-named read-side
+eligibility checks (`Create*Attempt` handlers), and the frontend's
+provider-named message selectors are unchanged follow-up work.
+
 ## Current durable ledger boundary
 
 The current implementation persists a project-owned, append-only ledger of

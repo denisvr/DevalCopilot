@@ -184,18 +184,14 @@ public sealed class RecordAgentAttemptResultCommandHandler(IDevalCopilotDbContex
         RunEvent latestEvent;
         if (attempt.AgentOutcome == AgentOutcome.Proposed && command.Proposal is { } proposal)
         {
-            var message = CollaborationMessage.Record(
+            var message = CollaborationMessage.RecordAgent(
+                attempt,
                 Guid.NewGuid(),
-                run.Id,
-                attempt.Id,
-                CollaborationMessage.ProtocolVersionOne,
-                ParticipantKind.Codex,
                 ParticipantKind.Claude,
                 CollaborationMessageType.Proposal,
                 null,
                 proposal.Summary,
                 proposal.StructuredContentJson,
-                CollaborationMessageProvenance.ProviderObserved,
                 nowUtc);
             dbContext.CollaborationMessages.Add(message);
 
@@ -204,7 +200,7 @@ public sealed class RecordAgentAttemptResultCommandHandler(IDevalCopilotDbContex
                 run.Id,
                 attempt.Id,
                 RunEventType.CollaborationMessageRecorded,
-                ParticipantKind.Codex,
+                message.Actor,
                 JsonSerializer.Serialize(new
                 {
                     messageId = message.Id,

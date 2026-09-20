@@ -175,7 +175,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
         if (attempt.AgentOutcome == AgentOutcome.Accepted && command.Review is { IsAcceptance: true } acceptedReview)
         {
             latestEvent = RecordCollaborationMessage(
-                run.Id, attempt.Id, inputMessageId, CollaborationMessageType.Acceptance,
+                attempt, inputMessageId, CollaborationMessageType.Acceptance,
                 acceptedReview.Acceptance!.Summary, acceptedReview.Acceptance!.StructuredContentJson, nowUtc);
         }
         else if (attempt.AgentOutcome == AgentOutcome.Challenged && command.Review is { IsAcceptance: false } challengedReview)
@@ -184,7 +184,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
             foreach (var challenge in challengedReview.Challenges)
             {
                 latestEvent = RecordCollaborationMessage(
-                    run.Id, attempt.Id, inputMessageId, CollaborationMessageType.Challenge,
+                    attempt, inputMessageId, CollaborationMessageType.Challenge,
                     challenge.Summary, challenge.StructuredContentJson, nowUtc);
             }
         }
@@ -262,35 +262,30 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
     }
 
     private RunEvent RecordCollaborationMessage(
-        Guid runId,
-        Guid attemptId,
+        Attempt attempt,
         Guid inReplyToMessageId,
         CollaborationMessageType type,
         string summary,
         string structuredContentJson,
         DateTimeOffset nowUtc)
     {
-        var message = CollaborationMessage.Record(
+        var message = CollaborationMessage.RecordAgent(
+            attempt,
             Guid.NewGuid(),
-            runId,
-            attemptId,
-            CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude,
             ParticipantKind.Codex,
             type,
             inReplyToMessageId,
             summary,
             structuredContentJson,
-            CollaborationMessageProvenance.ProviderObserved,
             nowUtc);
         dbContext.CollaborationMessages.Add(message);
 
         var runEvent = RunEvent.Record(
             Guid.NewGuid(),
-            runId,
-            attemptId,
+            attempt.RunId,
+            attempt.Id,
             RunEventType.CollaborationMessageRecorded,
-            ParticipantKind.Claude,
+            message.Actor,
             JsonSerializer.Serialize(new
             {
                 messageId = message.Id,

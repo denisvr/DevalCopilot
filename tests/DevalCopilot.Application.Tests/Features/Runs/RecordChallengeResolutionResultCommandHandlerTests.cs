@@ -108,6 +108,8 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         Assert.Equal(challengeCount + 1, events.Count);
         Assert.All(events, e => Assert.Equal(RunEventType.CollaborationMessageRecorded, e.EventType));
         Assert.Equal(result.Value.LatestEventSequence, events.Last().Sequence);
+        Assert.All(events, e => Assert.Equal(ParticipantKind.Codex, e.Actor));
+        Assert.Equal(ParticipantKind.Codex, AgentProviderParticipant.For(attempt.AgentProvider!.Value));
     }
 
     [Fact]

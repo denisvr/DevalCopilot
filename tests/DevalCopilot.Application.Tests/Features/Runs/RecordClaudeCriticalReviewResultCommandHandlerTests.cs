@@ -84,6 +84,8 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         Assert.Equal(RunEventType.CollaborationMessageRecorded, journalEvent.EventType);
         Assert.Equal(result.Value.LatestEventSequence, journalEvent.Sequence);
         Assert.Contains(message.Id.ToString(), journalEvent.PayloadJson);
+        Assert.Equal(message.Actor, journalEvent.Actor);
+        Assert.Equal(AgentProviderParticipant.For(attempt.AgentProvider!.Value), message.Actor);
     }
 
     [Theory]
@@ -126,6 +128,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         Assert.Equal(challengeCount, journalEvents.Count);
         Assert.All(journalEvents, journalEvent => Assert.Equal(RunEventType.CollaborationMessageRecorded, journalEvent.EventType));
         Assert.Equal(journalEvents[^1].Sequence, result.Value.LatestEventSequence);
+        Assert.All(journalEvents, journalEvent => Assert.Equal(ParticipantKind.Claude, journalEvent.Actor));
     }
 
     [Fact]

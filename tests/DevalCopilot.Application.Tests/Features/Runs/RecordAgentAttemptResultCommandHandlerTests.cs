@@ -74,6 +74,10 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         Assert.Equal(RunEventType.CollaborationMessageRecorded, journalEvent.EventType);
         Assert.Equal(result.Value.LatestEventSequence, journalEvent.Sequence);
         Assert.Contains(message.Id.ToString(), journalEvent.PayloadJson);
+        // Message and event provenance can never diverge: both are the same derived value, never
+        // a separately hardcoded literal or a second provider mapping.
+        Assert.Equal(message.Actor, journalEvent.Actor);
+        Assert.Equal(AgentProviderParticipant.For(attempt.AgentProvider!.Value), message.Actor);
     }
 
     [Theory]
