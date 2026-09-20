@@ -154,7 +154,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
 
         var resolvedPlan = CollaborationMessage.Record(
             Guid.NewGuid(), runId, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Add the ledger table and its query.",
             JsonSerializer.Serialize(new
             {
@@ -176,7 +176,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
 
         var executionReport = CollaborationMessage.Record(
             Guid.NewGuid(), runId, implementerAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.ExecutionReport, resolvedPlan.Id,
+            ParticipantIdentity.ForAgent(AgentRole.Implementer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.ExecutionReport, resolvedPlan.Id,
             "Added the ledger table and its query.",
             JsonSerializer.Serialize(new { completedWork = "Added table and query.", verification = "dotnet test" }),
             CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
@@ -296,7 +296,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
 
         var resolvedPlan = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Add the ledger table and its query.",
             JsonSerializer.Serialize(new
             {
@@ -318,7 +318,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
         dbContext.Attempts.Add(implementerAttempt);
 
         var executionReport = CollaborationMessage.RecordAgent(
-            implementerAttempt, Guid.NewGuid(), ParticipantKind.Claude, CollaborationMessageType.ExecutionReport, resolvedPlan.Id,
+            implementerAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.ExecutionReport, resolvedPlan.Id,
             "Added the ledger table and its query.",
             JsonSerializer.Serialize(new { completedWork = "Added table and query.", verification = "dotnet test" }),
             Now);

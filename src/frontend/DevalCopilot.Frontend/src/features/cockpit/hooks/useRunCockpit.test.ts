@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { GetRunCockpitResponse, RunEventResponse } from '../../../api/generated/api-client'
+import { GetRunCockpitResponse, ParticipantIdentityResponse, RunEventResponse } from '../../../api/generated/api-client'
 import { runCockpitClient, runEventsClient } from '../../../api/clients'
 import { createRunNotificationConnection } from '../../../api/runNotifications'
 import { useRunCockpit } from './useRunCockpit'
@@ -33,7 +33,7 @@ function cockpitFixture(runId: string): GetRunCockpitResponse {
     objective: 'Prove the walking skeleton',
     lifecycle: 'Running',
     stage: 'Plan',
-    activeParticipant: 'Codex',
+    activeParticipant: new ParticipantIdentityResponse({ kind: 'Agent', role: 'Planner', provider: 'Codex' }),
     autonomousDurationSeconds: 1,
     latestSequence: 0,
     stageMap: [],
@@ -48,7 +48,7 @@ function eventFixture(sequence: number): RunEventResponse {
     id: `event-${sequence}`,
     attemptId: undefined,
     eventType: 'codex.proposal',
-    actor: 'Codex',
+    actor: new ParticipantIdentityResponse({ kind: 'Agent', role: 'Planner', provider: 'Codex' }),
     payloadJson: JSON.stringify({ summary: `step ${sequence}` }),
     occurredAtUtc: new Date('2026-01-01T00:00:00Z'),
   })

@@ -187,7 +187,7 @@ public sealed class RecordAgentAttemptResultCommandHandler(IDevalCopilotDbContex
             var message = CollaborationMessage.RecordAgent(
                 attempt,
                 Guid.NewGuid(),
-                ParticipantKind.Claude,
+                ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
                 CollaborationMessageType.Proposal,
                 null,
                 proposal.Summary,
@@ -216,7 +216,7 @@ public sealed class RecordAgentAttemptResultCommandHandler(IDevalCopilotDbContex
                 run.Id,
                 attempt.Id,
                 RunEventType.AgentAttemptCompleted,
-                ParticipantKind.Orchestrator,
+                ParticipantIdentity.ForOrchestrator(),
                 JsonSerializer.Serialize(new { status = attempt.Status.ToString(), outcome = attempt.AgentOutcome!.Value.ToString() }),
                 nowUtc);
         }

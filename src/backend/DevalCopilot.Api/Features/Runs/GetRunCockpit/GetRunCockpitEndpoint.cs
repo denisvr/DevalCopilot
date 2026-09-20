@@ -33,7 +33,7 @@ public sealed class GetRunCockpitEndpoint(
                 value.Objective,
                 value.Lifecycle.ToString(),
                 value.Stage.ToString(),
-                value.ActiveParticipant.ToString(),
+                ParticipantIdentityResponse.FromDomain(value.ActiveParticipant),
                 value.AutonomousDurationSeconds,
                 value.LatestSequence,
                 stageMap,

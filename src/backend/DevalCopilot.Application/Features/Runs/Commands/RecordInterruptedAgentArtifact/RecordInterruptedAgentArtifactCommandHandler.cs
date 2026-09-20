@@ -72,7 +72,7 @@ public sealed class RecordInterruptedAgentArtifactCommandHandler(IDevalCopilotDb
             command.RunId,
             command.AttemptId,
             RunEventType.AgentOutputRecovered,
-            ParticipantKind.Orchestrator,
+            ParticipantIdentity.ForOrchestrator(),
             JsonSerializer.Serialize(new
             {
                 artifactId = artifact.Id,

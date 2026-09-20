@@ -254,7 +254,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
             // provider-observed Codex proposal, regardless of its Type/Actor.
             var message = CollaborationMessage.Record(
                 Guid.NewGuid(), runId, null, CollaborationMessage.ProtocolVersionOne,
-                ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+                ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
                 "A simulated proposal, never provider-observed.", ValidProposalStructuredContentJson,
                 CollaborationMessageProvenance.Simulated, now);
             dbContext.CollaborationMessages.Add(message);
@@ -313,7 +313,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
 
             var proposalMessage = CollaborationMessage.Record(
                 Guid.NewGuid(), runId, owningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-                ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+                ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
                 "Add the ledger table and its query.", ValidProposalStructuredContentJson,
                 CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(2));
             dbContext.CollaborationMessages.Add(proposalMessage);
@@ -437,7 +437,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
 
         var proposalMessage = CollaborationMessage.Record(
             Guid.NewGuid(), runId, owningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Add the ledger table and its query.", ValidProposalStructuredContentJson,
             CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(2));
         dbContext.CollaborationMessages.Add(proposalMessage);

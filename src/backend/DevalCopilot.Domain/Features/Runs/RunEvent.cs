@@ -15,7 +15,7 @@ public sealed class RunEvent
         Guid runId,
         Guid? attemptId,
         string eventType,
-        ParticipantKind actor,
+        ParticipantIdentity actor,
         string payloadJson,
         DateTimeOffset occurredAtUtc)
     {
@@ -28,7 +28,9 @@ public sealed class RunEvent
             RunId = runId,
             AttemptId = attemptId,
             EventType = eventType,
-            Actor = actor,
+            ActorKind = actor.Kind,
+            ActorAgentRole = actor.Role,
+            ActorAgentProvider = actor.Provider,
             PayloadJson = payloadJson,
             OccurredAtUtc = occurredAtUtc,
         };
@@ -48,7 +50,13 @@ public sealed class RunEvent
 
     public string EventType { get; private set; } = string.Empty;
 
-    public ParticipantKind Actor { get; private set; }
+    public ParticipantKind ActorKind { get; private set; }
+
+    public AgentRole? ActorAgentRole { get; private set; }
+
+    public AgentProvider? ActorAgentProvider { get; private set; }
+
+    public ParticipantIdentity Actor => ParticipantIdentity.FromParts(ActorKind, ActorAgentRole, ActorAgentProvider);
 
     public string PayloadJson { get; private set; } = string.Empty;
 

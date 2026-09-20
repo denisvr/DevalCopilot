@@ -15,8 +15,8 @@ public sealed class CollaborationMessageTests
             Guid.NewGuid(),
             null,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
-            ParticipantKind.Claude,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal,
             null,
             "Propose a bounded ledger.",
@@ -42,7 +42,7 @@ public sealed class CollaborationMessageTests
     {
         Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Orchestrator, ParticipantKind.Codex, CollaborationMessageType.Proposal,
+            ParticipantIdentity.ForOrchestrator(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Proposal,
             null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated, Now));
     }
 
@@ -51,7 +51,7 @@ public sealed class CollaborationMessageTests
     {
         Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge,
             null, "A challenge", "{\"disputedItem\":\"Claim timing\"}", CollaborationMessageProvenance.Simulated, Now));
     }
 
@@ -60,7 +60,7 @@ public sealed class CollaborationMessageTests
     {
         Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Decision,
+            ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Decision,
             null, "A decision", "{\"resolution\":\"Accepted\"}", CollaborationMessageProvenance.Simulated, Now));
     }
 
@@ -70,11 +70,11 @@ public sealed class CollaborationMessageTests
         var messageId = Guid.NewGuid();
         Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
             messageId, Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal,
+            ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal,
             messageId, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated, Now));
         Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal,
+            ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal,
             null, new string('a', CollaborationMessageContentPolicy.MaximumSummaryLength + 1), ProposalContent,
             CollaborationMessageProvenance.Simulated, Now));
     }
@@ -84,7 +84,7 @@ public sealed class CollaborationMessageTests
     {
         Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge,
             null, "A challenge", ChallengeContent, CollaborationMessageProvenance.Simulated, Now));
     }
 
@@ -100,7 +100,7 @@ public sealed class CollaborationMessageTests
     {
         var message = CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal,
             Guid.NewGuid(), "A revised proposal", ProposalContent, CollaborationMessageProvenance.ProviderObserved, Now);
 
         Assert.NotNull(message.InReplyToMessageId);
@@ -111,27 +111,25 @@ public sealed class CollaborationMessageTests
     {
         Assert.Throws<ArgumentException>(() => CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal,
             null, "Use C:\\tools\\agent.exe", ProposalContent, CollaborationMessageProvenance.Simulated, Now));
     }
 
     [Fact]
     public void Record_rejects_undefined_closed_enum_values()
     {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            ParticipantIdentity.FromParts((ParticipantKind)999, role: null, provider: null));
         Assert.Throws<ArgumentOutOfRangeException>(() => CollaborationMessage.Record(
             Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            (ParticipantKind)999, ParticipantKind.Claude, CollaborationMessageType.Proposal,
-            null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated, Now));
-        Assert.Throws<ArgumentOutOfRangeException>(() => CollaborationMessage.Record(
-            Guid.NewGuid(), Guid.NewGuid(), null, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, (CollaborationMessageType)999,
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), (CollaborationMessageType)999,
             null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated, Now));
     }
 
     private static CollaborationMessage RecordProposal(string protocolVersion = CollaborationMessage.ProtocolVersionOne)
     {
         return CollaborationMessage.Record(
-            Guid.NewGuid(), Guid.NewGuid(), null, protocolVersion, ParticipantKind.Codex, ParticipantKind.Claude,
+            Guid.NewGuid(), Guid.NewGuid(), null, protocolVersion, ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal, null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated, Now);
     }
 

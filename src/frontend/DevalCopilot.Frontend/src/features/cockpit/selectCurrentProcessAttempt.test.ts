@@ -8,7 +8,7 @@ function card(overrides: Partial<CollaborationCard>): CollaborationCard {
     id: 'event-0',
     attemptId: null,
     eventType: 'run.started',
-    actor: 'Orchestrator',
+    actor: { kind: 'Orchestrator', role: null, provider: null },
     summary: '',
     occurredAtUtc: '2026-01-01T00:00:00Z',
     ...overrides,

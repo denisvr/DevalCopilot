@@ -56,7 +56,7 @@ public sealed class RecordImplementationInputAlreadyImplementedCommandHandler(ID
             command.RunId,
             command.AttemptId,
             RunEventType.AgentAttemptCompleted,
-            ParticipantKind.Orchestrator,
+            ParticipantIdentity.ForOrchestrator(),
             JsonSerializer.Serialize(new { status = attempt.Status.ToString(), outcome = attempt.AgentOutcome.ToString() }),
             nowUtc));
 

@@ -35,7 +35,7 @@ public sealed class StartSimulatedRunCommandHandlerTests(SqliteDatabaseFixture f
 
         var runStartedEvent = Assert.Single(dbContext.Events, runEvent => runEvent.RunId == result.Value.RunId);
         Assert.Equal(RunEventType.RunStarted, runStartedEvent.EventType);
-        Assert.Equal(ParticipantKind.Orchestrator, runStartedEvent.Actor);
+        Assert.Equal(ParticipantIdentity.ForOrchestrator(), runStartedEvent.Actor);
     }
 
     [Fact]

@@ -27,7 +27,7 @@ public sealed class Run
             Objective = objective,
             Lifecycle = RunLifecycle.Created,
             Stage = RunStage.Intake,
-            ActiveParticipant = ParticipantKind.None,
+            ActiveParticipantKind = ParticipantKind.None,
             CreatedAtUtc = nowUtc,
             LastAdvancedAtUtc = nowUtc,
             AccumulatedAutonomousSeconds = 0,
@@ -46,7 +46,14 @@ public sealed class Run
 
     public RunStage Stage { get; private set; }
 
-    public ParticipantKind ActiveParticipant { get; private set; }
+    public ParticipantKind ActiveParticipantKind { get; private set; }
+
+    public AgentRole? ActiveAgentRole { get; private set; }
+
+    public AgentProvider? ActiveAgentProvider { get; private set; }
+
+    public ParticipantIdentity ActiveParticipant =>
+        ParticipantIdentity.FromParts(ActiveParticipantKind, ActiveAgentRole, ActiveAgentProvider);
 
     public DateTimeOffset CreatedAtUtc { get; private set; }
 
@@ -70,11 +77,11 @@ public sealed class Run
         }
 
         Lifecycle = RunLifecycle.Running;
-        ActiveParticipant = ParticipantKind.Orchestrator;
+        SetActiveParticipant(ParticipantIdentity.ForOrchestrator());
         LastAdvancedAtUtc = nowUtc;
     }
 
-    public void AdvanceStage(RunStage nextStage, ParticipantKind participant, DateTimeOffset nowUtc)
+    public void AdvanceStage(RunStage nextStage, ParticipantIdentity participant, DateTimeOffset nowUtc)
     {
         if (Lifecycle != RunLifecycle.Running)
         {
@@ -89,7 +96,7 @@ public sealed class Run
 
         AccumulateAutonomousTime(nowUtc);
         Stage = nextStage;
-        ActiveParticipant = participant;
+        SetActiveParticipant(participant);
         LastAdvancedAtUtc = nowUtc;
     }
 
@@ -103,7 +110,7 @@ public sealed class Run
         AccumulateAutonomousTime(nowUtc);
         Lifecycle = RunLifecycle.Completed;
         Stage = RunStage.Completed;
-        ActiveParticipant = ParticipantKind.None;
+        SetActiveParticipant(ParticipantIdentity.None());
         LastAdvancedAtUtc = nowUtc;
     }
 
@@ -120,7 +127,7 @@ public sealed class Run
 
         AccumulateAutonomousTime(nowUtc);
         Lifecycle = RunLifecycle.Failed;
-        ActiveParticipant = ParticipantKind.None;
+        SetActiveParticipant(ParticipantIdentity.None());
         LastAdvancedAtUtc = nowUtc;
     }
 
@@ -138,7 +145,7 @@ public sealed class Run
 
         AccumulateAutonomousTime(nowUtc);
         Lifecycle = RunLifecycle.Interrupted;
-        ActiveParticipant = ParticipantKind.None;
+        SetActiveParticipant(ParticipantIdentity.None());
         LastAdvancedAtUtc = nowUtc;
     }
 
@@ -150,5 +157,13 @@ public sealed class Run
         {
             AccumulatedAutonomousSeconds += elapsed;
         }
+    }
+
+    private void SetActiveParticipant(ParticipantIdentity participant)
+    {
+        ArgumentNullException.ThrowIfNull(participant);
+        ActiveParticipantKind = participant.Kind;
+        ActiveAgentRole = participant.Role;
+        ActiveAgentProvider = participant.Provider;
     }
 }

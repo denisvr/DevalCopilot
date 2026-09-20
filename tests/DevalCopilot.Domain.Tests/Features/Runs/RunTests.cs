@@ -14,7 +14,7 @@ public sealed class RunTests
 
         Assert.Equal(RunLifecycle.Created, run.Lifecycle);
         Assert.Equal(RunStage.Intake, run.Stage);
-        Assert.Equal(ParticipantKind.None, run.ActiveParticipant);
+        Assert.Equal(ParticipantIdentity.None(), run.ActiveParticipant);
         Assert.Equal(0, run.AccumulatedAutonomousSeconds);
     }
 
@@ -26,7 +26,7 @@ public sealed class RunTests
         run.Claim(BaseTime.AddSeconds(1));
 
         Assert.Equal(RunLifecycle.Running, run.Lifecycle);
-        Assert.Equal(ParticipantKind.Orchestrator, run.ActiveParticipant);
+        Assert.Equal(ParticipantIdentity.ForOrchestrator(), run.ActiveParticipant);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class RunTests
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
 
         Assert.Throws<InvalidOperationException>(
-            () => run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(1)));
+            () => run.AdvanceStage(RunStage.Plan, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(1)));
     }
 
     [Fact]
@@ -52,12 +52,12 @@ public sealed class RunTests
     {
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
         run.Claim(BaseTime);
-        run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(1));
+        run.AdvanceStage(RunStage.Plan, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(2)));
+            () => run.AdvanceStage(RunStage.Plan, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(2)));
         Assert.Throws<InvalidOperationException>(
-            () => run.AdvanceStage(RunStage.Intake, ParticipantKind.Codex, BaseTime.AddSeconds(2)));
+            () => run.AdvanceStage(RunStage.Intake, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(2)));
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public sealed class RunTests
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
         run.Claim(BaseTime);
 
-        run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(5));
-        run.AdvanceStage(RunStage.Critique, ParticipantKind.Claude, BaseTime.AddSeconds(12));
+        run.AdvanceStage(RunStage.Plan, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(5));
+        run.AdvanceStage(RunStage.Critique, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), BaseTime.AddSeconds(12));
 
         Assert.Equal(12, run.AccumulatedAutonomousSeconds);
     }
@@ -77,13 +77,13 @@ public sealed class RunTests
     {
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
         run.Claim(BaseTime);
-        run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(1));
+        run.AdvanceStage(RunStage.Plan, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(1));
 
         run.Complete(BaseTime.AddSeconds(2));
 
         Assert.Equal(RunLifecycle.Completed, run.Lifecycle);
         Assert.Equal(RunStage.Completed, run.Stage);
-        Assert.Equal(ParticipantKind.None, run.ActiveParticipant);
+        Assert.Equal(ParticipantIdentity.None(), run.ActiveParticipant);
     }
 
     [Fact]
@@ -101,13 +101,13 @@ public sealed class RunTests
     {
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
         run.Claim(BaseTime);
-        run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(1));
+        run.AdvanceStage(RunStage.Plan, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(1));
 
         run.Fail(BaseTime.AddSeconds(2));
 
         Assert.Equal(RunLifecycle.Failed, run.Lifecycle);
         Assert.Equal(RunStage.Plan, run.Stage);
-        Assert.Equal(ParticipantKind.None, run.ActiveParticipant);
+        Assert.Equal(ParticipantIdentity.None(), run.ActiveParticipant);
     }
 
     [Fact]
@@ -123,13 +123,13 @@ public sealed class RunTests
     {
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
         run.Claim(BaseTime);
-        run.AdvanceStage(RunStage.Plan, ParticipantKind.Codex, BaseTime.AddSeconds(1));
+        run.AdvanceStage(RunStage.Plan, ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), BaseTime.AddSeconds(1));
 
         run.MarkInterrupted(BaseTime.AddSeconds(2));
 
         Assert.Equal(RunLifecycle.Interrupted, run.Lifecycle);
         Assert.Equal(RunStage.Plan, run.Stage);
-        Assert.Equal(ParticipantKind.None, run.ActiveParticipant);
+        Assert.Equal(ParticipantIdentity.None(), run.ActiveParticipant);
     }
 
     [Fact]

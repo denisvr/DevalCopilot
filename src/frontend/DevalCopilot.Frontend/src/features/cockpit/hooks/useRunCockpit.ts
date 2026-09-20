@@ -4,6 +4,7 @@ import { runCockpitClient, runEventsClient } from '../../../api/clients'
 import { createRunNotificationConnection, type RunAdvancedNotification } from '../../../api/runNotifications'
 import type { CollaborationCard, ConnectionState } from '../types'
 import { parseEventSummary } from '../parseEventSummary'
+import { toParticipantIdentity } from '../participantIdentity'
 
 interface UseRunCockpitResult {
   cockpit: GetRunCockpitResponse | null
@@ -43,7 +44,7 @@ function toCard(event: RunEventResponse): CollaborationCard {
     id: event.id ?? '',
     attemptId: event.attemptId ?? null,
     eventType: event.eventType ?? '',
-    actor: event.actor ?? '',
+    actor: toParticipantIdentity(event.actor),
     summary: parseEventSummary(event.payloadJson ?? ''),
     occurredAtUtc: (event.occurredAtUtc as unknown as string) ?? '',
   }

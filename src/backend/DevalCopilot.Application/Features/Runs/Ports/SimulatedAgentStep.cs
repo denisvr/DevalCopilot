@@ -9,8 +9,8 @@ namespace DevalCopilot.Application.Features.Runs.Ports;
 /// </summary>
 public sealed record SimulatedAgentStep(
     RunStage Stage,
-    ParticipantKind Actor,
-    ParticipantKind Recipient,
+    ParticipantIdentity Actor,
+    ParticipantIdentity Recipient,
     string EventType,
     CollaborationMessageType MessageType,
     int? InReplyToStepIndex,

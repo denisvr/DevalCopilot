@@ -129,7 +129,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     {
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), runId, attemptId, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Add the ledger table and its query.",
             JsonSerializer.Serialize(new
             {
@@ -169,7 +169,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var acceptance = CollaborationMessage.Record(
             Guid.NewGuid(), runId, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Acceptance, proposal.Id,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, proposal.Id,
             "Accepted as proposed.",
             JsonSerializer.Serialize(new { rationale = "Sound and complete." }),
             CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
@@ -193,7 +193,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var challenge = CollaborationMessage.Record(
             Guid.NewGuid(), runId, originalPlanningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge, originalProposal.Id,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge, originalProposal.Id,
             "The risk section is too thin.",
             JsonSerializer.Serialize(new
             {
@@ -216,7 +216,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var decision = CollaborationMessage.Record(
             Guid.NewGuid(), runId, resolverAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Decision, challenge.Id,
+            ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Decision, challenge.Id,
             "Accepted; added a mitigation.",
             JsonSerializer.Serialize(new
             {
@@ -230,7 +230,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var revisedProposal = CollaborationMessage.Record(
             Guid.NewGuid(), runId, resolverAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, originalProposal.Id,
+            ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, originalProposal.Id,
             "Add the ledger table, its query, and a rollback step.",
             JsonSerializer.Serialize(new
             {
@@ -316,7 +316,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var challenge = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, originalPlanningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge, originalProposal.Id,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge, originalProposal.Id,
             "The risk section is too thin.",
             JsonSerializer.Serialize(new
             {
@@ -342,7 +342,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         // (Codex or Human only) is irrelevant to a real Agent-authored message, which RecordAgent
         // never checks against — exactly as production behaves post-Slice-B.
         var decision = CollaborationMessage.RecordAgent(
-            resolverAttempt, Guid.NewGuid(), ParticipantKind.Codex, CollaborationMessageType.Decision, challenge.Id,
+            resolverAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Decision, challenge.Id,
             "Accepted; added a mitigation.",
             JsonSerializer.Serialize(new
             {
@@ -355,7 +355,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         dbContext.CollaborationMessages.Add(decision);
 
         var revisedProposal = CollaborationMessage.RecordAgent(
-            resolverAttempt, Guid.NewGuid(), ParticipantKind.Codex, CollaborationMessageType.Proposal, originalProposal.Id,
+            resolverAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Proposal, originalProposal.Id,
             "Add the ledger table, its query, and a rollback step.",
             JsonSerializer.Serialize(new
             {
@@ -409,7 +409,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
     // Fail-closed regression: an otherwise-valid Accepted critical-review attempt whose own
     // provider is missing or undefined (malformed persisted state) must be rejected safely and
-    // without mutation — never allowed to reach AgentProviderParticipant.For and throw. The
+    // without mutation — never allowed to reach ParticipantIdentity.ForAgentWithUnknownRole and throw. The
     // corrupted review is simply invisible to this handler's own query (which requires
     // AgentProvider is not { } ... — see AgentAuthoredMessageEligibility's sibling reasoning),
     // so this surfaces as "no accepted review found," not a distinct error code.
@@ -447,7 +447,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), reviewAttempt.Id, proposal.Id, sequence: 0));
         var acceptance = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Acceptance, proposal.Id,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, proposal.Id,
             "Accepted as proposed.",
             JsonSerializer.Serialize(new { rationale = "Sound and complete." }),
             CollaborationMessageProvenance.ProviderObserved, Now);

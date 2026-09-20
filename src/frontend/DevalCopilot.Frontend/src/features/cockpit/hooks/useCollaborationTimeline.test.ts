@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CollaborationMessageTimelineResponse } from '../../../api/generated/api-client'
+import { CollaborationMessageTimelineResponse, ParticipantIdentityResponse } from '../../../api/generated/api-client'
 import { collaborationTimelineClient } from '../../../api/clients'
 import { useCollaborationTimeline } from './useCollaborationTimeline'
 
@@ -23,8 +23,8 @@ function timelineMessage(summary = 'A proposal'): CollaborationMessageTimelineRe
   return new CollaborationMessageTimelineResponse({
     sequence: 1,
     id: 'message-1',
-    actor: 'Codex',
-    recipient: 'Claude',
+    actor: new ParticipantIdentityResponse({ kind: 'Agent', role: 'Planner', provider: 'Codex' }),
+    recipient: new ParticipantIdentityResponse({ kind: 'Agent', provider: 'ClaudeCode' }),
     type: 'Proposal',
     summary,
     structuredContentJson: '{"scope":"Ledger"}',

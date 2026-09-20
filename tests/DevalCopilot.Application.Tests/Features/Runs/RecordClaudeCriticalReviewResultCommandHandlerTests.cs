@@ -70,8 +70,8 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
 
         var message = Assert.Single(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
         Assert.Equal(attempt.Id, message.AttemptId);
-        Assert.Equal(ParticipantKind.Claude, message.Actor);
-        Assert.Equal(ParticipantKind.Codex, message.Recipient);
+        Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), message.Actor);
+        Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), message.Recipient);
         Assert.Equal(CollaborationMessageType.Acceptance, message.Type);
         Assert.Equal(CollaborationMessage.ProtocolVersionOne, message.ProtocolVersion);
         Assert.Equal(CollaborationMessageProvenance.ProviderObserved, message.Provenance);
@@ -85,7 +85,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         Assert.Equal(result.Value.LatestEventSequence, journalEvent.Sequence);
         Assert.Contains(message.Id.ToString(), journalEvent.PayloadJson);
         Assert.Equal(message.Actor, journalEvent.Actor);
-        Assert.Equal(AgentProviderParticipant.For(attempt.AgentProvider!.Value), message.Actor);
+        Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, attempt.AgentProvider!.Value), message.Actor);
     }
 
     [Theory]
@@ -117,8 +117,8 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         Assert.All(messages, message =>
         {
             Assert.Equal(attempt.Id, message.AttemptId);
-            Assert.Equal(ParticipantKind.Claude, message.Actor);
-            Assert.Equal(ParticipantKind.Codex, message.Recipient);
+            Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), message.Actor);
+            Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), message.Recipient);
             Assert.Equal(CollaborationMessageType.Challenge, message.Type);
             Assert.Equal(inputMessage.CollaborationMessageId, message.InReplyToMessageId);
             Assert.Equal(CollaborationMessageProvenance.ProviderObserved, message.Provenance);
@@ -128,7 +128,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         Assert.Equal(challengeCount, journalEvents.Count);
         Assert.All(journalEvents, journalEvent => Assert.Equal(RunEventType.CollaborationMessageRecorded, journalEvent.EventType));
         Assert.Equal(journalEvents[^1].Sequence, result.Value.LatestEventSequence);
-        Assert.All(journalEvents, journalEvent => Assert.Equal(ParticipantKind.Claude, journalEvent.Actor));
+        Assert.All(journalEvents, journalEvent => Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), journalEvent.Actor));
     }
 
     [Fact]

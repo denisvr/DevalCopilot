@@ -57,8 +57,8 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
 
         var message = Assert.Single(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
         Assert.Equal(attempt.Id, message.AttemptId);
-        Assert.Equal(ParticipantKind.Codex, message.Actor);
-        Assert.Equal(ParticipantKind.Claude, message.Recipient);
+        Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), message.Actor);
+        Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), message.Recipient);
         Assert.Equal(CollaborationMessageType.Proposal, message.Type);
         Assert.Equal(CollaborationMessage.ProtocolVersionOne, message.ProtocolVersion);
         Assert.Equal(CollaborationMessageProvenance.ProviderObserved, message.Provenance);
@@ -77,7 +77,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         // Message and event provenance can never diverge: both are the same derived value, never
         // a separately hardcoded literal or a second provider mapping.
         Assert.Equal(message.Actor, journalEvent.Actor);
-        Assert.Equal(AgentProviderParticipant.For(attempt.AgentProvider!.Value), message.Actor);
+        Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.Planner, attempt.AgentProvider!.Value), message.Actor);
     }
 
     [Theory]

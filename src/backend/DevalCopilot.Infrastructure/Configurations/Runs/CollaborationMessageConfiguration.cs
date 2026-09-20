@@ -16,8 +16,14 @@ public sealed class CollaborationMessageConfiguration : IEntityTypeConfiguration
         builder.HasIndex(message => new { message.RunId, message.InReplyToMessageId });
 
         builder.Property(message => message.ProtocolVersion).HasMaxLength(8).IsRequired();
-        builder.Property(message => message.Actor).HasConversion<string>().HasMaxLength(32).IsRequired();
-        builder.Property(message => message.Recipient).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(message => message.ActorKind).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(message => message.ActorAgentRole).HasConversion<string>().HasMaxLength(32);
+        builder.Property(message => message.ActorAgentProvider).HasConversion<string>().HasMaxLength(32);
+        builder.Property(message => message.RecipientKind).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(message => message.RecipientAgentRole).HasConversion<string>().HasMaxLength(32);
+        builder.Property(message => message.RecipientAgentProvider).HasConversion<string>().HasMaxLength(32);
+        builder.Ignore(message => message.Actor);
+        builder.Ignore(message => message.Recipient);
         builder.Property(message => message.Type).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(message => message.Provenance).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(message => message.Summary).HasMaxLength(CollaborationMessageContentPolicy.MaximumSummaryLength).IsRequired();

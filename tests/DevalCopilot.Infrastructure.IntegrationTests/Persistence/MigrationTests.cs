@@ -1,6 +1,7 @@
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -30,7 +31,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             context.Attempts.Add(attempt);
             await context.SaveChangesAsync();
 
-            var runEvent = RunEvent.Record(Guid.NewGuid(), run.Id, attempt.Id, RunEventType.RunStarted, ParticipantKind.Orchestrator, "{}", now);
+            var runEvent = RunEvent.Record(Guid.NewGuid(), run.Id, attempt.Id, RunEventType.RunStarted, ParticipantIdentity.ForOrchestrator(), "{}", now);
             context.Events.Add(runEvent);
             await context.SaveChangesAsync();
 
@@ -60,6 +61,100 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AgentAttemptCorrectionRound1", appliedMigrations);
         Assert.Contains("AddClaudeCriticalReviewAttempts", appliedMigrations);
         Assert.Contains("AddAttemptInputMessages", appliedMigrations);
+        Assert.Contains("AddNeutralParticipantIdentity", appliedMigrations);
+    }
+
+    [Fact]
+    public async Task Migrate_backfills_provider_named_participants_without_inventing_unknown_roles()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var attemptBoundEventId = Guid.NewGuid();
+        var attemptlessEventId = Guid.NewGuid();
+        var orchestratorEventId = Guid.NewGuid();
+        var messageId = Guid.NewGuid();
+
+        await using (var context = fixture.CreateContext())
+        {
+            await context.Database.MigrateAsync("AddAttemptVerificationEvidence");
+
+            var project = Project.Register(
+                Guid.NewGuid(),
+                "Participant migration",
+                $@"C:\repos\participant-migration-{Guid.NewGuid():N}",
+                now);
+            context.Projects.Add(project);
+            await context.SaveChangesAsync();
+
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO runs
+                       (Id, ProjectId, ExecutionNumber, Objective, Lifecycle, Stage, ActiveParticipant,
+                        CreatedAtUtc, LastAdvancedAtUtc, AccumulatedAutonomousSeconds)
+                   VALUES
+                       ({runId}, {project.Id}, {1}, {"Preserve participant identity"},
+                        {nameof(RunLifecycle.Running)}, {nameof(RunStage.Critique)}, {"Codex"},
+                        {now}, {now}, {0d})");
+
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts
+                       (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments,
+                        AgentRole, AgentProvider)
+                   VALUES
+                       ({attemptId}, {runId}, {1}, {nameof(AttemptKind.Agent)},
+                        {nameof(AttemptStatus.Completed)}, {now}, {""},
+                        {nameof(AgentRole.CriticalReviewer)}, {nameof(AgentProvider.ClaudeCode)})");
+
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO events (Id, RunId, AttemptId, EventType, Actor, PayloadJson, OccurredAtUtc)
+                   VALUES
+                       ({attemptBoundEventId}, {runId}, {attemptId}, {nameof(RunEventType.AgentAttemptCompleted)},
+                        {"Claude"}, {"{}"}, {now}),
+                       ({attemptlessEventId}, {runId}, NULL, {nameof(RunEventType.RunCompleted)},
+                        {"Codex"}, {"{}"}, {now}),
+                       ({orchestratorEventId}, {runId}, NULL, {nameof(RunEventType.RunStarted)},
+                        {nameof(ParticipantKind.Orchestrator)}, {"{}"}, {now})");
+
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO collaboration_messages
+                       (Id, RunId, AttemptId, ProtocolVersion, Actor, Recipient, Type, InReplyToMessageId,
+                        Summary, StructuredContentJson, Provenance, OccurredAtUtc)
+                   VALUES
+                       ({messageId}, {runId}, {attemptId}, {CollaborationMessage.ProtocolVersionOne},
+                        {"Claude"}, {"Codex"}, {nameof(CollaborationMessageType.Acceptance)}, NULL,
+                        {"Historical review"}, {"{\"rationale\":\"Historical evidence\"}"},
+                        {nameof(CollaborationMessageProvenance.ProviderObserved)}, {now})");
+        }
+
+        await using (var context = fixture.CreateContext())
+        {
+            await context.Database.MigrateAsync();
+        }
+
+        await using var reopened = fixture.CreateContext();
+        var run = await reopened.Runs.SingleAsync(candidate => candidate.Id == runId);
+        Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), run.ActiveParticipant);
+
+        var attemptBoundEvent = await reopened.Events.SingleAsync(candidate => candidate.Id == attemptBoundEventId);
+        Assert.Equal(
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            attemptBoundEvent.Actor);
+
+        var attemptlessEvent = await reopened.Events.SingleAsync(candidate => candidate.Id == attemptlessEventId);
+        Assert.Equal(
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
+            attemptlessEvent.Actor);
+
+        var orchestratorEvent = await reopened.Events.SingleAsync(candidate => candidate.Id == orchestratorEventId);
+        Assert.Equal(ParticipantIdentity.ForOrchestrator(), orchestratorEvent.Actor);
+
+        var message = await reopened.CollaborationMessages.SingleAsync(candidate => candidate.Id == messageId);
+        Assert.Equal(
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            message.Actor);
+        Assert.Equal(
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
+            message.Recipient);
     }
 
     /// <summary>
@@ -90,12 +185,8 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 
-            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Prove truncated backfill", now);
-            context.Runs.Add(run);
-            await context.SaveChangesAsync();
-            runId = run.Id;
-
-            run.Claim(now);
+            runId = Guid.NewGuid();
+            await InsertHistoricalRunAsync(context, runId, project.Id, "Prove truncated backfill", now);
             attemptId = Guid.NewGuid();
 
             // Raw SQL, not Attempt.Claim(...) + context.Attempts.Add(...): at this schema
@@ -106,7 +197,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             // rationale as the HostCapabilitySnapshot backfill test below.
             await context.Database.ExecuteSqlInterpolatedAsync(
                 $@"INSERT INTO attempts (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments)
-                   VALUES ({attemptId}, {run.Id}, {1}, {nameof(AttemptKind.Simulated)}, {nameof(AttemptStatus.Running)}, {now}, {""})");
+                   VALUES ({attemptId}, {runId}, {1}, {nameof(AttemptKind.Simulated)}, {nameof(AttemptStatus.Running)}, {now}, {""})");
 
             // Raw SQL: at this schema checkpoint Truncated is NOT NULL, but the currently compiled
             // Artifact/ArtifactConfiguration model already reflects the *new* nullable shape, so
@@ -116,13 +207,13 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
                 $@"INSERT INTO artifacts
                        (Id, RunId, AttemptId, Purpose, MediaType, RelativeStoragePath, ContentHash, ByteLength, Truncated, CaptureOutcome, Sensitivity, RetentionPolicy, CreatedAtUtc)
                    VALUES
-                       ({truncatedTrueArtifactId}, {run.Id}, {attemptId}, {nameof(ArtifactPurpose.ProcessStandardOutput)}, {"text/plain; charset=utf-8"}, {"runs/r/attempts/a/stdout.sealed"}, {"sha256:aaa"}, {128L}, {true}, {nameof(ArtifactCaptureOutcome.Captured)}, {nameof(ArtifactSensitivity.RedactedBestEffort)}, {nameof(ArtifactRetentionPolicy.RetainUntilRunDeleted)}, {now})");
+                       ({truncatedTrueArtifactId}, {runId}, {attemptId}, {nameof(ArtifactPurpose.ProcessStandardOutput)}, {"text/plain; charset=utf-8"}, {"runs/r/attempts/a/stdout.sealed"}, {"sha256:aaa"}, {128L}, {true}, {nameof(ArtifactCaptureOutcome.Captured)}, {nameof(ArtifactSensitivity.RedactedBestEffort)}, {nameof(ArtifactRetentionPolicy.RetainUntilRunDeleted)}, {now})");
 
             await context.Database.ExecuteSqlInterpolatedAsync(
                 $@"INSERT INTO artifacts
                        (Id, RunId, AttemptId, Purpose, MediaType, RelativeStoragePath, ContentHash, ByteLength, Truncated, CaptureOutcome, Sensitivity, RetentionPolicy, CreatedAtUtc)
                    VALUES
-                       ({truncatedFalseArtifactId}, {run.Id}, {attemptId}, {nameof(ArtifactPurpose.ProcessStandardError)}, {"text/plain; charset=utf-8"}, {"runs/r/attempts/a/stderr.sealed"}, {"sha256:bbb"}, {64L}, {false}, {nameof(ArtifactCaptureOutcome.Captured)}, {nameof(ArtifactSensitivity.RedactedBestEffort)}, {nameof(ArtifactRetentionPolicy.RetainUntilRunDeleted)}, {now})");
+                       ({truncatedFalseArtifactId}, {runId}, {attemptId}, {nameof(ArtifactPurpose.ProcessStandardError)}, {"text/plain; charset=utf-8"}, {"runs/r/attempts/a/stderr.sealed"}, {"sha256:bbb"}, {64L}, {false}, {nameof(ArtifactCaptureOutcome.Captured)}, {nameof(ArtifactSensitivity.RedactedBestEffort)}, {nameof(ArtifactRetentionPolicy.RetainUntilRunDeleted)}, {now})");
         }
 
         await using (var context = fixture.CreateContext())
@@ -249,10 +340,8 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 
-            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Prove response contract backfill", now);
-            context.Runs.Add(run);
-            await context.SaveChangesAsync();
-            runId = run.Id;
+            runId = Guid.NewGuid();
+            await InsertHistoricalRunAsync(context, runId, project.Id, "Prove response contract backfill", now);
 
             // (a) A pre-existing Codex planning Agent attempt — before this migration, the only
             // response contract any Agent attempt could ever have was Proposal, so this row must
@@ -310,10 +399,8 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             context.Projects.Add(project);
             await context.SaveChangesAsync();
 
-            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Prove attempt input message backfill", now);
-            context.Runs.Add(run);
-            await context.SaveChangesAsync();
-            runId = run.Id;
+            runId = Guid.NewGuid();
+            await InsertHistoricalRunAsync(context, runId, project.Id, "Prove attempt input message backfill", now);
 
             // (a) A pre-existing critical-review attempt with a real reviewed Proposal — must be
             // truthfully backfilled as this attempt's sole input, at Sequence 0.
@@ -368,8 +455,8 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             run.Id,
             null,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
-            ParticipantKind.Claude,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal,
             null,
             "Record a bounded proposal.",
@@ -403,8 +490,8 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             run.Id,
             attempt.Id,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude,
-            ParticipantKind.Codex,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.Acceptance,
             proposal.Id,
             "The proposal is sound.",
@@ -447,8 +534,8 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             run.Id,
             null,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
-            ParticipantKind.Claude,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal,
             null,
             "Record a bounded proposal.",
@@ -623,4 +710,18 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Equal(["test", "--no-restore"], persisted.Arguments);
         Assert.Equal(2, (await reopenedContext.Projects.SingleAsync(savedProject => savedProject.Id == project.Id)).NextVerificationCommandNumber);
     }
+
+    private static Task<int> InsertHistoricalRunAsync(
+        DevalCopilotDbContext context,
+        Guid runId,
+        Guid projectId,
+        string objective,
+        DateTimeOffset nowUtc) =>
+        context.Database.ExecuteSqlInterpolatedAsync(
+            $@"INSERT INTO runs
+                   (Id, ProjectId, ExecutionNumber, Objective, Lifecycle, Stage, ActiveParticipant,
+                    CreatedAtUtc, LastAdvancedAtUtc, AccumulatedAutonomousSeconds)
+               VALUES
+                   ({runId}, {projectId}, {1}, {objective}, {nameof(RunLifecycle.Created)},
+                    {nameof(RunStage.Intake)}, {nameof(ParticipantKind.None)}, {nowUtc}, {nowUtc}, {0d})");
 }

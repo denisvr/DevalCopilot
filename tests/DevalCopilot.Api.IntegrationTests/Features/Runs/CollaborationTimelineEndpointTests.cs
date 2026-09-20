@@ -55,8 +55,12 @@ public sealed class CollaborationTimelineEndpointTests(ApiWebApplicationFactory 
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
         var message = Assert.Single(payload!);
-        Assert.Equal("Codex", message.Actor);
-        Assert.Equal("Claude", message.Recipient);
+        Assert.Equal("Agent", message.Actor.Kind);
+        Assert.Null(message.Actor.Role);
+        Assert.Equal("Codex", message.Actor.Provider);
+        Assert.Equal("Agent", message.Recipient.Kind);
+        Assert.Null(message.Recipient.Role);
+        Assert.Equal("ClaudeCode", message.Recipient.Provider);
         Assert.Equal("Proposal", message.Type);
         Assert.Equal("Simulated", message.Provenance);
         Assert.DoesNotContain("resolvedExecutablePath", rawPayload, StringComparison.OrdinalIgnoreCase);
@@ -78,8 +82,8 @@ public sealed class CollaborationTimelineEndpointTests(ApiWebApplicationFactory 
             run.Id,
             null,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
-            ParticipantKind.Claude,
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal,
             null,
             "Expose a bounded protocol card.",

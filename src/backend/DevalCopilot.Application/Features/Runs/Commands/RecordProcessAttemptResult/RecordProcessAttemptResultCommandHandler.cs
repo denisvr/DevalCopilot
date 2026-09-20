@@ -80,7 +80,7 @@ public sealed class RecordProcessAttemptResultCommandHandler(IDevalCopilotDbCont
                 command.RunId,
                 command.AttemptId,
                 RunEventType.ProcessEndedWithoutOutput,
-                ParticipantKind.Orchestrator,
+                ParticipantIdentity.ForOrchestrator(),
                 JsonSerializer.Serialize(new
                 {
                     summary = "Process attempt ended without any captured output.",
@@ -122,6 +122,6 @@ public sealed class RecordProcessAttemptResultCommandHandler(IDevalCopilotDbCont
             retentionPolicy = artifact.RetentionPolicy.ToString(),
         });
         dbContext.Events.Add(RunEvent.Record(
-            Guid.NewGuid(), runId, attemptId, RunEventType.ProcessOutputCaptured, ParticipantKind.Orchestrator, payload, nowUtc));
+            Guid.NewGuid(), runId, attemptId, RunEventType.ProcessOutputCaptured, ParticipantIdentity.ForOrchestrator(), payload, nowUtc));
     }
 }

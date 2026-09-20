@@ -86,6 +86,7 @@ export type {
   GetProcessAttemptOutputResponse,
   GetProjectWorkspaceResponse,
   GetRunCockpitResponse,
+  ParticipantIdentityResponse,
   PrepareRepositoryWorkspaceResponse,
   ProjectRunSummaryResponse,
   ProviderRuntimePreflightResponse,

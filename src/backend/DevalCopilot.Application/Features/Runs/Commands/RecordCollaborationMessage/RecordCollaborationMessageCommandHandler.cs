@@ -87,7 +87,7 @@ public sealed class RecordCollaborationMessageCommandHandler(IDevalCopilotDbCont
                     "A collaboration message may only reference a Simulated attempt through this path."));
             }
         }
-        else if (command.Actor is ParticipantKind.Codex or ParticipantKind.Claude)
+        else if (command.Actor.Kind == ParticipantKind.Agent)
         {
             return Result<RecordCollaborationMessageCommandResult>.Failure(Error.Conflict(
                 "collaboration_messages.actor_requires_attempt",

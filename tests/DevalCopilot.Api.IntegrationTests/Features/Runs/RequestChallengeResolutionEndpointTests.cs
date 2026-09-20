@@ -215,7 +215,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
 
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), runId, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Add the ledger table and its query.", ValidProposalStructuredContentJson,
             CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(2));
         dbContext.CollaborationMessages.Add(proposal);
@@ -233,7 +233,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
         {
             var challenge = CollaborationMessage.Record(
                 Guid.NewGuid(), runId, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-                ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge, proposal.Id,
+                ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge, proposal.Id,
                 $"Challenge {index + 1} summary",
                 JsonSerializer.Serialize(new
                 {

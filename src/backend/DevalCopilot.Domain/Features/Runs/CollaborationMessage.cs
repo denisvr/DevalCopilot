@@ -17,8 +17,8 @@ public sealed class CollaborationMessage
         Guid runId,
         Guid? attemptId,
         string protocolVersion,
-        ParticipantKind actor,
-        ParticipantKind recipient,
+        ParticipantIdentity actor,
+        ParticipantIdentity recipient,
         CollaborationMessageType type,
         Guid? inReplyToMessageId,
         string summary,
@@ -44,7 +44,7 @@ public sealed class CollaborationMessage
     public static CollaborationMessage RecordAgent(
         Attempt attempt,
         Guid id,
-        ParticipantKind recipient,
+        ParticipantIdentity recipient,
         CollaborationMessageType type,
         Guid? inReplyToMessageId,
         string summary,
@@ -93,7 +93,7 @@ public sealed class CollaborationMessage
                 nameof(attempt));
         }
 
-        var actor = AgentProviderParticipant.For(provider);
+        var actor = ParticipantIdentity.ForAgent(role, provider);
 
         return RecordCore(
             id, attempt.RunId, attempt.Id, protocolVersion, actor, recipient, type, inReplyToMessageId, summary,
@@ -121,8 +121,8 @@ public sealed class CollaborationMessage
         Guid runId,
         Guid? attemptId,
         string protocolVersion,
-        ParticipantKind actor,
-        ParticipantKind recipient,
+        ParticipantIdentity actor,
+        ParticipantIdentity recipient,
         CollaborationMessageType type,
         Guid? inReplyToMessageId,
         string summary,
@@ -141,7 +141,10 @@ public sealed class CollaborationMessage
             throw new ArgumentException("The collaboration protocol version is not supported.", nameof(protocolVersion));
         }
 
-        if (!Enum.IsDefined(actor) || actor == ParticipantKind.None || !Enum.IsDefined(recipient) || recipient == ParticipantKind.None)
+        ArgumentNullException.ThrowIfNull(actor);
+        ArgumentNullException.ThrowIfNull(recipient);
+
+        if (actor.Kind == ParticipantKind.None || recipient.Kind == ParticipantKind.None)
         {
             throw new ArgumentOutOfRangeException(nameof(actor));
         }
@@ -149,6 +152,12 @@ public sealed class CollaborationMessage
         if (actor == recipient || !Enum.IsDefined(type) || !Enum.IsDefined(provenance))
         {
             throw new ArgumentOutOfRangeException(nameof(type));
+        }
+
+        if (provenance == CollaborationMessageProvenance.ProviderObserved
+            && (actor.Kind != ParticipantKind.Agent || !actor.Role.HasValue))
+        {
+            throw new ArgumentException("Provider-observed messages require a role-bound Agent actor.", nameof(actor));
         }
 
         if (inReplyToMessageId == id)
@@ -176,8 +185,12 @@ public sealed class CollaborationMessage
             RunId = runId,
             AttemptId = attemptId,
             ProtocolVersion = protocolVersion,
-            Actor = actor,
-            Recipient = recipient,
+            ActorKind = actor.Kind,
+            ActorAgentRole = actor.Role,
+            ActorAgentProvider = actor.Provider,
+            RecipientKind = recipient.Kind,
+            RecipientAgentRole = recipient.Role,
+            RecipientAgentProvider = recipient.Provider,
             Type = type,
             InReplyToMessageId = inReplyToMessageId,
             Summary = summary,
@@ -197,9 +210,22 @@ public sealed class CollaborationMessage
 
     public string ProtocolVersion { get; private set; } = string.Empty;
 
-    public ParticipantKind Actor { get; private set; }
+    public ParticipantKind ActorKind { get; private set; }
 
-    public ParticipantKind Recipient { get; private set; }
+    public AgentRole? ActorAgentRole { get; private set; }
+
+    public AgentProvider? ActorAgentProvider { get; private set; }
+
+    public ParticipantIdentity Actor => ParticipantIdentity.FromParts(ActorKind, ActorAgentRole, ActorAgentProvider);
+
+    public ParticipantKind RecipientKind { get; private set; }
+
+    public AgentRole? RecipientAgentRole { get; private set; }
+
+    public AgentProvider? RecipientAgentProvider { get; private set; }
+
+    public ParticipantIdentity Recipient =>
+        ParticipantIdentity.FromParts(RecipientKind, RecipientAgentRole, RecipientAgentProvider);
 
     public CollaborationMessageType Type { get; private set; }
 
@@ -213,20 +239,24 @@ public sealed class CollaborationMessage
 
     public DateTimeOffset OccurredAtUtc { get; private set; }
 
-    private static void ValidateActorForType(ParticipantKind actor, CollaborationMessageType type)
+    private static void ValidateActorForType(ParticipantIdentity actor, CollaborationMessageType type)
     {
+        var isAgent = actor.Kind == ParticipantKind.Agent;
+        var isCodexPersona = isAgent && actor.Provider == AgentProvider.Codex;
+        var isHuman = actor.Kind == ParticipantKind.Human;
+        var isOrchestrator = actor.Kind == ParticipantKind.Orchestrator;
         var allowed = type switch
         {
-            CollaborationMessageType.Proposal => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Human,
-            CollaborationMessageType.Acceptance => actor is ParticipantKind.Codex or ParticipantKind.Claude,
-            CollaborationMessageType.Challenge => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Human,
-            CollaborationMessageType.Question => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Human,
-            CollaborationMessageType.Decision => actor is ParticipantKind.Codex or ParticipantKind.Human,
-            CollaborationMessageType.ExecutionReport => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Orchestrator,
-            CollaborationMessageType.ReviewFinding => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Human,
-            CollaborationMessageType.RevisionResponse => actor is ParticipantKind.Codex or ParticipantKind.Claude,
-            CollaborationMessageType.Escalation => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Orchestrator,
-            CollaborationMessageType.ReviewApproval => actor is ParticipantKind.Codex or ParticipantKind.Claude or ParticipantKind.Human,
+            CollaborationMessageType.Proposal => isAgent || isHuman,
+            CollaborationMessageType.Acceptance => isAgent,
+            CollaborationMessageType.Challenge => isAgent || isHuman,
+            CollaborationMessageType.Question => isAgent || isHuman,
+            CollaborationMessageType.Decision => isCodexPersona || isHuman,
+            CollaborationMessageType.ExecutionReport => isAgent || isOrchestrator,
+            CollaborationMessageType.ReviewFinding => isAgent || isHuman,
+            CollaborationMessageType.RevisionResponse => isAgent,
+            CollaborationMessageType.Escalation => isAgent || isOrchestrator,
+            CollaborationMessageType.ReviewApproval => isAgent || isHuman,
             _ => false,
         };
 

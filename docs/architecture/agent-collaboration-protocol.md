@@ -21,8 +21,8 @@ Every accepted agent message maps to a project-owned envelope:
   "runId": "run_01...",
   "taskId": "task_01...",
   "attemptId": "attempt_01...",
-  "sender": "codex",
-  "recipient": "claude",
+  "actor": { "kind": "Agent", "role": "Resolver", "provider": "Codex" },
+  "recipient": { "kind": "Agent", "role": null, "provider": "ClaudeCode" },
   "type": "challenge",
   "inReplyTo": "msg_01...",
   "summary": "The proposed transaction boundary includes a long-running process.",
@@ -44,12 +44,13 @@ are decided by immutable role, never by which provider produced an attempt.
 The attempt's `AgentRole` is resolved once, at claim time, and never changes
 afterward; `CollaborationMessageAuthorPolicy` maps that role to the closed set
 of message types the role may author. Provider identity (`AgentProvider`) is
-derived separately, as provenance only, through a single closed mapping
-(`AgentProviderParticipant`) — it is recorded truthfully on every message and
-event, and checked against a message's own `Actor` for provenance integrity,
-but it grants no authoring or eligibility authority and is never consulted
-when deciding whether a role may author a message type or consume one as
-input.
+provenance only. Durable participant references use a neutral
+`ParticipantIdentity`: `Kind` is one of None, Orchestrator, Agent, or Human,
+while an Agent carries its role and provider as separate fields when those
+facts are known. Runs, events, and collaboration messages persist those fields
+separately and expose the same structured shape through the API. Provider
+grants no authoring or eligibility authority and is never consulted when
+deciding whether a role may author a message type or consume one as input.
 
 Real terminal protocol output — a Proposal, an Acceptance or Challenge, a
 Decision and revised Proposal, an Execution report, or a Review approval or
@@ -87,15 +88,13 @@ deduplication query and its shared identity helper
 response contract, outcome, and exact input identity, never narrowed to one
 fixed provider first.
 
-Recipient remains provider-named compatibility metadata: today's literal
-"the other provider" value pending a later recipient/read-side stabilization
-slice. This stabilization removes provider identity from author
-authorization and from upstream-input eligibility, but it does not yet make
-real provider substitution (for example, assigning a role to a different
-provider) end-to-end safe: recipient literals, `Actor`/`Recipient`
-inequality, the role-specific eligible-attempts dispatch queues
-(`GetEligible*AttemptsQueryHandler`), and the frontend's provider-named
-message selectors are the next stabilization boundary.
+Recipient uses the same neutral identity shape. A recipient role remains null
+when the historical fact records only the target provider; the system does not
+invent a role during migration or projection. Frontend eligibility selectors
+use the actor's role and provenance rather than provider-branded participant
+values. Real provider substitution is still not end-to-end safe until durable
+assignment snapshots and provider-neutral dispatch queues select and record
+the assigned provider at the attempt boundary.
 
 ## Current durable ledger boundary
 

@@ -7,6 +7,6 @@ public sealed record RunEventQueryResult(
     Guid Id,
     Guid? AttemptId,
     string EventType,
-    ParticipantKind Actor,
+    ParticipantIdentity Actor,
     string PayloadJson,
     DateTimeOffset OccurredAtUtc);

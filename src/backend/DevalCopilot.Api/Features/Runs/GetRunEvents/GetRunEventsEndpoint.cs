@@ -28,7 +28,7 @@ public sealed class GetRunEventsEndpoint(
                 runEvent.Id,
                 runEvent.AttemptId,
                 runEvent.EventType,
-                runEvent.Actor.ToString(),
+                ParticipantIdentityResponse.FromDomain(runEvent.Actor),
                 runEvent.PayloadJson,
                 runEvent.OccurredAtUtc))
             .ToArray();

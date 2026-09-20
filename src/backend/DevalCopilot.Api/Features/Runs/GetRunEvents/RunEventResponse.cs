@@ -5,6 +5,6 @@ public sealed record RunEventResponse(
     Guid Id,
     Guid? AttemptId,
     string EventType,
-    string Actor,
+    ParticipantIdentityResponse Actor,
     string PayloadJson,
     DateTimeOffset OccurredAtUtc);

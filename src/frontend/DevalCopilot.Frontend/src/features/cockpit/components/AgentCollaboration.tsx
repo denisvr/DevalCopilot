@@ -1,4 +1,6 @@
 import type { CollaborationTimelineCard } from '../types'
+import type { ParticipantIdentityView } from '../types'
+import { formatParticipantIdentity } from '../participantIdentity'
 
 interface AgentCollaborationProps {
   cards: CollaborationTimelineCard[]
@@ -7,11 +9,11 @@ interface AgentCollaborationProps {
   hasSuccessfulResponse?: boolean
 }
 
-function alignmentFor(actor: string): 'left' | 'right' | 'center' {
-  if (actor === 'Codex') {
+function alignmentFor(actor: ParticipantIdentityView): 'left' | 'right' | 'center' {
+  if (actor.role === 'Planner' || actor.role === 'Resolver' || actor.role === 'CodeReviewer') {
     return 'left'
   }
-  if (actor === 'Claude') {
+  if (actor.role === 'CriticalReviewer' || actor.role === 'Implementer') {
     return 'right'
   }
   return 'center'
@@ -36,8 +38,8 @@ function typeLabelFor(type: string): string {
 }
 
 /**
- * Codex cards align left, Claude cards align right, orchestrator/human/system events
- * are centered. Reconstructed from durable events only — there is no dependency on
+ * Role families align consistently even when their provider changes; actors without a known
+ * role and orchestrator/human/system events are centered. Reconstructed from durable events only — there is no dependency on
  * either provider's native conversation history.
  */
 export function AgentCollaboration({
@@ -76,7 +78,7 @@ export function AgentCollaboration({
       {cards.map((card) => (
         <article key={card.sequence} className="dc-card" data-align={alignmentFor(card.actor)} data-type={card.type}>
           <div className="dc-card-actor">
-            {card.actor} → {card.recipient} · {typeLabelFor(card.type)} · {card.provenance}
+            {formatParticipantIdentity(card.actor)} → {formatParticipantIdentity(card.recipient)} · {typeLabelFor(card.type)} · {card.provenance}
           </div>
           <p className="dc-card-summary">{card.summary}</p>
           {card.inReplyToMessageId && <p className="dc-card-reply">In reply to an earlier message.</p>}

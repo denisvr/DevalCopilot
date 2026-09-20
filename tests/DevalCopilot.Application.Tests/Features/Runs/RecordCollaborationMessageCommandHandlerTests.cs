@@ -39,7 +39,7 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         dbContext.AddRange(project, run, attempt, otherProject, otherRun, otherAttempt);
         var otherMessage = CollaborationMessage.Record(
             Guid.NewGuid(), otherRun.Id, otherAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Other proposal", ProposalContent, CollaborationMessageProvenance.Simulated, Now);
         dbContext.CollaborationMessages.Add(otherMessage);
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -140,7 +140,7 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         dbContext.AddRange(project, run, attempt);
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, attempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Existing proposal", ProposalContent, CollaborationMessageProvenance.Simulated, Now);
         dbContext.CollaborationMessages.Add(proposal);
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -270,18 +270,21 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
     }
 
     [Theory]
-    [InlineData(ParticipantKind.Codex)]
-    [InlineData(ParticipantKind.Claude)]
-    public async Task HandleAsync_rejects_an_agent_provider_actor_with_no_owning_attempt(ParticipantKind actor)
+    [InlineData(AgentProvider.Codex)]
+    [InlineData(AgentProvider.ClaudeCode)]
+    public async Task HandleAsync_rejects_an_agent_provider_actor_with_no_owning_attempt(AgentProvider provider)
     {
         await using var dbContext = fixture.CreateContext();
         var (project, run, _) = CreateRunningAttempt();
         dbContext.AddRange(project, run);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
+        var actor = ParticipantIdentity.ForAgentWithUnknownRole(provider);
         var command = new RecordCollaborationMessageCommand(
             Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, actor,
-            actor == ParticipantKind.Codex ? ParticipantKind.Claude : ParticipantKind.Codex,
+            provider == AgentProvider.Codex
+                ? ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode)
+                : ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.Proposal, null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated);
 
         var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
@@ -302,7 +305,7 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var command = new RecordCollaborationMessageCommand(
-            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantKind.Human, ParticipantKind.Orchestrator,
+            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForHuman(), ParticipantIdentity.ForOrchestrator(),
             CollaborationMessageType.Proposal, null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated);
 
         var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
@@ -310,9 +313,9 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
 
         Assert.True(result.IsSuccess);
         var message = Assert.Single(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
-        Assert.Equal(ParticipantKind.Human, message.Actor);
+        Assert.Equal(ParticipantIdentity.ForHuman(), message.Actor);
         var eventRecord = Assert.Single(dbContext.Events.Where(runEvent => runEvent.RunId == run.Id));
-        Assert.Equal(ParticipantKind.Human, eventRecord.Actor);
+        Assert.Equal(ParticipantIdentity.ForHuman(), eventRecord.Actor);
     }
 
     [Fact]
@@ -326,7 +329,7 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         var handler = new RecordCollaborationMessageCommandHandler(dbContext, new FixedTimeProvider(Now));
         var proposalResult = await handler.HandleAsync(
             new RecordCollaborationMessageCommand(
-                Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantKind.Human, ParticipantKind.Orchestrator,
+                Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForHuman(), ParticipantIdentity.ForOrchestrator(),
                 CollaborationMessageType.Proposal, null, "A summary", ProposalContent, CollaborationMessageProvenance.Simulated),
             CancellationToken.None);
         Assert.True(proposalResult.IsSuccess);
@@ -334,17 +337,17 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         // Orchestrator is never a valid Proposal author (ValidateActorForType), so this exercises
         // the one type it is allowed to author: an Escalation replying to that Proposal.
         var command = new RecordCollaborationMessageCommand(
-            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantKind.Orchestrator, ParticipantKind.Human,
+            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForOrchestrator(), ParticipantIdentity.ForHuman(),
             CollaborationMessageType.Escalation, proposalResult.Value.MessageId, "An escalation", EscalationContent,
             CollaborationMessageProvenance.Simulated);
         var result = await handler.HandleAsync(command, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
         var message = Assert.Single(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id && m.Type == CollaborationMessageType.Escalation));
-        Assert.Equal(ParticipantKind.Orchestrator, message.Actor);
+        Assert.Equal(ParticipantIdentity.ForOrchestrator(), message.Actor);
         var eventRecord = Assert.Single(
             dbContext.Events.Where(runEvent => runEvent.RunId == run.Id && runEvent.Sequence == result.Value.EventSequence));
-        Assert.Equal(ParticipantKind.Orchestrator, eventRecord.Actor);
+        Assert.Equal(ParticipantIdentity.ForOrchestrator(), eventRecord.Actor);
     }
 
     private static RecordCollaborationMessageCommand CreateProposalCommand(Guid runId, Guid attemptId)
@@ -354,8 +357,8 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
             runId,
             attemptId,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
-            ParticipantKind.Claude,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal,
             null,
             "Propose the ledger.",
@@ -370,8 +373,8 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
             runId,
             attemptId,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude,
-            ParticipantKind.Codex,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.Challenge,
             replyToMessageId,
             "Challenge the proposal.",
@@ -388,8 +391,8 @@ public sealed class RecordCollaborationMessageCommandHandlerTests(SqliteDatabase
         var (actor, recipient) = type switch
         {
             CollaborationMessageType.Proposal or CollaborationMessageType.Decision or CollaborationMessageType.ReviewFinding =>
-                (ParticipantKind.Codex, ParticipantKind.Claude),
-            _ => (ParticipantKind.Claude, ParticipantKind.Codex),
+                (ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode)),
+            _ => (ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex)),
         };
 
         return new RecordCollaborationMessageCommand(

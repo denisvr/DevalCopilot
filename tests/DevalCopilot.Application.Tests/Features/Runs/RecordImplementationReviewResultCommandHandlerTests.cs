@@ -93,14 +93,14 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
         var approvalMessage = Assert.Single(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
         Assert.Equal(CollaborationMessageType.ReviewApproval, approvalMessage.Type);
         Assert.Equal(executionReportMessageId, approvalMessage.InReplyToMessageId);
-        Assert.Equal(ParticipantKind.Codex, approvalMessage.Actor);
-        Assert.Equal(ParticipantKind.Claude, approvalMessage.Recipient);
+        Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, AgentProvider.Codex), approvalMessage.Actor);
+        Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), approvalMessage.Recipient);
 
         var events = dbContext.Events.Where(e => e.AttemptId == attempt.Id).ToList();
         Assert.Single(events);
         Assert.Equal(result.Value.LatestEventSequence, events[0].Sequence);
         Assert.Equal(approvalMessage.Actor, events[0].Actor);
-        Assert.Equal(AgentProviderParticipant.For(attempt.AgentProvider!.Value), approvalMessage.Actor);
+        Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, attempt.AgentProvider!.Value), approvalMessage.Actor);
     }
 
     [Fact]

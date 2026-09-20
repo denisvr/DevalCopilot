@@ -30,7 +30,7 @@ public sealed class EventOrderingTests(SqliteFileFixture fixture) : IClassFixtur
             // determine the assigned sequence.
             foreach (var eventType in new[] { RunEventType.RunStarted, RunEventType.CodexProposal, RunEventType.ClaudeChallenge })
             {
-                context.Events.Add(RunEvent.Record(Guid.NewGuid(), runId, null, eventType, ParticipantKind.Orchestrator, "{}", now));
+                context.Events.Add(RunEvent.Record(Guid.NewGuid(), runId, null, eventType, ParticipantIdentity.ForOrchestrator(), "{}", now));
                 await context.SaveChangesAsync();
             }
         }

@@ -44,9 +44,9 @@ describe('AgentCollaboration', () => {
 
   it('aligns Codex left, Claude right, and the orchestrator centered', () => {
     const cards: CollaborationTimelineCard[] = [
-      fixture({ sequence: 1, actor: 'Orchestrator', summary: 'Started' }),
-      fixture({ sequence: 2, actor: 'Codex', summary: 'Proposal' }),
-      fixture({ sequence: 3, actor: 'Claude', summary: 'Challenge' }),
+      fixture({ sequence: 1, actor: { kind: 'Orchestrator', role: null, provider: null }, summary: 'Started' }),
+      fixture({ sequence: 2, actor: { kind: 'Agent', role: 'Planner', provider: 'Codex' }, summary: 'Proposal' }),
+      fixture({ sequence: 3, actor: { kind: 'Agent', role: 'CriticalReviewer', provider: 'ClaudeCode' }, summary: 'Challenge' }),
     ]
 
     render(<AgentCollaboration cards={cards} />)
@@ -94,8 +94,8 @@ describe('AgentCollaboration', () => {
       sequence: 1,
       id: 'message-1',
       attemptId: null,
-      actor: 'Codex',
-      recipient: 'Claude',
+      actor: { kind: 'Agent', role: 'Planner', provider: 'Codex' },
+      recipient: { kind: 'Agent', role: null, provider: 'ClaudeCode' },
       type: 'Proposal',
       inReplyToMessageId: null,
       summary: 'A bounded proposal',

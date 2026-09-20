@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CollaborationMessageTimelineResponse } from '../../../api/clients'
 import { collaborationTimelineClient } from '../../../api/clients'
 import type { CollaborationTimelineCard } from '../types'
+import { toParticipantIdentity } from '../participantIdentity'
 
 interface CollaborationTimelineState {
   runId: string
@@ -40,8 +41,8 @@ function toCard(message: CollaborationMessageTimelineResponse): CollaborationTim
     sequence: message.sequence ?? 0,
     id: message.id ?? '',
     attemptId: message.attemptId ?? null,
-    actor: message.actor ?? '',
-    recipient: message.recipient ?? '',
+    actor: toParticipantIdentity(message.actor),
+    recipient: toParticipantIdentity(message.recipient),
     type: message.type ?? '',
     inReplyToMessageId: message.inReplyToMessageId ?? null,
     summary: message.summary ?? '',

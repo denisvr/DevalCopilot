@@ -17,7 +17,10 @@ public sealed class RunEventConfiguration : IEntityTypeConfiguration<RunEvent>
         builder.HasIndex(runEvent => runEvent.Id).IsUnique();
 
         builder.Property(runEvent => runEvent.EventType).HasMaxLength(100).IsRequired();
-        builder.Property(runEvent => runEvent.Actor).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(runEvent => runEvent.ActorKind).HasConversion<string>().HasMaxLength(32).IsRequired();
+        builder.Property(runEvent => runEvent.ActorAgentRole).HasConversion<string>().HasMaxLength(32);
+        builder.Property(runEvent => runEvent.ActorAgentProvider).HasConversion<string>().HasMaxLength(32);
+        builder.Ignore(runEvent => runEvent.Actor);
         builder.Property(runEvent => runEvent.PayloadJson).IsRequired();
 
         builder.HasOne<Run>().WithMany().HasForeignKey(runEvent => runEvent.RunId).OnDelete(DeleteBehavior.Cascade);

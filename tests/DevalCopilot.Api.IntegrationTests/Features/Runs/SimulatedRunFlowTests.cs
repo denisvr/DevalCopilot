@@ -66,7 +66,9 @@ public sealed class SimulatedRunFlowTests(ApiWebApplicationFactory factory) : IC
 
         Assert.Equal("Completed", cockpit.Lifecycle);
         Assert.Equal("Completed", cockpit.Stage);
-        Assert.Equal("None", cockpit.ActiveParticipant);
+        Assert.Equal("None", cockpit.ActiveParticipant.Kind);
+        Assert.Null(cockpit.ActiveParticipant.Role);
+        Assert.Null(cockpit.ActiveParticipant.Provider);
 
         // Only events for THIS run: Sequence is a global monotonic counter shared by every
         // run in the database, so it is not expected to equal the event count once more

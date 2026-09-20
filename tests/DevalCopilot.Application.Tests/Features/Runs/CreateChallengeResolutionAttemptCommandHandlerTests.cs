@@ -166,7 +166,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), runId, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Add the ledger table and its query.",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -192,7 +192,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         {
             var challenge = CollaborationMessage.Record(
                 Guid.NewGuid(), runId, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-                ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge, proposal.Id,
+                ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge, proposal.Id,
                 $"Challenge {index + 1} summary",
                 System.Text.Json.JsonSerializer.Serialize(new
                 {
@@ -271,7 +271,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Add the ledger table and its query.",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -295,7 +295,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
         var challenge = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Challenge, proposal.Id,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Challenge, proposal.Id,
             "Challenge summary",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -461,7 +461,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
     // Fail-closed regression: a challenged review whose own provider is missing or undefined
     // (malformed persisted state) must be rejected safely and without mutation — never allowed to
-    // reach AgentProviderParticipant.For and throw.
+    // reach ParticipantIdentity.ForAgentWithUnknownRole and throw.
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -529,7 +529,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
         var unrelatedProposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "An unrelated proposal.",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -546,7 +546,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         // instead of the one this review actually reviewed.
         dbContext.CollaborationMessages.Add(CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge, unrelatedProposal.Id,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge, unrelatedProposal.Id,
             "Misdirected challenge",
             System.Text.Json.JsonSerializer.Serialize(new
             {

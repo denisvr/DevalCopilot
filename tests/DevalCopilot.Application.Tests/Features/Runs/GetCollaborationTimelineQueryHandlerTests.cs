@@ -21,7 +21,7 @@ public sealed class GetCollaborationTimelineQueryHandlerTests(SqliteDatabaseFixt
         {
             dbContext.CollaborationMessages.Add(CollaborationMessage.Record(
                 Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne,
-                ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+                ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
                 $"Proposal {index}", ProposalContent, CollaborationMessageProvenance.Simulated, Now.AddSeconds(index)));
         }
 

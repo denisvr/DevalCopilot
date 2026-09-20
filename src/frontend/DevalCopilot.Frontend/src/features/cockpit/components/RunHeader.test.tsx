@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { GetRunCockpitResponse } from '../../../api/generated/api-client'
+import { GetRunCockpitResponse, ParticipantIdentityResponse } from '../../../api/generated/api-client'
 import { RunHeader } from './RunHeader'
 
 function buildCockpit(overrides: Partial<GetRunCockpitResponse> = {}) {
@@ -12,7 +12,7 @@ function buildCockpit(overrides: Partial<GetRunCockpitResponse> = {}) {
     objective: 'Prove the walking skeleton',
     lifecycle: 'Running',
     stage: 'Plan',
-    activeParticipant: 'Codex',
+    activeParticipant: new ParticipantIdentityResponse({ kind: 'Agent', role: 'Planner', provider: 'Codex' }),
     autonomousDurationSeconds: 12,
     latestSequence: 2,
     stageMap: [],
@@ -31,7 +31,11 @@ describe('RunHeader', () => {
   })
 
   it('shows the terminal completed state', () => {
-    render(<RunHeader cockpit={buildCockpit({ lifecycle: 'Completed', stage: 'Completed', activeParticipant: 'None' })} />)
+    render(<RunHeader cockpit={buildCockpit({
+      lifecycle: 'Completed',
+      stage: 'Completed',
+      activeParticipant: new ParticipantIdentityResponse({ kind: 'None' }),
+    })} />)
 
     expect(screen.getByText('Completed · Completed')).toBeInTheDocument()
   })

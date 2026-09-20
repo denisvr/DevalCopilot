@@ -198,8 +198,8 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             runId,
             planningAttempt.Id,
             CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex,
-            ParticipantKind.Claude,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal,
             null,
             "Add the ledger table and its query.",
@@ -271,7 +271,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         AttemptProviderSubstitution.SetProvider(planningAttempt, AgentProvider.ClaudeCode);
         var alternateProviderProposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Proposal, null,
             proposalMessage.Summary, proposalMessage.StructuredContentJson, CollaborationMessageProvenance.ProviderObserved, Now);
         dbContext.Attempts.Add(planningAttempt);
         dbContext.CollaborationMessages.Add(alternateProviderProposal);
@@ -300,7 +300,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         nonPlannerAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
         var wronglyTypedMessage = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, nonPlannerAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Not really a Planner proposal.",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -325,7 +325,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         Assert.Equal("agent_attempts.proposal_attempt_not_valid", Assert.Single(result.Errors).Code);
     }
 
-    // A message whose Actor does not match AgentProviderParticipant.For(owningAttempt.AgentProvider)
+    // A message whose Actor does not match ParticipantIdentity.ForAgentWithUnknownRole(owningAttempt.AgentProvider)
     // must be rejected even though every other fact (role, contract, outcome) is otherwise valid.
     [Fact]
     public async Task HandleAsync_rejects_a_proposal_whose_actor_does_not_match_its_owning_attempts_provider()
@@ -337,7 +337,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         // Claude — a divergence that must never be trusted.
         var mismatchedProposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Proposal, null,
             proposalMessage.Summary, proposalMessage.StructuredContentJson, CollaborationMessageProvenance.ProviderObserved, Now);
         dbContext.Attempts.Add(planningAttempt);
         dbContext.CollaborationMessages.Add(mismatchedProposal);
@@ -538,7 +538,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
 
         var acceptanceMessage = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Acceptance, Guid.NewGuid(),
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, Guid.NewGuid(),
             "Not a proposal.", System.Text.Json.JsonSerializer.Serialize(new { rationale = "n/a" }),
             CollaborationMessageProvenance.ProviderObserved, Now);
         dbContext.CollaborationMessages.Add(acceptanceMessage);
@@ -564,7 +564,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
 
         var simulatedProposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Simulated proposal.",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -607,7 +607,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         // itself never completed as Proposed.
         var orphanedProposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, failedPlanningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Should never be reviewable.",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -649,7 +649,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
 
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Should never be reviewable.",
             System.Text.Json.JsonSerializer.Serialize(new
             {

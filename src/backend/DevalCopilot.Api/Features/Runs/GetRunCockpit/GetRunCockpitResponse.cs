@@ -8,7 +8,7 @@ public sealed record GetRunCockpitResponse(
     string Objective,
     string Lifecycle,
     string Stage,
-    string ActiveParticipant,
+    ParticipantIdentityResponse ActiveParticipant,
     double AutonomousDurationSeconds,
     long LatestSequence,
     IReadOnlyList<StageMapEntryResponse> StageMap,

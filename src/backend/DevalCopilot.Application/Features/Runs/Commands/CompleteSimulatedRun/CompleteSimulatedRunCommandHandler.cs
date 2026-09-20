@@ -46,7 +46,7 @@ public sealed class CompleteSimulatedRunCommandHandler(IDevalCopilotDbContext db
 
         var payload = JsonSerializer.Serialize(new { summary = "The simulated run reached a terminal completed state." });
         var runEvent = RunEvent.Record(
-            Guid.NewGuid(), run.Id, attempt.Id, RunEventType.RunCompleted, ParticipantKind.Orchestrator, payload, nowUtc);
+            Guid.NewGuid(), run.Id, attempt.Id, RunEventType.RunCompleted, ParticipantIdentity.ForOrchestrator(), payload, nowUtc);
         dbContext.Events.Add(runEvent);
 
         await dbContext.SaveChangesAsync(cancellationToken);

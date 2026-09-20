@@ -48,7 +48,7 @@ public sealed class AgentAuthoredMessageEligibilityTests : IAsyncLifetime
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var proposal = CollaborationMessage.RecordAgent(
-            attempt, Guid.NewGuid(), ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            attempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "A proposal.",
             System.Text.Json.JsonSerializer.Serialize(new
             {
@@ -126,7 +126,7 @@ public sealed class AgentAuthoredMessageEligibilityTests : IAsyncLifetime
         // divergence that must never be trusted, regardless of how it arose.
         var mismatchedProposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, attempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Proposal, null,
+            ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Proposal, null,
             "A proposal.",
             System.Text.Json.JsonSerializer.Serialize(new
             {

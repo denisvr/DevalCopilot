@@ -275,7 +275,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             || proposalMessage.Provenance != CollaborationMessageProvenance.ProviderObserved
             || owningAttempt.AgentProvider is not { } owningProvider
             || !Enum.IsDefined(owningProvider)
-            || proposalMessage.Actor != AgentProviderParticipant.For(owningProvider))
+            || proposalMessage.Actor != ParticipantIdentity.ForAgent(owningAttempt.AgentRole!.Value, owningProvider))
         {
             return ResolvedPlanValidation.Failed(
                 Error.Conflict("agent_attempts.proposal_attempt_not_valid", "The plan's owning attempt did not complete validly."));
@@ -358,7 +358,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         // already validated above — provenance integrity here means the Acceptance's own recorded
         // Actor must still truthfully match that SAME already-validated attempt's provider, never a
         // fixed literal.
-        var expectedAcceptanceActor = AgentProviderParticipant.For(reviewProvider);
+        var expectedAcceptanceActor = ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, reviewProvider);
         var acceptanceMessage = await dbContext.CollaborationMessages.SingleOrDefaultAsync(
             candidate =>
                 candidate.AttemptId == reviewAttempt.Id
@@ -410,7 +410,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
                     "The resolver's decision set is not a valid, complete, provider-observed set."));
         }
 
-        var expectedDecisionActor = AgentProviderParticipant.For(resolverProvider);
+        var expectedDecisionActor = ParticipantIdentity.ForAgent(AgentRole.Resolver, resolverProvider);
         var orderedDecisions = await dbContext.CollaborationMessages
             .Where(candidate => candidate.AttemptId == resolverAttempt.Id && candidate.Type == CollaborationMessageType.Decision)
             .OrderBy(candidate => candidate.Sequence)

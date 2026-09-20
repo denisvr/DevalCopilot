@@ -93,23 +93,23 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         Assert.All(decisionMessages, message =>
         {
             Assert.Equal(attempt.Id, message.AttemptId);
-            Assert.Equal(ParticipantKind.Codex, message.Actor);
-            Assert.Equal(ParticipantKind.Claude, message.Recipient);
+            Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), message.Actor);
+            Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), message.Recipient);
             Assert.Equal(CollaborationMessageProvenance.ProviderObserved, message.Provenance);
         });
 
         var revisedProposalMessage = Assert.Single(messages, m => m.Type == CollaborationMessageType.Proposal);
         Assert.Equal(originalProposal.CollaborationMessageId, revisedProposalMessage.InReplyToMessageId);
-        Assert.Equal(ParticipantKind.Codex, revisedProposalMessage.Actor);
-        Assert.Equal(ParticipantKind.Claude, revisedProposalMessage.Recipient);
+        Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), revisedProposalMessage.Actor);
+        Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), revisedProposalMessage.Recipient);
         Assert.Equal("Revised proposal summary", revisedProposalMessage.Summary);
 
         var events = dbContext.Events.Where(e => e.AttemptId == attempt.Id).OrderBy(e => e.Sequence).ToList();
         Assert.Equal(challengeCount + 1, events.Count);
         Assert.All(events, e => Assert.Equal(RunEventType.CollaborationMessageRecorded, e.EventType));
         Assert.Equal(result.Value.LatestEventSequence, events.Last().Sequence);
-        Assert.All(events, e => Assert.Equal(ParticipantKind.Codex, e.Actor));
-        Assert.Equal(ParticipantKind.Codex, AgentProviderParticipant.For(attempt.AgentProvider!.Value));
+        Assert.All(events, e => Assert.Equal(ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), e.Actor));
+        Assert.Equal(ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(attempt.AgentProvider!.Value));
     }
 
     [Fact]

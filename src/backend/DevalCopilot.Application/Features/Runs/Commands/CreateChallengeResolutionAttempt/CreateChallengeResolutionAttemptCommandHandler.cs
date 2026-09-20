@@ -346,7 +346,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         // and defined) above — provenance integrity here means each Challenge's own recorded Actor
         // must still truthfully match that SAME already-validated attempt's provider, never a
         // fixed literal.
-        var expectedChallengeActor = AgentProviderParticipant.For(challengedReviewProvider);
+        var expectedChallengeActor = ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, challengedReviewProvider);
         var orderedChallenges = await dbContext.CollaborationMessages
             .Where(candidate => candidate.AttemptId == challengedReviewAttempt.Id && candidate.Type == CollaborationMessageType.Challenge)
             .OrderBy(candidate => candidate.Sequence)

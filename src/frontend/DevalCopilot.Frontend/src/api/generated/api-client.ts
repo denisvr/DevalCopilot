@@ -2300,7 +2300,7 @@ export class RunEventResponse implements IRunEventResponse {
     id?: string;
     attemptId?: string | undefined;
     eventType?: string;
-    actor?: string;
+    actor?: ParticipantIdentityResponse;
     payloadJson?: string;
     occurredAtUtc?: Date;
 
@@ -2319,7 +2319,7 @@ export class RunEventResponse implements IRunEventResponse {
             this.id = _data["id"];
             this.attemptId = _data["attemptId"];
             this.eventType = _data["eventType"];
-            this.actor = _data["actor"];
+            this.actor = _data["actor"] ? ParticipantIdentityResponse.fromJS(_data["actor"]) : undefined as any;
             this.payloadJson = _data["payloadJson"];
             this.occurredAtUtc = _data["occurredAtUtc"] ? new Date(_data["occurredAtUtc"].toString()) : undefined as any;
         }
@@ -2338,7 +2338,7 @@ export class RunEventResponse implements IRunEventResponse {
         data["id"] = this.id;
         data["attemptId"] = this.attemptId;
         data["eventType"] = this.eventType;
-        data["actor"] = this.actor;
+        data["actor"] = this.actor ? this.actor.toJSON() : undefined as any;
         data["payloadJson"] = this.payloadJson;
         data["occurredAtUtc"] = this.occurredAtUtc ? this.occurredAtUtc.toISOString() : undefined as any;
         return data;
@@ -2350,9 +2350,53 @@ export interface IRunEventResponse {
     id?: string;
     attemptId?: string | undefined;
     eventType?: string;
-    actor?: string;
+    actor?: ParticipantIdentityResponse;
     payloadJson?: string;
     occurredAtUtc?: Date;
+}
+
+export class ParticipantIdentityResponse implements IParticipantIdentityResponse {
+    kind?: string;
+    role?: string | undefined;
+    provider?: string | undefined;
+
+    constructor(data?: IParticipantIdentityResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.kind = _data["kind"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+        }
+    }
+
+    static fromJS(data: any): ParticipantIdentityResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ParticipantIdentityResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["kind"] = this.kind;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        return data;
+    }
+}
+
+export interface IParticipantIdentityResponse {
+    kind?: string;
+    role?: string | undefined;
+    provider?: string | undefined;
 }
 
 export class GetRunCockpitResponse implements IGetRunCockpitResponse {
@@ -2363,7 +2407,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     objective?: string;
     lifecycle?: string;
     stage?: string;
-    activeParticipant?: string;
+    activeParticipant?: ParticipantIdentityResponse;
     autonomousDurationSeconds?: number;
     latestSequence?: number;
     stageMap?: StageMapEntryResponse[];
@@ -2388,7 +2432,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.objective = _data["objective"];
             this.lifecycle = _data["lifecycle"];
             this.stage = _data["stage"];
-            this.activeParticipant = _data["activeParticipant"];
+            this.activeParticipant = _data["activeParticipant"] ? ParticipantIdentityResponse.fromJS(_data["activeParticipant"]) : undefined as any;
             this.autonomousDurationSeconds = _data["autonomousDurationSeconds"];
             this.latestSequence = _data["latestSequence"];
             if (Array.isArray(_data["stageMap"])) {
@@ -2417,7 +2461,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["objective"] = this.objective;
         data["lifecycle"] = this.lifecycle;
         data["stage"] = this.stage;
-        data["activeParticipant"] = this.activeParticipant;
+        data["activeParticipant"] = this.activeParticipant ? this.activeParticipant.toJSON() : undefined as any;
         data["autonomousDurationSeconds"] = this.autonomousDurationSeconds;
         data["latestSequence"] = this.latestSequence;
         if (Array.isArray(this.stageMap)) {
@@ -2439,7 +2483,7 @@ export interface IGetRunCockpitResponse {
     objective?: string;
     lifecycle?: string;
     stage?: string;
-    activeParticipant?: string;
+    activeParticipant?: ParticipantIdentityResponse;
     autonomousDurationSeconds?: number;
     latestSequence?: number;
     stageMap?: StageMapEntryResponse[];
@@ -2712,8 +2756,8 @@ export class CollaborationMessageTimelineResponse implements ICollaborationMessa
     id?: string;
     attemptId?: string | undefined;
     protocolVersion?: string;
-    actor?: string;
-    recipient?: string;
+    actor?: ParticipantIdentityResponse;
+    recipient?: ParticipantIdentityResponse;
     type?: string;
     inReplyToMessageId?: string | undefined;
     summary?: string;
@@ -2736,8 +2780,8 @@ export class CollaborationMessageTimelineResponse implements ICollaborationMessa
             this.id = _data["id"];
             this.attemptId = _data["attemptId"];
             this.protocolVersion = _data["protocolVersion"];
-            this.actor = _data["actor"];
-            this.recipient = _data["recipient"];
+            this.actor = _data["actor"] ? ParticipantIdentityResponse.fromJS(_data["actor"]) : undefined as any;
+            this.recipient = _data["recipient"] ? ParticipantIdentityResponse.fromJS(_data["recipient"]) : undefined as any;
             this.type = _data["type"];
             this.inReplyToMessageId = _data["inReplyToMessageId"];
             this.summary = _data["summary"];
@@ -2760,8 +2804,8 @@ export class CollaborationMessageTimelineResponse implements ICollaborationMessa
         data["id"] = this.id;
         data["attemptId"] = this.attemptId;
         data["protocolVersion"] = this.protocolVersion;
-        data["actor"] = this.actor;
-        data["recipient"] = this.recipient;
+        data["actor"] = this.actor ? this.actor.toJSON() : undefined as any;
+        data["recipient"] = this.recipient ? this.recipient.toJSON() : undefined as any;
         data["type"] = this.type;
         data["inReplyToMessageId"] = this.inReplyToMessageId;
         data["summary"] = this.summary;
@@ -2777,8 +2821,8 @@ export interface ICollaborationMessageTimelineResponse {
     id?: string;
     attemptId?: string | undefined;
     protocolVersion?: string;
-    actor?: string;
-    recipient?: string;
+    actor?: ParticipantIdentityResponse;
+    recipient?: ParticipantIdentityResponse;
     type?: string;
     inReplyToMessageId?: string | undefined;
     summary?: string;

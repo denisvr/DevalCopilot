@@ -30,7 +30,7 @@ public sealed class StartSimulatedRunCommandHandler(IDevalCopilotDbContext dbCon
 
         var payload = JsonSerializer.Serialize(new { objective = command.Objective });
         dbContext.Events.Add(
-            RunEvent.Record(Guid.NewGuid(), run.Id, attemptId: null, RunEventType.RunStarted, ParticipantKind.Orchestrator, payload, nowUtc));
+            RunEvent.Record(Guid.NewGuid(), run.Id, attemptId: null, RunEventType.RunStarted, ParticipantIdentity.ForOrchestrator(), payload, nowUtc));
 
         return Result<StartSimulatedRunCommandResult>.Success(
             new StartSimulatedRunCommandResult(run.Id, run.ExecutionNumber));

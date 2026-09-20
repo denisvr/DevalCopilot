@@ -10,7 +10,7 @@ public sealed record GetRunCockpitQueryResult(
     string Objective,
     RunLifecycle Lifecycle,
     RunStage Stage,
-    ParticipantKind ActiveParticipant,
+    ParticipantIdentity ActiveParticipant,
     double AutonomousDurationSeconds,
     long LatestSequence,
     IReadOnlyList<RunCockpitStageEntry> StageMap,

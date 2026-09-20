@@ -94,7 +94,7 @@ public sealed class RecordInterruptedProcessOutputArtifactCommandHandler(IDevalC
         });
         dbContext.Events.Add(RunEvent.Record(
             Guid.NewGuid(), command.RunId, command.AttemptId, RunEventType.ProcessOutputCaptured,
-            ParticipantKind.Orchestrator, payload, nowUtc));
+            ParticipantIdentity.ForOrchestrator(), payload, nowUtc));
 
         return Result<bool>.Success(true);
     }

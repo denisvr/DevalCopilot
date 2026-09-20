@@ -42,7 +42,7 @@ public sealed class RestartPersistenceTests(SqliteFileFixture fixture) : IClassF
             run.Complete(now);
             attempt.Complete(now);
             context.Events.Add(
-                RunEvent.Record(Guid.NewGuid(), run.Id, attempt.Id, RunEventType.RunCompleted, ParticipantKind.Orchestrator, "{}", now));
+                RunEvent.Record(Guid.NewGuid(), run.Id, attempt.Id, RunEventType.RunCompleted, ParticipantIdentity.ForOrchestrator(), "{}", now));
             await context.SaveChangesAsync();
         }
 
