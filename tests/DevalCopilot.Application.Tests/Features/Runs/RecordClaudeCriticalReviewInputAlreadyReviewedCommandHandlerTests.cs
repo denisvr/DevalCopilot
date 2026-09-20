@@ -276,6 +276,33 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         Assert.Equal(AttemptStatus.Running, attempt.Status);
     }
 
+    // Fail-closed regression: a genuinely malformed persisted attempt — the correct AgentRole but
+    // a response contract that does not cohere with AgentAttemptContract.For(role) — must be
+    // rejected by the same safe "not this attempt shape" failure, never treated as a valid
+    // critical-review attempt just because its role happens to match.
+    [Fact]
+    public async Task HandleAsync_fails_and_does_not_mutate_an_attempt_with_a_mismatched_response_contract()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt, _) = CreateClaimedCriticalReviewAttempt();
+        var responseContractProperty = typeof(Attempt).GetProperty(nameof(Attempt.AgentResponseContract))!;
+        responseContractProperty.GetSetMethod(nonPublic: true)!.Invoke(attempt, [AgentResponseContract.Proposal]);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new RecordClaudeCriticalReviewInputAlreadyReviewedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("attempts.not_critical_review", Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Null(attempt.AgentOutcome);
+        Assert.Empty(dbContext.Events.Where(e => e.AttemptId == attempt.Id));
+    }
+
     [Fact]
     public async Task HandleAsync_fails_and_does_not_mutate_an_already_dispatched_attempt()
     {

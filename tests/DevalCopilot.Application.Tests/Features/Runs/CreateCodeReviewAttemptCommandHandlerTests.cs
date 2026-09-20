@@ -267,6 +267,78 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
         Assert.Equal(executionTwo.Id, orderedEvidence[1].VerificationExecutionId);
     }
 
+    // Discriminating regression for Slice B.1: production's ClaimAgent* factories always fix
+    // Implementer to ClaudeCode, so this substitutes the implementer attempt's provider via
+    // reflection (AttemptProviderSubstitution — a test-only helper, never a production path) and
+    // constructs its ExecutionReport via RecordAgent (deriving Actor from the substituted
+    // provider), purely to prove this handler's eligibility gate is authorized by AgentRole alone.
+    // Before this correction, the gate compared the implementer attempt's AgentProvider (and the
+    // ExecutionReport's Actor) to fixed ClaudeCode literals, which would have rejected this exact
+    // scenario.
+    [Fact]
+    public async Task HandleAsync_accepts_an_execution_report_from_the_alternate_provider()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (run, workspace) = await SeedEligibleRunAsync(dbContext);
+
+        var startingCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
+        dbContext.GitCheckpoints.Add(startingCheckpoint);
+        var resultFingerprint = new string('b', 64);
+        var resultCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 2, Now, new string('b', 40), resultFingerprint, []);
+        dbContext.GitCheckpoints.Add(resultCheckpoint);
+
+        var planningAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        planningAttempt.MarkAgentDispatched(Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        dbContext.Attempts.Add(planningAttempt);
+
+        var resolvedPlan = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            "Add the ledger table and its query.",
+            JsonSerializer.Serialize(new
+            {
+                scope = "Ledger",
+                implementationSteps = "Add the table then the query",
+                risks = "Unbounded content",
+                verificationPlan = "Tests",
+                escalationPoints = "None expected",
+            }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.CollaborationMessages.Add(resolvedPlan);
+
+        var implementerAttempt = Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        implementerAttempt.MarkAgentDispatched(Now);
+        implementerAttempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now);
+        AttemptProviderSubstitution.SetProvider(implementerAttempt, AgentProvider.Codex);
+        dbContext.Attempts.Add(implementerAttempt);
+
+        var executionReport = CollaborationMessage.RecordAgent(
+            implementerAttempt, Guid.NewGuid(), ParticipantKind.Claude, CollaborationMessageType.ExecutionReport, resolvedPlan.Id,
+            "Added the ledger table and its query.",
+            JsonSerializer.Serialize(new { completedWork = "Added table and query.", verification = "dotnet test" }),
+            Now);
+        dbContext.CollaborationMessages.Add(executionReport);
+
+        var commandOne = VerificationCommand.Configure(Guid.NewGuid(), run.ProjectId, 1, "Backend tests", DotnetExecutablePath, ["test"], 300, true, Now);
+        dbContext.VerificationCommands.Add(commandOne);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        SeedPassedVerificationExecution(dbContext, run.ProjectId, workspace.Id, workspace, resultCheckpoint, commandOne, 1, Now);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateCodeReviewAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(resultFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateCodeReviewAttemptCommand(run.Id, executionReport.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
     [Fact]
     public async Task HandleAsync_fails_when_the_run_does_not_exist()
     {

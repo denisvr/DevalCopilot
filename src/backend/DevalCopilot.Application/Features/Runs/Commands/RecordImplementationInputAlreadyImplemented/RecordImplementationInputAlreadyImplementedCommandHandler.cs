@@ -19,9 +19,11 @@ public sealed class RecordImplementationInputAlreadyImplementedCommandHandler(ID
             return Result.Failure(Error.NotFound("attempts.not_found", "The requested attempt was not found for this run."));
         }
 
-        if (attempt.Kind != AttemptKind.Agent || attempt.AgentProvider != AgentProvider.ClaudeCode || attempt.AgentRole != AgentRole.Implementer)
+        if (attempt.Kind != AttemptKind.Agent
+            || attempt.AgentRole != AgentRole.Implementer
+            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.Implementer).ResponseContract)
         {
-            return Result.Failure(Error.Conflict("attempts.not_implementation", "The attempt is not a Claude implementation attempt."));
+            return Result.Failure(Error.Conflict("attempts.not_implementation", "The attempt is not an implementation attempt."));
         }
 
         if (attempt.Status != AttemptStatus.Running || attempt.AgentDispatchedAtUtc.HasValue)

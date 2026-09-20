@@ -65,6 +65,24 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 Error.Conflict("attempts.not_agent", "The attempt is not an Agent attempt."));
         }
 
+        // Contract-coherence validation, not provider authorization: before any role-specific
+        // input query or dispatch mutation, an Agent attempt's role, provider, and response
+        // contract must each be present, defined, and mutually coherent. This never compares the
+        // provider to a role-specific fixed value — it only proves the persisted tuple itself is
+        // not malformed, so a corrupted or otherwise invalid attempt fails closed here rather than
+        // reaching a role-specific branch or ever being dispatched.
+        if (attempt.AgentRole is not { } role
+            || !Enum.IsDefined(role)
+            || attempt.AgentProvider is not { } provider
+            || !Enum.IsDefined(provider)
+            || attempt.AgentResponseContract != AgentAttemptContract.For(role).ResponseContract)
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.Conflict(
+                    "agent_attempts.invalid_agent_contract",
+                    "The attempt's role, provider, and response contract are not a valid, coherent combination."));
+        }
+
         if (attempt.Status != AttemptStatus.Running)
         {
             return Result<DateTimeOffset>.Failure(
@@ -130,7 +148,6 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                     candidate =>
                         candidate.Id != attempt.Id
                         && candidate.Kind == AttemptKind.Agent
-                        && candidate.AgentProvider == AgentProvider.ClaudeCode
                         && candidate.AgentRole == AgentRole.CriticalReviewer
                         && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
                     cancellationToken);

@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -280,22 +281,21 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 Error.NotFound("agent_attempts.execution_report_not_found", "The requested execution report was not found for this run."));
         }
 
-        if (message.Type != CollaborationMessageType.ExecutionReport
-            || message.Provenance != CollaborationMessageProvenance.ProviderObserved
-            || message.Actor != ParticipantKind.Claude
-            || message.AttemptId is not { } owningAttemptId)
+        if (message.Type != CollaborationMessageType.ExecutionReport)
         {
             return ExecutionReportValidation.Failed(
                 Error.Conflict(
                     "agent_attempts.not_provider_observed_execution_report",
-                    "Only a provider-observed Claude execution report can be requested for code review."));
+                    "Only a provider-observed Implementer execution report can be requested for code review."));
         }
 
-        var owningAttempt = await dbContext.Attempts.SingleOrDefaultAsync(candidate => candidate.Id == owningAttemptId, cancellationToken);
+        // Role-first, per ADR-0009: the owning attempt's AgentRole is the sole authority for
+        // whether this message is a real Implementer execution report. AgentProvider participates
+        // only as provenance-integrity evidence inside this helper — never compared to a fixed
+        // provider to authorize the role.
+        var owningAttempt = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
+            dbContext, message, runId, AgentRole.Implementer, cancellationToken);
         if (owningAttempt is null
-            || owningAttempt.Kind != AttemptKind.Agent
-            || owningAttempt.AgentProvider != AgentProvider.ClaudeCode
-            || owningAttempt.AgentRole != AgentRole.Implementer
             || owningAttempt.Status != AttemptStatus.Completed
             || owningAttempt.AgentOutcome != AgentOutcome.Implemented
             || owningAttempt.AgentResultGitCheckpointId is null)
@@ -316,7 +316,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
 
         var executionReportCount = await dbContext.CollaborationMessages.CountAsync(
             candidate =>
-                candidate.AttemptId == owningAttemptId
+                candidate.AttemptId == owningAttempt.Id
                 && candidate.Type == CollaborationMessageType.ExecutionReport
                 && candidate.Provenance == CollaborationMessageProvenance.ProviderObserved,
             cancellationToken);

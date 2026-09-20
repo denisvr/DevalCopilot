@@ -35,7 +35,6 @@ internal static class ImplementationInputIdentity
                 candidate.Id != attemptId
                 && candidate.RunId == runId
                 && candidate.Kind == AttemptKind.Agent
-                && candidate.AgentProvider == AgentProvider.ClaudeCode
                 && candidate.AgentRole == AgentRole.Implementer
                 && candidate.AgentResponseContract == AgentResponseContract.ImplementationReport
                 && candidate.Status == AttemptStatus.Completed

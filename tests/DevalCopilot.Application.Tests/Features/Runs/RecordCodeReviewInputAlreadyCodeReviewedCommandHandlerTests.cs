@@ -228,4 +228,32 @@ public sealed class RecordCodeReviewInputAlreadyCodeReviewedCommandHandlerTests(
         Assert.Equal(AttemptStatus.Running, attempt.Status);
         Assert.Null(attempt.AgentOutcome);
     }
+
+    // Fail-closed regression: a genuinely malformed persisted attempt — the correct AgentRole but
+    // a response contract that does not cohere with AgentAttemptContract.For(role) — must be
+    // rejected by the same safe "not this attempt shape" failure, never treated as a valid
+    // code-review attempt just because its role happens to match.
+    [Fact]
+    public async Task HandleAsync_fails_and_does_not_mutate_an_attempt_with_a_mismatched_response_contract()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, workspace, checkpoint) = CreateOwningResources();
+        var attempt = CreateClaimedCodeReviewAttempt(run.Id, workspace.Id, checkpoint.Id, 1);
+        var responseContractProperty = typeof(Attempt).GetProperty(nameof(Attempt.AgentResponseContract))!;
+        responseContractProperty.GetSetMethod(nonPublic: true)!.Invoke(attempt, [AgentResponseContract.Proposal]);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(checkpoint);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordCodeReviewInputAlreadyCodeReviewedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(new RecordCodeReviewInputAlreadyCodeReviewedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("attempts.not_code_review", Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Empty(dbContext.Events.Where(e => e.AttemptId == attempt.Id));
+    }
 }

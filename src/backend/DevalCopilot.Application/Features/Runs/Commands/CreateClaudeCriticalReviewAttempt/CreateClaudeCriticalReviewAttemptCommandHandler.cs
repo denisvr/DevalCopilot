@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -124,7 +125,6 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             .AnyAsync(
                 candidate =>
                     candidate.Kind == AttemptKind.Agent
-                    && candidate.AgentProvider == AgentProvider.ClaudeCode
                     && candidate.AgentRole == AgentRole.CriticalReviewer
                     && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
                 cancellationToken);
@@ -286,22 +286,22 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
 
         if (message.Type != CollaborationMessageType.Proposal
             || message.Provenance != CollaborationMessageProvenance.ProviderObserved
-            || message.Actor != ParticipantKind.Codex
-            || message.AttemptId is not { } owningAttemptId)
+            || message.AttemptId is null)
         {
             return ReviewedProposalValidation.Failed(
                 Error.Conflict(
-                    "agent_attempts.not_provider_observed_codex_proposal",
-                    "Only a provider-observed Codex proposal can be requested for critical review."));
+                    "agent_attempts.not_provider_observed_planner_proposal",
+                    "Only a provider-observed Planner proposal can be requested for critical review."));
         }
 
-        var owningAttempt = await dbContext.Attempts.SingleOrDefaultAsync(candidate => candidate.Id == owningAttemptId, cancellationToken);
-        if (owningAttempt is null
-            || owningAttempt.Kind != AttemptKind.Agent
-            || owningAttempt.AgentProvider != AgentProvider.Codex
-            || owningAttempt.AgentRole != AgentRole.Planner
-            || owningAttempt.Status != AttemptStatus.Completed
-            || owningAttempt.AgentOutcome != AgentOutcome.Proposed)
+
+        // Role-first, per ADR-0009: the owning attempt's AgentRole is the sole authority for
+        // whether this message is a real Planner proposal. AgentProvider participates only as
+        // provenance-integrity evidence inside this helper — never compared to a fixed provider to
+        // authorize the role.
+        var owningAttempt = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
+            dbContext, message, runId, AgentRole.Planner, cancellationToken);
+        if (owningAttempt is null || owningAttempt.Status != AttemptStatus.Completed || owningAttempt.AgentOutcome != AgentOutcome.Proposed)
         {
             return ReviewedProposalValidation.Failed(
                 Error.Conflict(

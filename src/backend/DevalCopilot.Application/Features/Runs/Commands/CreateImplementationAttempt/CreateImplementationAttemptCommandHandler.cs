@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -252,21 +253,29 @@ public sealed class CreateImplementationAttemptCommandHandler(
     {
         var proposalMessage = await dbContext.CollaborationMessages
             .SingleOrDefaultAsync(candidate => candidate.Id == planProposalMessageId, cancellationToken);
-        if (proposalMessage is null
-            || proposalMessage.RunId != run.Id
-            || proposalMessage.Type != CollaborationMessageType.Proposal
-            || proposalMessage.Provenance != CollaborationMessageProvenance.ProviderObserved
-            || proposalMessage.Actor != ParticipantKind.Codex
-            || proposalMessage.AttemptId is not { } owningAttemptId)
+        if (proposalMessage is null || proposalMessage.RunId != run.Id || proposalMessage.Type != CollaborationMessageType.Proposal)
         {
             return ResolvedPlanValidation.Failed(
                 Error.Conflict(
-                    "agent_attempts.not_provider_observed_codex_proposal",
-                    "The requested plan is not a provider-observed Codex proposal."));
+                    "agent_attempts.not_provider_observed_plan_proposal",
+                    "The requested plan is not a provider-observed proposal."));
         }
 
-        var owningAttempt = await dbContext.Attempts.SingleOrDefaultAsync(candidate => candidate.Id == owningAttemptId, cancellationToken);
-        if (owningAttempt is null || owningAttempt.RunId != run.Id || owningAttempt.Kind != AttemptKind.Agent || owningAttempt.Status != AttemptStatus.Completed)
+        // Role-first, per ADR-0009: exactly two roles may ever own an eligible resolved-plan
+        // Proposal (Planner's own original proposal, or Resolver's revised proposal) — AgentRole is
+        // the sole authority for which, never AgentProvider. Both branches below share the same
+        // provenance-integrity check (message.Actor must truthfully match the owning attempt's real
+        // provider), performed once here rather than duplicated per branch.
+        var owningAttempt = await dbContext.Attempts.SingleOrDefaultAsync(
+            candidate => candidate.Id == proposalMessage.AttemptId, cancellationToken);
+        if (owningAttempt is null
+            || owningAttempt.RunId != run.Id
+            || owningAttempt.Kind != AttemptKind.Agent
+            || owningAttempt.Status != AttemptStatus.Completed
+            || proposalMessage.Provenance != CollaborationMessageProvenance.ProviderObserved
+            || owningAttempt.AgentProvider is not { } owningProvider
+            || !Enum.IsDefined(owningProvider)
+            || proposalMessage.Actor != AgentProviderParticipant.For(owningProvider))
         {
             return ResolvedPlanValidation.Failed(
                 Error.Conflict("agent_attempts.proposal_attempt_not_valid", "The plan's owning attempt did not complete validly."));
@@ -282,16 +291,16 @@ public sealed class CreateImplementationAttemptCommandHandler(
                     "The plan was made against a different checkpoint than the one currently current for this workspace."));
         }
 
-        if (owningAttempt.AgentProvider == AgentProvider.Codex
-            && owningAttempt.AgentRole == AgentRole.Planner
+        if (owningAttempt.AgentRole == AgentRole.Planner
+            && owningAttempt.AgentResponseContract == AgentAttemptContract.For(AgentRole.Planner).ResponseContract
             && owningAttempt.AgentOutcome == AgentOutcome.Proposed)
         {
             return await ValidateAcceptedOriginalProposalAsync(
                 run, proposalMessage, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
         }
 
-        if (owningAttempt.AgentProvider == AgentProvider.Codex
-            && owningAttempt.AgentRole == AgentRole.Resolver
+        if (owningAttempt.AgentRole == AgentRole.Resolver
+            && owningAttempt.AgentResponseContract == AgentAttemptContract.For(AgentRole.Resolver).ResponseContract
             && owningAttempt.AgentOutcome == AgentOutcome.Resolved)
         {
             return await ValidateResolvedRevisedProposalAsync(
@@ -301,7 +310,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         return ResolvedPlanValidation.Failed(
             Error.Conflict(
                 "agent_attempts.plan_not_resolved",
-                "The requested plan is neither a Claude-accepted original proposal nor a Codex-resolved revised proposal."));
+                "The requested plan is neither an accepted original proposal nor a resolved revised proposal."));
     }
 
     private async Task<ResolvedPlanValidation> ValidateAcceptedOriginalProposalAsync(
@@ -317,7 +326,6 @@ public sealed class CreateImplementationAttemptCommandHandler(
             .Where(candidate =>
                 candidate.RunId == run.Id
                 && candidate.Kind == AttemptKind.Agent
-                && candidate.AgentProvider == AgentProvider.ClaudeCode
                 && candidate.AgentRole == AgentRole.CriticalReviewer
                 && candidate.Status == AttemptStatus.Completed
                 && candidate.AgentOutcome == AgentOutcome.Accepted)
@@ -328,7 +336,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 (candidate, _) => candidate)
             .OrderBy(candidate => candidate.AttemptNumber)
             .FirstOrDefaultAsync(cancellationToken);
-        if (reviewAttempt is null)
+        if (reviewAttempt is null || reviewAttempt.AgentProvider is not { } reviewProvider || !Enum.IsDefined(reviewProvider))
         {
             return ResolvedPlanValidation.Failed(
                 Error.Conflict(
@@ -346,6 +354,11 @@ public sealed class CreateImplementationAttemptCommandHandler(
                     "The acceptance review was made against a different checkpoint than the one currently current for this workspace."));
         }
 
+        // reviewAttempt's own role (CriticalReviewer) and provider (present and defined) were
+        // already validated above — provenance integrity here means the Acceptance's own recorded
+        // Actor must still truthfully match that SAME already-validated attempt's provider, never a
+        // fixed literal.
+        var expectedAcceptanceActor = AgentProviderParticipant.For(reviewProvider);
         var acceptanceMessage = await dbContext.CollaborationMessages.SingleOrDefaultAsync(
             candidate =>
                 candidate.AttemptId == reviewAttempt.Id
@@ -354,7 +367,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             cancellationToken);
         if (acceptanceMessage is null
             || acceptanceMessage.Provenance != CollaborationMessageProvenance.ProviderObserved
-            || acceptanceMessage.Actor != ParticipantKind.Claude)
+            || acceptanceMessage.Actor != expectedAcceptanceActor)
         {
             return ResolvedPlanValidation.Failed(
                 Error.Conflict("agent_attempts.acceptance_not_valid", "The acceptance evidence for this proposal is not a valid provider-observed record."));
@@ -385,12 +398,25 @@ public sealed class CreateImplementationAttemptCommandHandler(
         IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
         CancellationToken cancellationToken)
     {
+        // resolverAttempt's own role (Resolver) was already validated by the caller, but its
+        // provider is re-verified present and defined here independently rather than trusted
+        // across the method boundary — provenance integrity means each Decision's own recorded
+        // Actor must still truthfully match that SAME attempt's provider, never a fixed literal.
+        if (resolverAttempt.AgentProvider is not { } resolverProvider || !Enum.IsDefined(resolverProvider))
+        {
+            return ResolvedPlanValidation.Failed(
+                Error.Conflict(
+                    "agent_attempts.decisions_not_valid",
+                    "The resolver's decision set is not a valid, complete, provider-observed set."));
+        }
+
+        var expectedDecisionActor = AgentProviderParticipant.For(resolverProvider);
         var orderedDecisions = await dbContext.CollaborationMessages
             .Where(candidate => candidate.AttemptId == resolverAttempt.Id && candidate.Type == CollaborationMessageType.Decision)
             .OrderBy(candidate => candidate.Sequence)
             .ToListAsync(cancellationToken);
         if (orderedDecisions.Count == 0
-            || orderedDecisions.Any(decision => decision.Provenance != CollaborationMessageProvenance.ProviderObserved || decision.Actor != ParticipantKind.Codex))
+            || orderedDecisions.Any(decision => decision.Provenance != CollaborationMessageProvenance.ProviderObserved || decision.Actor != expectedDecisionActor))
         {
             return ResolvedPlanValidation.Failed(
                 Error.Conflict(

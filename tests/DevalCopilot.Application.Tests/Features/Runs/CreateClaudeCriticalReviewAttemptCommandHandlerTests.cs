@@ -256,6 +256,103 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         Assert.Equal("application/json", manifestArtifact.MediaType);
     }
 
+    // Discriminating regression for Slice B.1: production's ClaimAgent factory always fixes the
+    // Planner role to Codex, so this substitutes the owning attempt's provider via reflection
+    // (AttemptProviderSubstitution — a test-only helper, never a production path) purely to prove
+    // this handler's eligibility gate is authorized by AgentRole alone. Before this correction, the
+    // gate compared the owning attempt's AgentProvider (and the message's Actor) to fixed Codex
+    // literals, which would have rejected this exact scenario.
+    [Fact]
+    public async Task HandleAsync_accepts_a_planner_proposal_from_the_alternate_provider()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (project, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, claimRun: false);
+        var (planningAttempt, proposalMessage) = SeedCompletedProposal(run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        AttemptProviderSubstitution.SetProvider(planningAttempt, AgentProvider.ClaudeCode);
+        var alternateProviderProposal = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Proposal, null,
+            proposalMessage.Summary, proposalMessage.StructuredContentJson, CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.Attempts.Add(planningAttempt);
+        dbContext.CollaborationMessages.Add(alternateProviderProposal);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(
+            new CreateClaudeCriticalReviewAttemptCommand(run.Id, alternateProviderProposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    // The inverse: the normal provider assigned to the WRONG role must still be rejected — proves
+    // the gate is genuinely role-first, not merely provider-blind.
+    [Fact]
+    public async Task HandleAsync_rejects_a_proposal_owned_by_a_non_planner_attempt_even_from_the_normal_provider()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (project, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, claimRun: false);
+        var nonPlannerAttempt = Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        nonPlannerAttempt.MarkAgentDispatched(Now);
+        nonPlannerAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        var wronglyTypedMessage = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, nonPlannerAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            "Not really a Planner proposal.",
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                scope = "Ledger",
+                implementationSteps = "Steps",
+                risks = "Risks",
+                verificationPlan = "Plan",
+                escalationPoints = "None",
+            }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.Attempts.Add(nonPlannerAttempt);
+        dbContext.CollaborationMessages.Add(wronglyTypedMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(
+            new CreateClaudeCriticalReviewAttemptCommand(run.Id, wronglyTypedMessage.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.proposal_attempt_not_valid", Assert.Single(result.Errors).Code);
+    }
+
+    // A message whose Actor does not match AgentProviderParticipant.For(owningAttempt.AgentProvider)
+    // must be rejected even though every other fact (role, contract, outcome) is otherwise valid.
+    [Fact]
+    public async Task HandleAsync_rejects_a_proposal_whose_actor_does_not_match_its_owning_attempts_provider()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (project, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, claimRun: false);
+        var (planningAttempt, proposalMessage) = SeedCompletedProposal(run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        // planningAttempt.AgentProvider remains Codex, but the message's own Actor is
+        // Claude — a divergence that must never be trusted.
+        var mismatchedProposal = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Proposal, null,
+            proposalMessage.Summary, proposalMessage.StructuredContentJson, CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.Attempts.Add(planningAttempt);
+        dbContext.CollaborationMessages.Add(mismatchedProposal);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(
+            new CreateClaudeCriticalReviewAttemptCommand(run.Id, mismatchedProposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.proposal_attempt_not_valid", Assert.Single(result.Errors).Code);
+    }
+
     [Fact]
     public async Task HandleAsync_fails_when_the_run_does_not_exist()
     {
@@ -454,7 +551,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, acceptanceMessage.Id), CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("agent_attempts.not_provider_observed_codex_proposal", Assert.Single(result.Errors).Code);
+        Assert.Equal("agent_attempts.not_provider_observed_planner_proposal", Assert.Single(result.Errors).Code);
     }
 
     [Fact]
@@ -488,7 +585,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, simulatedProposal.Id), CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("agent_attempts.not_provider_observed_codex_proposal", Assert.Single(result.Errors).Code);
+        Assert.Equal("agent_attempts.not_provider_observed_planner_proposal", Assert.Single(result.Errors).Code);
     }
 
     [Fact]

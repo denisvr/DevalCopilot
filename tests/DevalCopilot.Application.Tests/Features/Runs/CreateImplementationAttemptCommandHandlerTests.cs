@@ -293,6 +293,90 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         Assert.Equal(revisedProposal.Id, orderedInputMessages[0].CollaborationMessageId);
     }
 
+    // Discriminating regression for Slice B.1: production's ClaimAgent* factories always fix
+    // Resolver to Codex, so this substitutes the resolver attempt's provider via reflection
+    // (AttemptProviderSubstitution — a test-only helper, never a production path) and constructs
+    // its Decision/revised-Proposal messages with the matching alternate Actor, purely to prove
+    // this handler's eligibility gate is authorized by AgentRole alone. Before this correction, the
+    // gate compared the resolver attempt's AgentProvider (and each Decision's Actor) to fixed Codex
+    // literals, which would have rejected this exact scenario.
+    [Fact]
+    public async Task HandleAsync_creates_an_implementation_attempt_for_a_resolved_revised_proposal_from_the_alternate_provider()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);
+
+        var originalPlanningAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        originalPlanningAttempt.MarkAgentDispatched(Now);
+        originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        dbContext.Attempts.Add(originalPlanningAttempt);
+        var originalProposal = RecordProposal(dbContext, run.Id, originalPlanningAttempt.Id, Now);
+
+        var challenge = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, originalPlanningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Challenge, originalProposal.Id,
+            "The risk section is too thin.",
+            JsonSerializer.Serialize(new
+            {
+                disputedItem = "Risks",
+                materialImpact = "Could hide a real regression",
+                reasoning = "No mitigation listed",
+                alternativeOrQuestion = "Add a mitigation",
+            }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.CollaborationMessages.Add(challenge);
+
+        var resolverAttempt = Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        resolverAttempt.MarkAgentDispatched(Now);
+        resolverAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        AttemptProviderSubstitution.SetProvider(resolverAttempt, AgentProvider.ClaudeCode);
+        dbContext.Attempts.Add(resolverAttempt);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), resolverAttempt.Id, originalProposal.Id, sequence: 0));
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), resolverAttempt.Id, challenge.Id, sequence: 1));
+
+        // RecordAgent, not the legacy Record: a Decision's legacy ValidateActorForType policy
+        // (Codex or Human only) is irrelevant to a real Agent-authored message, which RecordAgent
+        // never checks against — exactly as production behaves post-Slice-B.
+        var decision = CollaborationMessage.RecordAgent(
+            resolverAttempt, Guid.NewGuid(), ParticipantKind.Codex, CollaborationMessageType.Decision, challenge.Id,
+            "Accepted; added a mitigation.",
+            JsonSerializer.Serialize(new
+            {
+                resolution = "accepted",
+                rationale = "Valid concern",
+                resultingPlanChanges = "Added rollback step",
+                nextAction = "None",
+            }),
+            Now);
+        dbContext.CollaborationMessages.Add(decision);
+
+        var revisedProposal = CollaborationMessage.RecordAgent(
+            resolverAttempt, Guid.NewGuid(), ParticipantKind.Codex, CollaborationMessageType.Proposal, originalProposal.Id,
+            "Add the ledger table, its query, and a rollback step.",
+            JsonSerializer.Serialize(new
+            {
+                scope = "Ledger",
+                implementationSteps = "Add the table, the query, and a rollback step",
+                risks = "Unbounded content, mitigated by rollback",
+                verificationPlan = "Tests",
+                escalationPoints = "None expected",
+            }),
+            Now);
+        dbContext.CollaborationMessages.Add(revisedProposal);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateImplementationAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(run.Id, revisedProposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
     [Fact]
     public async Task HandleAsync_fails_when_an_original_proposal_has_no_accepted_review_yet()
     {
@@ -323,8 +407,64 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         Assert.Equal("agent_attempts.no_accepted_review_found", Assert.Single(result.Errors).Code);
     }
 
+    // Fail-closed regression: an otherwise-valid Accepted critical-review attempt whose own
+    // provider is missing or undefined (malformed persisted state) must be rejected safely and
+    // without mutation — never allowed to reach AgentProviderParticipant.For and throw. The
+    // corrupted review is simply invisible to this handler's own query (which requires
+    // AgentProvider is not { } ... — see AgentAuthoredMessageEligibility's sibling reasoning),
+    // so this surfaces as "no accepted review found," not a distinct error code.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HandleAsync_fails_and_does_not_mutate_when_the_accepted_reviews_own_provider_is_missing_or_undefined(bool useUndefinedRatherThanNull)
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);
+
+        var planningAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        planningAttempt.MarkAgentDispatched(Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        dbContext.Attempts.Add(planningAttempt);
+        var proposal = RecordProposal(dbContext, run.Id, planningAttempt.Id, Now);
+
+        var reviewAttempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        reviewAttempt.MarkAgentDispatched(Now);
+        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        if (useUndefinedRatherThanNull)
+        {
+            AttemptProviderSubstitution.SetUndefinedProvider(reviewAttempt);
+        }
+        else
+        {
+            AttemptProviderSubstitution.SetProvider(reviewAttempt, (AgentProvider?)null);
+        }
+
+        dbContext.Attempts.Add(reviewAttempt);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), reviewAttempt.Id, proposal.Id, sequence: 0));
+        var acceptance = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Claude, ParticipantKind.Codex, CollaborationMessageType.Acceptance, proposal.Id,
+            "Accepted as proposed.",
+            JsonSerializer.Serialize(new { rationale = "Sound and complete." }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.CollaborationMessages.Add(acceptance);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateImplementationAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(run.Id, proposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.no_accepted_review_found", Assert.Single(result.Errors).Code);
+    }
+
     [Fact]
-    public async Task HandleAsync_fails_when_the_plan_message_is_not_a_provider_observed_codex_proposal()
+    public async Task HandleAsync_fails_when_the_plan_message_is_not_a_provider_observed_proposal()
     {
         await using var dbContext = _fixture.CreateContext();
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext);
@@ -335,7 +475,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("agent_attempts.not_provider_observed_codex_proposal", Assert.Single(result.Errors).Code);
+        Assert.Equal("agent_attempts.not_provider_observed_plan_proposal", Assert.Single(result.Errors).Code);
     }
 
     [Fact]

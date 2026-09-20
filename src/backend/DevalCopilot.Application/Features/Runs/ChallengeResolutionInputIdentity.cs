@@ -59,7 +59,6 @@ internal static class ChallengeResolutionInputIdentity
                 candidate.Id != attemptId
                 && candidate.RunId == runId
                 && candidate.Kind == AttemptKind.Agent
-                && candidate.AgentProvider == AgentProvider.Codex
                 && candidate.AgentRole == AgentRole.Resolver
                 && candidate.AgentResponseContract == AgentResponseContract.ChallengeResolution
                 && candidate.Status == AttemptStatus.Completed

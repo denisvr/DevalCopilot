@@ -165,6 +165,47 @@ public sealed class ChallengeResolutionInputIdentityQueryScopeTests : IAsyncLife
     }
 
     /// <summary>
+    /// Discriminating regression for Slice B.1: the competing attempt's provider is substituted to
+    /// the alternate one via reflection (a test-only helper, never a production path) — before this
+    /// correction, the dedup query's own <c>AgentProvider == AgentProvider.Codex</c> prefilter
+    /// would have silently excluded this genuinely identical competing resolution, letting a
+    /// caller dispatch a duplicate. The match must be found by role/contract/outcome/exact input
+    /// identity alone.
+    /// </summary>
+    [Fact]
+    public async Task A_competing_resolution_from_the_alternate_provider_still_produces_input_already_resolved()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (project, run, workspace, checkpoint, lease) = BuildEligibleRunScaffold("Resolve the challenged proposal");
+        var attempt = Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+
+        var proposalId = Guid.NewGuid();
+        var challenge1Id = Guid.NewGuid();
+        var challenge2Id = Guid.NewGuid();
+        var competing = ClaimResolvedCompetingAttempt(run.Id, workspace.Id, checkpoint.Id, 2, Now);
+        AttemptProviderSubstitution.SetProvider(competing, AgentProvider.ClaudeCode);
+
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(checkpoint);
+        dbContext.RepositoryMutationLeases.Add(lease);
+        dbContext.Attempts.AddRange(attempt, competing);
+        dbContext.AttemptInputMessages.AddRange(OrderedInputMessages(attempt.Id, [proposalId, challenge1Id, challenge2Id]));
+        dbContext.AttemptInputMessages.AddRange(OrderedInputMessages(competing.Id, [proposalId, challenge1Id, challenge2Id]));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var recordHandler = new RecordChallengeResolutionInputAlreadyResolvedCommandHandler(dbContext, new FixedTimeProvider(Now.AddSeconds(1)));
+        var recordResult = await recordHandler.HandleAsync(
+            new RecordChallengeResolutionInputAlreadyResolvedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(recordResult.IsSuccess);
+        Assert.Equal(AgentOutcome.InputAlreadyResolved, attempt.AgentOutcome);
+    }
+
+    /// <summary>
     /// The core defect this correction fixes: before it, every additional unrelated candidate
     /// attempt cost one additional database round trip (a classic N+1). Seeds a fixed real
     /// attempt plus either a small or a large number of same-run, same-original-Proposal but

@@ -240,7 +240,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task Returns_conflict_when_the_proposal_is_not_a_provider_observed_codex_proposal()
+    public async Task Returns_conflict_when_the_proposal_is_not_a_provider_observed_planner_proposal()
     {
         var (runId, _, _) = await SeedEligibleRunAsync(claudeObserved: true);
 
@@ -267,7 +267,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Contains("agent_attempts.not_provider_observed_codex_proposal", body, StringComparison.Ordinal);
+        Assert.Contains("agent_attempts.not_provider_observed_planner_proposal", body, StringComparison.Ordinal);
         AssertNoDisclosure(body);
     }
 

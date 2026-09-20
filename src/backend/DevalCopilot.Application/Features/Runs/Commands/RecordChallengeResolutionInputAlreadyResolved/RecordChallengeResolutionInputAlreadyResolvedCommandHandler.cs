@@ -19,9 +19,11 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandler(
             return Result.Failure(Error.NotFound("attempts.not_found", "The requested attempt was not found for this run."));
         }
 
-        if (attempt.Kind != AttemptKind.Agent || attempt.AgentProvider != AgentProvider.Codex || attempt.AgentRole != AgentRole.Resolver)
+        if (attempt.Kind != AttemptKind.Agent
+            || attempt.AgentRole != AgentRole.Resolver
+            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.Resolver).ResponseContract)
         {
-            return Result.Failure(Error.Conflict("attempts.not_challenge_resolution", "The attempt is not a Codex challenge-resolution attempt."));
+            return Result.Failure(Error.Conflict("attempts.not_challenge_resolution", "The attempt is not a challenge-resolution attempt."));
         }
 
         if (attempt.Status != AttemptStatus.Running || attempt.AgentDispatchedAtUtc.HasValue)

@@ -249,6 +249,74 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         Assert.Equal(attempt.AgentContextManifestArtifactId, manifestArtifact.Id);
     }
 
+    // Discriminating regression for Slice B.1: production's ClaimAgent* factories always fix
+    // CriticalReviewer to ClaudeCode, so this substitutes the review attempt's provider via
+    // reflection (AttemptProviderSubstitution — a test-only helper, never a production path) and
+    // constructs its Challenge messages with the matching alternate Actor, purely to prove this
+    // handler's eligibility gate is authorized by AgentRole alone. Before this correction, the gate
+    // compared the review attempt's AgentProvider (and each Challenge's Actor) to fixed ClaudeCode
+    // literals, which would have rejected this exact scenario.
+    [Fact]
+    public async Task HandleAsync_accepts_a_challenged_review_from_the_alternate_provider()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);
+
+        var planningAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        planningAttempt.MarkAgentDispatched(Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        dbContext.Attempts.Add(planningAttempt);
+
+        var proposal = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Proposal, null,
+            "Add the ledger table and its query.",
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                scope = "Ledger",
+                implementationSteps = "Add the table then the query",
+                risks = "Unbounded content",
+                verificationPlan = "Tests",
+                escalationPoints = "None expected",
+            }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.CollaborationMessages.Add(proposal);
+
+        var reviewAttempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        reviewAttempt.MarkAgentDispatched(Now);
+        reviewAttempt.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now);
+        AttemptProviderSubstitution.SetProvider(reviewAttempt, AgentProvider.Codex);
+        dbContext.Attempts.Add(reviewAttempt);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), reviewAttempt.Id, proposal.Id, sequence: 0));
+
+        var challenge = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, reviewAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantKind.Codex, ParticipantKind.Claude, CollaborationMessageType.Challenge, proposal.Id,
+            "Challenge summary",
+            System.Text.Json.JsonSerializer.Serialize(new
+            {
+                disputedItem = "Disputed item",
+                materialImpact = "Material impact",
+                reasoning = "Reasoning",
+                alternativeOrQuestion = "Alternative or question",
+            }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+        dbContext.CollaborationMessages.Add(challenge);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
     [Fact]
     public async Task HandleAsync_fails_when_the_run_does_not_exist()
     {
@@ -389,6 +457,44 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
         Assert.True(result.IsFailure);
         Assert.Equal("agent_attempts.challenged_review_not_valid", Assert.Single(result.Errors).Code);
+    }
+
+    // Fail-closed regression: a challenged review whose own provider is missing or undefined
+    // (malformed persisted state) must be rejected safely and without mutation — never allowed to
+    // reach AgentProviderParticipant.For and throw.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HandleAsync_fails_and_does_not_mutate_when_the_challenged_reviews_own_provider_is_missing_or_undefined(bool useUndefinedRatherThanNull)
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);
+        var challengedReview = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        challengedReview.MarkAgentDispatched(Now);
+        challengedReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now);
+        if (useUndefinedRatherThanNull)
+        {
+            AttemptProviderSubstitution.SetUndefinedProvider(challengedReview);
+        }
+        else
+        {
+            AttemptProviderSubstitution.SetProvider(challengedReview, (AgentProvider?)null);
+        }
+
+        dbContext.Attempts.Add(challengedReview);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, challengedReview.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.challenged_review_not_valid", Assert.Single(result.Errors).Code);
+        Assert.Empty(dbContext.Attempts.Where(a => a.Id != challengedReview.Id));
     }
 
     [Fact]

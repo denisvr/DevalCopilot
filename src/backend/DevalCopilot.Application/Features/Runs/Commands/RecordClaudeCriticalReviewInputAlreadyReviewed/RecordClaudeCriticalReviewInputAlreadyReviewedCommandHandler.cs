@@ -19,9 +19,11 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
             return Result.Failure(Error.NotFound("attempts.not_found", "The requested attempt was not found for this run."));
         }
 
-        if (attempt.Kind != AttemptKind.Agent || attempt.AgentProvider != AgentProvider.ClaudeCode || attempt.AgentRole != AgentRole.CriticalReviewer)
+        if (attempt.Kind != AttemptKind.Agent
+            || attempt.AgentRole != AgentRole.CriticalReviewer
+            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.CriticalReviewer).ResponseContract)
         {
-            return Result.Failure(Error.Conflict("attempts.not_critical_review", "The attempt is not a Claude critical-review attempt."));
+            return Result.Failure(Error.Conflict("attempts.not_critical_review", "The attempt is not a critical-review attempt."));
         }
 
         if (attempt.Status != AttemptStatus.Running || attempt.AgentDispatchedAtUtc.HasValue)
@@ -52,7 +54,6 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
                 candidate =>
                     candidate.Id != attempt.Id
                     && candidate.Kind == AttemptKind.Agent
-                    && candidate.AgentProvider == AgentProvider.ClaudeCode
                     && candidate.AgentRole == AgentRole.CriticalReviewer
                     && candidate.Status == AttemptStatus.Completed
                     && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),

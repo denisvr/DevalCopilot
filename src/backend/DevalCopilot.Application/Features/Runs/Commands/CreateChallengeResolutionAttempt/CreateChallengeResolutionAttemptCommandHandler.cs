@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -113,7 +114,6 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         var alreadyResolved = await dbContext.Attempts
             .Where(candidate =>
                 candidate.Kind == AttemptKind.Agent
-                && candidate.AgentProvider == AgentProvider.Codex
                 && candidate.AgentRole == AgentRole.Resolver
                 && candidate.AgentOutcome == AgentOutcome.Resolved)
             .Join(
@@ -279,8 +279,10 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         }
 
         if (challengedReviewAttempt.Kind != AttemptKind.Agent
-            || challengedReviewAttempt.AgentProvider != AgentProvider.ClaudeCode
             || challengedReviewAttempt.AgentRole != AgentRole.CriticalReviewer
+            || challengedReviewAttempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.CriticalReviewer).ResponseContract
+            || challengedReviewAttempt.AgentProvider is not { } challengedReviewProvider
+            || !Enum.IsDefined(challengedReviewProvider)
             || challengedReviewAttempt.Status != AttemptStatus.Completed
             || challengedReviewAttempt.AgentOutcome != AgentOutcome.Challenged)
         {
@@ -307,26 +309,21 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
 
         var originalProposalMessage = await dbContext.CollaborationMessages
             .SingleOrDefaultAsync(candidate => candidate.Id == originalProposalMessageId, cancellationToken);
-        if (originalProposalMessage is null
-            || originalProposalMessage.Type != CollaborationMessageType.Proposal
-            || originalProposalMessage.Provenance != CollaborationMessageProvenance.ProviderObserved
-            || originalProposalMessage.Actor != ParticipantKind.Codex
-            || originalProposalMessage.AttemptId is not { } owningProposalAttemptId)
+        if (originalProposalMessage is null || originalProposalMessage.Type != CollaborationMessageType.Proposal)
         {
             return ChallengedReviewValidation.Failed(
                 Error.Conflict(
-                    "agent_attempts.not_provider_observed_codex_proposal",
-                    "The challenged review's original proposal is not a provider-observed Codex proposal."));
+                    "agent_attempts.not_provider_observed_planner_proposal",
+                    "The challenged review's original proposal is not a provider-observed Planner proposal."));
         }
 
-        var owningProposalAttempt = await dbContext.Attempts
-            .SingleOrDefaultAsync(candidate => candidate.Id == owningProposalAttemptId, cancellationToken);
-        if (owningProposalAttempt is null
-            || owningProposalAttempt.Kind != AttemptKind.Agent
-            || owningProposalAttempt.AgentProvider != AgentProvider.Codex
-            || owningProposalAttempt.AgentRole != AgentRole.Planner
-            || owningProposalAttempt.Status != AttemptStatus.Completed
-            || owningProposalAttempt.AgentOutcome != AgentOutcome.Proposed)
+        // Role-first, per ADR-0009: the owning attempt's AgentRole is the sole authority for
+        // whether this message is a real Planner proposal. AgentProvider participates only as
+        // provenance-integrity evidence inside this helper — never compared to a fixed provider to
+        // authorize the role.
+        var owningProposalAttempt = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
+            dbContext, originalProposalMessage, runId, AgentRole.Planner, cancellationToken);
+        if (owningProposalAttempt is null || owningProposalAttempt.Status != AttemptStatus.Completed || owningProposalAttempt.AgentOutcome != AgentOutcome.Proposed)
         {
             return ChallengedReviewValidation.Failed(
                 Error.Conflict(
@@ -344,6 +341,12 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                     "The original proposal was made against a different checkpoint than the one currently current for this workspace."));
         }
 
+        // Every Challenge already belongs to challengedReviewAttempt by construction of the query
+        // below, whose own role (CriticalReviewer) and provider were already validated (present
+        // and defined) above — provenance integrity here means each Challenge's own recorded Actor
+        // must still truthfully match that SAME already-validated attempt's provider, never a
+        // fixed literal.
+        var expectedChallengeActor = AgentProviderParticipant.For(challengedReviewProvider);
         var orderedChallenges = await dbContext.CollaborationMessages
             .Where(candidate => candidate.AttemptId == challengedReviewAttempt.Id && candidate.Type == CollaborationMessageType.Challenge)
             .OrderBy(candidate => candidate.Sequence)
@@ -351,7 +354,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         if (orderedChallenges.Count == 0
             || orderedChallenges.Any(challenge =>
                 challenge.Provenance != CollaborationMessageProvenance.ProviderObserved
-                || challenge.Actor != ParticipantKind.Claude
+                || challenge.Actor != expectedChallengeActor
                 || challenge.InReplyToMessageId != originalProposalMessage.Id))
         {
             return ChallengedReviewValidation.Failed(

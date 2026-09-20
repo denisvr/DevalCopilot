@@ -57,7 +57,6 @@ internal static class CodeReviewInputIdentity
                 candidate.Id != attemptId
                 && candidate.RunId == runId
                 && candidate.Kind == AttemptKind.Agent
-                && candidate.AgentProvider == AgentProvider.Codex
                 && candidate.AgentRole == AgentRole.CodeReviewer
                 && candidate.AgentResponseContract == AgentResponseContract.ImplementationReview
                 && candidate.Status == AttemptStatus.Completed

@@ -20,9 +20,11 @@ public sealed class RecordCodeReviewInputAlreadyCodeReviewedCommandHandler(IDeva
             return Result.Failure(Error.NotFound("attempts.not_found", "The requested attempt was not found for this run."));
         }
 
-        if (attempt.Kind != AttemptKind.Agent || attempt.AgentProvider != AgentProvider.Codex || attempt.AgentRole != AgentRole.CodeReviewer)
+        if (attempt.Kind != AttemptKind.Agent
+            || attempt.AgentRole != AgentRole.CodeReviewer
+            || attempt.AgentResponseContract != AgentAttemptContract.For(AgentRole.CodeReviewer).ResponseContract)
         {
-            return Result.Failure(Error.Conflict("attempts.not_code_review", "The attempt is not a Codex code-review attempt."));
+            return Result.Failure(Error.Conflict("attempts.not_code_review", "The attempt is not a code-review attempt."));
         }
 
         if (attempt.Status != AttemptStatus.Running || attempt.AgentDispatchedAtUtc.HasValue)

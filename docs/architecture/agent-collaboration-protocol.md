@@ -36,17 +36,20 @@ Every accepted agent message maps to a project-owned envelope:
 Provider session identifiers and raw response locations are metadata on the
 attempt. They do not replace the project envelope.
 
-## Role-first message authorization
+## Role-first message authorization and eligibility
 
-Per ADR-0009, a real Agent attempt's own message-authoring authority is
-decided by its immutable role, never by which provider produced it. The
-attempt's `AgentRole` is resolved once, at claim time, and never changes
+Per ADR-0009, both a real Agent attempt's own message-authoring authority
+(write side) and every later attempt's upstream-input eligibility (read side)
+are decided by immutable role, never by which provider produced an attempt.
+The attempt's `AgentRole` is resolved once, at claim time, and never changes
 afterward; `CollaborationMessageAuthorPolicy` maps that role to the closed set
 of message types the role may author. Provider identity (`AgentProvider`) is
 derived separately, as provenance only, through a single closed mapping
 (`AgentProviderParticipant`) — it is recorded truthfully on every message and
-event, but it grants no authoring authority and is never consulted when
-deciding whether a message type is allowed.
+event, and checked against a message's own `Actor` for provenance integrity,
+but it grants no authoring or eligibility authority and is never consulted
+when deciding whether a role may author a message type or consume one as
+input.
 
 Real terminal protocol output — a Proposal, an Acceptance or Challenge, a
 Decision and revised Proposal, an Execution report, or a Review approval or
@@ -67,14 +70,32 @@ policy (`ValidateActorForType`) — these have no owning Agent attempt, or no
 role at all, so no role-based authorization can apply to them. That legacy
 policy is unchanged and unweakened by this stabilization.
 
+On the read side, every `Create*Attempt` handler that consumes an earlier
+role's collaboration output as its own workflow input — the Claude
+critical-review attempt consuming a Planner Proposal, the Codex
+challenge-resolution attempt consuming a CriticalReviewer Challenged review,
+the Claude implementation attempt consuming an accepted or resolved Proposal,
+the Codex code-review attempt consuming an Implementer Execution report —
+resolves the message's owning attempt and checks its role, response-contract
+coherence, and outcome/checkpoint facts; `AgentProvider` participates only as
+provenance-integrity evidence against the message's own recorded `Actor`,
+never as a fixed value compared to authorize the role. The same correction
+applies to every "already reviewed/resolved/implemented/code-reviewed"
+deduplication query and its shared identity helper
+(`ChallengeResolutionInputIdentity`, `CodeReviewInputIdentity`,
+`ImplementationInputIdentity`): a prior successful attempt is found by role,
+response contract, outcome, and exact input identity, never narrowed to one
+fixed provider first.
+
 Recipient remains provider-named compatibility metadata: today's literal
 "the other provider" value pending a later recipient/read-side stabilization
 slice. This stabilization removes provider identity from author
-authorization only — it does not yet make real provider substitution (for
-example, assigning a role to a different provider) end-to-end safe, since
-recipient literals, actor/recipient inequality, provider-named read-side
-eligibility checks (`Create*Attempt` handlers), and the frontend's
-provider-named message selectors are unchanged follow-up work.
+authorization and from upstream-input eligibility, but it does not yet make
+real provider substitution (for example, assigning a role to a different
+provider) end-to-end safe: recipient literals, `Actor`/`Recipient`
+inequality, the role-specific eligible-attempts dispatch queues
+(`GetEligible*AttemptsQueryHandler`), and the frontend's provider-named
+message selectors are the next stabilization boundary.
 
 ## Current durable ledger boundary
 

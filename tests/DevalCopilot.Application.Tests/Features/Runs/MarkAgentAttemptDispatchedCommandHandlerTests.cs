@@ -102,6 +102,81 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
         Assert.Equal(AttemptStatus.Running, attempt.Status);
     }
 
+    // Fail-closed contract-coherence regression, distinct from workspace/lease/checkpoint
+    // eligibility: before any role-specific input query or dispatch mutation, an Agent attempt's
+    // role, provider, and response contract must each be present, defined, and mutually coherent.
+    // This is never provider authorization — the provider is never compared to a role-specific
+    // fixed value — only a guard against malformed persisted state reaching a role branch or ever
+    // being dispatched.
+    [Fact]
+    public async Task HandleAsync_rejects_dispatch_of_an_attempt_with_a_null_provider()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (run, attempt) = await SeedEligibleAttemptAsync(dbContext);
+        AttemptProviderSubstitution.SetProvider(attempt, (AgentProvider?)null);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.invalid_agent_contract", Assert.Single(result.Errors).Code);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_dispatch_of_an_attempt_with_an_undefined_provider()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (run, attempt) = await SeedEligibleAttemptAsync(dbContext);
+        AttemptProviderSubstitution.SetUndefinedProvider(attempt);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.invalid_agent_contract", Assert.Single(result.Errors).Code);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_dispatch_of_an_attempt_with_a_missing_role()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (run, attempt) = await SeedEligibleAttemptAsync(dbContext);
+        var roleProperty = typeof(Attempt).GetProperty(nameof(Attempt.AgentRole))!;
+        roleProperty.GetSetMethod(nonPublic: true)!.Invoke(attempt, [null]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.invalid_agent_contract", Assert.Single(result.Errors).Code);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_dispatch_of_an_attempt_with_a_role_response_contract_mismatch()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (run, attempt) = await SeedEligibleAttemptAsync(dbContext);
+        // attempt was claimed via ClaimAgent (Planner), so a coherent attempt would carry
+        // AgentResponseContract.Proposal — CriticalReview is incoherent for this role.
+        var responseContractProperty = typeof(Attempt).GetProperty(nameof(Attempt.AgentResponseContract))!;
+        responseContractProperty.GetSetMethod(nonPublic: true)!.Invoke(attempt, [AgentResponseContract.CriticalReview]);
+
+        var handler = new MarkAgentAttemptDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
+        var result = await handler.HandleAsync(
+            new MarkAgentAttemptDispatchedCommand(run.Id, attempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.invalid_agent_contract", Assert.Single(result.Errors).Code);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+    }
+
     // The authoritative last gate: GetEligibleAgentAttemptsQuery is only a snapshot, and
     // workspace/lease/checkpoint state can change during the pre-dispatch Git evidence capture
     // that runs between that snapshot and this call. Each of these proves one such change, alone,
