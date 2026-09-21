@@ -194,12 +194,20 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
             context.Attempts.Add(Attempt.Claim(Guid.NewGuid(), run.Id, 99, Now));
         }
 
+        var planningAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        planningAttempt.MarkAgentDispatched(Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        context.Attempts.Add(planningAttempt);
+
         var proposal = CollaborationMessage.Record(
-            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne,
+            Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
             ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Implement the requested correction.", JsonSerializer.Serialize(new { scope = "Correction", implementationSteps = "Apply the review findings.", risks = "None known.", verificationPlan = "Run tests.", escalationPoints = "None." }),
             CollaborationMessageProvenance.ProviderObserved, Now);
+        context.CollaborationMessages.Add(proposal);
         var report = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Implementer, AgentProvider.ClaudeCode),
@@ -207,21 +215,38 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
             "Implemented the requested correction.", JsonSerializer.Serialize(new { completedWork = "Updated the implementation.", verification = "Tests passed." }),
             CollaborationMessageProvenance.ProviderObserved, Now);
         var findings = new List<CollaborationMessage>();
-        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        acceptanceAttempt.MarkAgentDispatched(Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        context.Attempts.Add(acceptanceAttempt);
+        context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, proposal.Id, 0));
+        var acceptance = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, acceptanceAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, proposal.Id,
+            "Accepted the implementation plan.", JsonSerializer.Serialize(new { rationale = "The plan is complete." }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+        context.CollaborationMessages.Add(acceptance);
+
+        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
         if (completedReview) { review.MarkAgentDispatched(Now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now); }
         else { review.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now); }
         if (checkpoint is not null)
         {
-            var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
             implementation.MarkAgentDispatched(Now);
             implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now);
             report = CollaborationMessage.Record(Guid.NewGuid(), run.Id, implementation.Id, CollaborationMessage.ProtocolVersionOne,
                 ParticipantIdentity.ForAgent(AgentRole.Implementer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.ExecutionReport, proposal.Id,
                 "Implemented the requested correction.", JsonSerializer.Serialize(new { completedWork = "Updated the implementation.", verification = "Tests passed." }), CollaborationMessageProvenance.ProviderObserved, Now);
             context.Attempts.Add(implementation);
+            context.AttemptInputMessages.AddRange(
+                AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, proposal.Id, 0),
+                AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, acceptance.Id, 1));
         }
         context.Attempts.Add(review);
-        context.CollaborationMessages.Add(proposal);
         context.CollaborationMessages.Add(report);
         context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), review.Id, report.Id, 0));
         if (includeFindings && checkpoint is not null)

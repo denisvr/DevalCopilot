@@ -200,12 +200,12 @@ attempt `Interrupted` and, if the fingerprint no longer matches (or that
 evidence itself could not be captured), the workspace `NeedsAttention` as
 well.
 
-Claude Code's Review-finding and Revision-response stages, and Codex's own
-review of Claude's implementation, remain deferred: no live provider adapter
-exists yet for Review finding or Revision response, this slice never claims
-automatic verification, Codex code review, or publication of an
-implementation's changes, and every such envelope in the durable ledger is
-still produced by the `Simulated` walking-skeleton sequence described above.
+The durable Review-finding, Revision-response, and Codex implementation-review
+envelopes are now explicit, bounded workflow facts. Production contains real
+Codex and Claude provider adapters and supervisors for the implemented roles;
+automated tests use deterministic adapters and doubles and never invoke a real
+provider. The durable envelopes do not authorize automatic verification,
+publication, fallback, or parallel execution.
 
 ## Message types
 
@@ -354,11 +354,10 @@ the exact same evidence: a review already recorded for the identical
 Execution report plus the identical ordered verification-execution set
 supersedes any further attempt at claim or dispatch time — mirroring
 Resolution's own exact-input-identity rule one level further down the
-protocol. Claude's own Review finding/Revision response loop back into
-Execution — resuming implementation automatically from a changes-requested
-review — remains deferred; a changes-requested review is durably recorded
-and visible, but nothing in this slice re-enters Execution from it
-automatically.
+protocol. A successful correction appends a new checkpoint and report, but
+re-review is an explicit user request only: the new checkpoint must first have
+fresh Passed verification, and no state transition automatically re-enters
+Execution from a changes-requested review.
 
 ## Authority matrix
 

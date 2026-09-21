@@ -48,13 +48,15 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
   const requestReviewCorrection = useRequestReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
   const latestCodexProposalMessageId = selectLatestCodexProposalMessageId(collaborationTimeline.cards)
-  // Only a real, successful implementation ever makes a code review requestable — never a
-  // failed or not-yet-attempted implementation. The backend independently re-verifies this
-  // eligibility in full before ever acting on it; this is only a display hint.
-  const latestExecutionReportMessageId =
-    implementationAttemptStatus.status?.outcome === 'Implemented'
-      ? selectLatestExecutionReportMessageId(collaborationTimeline.cards)
-      : null
+  // The backend independently re-verifies this eligibility in full before ever acting on it;
+  // this is only a display hint. A failed or active correction must never resurrect the stale
+  // initial report, while a durable correction (including a competing InputAlreadyCorrected
+  // result) makes the newest timeline report the next review candidate.
+  const latestExecutionReportMessageId = selectLatestExecutionReportMessageId(
+    reviewCorrectionAttemptStatus.status?.reviewableExecutionReportMessageId,
+    reviewCorrectionAttemptStatus.loading,
+    reviewCorrectionAttemptStatus.error,
+  )
   // Only the latest Claude critical-review attempt's own Challenged outcome ever makes a
   // resolution requestable — never an older, since-superseded review, and never a review still
   // Running or one that settled as Accepted.

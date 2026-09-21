@@ -156,15 +156,18 @@ alongside either one `ReviewApproval` collaboration message or one
 `ReviewFinding` message per finding — each replying to the reviewed Execution
 report, never to the original plan.
 
-`Review["changes requested"] --> Execute` is now a bounded correction re-entry:
+`Review["changes requested"] --> Execute` is now an explicit, user-requested
+correction re-entry:
 the current `ReviewCorrection` contract belongs to the Implementer role and
 consumes the previous ExecutionReport followed by every ReviewFinding in exact
 collaboration-timeline order. Claim, dispatch, duplicate protection, and result
 recording all bind to the same starting checkpoint. A successful correction
 creates a new immutable checkpoint and appends one RevisionResponse per finding
 plus one new ExecutionReport atomically. Re-review of that new checkpoint is a
-later explicit request; no automatic provider fallback or parallel executor is
-introduced.
+later explicit request only after fresh Passed verification is recorded for the
+new checkpoint. The re-review can expose another explicit correction request;
+automatic orchestration, provider fallback, Gemini, snapshots, parallel
+executors, and correction-round exhaustion policy remain deferred.
 
 ### Approval state
 
@@ -259,7 +262,7 @@ Pause, stop, or exhaustion for one run does not transition an unrelated run.
 MVP defaults are policy values, not hard-coded domain constants:
 
 - no more than two plan challenge rounds per material issue;
-- no more than two review correction rounds;
+- review-correction round exhaustion is not enforced in this increment;
 - no more than two CI code-correction rounds;
 - no more than one automatic rerun for a probable transient CI failure;
 - finite wall-clock, process, output-size, and token budgets;

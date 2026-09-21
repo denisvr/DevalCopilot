@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Runs;
 
@@ -28,6 +29,17 @@ internal static class CodeReviewContextManifestBuilder
 
     internal sealed record VerificationEvidence(
         string CommandName, int CommandNumber, string Status, string? Outcome, int? ExitCode);
+
+    internal sealed record CorrectionEvidence(
+        Guid PreviousExecutionReportMessageId,
+        string PreviousExecutionReportSummary,
+        string PreviousExecutionReportStructuredContentJson,
+        IReadOnlyList<CorrectionFinding> OrderedFindings,
+        IReadOnlyList<CorrectionRevisionResponse> OrderedRevisionResponses);
+
+    internal sealed record CorrectionFinding(Guid MessageId, string Summary, string StructuredContentJson);
+
+    internal sealed record CorrectionRevisionResponse(Guid MessageId, Guid FindingMessageId, string Summary, string StructuredContentJson);
 
     public static string Build(
         Guid projectId,
@@ -104,5 +116,66 @@ internal static class CodeReviewContextManifestBuilder
         };
 
         return JsonSerializer.Serialize(document);
+    }
+
+    public static string BuildForCorrection(
+        Guid projectId,
+        Guid gitWorkspaceId,
+        Guid resultGitCheckpointId,
+        string resultCheckpointFingerprintSha256,
+        string runObjective,
+        Guid resolvedPlanMessageId,
+        string resolvedPlanSummary,
+        string resolvedPlanStructuredContentJson,
+        Guid executionReportMessageId,
+        string executionReportSummary,
+        string executionReportStructuredContentJson,
+        IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
+        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
+        string? completeDiff,
+        CorrectionEvidence correctionEvidence)
+    {
+        var root = JsonNode.Parse(Build(
+            projectId,
+            gitWorkspaceId,
+            resultGitCheckpointId,
+            resultCheckpointFingerprintSha256,
+            runObjective,
+            resolvedPlanMessageId,
+            resolvedPlanSummary,
+            resolvedPlanStructuredContentJson,
+            executionReportMessageId,
+            executionReportSummary,
+            executionReportStructuredContentJson,
+            orderedVerificationEvidence,
+            changedPaths,
+            completeDiff))!.AsObject();
+
+        root["correctionEvidence"] = new JsonObject
+        {
+            ["previousExecutionReport"] = new JsonObject
+            {
+                ["messageId"] = correctionEvidence.PreviousExecutionReportMessageId,
+                ["summary"] = correctionEvidence.PreviousExecutionReportSummary,
+                ["structuredContent"] = JsonNode.Parse(correctionEvidence.PreviousExecutionReportStructuredContentJson),
+            },
+            ["orderedFindings"] = new JsonArray(correctionEvidence.OrderedFindings.Select(finding =>
+                (JsonNode)new JsonObject
+                {
+                    ["messageId"] = finding.MessageId,
+                    ["summary"] = finding.Summary,
+                    ["structuredContent"] = JsonNode.Parse(finding.StructuredContentJson),
+                }).ToArray()),
+            ["orderedRevisionResponses"] = new JsonArray(correctionEvidence.OrderedRevisionResponses.Select(response =>
+                (JsonNode)new JsonObject
+                {
+                    ["messageId"] = response.MessageId,
+                    ["findingMessageId"] = response.FindingMessageId,
+                    ["summary"] = response.Summary,
+                    ["structuredContent"] = JsonNode.Parse(response.StructuredContentJson),
+                }).ToArray()),
+        };
+
+        return root.ToJsonString();
     }
 }

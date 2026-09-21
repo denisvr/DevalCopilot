@@ -2716,6 +2716,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
     attemptId?: string | undefined;
     attemptNumber?: number | undefined;
     implementationReviewAttemptId?: string | undefined;
+    reviewableExecutionReportMessageId?: string | undefined;
     status?: string | undefined;
     outcome?: string | undefined;
     startingGitCheckpointId?: string | undefined;
@@ -2741,6 +2742,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
             this.attemptId = _data["attemptId"];
             this.attemptNumber = _data["attemptNumber"];
             this.implementationReviewAttemptId = _data["implementationReviewAttemptId"];
+            this.reviewableExecutionReportMessageId = _data["reviewableExecutionReportMessageId"];
             this.status = _data["status"];
             this.outcome = _data["outcome"];
             this.startingGitCheckpointId = _data["startingGitCheckpointId"];
@@ -2770,6 +2772,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
         data["attemptId"] = this.attemptId;
         data["attemptNumber"] = this.attemptNumber;
         data["implementationReviewAttemptId"] = this.implementationReviewAttemptId;
+        data["reviewableExecutionReportMessageId"] = this.reviewableExecutionReportMessageId;
         data["status"] = this.status;
         data["outcome"] = this.outcome;
         data["startingGitCheckpointId"] = this.startingGitCheckpointId;
@@ -2792,6 +2795,7 @@ export interface IReviewCorrectionAttemptStatusResponse {
     attemptId?: string | undefined;
     attemptNumber?: number | undefined;
     implementationReviewAttemptId?: string | undefined;
+    reviewableExecutionReportMessageId?: string | undefined;
     status?: string | undefined;
     outcome?: string | undefined;
     startingGitCheckpointId?: string | undefined;

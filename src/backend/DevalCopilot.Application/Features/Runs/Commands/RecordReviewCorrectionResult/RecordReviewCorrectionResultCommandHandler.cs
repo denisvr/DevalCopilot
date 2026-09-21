@@ -155,40 +155,34 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "The correction input identity is not valid."));
         }
 
-        var implementationReportOwner = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
-            dbContext, inputMessages[orderedInputs[0]], run.Id, AgentRole.Implementer, cancellationToken);
-        if (implementationReportOwner is null
-            || implementationReportOwner.AgentResponseContract != AgentResponseContract.ImplementationReport
-            || implementationReportOwner.Status != AttemptStatus.Completed
-            || implementationReportOwner.AgentOutcome != AgentOutcome.Implemented
-            || implementationReportOwner.AgentResultGitCheckpointId != startingCheckpoint.Id)
+        var previousReportValidation = await ImplementerExecutionReportEligibility.ResolveAsync(
+            dbContext,
+            inputMessages[orderedInputs[0]],
+            run.Id,
+            workspace.Id,
+            startingCheckpoint.Id,
+            cancellationToken);
+        if (previousReportValidation is null)
         {
             return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "The correction execution report is not a valid implementation result."));
         }
 
         var orderedFindingMessages = orderedInputs.Skip(1).Select(id => inputMessages[id]).ToArray();
-        var rawFindingAttemptIds = orderedFindingMessages.Select(message => message.AttemptId).ToArray();
-        if (rawFindingAttemptIds.Any(candidate => candidate is null))
+        foreach (var finding in orderedFindingMessages)
         {
-            return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "A correction finding has no owning review attempt."));
-        }
-
-        var findingAttemptIds = rawFindingAttemptIds.Select(candidate => candidate!.Value).ToArray();
-        var findingOwners = await dbContext.Attempts
-            .Where(candidate => findingAttemptIds.Contains(candidate.Id))
-            .ToDictionaryAsync(candidate => candidate.Id, cancellationToken);
-        if (findingOwners.Count != findingAttemptIds.Distinct().Count()
-            || orderedFindingMessages.Any(message =>
-                message.Provenance != CollaborationMessageProvenance.ProviderObserved
-                || message.InReplyToMessageId != orderedInputs[0]
-                || !findingOwners.TryGetValue(message.AttemptId!.Value, out var owner)
-                || owner.RunId != run.Id
-                || owner.AgentRole != AgentRole.CodeReviewer
-                || owner.AgentResponseContract != AgentResponseContract.ImplementationReview
-                || owner.Status != AttemptStatus.Completed
-                || owner.AgentOutcome != AgentOutcome.ReviewChangesRequested))
-        {
-            return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "The correction findings are not valid review evidence."));
+            var findingOwner = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
+                dbContext, finding, run.Id, AgentRole.CodeReviewer, cancellationToken);
+            if (finding.Provenance != CollaborationMessageProvenance.ProviderObserved
+                || finding.InReplyToMessageId != orderedInputs[0]
+                || findingOwner is null
+                || findingOwner.AgentResponseContract != AgentResponseContract.ImplementationReview
+                || findingOwner.Status != AttemptStatus.Completed
+                || findingOwner.AgentOutcome != AgentOutcome.ReviewChangesRequested
+                || findingOwner.AgentGitWorkspaceId != workspace.Id
+                || findingOwner.AgentGitCheckpointId != startingCheckpoint.Id)
+            {
+                return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "The correction findings are not valid review evidence."));
+            }
         }
 
         if (command.Correction is not null
@@ -199,29 +193,7 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
         }
 
         var previousExecutionReport = inputMessages[orderedInputs[0]];
-        if (previousExecutionReport.InReplyToMessageId is not { } originalProposalId)
-        {
-            return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "The implementation report has no original proposal parent."));
-        }
-
-        var originalProposal = await dbContext.CollaborationMessages.SingleOrDefaultAsync(
-            message => message.Id == originalProposalId && message.RunId == run.Id,
-            cancellationToken);
-        if (originalProposal is null
-            || originalProposal.Type != CollaborationMessageType.Proposal
-            || originalProposal.Sequence >= previousExecutionReport.Sequence)
-        {
-            return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "The original implementation proposal is not a valid parent."));
-        }
-
-        var implementationProposalId = await dbContext.AttemptInputMessages
-            .Where(input => input.AttemptId == implementationReportOwner.Id && input.Sequence == 0)
-            .Select(input => (Guid?)input.CollaborationMessageId)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (implementationProposalId != originalProposal.Id)
-        {
-            return Failure(Error.Conflict("agent_attempts.correction_input_invalid", "The original proposal is outside the validated implementation chain."));
-        }
+        var originalProposal = previousReportValidation.OriginalProposal;
 
         var (outcome, mutationSuspected) = Classify(command, attempt, startingCheckpoint, inputMessages.Count == orderedInputs.Count);
 

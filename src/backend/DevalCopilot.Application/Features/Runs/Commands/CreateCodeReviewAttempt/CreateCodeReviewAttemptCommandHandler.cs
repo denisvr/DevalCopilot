@@ -110,7 +110,9 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(error);
         }
 
-        var (executionReportMessage, resolvedPlanMessage) = (executionReportValidation.ExecutionReport!, executionReportValidation.ResolvedPlan!);
+        var validatedExecutionReport = executionReportValidation.Value!;
+        var executionReportMessage = validatedExecutionReport.ExecutionReport;
+        var resolvedPlanMessage = validatedExecutionReport.OriginalProposal;
 
         var verificationValidation = await ValidateVerificationEvidenceAsync(run.ProjectId, checkpoint, cancellationToken);
         if (verificationValidation.Error is { } verificationError)
@@ -137,24 +139,56 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
         var manifestArtifactId = Guid.NewGuid();
         var nowUtc = timeProvider.GetUtcNow();
 
-        var manifestJson = CodeReviewContextManifestBuilder.Build(
-            run.ProjectId,
-            workspace.Id,
-            checkpoint.Id,
-            checkpoint.FingerprintSha256,
-            run.Objective,
-            resolvedPlanMessage.Id,
-            resolvedPlanMessage.Summary,
-            resolvedPlanMessage.StructuredContentJson,
-            executionReportMessage.Id,
-            executionReportMessage.Summary,
-            executionReportMessage.StructuredContentJson,
-            orderedVerificationExecutions
-                .Select(item => new CodeReviewContextManifestBuilder.VerificationEvidence(
-                    item.CommandName, item.CommandNumber, item.Execution.Status.ToString(), item.Execution.Outcome?.ToString(), item.Execution.ExitCode))
-                .ToArray(),
-            evidence.ChangedPaths,
-            evidence.CompleteDiff);
+        var orderedVerificationEvidence = orderedVerificationExecutions
+            .Select(item => new CodeReviewContextManifestBuilder.VerificationEvidence(
+                item.CommandName, item.CommandNumber, item.Execution.Status.ToString(), item.Execution.Outcome?.ToString(), item.Execution.ExitCode))
+            .ToArray();
+        var manifestJson = validatedExecutionReport.PreviousExecutionReport is null
+            ? CodeReviewContextManifestBuilder.Build(
+                run.ProjectId,
+                workspace.Id,
+                checkpoint.Id,
+                checkpoint.FingerprintSha256,
+                run.Objective,
+                resolvedPlanMessage.Id,
+                resolvedPlanMessage.Summary,
+                resolvedPlanMessage.StructuredContentJson,
+                executionReportMessage.Id,
+                executionReportMessage.Summary,
+                executionReportMessage.StructuredContentJson,
+                orderedVerificationEvidence,
+                evidence.ChangedPaths,
+                evidence.CompleteDiff)
+            : CodeReviewContextManifestBuilder.BuildForCorrection(
+                run.ProjectId,
+                workspace.Id,
+                checkpoint.Id,
+                checkpoint.FingerprintSha256,
+                run.Objective,
+                resolvedPlanMessage.Id,
+                resolvedPlanMessage.Summary,
+                resolvedPlanMessage.StructuredContentJson,
+                executionReportMessage.Id,
+                executionReportMessage.Summary,
+                executionReportMessage.StructuredContentJson,
+                orderedVerificationEvidence,
+                evidence.ChangedPaths,
+                evidence.CompleteDiff,
+                new CodeReviewContextManifestBuilder.CorrectionEvidence(
+                    validatedExecutionReport.PreviousExecutionReport.Id,
+                    validatedExecutionReport.PreviousExecutionReport.Summary,
+                    validatedExecutionReport.PreviousExecutionReport.StructuredContentJson,
+                    validatedExecutionReport.OrderedFindings
+                        .Select(finding => new CodeReviewContextManifestBuilder.CorrectionFinding(
+                            finding.Id, finding.Summary, finding.StructuredContentJson))
+                        .ToArray(),
+                    validatedExecutionReport.OrderedRevisionResponses
+                        .Select(response => new CodeReviewContextManifestBuilder.CorrectionRevisionResponse(
+                            response.Id,
+                            response.InReplyToMessageId!.Value,
+                            response.Summary,
+                            response.StructuredContentJson))
+                        .ToArray()));
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(
@@ -268,7 +302,9 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
     /// owning Implementer attempt actually completed as Implemented, that attempt's real,
     /// verified result checkpoint is exactly the workspace's current checkpoint this review attempt
     /// is about to claim (never merely "a" current checkpoint by coincidence), and it is the one
-    /// and only provider-observed ExecutionReport that Implementer attempt ever produced.
+    /// and only provider-observed ExecutionReport that Implementer attempt ever produced. Both
+    /// initial implementation reports and successfully applied correction reports are accepted by
+    /// the shared role-first eligibility policy.
     /// </summary>
     private async Task<ExecutionReportValidation> ValidateExecutionReportAsync(
         Guid runId, Guid executionReportMessageId, Guid workspaceId, GitCheckpoint resultCheckpoint, CancellationToken cancellationToken)
@@ -289,24 +325,11 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                     "Only a provider-observed Implementer execution report can be requested for code review."));
         }
 
-        // Role-first, per ADR-0009: the owning attempt's AgentRole is the sole authority for
-        // whether this message is a real Implementer execution report. AgentProvider participates
-        // only as provenance-integrity evidence inside this helper — never compared to a fixed
-        // provider to authorize the role.
         var owningAttempt = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
             dbContext, message, runId, AgentRole.Implementer, cancellationToken);
-        if (owningAttempt is null
-            || owningAttempt.Status != AttemptStatus.Completed
-            || owningAttempt.AgentOutcome != AgentOutcome.Implemented
-            || owningAttempt.AgentResultGitCheckpointId is null)
-        {
-            return ExecutionReportValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.implementer_attempt_not_valid",
-                    "The execution report's owning implementation attempt did not complete as a valid implementation."));
-        }
-
-        if (owningAttempt.AgentGitWorkspaceId != workspaceId || owningAttempt.AgentResultGitCheckpointId != resultCheckpoint.Id)
+        if (owningAttempt is not null
+            && (owningAttempt.AgentGitWorkspaceId != workspaceId
+                || owningAttempt.AgentResultGitCheckpointId != resultCheckpoint.Id))
         {
             return ExecutionReportValidation.Failed(
                 Error.Conflict(
@@ -314,31 +337,14 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                     "The execution report's result checkpoint is not the workspace's exact current checkpoint."));
         }
 
-        var executionReportCount = await dbContext.CollaborationMessages.CountAsync(
-            candidate =>
-                candidate.AttemptId == owningAttempt.Id
-                && candidate.Type == CollaborationMessageType.ExecutionReport
-                && candidate.Provenance == CollaborationMessageProvenance.ProviderObserved,
-            cancellationToken);
-        if (executionReportCount != 1)
-        {
-            return ExecutionReportValidation.Failed(
+        var validation = await ImplementerExecutionReportEligibility.ResolveAsync(
+            dbContext, message, runId, workspaceId, resultCheckpoint.Id, cancellationToken);
+        return validation is null
+            ? ExecutionReportValidation.Failed(
                 Error.Conflict(
-                    "agent_attempts.execution_report_not_unique",
-                    "The implementation attempt does not have exactly one valid execution report."));
-        }
-
-        var resolvedPlanMessage = await dbContext.CollaborationMessages
-            .SingleOrDefaultAsync(candidate => candidate.Id == message.InReplyToMessageId, cancellationToken);
-        if (resolvedPlanMessage is null)
-        {
-            return ExecutionReportValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.resolved_plan_not_found",
-                    "The execution report's resolved plan could not be found."));
-        }
-
-        return ExecutionReportValidation.Succeeded(message, resolvedPlanMessage);
+                    "agent_attempts.implementer_attempt_not_valid",
+                    "The execution report's Implementer result chain is not valid for review."))
+            : ExecutionReportValidation.Succeeded(validation);
     }
 
     /// <summary>
@@ -406,12 +412,14 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
         return VerificationEvidenceValidation.Succeeded(orderedExecutions);
     }
 
-    private sealed record ExecutionReportValidation(CollaborationMessage? ExecutionReport, CollaborationMessage? ResolvedPlan, Error? Error)
+    private sealed record ExecutionReportValidation(
+        ImplementerExecutionReportEligibility.Result? Value,
+        Error? Error)
     {
-        public static ExecutionReportValidation Succeeded(CollaborationMessage executionReport, CollaborationMessage resolvedPlan) =>
-            new(executionReport, resolvedPlan, null);
+        public static ExecutionReportValidation Succeeded(ImplementerExecutionReportEligibility.Result value) =>
+            new(value, null);
 
-        public static ExecutionReportValidation Failed(Error error) => new(null, null, error);
+        public static ExecutionReportValidation Failed(Error error) => new(null, error);
     }
 
     private sealed record VerificationEvidenceValidation(

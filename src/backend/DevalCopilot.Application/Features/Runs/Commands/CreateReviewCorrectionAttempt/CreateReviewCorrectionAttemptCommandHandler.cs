@@ -116,14 +116,9 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             return Failure(Error.Conflict("agent_attempts.execution_report_invalid", "The reviewed execution report is not valid for correction."));
         }
 
-        var implementationAttempt = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
-            dbContext, executionReport, run.Id, AgentRole.Implementer, cancellationToken);
-        if (implementationAttempt is null
-            || implementationAttempt.AgentResponseContract != AgentResponseContract.ImplementationReport
-            || implementationAttempt.Status != AttemptStatus.Completed
-            || implementationAttempt.AgentOutcome != AgentOutcome.Implemented
-            || implementationAttempt.AgentGitWorkspaceId != workspace.Id
-            || implementationAttempt.AgentResultGitCheckpointId != checkpoint.Id)
+        var implementationReportValidation = await ImplementerExecutionReportEligibility.ResolveAsync(
+            dbContext, executionReport, run.Id, workspace.Id, checkpoint.Id, cancellationToken);
+        if (implementationReportValidation is null)
         {
             return Failure(Error.Conflict("agent_attempts.implementation_not_applicable", "The reviewed implementation is not valid for correction."));
         }

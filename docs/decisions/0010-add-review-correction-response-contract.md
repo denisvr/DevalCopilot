@@ -9,6 +9,9 @@ still authorized by the Implementer role, but it performs a different job from
 the initial implementation attempt and must have a different durable input and
 result contract.
 
+A corrected checkpoint must be independently verified before it can be
+reviewed again.
+
 ## Decision
 
 Add `AgentResponseContract.ReviewCorrection` and map it to
@@ -25,9 +28,18 @@ provider adapter remains a replaceable Infrastructure concern, but provider
 substitution is not end-to-end safe until an equivalent hardened mutation
 contract and empirical boundary evidence exist for that provider.
 
+An explicit user-requested re-review may target either the initial successful
+implementation report or the newest successfully applied correction report.
+The re-review requires fresh Passed verification for the new checkpoint and
+uses a bounded manifest containing the previous report, findings, revision
+responses, proposal, checkpoint, verification, and Git evidence. Re-review is
+never automatic, and a successful re-review may expose another explicit
+correction request.
+
 No raw provider transcript is persisted or injected as workflow state. Gemini,
-assignment snapshots, fallback, parallel executors, and automatic re-review
-remain deferred.
+assignment snapshots, fallback, parallel executors, and automatic correction
+orchestration remain deferred. Correction-round exhaustion policy remains a
+later increment and is not enforced by this decision.
 
 ## Consequences
 

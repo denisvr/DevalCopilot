@@ -7,6 +7,7 @@ public sealed record ReviewCorrectionAttemptStatusResponse(
     Guid? AttemptId,
     int? AttemptNumber,
     Guid? ImplementationReviewAttemptId,
+    Guid? ReviewableExecutionReportMessageId,
     string? Status,
     string? Outcome,
     Guid? StartingGitCheckpointId,

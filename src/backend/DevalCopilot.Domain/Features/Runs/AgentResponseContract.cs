@@ -27,8 +27,9 @@ public enum AgentResponseContract
     /// Proposal.</summary>
     ChallengeResolution = 2,
 
-    /// <summary>AgentRole.Implementer + AgentResponseContract.ImplementationReport. ClaudeCode is
-    /// the current provider assignment/provenance only, not semantic authority. The attempt's real output is exactly one
+    /// <summary><see cref="AgentRole.Implementer"/> +
+    /// <see cref="ImplementationReport"/>. ClaudeCode is the current provider
+    /// assignment/provenance only, not semantic authority. The attempt's real output is exactly one
     /// <see cref="CollaborationMessageType.ExecutionReport"/> replying to the implemented
     /// Proposal, backed by an independently observed, immutable resulting
     /// <c>GitCheckpoint</c>.</summary>
@@ -41,8 +42,9 @@ public enum AgentResponseContract
     /// either.</summary>
     ImplementationReview = 4,
 
-    /// <summary>AgentRole.Implementer + AgentResponseContract.ReviewCorrection. ClaudeCode is the
-    /// current provider assignment/provenance only, not semantic authority. The attempt's real output is exactly one
+    /// <summary><see cref="AgentRole.Implementer"/> +
+    /// <see cref="ReviewCorrection"/>. ClaudeCode is the current provider assignment/provenance
+    /// only, not semantic authority. The attempt's real output is exactly one
     /// <see cref="CollaborationMessageType.RevisionResponse"/> for every input ReviewFinding,
     /// plus exactly one <see cref="CollaborationMessageType.ExecutionReport"/> replying to the
     /// implemented Proposal, backed by an independently observed, immutable resulting

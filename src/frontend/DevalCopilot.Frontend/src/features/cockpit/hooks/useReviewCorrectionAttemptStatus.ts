@@ -41,16 +41,16 @@ export function useReviewCorrectionAttemptStatus(
       .getReviewCorrectionAttemptStatus(runId)
       .then((response) => {
         if (generationRef.current === generation) {
-          setCommitted({ runId, status: response.hasAttempt ? response : null, error: null })
+          setCommitted({
+            runId,
+            status: response.hasAttempt || response.reviewableExecutionReportMessageId ? response : null,
+            error: null,
+          })
         }
       })
       .catch(() => {
         if (generationRef.current === generation) {
-          setCommitted((current) => ({
-            runId,
-            status: current.runId === runId ? current.status : null,
-            error: 'Review correction status is unavailable.',
-          }))
+          setCommitted({ runId, status: null, error: 'Review correction status is unavailable.' })
         }
       })
       .finally(() => {

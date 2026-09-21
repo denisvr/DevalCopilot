@@ -211,8 +211,23 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
             CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(2));
         dbContext.CollaborationMessages.Add(resolvedPlan);
 
-        var implementerAttempt = Attempt.ClaimAgentImplementation(
+        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), runId, 2, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2));
+        acceptanceAttempt.MarkAgentDispatched(now.AddSeconds(2));
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, startingCheckpoint.FingerprintSha256, now.AddSeconds(2));
+        dbContext.Attempts.Add(acceptanceAttempt);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, resolvedPlan.Id, 0));
+        var acceptance = CollaborationMessage.Record(
+            Guid.NewGuid(), runId, acceptanceAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, resolvedPlan.Id,
+            "Accepted the implementation plan.", JsonSerializer.Serialize(new { rationale = "The plan is complete." }),
+            CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(2));
+        dbContext.CollaborationMessages.Add(acceptance);
+
+        var implementerAttempt = Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), runId, 3, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(3));
         implementerAttempt.MarkAgentDispatched(now.AddSeconds(4));
         implementerAttempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, now.AddSeconds(5));
@@ -225,6 +240,10 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
             JsonSerializer.Serialize(new { completedWork = "Added table and query.", verification = "dotnet test" }),
             CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(5));
         dbContext.CollaborationMessages.Add(executionReport);
+        dbContext.AttemptInputMessages.Add(
+            AttemptInputMessage.Record(Guid.NewGuid(), implementerAttempt.Id, resolvedPlan.Id, sequence: 0));
+        dbContext.AttemptInputMessages.Add(
+            AttemptInputMessage.Record(Guid.NewGuid(), implementerAttempt.Id, acceptance.Id, sequence: 1));
 
         await dbContext.SaveChangesAsync();
 

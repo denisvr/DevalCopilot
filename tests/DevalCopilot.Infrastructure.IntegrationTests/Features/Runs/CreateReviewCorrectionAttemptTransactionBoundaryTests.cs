@@ -125,15 +125,33 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
         capability.MarkDispatched(Now);
         capability.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\safe\claude.exe", null, "1.0.0", Now, Now.AddMinutes(5));
 
+        var planningAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        planningAttempt.MarkAgentDispatched(Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+
         var proposal = CollaborationMessage.Record(
-            Guid.NewGuid(), run.Id, null, CollaborationMessage.ProtocolVersionOne,
+            Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
             ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
             "Implement the requested correction.", JsonSerializer.Serialize(new { scope = "Correction", implementationSteps = "Apply the finding.", risks = "None.", verificationPlan = "Run tests.", escalationPoints = "None." }),
             CollaborationMessageProvenance.ProviderObserved, Now);
 
+        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        acceptanceAttempt.MarkAgentDispatched(Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        var acceptance = CollaborationMessage.Record(
+            Guid.NewGuid(), run.Id, acceptanceAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, proposal.Id,
+            "Accepted the implementation plan.", JsonSerializer.Serialize(new { rationale = "The plan is complete." }),
+            CollaborationMessageProvenance.ProviderObserved, Now);
+
         var implementation = Attempt.ClaimAgentImplementation(
-            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
         implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now);
@@ -145,7 +163,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
             CollaborationMessageProvenance.ProviderObserved, Now);
 
         var review = Attempt.ClaimAgentCodeReview(
-            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         review.MarkAgentDispatched(Now);
         review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now);
@@ -162,8 +180,11 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
         context.GitCheckpoints.Add(checkpoint);
         context.RepositoryMutationLeases.Add(lease);
         context.HostCapabilitySnapshots.Add(capability);
-        context.Attempts.AddRange(implementation, review);
-        context.CollaborationMessages.AddRange(proposal, executionReport, finding);
+        context.Attempts.AddRange(planningAttempt, acceptanceAttempt, implementation, review);
+        context.CollaborationMessages.AddRange(proposal, acceptance, executionReport, finding);
+        context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, proposal.Id, 0));
+        context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, proposal.Id, 0));
+        context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, acceptance.Id, 1));
         context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), review.Id, executionReport.Id, 0));
         await context.SaveChangesAsync(CancellationToken.None);
 

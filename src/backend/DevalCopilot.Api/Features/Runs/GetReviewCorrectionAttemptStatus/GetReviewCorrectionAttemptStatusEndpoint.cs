@@ -22,7 +22,7 @@ public sealed class GetReviewCorrectionAttemptStatusEndpoint(
         var value = result.Value;
         return Ok(new ReviewCorrectionAttemptStatusResponse(
             value.HasAttempt, value.AttemptId, value.AttemptNumber, value.ImplementationReviewAttemptId,
-            value.Status?.ToString(), value.Outcome?.ToString(), value.StartingGitCheckpointId,
+            value.ReviewableExecutionReportMessageId, value.Status?.ToString(), value.Outcome?.ToString(), value.StartingGitCheckpointId,
             value.ResultGitCheckpointId, value.RevisionResponseCount, value.ClaimedAtUtc,
             value.DispatchedAtUtc, value.CompletedAtUtc,
             value.Artifacts.Select(artifact => new AgentAttemptArtifactMetadataResponse(

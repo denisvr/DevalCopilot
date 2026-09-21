@@ -42,7 +42,17 @@ describe('useReviewCorrectionAttemptStatus', () => {
     expect(result.current.status).toBeNull()
   })
 
-  it('preserves the last-known status when a same-run refresh fails', async () => {
+  it('preserves an authoritative initial report when no correction attempt exists', async () => {
+    const initial = response('', false)
+    initial.reviewableExecutionReportMessageId = 'initial-report'
+    const getStatus = vi.fn().mockResolvedValue(initial)
+    vi.mocked(reviewCorrectionAttemptStatusClient).mockReturnValue({ getReviewCorrectionAttemptStatus: getStatus } as never)
+
+    const { result } = renderHook(() => useReviewCorrectionAttemptStatus('run-1', 1))
+    await waitFor(() => expect(result.current.status?.reviewableExecutionReportMessageId).toBe('initial-report'))
+  })
+
+  it('clears the last-known status when a same-run refresh fails', async () => {
     const getStatus = vi.fn().mockResolvedValueOnce(response('attempt-1')).mockRejectedValueOnce(new Error('network'))
     vi.mocked(reviewCorrectionAttemptStatusClient).mockReturnValue({ getReviewCorrectionAttemptStatus: getStatus } as never)
 
@@ -50,7 +60,7 @@ describe('useReviewCorrectionAttemptStatus', () => {
     await waitFor(() => expect(result.current.status?.attemptId).toBe('attempt-1'))
     act(() => result.current.refresh())
     await waitFor(() => expect(result.current.error).toBe('Review correction status is unavailable.'))
-    expect(result.current.status?.attemptId).toBe('attempt-1')
+    expect(result.current.status).toBeNull()
   })
 
   it('masks old status and ignores stale completion after a run switch', async () => {

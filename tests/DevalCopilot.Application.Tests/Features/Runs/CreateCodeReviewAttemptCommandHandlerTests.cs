@@ -167,8 +167,23 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
             CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
         dbContext.CollaborationMessages.Add(resolvedPlan);
 
-        var implementerAttempt = Attempt.ClaimAgentImplementation(
+        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), runId, 2, workspaceId, startingCheckpointId, startingCheckpointFingerprintSha256, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
+        acceptanceAttempt.MarkAgentDispatched(occurredAtUtc);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, startingCheckpointFingerprintSha256, occurredAtUtc);
+        dbContext.Attempts.Add(acceptanceAttempt);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, resolvedPlan.Id, 0));
+        var acceptance = CollaborationMessage.Record(
+            Guid.NewGuid(), runId, acceptanceAttempt.Id, CollaborationMessage.ProtocolVersionOne,
+            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, resolvedPlan.Id,
+            "Accepted the implementation plan.", JsonSerializer.Serialize(new { rationale = "The plan is complete." }),
+            CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
+        dbContext.CollaborationMessages.Add(acceptance);
+
+        var implementerAttempt = Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), runId, 3, workspaceId, startingCheckpointId, startingCheckpointFingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
         implementerAttempt.MarkAgentDispatched(occurredAtUtc);
         implementerAttempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, occurredAtUtc);
@@ -181,6 +196,10 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
             JsonSerializer.Serialize(new { completedWork = "Added table and query.", verification = "dotnet test" }),
             CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
         dbContext.CollaborationMessages.Add(executionReport);
+        dbContext.AttemptInputMessages.Add(
+            AttemptInputMessage.Record(Guid.NewGuid(), implementerAttempt.Id, resolvedPlan.Id, sequence: 0));
+        dbContext.AttemptInputMessages.Add(
+            AttemptInputMessage.Record(Guid.NewGuid(), implementerAttempt.Id, acceptance.Id, sequence: 1));
 
         return (resolvedPlan, implementerAttempt, executionReport);
     }
@@ -267,6 +286,96 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
         Assert.Equal(executionTwo.Id, orderedEvidence[1].VerificationExecutionId);
     }
 
+    [Fact]
+    public async Task HandleAsync_reviews_a_successfully_applied_correction_after_fresh_verification()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (run, workspace) = await SeedEligibleRunAsync(dbContext);
+        var startingCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
+        var implementationCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 2, Now, new string('b', 40), new string('b', 64), []);
+        var correctedCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 3, Now, new string('c', 40), new string('c', 64), []);
+        dbContext.GitCheckpoints.AddRange(startingCheckpoint, implementationCheckpoint, correctedCheckpoint);
+        var (proposal, _, initialReport) = SeedImplementedExecution(
+            dbContext, run.Id, workspace.Id, startingCheckpoint.Id, implementationCheckpoint.Id, Fingerprint, Now);
+
+        var review = Attempt.ClaimAgentCodeReview(
+            Guid.NewGuid(), run.Id, 4, workspace.Id, implementationCheckpoint.Id, implementationCheckpoint.FingerprintSha256,
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        review.MarkAgentDispatched(Now);
+        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, implementationCheckpoint.FingerprintSha256, Now);
+        var finding = CollaborationMessage.RecordAgent(
+            review,
+            Guid.NewGuid(),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
+            CollaborationMessageType.ReviewFinding,
+            initialReport.Id,
+            "The query misses the requested filter.",
+            JsonSerializer.Serialize(new { severity = "high", category = "correctness", evidence = "The filter is absent.", requiredChange = "Add the filter." }),
+            Now);
+        dbContext.Attempts.Add(review);
+        dbContext.CollaborationMessages.Add(finding);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), review.Id, initialReport.Id, 0));
+
+        var correction = Attempt.ClaimAgentReviewCorrection(
+            Guid.NewGuid(), run.Id, 5, workspace.Id, implementationCheckpoint.Id, implementationCheckpoint.FingerprintSha256,
+            Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        correction.MarkAgentDispatched(Now);
+        correction.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, correctedCheckpoint.Id, Now);
+        dbContext.Attempts.Add(correction);
+        dbContext.AttemptInputMessages.AddRange(
+            AttemptInputMessage.Record(Guid.NewGuid(), correction.Id, initialReport.Id, 0),
+            AttemptInputMessage.Record(Guid.NewGuid(), correction.Id, finding.Id, 1));
+        var revisionResponse = CollaborationMessage.RecordAgent(
+            correction,
+            Guid.NewGuid(),
+            ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
+            CollaborationMessageType.RevisionResponse,
+            finding.Id,
+            "Applied the requested filter.",
+            JsonSerializer.Serialize(new { disposition = "Addressed", evidence = "The filter was added.", resultingSourceChanges = "Added the filter." }),
+            Now);
+        var correctedReport = CollaborationMessage.RecordAgent(
+            correction,
+            Guid.NewGuid(),
+            proposal.Actor,
+            CollaborationMessageType.ExecutionReport,
+            proposal.Id,
+            "Applied the review correction.",
+            JsonSerializer.Serialize(new { completedWork = "Added the filter.", verification = "dotnet test" }),
+            Now);
+        dbContext.CollaborationMessages.AddRange(revisionResponse, correctedReport);
+
+        var command = VerificationCommand.Configure(Guid.NewGuid(), run.ProjectId, 1, "Backend tests", DotnetExecutablePath, ["test"], 300, true, Now);
+        dbContext.VerificationCommands.Add(command);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        SeedPassedVerificationExecution(dbContext, run.ProjectId, workspace.Id, workspace, correctedCheckpoint, command, 1, Now);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateCodeReviewAttemptCommandHandler(
+            dbContext,
+            FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(correctedCheckpoint.FingerprintSha256),
+            new FakeArtifactStore(),
+            new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateCodeReviewAttemptCommand(run.Id, correctedReport.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.IsFailure ? string.Join("; ", result.Errors.Select(error => error.Code)) : null);
+        var reviewAttempt = await dbContext.Attempts.SingleAsync(attempt => attempt.Id == result.Value.AttemptId);
+        var manifest = await dbContext.Artifacts.SingleAsync(artifact =>
+            artifact.AttemptId == reviewAttempt.Id && artifact.Purpose == ArtifactPurpose.AgentContextManifest);
+        using var manifestJson = JsonDocument.Parse(await File.ReadAllTextAsync(
+            Path.Combine(Path.GetTempPath(), "devalcopilot-app-tests-code-review-partials",
+                run.Id.ToString("N"), reviewAttempt.Id.ToString("N"), "AgentContextManifest.partial")));
+        Assert.Equal(correctedReport.Id, manifestJson.RootElement.GetProperty("executionReport").GetProperty("messageId").GetGuid());
+        var correctionEvidence = manifestJson.RootElement.GetProperty("correctionEvidence");
+        Assert.Equal(initialReport.Id, correctionEvidence.GetProperty("previousExecutionReport").GetProperty("messageId").GetGuid());
+        Assert.Equal(finding.Id, correctionEvidence.GetProperty("orderedFindings")[0].GetProperty("messageId").GetGuid());
+        Assert.Equal(revisionResponse.Id, correctionEvidence.GetProperty("orderedRevisionResponses")[0].GetProperty("messageId").GetGuid());
+        Assert.Equal(correctedCheckpoint.Id, reviewAttempt.AgentGitCheckpointId);
+        Assert.True(new FileInfo(Path.Combine(Path.GetTempPath(), "devalcopilot-app-tests-code-review-partials",
+            run.Id.ToString("N"), reviewAttempt.Id.ToString("N"), "AgentContextManifest.partial")).Length > 0);
+    }
+
     // Discriminating regression for Slice B.1: production's ClaimAgent* factories always fix
     // Implementer to ClaudeCode, so this substitutes the implementer attempt's provider via
     // reflection (AttemptProviderSubstitution — a test-only helper, never a production path) and
@@ -309,8 +418,21 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
             CollaborationMessageProvenance.ProviderObserved, Now);
         dbContext.CollaborationMessages.Add(resolvedPlan);
 
-        var implementerAttempt = Attempt.ClaimAgentImplementation(
+        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        acceptanceAttempt.MarkAgentDispatched(Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        dbContext.Attempts.Add(acceptanceAttempt);
+        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, resolvedPlan.Id, 0));
+        var acceptance = CollaborationMessage.RecordAgent(
+            acceptanceAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
+            CollaborationMessageType.Acceptance, resolvedPlan.Id, "Accepted the implementation plan.",
+            JsonSerializer.Serialize(new { rationale = "The plan is complete." }), Now);
+        dbContext.CollaborationMessages.Add(acceptance);
+
+        var implementerAttempt = Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         implementerAttempt.MarkAgentDispatched(Now);
         implementerAttempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now);
@@ -323,6 +445,9 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
             JsonSerializer.Serialize(new { completedWork = "Added table and query.", verification = "dotnet test" }),
             Now);
         dbContext.CollaborationMessages.Add(executionReport);
+        dbContext.AttemptInputMessages.AddRange(
+            AttemptInputMessage.Record(Guid.NewGuid(), implementerAttempt.Id, resolvedPlan.Id, 0),
+            AttemptInputMessage.Record(Guid.NewGuid(), implementerAttempt.Id, acceptance.Id, 1));
 
         var commandOne = VerificationCommand.Configure(Guid.NewGuid(), run.ProjectId, 1, "Backend tests", DotnetExecutablePath, ["test"], 300, true, Now);
         dbContext.VerificationCommands.Add(commandOne);
@@ -541,7 +666,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var priorReview = Attempt.ClaimAgentCodeReview(
-            Guid.NewGuid(), run.Id, 3, workspace.Id, resultCheckpoint.Id, resultFingerprint, Guid.NewGuid(),
+            Guid.NewGuid(), run.Id, 4, workspace.Id, resultCheckpoint.Id, resultFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         priorReview.MarkAgentDispatched(Now);
         priorReview.CompleteAgent(AgentOutcome.ReviewApproved, resultFingerprint, Now);

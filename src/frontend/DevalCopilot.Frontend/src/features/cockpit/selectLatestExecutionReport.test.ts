@@ -1,38 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import type { CollaborationTimelineCard } from './types'
 import { selectLatestExecutionReportMessageId } from './selectLatestExecutionReport'
 
-function card(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {
-  return {
-    sequence: 1,
-    id: 'message-1',
-    attemptId: null,
-    actor: { kind: 'Agent', role: 'Implementer', provider: 'ClaudeCode' },
-    recipient: { kind: 'Agent', role: null, provider: 'Codex' },
-    type: 'ExecutionReport',
-    inReplyToMessageId: 'proposal-1',
-    summary: 'Implemented the plan.',
-    details: [],
-    provenance: 'ProviderObserved',
-    occurredAtUtc: '2026-09-20T12:00:00Z',
-    ...overrides,
-  }
-}
-
 describe('selectLatestExecutionReportMessageId', () => {
-  it('selects an Implementer report independently of its provider', () => {
-    expect(selectLatestExecutionReportMessageId([
-      card({ actor: { kind: 'Agent', role: 'Implementer', provider: 'Codex' } }),
-    ])).toBe('message-1')
+  it('uses the backend-authoritative initial report while the timeline is still loading', () => {
+    expect(selectLatestExecutionReportMessageId('initial', false, null)).toBe('initial')
   })
 
-  it('rejects provider-observed output authored under another role', () => {
-    expect(selectLatestExecutionReportMessageId([
-      card({ actor: { kind: 'Agent', role: 'CriticalReviewer', provider: 'ClaudeCode' } }),
-    ])).toBeNull()
+  it('withholds the target during the initial status load', () => {
+    expect(selectLatestExecutionReportMessageId('initial', true, null)).toBeNull()
   })
 
-  it('rejects simulated output even when the role matches', () => {
-    expect(selectLatestExecutionReportMessageId([card({ provenance: 'Simulated' })])).toBeNull()
+  it('does not retain a stale target when the authoritative refresh fails', () => {
+    expect(selectLatestExecutionReportMessageId('initial', false, 'Review correction status is unavailable.')).toBeNull()
+  })
+
+  it('uses the backend winner before and after the timeline catches up', () => {
+    expect(selectLatestExecutionReportMessageId('corrected', false, null)).toBe('corrected')
+    expect(selectLatestExecutionReportMessageId('corrected', false, null)).toBe('corrected')
+  })
+
+  it('uses the winning correction report for InputAlreadyCorrected', () => {
+    expect(selectLatestExecutionReportMessageId('winning-correction', false, null)).toBe('winning-correction')
+  })
+
+  it('does not fall back to a stale report when no report is reviewable', () => {
+    expect(selectLatestExecutionReportMessageId(null, false, null)).toBeNull()
   })
 })

@@ -74,6 +74,7 @@ public sealed class CheckpointReviewEvidenceMembershipMigrationTests : IAsyncLif
         var pendingReview = allReviews.Single(review => review.Id == pendingReviewId);
 
         var evidence = Assert.Single(decidedReview.Evidence);
+        Assert.Equal(1001L, decidedReview.RecordedAtUtcTicks);
         Assert.Equal(executionId, evidence.VerificationExecutionId);
         Assert.Equal(commandId, evidence.VerificationCommandId);
         Assert.Equal(1, evidence.VerificationExecutionNumber);
@@ -82,6 +83,7 @@ public sealed class CheckpointReviewEvidenceMembershipMigrationTests : IAsyncLif
         Assert.Equal(Domain.Features.Projects.VerificationExecutionOutcome.Exited, evidence.VerificationExecutionOutcome);
 
         Assert.Empty(pendingReview.Evidence);
+        Assert.Equal(2002L, pendingReview.RecordedAtUtcTicks);
 
         // The legacy columns genuinely no longer exist — never retained alongside the new
         // relational evidence set.
@@ -159,7 +161,7 @@ public sealed class CheckpointReviewEvidenceMembershipMigrationTests : IAsyncLif
                     ($decidedReviewId, $projectId, $workspaceId, $checkpointId, 1, $fingerprint,
                      $executionId, 1, $fingerprint,
                      'Passed', 'Exited', 0,
-                     'Human', 'Approved', $now, 0);
+                     'Human', 'Approved', $now, 1001);
 
                 INSERT INTO checkpoint_reviews
                     (Id, ProjectId, GitWorkspaceId, GitCheckpointId, CheckpointNumber, CheckpointFingerprintSha256,
@@ -170,7 +172,7 @@ public sealed class CheckpointReviewEvidenceMembershipMigrationTests : IAsyncLif
                     ($pendingReviewId, $projectId, $workspaceId, $checkpointId, 1, $fingerprint,
                      NULL, NULL, NULL,
                      NULL, NULL, NULL,
-                     'Human', 'Pending', $now, 1);
+                     'Human', 'Pending', $now, 2002);
                 """;
             command.Parameters.AddWithValue("$projectId", projectId.ToString());
             command.Parameters.AddWithValue("$workspaceId", workspaceId.ToString());

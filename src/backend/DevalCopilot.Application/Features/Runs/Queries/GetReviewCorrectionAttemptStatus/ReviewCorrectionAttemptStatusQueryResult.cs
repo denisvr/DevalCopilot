@@ -7,6 +7,7 @@ public sealed record ReviewCorrectionAttemptStatusQueryResult(
     Guid? AttemptId,
     int? AttemptNumber,
     Guid? ImplementationReviewAttemptId,
+    Guid? ReviewableExecutionReportMessageId,
     AttemptStatus? Status,
     AgentOutcome? Outcome,
     Guid? StartingGitCheckpointId,
@@ -18,7 +19,7 @@ public sealed record ReviewCorrectionAttemptStatusQueryResult(
     IReadOnlyList<AgentCorrectionArtifactMetadata> Artifacts)
 {
     public static readonly ReviewCorrectionAttemptStatusQueryResult NoAttempt =
-        new(false, null, null, null, null, null, null, null, 0, null, null, null, []);
+        new(false, null, null, null, null, null, null, null, null, 0, null, null, null, []);
 }
 
 public sealed record AgentCorrectionArtifactMetadata(
