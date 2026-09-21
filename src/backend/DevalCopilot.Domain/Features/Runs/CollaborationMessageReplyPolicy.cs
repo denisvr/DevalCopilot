@@ -96,6 +96,7 @@ public static class CollaborationMessageReplyPolicy
                 or CollaborationMessageType.ReviewFinding
                 or CollaborationMessageType.RevisionResponse
                 or CollaborationMessageType.Question,
+            CollaborationMessageType.HumanInstruction => parentType == CollaborationMessageType.Escalation,
             _ => false,
         };
     }

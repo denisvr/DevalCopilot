@@ -38,6 +38,27 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
     }
 
     [Fact]
+    public async Task Authorization_post_requires_authentication()
+    {
+        using var client = _factory.CreateClient();
+        var response = await client.PostAsync(
+            $"/api/runs/{Guid.NewGuid()}/review-correction-escalations/{Guid.NewGuid()}/authorize", content: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authorization_unknown_run_is_not_found_without_sensitive_details()
+    {
+        using var client = AuthenticatedClient();
+        var response = await client.PostAsync(
+            $"/api/runs/{Guid.NewGuid()}/review-correction-escalations/{Guid.NewGuid()}/authorize", content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        AssertNoDisclosure(await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task Unknown_run_returns_not_found_without_sensitive_details()
     {
         using var client = AuthenticatedClient();
@@ -72,6 +93,13 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
             Assert.Equal(HttpStatusCode.OK, before.StatusCode);
             Assert.False(beforeJson.RootElement.GetProperty("hasAttempt").GetBoolean());
             Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("attemptId").ValueKind);
+            Assert.Equal(seed.ReviewId, beforeJson.RootElement.GetProperty("implementationReviewAttemptId").GetGuid());
+            Assert.Equal(seed.ExecutionReportId, beforeJson.RootElement.GetProperty("reviewableExecutionReportMessageId").GetGuid());
+            Assert.Equal(0, beforeJson.RootElement.GetProperty("reviewCorrectionAttemptsUsed").GetInt32());
+            Assert.False(beforeJson.RootElement.GetProperty("budgetExhausted").GetBoolean());
+            Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("escalationId").ValueKind);
+            Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("escalationMessageId").ValueKind);
+            Assert.False(beforeJson.RootElement.GetProperty("hasAvailableHumanAuthorization").GetBoolean());
             Assert.Empty(beforeJson.RootElement.GetProperty("artifacts").EnumerateArray());
         }
 
@@ -81,6 +109,7 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
         AssertNoDisclosure(postBody);
         using (var postJson = JsonDocument.Parse(postBody))
         {
+            Assert.Equal("AttemptCreated", postJson.RootElement.GetProperty("status").GetString());
             Assert.NotEqual(Guid.Empty, postJson.RootElement.GetProperty("attemptId").GetGuid());
             Assert.Equal(5, postJson.RootElement.GetProperty("attemptNumber").GetInt32());
         }
@@ -96,6 +125,69 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
         AssertNoDisclosure(afterBody);
     }
 
+    [Fact]
+    public async Task Escalation_and_authorization_return_committed_event_sequences_and_are_idempotent()
+    {
+        var seed = await SeedCorrectionChainAsync();
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var review = await db.Attempts.SingleAsync(attempt => attempt.Id == seed.ReviewId);
+            for (var number = 5; number <= 6; number++)
+            {
+                var correction = Attempt.ClaimAgentReviewCorrection(
+                    Guid.NewGuid(), seed.RunId, number, review.AgentGitWorkspaceId!.Value,
+                    review.AgentGitCheckpointId!.Value, Fingerprint, Guid.NewGuid(),
+                    TimeSpan.FromMinutes(20), 262144, 524288, DateTimeOffset.UtcNow);
+                correction.MarkAgentDispatched(DateTimeOffset.UtcNow);
+                correction.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, DateTimeOffset.UtcNow);
+                db.Attempts.Add(correction);
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        using var client = AuthenticatedClient();
+        var escalationResponse = await client.PostAsJsonAsync(
+            $"/api/runs/{seed.RunId}/agent-attempts/review-correction",
+            new RequestReviewCorrectionRequest(seed.ReviewId));
+        var escalationBody = await escalationResponse.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, escalationResponse.StatusCode);
+        using var escalationJson = JsonDocument.Parse(escalationBody);
+        Assert.Equal("Escalated", escalationJson.RootElement.GetProperty("status").GetString());
+        Assert.True(escalationJson.RootElement.GetProperty("latestEventSequence").GetInt64() > 0);
+        var escalationId = escalationJson.RootElement.GetProperty("escalationId").GetGuid();
+        AssertNoDisclosure(escalationBody);
+
+        var authorizationResponse = await client.PostAsync(
+            $"/api/runs/{seed.RunId}/review-correction-escalations/{escalationId}/authorize", content: null);
+        var authorizationBody = await authorizationResponse.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, authorizationResponse.StatusCode);
+        using var authorizationJson = JsonDocument.Parse(authorizationBody);
+        Assert.Equal("Authorized", authorizationJson.RootElement.GetProperty("status").GetString());
+        Assert.True(authorizationJson.RootElement.GetProperty("latestEventSequence").GetInt64() > 0);
+        AssertNoDisclosure(authorizationBody);
+
+        var repeated = await client.PostAsync(
+            $"/api/runs/{seed.RunId}/review-correction-escalations/{escalationId}/authorize", content: null);
+        var repeatedBody = await repeated.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, repeated.StatusCode);
+        using var repeatedJson = JsonDocument.Parse(repeatedBody);
+        Assert.Equal(authorizationJson.RootElement.GetProperty("authorizationId").GetGuid(), repeatedJson.RootElement.GetProperty("authorizationId").GetGuid());
+        Assert.Equal(
+            authorizationJson.RootElement.GetProperty("latestEventSequence").GetInt64(),
+            repeatedJson.RootElement.GetProperty("latestEventSequence").GetInt64());
+        Assert.True(repeatedJson.RootElement.GetProperty("latestEventSequence").GetInt64() > 0);
+        AssertNoDisclosure(repeatedBody);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verify = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Single(await verify.CollaborationMessages.Where(message => message.Type == CollaborationMessageType.Escalation).ToListAsync());
+        Assert.Single(await verify.CollaborationMessages.Where(message => message.Type == CollaborationMessageType.HumanInstruction).ToListAsync());
+        Assert.Equal(2, await verify.Events.CountAsync(runEvent => runEvent.RunId == seed.RunId
+            && runEvent.EventType == RunEventType.CollaborationMessageRecorded));
+    }
+
     private HttpClient AuthenticatedClient()
     {
         var client = _factory.CreateClient();
@@ -103,7 +195,7 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
         return client;
     }
 
-    private async Task<(Guid RunId, Guid ReviewId)> SeedCorrectionChainAsync(bool claimRun = true)
+    private async Task<(Guid RunId, Guid ReviewId, Guid ExecutionReportId)> SeedCorrectionChainAsync(bool claimRun = true)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -161,7 +253,7 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
         db.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, acceptance.Id, 1));
         db.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), review.Id, report.Id, 0));
         db.SaveChanges();
-        return (run.Id, review.Id);
+        return (run.Id, review.Id, report.Id);
     }
 
     private static void AssertNoDisclosure(string body)

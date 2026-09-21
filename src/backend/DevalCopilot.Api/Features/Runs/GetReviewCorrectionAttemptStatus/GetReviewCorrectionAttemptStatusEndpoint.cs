@@ -26,6 +26,8 @@ public sealed class GetReviewCorrectionAttemptStatusEndpoint(
             value.ResultGitCheckpointId, value.RevisionResponseCount, value.ClaimedAtUtc,
             value.DispatchedAtUtc, value.CompletedAtUtc,
             value.Artifacts.Select(artifact => new AgentAttemptArtifactMetadataResponse(
-                artifact.Purpose.ToString(), artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome.ToString())).ToArray()));
+                artifact.Purpose.ToString(), artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome.ToString())).ToArray(),
+            value.MaximumReviewCorrectionAttempts, value.ReviewCorrectionAttemptsUsed, value.BudgetExhausted,
+            value.EscalationId, value.EscalationMessageId, value.HasAvailableHumanAuthorization));
     }
 }

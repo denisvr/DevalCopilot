@@ -12,6 +12,7 @@ import { useCodeReviewAttemptStatus } from '../hooks/useCodeReviewAttemptStatus'
 import { useRequestCodeReview } from '../hooks/useRequestCodeReview'
 import { useReviewCorrectionAttemptStatus } from '../hooks/useReviewCorrectionAttemptStatus'
 import { useRequestReviewCorrection } from '../hooks/useRequestReviewCorrection'
+import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrection'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
@@ -47,6 +48,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestCodeReview = useRequestCodeReview(codeReviewAttemptStatus.refresh)
   const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
   const requestReviewCorrection = useRequestReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
+  const authorizeReviewCorrection = useAuthorizeReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
   const latestCodexProposalMessageId = selectLatestCodexProposalMessageId(collaborationTimeline.cards)
   // The backend independently re-verifies this eligibility in full before ever acting on it;
   // this is only a display hint. A failed or active correction must never resurrect the stale
@@ -163,6 +165,12 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             statusError={reviewCorrectionAttemptStatus.error}
             requesting={requestReviewCorrection.requesting}
             requestError={requestReviewCorrection.error}
+            authorizing={authorizeReviewCorrection.authorizing}
+            authorizationError={authorizeReviewCorrection.error}
+            onAuthorize={() => {
+              const escalationId = reviewCorrectionAttemptStatus.status?.escalationId
+              if (escalationId) void authorizeReviewCorrection.authorize(runId, escalationId)
+            }}
             onRequest={() => {
               const reviewAttemptId = codeReviewAttemptStatus.status?.attemptId
               if (reviewAttemptId) void requestReviewCorrection.request(runId, reviewAttemptId)

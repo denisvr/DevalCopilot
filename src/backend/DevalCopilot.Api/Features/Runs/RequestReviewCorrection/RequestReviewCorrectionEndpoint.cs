@@ -16,8 +16,18 @@ public sealed class RequestReviewCorrectionEndpoint(
     {
         var result = await mediator.SendAsync(
             new CreateReviewCorrectionAttemptCommand(runId, request.ImplementationReviewAttemptId), cancellationToken);
-        return result.IsFailure
-            ? problemDetails.CreateResponse(result, HttpContext)
-            : Ok(new RequestReviewCorrectionResponse(result.Value.AttemptId, result.Value.AttemptNumber));
+        if (result.IsFailure)
+        {
+            return problemDetails.CreateResponse(result, HttpContext);
+        }
+
+        return result.Value switch
+        {
+            CreateReviewCorrectionAttemptCommandResult.AttemptCreated created => Ok(
+                new RequestReviewCorrectionResponse("AttemptCreated", created.AttemptId, created.AttemptNumber, null, null, created.LatestEventSequence)),
+            CreateReviewCorrectionAttemptCommandResult.Escalated escalated => Ok(
+                new RequestReviewCorrectionResponse("Escalated", null, null, escalated.EscalationId, escalated.EscalationMessageId, escalated.LatestEventSequence)),
+            _ => throw new InvalidOperationException("The correction result variant is not supported."),
+        };
     }
 }

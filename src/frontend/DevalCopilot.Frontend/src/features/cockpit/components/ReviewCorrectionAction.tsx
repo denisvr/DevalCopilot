@@ -9,6 +9,9 @@ interface ReviewCorrectionActionProps {
   requesting: boolean
   requestError: string | null
   onRequest: () => void
+  authorizing?: boolean
+  authorizationError?: string | null
+  onAuthorize?: () => void
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -37,13 +40,24 @@ export function ReviewCorrectionAction({
   requesting,
   requestError,
   onRequest,
+  authorizing,
+  authorizationError,
+  onAuthorize = () => undefined,
 }: ReviewCorrectionActionProps) {
   if (reviewOutcome !== 'ReviewChangesRequested' || !reviewAttemptId) return null
 
   const isForCurrentReview = status?.implementationReviewAttemptId === reviewAttemptId
   const isActive = isForCurrentReview && status?.status === 'Running'
-  const isSettled = isForCurrentReview && status?.outcome
-  const canRequest = !isActive && !isSettled
+  const isSettled = isForCurrentReview && Boolean(status?.outcome)
+  const hasAvailableAuthorization = isForCurrentReview && status?.hasAvailableHumanAuthorization === true
+  const budgetExhausted = isForCurrentReview && status?.budgetExhausted === true
+  const hasCurrentEscalation = isForCurrentReview && Boolean(status?.escalationId)
+  const canRequest = !isActive && (
+    hasAvailableAuthorization
+    || (!isSettled && !budgetExhausted)
+  )
+  const canCreateEscalation = !isActive && !isSettled && budgetExhausted && !hasCurrentEscalation
+  const canAuthorize = !isActive && budgetExhausted && hasCurrentEscalation && !hasAvailableAuthorization
 
   return (
     <section className="dc-review-correction-action" aria-label="Review correction">
@@ -53,8 +67,26 @@ export function ReviewCorrectionAction({
           {requesting ? 'Requesting…' : 'Request review correction'}
         </button>
       )}
-      {status && !isActive && <p>Last correction #{status.attemptNumber}: {phaseLabel(status)}.</p>}
-      {(requestError ?? statusError) && <p role="status">{requestError ?? statusError}</p>}
+      {canCreateEscalation && (
+        <button type="button" disabled={requesting || statusLoading} onClick={onRequest}>
+          {requesting ? 'Creating…' : 'Create human escalation'}
+        </button>
+      )}
+      {canAuthorize && (
+        <div role="alert">
+          <p>Review correction attempts are exhausted. No provider invocation will occur without explicit authorization.</p>
+          {status?.escalationId && (
+            <button type="button" disabled={authorizing || statusLoading} onClick={onAuthorize}>
+              {authorizing ? 'Authorizing…' : 'Authorize one additional correction'}
+            </button>
+          )}
+        </div>
+      )}
+      {hasAvailableAuthorization && !isActive && (
+        <p role="status">One additional correction attempt is authorized.</p>
+      )}
+      {status?.hasAttempt && !isActive && <p>Last correction #{status.attemptNumber}: {phaseLabel(status)}.</p>}
+      {(requestError ?? authorizationError ?? statusError) && <p role="status">{requestError ?? authorizationError ?? statusError}</p>}
     </section>
   )
 }

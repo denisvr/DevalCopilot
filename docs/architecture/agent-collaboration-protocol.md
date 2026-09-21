@@ -263,6 +263,12 @@ with evidence and resulting source changes.
 Summarizes the unresolved decision, available options, consequences, evidence,
 and recommended choice. It contains no hidden default action.
 
+### Human instruction
+
+Records one fixed human authorization replying to an Escalation: authorize one
+additional review-correction claim. It is HumanSubmitted, addressed to the
+Orchestrator, and never carries arbitrary instruction text.
+
 ## Version 1.0 reply semantics
 
 The durable ledger validates each reply against this closed relationship table.
@@ -278,6 +284,7 @@ to an earlier message in the same run.
 | Revision response | Review finding |
 | Question | Proposal, Challenge, Decision, Execution report, or Review finding |
 | Escalation | Proposal, Challenge, Decision, Execution report, Review finding, Revision response, or Question |
+| Human instruction | Escalation |
 
 Question and escalation are therefore bounded by the fact that needs an answer
 or cannot be resolved; neither starts an ungrounded side conversation.
@@ -626,6 +633,17 @@ Complete provider transcripts are never persisted or replayed. The current
 Claude adapter is concrete provenance and is not an end-to-end guarantee that
 another provider can safely substitute; Gemini, assignment snapshots,
 fallback, parallel executors, and automatic re-review remain deferred.
+
+Each run persists a default maximum of two claimed review-correction attempts.
+Claims consume the budget even when dispatch, execution, or later result
+recording fails or is interrupted. Exhaustion creates one durable escalation
+for the unresolved review instead of silently retrying or invoking a provider.
+The human may explicitly authorize exactly one additional claim; that
+authorization is recorded as a HumanInstruction and atomically consumed with
+the correction attempt claim. This is explicit continuation, not generic
+pause/resume, provider fallback, Gemini support, or automatic orchestration.
+Token, account-usage, duration, and the remaining Increment 4 controls remain
+deferred.
 
 Each agent attempt is intended to eventually record requested and effective
 provider configuration:

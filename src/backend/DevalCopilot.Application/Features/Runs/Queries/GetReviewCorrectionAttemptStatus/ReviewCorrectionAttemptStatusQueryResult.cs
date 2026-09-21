@@ -16,10 +16,16 @@ public sealed record ReviewCorrectionAttemptStatusQueryResult(
     DateTimeOffset? ClaimedAtUtc,
     DateTimeOffset? DispatchedAtUtc,
     DateTimeOffset? CompletedAtUtc,
-    IReadOnlyList<AgentCorrectionArtifactMetadata> Artifacts)
+    IReadOnlyList<AgentCorrectionArtifactMetadata> Artifacts,
+    int MaximumReviewCorrectionAttempts,
+    int ReviewCorrectionAttemptsUsed,
+    bool BudgetExhausted,
+    Guid? EscalationId,
+    Guid? EscalationMessageId,
+    bool HasAvailableHumanAuthorization)
 {
     public static readonly ReviewCorrectionAttemptStatusQueryResult NoAttempt =
-        new(false, null, null, null, null, null, null, null, null, 0, null, null, null, []);
+        new(false, null, null, null, null, null, null, null, null, 0, null, null, null, [], 2, 0, false, null, null, false);
 }
 
 public sealed record AgentCorrectionArtifactMetadata(

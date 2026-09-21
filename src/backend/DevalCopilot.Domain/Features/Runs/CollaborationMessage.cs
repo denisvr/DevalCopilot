@@ -108,6 +108,30 @@ public sealed class CollaborationMessage
             });
     }
 
+    /// <summary>Records the fixed, server-constructed human continuation instruction.</summary>
+    public static CollaborationMessage RecordHumanInstruction(
+        Guid id,
+        Guid runId,
+        Guid escalationMessageId,
+        string structuredContentJson,
+        DateTimeOffset occurredAtUtc)
+    {
+        return RecordCore(
+            id,
+            runId,
+            null,
+            ProtocolVersionOne,
+            ParticipantIdentity.ForHuman(),
+            ParticipantIdentity.ForOrchestrator(),
+            CollaborationMessageType.HumanInstruction,
+            escalationMessageId,
+            "Human authorized one additional review-correction attempt.",
+            structuredContentJson,
+            CollaborationMessageProvenance.HumanSubmitted,
+            occurredAtUtc,
+            authorValidation: () => { });
+    }
+
     /// <summary>
     /// The shared envelope validation and construction both <see cref="Record"/> and
     /// <see cref="RecordAgent"/> use — common pre-author validations (identifiers, participant/type/
@@ -159,6 +183,25 @@ public sealed class CollaborationMessage
             && (actor.Kind != ParticipantKind.Agent || !actor.Role.HasValue))
         {
             throw new ArgumentException("Provider-observed messages require a role-bound Agent actor.", nameof(actor));
+        }
+
+        if (provenance == CollaborationMessageProvenance.HostConstructed && actor.Kind != ParticipantKind.Orchestrator)
+        {
+            throw new ArgumentException("Host-constructed messages require an Orchestrator actor.", nameof(actor));
+        }
+
+        if (provenance == CollaborationMessageProvenance.HumanSubmitted && actor.Kind != ParticipantKind.Human)
+        {
+            throw new ArgumentException("Human-submitted messages require a Human actor.", nameof(actor));
+        }
+
+        if (type == CollaborationMessageType.HumanInstruction
+            && (actor.Kind != ParticipantKind.Human
+                || recipient.Kind != ParticipantKind.Orchestrator
+                || provenance != CollaborationMessageProvenance.HumanSubmitted
+                || attemptId.HasValue))
+        {
+            throw new ArgumentException("A HumanInstruction must be a HumanSubmitted, attemptless message addressed to the Orchestrator.");
         }
 
         if (inReplyToMessageId == id)
@@ -258,6 +301,7 @@ public sealed class CollaborationMessage
             CollaborationMessageType.RevisionResponse => isAgent,
             CollaborationMessageType.Escalation => isAgent || isOrchestrator,
             CollaborationMessageType.ReviewApproval => isAgent || isHuman,
+            CollaborationMessageType.HumanInstruction => isHuman,
             _ => false,
         };
 

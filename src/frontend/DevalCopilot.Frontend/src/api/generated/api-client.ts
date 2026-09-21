@@ -874,6 +874,57 @@ export class GetCollaborationTimelineEndpointClient {
     }
 }
 
+export class AuthorizeReviewCorrectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    authorizeReviewCorrection(runId: string, escalationId: string): Promise<AuthorizeReviewCorrectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/review-correction-escalations/{escalationId}/authorize";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (escalationId === undefined || escalationId === null)
+            throw new globalThis.Error("The parameter 'escalationId' must be defined.");
+        url_ = url_.replace("{escalationId}", encodeURIComponent("" + escalationId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAuthorizeReviewCorrection(_response);
+        });
+    }
+
+    protected processAuthorizeReviewCorrection(response: Response): Promise<AuthorizeReviewCorrectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = AuthorizeReviewCorrectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AuthorizeReviewCorrectionResponse>(null as any);
+    }
+}
+
 export class UpdateVerificationCommandEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2052,8 +2103,12 @@ export interface IStartSimulatedRunRequest {
 }
 
 export class RequestReviewCorrectionResponse implements IRequestReviewCorrectionResponse {
-    attemptId?: string;
-    attemptNumber?: number;
+    status?: string;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    escalationId?: string | undefined;
+    escalationMessageId?: string | undefined;
+    latestEventSequence?: number | undefined;
 
     constructor(data?: IRequestReviewCorrectionResponse) {
         if (data) {
@@ -2066,8 +2121,12 @@ export class RequestReviewCorrectionResponse implements IRequestReviewCorrection
 
     init(_data?: any) {
         if (_data) {
+            this.status = _data["status"];
             this.attemptId = _data["attemptId"];
             this.attemptNumber = _data["attemptNumber"];
+            this.escalationId = _data["escalationId"];
+            this.escalationMessageId = _data["escalationMessageId"];
+            this.latestEventSequence = _data["latestEventSequence"];
         }
     }
 
@@ -2080,15 +2139,23 @@ export class RequestReviewCorrectionResponse implements IRequestReviewCorrection
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
         data["attemptId"] = this.attemptId;
         data["attemptNumber"] = this.attemptNumber;
+        data["escalationId"] = this.escalationId;
+        data["escalationMessageId"] = this.escalationMessageId;
+        data["latestEventSequence"] = this.latestEventSequence;
         return data;
     }
 }
 
 export interface IRequestReviewCorrectionResponse {
-    attemptId?: string;
-    attemptNumber?: number;
+    status?: string;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    escalationId?: string | undefined;
+    escalationMessageId?: string | undefined;
+    latestEventSequence?: number | undefined;
 }
 
 export class RequestReviewCorrectionRequest implements IRequestReviewCorrectionRequest {
@@ -2726,6 +2793,12 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    maximumReviewCorrectionAttempts?: number;
+    reviewCorrectionAttemptsUsed?: number;
+    budgetExhausted?: boolean;
+    escalationId?: string | undefined;
+    escalationMessageId?: string | undefined;
+    hasAvailableHumanAuthorization?: boolean;
 
     constructor(data?: IReviewCorrectionAttemptStatusResponse) {
         if (data) {
@@ -2756,6 +2829,12 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
                 for (let item of _data["artifacts"])
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
+            this.maximumReviewCorrectionAttempts = _data["maximumReviewCorrectionAttempts"];
+            this.reviewCorrectionAttemptsUsed = _data["reviewCorrectionAttemptsUsed"];
+            this.budgetExhausted = _data["budgetExhausted"];
+            this.escalationId = _data["escalationId"];
+            this.escalationMessageId = _data["escalationMessageId"];
+            this.hasAvailableHumanAuthorization = _data["hasAvailableHumanAuthorization"];
         }
     }
 
@@ -2786,6 +2865,12 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
             for (let item of this.artifacts)
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
+        data["maximumReviewCorrectionAttempts"] = this.maximumReviewCorrectionAttempts;
+        data["reviewCorrectionAttemptsUsed"] = this.reviewCorrectionAttemptsUsed;
+        data["budgetExhausted"] = this.budgetExhausted;
+        data["escalationId"] = this.escalationId;
+        data["escalationMessageId"] = this.escalationMessageId;
+        data["hasAvailableHumanAuthorization"] = this.hasAvailableHumanAuthorization;
         return data;
     }
 }
@@ -2805,6 +2890,12 @@ export interface IReviewCorrectionAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    maximumReviewCorrectionAttempts?: number;
+    reviewCorrectionAttemptsUsed?: number;
+    budgetExhausted?: boolean;
+    escalationId?: string | undefined;
+    escalationMessageId?: string | undefined;
+    hasAvailableHumanAuthorization?: boolean;
 }
 
 export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
@@ -3429,6 +3520,58 @@ export interface IAgentAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+}
+
+export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {
+    status?: string;
+    escalationId?: string;
+    humanInstructionMessageId?: string;
+    authorizationId?: string;
+    latestEventSequence?: number | undefined;
+
+    constructor(data?: IAuthorizeReviewCorrectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.escalationId = _data["escalationId"];
+            this.humanInstructionMessageId = _data["humanInstructionMessageId"];
+            this.authorizationId = _data["authorizationId"];
+            this.latestEventSequence = _data["latestEventSequence"];
+        }
+    }
+
+    static fromJS(data: any): AuthorizeReviewCorrectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AuthorizeReviewCorrectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["escalationId"] = this.escalationId;
+        data["humanInstructionMessageId"] = this.humanInstructionMessageId;
+        data["authorizationId"] = this.authorizationId;
+        data["latestEventSequence"] = this.latestEventSequence;
+        return data;
+    }
+}
+
+export interface IAuthorizeReviewCorrectionResponse {
+    status?: string;
+    escalationId?: string;
+    humanInstructionMessageId?: string;
+    authorizationId?: string;
+    latestEventSequence?: number | undefined;
 }
 
 export class UpdateVerificationCommandRequest implements IUpdateVerificationCommandRequest {

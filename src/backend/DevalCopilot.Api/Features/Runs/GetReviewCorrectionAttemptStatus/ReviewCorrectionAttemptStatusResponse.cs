@@ -16,4 +16,10 @@ public sealed record ReviewCorrectionAttemptStatusResponse(
     DateTimeOffset? ClaimedAtUtc,
     DateTimeOffset? DispatchedAtUtc,
     DateTimeOffset? CompletedAtUtc,
-    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts);
+    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts,
+    int MaximumReviewCorrectionAttempts,
+    int ReviewCorrectionAttemptsUsed,
+    bool BudgetExhausted,
+    Guid? EscalationId,
+    Guid? EscalationMessageId,
+    bool HasAvailableHumanAuthorization);

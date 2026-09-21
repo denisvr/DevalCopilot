@@ -60,6 +60,10 @@ public static class CollaborationMessageContentPolicy
     {
         "unresolvedDecision", "options", "consequences", "evidence", "recommendedChoice",
     };
+    private static readonly IReadOnlySet<string> HumanInstructionFields = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "instruction", "rationale",
+    };
 
     public static void Validate(CollaborationMessageType type, string structuredContentJson)
     {
@@ -129,6 +133,7 @@ public static class CollaborationMessageContentPolicy
             CollaborationMessageType.RevisionResponse => RevisionResponseFields,
             CollaborationMessageType.Escalation => EscalationFields,
             CollaborationMessageType.ReviewApproval => ReviewApprovalFields,
+            CollaborationMessageType.HumanInstruction => HumanInstructionFields,
             _ => throw new ArgumentOutOfRangeException(nameof(type)),
         };
     }

@@ -47,6 +47,10 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots => Set<HostCapabilitySnapshot>();
 
+    public DbSet<ReviewCorrectionEscalation> ReviewCorrectionEscalations => Set<ReviewCorrectionEscalation>();
+
+    public DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations => Set<ReviewCorrectionAuthorization>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(DevalCopilotDbContext).Assembly);

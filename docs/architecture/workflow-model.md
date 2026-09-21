@@ -165,9 +165,15 @@ recording all bind to the same starting checkpoint. A successful correction
 creates a new immutable checkpoint and appends one RevisionResponse per finding
 plus one new ExecutionReport atomically. Re-review of that new checkpoint is a
 later explicit request only after fresh Passed verification is recorded for the
-new checkpoint. The re-review can expose another explicit correction request;
-automatic orchestration, provider fallback, Gemini, snapshots, parallel
-executors, and correction-round exhaustion policy remain deferred.
+new checkpoint. The re-review can expose another explicit correction request.
+Each run permits two claimed review-correction attempts by default, regardless
+of whether either attempt later dispatches or succeeds. Exhaustion creates a
+durable escalation; a human may explicitly authorize exactly one additional
+claim, and that authorization is atomically consumed by the claim. This is
+explicit continuation, not generic pause/resume, provider fallback, Gemini,
+snapshots, parallel executors, or automatic orchestration. Token,
+account-usage, duration, and the remaining Increment 4 controls remain
+deferred.
 
 ### Approval state
 
@@ -262,7 +268,8 @@ Pause, stop, or exhaustion for one run does not transition an unrelated run.
 MVP defaults are policy values, not hard-coded domain constants:
 
 - no more than two plan challenge rounds per material issue;
-- review-correction round exhaustion is not enforced in this increment;
+- review-correction permits two claimed attempts by default, then requires an
+  explicit one-attempt human authorization;
 - no more than two CI code-correction rounds;
 - no more than one automatic rerun for a probable transient CI failure;
 - finite wall-clock, process, output-size, and token budgets;

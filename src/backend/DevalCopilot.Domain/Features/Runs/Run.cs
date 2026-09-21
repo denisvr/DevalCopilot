@@ -10,13 +10,24 @@ public sealed class Run
     {
     }
 
-    public static Run RecordIntent(Guid id, Guid projectId, int executionNumber, string objective, DateTimeOffset nowUtc)
+    public static Run RecordIntent(
+        Guid id,
+        Guid projectId,
+        int executionNumber,
+        string objective,
+        DateTimeOffset nowUtc,
+        int maximumReviewCorrectionAttempts = 2)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
         if (executionNumber < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(executionNumber));
+        }
+
+        if (maximumReviewCorrectionAttempts < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumReviewCorrectionAttempts));
         }
 
         return new Run
@@ -31,6 +42,7 @@ public sealed class Run
             CreatedAtUtc = nowUtc,
             LastAdvancedAtUtc = nowUtc,
             AccumulatedAutonomousSeconds = 0,
+            MaximumReviewCorrectionAttempts = maximumReviewCorrectionAttempts,
         };
     }
 
@@ -64,6 +76,13 @@ public sealed class Run
     /// Excludes intent-recorded (not yet claimed) and terminal time.
     /// </summary>
     public double AccumulatedAutonomousSeconds { get; private set; }
+
+    /// <summary>
+    /// Maximum number of claimed review-correction attempts for this run. Claims consume this
+    /// immutable-per-run policy value even when the provider later fails or the attempt is
+    /// interrupted.
+    /// </summary>
+    public int MaximumReviewCorrectionAttempts { get; private set; }
 
     /// <summary>
     /// The hosted supervisor claims recorded intent and starts the simulated attempt.

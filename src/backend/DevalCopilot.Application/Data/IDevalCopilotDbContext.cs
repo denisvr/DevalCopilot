@@ -45,6 +45,10 @@ public interface IDevalCopilotDbContext
 
     DbSet<HostCapabilitySnapshot> HostCapabilitySnapshots { get; }
 
+    DbSet<ReviewCorrectionEscalation> ReviewCorrectionEscalations { get; }
+
+    DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations { get; }
+
     /// <summary>
     /// Used only by manual-transaction commands that must read back a database-assigned
     /// value, such as the monotonic event sequence, before returning their result.

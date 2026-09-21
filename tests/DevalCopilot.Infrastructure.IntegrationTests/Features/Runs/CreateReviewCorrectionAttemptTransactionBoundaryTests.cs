@@ -69,7 +69,8 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
         Assert.True(evidenceReader.ObservedCurrentTransactionWasNull);
 
         await using var verify = CreateContext();
-        var attempt = await verify.Attempts.SingleAsync(item => item.Id == result.Value.AttemptId);
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
+        var attempt = await verify.Attempts.SingleAsync(item => item.Id == created.AttemptId);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
         Assert.Equal(AgentRole.Implementer, attempt.AgentRole);
         Assert.Equal(AgentResponseContract.ReviewCorrection, attempt.AgentResponseContract);

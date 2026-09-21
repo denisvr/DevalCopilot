@@ -179,6 +179,13 @@ manual transfer.
   inventing model, context, usage, or compaction capability;
 - loop exhaustion creates a useful human escalation.
 
+The implemented review-correction control uses a durable default of two
+claimed attempts per run. Every claim consumes that budget, including claims
+that later fail or are interrupted. Exhaustion creates a durable escalation;
+continuation requires an explicit human authorization for one additional claim.
+This does not introduce generic pause/resume, provider fallback, Gemini,
+automatic orchestration, or the deferred token/account-usage controls.
+
 ## Increment 5: Local supervised delivery loop
 
 ### Outcome

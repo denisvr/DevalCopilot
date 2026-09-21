@@ -3,6 +3,8 @@ using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrectionAttempt;
+using DevalCopilot.Application.Features.Runs.Commands.AuthorizeReviewCorrection;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -20,6 +22,15 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
 
     public Task InitializeAsync() => _fixture.InitializeAsync();
     public Task DisposeAsync() => _fixture.DisposeAsync();
+
+    [Fact]
+    public void Correction_result_variants_reject_fabricated_identities()
+    {
+        Assert.Throws<ArgumentException>(() => new CreateReviewCorrectionAttemptCommandResult.AttemptCreated(Guid.Empty, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new CreateReviewCorrectionAttemptCommandResult.AttemptCreated(Guid.NewGuid(), 0));
+        Assert.Throws<ArgumentException>(() => new CreateReviewCorrectionAttemptCommandResult.Escalated(Guid.Empty, Guid.NewGuid()));
+        Assert.Throws<ArgumentException>(() => new CreateReviewCorrectionAttemptCommandResult.Escalated(Guid.NewGuid(), Guid.Empty));
+    }
 
     [Fact]
     public async Task Unknown_run_is_not_found()
@@ -98,7 +109,8 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         var result = await handler.HandleAsync(Command(seed), CancellationToken.None);
 
         Assert.True(result.IsSuccess, string.Join("; ", result.Errors.Select(error => error.Code)));
-        var attempt = await context.Attempts.SingleAsync(item => item.Id == result.Value.AttemptId);
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
+        var attempt = await context.Attempts.SingleAsync(item => item.Id == created.AttemptId);
         Assert.Equal(AgentRole.Implementer, attempt.AgentRole);
         Assert.Equal(AgentResponseContract.ReviewCorrection, attempt.AgentResponseContract);
         Assert.Equal(AgentProvider.ClaudeCode, attempt.AgentProvider);
@@ -107,6 +119,170 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         var manifest = await context.Artifacts.SingleAsync(item => item.AttemptId == attempt.Id && item.Purpose == ArtifactPurpose.AgentContextManifest);
         Assert.Equal(ArtifactCaptureOutcome.Captured, manifest.CaptureOutcome);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
+    }
+
+    [Fact]
+    public async Task Third_claim_creates_one_durable_escalation_without_attempt_or_manifest()
+    {
+        await using var context = _fixture.CreateContext();
+        var seed = await SeedAsync(context);
+        for (var number = 5; number <= 6; number++)
+        {
+            var priorCorrection = Attempt.ClaimAgentReviewCorrection(
+                Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            priorCorrection.MarkAgentDispatched(Now);
+            priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
+            context.Attempts.Add(priorCorrection);
+        }
+
+        await context.SaveChangesAsync(CancellationToken.None);
+        var handler = Handler(context);
+
+        var result = await handler.HandleAsync(Command(seed), CancellationToken.None);
+        var repeated = await handler.HandleAsync(Command(seed), CancellationToken.None);
+
+        var escalated = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.Escalated>(result.Value);
+        var repeatedEscalated = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.Escalated>(repeated.Value);
+        Assert.Equal(escalated, repeatedEscalated);
+        Assert.Equal(2, await context.Attempts.CountAsync(item => item.AgentResponseContract == AgentResponseContract.ReviewCorrection));
+        Assert.Single(await context.ReviewCorrectionEscalations.ToListAsync());
+        Assert.Single(await context.CollaborationMessages.Where(item => item.Type == CollaborationMessageType.Escalation).ToListAsync());
+        Assert.Empty(await context.Artifacts.Where(item => item.Purpose == ArtifactPurpose.AgentContextManifest).ToListAsync());
+    }
+
+    [Fact]
+    public async Task Escalation_retry_recovers_exact_committed_event_and_re_notifies_after_post_commit_failure()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        for (var number = 5; number <= 6; number++)
+        {
+            var priorCorrection = Attempt.ClaimAgentReviewCorrection(
+                Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            priorCorrection.MarkAgentDispatched(Now);
+            priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
+            seedContext.Attempts.Add(priorCorrection);
+        }
+
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        var throwingNotifier = new RecordingNotifier(throwOnFirstCall: true);
+        await using (var firstContext = _fixture.CreateContext())
+        {
+            var handler = new CreateReviewCorrectionAttemptCommandHandler(
+                firstContext, new RecordingEvidenceReader(seed.Evidence), new TestArtifactStore(), new FixedTimeProvider(Now), throwingNotifier);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(Command(seed), CancellationToken.None));
+        }
+
+        var expected = await ReadEscalationEventAsync(seed.Run.Id);
+        var retryNotifier = new RecordingNotifier();
+        CreateReviewCorrectionAttemptCommandResult.Escalated retry;
+        await using (var retryContext = _fixture.CreateContext())
+        {
+            var handler = new CreateReviewCorrectionAttemptCommandHandler(
+                retryContext, new RecordingEvidenceReader(seed.Evidence), new TestArtifactStore(), new FixedTimeProvider(Now), retryNotifier);
+            retry = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.Escalated>(
+                (await handler.HandleAsync(Command(seed), CancellationToken.None)).Value);
+        }
+
+        Assert.Equal(expected.EscalationId, retry.EscalationId);
+        Assert.Equal(expected.MessageId, retry.EscalationMessageId);
+        Assert.Equal(expected.Sequence, retry.LatestEventSequence);
+        Assert.Equal([(seed.Run.Id, expected.Sequence)], retryNotifier.Notifications);
+        await using var verify = _fixture.CreateContext();
+        Assert.Single(await verify.ReviewCorrectionEscalations.Where(item => item.RunId == seed.Run.Id).ToListAsync());
+        Assert.Single(await verify.CollaborationMessages.Where(item => item.RunId == seed.Run.Id && item.Type == CollaborationMessageType.Escalation).ToListAsync());
+        Assert.Single(await verify.Events.Where(item => item.RunId == seed.Run.Id && item.EventType == RunEventType.CollaborationMessageRecorded).ToListAsync());
+    }
+
+    [Fact]
+    public async Task One_human_authorization_allows_exactly_one_additional_claim()
+    {
+        await using var context = _fixture.CreateContext();
+        var seed = await SeedAsync(context);
+        for (var number = 5; number <= 6; number++)
+        {
+            var priorCorrection = Attempt.ClaimAgentReviewCorrection(
+                Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            priorCorrection.MarkAgentDispatched(Now);
+            priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
+            context.Attempts.Add(priorCorrection);
+        }
+
+        await context.SaveChangesAsync(CancellationToken.None);
+        var correctionHandler = Handler(context);
+        var escalationResult = await correctionHandler.HandleAsync(Command(seed), CancellationToken.None);
+        var escalation = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.Escalated>(escalationResult.Value);
+
+        var authorizationResult = await new AuthorizeReviewCorrectionCommandHandler(
+                context, new RecordingEvidenceReader(seed.Evidence), new FixedTimeProvider(Now.AddMinutes(1)))
+            .HandleAsync(new AuthorizeReviewCorrectionCommand(seed.Run.Id, escalation.EscalationId), CancellationToken.None);
+        Assert.True(authorizationResult.IsSuccess, string.Join("; ", authorizationResult.Errors.Select(error => error.Code)));
+
+        var claimResult = await new CreateReviewCorrectionAttemptCommandHandler(
+                context, new RecordingEvidenceReader(seed.Evidence), new TestArtifactStore(), new FixedTimeProvider(Now.AddMinutes(2)))
+            .HandleAsync(Command(seed), CancellationToken.None);
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(claimResult.Value);
+        var authorization = await context.ReviewCorrectionAuthorizations.SingleAsync();
+        Assert.Equal(created.AttemptId, authorization.ConsumedByAttemptId);
+        Assert.False(authorization.IsAvailable);
+    }
+
+    [Fact]
+    public async Task Authorization_retry_recovers_exact_committed_event_and_re_notifies_after_post_commit_failure()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        for (var number = 5; number <= 6; number++)
+        {
+            var priorCorrection = Attempt.ClaimAgentReviewCorrection(
+                Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            priorCorrection.MarkAgentDispatched(Now);
+            priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
+            seedContext.Attempts.Add(priorCorrection);
+        }
+
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        CreateReviewCorrectionAttemptCommandResult.Escalated escalation;
+        await using (var escalationContext = _fixture.CreateContext())
+        {
+            escalation = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.Escalated>(
+                (await new CreateReviewCorrectionAttemptCommandHandler(
+                    escalationContext, new RecordingEvidenceReader(seed.Evidence), new TestArtifactStore(), new FixedTimeProvider(Now))
+                    .HandleAsync(Command(seed), CancellationToken.None)).Value);
+        }
+
+        var throwingNotifier = new RecordingNotifier(throwOnFirstCall: true);
+        await using (var firstContext = _fixture.CreateContext())
+        {
+            var handler = new AuthorizeReviewCorrectionCommandHandler(
+                firstContext, new RecordingEvidenceReader(seed.Evidence), new FixedTimeProvider(Now.AddMinutes(1)), throwingNotifier);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => handler.HandleAsync(
+                new AuthorizeReviewCorrectionCommand(seed.Run.Id, escalation.EscalationId), CancellationToken.None));
+        }
+
+        var expected = await ReadAuthorizationEventAsync(seed.Run.Id);
+        var retryNotifier = new RecordingNotifier();
+        AuthorizeReviewCorrectionCommandResult retry;
+        await using (var retryContext = _fixture.CreateContext())
+        {
+            var handler = new AuthorizeReviewCorrectionCommandHandler(
+                retryContext, new RecordingEvidenceReader(seed.Evidence), new FixedTimeProvider(Now.AddMinutes(1)), retryNotifier);
+            retry = (await handler.HandleAsync(
+                new AuthorizeReviewCorrectionCommand(seed.Run.Id, escalation.EscalationId), CancellationToken.None)).Value;
+        }
+
+        Assert.Equal(expected.AuthorizationId, retry.AuthorizationId);
+        Assert.Equal(expected.MessageId, retry.HumanInstructionMessageId);
+        Assert.Equal(expected.Sequence, retry.LatestEventSequence);
+        Assert.Equal([(seed.Run.Id, expected.Sequence)], retryNotifier.Notifications);
+        await using var verify = _fixture.CreateContext();
+        Assert.Single(await verify.ReviewCorrectionAuthorizations.Where(item => item.RunId == seed.Run.Id).ToListAsync());
+        Assert.Single(await verify.CollaborationMessages.Where(item => item.RunId == seed.Run.Id && item.Type == CollaborationMessageType.HumanInstruction).ToListAsync());
+        Assert.Equal(2, await verify.Events.CountAsync(item => item.RunId == seed.Run.Id && item.EventType == RunEventType.CollaborationMessageRecorded));
     }
 
     [Fact]
@@ -302,6 +478,50 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
                 throw new DbUpdateException("synthetic unrelated persistence failure");
             }
             return ValueTask.FromResult(result);
+        }
+    }
+
+    private async Task<(Guid EscalationId, Guid MessageId, long Sequence)> ReadEscalationEventAsync(Guid runId)
+    {
+        await using var context = _fixture.CreateContext();
+        var escalation = await context.ReviewCorrectionEscalations.SingleAsync(item => item.RunId == runId);
+        var sequence = await context.Events
+            .Where(item => item.RunId == runId
+                && item.EventType == RunEventType.CollaborationMessageRecorded
+                && item.PayloadJson.Contains(escalation.CollaborationMessageId.ToString()))
+            .Select(item => item.Sequence)
+            .SingleAsync();
+        return (escalation.Id, escalation.CollaborationMessageId, sequence);
+    }
+
+    private async Task<(Guid AuthorizationId, Guid MessageId, long Sequence)> ReadAuthorizationEventAsync(Guid runId)
+    {
+        await using var context = _fixture.CreateContext();
+        var authorization = await context.ReviewCorrectionAuthorizations.SingleAsync(item => item.RunId == runId);
+        var sequence = await context.Events
+            .Where(item => item.RunId == runId
+                && item.EventType == RunEventType.CollaborationMessageRecorded
+                && item.PayloadJson.Contains(authorization.HumanInstructionMessageId.ToString()))
+            .Select(item => item.Sequence)
+            .SingleAsync();
+        return (authorization.Id, authorization.HumanInstructionMessageId, sequence);
+    }
+
+    private sealed class RecordingNotifier(bool throwOnFirstCall = false) : IRunEventNotifier
+    {
+        private int _callCount;
+
+        public List<(Guid RunId, long Sequence)> Notifications { get; } = [];
+
+        public Task NotifyRunAdvancedAsync(Guid runId, long latestSequence, CancellationToken cancellationToken)
+        {
+            Notifications.Add((runId, latestSequence));
+            if (throwOnFirstCall && Interlocked.Increment(ref _callCount) == 1)
+            {
+                throw new InvalidOperationException("Synthetic post-commit notification failure.");
+            }
+
+            return Task.CompletedTask;
         }
     }
 }

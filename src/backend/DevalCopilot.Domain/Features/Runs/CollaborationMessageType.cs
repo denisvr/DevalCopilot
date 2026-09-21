@@ -18,4 +18,5 @@ public enum CollaborationMessageType
     /// distinct protocol fact about completed work, not agreement with a not-yet-implemented
     /// Proposal.</summary>
     ReviewApproval = 9,
+    HumanInstruction = 10,
 }

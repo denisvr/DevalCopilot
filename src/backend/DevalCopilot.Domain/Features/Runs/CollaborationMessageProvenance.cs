@@ -5,4 +5,6 @@ public enum CollaborationMessageProvenance
 {
     Simulated = 0,
     ProviderObserved = 1,
+    HostConstructed = 2,
+    HumanSubmitted = 3,
 }

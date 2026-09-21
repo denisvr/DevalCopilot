@@ -2,6 +2,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +14,8 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
     public async Task<Result<ReviewCorrectionAttemptStatusQueryResult>> HandleAsync(
         GetReviewCorrectionAttemptStatusQuery query, CancellationToken cancellationToken)
     {
-        if (!await dbContext.Runs.AsNoTracking().AnyAsync(run => run.Id == query.RunId, cancellationToken))
+        var run = await dbContext.Runs.AsNoTracking().SingleOrDefaultAsync(run => run.Id == query.RunId, cancellationToken);
+        if (run is null)
         {
             return Result<ReviewCorrectionAttemptStatusQueryResult>.Failure(
                 Error.NotFound("runs.not_found", "The requested run was not found."));
@@ -24,26 +26,61 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
         // walk; the snapshot keeps this read-side query bounded by the run, not candidate count.
         var snapshot = await ImplementerExecutionReportEligibility.LoadSnapshotAsync(
             dbContext, query.RunId, cancellationToken);
-        var attempt = snapshot.AttemptsById.Values
-            .Where(candidate => candidate.RunId == query.RunId
-                && candidate.Kind == AttemptKind.Agent
-                && candidate.AgentResponseContract == AgentResponseContract.ReviewCorrection)
-            .OrderByDescending(candidate => candidate.AttemptNumber)
-            .FirstOrDefault();
+        var correctionAttemptsUsed = snapshot.AttemptsById.Values.Count(candidate =>
+            candidate.RunId == query.RunId
+            && candidate.Kind == AttemptKind.Agent
+            && candidate.AgentResponseContract == AgentResponseContract.ReviewCorrection);
+
+        var latestWorkspace = await dbContext.GitWorkspaces.AsNoTracking()
+            .Where(candidate => candidate.ProjectId == run.ProjectId)
+            .OrderByDescending(candidate => candidate.WorkspaceNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+        var currentCheckpointId = latestWorkspace is not null
+            ? snapshot.CurrentCheckpointFor(latestWorkspace.Id)
+            : null;
+        var currentReview = latestWorkspace is { Status: WorkspaceStatus.Ready }
+            && currentCheckpointId is { } resolvedCheckpointId
+            ? ReviewCorrectionReviewEligibility.ResolveCurrent(
+                snapshot, query.RunId, latestWorkspace.Id, resolvedCheckpointId)
+            : null;
+
+        IReadOnlyList<Guid> currentInputIds = currentReview is null
+            ? []
+            : [
+                currentReview.ExecutionReport.Id,
+                .. currentReview.OrderedFindings.Select(finding => finding.Id),
+            ];
+        var attempt = currentReview is null
+            ? null
+            : snapshot.AttemptsById.Values
+                .Where(candidate => candidate.RunId == query.RunId
+                    && candidate.Kind == AttemptKind.Agent
+                    && candidate.AgentRole == AgentRole.Implementer
+                    && candidate.AgentResponseContract == AgentResponseContract.ReviewCorrection
+                    && HasExactInputs(snapshot.InputsFor(candidate.Id), currentInputIds))
+                .OrderByDescending(candidate => candidate.AttemptNumber)
+                .FirstOrDefault();
+        ReviewCorrectionEscalation? latestEscalation = null;
+        var hasAvailableAuthorization = false;
+        if (currentReview is not null && correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts)
+        {
+            latestEscalation = await dbContext.ReviewCorrectionEscalations.AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.RunId == query.RunId
+                    && candidate.ImplementationReviewAttemptId == currentReview.ReviewAttempt.Id, cancellationToken);
+            hasAvailableAuthorization = latestEscalation is not null && await dbContext.ReviewCorrectionAuthorizations.AsNoTracking()
+                .AnyAsync(candidate => candidate.EscalationId == latestEscalation.Id && candidate.ConsumedByAttemptId == null, cancellationToken);
+        }
         if (attempt is null)
         {
             var initialReportId = ResolveLatestInitialExecutionReportMessageId(snapshot, query.RunId);
             return Result<ReviewCorrectionAttemptStatusQueryResult>.Success(new ReviewCorrectionAttemptStatusQueryResult(
-                false, null, null, null, initialReportId, null, null, null, null, 0, null, null, null, []));
+                false, null, null, currentReview?.ReviewAttempt.Id, initialReportId, null, null, null, null, 0, null, null, null, [],
+                run.MaximumReviewCorrectionAttempts, correctionAttemptsUsed,
+                correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts,
+                latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization));
         }
 
         var reviewableExecutionReportMessageId = ResolveReviewableExecutionReportMessageId(snapshot, attempt);
-
-        var implementationReviewAttemptId = snapshot.InputsFor(attempt.Id)
-            .Where(input => input.Sequence > 0)
-            .OrderBy(input => input.Sequence)
-            .Select(input => snapshot.MessagesById.GetValueOrDefault(input.CollaborationMessageId)?.AttemptId)
-            .FirstOrDefault();
 
         var artifacts = await dbContext.Artifacts.AsNoTracking()
             .Where(artifact => artifact.AttemptId == attempt.Id)
@@ -54,9 +91,22 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
             .CountAsync(message => message.AttemptId == attempt.Id && message.Type == CollaborationMessageType.RevisionResponse, cancellationToken);
 
         return Result<ReviewCorrectionAttemptStatusQueryResult>.Success(new ReviewCorrectionAttemptStatusQueryResult(
-            true, attempt.Id, attempt.AttemptNumber, implementationReviewAttemptId, reviewableExecutionReportMessageId, attempt.Status, attempt.AgentOutcome,
+            true, attempt.Id, attempt.AttemptNumber, currentReview?.ReviewAttempt.Id, reviewableExecutionReportMessageId, attempt.Status, attempt.AgentOutcome,
             attempt.AgentGitCheckpointId, attempt.AgentResultGitCheckpointId, responseCount,
-            attempt.ClaimedAtUtc, attempt.AgentDispatchedAtUtc, attempt.CompletedAtUtc, artifacts));
+            attempt.ClaimedAtUtc, attempt.AgentDispatchedAtUtc, attempt.CompletedAtUtc, artifacts,
+            run.MaximumReviewCorrectionAttempts, correctionAttemptsUsed,
+            correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts,
+            latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization));
+    }
+
+    private static bool HasExactInputs(
+        IReadOnlyList<AttemptInputMessage> inputs,
+        IReadOnlyList<Guid> expectedMessageIds)
+    {
+        var ordered = inputs.OrderBy(input => input.Sequence).ToArray();
+        return ordered.Length == expectedMessageIds.Count
+            && ordered.Select((input, index) => input.Sequence == index
+                && input.CollaborationMessageId == expectedMessageIds[index]).All(isMatch => isMatch);
     }
 
     private static Guid? ResolveReviewableExecutionReportMessageId(

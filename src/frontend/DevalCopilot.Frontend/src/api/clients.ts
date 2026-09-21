@@ -36,6 +36,7 @@ import {
   GetCodeReviewAttemptStatusEndpointClient,
   RequestReviewCorrectionEndpointClient,
   GetReviewCorrectionAttemptStatusEndpointClient,
+  AuthorizeReviewCorrectionEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -78,6 +79,7 @@ export const requestCodeReviewClient = () => new RequestCodeReviewEndpointClient
 export const codeReviewAttemptStatusClient = () => new GetCodeReviewAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestReviewCorrectionClient = () => new RequestReviewCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const reviewCorrectionAttemptStatusClient = () => new GetReviewCorrectionAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const authorizeReviewCorrectionClient = () => new AuthorizeReviewCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -117,6 +119,7 @@ export type {
   CodeReviewAttemptStatusResponse,
   RequestReviewCorrectionResponse,
   ReviewCorrectionAttemptStatusResponse,
+  AuthorizeReviewCorrectionResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,

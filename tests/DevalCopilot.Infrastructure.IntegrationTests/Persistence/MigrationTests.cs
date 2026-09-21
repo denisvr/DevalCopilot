@@ -2,6 +2,7 @@ using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -9,6 +10,54 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Persistence;
 
 public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<SqliteFileFixture>
 {
+    [Fact]
+    public async Task New_migration_backfills_existing_runs_to_two_without_changing_existing_values()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-budget-backfill-{Guid.NewGuid():N}.db");
+        var now = DateTimeOffset.UtcNow;
+        var projectId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+
+        try
+        {
+            await using (var previousContext = CreateContext(databasePath))
+            {
+                await previousContext.Database.MigrateAsync("AddAttemptVerificationEvidence");
+                var project = Project.Register(projectId, "Budget backfill", $@"C:\repos\budget-backfill-{Guid.NewGuid():N}", now);
+                previousContext.Projects.Add(project);
+                await previousContext.SaveChangesAsync();
+                await previousContext.Database.ExecuteSqlInterpolatedAsync(
+                    $@"INSERT INTO runs
+                           (Id, ProjectId, ExecutionNumber, Objective, Lifecycle, Stage, ActiveParticipant,
+                            CreatedAtUtc, LastAdvancedAtUtc, AccumulatedAutonomousSeconds)
+                       VALUES
+                           ({runId}, {projectId}, {7}, {"Pre-existing objective"},
+                            {nameof(RunLifecycle.Running)}, {nameof(RunStage.Critique)}, {nameof(ParticipantKind.Orchestrator)},
+                            {now}, {now.AddMinutes(1)}, {12.5d})");
+            }
+
+            await using (var upgradedContext = CreateContext(databasePath))
+            {
+                await upgradedContext.Database.MigrateAsync();
+            }
+
+            await using var reopenedContext = CreateContext(databasePath);
+            var run = await reopenedContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            Assert.Equal(2, run.MaximumReviewCorrectionAttempts);
+            Assert.Equal(projectId, run.ProjectId);
+            Assert.Equal(7, run.ExecutionNumber);
+            Assert.Equal("Pre-existing objective", run.Objective);
+            Assert.Equal(RunLifecycle.Running, run.Lifecycle);
+            Assert.Equal(RunStage.Critique, run.Stage);
+            Assert.Equal(12.5, run.AccumulatedAutonomousSeconds);
+        }
+        finally
+        {
+            SqliteConnection.ClearPool(new SqliteConnection($"Data Source={databasePath}"));
+            if (File.Exists(databasePath)) File.Delete(databasePath);
+        }
+    }
+
     [Fact]
     public async Task Migrate_creates_a_schema_that_accepts_a_project_run_attempt_and_event()
     {
@@ -25,6 +74,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             var run = Run.RecordIntent(Guid.NewGuid(), project.Id, project.ReserveExecutionNumber(), "Prove the schema", now);
             context.Runs.Add(run);
             await context.SaveChangesAsync();
+            Assert.Equal(2, run.MaximumReviewCorrectionAttempts);
 
             run.Claim(now);
             var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, attemptNumber: 1, now);
@@ -38,6 +88,11 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             Assert.True(runEvent.Sequence > 0);
         }
     }
+
+    private static DevalCopilotDbContext CreateContext(string databasePath) =>
+        new(new DbContextOptionsBuilder<DevalCopilotDbContext>()
+            .UseSqlite($"Data Source={databasePath}")
+            .Options);
 
     [Fact]
     public async Task Migrate_applied_twice_is_idempotent()
@@ -62,6 +117,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddClaudeCriticalReviewAttempts", appliedMigrations);
         Assert.Contains("AddAttemptInputMessages", appliedMigrations);
         Assert.Contains("AddNeutralParticipantIdentity", appliedMigrations);
+        Assert.Contains("AddReviewCorrectionBudgetAndEscalations", appliedMigrations);
     }
 
     [Fact]

@@ -31,6 +31,7 @@ const TYPE_LABEL: Record<string, string> = {
   ReviewFinding: 'Review finding',
   RevisionResponse: 'Revision response',
   Escalation: 'Escalation',
+  HumanInstruction: 'Human instruction',
 }
 
 function typeLabelFor(type: string): string {
