@@ -62,6 +62,12 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         builder.Property(attempt => attempt.AgentCheckpointFingerprintSha256).HasMaxLength(64);
         builder.Property(attempt => attempt.AgentOutcome).HasConversion<string>().HasMaxLength(32);
         builder.Property(attempt => attempt.AgentProviderSessionId).HasMaxLength(256);
+        builder.Property(attempt => attempt.AgentRequestedModel).HasMaxLength(128);
+        builder.Property(attempt => attempt.AgentObservedModel).HasMaxLength(128);
+        builder.Property(attempt => attempt.AgentRequestedEffort).HasMaxLength(128);
+        builder.Property(attempt => attempt.AgentObservedEffort).HasMaxLength(128);
+        builder.Property(attempt => attempt.AgentPermissionProfile).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentAdapterContractVersion).HasMaxLength(128);
 
         builder.Property(attempt => attempt.AgentTimeout)
             .HasConversion(

@@ -16,7 +16,8 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Projects;
 /// authenticated-session requirement every endpoint shares, safe error rendering, and the
 /// golden path (register a real repository, prepare a candidate workspace, inspect it).
 /// </summary>
-public sealed class WorkspacePreparationEndpointTests(ApiWebApplicationFactory factory) : IClassFixture<ApiWebApplicationFactory>, IDisposable
+public sealed class WorkspacePreparationEndpointTests(HostCapabilityReadinessApiWebApplicationFactory factory)
+    : IClassFixture<HostCapabilityReadinessApiWebApplicationFactory>, IDisposable
 {
     private const string ProjectsRoute = "/api/projects";
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"devalcopilot-workspace-endpoint-{Guid.NewGuid():N}");

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <DevalenteGenerateApiClients>true</DevalenteGenerateApiClients>
+    <DevalenteNSwagEnvironment>OpenApiGeneration</DevalenteNSwagEnvironment>
     <!-- Restored and locked so the Tauri packaging script (scripts/build-sidecar.ps1) can
          publish a self-contained single-file win-x64 sidecar without an unlocked restore. -->
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>

@@ -9,7 +9,8 @@ using Xunit;
 
 namespace DevalCopilot.Api.IntegrationTests.Features.Projects;
 
-public sealed class RegisterProjectEndpointTests(ApiWebApplicationFactory factory) : IClassFixture<ApiWebApplicationFactory>, IDisposable
+public sealed class RegisterProjectEndpointTests(HostCapabilityReadinessApiWebApplicationFactory factory)
+    : IClassFixture<HostCapabilityReadinessApiWebApplicationFactory>, IDisposable
 {
     private const string Route = "/api/projects";
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"devalcopilot-register-endpoint-{Guid.NewGuid():N}");

@@ -37,6 +37,8 @@
   Separate agent roles, effects, and provider assignments.
 - [ADR-0010](decisions/0010-add-review-correction-response-contract.md): Add a
   role-scoped review-correction response contract.
+- [ADR-0011](decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md):
+  Require administrator-provisioned policy before Gemini CLI execution.
 
 ## Product-specific architecture
 

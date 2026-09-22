@@ -95,6 +95,117 @@ describe('ImplementationAction', () => {
     expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
   })
 
+  it('shows bounded requested and observed assignment facts for an existing attempt', () => {
+    render(
+      <ImplementationAction
+        planProposalMessageId="proposal-1"
+        status={
+          new ImplementationAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'NoChangesProduced',
+            planProposalMessageId: 'proposal-1',
+            provider: 'ClaudeCode',
+            role: 'Implementer',
+            requestedModel: 'claude-model-requested',
+            observedModel: 'claude-model-observed',
+            requestedEffort: 'high-requested',
+            observedEffort: 'medium-observed',
+            permissionProfile: 'WorkspaceEditOnly',
+            adapterContractVersion: 'claude-implementation-v1',
+            changedRelativePaths: [],
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(/Claude Code · Implementer · Model requested: claude-model-requested/)).toBeInTheDocument()
+    expect(screen.getByText(/Model observed: claude-model-observed · Effort requested: high-requested · Effort observed: medium-observed/)).toBeInTheDocument()
+    expect(screen.getByText(/Workspace edit only · Adapter contract: claude-implementation-v1/)).toBeInTheDocument()
+    expect(screen.queryByText(/C:\\|credential|environment|prompt|transcript|raw output/i)).not.toBeInTheDocument()
+  })
+
+  it('shows truthful Unknown values for a historical assignment with nullable facts', () => {
+    render(
+      <ImplementationAction
+        planProposalMessageId="proposal-1"
+        status={new ImplementationAttemptStatusResponse({
+          hasAttempt: true,
+          attemptId: 'historical-attempt',
+          attemptNumber: 1,
+          status: 'Failed',
+          outcome: 'NoChangesProduced',
+          planProposalMessageId: 'proposal-1',
+          provider: 'ClaudeCode',
+          role: 'Implementer',
+          permissionProfile: 'Unknown',
+          changedRelativePaths: [],
+        })}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(/Model requested: Unknown · Model observed: Unknown · Effort requested: Unknown · Effort observed: Unknown/)).toBeInTheDocument()
+    expect(screen.getByText(/Unknown · Adapter contract: Unknown/)).toBeInTheDocument()
+  })
+
+  it('does not render assignment or last-attempt identity when the backend says there is no attempt', () => {
+    render(
+      <ImplementationAction
+        planProposalMessageId="proposal-1"
+        status={new ImplementationAttemptStatusResponse({ hasAttempt: false, changedRelativePaths: [], artifacts: [] })}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText(/Last attempt/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Unknown/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Last attempt #undefined/)).not.toBeInTheDocument()
+  })
+
+  it('does not display unknown backend assignment codes verbatim', () => {
+    render(
+      <ImplementationAction
+        planProposalMessageId="proposal-1"
+        status={new ImplementationAttemptStatusResponse({
+          hasAttempt: true,
+          attemptId: 'attempt-1',
+          attemptNumber: 1,
+          status: 'Failed',
+          planProposalMessageId: 'proposal-1',
+          provider: 'UnrecognizedProviderSentinel',
+          role: 'UnrecognizedRoleSentinel',
+          permissionProfile: 'UnrecognizedProfileSentinel',
+          adapterContractVersion: 'unrecognized-contract-sentinel',
+          changedRelativePaths: [],
+        })}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(/Unknown · Unknown · Model requested: Unknown/)).toBeInTheDocument()
+    expect(screen.queryByText(/UnrecognizedProviderSentinel|UnrecognizedRoleSentinel|UnrecognizedProfileSentinel|unrecognized-contract-sentinel/)).not.toBeInTheDocument()
+  })
+
   it('allows requesting a fresh implementation once a newer resolved plan supersedes an already-implemented one', () => {
     render(
       <ImplementationAction
@@ -167,6 +278,23 @@ describe('ImplementationAction', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Requesting…' })).toBeDisabled()
+  })
+
+  it('offers the only supported implementation action without a provider selector', () => {
+    render(
+      <ImplementationAction
+        planProposalMessageId="proposal-1"
+        status={null}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Implement the resolved plan with Claude' })).toBeEnabled()
   })
 
   it('surfaces a safe request-failure message without discarding the last known status', () => {

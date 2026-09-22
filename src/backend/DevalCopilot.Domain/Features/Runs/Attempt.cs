@@ -331,10 +331,10 @@ public sealed class Attempt
     }
 
     /// <summary>
-    /// Claims a Claude Code implementation Agent attempt — a durable, real invocation
+    /// Claims the default Claude Code initial implementation Agent attempt — a durable, real invocation
     /// implementing one exact, already-resolved plan (an accepted original Proposal or a
-    /// resolved revised Proposal) inside the owned worktree. This slice accepts only ClaudeCode,
-    /// the Implementer role, protocol 1.0, and the <see cref="Runs.AgentResponseContract.ImplementationReport"/>
+    /// resolved revised Proposal) inside the owned worktree. The assignment overload fixes
+    /// ClaudeCode, the Implementer role, protocol 1.0, and the <see cref="Runs.AgentResponseContract.ImplementationReport"/>
     /// contract. <paramref name="gitCheckpointId"/> is this attempt's own immutable STARTING
     /// checkpoint — never overwritten by a later result; a successful implementation's resulting
     /// checkpoint is recorded separately via <see cref="CompleteImplementation"/> as
@@ -355,12 +355,49 @@ public sealed class Attempt
         int maxBytesPerStream,
         int maxTotalCapturedBytes,
         DateTimeOffset claimedAtUtc)
+        => ClaimAgentImplementationWithAssignment(
+            id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
+            contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
+            requestedModel: null, requestedEffort: null,
+            Runs.AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1");
+
+    /// <summary>Claims an initial Claude Code ImplementationReport attempt with bounded,
+    /// immutable requested assignment facts. Provider identity remains fixed by this supported
+    /// execution path; it is provenance, not semantic authority.</summary>
+    public static Attempt ClaimAgentImplementationWithAssignment(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedModel,
+        string? requestedEffort,
+        AgentPermissionProfile permissionProfile,
+        string adapterContractVersion)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReport);
+
+        if (!Enum.IsDefined(permissionProfile) || permissionProfile == Runs.AgentPermissionProfile.Unknown)
+        {
+            throw new ArgumentOutOfRangeException(nameof(permissionProfile), permissionProfile, "A concrete implementation permission profile is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(adapterContractVersion) || adapterContractVersion.Length > 128)
+        {
+            throw new ArgumentException("An adapter contract version must be non-blank and at most 128 characters.", nameof(adapterContractVersion));
+        }
+        ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
+        ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
 
         return new Attempt
         {
@@ -385,8 +422,23 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentRequestedModel = requestedModel,
+            AgentRequestedEffort = requestedEffort,
+            AgentPermissionProfile = permissionProfile,
+            AgentAdapterContractVersion = adapterContractVersion,
         };
     }
+
+    private static void ValidateAssignmentIdentifier(string? value, string paramName)
+    {
+        if (!IsValidAssignmentIdentifier(value))
+        {
+            throw new ArgumentException("Assignment identifiers must be blank or at most 128 characters.", paramName);
+        }
+    }
+
+    private static bool IsValidAssignmentIdentifier(string? value) =>
+        value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= 128);
 
     /// <summary>
     /// Claims an Implementer review-correction Agent attempt — a durable, real, workspace-mutating
@@ -550,12 +602,12 @@ public sealed class Attempt
     /// </summary>
     public DateTimeOffset? ProcessDispatchedAtUtc { get; private set; }
 
-    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Fixed to
-    /// <see cref="Runs.AgentProvider.Codex"/> in this slice.</summary>
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Provider
+    /// identity is durable assignment/provenance, never semantic authority.</summary>
     public AgentProvider? AgentProvider { get; private set; }
 
-    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Fixed to
-    /// <see cref="Runs.AgentRole.Planner"/> in this slice.</summary>
+    /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. The role
+    /// remains the semantic authority dimension.</summary>
     public AgentRole? AgentRole { get; private set; }
 
     /// <summary>Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>. Always
@@ -645,6 +697,81 @@ public sealed class Attempt
     /// output actually reported one — never invented, never required, never used by this slice
     /// to authorize or correlate anything.</summary>
     public string? AgentProviderSessionId { get; private set; }
+
+    public string? AgentRequestedModel { get; private set; }
+
+    public string? AgentObservedModel { get; private set; }
+
+    public string? AgentRequestedEffort { get; private set; }
+
+    public string? AgentObservedEffort { get; private set; }
+
+    public AgentPermissionProfile? AgentPermissionProfile { get; private set; }
+
+    public string? AgentAdapterContractVersion { get; private set; }
+
+    /// <summary>Returns the assignment facts without introducing a second persisted aggregate.
+    /// Non-Agent attempts have no assignment snapshot.</summary>
+    public AgentAssignmentSnapshot? GetAssignmentSnapshot()
+    {
+        if (Kind != AttemptKind.Agent
+            || AgentProvider is not { } provider
+            || !Enum.IsDefined(provider)
+            || !IsValidAssignmentIdentifier(AgentRequestedModel)
+            || !IsValidAssignmentIdentifier(AgentObservedModel)
+            || !IsValidAssignmentIdentifier(AgentRequestedEffort)
+            || !IsValidAssignmentIdentifier(AgentObservedEffort)
+            || (AgentAdapterContractVersion is { } contractVersion
+                && (string.IsNullOrWhiteSpace(contractVersion) || contractVersion.Length > 128)))
+        {
+            return null;
+        }
+
+        var permissionProfile = AgentPermissionProfile ?? Runs.AgentPermissionProfile.Unknown;
+        if (!Enum.IsDefined(permissionProfile))
+        {
+            return null;
+        }
+
+        return new AgentAssignmentSnapshot(
+            provider,
+            AgentRequestedModel,
+            AgentObservedModel,
+            AgentRequestedEffort,
+            AgentObservedEffort,
+            permissionProfile,
+            AgentAdapterContractVersion);
+    }
+
+    /// <summary>Records provider-reported assignment facts exactly once. A provider that does
+    /// not authoritatively report model or effort leaves both values null and records nothing.</summary>
+    public void RecordAgentObservedAssignment(string? observedModel, string? observedEffort)
+    {
+        if (Kind != AttemptKind.Agent)
+        {
+            throw new InvalidOperationException("Only an Agent attempt can record assignment observations.");
+        }
+
+        ValidateAssignmentIdentifier(observedModel, nameof(observedModel));
+        ValidateAssignmentIdentifier(observedEffort, nameof(observedEffort));
+        if (observedModel is null && observedEffort is null)
+        {
+            return;
+        }
+
+        if (Status != AttemptStatus.Running)
+        {
+            throw new InvalidOperationException($"Cannot record assignment observations for an attempt that is {Status}.");
+        }
+
+        if (AgentObservedModel is not null || AgentObservedEffort is not null)
+        {
+            throw new InvalidOperationException("Provider assignment observations are write-once.");
+        }
+
+        AgentObservedModel = observedModel;
+        AgentObservedEffort = observedEffort;
+    }
 
     /// <summary>The new, immutable <c>GitCheckpoint</c> this attempt's own real, verified source
     /// mutation produced — distinct from <see cref="AgentGitCheckpointId"/>, this attempt's

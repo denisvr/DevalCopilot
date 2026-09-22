@@ -300,10 +300,10 @@ Every increment runs the checks applicable to its current boundaries:
 
 After the MVP proves self-hosted development, candidate directions include:
 
-- Gemini as an alternative Implementer, introduced together with immutable
-  assignment history and manual provider selection; manual fallback follows as
-  a separate policy slice, and automatic fallback follows only after safe
-  terminal classifications, reconciliation, and budgets are explicit;
+- Gemini as an alternative Implementer only after the administrator-provisioned
+  policy prerequisite in ADR-0011 is satisfied; assignment history is in place,
+  while manual fallback remains a separate policy slice and automatic fallback
+  still requires safe terminal classifications, reconciliation, and budgets;
 - candidate preview in an isolated data directory;
 - signed update and rollback flow;
 - optional container or OS sandbox adapters;

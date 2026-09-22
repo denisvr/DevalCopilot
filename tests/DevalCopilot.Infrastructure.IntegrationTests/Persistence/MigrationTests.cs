@@ -59,6 +59,77 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
     }
 
     [Fact]
+    public async Task AddAgentAssignmentFacts_preserves_historical_provider_and_leaves_new_assignment_facts_unknown()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-agent-assignment-migration-{Guid.NewGuid():N}.db");
+        var now = DateTimeOffset.UtcNow;
+        var projectId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var historicalAttemptId = Guid.NewGuid();
+
+        try
+        {
+            await using (var previousContext = CreateContext(databasePath))
+            {
+                await previousContext.Database.MigrateAsync("AddReviewCorrectionBudgetAndEscalations");
+                var project = Project.Register(projectId, "Assignment migration", $@"C:\repos\assignment-migration-{Guid.NewGuid():N}", now);
+                previousContext.Projects.Add(project);
+                await previousContext.SaveChangesAsync();
+                await previousContext.Database.ExecuteSqlInterpolatedAsync(
+                    $@"INSERT INTO runs
+                           (Id, ProjectId, ExecutionNumber, Objective, Lifecycle, Stage, ActiveParticipantKind,
+                            CreatedAtUtc, LastAdvancedAtUtc, AccumulatedAutonomousSeconds)
+                       VALUES
+                           ({runId}, {projectId}, {1}, {"Preserve provider facts"},
+                            {nameof(RunLifecycle.Created)}, {nameof(RunStage.Intake)}, {nameof(ParticipantKind.None)},
+                            {now}, {now}, {0d})");
+                await previousContext.Database.ExecuteSqlInterpolatedAsync(
+                    $@"INSERT INTO attempts (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments, AgentProvider)
+                       VALUES ({historicalAttemptId}, {runId}, {1}, {nameof(AttemptKind.Agent)}, {nameof(AttemptStatus.Completed)}, {now}, {""}, {nameof(AgentProvider.ClaudeCode)})");
+            }
+
+            await using (var upgradedContext = CreateContext(databasePath))
+            {
+                await upgradedContext.Database.MigrateAsync();
+
+                var newAttempt = Attempt.ClaimAgentImplementationWithAssignment(
+                    Guid.NewGuid(), runId, 2, Guid.NewGuid(), Guid.NewGuid(), "sha256:migration", Guid.NewGuid(),
+                    TimeSpan.FromMinutes(20), 1024, 2048, now, "claude-model", "balanced",
+                    AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1");
+                upgradedContext.Attempts.Add(newAttempt);
+                await upgradedContext.SaveChangesAsync();
+            }
+
+            await using var reopenedContext = CreateContext(databasePath);
+            var historicalAttempt = await reopenedContext.Attempts.FindAsync(historicalAttemptId);
+            Assert.NotNull(historicalAttempt);
+            Assert.Equal(AgentProvider.ClaudeCode, historicalAttempt.AgentProvider);
+            Assert.Null(historicalAttempt.AgentRequestedModel);
+            Assert.Null(historicalAttempt.AgentObservedModel);
+            Assert.Null(historicalAttempt.AgentRequestedEffort);
+            Assert.Null(historicalAttempt.AgentObservedEffort);
+            Assert.Null(historicalAttempt.AgentPermissionProfile);
+            Assert.Null(historicalAttempt.AgentAdapterContractVersion);
+            Assert.Equal(AgentPermissionProfile.Unknown, historicalAttempt.GetAssignmentSnapshot()!.PermissionProfile);
+
+            var roundTrippedAttempt = await reopenedContext.Attempts.SingleAsync(attempt => attempt.AgentRequestedModel == "claude-model");
+            Assert.Equal(AgentProvider.ClaudeCode, roundTrippedAttempt.AgentProvider);
+            Assert.Equal("claude-model", roundTrippedAttempt.AgentRequestedModel);
+            Assert.Equal("balanced", roundTrippedAttempt.AgentRequestedEffort);
+            Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, roundTrippedAttempt.AgentPermissionProfile);
+            Assert.Equal("claude-implementation-v1", roundTrippedAttempt.AgentAdapterContractVersion);
+        }
+        finally
+        {
+            SqliteConnection.ClearPool(new SqliteConnection($"Data Source={databasePath}"));
+            if (File.Exists(databasePath))
+            {
+                File.Delete(databasePath);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Migrate_creates_a_schema_that_accepts_a_project_run_attempt_and_event()
     {
         var now = DateTimeOffset.UtcNow;
@@ -118,6 +189,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddAttemptInputMessages", appliedMigrations);
         Assert.Contains("AddNeutralParticipantIdentity", appliedMigrations);
         Assert.Contains("AddReviewCorrectionBudgetAndEscalations", appliedMigrations);
+        Assert.Contains("AddAgentAssignmentFacts", appliedMigrations);
     }
 
     [Fact]

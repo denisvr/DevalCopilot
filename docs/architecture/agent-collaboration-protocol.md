@@ -92,9 +92,11 @@ Recipient uses the same neutral identity shape. A recipient role remains null
 when the historical fact records only the target provider; the system does not
 invent a role during migration or projection. Frontend eligibility selectors
 use the actor's role and provenance rather than provider-branded participant
-values. Real provider substitution is still not end-to-end safe until durable
-assignment snapshots and provider-neutral dispatch queues select and record
-the assigned provider at the attempt boundary.
+values. Provider assignment facts are now durably recorded on the Attempt, but
+the current initial Implementer claim path still fixes Claude Code. Provider
+substitution and manual provider selection are not enabled. Gemini remains
+deferred behind ADR-0011; the provider-neutral workflow owns role, contract,
+and outcome semantics independently of provider provenance.
 
 ## Current durable ledger boundary
 
@@ -326,8 +328,10 @@ further attempt at claim or dispatch time.
 
 ### Execution and review
 
-Claude Code implements only the resolved plan and records unexpected discoveries
-as challenges or questions. This stage is real today, bound to one durable
+The initial Implementer currently uses Claude Code and implements only the
+resolved plan, recording unexpected discoveries as challenges or questions.
+Gemini is deferred until its administrator-provisioned policy prerequisite is
+met. This stage is real today, bound to one durable
 attempt per requested implementation of one specific resolved plan (an
 accepted original Proposal, or a resolved revised Proposal); execution never
 edits anything outside the run's owned worktree, and it never runs Git, a
@@ -596,10 +600,24 @@ applies identically. Two differences are deliberate:
   single-turn critical review; the actual bound remains the process-level timeout, cancellation,
   and process-tree termination already established for every other provider adapter.
 
-Because this is the one Claude role whose invocation can genuinely mutate the worktree, the
+Because each initial Implementer invocation can genuinely mutate the worktree, the
 orchestrator always independently re-reads fresh Git evidence after this adapter returns —
 regardless of whether the process succeeded, failed, or threw — and never assumes a failed or
 cancelled process left the worktree untouched.
+
+### Deferred Gemini CLI execution boundary
+
+Gemini CLI 0.60.0 is not currently selectable or claimable. Its system settings
+are administrative configuration that require trusted administrator ownership
+and permissions. DevalCopilot must never manufacture that policy in
+user-owned attempt scratch state. A future slice must define trusted
+installation and policy provisioning, ACL validation, exact semantic policy
+validation, readiness reporting, and a real no-model contract test before any
+Gemini execution can be enabled.
+
+Gemini authentication material must not be copied into scratch or persistence.
+No automatic fallback or parallel execution is authorized. Durable assignment
+facts do not authorize automatic verification or publication.
 
 ### Review correction
 
@@ -631,8 +649,11 @@ unexpected `HEAD` change flags the workspace for attention.
 The correction context is a versioned manifest of structured evidence only.
 Complete provider transcripts are never persisted or replayed. The current
 Claude adapter is concrete provenance and is not an end-to-end guarantee that
-another provider can safely substitute; Gemini, assignment snapshots,
-fallback, parallel executors, and automatic re-review remain deferred.
+another provider can safely substitute. Initial implementation and
+ReviewCorrection currently use Claude Code. Gemini remains deferred behind its
+administrator-provisioned policy prerequisite. Assignment facts are persisted
+on the Attempt and do not authorize fallback, parallel executors, or automatic
+re-review.
 
 Each run persists a default maximum of two claimed review-correction attempts.
 Claims consume the budget even when dispatch, execution, or later result

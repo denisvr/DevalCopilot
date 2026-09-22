@@ -12,7 +12,8 @@ using Xunit;
 
 namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 
-public sealed class SimulatedRunFlowTests(ApiWebApplicationFactory factory) : IClassFixture<ApiWebApplicationFactory>
+public sealed class SimulatedRunFlowTests(SimulatedRunApiWebApplicationFactory factory)
+    : IClassFixture<SimulatedRunApiWebApplicationFactory>
 {
     private static readonly string[] ExpectedEventTypesInOrder =
     [

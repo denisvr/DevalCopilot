@@ -20,7 +20,7 @@ interface CommittedResult {
 const EMPTY_RESULT: CommittedResult = { runId: null, status: null, error: null }
 
 /**
- * Reads the most recent Claude implementation attempt for a run. `latestEventSequence`
+ * Reads the most recent implementation attempt for a run. `latestEventSequence`
  * re-triggers a fetch whenever any run event advances, and `refresh` lets a caller force one
  * immediately after successfully requesting a new attempt.
  *

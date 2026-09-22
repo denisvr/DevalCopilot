@@ -136,6 +136,30 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         Assert.Equal(AgentOutcome.NoChangesProduced, result.Value.Outcome);
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(WorkspaceStatus.Ready, workspace.Status);
+        Assert.Null(attempt.AgentObservedModel);
+        Assert.Null(attempt.AgentObservedEffort);
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_only_provider_observations_and_never_fills_missing_values_from_requested_facts()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (_, run, _, attempt) = await SeedAndDispatchAsync(dbContext);
+        Assert.Null(attempt.AgentRequestedModel);
+        Assert.Null(attempt.AgentRequestedEffort);
+
+        var handler = new RecordImplementationResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordImplementationResultCommand(
+                run.Id, attempt.Id, true, StartingHeadSha, StartingFingerprint, [], NoArtifacts, Report([]), null,
+                ObservedModel: "provider-observed-model", ObservedEffort: null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("provider-observed-model", attempt.AgentObservedModel);
+        Assert.Null(attempt.AgentObservedEffort);
+        Assert.Null(attempt.AgentRequestedModel);
+        Assert.Null(attempt.AgentRequestedEffort);
     }
 
     [Fact]

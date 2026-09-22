@@ -3019,6 +3019,14 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    provider?: string | undefined;
+    role?: string | undefined;
+    requestedModel?: string | undefined;
+    observedModel?: string | undefined;
+    requestedEffort?: string | undefined;
+    observedEffort?: string | undefined;
+    permissionProfile?: string | undefined;
+    adapterContractVersion?: string | undefined;
 
     constructor(data?: IImplementationAttemptStatusResponse) {
         if (data) {
@@ -3055,6 +3063,14 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
                 for (let item of _data["artifacts"])
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
+            this.provider = _data["provider"];
+            this.role = _data["role"];
+            this.requestedModel = _data["requestedModel"];
+            this.observedModel = _data["observedModel"];
+            this.requestedEffort = _data["requestedEffort"];
+            this.observedEffort = _data["observedEffort"];
+            this.permissionProfile = _data["permissionProfile"];
+            this.adapterContractVersion = _data["adapterContractVersion"];
         }
     }
 
@@ -3091,6 +3107,14 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
             for (let item of this.artifacts)
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
+        data["provider"] = this.provider;
+        data["role"] = this.role;
+        data["requestedModel"] = this.requestedModel;
+        data["observedModel"] = this.observedModel;
+        data["requestedEffort"] = this.requestedEffort;
+        data["observedEffort"] = this.observedEffort;
+        data["permissionProfile"] = this.permissionProfile;
+        data["adapterContractVersion"] = this.adapterContractVersion;
         return data;
     }
 }
@@ -3112,6 +3136,14 @@ export interface IImplementationAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    provider?: string | undefined;
+    role?: string | undefined;
+    requestedModel?: string | undefined;
+    observedModel?: string | undefined;
+    requestedEffort?: string | undefined;
+    observedEffort?: string | undefined;
+    permissionProfile?: string | undefined;
+    adapterContractVersion?: string | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {

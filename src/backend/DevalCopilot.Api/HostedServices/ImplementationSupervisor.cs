@@ -124,7 +124,8 @@ public sealed class ImplementationSupervisor(
         if (launchTarget is null)
         {
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, observedModel: null,
+                observedEffort: null, CancellationToken.None);
             return;
         }
 
@@ -153,7 +154,8 @@ public sealed class ImplementationSupervisor(
             // failure, since the worktree may have been mutated before the exception occurred.
             logger.LogError("implementation_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, observedModel: null,
+                observedEffort: null, CancellationToken.None);
             return;
         }
 
@@ -163,6 +165,8 @@ public sealed class ImplementationSupervisor(
             invocationResult.StandardOutputTruncated,
             invocationResult.StandardErrorTruncated,
             invocationResult.ProviderSessionId,
+            invocationResult.ObservedModel,
+            invocationResult.ObservedEffort,
             CancellationToken.None);
     }
 
@@ -172,6 +176,8 @@ public sealed class ImplementationSupervisor(
         bool standardOutputTruncated,
         bool standardErrorTruncated,
         string? providerSessionId,
+        string? observedModel,
+        string? observedEffort,
         CancellationToken cancellationToken)
     {
         // Always captured, regardless of processSucceeded: this is the one role whose
@@ -218,7 +224,9 @@ public sealed class ImplementationSupervisor(
                     completionSucceeded ? completionEvidence.ChangedPaths : [],
                     sealedArtifacts,
                     report,
-                    providerSessionId),
+                    providerSessionId,
+                    observedModel,
+                    observedEffort),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

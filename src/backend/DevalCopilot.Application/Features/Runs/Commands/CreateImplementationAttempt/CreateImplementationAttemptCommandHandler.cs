@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAttempt;
 
 /// <summary>
-/// Claims one durable Claude implementation attempt. Mirrors
+/// Claims one durable Claude implementation attempt with immutable assignment facts. Mirrors
 /// <c>CreateChallengeResolutionAttemptCommandHandler</c>'s workspace/lease/checkpoint eligibility
 /// chain and sealed-manifest/persistence-race handling exactly, plus the additional resolved-plan
 /// identity chain: exactly two eligible forms (an accepted original Proposal, or a resolved
@@ -29,6 +29,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
     /// document, never a transcript or repository copy.</summary>
     private const int MaxContextManifestBytes = 32 * 1024;
+    private const string AdapterContractVersion = "claude-implementation-v1";
 
     /// <summary>Implementation is inherently multi-step (read, edit, re-read, verify its own
     /// work) — deliberately longer than the single-turn critical-review/resolution stages, but
@@ -153,7 +154,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
 
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
 
-        var attempt = Attempt.ClaimAgentImplementation(
+        var attempt = Attempt.ClaimAgentImplementationWithAssignment(
             attemptId,
             run.Id,
             attemptNumber,
@@ -164,7 +165,11 @@ public sealed class CreateImplementationAttemptCommandHandler(
             InvocationTimeout,
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
-            nowUtc);
+            nowUtc,
+            requestedModel: null,
+            requestedEffort: null,
+            AgentPermissionProfile.WorkspaceEditOnly,
+            AdapterContractVersion);
         dbContext.Attempts.Add(attempt);
 
         var inputMessages = new List<AttemptInputMessage>(orderedInputMessageIds.Count);

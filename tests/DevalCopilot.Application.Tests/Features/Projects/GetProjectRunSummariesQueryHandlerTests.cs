@@ -49,8 +49,8 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
         var second = results.Single(r => r.ProjectId == secondProject.Id);
 
         // Exactly the fixed catalog size, for both projects — never per-project duplication.
-        Assert.Equal(7, first.Capabilities.Count);
-        Assert.Equal(7, second.Capabilities.Count);
+        Assert.Equal(CapabilityCatalog.All.Count, first.Capabilities.Count);
+        Assert.Equal(CapabilityCatalog.All.Count, second.Capabilities.Count);
 
         var firstGit = first.Capabilities.Single(c => c.Capability == Capability.Git);
         var secondGit = second.Capabilities.Single(c => c.Capability == Capability.Git);
@@ -81,10 +81,10 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
         var results = await handler.HandleAsync(new GetProjectRunSummariesQuery(), CancellationToken.None);
 
         Assert.Equal(5, results.Count);
-        Assert.All(results, project => Assert.Equal(7, project.Capabilities.Count));
+        Assert.All(results, project => Assert.Equal(CapabilityCatalog.All.Count, project.Capabilities.Count));
 
         var totalSnapshotRows = await dbContext.HostCapabilitySnapshots.CountAsync();
-        Assert.Equal(7, totalSnapshotRows);
+        Assert.Equal(CapabilityCatalog.All.Count, totalSnapshotRows);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class GetProjectRunSummariesQueryHandlerTests : IAsyncLifetime
         var results = await handler.HandleAsync(new GetProjectRunSummariesQuery(), CancellationToken.None);
 
         var project = Assert.Single(results);
-        Assert.Equal(7, project.Capabilities.Count);
+        Assert.Equal(CapabilityCatalog.All.Count, project.Capabilities.Count);
         Assert.All(project.Capabilities, capability => Assert.Null(capability.DisplayStatus));
     }
 

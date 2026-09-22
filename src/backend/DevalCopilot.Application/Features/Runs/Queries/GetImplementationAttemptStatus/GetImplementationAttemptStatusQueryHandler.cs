@@ -20,16 +20,38 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
-        var attempt = await dbContext.Attempts
-            .AsNoTracking()
-            .Where(candidate =>
-                candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.Implementer)
-            .OrderByDescending(candidate => candidate.AttemptNumber)
-            .FirstOrDefaultAsync(cancellationToken);
+        Attempt? attempt;
+        try
+        {
+            attempt = await dbContext.Attempts
+                .AsNoTracking()
+                .Where(candidate =>
+                    candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.Implementer)
+                .OrderByDescending(candidate => candidate.AttemptNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            return InvalidAssignment();
+        }
+        catch (FormatException)
+        {
+            return InvalidAssignment();
+        }
+        catch (InvalidOperationException)
+        {
+            return InvalidAssignment();
+        }
 
         if (attempt is null)
         {
             return Result<ImplementationAttemptStatusQueryResult>.Success(ImplementationAttemptStatusQueryResult.NoAttempt);
+        }
+
+        var assignment = attempt.GetAssignmentSnapshot();
+        if (assignment is null)
+        {
+            return InvalidAssignment();
         }
 
         var planProposalMessageId = await ImplementationInputIdentity.GetPlanProposalMessageIdAsync(dbContext, attempt.Id, cancellationToken);
@@ -83,6 +105,12 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             attempt.ClaimedAtUtc,
             attempt.AgentDispatchedAtUtc,
             attempt.CompletedAtUtc,
-            artifacts));
+            artifacts,
+            assignment,
+            attempt.AgentRole));
     }
+
+    private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>
+        Result<ImplementationAttemptStatusQueryResult>.Failure(
+            Error.Failure("agent_attempts.invalid_assignment", "Implementation assignment metadata is unavailable."));
 }

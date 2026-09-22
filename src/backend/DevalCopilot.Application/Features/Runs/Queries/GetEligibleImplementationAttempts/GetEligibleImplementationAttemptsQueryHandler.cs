@@ -24,6 +24,7 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                 attempt.Kind == AttemptKind.Agent
                 && attempt.AgentProvider == AgentProvider.ClaudeCode
                 && attempt.AgentRole == AgentRole.Implementer
+                && attempt.AgentResponseContract == AgentResponseContract.ImplementationReport
                 && attempt.Status == AttemptStatus.Running
                 && attempt.AgentDispatchedAtUtc == null)
             .Join(

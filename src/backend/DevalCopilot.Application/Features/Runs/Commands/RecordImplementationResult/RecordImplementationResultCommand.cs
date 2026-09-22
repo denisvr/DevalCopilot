@@ -41,4 +41,6 @@ public sealed record RecordImplementationResultCommand(
     IReadOnlyList<GitWorkspaceChangedPath> ObservedChangedPaths,
     IReadOnlyList<SealedImplementationArtifact> SealedArtifacts,
     ValidatedImplementationReport? Report,
-    string? ProviderSessionId) : ICommand<Result<RecordImplementationResultCommandResult>>;
+    string? ProviderSessionId,
+    string? ObservedModel = null,
+    string? ObservedEffort = null) : ICommand<Result<RecordImplementationResultCommandResult>>;

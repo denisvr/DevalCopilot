@@ -93,7 +93,7 @@ public enum AgentOutcome
     /// is the only transition that may ever produce this outcome, deliberately without
     /// <see cref="Attempt.CompleteAgent"/>'s own fingerprint-mismatch-to-<see cref="SourceChanged"/>
     /// override, since a changed fingerprint is this outcome's own expected, required evidence
-    /// of success, never drift. Valid only for the ClaudeCode + Implementer +
+    /// of success, never drift. Valid only for the Implementer +
     /// ImplementationReport combination.</summary>
     Implemented = 11,
 
@@ -103,7 +103,7 @@ public enum AgentOutcome
     /// Never treated as a provider or evidence failure: the process and structured output were
     /// both genuinely valid: there was simply nothing to implement, or the provider concluded no
     /// change was required. No <c>GitCheckpoint</c> is recorded; the workspace remains Ready.
-    /// Valid only for the ClaudeCode + Implementer + ImplementationReport combination.</summary>
+    /// Valid only for the Implementer + ImplementationReport combination.</summary>
     NoChangesProduced = 12,
 
     /// <summary>Detected immediately before dispatch, distinct from
@@ -114,7 +114,7 @@ public enum AgentOutcome
     /// by a dedicated command that independently re-verifies the competing implementation exists
     /// before ever mutating this attempt — never inferred or trusted from a caller's own claim.
     /// Mirrors <see cref="InputAlreadyResolved"/> exactly, one stage further down the
-    /// collaboration protocol. Valid only for the ClaudeCode + Implementer +
+    /// collaboration protocol. Valid only for the Implementer +
     /// ImplementationReport combination.</summary>
     InputAlreadyImplemented = 13,
 

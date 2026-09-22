@@ -10,22 +10,21 @@ interface ImplementationActionProps {
   onRequest: () => void
 }
 
-const OUTCOME_LABEL: Record<string, string> = {
-  Implemented: 'Implemented',
-  NoChangesProduced: 'Claude reported no changes',
-  InvalidStructuredOutput: 'Claude returned an invalid or untrustworthy response',
-  ProviderInvocationFailed: 'Claude could not be invoked',
-  CheckpointEvidenceUnavailable: 'Source evidence could not be captured',
-  WorkspaceNoLongerEligible: 'Workspace no longer eligible for dispatch',
-  InputAlreadyImplemented: 'This plan was already implemented by another attempt',
-}
-
 function phaseLabel(status: ImplementationAttemptStatusResponse): string {
   if (status.status === 'Running') {
     return status.dispatchedAtUtc ? 'Running' : 'Pending'
   }
   if (status.outcome) {
-    return OUTCOME_LABEL[status.outcome] ?? status.outcome
+    const name = 'Claude'
+    return {
+      Implemented: 'Implemented',
+      NoChangesProduced: `${name} reported no changes`,
+      InvalidStructuredOutput: `${name} returned an invalid or untrustworthy response`,
+      ProviderInvocationFailed: `${name} could not be invoked`,
+      CheckpointEvidenceUnavailable: 'Source evidence could not be captured',
+      WorkspaceNoLongerEligible: 'Workspace no longer eligible for dispatch',
+      InputAlreadyImplemented: 'This plan was already implemented by another attempt',
+    }[status.outcome] ?? status.outcome
   }
   return status.status ?? ''
 }
@@ -57,11 +56,22 @@ export function ImplementationAction({
   }
 
   const implementsCurrentPlan = status?.planProposalMessageId === planProposalMessageId
+  const hasAttempt = status?.hasAttempt !== false
   const isActive = implementsCurrentPlan && status?.status === 'Running'
   const isSettledForCurrentPlan =
     implementsCurrentPlan && (status?.outcome === 'Implemented' || status?.outcome === 'InputAlreadyImplemented')
   const canRequest = !isActive && !isSettledForCurrentPlan
-
+  const assignmentProvider = status?.provider === 'ClaudeCode'
+    ? 'Claude Code'
+    : status?.provider === 'Codex'
+      ? 'Codex'
+      : 'Unknown'
+  const assignmentRole = status?.role === 'Implementer' ? 'Implementer' : 'Unknown'
+  const permissionProfile = status?.permissionProfile === 'WorkspaceEditOnly' ? 'Workspace edit only' : 'Unknown'
+  const adapterContract = status?.adapterContractVersion === 'claude-implementation-v1'
+    ? 'claude-implementation-v1'
+    : 'Unknown'
+  const formatFact = (value: string | undefined) => value || 'Unknown'
   return (
     <section className="dc-implementation-action" aria-label="Claude implementation">
       {isActive && (
@@ -79,11 +89,20 @@ export function ImplementationAction({
           {requesting ? 'Requesting…' : 'Implement the resolved plan with Claude'}
         </button>
       )}
+      {status && hasAttempt && (
+        <p className="dc-implementation-assignment">
+          {assignmentProvider} · {assignmentRole} · Model requested: {formatFact(status.requestedModel)} · Model observed:{' '}
+          {formatFact(status.observedModel)} · Effort requested: {formatFact(status.requestedEffort)} · Effort observed:{' '}
+          {formatFact(status.observedEffort)} · {permissionProfile} · Adapter contract: {adapterContract}
+        </p>
+      )}
       {status && !isActive && (
         <div className="dc-implementation-result">
-          <p className="dc-implementation-status">
-            Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
-          </p>
+          {hasAttempt && (
+            <p className="dc-implementation-status">
+              Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
+            </p>
+          )}
           {status.outcome === 'Implemented' && (
             <>
               {status.executionReportSummary && <p className="dc-implementation-summary">{status.executionReportSummary}</p>}

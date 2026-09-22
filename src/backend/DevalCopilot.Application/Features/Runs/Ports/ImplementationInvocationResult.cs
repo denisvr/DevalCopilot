@@ -9,4 +9,6 @@ public sealed record ImplementationInvocationResult(
     ImplementationInvocationOutcome Outcome,
     bool StandardOutputTruncated,
     bool StandardErrorTruncated,
-    string? ProviderSessionId);
+    string? ProviderSessionId,
+    string? ObservedModel = null,
+    string? ObservedEffort = null);

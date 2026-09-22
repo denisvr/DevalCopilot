@@ -210,6 +210,21 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
 
         var nowUtc = timeProvider.GetUtcNow();
 
+        try
+        {
+            attempt.RecordAgentObservedAssignment(command.ObservedModel, command.ObservedEffort);
+        }
+        catch (ArgumentException)
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(
+                Error.Failure("agent_attempts.invalid_assignment_observation", "The provider assignment observation is malformed."));
+        }
+        catch (InvalidOperationException)
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(
+                Error.Conflict("agent_attempts.assignment_observation_already_recorded", "The provider assignment observation was already recorded."));
+        }
+
         if (!string.IsNullOrWhiteSpace(command.ProviderSessionId))
         {
             attempt.RecordAgentProviderSessionId(command.ProviderSessionId);
@@ -337,11 +352,11 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
         // already rejects a duplicated path, so this is defense in depth, not the only check.)
         var reportMatchesObservedEvidenceExactly = reportedPathSet.Count == reportedPaths.Count && reportedPathSet.SetEquals(observedPathSet);
 
+        // The worktree changed, but Claude's own account of what it changed does not exactly
+        // match independently observed Git evidence — never trusted enough to record a successful checkpoint,
+        // and always flagged for a human to inspect the actual diff.
         return reportMatchesObservedEvidenceExactly
             ? (AgentOutcome.Implemented, false)
-            // The worktree changed, but Claude's own account of what it changed does not exactly
-            // match independently observed Git evidence — never trusted enough to record a
-            // successful checkpoint, and always flagged for a human to inspect the actual diff.
             : (AgentOutcome.InvalidStructuredOutput, true);
     }
 

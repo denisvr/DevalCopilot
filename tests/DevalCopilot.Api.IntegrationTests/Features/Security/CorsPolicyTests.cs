@@ -3,7 +3,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using DevalCopilot.Api.Security.Cors;
+using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Api.IntegrationTests.Features.Security;
@@ -150,6 +152,7 @@ public sealed class CorsPolicyTests : IDisposable
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-cors-{Guid.NewGuid():N}.db");
         _databasePaths.Add(databasePath);
+        await MigrateDisposableDatabaseAsync(databasePath);
 
         var startInfo = new ProcessStartInfo("dotnet", $"\"{ApiDllPath}\" --bootstrap-stdin")
         {
@@ -158,6 +161,7 @@ public sealed class CorsPolicyTests : IDisposable
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "SideEffectFreeIntegrationTest";
         startInfo.Environment["ConnectionStrings__DevalCopilot"] = $"Data Source={databasePath}";
 
         var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start the sidecar.");
@@ -174,6 +178,7 @@ public sealed class CorsPolicyTests : IDisposable
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-cors-browser-{Guid.NewGuid():N}.db");
         _databasePaths.Add(databasePath);
+        await MigrateDisposableDatabaseAsync(databasePath);
 
         var startInfo = new ProcessStartInfo("dotnet", $"\"{ApiDllPath}\"")
         {
@@ -181,6 +186,7 @@ public sealed class CorsPolicyTests : IDisposable
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "SideEffectFreeIntegrationTest";
         startInfo.Environment["ASPNETCORE_URLS"] = "http://127.0.0.1:0";
         startInfo.Environment["ConnectionStrings__DevalCopilot"] = $"Data Source={databasePath}";
         startInfo.Environment["Cors__AllowedOrigin"] = allowedOrigin;
@@ -191,6 +197,15 @@ public sealed class CorsPolicyTests : IDisposable
 
         var port = await CaptureListeningPortAsync(process).WaitAsync(TimeSpan.FromSeconds(30));
         return (new HttpClient(), port);
+    }
+
+    private static async Task MigrateDisposableDatabaseAsync(string databasePath)
+    {
+        var options = new DbContextOptionsBuilder<DevalCopilotDbContext>()
+            .UseSqlite($"Data Source={databasePath}")
+            .Options;
+        await using var dbContext = new DevalCopilotDbContext(options);
+        await dbContext.Database.MigrateAsync();
     }
 
     private static async Task<(HttpStatusCode Status, HttpResponseHeaders Headers)> SendPreflightAsync(

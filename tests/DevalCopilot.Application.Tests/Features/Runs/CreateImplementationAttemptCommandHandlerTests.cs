@@ -265,6 +265,12 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         Assert.Equal(AgentProvider.ClaudeCode, attempt.AgentProvider);
         Assert.Equal(AgentRole.Implementer, attempt.AgentRole);
         Assert.Equal(AgentResponseContract.ImplementationReport, attempt.AgentResponseContract);
+        Assert.Null(attempt.AgentRequestedModel);
+        Assert.Null(attempt.AgentObservedModel);
+        Assert.Null(attempt.AgentRequestedEffort);
+        Assert.Null(attempt.AgentObservedEffort);
+        Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, attempt.AgentPermissionProfile);
+        Assert.Equal("claude-implementation-v1", attempt.AgentAdapterContractVersion);
 
         var orderedInputMessages = dbContext.AttemptInputMessages.Where(m => m.AttemptId == attempt.Id).OrderBy(m => m.Sequence).ToList();
         Assert.Equal(2, orderedInputMessages.Count);
@@ -301,7 +307,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     // gate compared the resolver attempt's AgentProvider (and each Decision's Actor) to fixed Codex
     // literals, which would have rejected this exact scenario.
     [Fact]
-    public async Task HandleAsync_creates_an_implementation_attempt_for_a_resolved_revised_proposal_from_the_alternate_provider()
+    public async Task HandleAsync_creates_an_implementation_attempt_for_a_resolved_revised_proposal_from_a_Claude_resolver()
     {
         await using var dbContext = _fixture.CreateContext();
         var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);

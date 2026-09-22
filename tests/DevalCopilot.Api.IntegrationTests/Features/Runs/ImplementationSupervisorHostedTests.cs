@@ -404,7 +404,9 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
     private static GitWorkspaceEvidenceResult MatchingWithChangedPaths(string fingerprintSha256, IReadOnlyList<GitWorkspaceChangedPath> changedPaths) =>
         new(GitWorkspaceEvidenceOutcome.Success, StartingHeadSha, fingerprintSha256, changedPaths, null);
 
-    private ServiceProvider BuildServiceProvider(IGitWorkspaceEvidenceReader evidenceReader, IClaudeImplementationAdapter implementationAdapter)
+    private ServiceProvider BuildServiceProvider(
+        IGitWorkspaceEvidenceReader evidenceReader,
+        IClaudeImplementationAdapter implementationAdapter)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -597,4 +599,5 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
             await File.WriteAllTextAsync(path, content, cancellationToken);
         }
     }
+
 }

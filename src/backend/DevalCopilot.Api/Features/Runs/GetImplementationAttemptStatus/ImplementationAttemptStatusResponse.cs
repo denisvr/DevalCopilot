@@ -23,4 +23,12 @@ public sealed record ImplementationAttemptStatusResponse(
     DateTimeOffset? ClaimedAtUtc,
     DateTimeOffset? DispatchedAtUtc,
     DateTimeOffset? CompletedAtUtc,
-    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts);
+    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts,
+    string? Provider,
+    string? Role,
+    string? RequestedModel,
+    string? ObservedModel,
+    string? RequestedEffort,
+    string? ObservedEffort,
+    string? PermissionProfile,
+    string? AdapterContractVersion);

@@ -16,6 +16,7 @@ supersedes it.
 - [ADR-0008: Physical repository identity and tool-owned worktree ownership](0008-physical-repository-identity-and-tool-owned-worktree-ownership.md)
 - [ADR-0009: Separate agent roles, effects, and provider assignments](0009-separate-agent-roles-effects-and-provider-assignments.md)
 - [ADR-0010: Add a role-scoped review-correction response contract](0010-add-review-correction-response-contract.md)
+- [ADR-0011: Require administrator-provisioned policy before Gemini CLI execution](0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md)
 
 ## Status values
 

@@ -77,6 +77,12 @@ else if (builder.Configuration["Urls"] is null && Environment.GetEnvironmentVari
     builder.WebHost.UseUrls("http://127.0.0.1:5080");
 }
 
+var isSideEffectFreeComposition = builder.Environment.IsEnvironment("OpenApiGeneration")
+    || builder.Environment.IsEnvironment("SideEffectFreeIntegrationTest");
+
+// OpenApiGeneration exists only for NSwag contract generation. SideEffectFreeIntegrationTest
+// exists only for external sidecar/CORS tests, which migrate their disposable database themselves.
+// Both retain the normal authentication, authorization, CORS, MVC, and launch-session composition.
 // Resolved from IConfiguration at DbContext-construction time (after Build()), not read
 // into a local variable early: a test host's ConfigureAppConfiguration override must be
 // visible here, and it is only guaranteed to be merged by the time services are resolved.
@@ -168,6 +174,20 @@ builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly)
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
 
+if (isSideEffectFreeComposition)
+{
+    // Keep the application endpoints, but do not start DevalCopilot-owned workers in either
+    // narrowly scoped side-effect-free environment.
+    foreach (var hostedService in builder.Services
+                 .Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                     && descriptor.ImplementationType?.Namespace?.StartsWith(
+                         "DevalCopilot.Api.HostedServices", StringComparison.Ordinal) == true)
+                 .ToArray())
+    {
+        builder.Services.Remove(hostedService);
+    }
+}
+
 builder.Services.AddControllers();
 builder.Services.AddDevalenteMvcProblemDetails();
 builder.Services.AddDevalenteOpenApi("DevalCopilot API");
@@ -216,8 +236,9 @@ else if (!string.IsNullOrEmpty(allowedBrowserOrigin))
 
 var app = builder.Build();
 
-using (var startupScope = app.Services.CreateScope())
+if (!isSideEffectFreeComposition)
 {
+    using var startupScope = app.Services.CreateScope();
     var dbContext = startupScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
     await dbContext.Database.MigrateAsync();
 
