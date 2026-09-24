@@ -16,7 +16,8 @@ public sealed class Run
         int executionNumber,
         string objective,
         DateTimeOffset nowUtc,
-        int maximumReviewCorrectionAttempts = 2)
+        int maximumReviewCorrectionAttempts = 2,
+        int maximumAgentAttempts = 16)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
@@ -28,6 +29,11 @@ public sealed class Run
         if (maximumReviewCorrectionAttempts < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(maximumReviewCorrectionAttempts));
+        }
+
+        if (maximumAgentAttempts < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumAgentAttempts));
         }
 
         return new Run
@@ -43,6 +49,7 @@ public sealed class Run
             LastAdvancedAtUtc = nowUtc,
             AccumulatedAutonomousSeconds = 0,
             MaximumReviewCorrectionAttempts = maximumReviewCorrectionAttempts,
+            MaximumAgentAttempts = maximumAgentAttempts,
         };
     }
 
@@ -83,6 +90,17 @@ public sealed class Run
     /// interrupted.
     /// </summary>
     public int MaximumReviewCorrectionAttempts { get; private set; }
+
+    /// <summary>
+    /// Maximum number of claimed Agent attempts for this run, across every role, provider,
+    /// dispatch outcome, and interruption. Every claimed Agent attempt — regardless of the six
+    /// distinct claim paths that create one — consumes exactly one permanent slot of this
+    /// immutable-per-run policy value, even when the provider later fails or the attempt is
+    /// interrupted. Simulated and Process attempts never consume this budget. Unlike
+    /// <see cref="MaximumReviewCorrectionAttempts"/>, exhaustion of this budget has no human
+    /// override: it is a hard ceiling for the run.
+    /// </summary>
+    public int MaximumAgentAttempts { get; private set; }
 
     /// <summary>
     /// The hosted supervisor claims recorded intent and starts the simulated attempt.

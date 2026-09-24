@@ -25,7 +25,7 @@ public sealed class ReconcileInterruptedAgentAttemptsCommandHandlerTests : IAsyn
 
     private static Attempt ClaimAgentAttempt(Guid runId, int attemptNumber = 1) => Attempt.ClaimAgent(
         Guid.NewGuid(), runId, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        TimeSpan.FromMinutes(10), 262144, 524288, Now, attemptNumber);
 
     [Fact]
     public async Task HandleAsync_interrupts_a_running_agent_attempt_and_its_running_run_together()
@@ -224,19 +224,19 @@ public sealed class ReconcileInterruptedAgentAttemptsCommandHandlerTests : IAsyn
     {
         AgentRole.Planner => Attempt.ClaimAgent(
             Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1),
         AgentRole.CriticalReviewer => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1),
         AgentRole.Resolver => Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1),
         AgentRole.Implementer => Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1),
         AgentRole.CodeReviewer => Attempt.ClaimAgentCodeReview(
             Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1),
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unhandled role in test setup."),
     };
 

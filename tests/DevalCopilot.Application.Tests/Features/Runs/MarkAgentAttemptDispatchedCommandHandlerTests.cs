@@ -19,7 +19,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
         run.Claim(Now);
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         return (project, run, attempt);
     }
 
@@ -64,7 +64,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
 
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -386,13 +386,13 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
         var reviewedProposalId = Guid.NewGuid();
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         // A competing critical-review attempt already recorded a successful review of the exact
         // same Proposal message — this one must never be dispatched.
         var competingReview = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         competingReview.MarkAgentDispatched(Now);
         competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
@@ -431,7 +431,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
         var reviewedProposalId = Guid.NewGuid();
         var unrelatedCompletedReview = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 99, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         unrelatedCompletedReview.MarkAgentDispatched(Now);
         unrelatedCompletedReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(unrelatedCompletedReview);
@@ -468,11 +468,11 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
 
         var attempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         var competingResolution = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         competingResolution.MarkAgentDispatched(Now);
         competingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
@@ -628,11 +628,11 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
 
         var attempt = Attempt.ClaimAgentCodeReview(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         var competingReview = Attempt.ClaimAgentCodeReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         competingReview.MarkAgentDispatched(Now);
         competingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 

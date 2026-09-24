@@ -25,7 +25,7 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandlerT
         run.Claim(Now);
         var attempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, attemptNumber);
         return (project, run, attempt);
     }
 
@@ -43,7 +43,7 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandlerT
 
         var competingResolution = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         competingResolution.MarkAgentDispatched(Now);
         competingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
@@ -111,7 +111,7 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandlerT
 
         var partialCompetingResolution = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         partialCompetingResolution.MarkAgentDispatched(Now);
         partialCompetingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
@@ -153,7 +153,7 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandlerT
         run.Claim(Now);
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);

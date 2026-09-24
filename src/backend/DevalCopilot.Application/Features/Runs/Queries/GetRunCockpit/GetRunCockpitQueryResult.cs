@@ -17,4 +17,7 @@ public sealed record GetRunCockpitQueryResult(
     bool CanPause,
     bool CanStop,
     RunCockpitTokenUsageSummary TokenUsageSummary,
+    int MaximumAgentAttempts,
+    int AgentAttemptsUsed,
+    bool AgentBudgetExhausted,
     RunCockpitAgentAttemptEntry? LatestAgentAttempt = null);

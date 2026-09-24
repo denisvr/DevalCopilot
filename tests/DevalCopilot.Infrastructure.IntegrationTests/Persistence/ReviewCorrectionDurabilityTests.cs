@@ -197,7 +197,7 @@ public sealed class ReviewCorrectionDurabilityTests
         var project = Project.Register(Guid.NewGuid(), "Durable correction", $@"C:\repos\durable-{Guid.NewGuid():N}", Now);
         var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Durable correction", Now);
         run.Claim(Now);
-        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(), TimeSpan.FromMinutes(20), 1, 1, Now);
+        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(), TimeSpan.FromMinutes(20), 1, 1, Now, 1);
         review.MarkAgentDispatched(Now);
         review.CompleteAgent(AgentOutcome.ReviewChangesRequested, new string('a', 64), Now, processEvidence: TestProcessEvidence.CleanExit);
         var escalationMessage = EscalationMessage(run.Id, Guid.NewGuid());

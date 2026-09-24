@@ -30,14 +30,14 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerImplementerTests(Sql
 
         var attempt = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
 
         var planProposalMessageId = Guid.NewGuid();
 
         var competingCheckpointId = competingSharesSameCheckpoint ? checkpoint.Id : Guid.NewGuid();
         var competingImplementation = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 2, workspace.Id, competingCheckpointId, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 2);
         competingImplementation.MarkAgentDispatched(Now);
         competingImplementation.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
 

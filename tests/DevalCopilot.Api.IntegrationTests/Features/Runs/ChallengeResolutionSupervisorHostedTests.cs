@@ -670,7 +670,7 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
                 var now = DateTimeOffset.UtcNow;
                 var competing = Attempt.ClaimAgentChallengeResolution(
                     Guid.NewGuid(), _runId, _competingAttemptNumber, _workspaceId, _checkpointId, fingerprintSha256,
-                    Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now);
+                    Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now, _competingAttemptNumber);
                 competing.MarkAgentDispatched(now);
                 competing.CompleteAgent(AgentOutcome.Resolved, fingerprintSha256, now, processEvidence: TestProcessEvidence.CleanExit);
                 freshDbContext.Attempts.Add(competing);

@@ -13,7 +13,7 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
 
     private static Attempt ClaimAgentAttempt(Guid runId, int attemptNumber, DateTimeOffset claimedAtUtc) => Attempt.ClaimAgent(
         Guid.NewGuid(), runId, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc);
+        TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc, attemptNumber);
 
     [Fact]
     public async Task HandleAsync_returns_an_explicit_no_attempt_result_for_a_run_with_no_agent_attempt_yet()
@@ -167,7 +167,7 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         // query reports on despite being the more recent of the two.
         var reviewAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now.AddSeconds(3));
+            TimeSpan.FromMinutes(10), 262144, 524288, Now.AddSeconds(3), 2);
         reviewAttempt.MarkAgentDispatched(Now.AddSeconds(4));
         reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
 

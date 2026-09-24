@@ -95,8 +95,23 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         builder.Property(attempt => attempt.AgentCacheReadInputTokens);
         builder.Property(attempt => attempt.AgentTokenUsageSchemaVersion).HasMaxLength(AgentTokenUsageEvidence.MaxSchemaVersionLength);
 
+        // The run-wide Agent claim-budget slot: null for every Simulated/Process attempt, never
+        // backfilled to a value for those kinds. Every historical Agent attempt was backfilled a
+        // deterministic slot by the AddAgentClaimBudget migration.
+        builder.Property(attempt => attempt.AgentBudgetSlot);
+
         builder.HasOne<Run>().WithMany().HasForeignKey(attempt => attempt.RunId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(attempt => new { attempt.RunId, attempt.AttemptNumber }).IsUnique();
+
+        // The run-wide Agent claim-budget invariant's database backstop: at most one Agent
+        // attempt may ever occupy a given (RunId, AgentBudgetSlot) pair. The primary defense is
+        // the application-level count-and-compare check before an Agent attempt is claimed; this
+        // filtered unique index is what turns a lost race into a safe conflict instead of two
+        // Agent attempts silently sharing — or exceeding — one permanent slot.
+        builder.HasIndex(attempt => new { attempt.RunId, attempt.AgentBudgetSlot })
+            .IsUnique()
+            .HasDatabaseName("ix_attempts_run_id_agent_budget_slot")
+            .HasFilter("\"AgentBudgetSlot\" IS NOT NULL");
 
         // The run-wide active-attempt invariant's database backstop: at most one Running attempt
         // of ANY kind per run, ever concurrently observable. The primary defense is the

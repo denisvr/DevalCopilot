@@ -44,7 +44,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var attempt = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, StartingFingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
         var proposal = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), sequence: 0);
 
         return (project, run, workspace, startingCheckpoint, attempt, proposal);

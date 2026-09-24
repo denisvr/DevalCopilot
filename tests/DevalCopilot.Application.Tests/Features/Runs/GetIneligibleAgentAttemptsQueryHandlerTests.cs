@@ -42,7 +42,7 @@ public sealed class GetIneligibleAgentAttemptsQueryHandlerTests : IAsyncLifetime
         var checkpointId = Guid.NewGuid();
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpointId, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

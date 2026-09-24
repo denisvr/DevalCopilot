@@ -33,7 +33,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         run.Claim(Now);
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), checkpointFingerprint ?? Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         return (project, run, attempt);
     }
 

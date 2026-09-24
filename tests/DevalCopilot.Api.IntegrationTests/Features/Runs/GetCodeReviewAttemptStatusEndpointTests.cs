@@ -89,7 +89,7 @@ public sealed class GetCodeReviewAttemptStatusEndpointTests(CodeReviewApiWebAppl
             var manifestArtifactId = Guid.NewGuid();
             var attempt = Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
-                TimeSpan.FromMinutes(10), 262144, 524288, now);
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
             attempt.MarkAgentDispatched(now.AddSeconds(1));
             attempt.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
             attemptId = attempt.Id;
@@ -137,14 +137,14 @@ public sealed class GetCodeReviewAttemptStatusEndpointTests(CodeReviewApiWebAppl
 
             var firstAttempt = Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, now);
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
             firstAttempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, now.AddSeconds(1));
             dbContext.Attempts.Add(firstAttempt);
             dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), firstAttempt.Id, Guid.NewGuid(), sequence: 0));
 
             var secondAttempt = Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), runId, 2, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2));
+                TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2), 2);
             secondAttempt.MarkAgentDispatched(now.AddSeconds(3));
             secondAttempt.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, now.AddSeconds(4), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(secondAttempt);

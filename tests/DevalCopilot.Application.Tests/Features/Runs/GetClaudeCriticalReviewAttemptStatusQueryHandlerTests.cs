@@ -19,7 +19,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
     {
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), runId, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc);
+            TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc, attemptNumber);
         var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, inputCollaborationMessageId ?? Guid.NewGuid(), sequence: 0);
         return (attempt, inputMessage);
     }
@@ -140,7 +140,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         // mistakes it for the critical-review attempt.
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now.AddSeconds(5));
+            TimeSpan.FromMinutes(10), 262144, 524288, Now.AddSeconds(5), 2);
         planningAttempt.MarkAgentDispatched(Now.AddSeconds(6));
         planningAttempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now.AddSeconds(7));
         dbContext.Projects.Add(project);

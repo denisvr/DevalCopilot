@@ -84,9 +84,14 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
         var resultCheckpoint = GitCheckpoint.Capture(
             Guid.NewGuid(), workspace.Id, 2, Now.AddMinutes(1), new string('b', 40), new string('b', 64), []);
 
+        // AttemptNumber values in this seed are deliberately out of claim order (to prove lineage
+        // resolution never relies on AttemptNumber ordering), so the run-wide AgentBudgetSlot is
+        // tracked separately here, strictly in the real order each Agent attempt is claimed below.
+        var nextAgentBudgetSlot = 1;
+
         var planner = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, nextAgentBudgetSlot++);
         planner.MarkAgentDispatched(Now);
         planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var originalProposal = corruption == ResolverLineageCorruption.SimulatedOriginalProposal
@@ -108,13 +113,13 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
             : startingCheckpoint;
         var review = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, reviewCheckpoint.Id, reviewCheckpoint.FingerprintSha256, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, nextAgentBudgetSlot++);
         review.MarkAgentDispatched(Now);
         review.CompleteAgent(AgentOutcome.Challenged, reviewCheckpoint.FingerprintSha256, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         var otherPlanner = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 5, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, nextAgentBudgetSlot++);
         otherPlanner.MarkAgentDispatched(Now);
         otherPlanner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var otherProposal = CollaborationMessage.Record(
@@ -131,7 +136,7 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
         var otherReview = corruption == ResolverLineageCorruption.ChallengeFromOtherReviewAttempt
             ? Attempt.ClaimAgentCriticalReview(
                 Guid.NewGuid(), run.Id, 6, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, Now)
+                TimeSpan.FromMinutes(10), 262144, 524288, Now, nextAgentBudgetSlot++)
             : null;
         otherReview?.MarkAgentDispatched(Now);
         otherReview?.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
@@ -142,7 +147,7 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
 
         var resolver = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, nextAgentBudgetSlot++);
         resolver.MarkAgentDispatched(Now);
         resolver.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
@@ -175,7 +180,7 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
 
         var implementation = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 4, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, nextAgentBudgetSlot++);
         implementation.MarkAgentDispatched(Now);
         implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(

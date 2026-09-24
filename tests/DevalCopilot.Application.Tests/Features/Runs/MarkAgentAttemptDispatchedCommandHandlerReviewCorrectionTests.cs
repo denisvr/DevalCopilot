@@ -49,8 +49,8 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerReviewCorrectionTest
         var physicalIdentity = project.Id.ToByteArray();
         var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, BitConverter.ToUInt64(physicalIdentity), physicalIdentity, Now);
         var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
-        var waiting = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
-        var competing = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        var waiting = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
+        var competing = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, 2);
         competing.MarkAgentDispatched(Now);
         competing.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
 

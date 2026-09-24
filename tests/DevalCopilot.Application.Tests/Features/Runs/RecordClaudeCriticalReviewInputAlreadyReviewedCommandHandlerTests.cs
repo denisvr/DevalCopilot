@@ -25,7 +25,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         run.Claim(Now);
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, attemptNumber);
         var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, reviewedProposalId ?? Guid.NewGuid(), sequence: 0);
         return (project, run, attempt, inputMessage);
     }
@@ -39,7 +39,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
 
         var competingReview = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         competingReview.MarkAgentDispatched(Now);
         competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var competingInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, reviewedProposalId, sequence: 0);
@@ -76,7 +76,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
 
         var competingReview = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         competingReview.MarkAgentDispatched(Now);
         competingReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var competingInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, reviewedProposalId, sequence: 0);
@@ -140,7 +140,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         var (otherProject, otherRun, _, _) = CreateClaimedCriticalReviewAttempt();
         var stillRunningCompetingReview = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), otherRun.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         var stillRunningInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), stillRunningCompetingReview.Id, reviewedProposalId, sequence: 0);
 
         dbContext.Projects.AddRange(project, otherProject);
@@ -170,7 +170,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         // never evidence that this attempt was superseded.
         var failedCompetingAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         failedCompetingAttempt.MarkAgentDispatched(Now);
         failedCompetingAttempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
         var failedInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), failedCompetingAttempt.Id, reviewedProposalId, sequence: 0);
@@ -200,7 +200,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         // this attempt's own input proposal.
         var unrelatedSuccessfulReview = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         unrelatedSuccessfulReview.MarkAgentDispatched(Now);
         unrelatedSuccessfulReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var unrelatedInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), unrelatedSuccessfulReview.Id, Guid.NewGuid(), sequence: 0);
@@ -261,7 +261,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
         run.Claim(Now);
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);

@@ -20,6 +20,7 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         builder.Ignore(run => run.ActiveParticipant);
         builder.Property(run => run.AccumulatedAutonomousSeconds).IsRequired();
         builder.Property(run => run.MaximumReviewCorrectionAttempts).IsRequired().HasDefaultValue(2);
+        builder.Property(run => run.MaximumAgentAttempts).IsRequired().HasDefaultValue(16);
 
         builder.HasOne<Project>().WithMany().HasForeignKey(run => run.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(run => new { run.ProjectId, run.ExecutionNumber }).IsUnique();

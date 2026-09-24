@@ -174,7 +174,7 @@ public sealed class ReconcileInterruptedImplementationAttemptsTransactionBoundar
 
         var attempt = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, claimedAtUtc);
+            TimeSpan.FromMinutes(20), 262144, 524288, claimedAtUtc, 1);
         attempt.MarkAgentDispatched(claimedAtUtc);
 
         context.Projects.Add(project);
@@ -202,7 +202,7 @@ public sealed class ReconcileInterruptedImplementationAttemptsTransactionBoundar
 
         var attempt = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
 
         context.Projects.Add(project);
         context.Runs.Add(run);

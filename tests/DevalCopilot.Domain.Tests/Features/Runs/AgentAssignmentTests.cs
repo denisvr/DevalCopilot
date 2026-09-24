@@ -56,15 +56,15 @@ public sealed class AgentAssignmentTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentImplementationWithAssignment(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 65536, 131072, DateTimeOffset.UtcNow, null, null,
-            (AgentPermissionProfile)999, "claude-implementation-v1"));
+            (AgentPermissionProfile)999, "claude-implementation-v1", 1));
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentImplementationWithAssignment(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 65536, 131072, DateTimeOffset.UtcNow, null, null,
-            AgentPermissionProfile.WorkspaceEditOnly, " "));
+            AgentPermissionProfile.WorkspaceEditOnly, " ", 1));
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentImplementationWithAssignment(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 65536, 131072, DateTimeOffset.UtcNow, new string('m', 129), null,
-            AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1"));
+            AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", 1));
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public sealed class AgentAssignmentTests
     {
         var historical = Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow);
+            TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow, 1);
 
         var assignment = historical.GetAssignmentSnapshot();
 
@@ -109,7 +109,7 @@ public sealed class AgentAssignmentTests
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentImplementationWithAssignment(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 65536, 131072, DateTimeOffset.UtcNow, null, null,
-            AgentPermissionProfile.WorkspaceEditOnly, new string('v', 129)));
+            AgentPermissionProfile.WorkspaceEditOnly, new string('v', 129), 1));
     }
 
     private static Attempt Claim(string? requestedModel, string? requestedEffort) =>
@@ -117,7 +117,7 @@ public sealed class AgentAssignmentTests
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 65536, 131072, DateTimeOffset.UtcNow, requestedModel,
             requestedEffort, AgentPermissionProfile.WorkspaceEditOnly,
-            "claude-implementation-v1");
+            "claude-implementation-v1", 1);
 
     private static void SetPrivateProperty<TValue>(Attempt attempt, string propertyName, TValue value) =>
         typeof(Attempt).GetProperty(propertyName)!.SetValue(attempt, value);

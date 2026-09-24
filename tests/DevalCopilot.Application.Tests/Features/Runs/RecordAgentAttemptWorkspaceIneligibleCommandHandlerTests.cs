@@ -18,7 +18,7 @@ public sealed class RecordAgentAttemptWorkspaceIneligibleCommandHandlerTests(Sql
         run.Claim(Now);
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         return (project, run, attempt);
     }
 
@@ -59,7 +59,7 @@ public sealed class RecordAgentAttemptWorkspaceIneligibleCommandHandlerTests(Sql
         // this command never touches an attempt other than the one it targets.
         var otherAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         otherAttempt.Fail(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

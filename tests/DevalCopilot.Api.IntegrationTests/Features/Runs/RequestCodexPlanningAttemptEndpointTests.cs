@@ -187,7 +187,7 @@ public sealed class RequestCodexPlanningAttemptEndpointTests : IDisposable
             var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             dbContext.Attempts.Add(Attempt.ClaimAgent(
                 Guid.NewGuid(), runId, 1, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, DateTimeOffset.UtcNow));
+                TimeSpan.FromMinutes(10), 262144, 524288, DateTimeOffset.UtcNow, 1));
             await dbContext.SaveChangesAsync();
         }
 
@@ -236,6 +236,27 @@ public sealed class RequestCodexPlanningAttemptEndpointTests : IDisposable
 
         using var verifyScope = _factory.Services.CreateScope();
         var verifyContext = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Single(verifyContext.Attempts.Where(a => a.RunId == runId));
+    }
+
+    [Fact]
+    public async Task Returns_conflict_when_the_run_wide_agent_claim_budget_is_exhausted()
+    {
+        var (runId, _, _) = await SeedEligibleRunAsync(
+            claimRun: true, codexObserved: true, maximumAgentAttempts: 1, preExistingAgentAttempts: 1);
+        using var client = CreateAuthenticatedClient();
+
+        var response = await client.PostAsync($"/api/runs/{runId}/agent-attempts/codex-plan", content: null);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("agent_attempts.budget_exhausted", body, StringComparison.Ordinal);
+        AssertNoDisclosure(body);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        // Exhaustion never invokes the provider or creates a second claimed attempt: the one
+        // pre-existing Agent attempt this test seeded remains the only one for this run.
         Assert.Single(verifyContext.Attempts.Where(a => a.RunId == runId));
     }
 
@@ -326,8 +347,12 @@ public sealed class RequestCodexPlanningAttemptEndpointTests : IDisposable
         bool workspaceReady = true,
         bool leaseActive = true,
         bool includeCheckpoint = true,
-        bool codexObserved = false) =>
-        SeedEligibleRunAsync(_factory, claimRun, completeRun, includeWorkspace, workspaceReady, leaseActive, includeCheckpoint, codexObserved);
+        bool codexObserved = false,
+        int maximumAgentAttempts = 16,
+        int preExistingAgentAttempts = 0) =>
+        SeedEligibleRunAsync(
+            _factory, claimRun, completeRun, includeWorkspace, workspaceReady, leaseActive, includeCheckpoint, codexObserved,
+            maximumAgentAttempts, preExistingAgentAttempts);
 
     private static async Task<(Guid RunId, Guid WorkspaceId, Guid CheckpointId)> SeedEligibleRunAsync(
         WebApplicationFactory<Program> factory,
@@ -337,14 +362,16 @@ public sealed class RequestCodexPlanningAttemptEndpointTests : IDisposable
         bool workspaceReady = true,
         bool leaseActive = true,
         bool includeCheckpoint = true,
-        bool codexObserved = false)
+        bool codexObserved = false,
+        int maximumAgentAttempts = 16,
+        int preExistingAgentAttempts = 0)
     {
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
         var now = DateTimeOffset.UtcNow;
 
         var project = Project.Register(Guid.NewGuid(), "Codex planning project", $@"C:\repos\{Guid.NewGuid():N}", now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Plan the next increment", now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Plan the next increment", now, maximumAgentAttempts: maximumAgentAttempts);
         if (claimRun || completeRun)
         {
             run.Claim(now);
@@ -388,6 +415,15 @@ public sealed class RequestCodexPlanningAttemptEndpointTests : IDisposable
             }
 
             dbContext.RepositoryMutationLeases.Add(lease);
+        }
+
+        for (var slot = 1; slot <= preExistingAgentAttempts; slot++)
+        {
+            var preExisting = Attempt.ClaimAgent(
+                Guid.NewGuid(), run.Id, slot, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 262144, 524288, now, slot);
+            preExisting.Fail(now);
+            dbContext.Attempts.Add(preExisting);
         }
 
         await dbContext.SaveChangesAsync();

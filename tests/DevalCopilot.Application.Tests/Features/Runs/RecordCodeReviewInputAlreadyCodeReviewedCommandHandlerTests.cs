@@ -33,7 +33,7 @@ public sealed class RecordCodeReviewInputAlreadyCodeReviewedCommandHandlerTests(
     private static Attempt CreateClaimedCodeReviewAttempt(Guid runId, Guid workspaceId, Guid checkpointId, int attemptNumber) =>
         Attempt.ClaimAgentCodeReview(
             Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, attemptNumber);
 
     private static (List<VerificationCommand> Commands, List<VerificationExecution> Executions) SeedVerificationExecutions(
         Guid projectId, GitWorkspace workspace, GitCheckpoint checkpoint, int count)

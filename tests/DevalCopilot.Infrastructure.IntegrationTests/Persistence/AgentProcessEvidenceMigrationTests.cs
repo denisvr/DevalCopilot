@@ -144,7 +144,7 @@ public sealed class AgentProcessEvidenceMigrationTests : IDisposable
 
             var timedOut = Attempt.ClaimAgentImplementation(
                 Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint", Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 1024, 2048, now);
+                TimeSpan.FromMinutes(20), 1024, 2048, now, 1);
             timedOut.MarkAgentDispatched(now);
             timedOut.CompleteImplementation(
                 AgentOutcome.ProviderInvocationFailed, null, now.AddMinutes(20),
@@ -152,7 +152,7 @@ public sealed class AgentProcessEvidenceMigrationTests : IDisposable
 
             var clean = Attempt.ClaimAgent(
                 Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), "fingerprint", Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 1024, 2048, now);
+                TimeSpan.FromMinutes(10), 1024, 2048, now, 2);
             clean.MarkAgentDispatched(now);
             clean.CompleteAgent(AgentOutcome.Proposed, "fingerprint", now.AddMinutes(1), TestProcessEvidence.CleanExit);
 
@@ -195,7 +195,7 @@ public sealed class AgentProcessEvidenceMigrationTests : IDisposable
 
             var attempt = Attempt.ClaimAgent(
                 Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint", Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 1024, 2048, now);
+                TimeSpan.FromMinutes(10), 1024, 2048, now, 1);
             attempt.MarkAgentDispatched(now);
             attempt.CompleteAgent(
                 AgentOutcome.Proposed, "fingerprint", now.AddSeconds(2),

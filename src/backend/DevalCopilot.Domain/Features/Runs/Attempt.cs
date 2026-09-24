@@ -92,7 +92,8 @@ public sealed class Attempt
         TimeSpan timeout,
         int maxBytesPerStream,
         int maxTotalCapturedBytes,
-        DateTimeOffset claimedAtUtc)
+        DateTimeOffset claimedAtUtc,
+        int agentBudgetSlot)
     {
         if (attemptNumber < 1)
         {
@@ -131,6 +132,11 @@ public sealed class Attempt
             throw new ArgumentOutOfRangeException(nameof(maxTotalCapturedBytes));
         }
 
+        if (agentBudgetSlot < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(agentBudgetSlot), agentBudgetSlot, "A claimed Agent attempt requires a positive budget slot.");
+        }
+
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.Proposal);
 
         return new Attempt
@@ -153,6 +159,7 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentBudgetSlot = agentBudgetSlot,
         };
     }
 
@@ -183,11 +190,12 @@ public sealed class Attempt
         TimeSpan timeout,
         int maxBytesPerStream,
         int maxTotalCapturedBytes,
-        DateTimeOffset claimedAtUtc)
+        DateTimeOffset claimedAtUtc,
+        int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
-            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+            timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.CriticalReview);
 
@@ -215,6 +223,7 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentBudgetSlot = agentBudgetSlot,
         };
     }
 
@@ -239,11 +248,12 @@ public sealed class Attempt
         TimeSpan timeout,
         int maxBytesPerStream,
         int maxTotalCapturedBytes,
-        DateTimeOffset claimedAtUtc)
+        DateTimeOffset claimedAtUtc,
+        int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
-            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+            timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ChallengeResolution);
 
@@ -270,6 +280,7 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentBudgetSlot = agentBudgetSlot,
         };
     }
 
@@ -296,11 +307,12 @@ public sealed class Attempt
         TimeSpan timeout,
         int maxBytesPerStream,
         int maxTotalCapturedBytes,
-        DateTimeOffset claimedAtUtc)
+        DateTimeOffset claimedAtUtc,
+        int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
-            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+            timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReview);
 
@@ -327,6 +339,7 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentBudgetSlot = agentBudgetSlot,
         };
     }
 
@@ -354,12 +367,13 @@ public sealed class Attempt
         TimeSpan timeout,
         int maxBytesPerStream,
         int maxTotalCapturedBytes,
-        DateTimeOffset claimedAtUtc)
+        DateTimeOffset claimedAtUtc,
+        int agentBudgetSlot)
         => ClaimAgentImplementationWithAssignment(
             id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
             contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
             requestedModel: null, requestedEffort: null,
-            Runs.AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1");
+            Runs.AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", agentBudgetSlot);
 
     /// <summary>Claims an initial Claude Code ImplementationReport attempt with bounded,
     /// immutable requested assignment facts. Provider identity remains fixed by this supported
@@ -379,11 +393,12 @@ public sealed class Attempt
         string? requestedModel,
         string? requestedEffort,
         AgentPermissionProfile permissionProfile,
-        string adapterContractVersion)
+        string adapterContractVersion,
+        int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
-            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+            timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReport);
 
@@ -426,6 +441,7 @@ public sealed class Attempt
             AgentRequestedEffort = requestedEffort,
             AgentPermissionProfile = permissionProfile,
             AgentAdapterContractVersion = adapterContractVersion,
+            AgentBudgetSlot = agentBudgetSlot,
         };
     }
 
@@ -466,11 +482,12 @@ public sealed class Attempt
         TimeSpan timeout,
         int maxBytesPerStream,
         int maxTotalCapturedBytes,
-        DateTimeOffset claimedAtUtc)
+        DateTimeOffset claimedAtUtc,
+        int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
-            timeout, maxBytesPerStream, maxTotalCapturedBytes);
+            timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ReviewCorrection);
 
@@ -497,6 +514,7 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentBudgetSlot = agentBudgetSlot,
         };
     }
 
@@ -511,7 +529,8 @@ public sealed class Attempt
         Guid contextManifestArtifactId,
         TimeSpan timeout,
         int maxBytesPerStream,
-        int maxTotalCapturedBytes)
+        int maxTotalCapturedBytes,
+        int agentBudgetSlot)
     {
         if (attemptNumber < 1)
         {
@@ -548,6 +567,11 @@ public sealed class Attempt
         if (maxTotalCapturedBytes < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(maxTotalCapturedBytes));
+        }
+
+        if (agentBudgetSlot < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(agentBudgetSlot), agentBudgetSlot, "A claimed Agent attempt requires a positive budget slot.");
         }
     }
 
@@ -653,6 +677,13 @@ public sealed class Attempt
     public int? AgentMaxBytesPerStream { get; private set; }
 
     public int? AgentMaxTotalCapturedBytes { get; private set; }
+
+    /// <summary>The permanent, run-wide Agent claim-budget slot this attempt consumed at claim
+    /// time — 1-based, unique per <see cref="RunId"/> among every Agent attempt this run has ever
+    /// claimed, and never reassigned or freed even if the attempt later fails or is interrupted.
+    /// Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>; a Simulated or Process
+    /// attempt never consumes this budget.</summary>
+    public int? AgentBudgetSlot { get; private set; }
 
     /// <summary>When the provider was durably committed to being invoked — set once, before the
     /// adapter is ever invoked, and never cleared. Distinguishes "claimed but not yet dispatched"

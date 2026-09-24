@@ -186,6 +186,17 @@ continuation requires an explicit human authorization for one additional claim.
 This does not introduce generic pause/resume, provider fallback, Gemini,
 automatic orchestration, or the deferred token/account-usage controls.
 
+A second, independent control implements a durable run-wide Agent claim
+budget: a default maximum of 16 claimed Agent attempts per run, spanning all
+six Agent-claiming paths. Every claim permanently consumes one slot,
+including claims that later fail or are interrupted; Simulated and Process
+attempts never consume it. Unlike the review-correction control, exhaustion
+has no human override — it is a hard stop for the run's remaining
+Agent-claiming paths. See
+[ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md).
+The remaining Increment 4 loop, duration, token, and account-usage budgets
+remain deferred.
+
 ## Increment 5: Local supervised delivery loop
 
 ### Outcome

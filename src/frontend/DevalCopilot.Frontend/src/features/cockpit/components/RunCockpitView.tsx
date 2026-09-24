@@ -16,6 +16,7 @@ import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrect
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
+import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
@@ -105,6 +106,13 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
       <RunHeader cockpit={cockpit} />
       {/* A cockpit projection still held from the previously selected run is never rendered as
           evidence for the newly selected one. */}
+      {cockpit.runId === runId && (
+        <AgentClaimBudgetBanner
+          maximumAgentAttempts={cockpit.maximumAgentAttempts ?? 0}
+          agentAttemptsUsed={cockpit.agentAttemptsUsed ?? 0}
+          agentBudgetExhausted={cockpit.agentBudgetExhausted ?? false}
+        />
+      )}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />
       <RunTokenUsageSummary summary={cockpit.runId === runId ? cockpit.tokenUsageSummary : null} />
       <div className="dc-workspace">

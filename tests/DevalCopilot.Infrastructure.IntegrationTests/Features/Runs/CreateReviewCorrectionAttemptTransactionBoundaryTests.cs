@@ -128,7 +128,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
 
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
         planningAttempt.MarkAgentDispatched(Now);
         planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
@@ -141,7 +141,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
 
         var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 2);
         acceptanceAttempt.MarkAgentDispatched(Now);
         acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.Record(
@@ -153,7 +153,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
 
         var implementation = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 3);
         implementation.MarkAgentDispatched(Now);
         implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.Record(
@@ -165,7 +165,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
 
         var review = Attempt.ClaimAgentCodeReview(
             Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 4);
         review.MarkAgentDispatched(Now);
         review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.Record(

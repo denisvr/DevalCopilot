@@ -30,7 +30,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
             seed.Runs.Add(Run.RecordIntent(runId, project.Id, 1, "Inspect assignment", Now));
             seed.Attempts.Add(Attempt.ClaimAgentImplementation(
                 attemptId, runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 65536, 131072, Now));
+                TimeSpan.FromMinutes(20), 65536, 131072, Now, 1));
             await seed.SaveChangesAsync();
             _ = column switch
             {
@@ -75,7 +75,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
             seed.Runs.Add(Run.RecordIntent(runId, project.Id, 1, "Inspect corrupted assignment", Now));
             seed.Attempts.Add(Attempt.ClaimAgentImplementation(
                 attemptId, runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('d', 64), Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 65536, 131072, Now));
+                TimeSpan.FromMinutes(20), 65536, 131072, Now, 1));
             await seed.SaveChangesAsync();
             _ = column switch
             {
@@ -120,7 +120,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
             seed.Runs.Add(Run.RecordIntent(runId, project.Id, 1, "Inspect historical assignment", Now));
             seed.Attempts.Add(Attempt.ClaimAgentImplementation(
                 attemptId, runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('b', 64), Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 65536, 131072, Now));
+                TimeSpan.FromMinutes(20), 65536, 131072, Now, 1));
             seed.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attemptId, Guid.NewGuid(), 0));
             await seed.SaveChangesAsync();
             await seed.Database.ExecuteSqlInterpolatedAsync($"""

@@ -19,7 +19,7 @@ public sealed class GetChallengeResolutionAttemptStatusQueryHandlerTests(SqliteD
     {
         var attempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), runId, attemptNumber, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc);
+            TimeSpan.FromMinutes(10), 262144, 524288, claimedAtUtc, attemptNumber);
         var originalProposal = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, originalProposalId, sequence: 0);
         var challenges = challengeIds
             .Select((id, index) => AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, id, sequence: index + 1))

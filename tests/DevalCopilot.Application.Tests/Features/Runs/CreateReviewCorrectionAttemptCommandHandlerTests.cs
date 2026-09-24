@@ -59,6 +59,90 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         AssertCode(result, "attempts.run_has_active_attempt");
     }
 
+    [Fact]
+    public async Task Run_wide_budget_exhaustion_is_checked_before_the_review_correction_specific_budget_and_never_consumes_an_authorization()
+    {
+        await using var context = _fixture.CreateContext();
+        // The seeded Planner/CriticalReviewer/Implementer/CodeReviewer chain already occupies
+        // all four of the run's budget slots — the review-correction-specific budget (default 2)
+        // is nowhere near exhausted, proving the run-wide check runs first and independently.
+        var seed = await SeedAsync(context, maximumAgentAttempts: 4);
+        var handler = Handler(context);
+
+        var result = await handler.HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+        // Never consumes a review-correction authorization or creates any escalation/attempt.
+        Assert.Empty(await context.ReviewCorrectionEscalations.ToListAsync());
+        Assert.Empty(await context.ReviewCorrectionAuthorizations.ToListAsync());
+        Assert.Equal(4, await context.Attempts.CountAsync(item => item.RunId == seed.Run.Id));
+    }
+
+    // Deterministically simulates a concurrent request winning the race for the exact
+    // AgentBudgetSlot this handler independently computes, injected strictly between this
+    // handler's own pre-check and its own final SaveChangesAsync. Below the maximum, losing this
+    // race is a safe, retryable conflict — never misreported as budget exhaustion.
+    [Fact]
+    public async Task HandleAsync_classifies_a_persisted_competing_slot_below_the_maximum_as_a_safe_conflict()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext, maximumAgentAttempts: 8);
+
+        await using var raceContext = _fixture.CreateContext();
+        // The seeded Planner/CriticalReviewer/Implementer/CodeReviewer chain already occupies
+        // slots 1-4, so slot 5 is the exact value this handler will independently compute for
+        // itself.
+        var evidence = new RecordingEvidenceReader(seed.Evidence, async cancellationToken =>
+        {
+            var competing = Attempt.ClaimAgentImplementation(
+                Guid.NewGuid(), seed.Run.Id, 5, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 262144, 524288, Now, agentBudgetSlot: 5);
+            competing.Fail(Now);
+            raceContext.Attempts.Add(competing);
+            await raceContext.SaveChangesAsync(cancellationToken);
+        });
+
+        await using var handlerContext = _fixture.CreateContext();
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(handlerContext, evidence, new TestArtifactStore(), new FixedTimeProvider(Now))
+            .HandleAsync(Command(seed), CancellationToken.None);
+
+        AssertCode(result, "agent_attempts.budget_slot_conflict");
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(5, await verify.Attempts.CountAsync(item => item.RunId == seed.Run.Id));
+    }
+
+    // Companion to the fact above: this time the exact slot the handler computes is also the
+    // run's last available slot, so losing the race genuinely does mean the budget is now
+    // exhausted.
+    [Fact]
+    public async Task HandleAsync_classifies_a_persisted_competing_slot_at_the_maximum_as_exhausted()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext, maximumAgentAttempts: 5);
+
+        await using var raceContext = _fixture.CreateContext();
+        var evidence = new RecordingEvidenceReader(seed.Evidence, async cancellationToken =>
+        {
+            var competing = Attempt.ClaimAgentImplementation(
+                Guid.NewGuid(), seed.Run.Id, 5, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 262144, 524288, Now, agentBudgetSlot: 5);
+            competing.Fail(Now);
+            raceContext.Attempts.Add(competing);
+            await raceContext.SaveChangesAsync(cancellationToken);
+        });
+
+        await using var handlerContext = _fixture.CreateContext();
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(handlerContext, evidence, new TestArtifactStore(), new FixedTimeProvider(Now))
+            .HandleAsync(Command(seed), CancellationToken.None);
+
+        AssertCode(result, "agent_attempts.budget_exhausted");
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(5, await verify.Attempts.CountAsync(item => item.RunId == seed.Run.Id));
+    }
+
     [Theory]
     [InlineData(false, true, true, true, "agent_attempts.workspace_not_ready")]
     [InlineData(true, false, true, true, "agent_attempts.lease_not_active")]
@@ -130,7 +214,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
                 Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+                TimeSpan.FromMinutes(20), 262144, 524288, Now, number);
             priorCorrection.MarkAgentDispatched(Now);
             priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
             context.Attempts.Add(priorCorrection);
@@ -160,7 +244,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
                 Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+                TimeSpan.FromMinutes(20), 262144, 524288, Now, number);
             priorCorrection.MarkAgentDispatched(Now);
             priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
             seedContext.Attempts.Add(priorCorrection);
@@ -205,7 +289,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
                 Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+                TimeSpan.FromMinutes(20), 262144, 524288, Now, number);
             priorCorrection.MarkAgentDispatched(Now);
             priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
             context.Attempts.Add(priorCorrection);
@@ -239,7 +323,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
                 Guid.NewGuid(), seed.Run.Id, number, seed.Workspace.Id, seed.Checkpoint!.Id, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 262144, 524288, Now);
+                TimeSpan.FromMinutes(20), 262144, 524288, Now, number);
             priorCorrection.MarkAgentDispatched(Now);
             priorCorrection.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
             seedContext.Attempts.Add(priorCorrection);
@@ -342,10 +426,11 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         bool runningAttempt = false,
         bool completedReview = true,
         bool includeFindings = true,
-        GitWorkspaceEvidenceResult? evidence = null)
+        GitWorkspaceEvidenceResult? evidence = null,
+        int maximumAgentAttempts = 16)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Correct the implementation", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Correct the implementation", Now, maximumAgentAttempts: maximumAgentAttempts);
         if (claimRun) run.Claim(Now);
         var workspace = GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", Now);
         if (workspaceReady) workspace.MarkReady();
@@ -372,7 +457,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
 
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
         planningAttempt.MarkAgentDispatched(Now);
         planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         context.Attempts.Add(planningAttempt);
@@ -393,7 +478,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         var findings = new List<CollaborationMessage>();
         var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            TimeSpan.FromMinutes(20), 262144, 524288, Now, 2);
         acceptanceAttempt.MarkAgentDispatched(Now);
         acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         context.Attempts.Add(acceptanceAttempt);
@@ -406,12 +491,12 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
             CollaborationMessageProvenance.ProviderObserved, Now);
         context.CollaborationMessages.Add(acceptance);
 
-        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, 3);
         if (completedReview) { review.MarkAgentDispatched(Now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit); }
         else { review.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now); }
         if (checkpoint is not null)
         {
-            var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+            var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, 4);
             implementation.MarkAgentDispatched(Now);
             implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
             report = CollaborationMessage.Record(Guid.NewGuid(), run.Id, implementation.Id, CollaborationMessage.ProtocolVersionOne,

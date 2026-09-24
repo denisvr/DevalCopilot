@@ -73,7 +73,7 @@ public sealed class ChallengeResolutionInputIdentityQueryScopeTests : IAsyncLife
     {
         var attempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now);
+            TimeSpan.FromMinutes(10), 262144, 524288, now, attemptNumber);
         attempt.MarkAgentDispatched(now);
         attempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         return attempt;
@@ -99,7 +99,7 @@ public sealed class ChallengeResolutionInputIdentityQueryScopeTests : IAsyncLife
         var (ownProject, ownRun, ownWorkspace, ownCheckpoint, ownLease) = BuildEligibleRunScaffold("Resolve the challenged proposal");
         var ownAttempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), ownRun.Id, 1, ownWorkspace.Id, ownCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         var proposalId = Guid.NewGuid();
         var challenge1Id = Guid.NewGuid();
@@ -139,7 +139,7 @@ public sealed class ChallengeResolutionInputIdentityQueryScopeTests : IAsyncLife
         var (project, run, workspace, checkpoint, lease) = BuildEligibleRunScaffold("Resolve the challenged proposal");
         var attempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         var proposalId = Guid.NewGuid();
         var challenge1Id = Guid.NewGuid();
@@ -179,7 +179,7 @@ public sealed class ChallengeResolutionInputIdentityQueryScopeTests : IAsyncLife
         var (project, run, workspace, checkpoint, lease) = BuildEligibleRunScaffold("Resolve the challenged proposal");
         var attempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         var proposalId = Guid.NewGuid();
         var challenge1Id = Guid.NewGuid();
@@ -244,7 +244,7 @@ public sealed class ChallengeResolutionInputIdentityQueryScopeTests : IAsyncLife
             var (project, run, workspace, checkpoint, lease) = BuildEligibleRunScaffold("Resolve the challenged proposal");
             var attempt = Attempt.ClaimAgentChallengeResolution(
                 Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, Now);
+                TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
             var proposalId = Guid.NewGuid();
             var challenge1Id = Guid.NewGuid();

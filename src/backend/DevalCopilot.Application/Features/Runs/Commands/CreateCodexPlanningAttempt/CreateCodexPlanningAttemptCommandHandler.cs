@@ -83,6 +83,20 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress."));
         }
 
+        // The run-wide Agent claim budget: every claimed Agent attempt, regardless of role,
+        // provider, dispatch, result, or interruption, permanently consumes one slot. Checked
+        // before any provider-availability probe or evidence capture so an exhausted run never
+        // invokes a provider. The filtered unique index on (RunId, AgentBudgetSlot) is the
+        // database backstop for the race this count-and-compare check alone cannot close.
+        var agentAttemptsUsed = await dbContext.Attempts.CountAsync(
+            candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent,
+            cancellationToken);
+        if (agentAttemptsUsed >= run.MaximumAgentAttempts)
+        {
+            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."));
+        }
+
         var codexSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.CodexCli, cancellationToken);
         if (codexSnapshot is null
@@ -126,6 +140,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         }
 
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
+        var agentBudgetSlot = agentAttemptsUsed + 1;
 
         var attempt = Attempt.ClaimAgent(
             attemptId,
@@ -138,7 +153,8 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             InvocationTimeout,
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
-            nowUtc);
+            nowUtc,
+            agentBudgetSlot);
         dbContext.Attempts.Add(attempt);
 
         var manifestArtifact = Artifact.Record(
@@ -205,10 +221,29 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                     Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress."));
             }
 
-            // Not a race loss — no competing Running attempt exists for this run at all. Some
-            // other persistence failure caused this (disk, corruption, an unrelated
-            // constraint); never report a conflict that would falsely imply a race that never
-            // happened.
+            // The race the (RunId, AgentBudgetSlot) unique index exists to close: a concurrent
+            // request already consumed the exact slot this request also computed. Below the
+            // maximum, this is a safe, retryable conflict — only this one slot number was lost to
+            // a faster concurrent claim, not the run's whole budget. Only when the run's real
+            // Agent-attempt count has already reached its maximum is this truthfully exhaustion.
+            var slotAlreadyClaimedByAnotherAttempt = await dbContext.Attempts.AsNoTracking().AnyAsync(
+                candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent && candidate.AgentBudgetSlot == agentBudgetSlot,
+                cancellationToken);
+            if (slotAlreadyClaimedByAnotherAttempt)
+            {
+                var agentAttemptsUsedNow = await dbContext.Attempts.AsNoTracking().CountAsync(
+                    candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent, cancellationToken);
+                return agentAttemptsUsedNow >= run.MaximumAgentAttempts
+                    ? Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                        Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."))
+                    : Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                        Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));
+            }
+
+            // Not a race loss on any known invariant — no competing Running attempt and no
+            // competing budget-slot claim exist for this run at all. Some other persistence
+            // failure caused this (disk, corruption, an unrelated constraint); never report a
+            // conflict that would falsely imply a race that never happened.
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
                 Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
         }

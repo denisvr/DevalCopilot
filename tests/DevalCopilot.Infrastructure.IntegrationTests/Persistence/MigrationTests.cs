@@ -95,7 +95,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
                 var newAttempt = Attempt.ClaimAgentImplementationWithAssignment(
                     Guid.NewGuid(), runId, 2, Guid.NewGuid(), Guid.NewGuid(), "sha256:migration", Guid.NewGuid(),
                     TimeSpan.FromMinutes(20), 1024, 2048, now, "claude-model", "balanced",
-                    AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1");
+                    AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", 2);
                 upgradedContext.Attempts.Add(newAttempt);
                 await upgradedContext.SaveChangesAsync();
             }
@@ -605,7 +605,8 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             timeout: TimeSpan.FromMinutes(10),
             maxBytesPerStream: 1024,
             maxTotalCapturedBytes: 2048,
-            claimedAtUtc: now);
+            claimedAtUtc: now,
+            agentBudgetSlot: 1);
         context.Attempts.Add(attempt);
         context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, proposal.Id, sequence: 0));
         await context.SaveChangesAsync();

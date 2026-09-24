@@ -61,6 +61,20 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress."));
         }
 
+        // The run-wide Agent claim budget: every claimed Agent attempt, regardless of role,
+        // provider, dispatch, result, or interruption, permanently consumes one slot. Checked
+        // before any provider-availability probe or evidence capture so an exhausted run never
+        // invokes a provider. The filtered unique index on (RunId, AgentBudgetSlot) is the
+        // database backstop for the race this count-and-compare check alone cannot close.
+        var agentAttemptsUsed = await dbContext.Attempts.CountAsync(
+            candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent,
+            cancellationToken);
+        if (agentAttemptsUsed >= run.MaximumAgentAttempts)
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(
+                Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."));
+        }
+
         var workspace = await dbContext.GitWorkspaces
             .Where(candidate => candidate.ProjectId == run.ProjectId)
             .OrderByDescending(candidate => candidate.WorkspaceNumber)
@@ -206,6 +220,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
         }
 
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
+        var agentBudgetSlot = agentAttemptsUsed + 1;
 
         var attempt = Attempt.ClaimAgentCodeReview(
             attemptId,
@@ -218,7 +233,8 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             InvocationTimeout,
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
-            nowUtc);
+            nowUtc,
+            agentBudgetSlot);
         dbContext.Attempts.Add(attempt);
 
         // The one authoritative record of this attempt's exact durable identity: the reviewed
@@ -286,6 +302,25 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             {
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(
                     Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress."));
+            }
+
+            // The race the (RunId, AgentBudgetSlot) unique index exists to close: a concurrent
+            // request already consumed the exact slot this request also computed. Below the
+            // maximum, this is a safe, retryable conflict — only this one slot number was lost to
+            // a faster concurrent claim, not the run's whole budget. Only when the run's real
+            // Agent-attempt count has already reached its maximum is this truthfully exhaustion.
+            var slotAlreadyClaimedByAnotherAttempt = await dbContext.Attempts.AsNoTracking().AnyAsync(
+                candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent && candidate.AgentBudgetSlot == agentBudgetSlot,
+                cancellationToken);
+            if (slotAlreadyClaimedByAnotherAttempt)
+            {
+                var agentAttemptsUsedNow = await dbContext.Attempts.AsNoTracking().CountAsync(
+                    candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent, cancellationToken);
+                return agentAttemptsUsedNow >= run.MaximumAgentAttempts
+                    ? Result<CreateCodeReviewAttemptCommandResult>.Failure(
+                        Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."))
+                    : Result<CreateCodeReviewAttemptCommandResult>.Failure(
+                        Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));
             }
 
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(

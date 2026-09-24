@@ -56,7 +56,7 @@ public sealed class GetEligibleAgentAttemptsQueryHandlerTests : IAsyncLifetime
             checkpointId,
             Fingerprint,
             manifestArtifactId,
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         if (markDispatched)
         {
             attempt.MarkAgentDispatched(Now);
@@ -254,7 +254,7 @@ public sealed class GetEligibleAgentAttemptsQueryHandlerTests : IAsyncLifetime
         var claudeManifestArtifactId = Guid.NewGuid();
         var claudeAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), claudeRun.Id, 1, workspace.Id, checkpointId, Fingerprint, claudeManifestArtifactId,
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(claudeRun);

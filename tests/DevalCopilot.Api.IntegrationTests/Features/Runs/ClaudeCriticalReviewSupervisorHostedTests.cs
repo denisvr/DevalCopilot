@@ -870,7 +870,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
                 var now = DateTimeOffset.UtcNow;
                 var competing = Attempt.ClaimAgentCriticalReview(
                     Guid.NewGuid(), _runId, _competingAttemptNumber, _workspaceId, _checkpointId, fingerprintSha256,
-                    Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now);
+                    Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now, _competingAttemptNumber);
                 competing.MarkAgentDispatched(now);
                 competing.CompleteAgent(AgentOutcome.Accepted, fingerprintSha256, now, processEvidence: TestProcessEvidence.CleanExit);
                 freshDbContext.Attempts.Add(competing);

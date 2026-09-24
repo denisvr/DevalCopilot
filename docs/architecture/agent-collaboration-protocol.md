@@ -666,6 +666,19 @@ pause/resume, provider fallback, Gemini support, or automatic orchestration.
 Token, account-usage, duration, and the remaining Increment 4 controls remain
 deferred.
 
+Independently, each run also persists a default maximum of 16 claimed Agent
+attempts — a run-wide ceiling spanning all six Agent-claiming paths (Planner
+proposal, Claude critical review, Codex challenge resolution, Claude
+implementation, Codex implementation review, Claude review correction), never
+combined with the narrower review-correction budget above. Every claimed
+Agent attempt permanently consumes one slot regardless of role, provider,
+dispatch, result, or interruption; Simulated and Process attempts never
+consume it. Unlike the review-correction budget, this ceiling has no human
+override — exhaustion is a hard stop for the run's remaining Agent-claiming
+paths, though attempts already claimed may still finish, and the run itself
+is not automatically terminated. See
+[ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md).
+
 Each agent attempt is intended to eventually record requested and effective
 provider configuration:
 

@@ -48,7 +48,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             {
                 var candidate = Attempt.ClaimAgentImplementation(
                     Guid.NewGuid(), runId, 100 + index, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-                    TimeSpan.FromMinutes(10), 262144, 524288, Now);
+                    TimeSpan.FromMinutes(10), 262144, 524288, Now, 4 + index);
                 candidate.MarkAgentDispatched(Now);
                 candidate.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
                 addCandidatesContext.Attempts.Add(candidate);
@@ -124,7 +124,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
 
         var planner = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         planner.MarkAgentDispatched(Now);
         planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.RecordAgent(
@@ -134,7 +134,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
 
         var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         acceptanceAttempt.MarkAgentDispatched(Now);
         acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.RecordAgent(
@@ -144,7 +144,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
 
         var implementation = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 3);
         implementation.MarkAgentDispatched(Now);
         implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(
@@ -181,7 +181,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
 
         var planner = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         planner.MarkAgentDispatched(Now);
         planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.RecordAgent(
@@ -191,7 +191,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
 
         var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         acceptanceAttempt.MarkAgentDispatched(Now);
         acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.RecordAgent(
@@ -201,7 +201,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
 
         var implementation = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 3);
         implementation.MarkAgentDispatched(Now);
         implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(
@@ -211,7 +211,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
 
         var review = Attempt.ClaimAgentCodeReview(
             Guid.NewGuid(), run.Id, 4, workspace.Id, resultCheckpoint.Id, resultCheckpoint.FingerprintSha256, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 4);
         review.MarkAgentDispatched(Now);
         review.CompleteAgent(AgentOutcome.ReviewChangesRequested, resultCheckpoint.FingerprintSha256, Now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.RecordAgent(

@@ -124,7 +124,7 @@ public sealed class AgentAttemptDisclosureScanTests : IDisposable
         // Already running: exercises the create endpoint's conflict path in step 1.
         dbContext.Attempts.Add(Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now));
+            TimeSpan.FromMinutes(10), 262144, 524288, now, 1));
 
         await dbContext.SaveChangesAsync();
 
@@ -140,7 +140,7 @@ public sealed class AgentAttemptDisclosureScanTests : IDisposable
 
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), runId, 2, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now);
+            TimeSpan.FromMinutes(10), 262144, 524288, now, 2);
         attempt.MarkAgentDispatched(now.AddSeconds(1));
         attempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, now.AddSeconds(2));
         dbContext.Attempts.Add(attempt);

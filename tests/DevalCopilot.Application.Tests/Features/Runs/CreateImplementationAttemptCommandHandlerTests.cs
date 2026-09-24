@@ -35,6 +35,31 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), fingerprintSha256, [], null));
     }
 
+    /// <summary>
+    /// Deterministically simulates a concurrent request winning a race for a durable invariant:
+    /// the injected action runs exactly once, at the exact point the real handler calls
+    /// <see cref="IGitWorkspaceEvidenceReader.CaptureAsync"/> — strictly after the handler's own
+    /// in-process eligibility pre-checks have already passed and strictly before its own final
+    /// <c>SaveChangesAsync</c>. No real threading, no timing-dependent flakiness: the race is
+    /// reproduced by construction, every run.
+    /// </summary>
+    private sealed class RaceInjectingEvidenceReader(GitWorkspaceEvidenceResult result, Func<CancellationToken, Task> injectRace)
+        : IGitWorkspaceEvidenceReader
+    {
+        private bool _injected;
+
+        public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
+        {
+            if (!_injected)
+            {
+                _injected = true;
+                await injectRace(cancellationToken);
+            }
+
+            return result;
+        }
+    }
+
     private sealed class FakeArtifactStore : IArtifactStore
     {
         private readonly Dictionary<string, byte[]> _partialContent = new(StringComparer.Ordinal);
@@ -90,10 +115,10 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     }
 
     private async Task<(Project Project, Run Run, GitWorkspace Workspace, GitCheckpoint Checkpoint)> SeedEligibleRunAsync(
-        DevalCopilotDbContext dbContext, bool claudeObserved = true)
+        DevalCopilotDbContext dbContext, bool claudeObserved = true, int maximumAgentAttempts = 16)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Implement the resolved plan", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Implement the resolved plan", Now, maximumAgentAttempts: maximumAgentAttempts);
         run.Claim(Now);
 
         var workspace = GitWorkspace.Prepare(
@@ -152,7 +177,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     {
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
+            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc, 1);
         planningAttempt.MarkAgentDispatched(occurredAtUtc);
         planningAttempt.CompleteAgent(AgentOutcome.Proposed, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
@@ -161,7 +186,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var reviewAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), runId, 2, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
+            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc, 2);
         reviewAttempt.MarkAgentDispatched(occurredAtUtc);
         reviewAttempt.CompleteAgent(AgentOutcome.Accepted, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(reviewAttempt);
@@ -185,7 +210,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     {
         var originalPlanningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
+            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc, 1);
         originalPlanningAttempt.MarkAgentDispatched(occurredAtUtc);
         originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(originalPlanningAttempt);
@@ -207,7 +232,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var resolverAttempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), runId, 2, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
+            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc, 2);
         resolverAttempt.MarkAgentDispatched(occurredAtUtc);
         resolverAttempt.CompleteAgent(AgentOutcome.Resolved, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(resolverAttempt);
@@ -278,6 +303,109 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     }
 
     [Fact]
+    public async Task HandleAsync_fails_when_the_run_wide_agent_claim_budget_is_exhausted()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        // The seeded planning and critical-review attempts already occupy both of the run's
+        // budget slots.
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, maximumAgentAttempts: 2);
+        var proposal = SeedAcceptedOriginalProposal(dbContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateImplementationAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(run.Id, proposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+        Assert.Equal(2, dbContext.Attempts.Count(a => a.RunId == run.Id));
+    }
+
+    // Deterministically simulates a concurrent request winning the race for the exact
+    // AgentBudgetSlot this handler independently computes, injected strictly between this
+    // handler's own pre-check and its own final SaveChangesAsync. Below the maximum, losing this
+    // race is a safe, retryable conflict — never misreported as budget exhaustion.
+    [Fact]
+    public async Task HandleAsync_classifies_a_persisted_competing_slot_below_the_maximum_as_a_safe_conflict()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext, maximumAgentAttempts: 6);
+        var proposal = SeedAcceptedOriginalProposal(seedContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        var runId = run.Id;
+        var proposalId = proposal.Id;
+
+        await using var raceContext = _fixture.CreateContext();
+        await using var handlerContext = _fixture.CreateContext();
+
+        var artifactStore = new FakeArtifactStore();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            async cancellationToken =>
+            {
+                // The seeded planning and critical-review attempts already occupy slots 1 and 2,
+                // so slot 3 is the exact value this handler will independently compute for itself.
+                var competing = Attempt.ClaimAgentCodeReview(
+                    Guid.NewGuid(), runId, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+                    TimeSpan.FromMinutes(10), 262144, 524288, Now, agentBudgetSlot: 3);
+                competing.Fail(Now);
+                raceContext.Attempts.Add(competing);
+                await raceContext.SaveChangesAsync(cancellationToken);
+            });
+
+        var handler = new CreateImplementationAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.budget_slot_conflict", Assert.Single(result.Errors).Code);
+
+        await using var verifyContext = _fixture.CreateContext();
+        Assert.Equal(3, await verifyContext.Attempts.CountAsync(a => a.RunId == runId));
+    }
+
+    // Companion to the fact above: this time the exact slot the handler computes is also the
+    // run's last available slot, so losing the race genuinely does mean the budget is now
+    // exhausted.
+    [Fact]
+    public async Task HandleAsync_classifies_a_persisted_competing_slot_at_the_maximum_as_exhausted()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext, maximumAgentAttempts: 3);
+        var proposal = SeedAcceptedOriginalProposal(seedContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        var runId = run.Id;
+        var proposalId = proposal.Id;
+
+        await using var raceContext = _fixture.CreateContext();
+        await using var handlerContext = _fixture.CreateContext();
+
+        var artifactStore = new FakeArtifactStore();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            async cancellationToken =>
+            {
+                var competing = Attempt.ClaimAgentCodeReview(
+                    Guid.NewGuid(), runId, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+                    TimeSpan.FromMinutes(10), 262144, 524288, Now, agentBudgetSlot: 3);
+                competing.Fail(Now);
+                raceContext.Attempts.Add(competing);
+                await raceContext.SaveChangesAsync(cancellationToken);
+            });
+
+        var handler = new CreateImplementationAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+
+        await using var verifyContext = _fixture.CreateContext();
+        Assert.Equal(3, await verifyContext.Attempts.CountAsync(a => a.RunId == runId));
+    }
+
+    [Fact]
     public async Task HandleAsync_creates_an_implementation_attempt_for_a_resolved_revised_proposal()
     {
         await using var dbContext = _fixture.CreateContext();
@@ -314,7 +442,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var originalPlanningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         originalPlanningAttempt.MarkAgentDispatched(Now);
         originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(originalPlanningAttempt);
@@ -336,7 +464,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var resolverAttempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         resolverAttempt.MarkAgentDispatched(Now);
         resolverAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         AttemptProviderSubstitution.SetProvider(resolverAttempt, AgentProvider.ClaudeCode);
@@ -397,7 +525,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         planningAttempt.MarkAgentDispatched(Now);
         planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
@@ -429,7 +557,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         planningAttempt.MarkAgentDispatched(Now);
         planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
@@ -437,7 +565,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var reviewAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
         reviewAttempt.MarkAgentDispatched(Now);
         reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         if (useUndefinedRatherThanNull)
@@ -494,7 +622,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var priorImplementation = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 3);
         priorImplementation.MarkAgentDispatched(Now);
         priorImplementation.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(priorImplementation);

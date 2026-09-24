@@ -55,7 +55,7 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
 
         var attempt = Attempt.ClaimAgentCodeReview(
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         attempt.MarkAgentDispatched(Now);
         dbContext.Attempts.Add(attempt);
 

@@ -18,7 +18,7 @@ public sealed class GetRunningAgentAttemptsQueryHandlerTests : IAsyncLifetime
 
     private static Attempt ClaimAgentAttempt(Guid runId) => Attempt.ClaimAgent(
         Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, Now);
+        TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
 
     [Fact]
     public async Task HandleAsync_returns_only_running_agent_attempts()

@@ -51,6 +51,9 @@ public sealed class GetRunCockpitEndpoint(
                         AgentProcessExecutionResponse.FromAttempt(attempt.ProcessExecution, attempt.Timeout),
                         AgentTokenUsageResponse.FromAttempt(attempt.TokenUsage))
                     : null,
-                RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary)));
+                RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary),
+                value.MaximumAgentAttempts,
+                value.AgentAttemptsUsed,
+                value.AgentBudgetExhausted));
     }
 }

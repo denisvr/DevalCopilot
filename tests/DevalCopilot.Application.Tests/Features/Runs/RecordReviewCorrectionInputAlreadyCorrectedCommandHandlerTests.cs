@@ -82,7 +82,7 @@ public sealed class RecordReviewCorrectionInputAlreadyCorrectedCommandHandlerTes
             waitingId = seed.Waiting.Id;
             for (var index = 0; index < candidateCount; index++)
             {
-                var candidate = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), seed.Run.Id, index + 3, seed.Workspace.Id, seed.Checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+                var candidate = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), seed.Run.Id, index + 3, seed.Workspace.Id, seed.Checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, index + 3);
                 candidate.MarkAgentDispatched(Now);
                 candidate.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
                 context.Attempts.Add(candidate);
@@ -114,13 +114,13 @@ public sealed class RecordReviewCorrectionInputAlreadyCorrectedCommandHandlerTes
         workspace.MarkReady();
         var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
         var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, project.Id.ToByteArray(), Now);
-        var waiting = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        var waiting = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
         var candidateRun = candidateRunIsSame ? run : Run.RecordIntent(Guid.NewGuid(), project.Id, 2, "Foreign run", Now);
         if (!candidateRunIsSame) candidateRun.Claim(Now);
         var candidateWorkspace = candidateRunIsSame ? workspace : GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 2, $@"C:\workspaces\{Guid.NewGuid():N}", "foreign", new string('a', 40), "main", Now);
         if (!candidateRunIsSame) candidateWorkspace.MarkReady();
         var candidateCheckpoint = candidateCheckpointIsSame ? checkpoint : GitCheckpoint.Capture(Guid.NewGuid(), candidateWorkspace.Id, 1, Now, new string('a', 40), new string('b', 64), []);
-        var candidate = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), candidateRun.Id, 2, candidateWorkspace.Id, candidateCheckpoint.Id, candidateCheckpoint.FingerprintSha256, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        var candidate = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), candidateRun.Id, 2, candidateWorkspace.Id, candidateCheckpoint.Id, candidateCheckpoint.FingerprintSha256, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now, candidateRunIsSame ? 2 : 1);
         candidate.MarkAgentDispatched(Now);
         candidate.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
 

@@ -130,10 +130,11 @@ public sealed class CreateCodexPlanningAttemptCommandHandlerTests : IAsyncLifeti
         bool workspaceReady = true,
         bool leaseActive = true,
         bool hasCheckpoint = true,
-        bool codexObserved = true)
+        bool codexObserved = true,
+        int maximumAgentAttempts = 16)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Plan the next increment", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Plan the next increment", Now, maximumAgentAttempts: maximumAgentAttempts);
         if (claimRun)
         {
             run.Claim(Now);
@@ -365,7 +366,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandlerTests : IAsyncLifeti
         var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, claimRun: true);
         dbContext.Attempts.Add(Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now));
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1));
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateCodexPlanningAttemptCommandHandler(
@@ -375,6 +376,112 @@ public sealed class CreateCodexPlanningAttemptCommandHandlerTests : IAsyncLifeti
 
         Assert.True(result.IsFailure);
         Assert.Equal("attempts.run_has_active_attempt", Assert.Single(result.Errors).Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_fails_when_the_run_wide_agent_claim_budget_is_exhausted()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, claimRun: true, maximumAgentAttempts: 1);
+        var exhaustingAttempt = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
+        exhaustingAttempt.Fail(Now);
+        dbContext.Attempts.Add(exhaustingAttempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateCodexPlanningAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateCodexPlanningAttemptCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+        // Exhaustion never invokes the provider or creates a second claimed attempt.
+        Assert.Single(dbContext.Attempts.Where(a => a.RunId == run.Id));
+    }
+
+    // Deterministically simulates a concurrent request winning the race for the exact
+    // AgentBudgetSlot this handler independently computes, injected strictly between this
+    // handler's own pre-check (which saw the budget as not yet exhausted) and its own final
+    // SaveChangesAsync. Below the maximum, losing this race is a safe, retryable conflict — never
+    // misreported as budget exhaustion, which would falsely claim the whole run is out of Agent
+    // claims when only this one slot number was lost to a faster claim.
+    [Fact]
+    public async Task HandleAsync_classifies_a_persisted_competing_slot_below_the_maximum_as_a_safe_conflict()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext, claimRun: true, codexObserved: true, maximumAgentAttempts: 5);
+        var runId = run.Id;
+
+        await using var raceContext = _fixture.CreateContext();
+        await using var handlerContext = _fixture.CreateContext();
+
+        var artifactStore = new FakeArtifactStore();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            async cancellationToken =>
+            {
+                // Terminal, never Running — this race must exercise only the (RunId,
+                // AgentBudgetSlot) index, never the separate one-Running-attempt-per-run
+                // invariant.
+                var competing = Attempt.ClaimAgentCriticalReview(
+                    Guid.NewGuid(), runId, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+                    TimeSpan.FromMinutes(10), 262144, 524288, Now, agentBudgetSlot: 1);
+                competing.Fail(Now);
+                raceContext.Attempts.Add(competing);
+                await raceContext.SaveChangesAsync(cancellationToken);
+            });
+
+        var handler = new CreateCodexPlanningAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateCodexPlanningAttemptCommand(runId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.budget_slot_conflict", Assert.Single(result.Errors).Code);
+
+        await using var verifyContext = _fixture.CreateContext();
+        // Only the race winner's attempt exists — the loser's own attempt was never persisted,
+        // and the budget remains far from exhausted (1 of 5 slots used).
+        Assert.Single(verifyContext.Attempts.Where(a => a.RunId == runId));
+    }
+
+    // Companion to the fact above: this time the exact slot the handler computes is also the
+    // run's last available slot, so losing the race genuinely does mean the budget is now
+    // exhausted — the one case where budget_exhausted must still be reported from this same
+    // DbUpdateException path.
+    [Fact]
+    public async Task HandleAsync_classifies_a_persisted_competing_slot_at_the_maximum_as_exhausted()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext, claimRun: true, codexObserved: true, maximumAgentAttempts: 1);
+        var runId = run.Id;
+
+        await using var raceContext = _fixture.CreateContext();
+        await using var handlerContext = _fixture.CreateContext();
+
+        var artifactStore = new FakeArtifactStore();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            async cancellationToken =>
+            {
+                var competing = Attempt.ClaimAgentCriticalReview(
+                    Guid.NewGuid(), runId, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+                    TimeSpan.FromMinutes(10), 262144, 524288, Now, agentBudgetSlot: 1);
+                competing.Fail(Now);
+                raceContext.Attempts.Add(competing);
+                await raceContext.SaveChangesAsync(cancellationToken);
+            });
+
+        var handler = new CreateCodexPlanningAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateCodexPlanningAttemptCommand(runId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+
+        await using var verifyContext = _fixture.CreateContext();
+        Assert.Single(verifyContext.Attempts.Where(a => a.RunId == runId));
     }
 
     // The run-wide invariant: a Codex plan must never be creatable while ANY attempt kind — not
@@ -506,7 +613,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandlerTests : IAsyncLifeti
         var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, claimRun: true);
         var priorAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         priorAttempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now);
         dbContext.Attempts.Add(priorAttempt);
         await dbContext.SaveChangesAsync(CancellationToken.None);

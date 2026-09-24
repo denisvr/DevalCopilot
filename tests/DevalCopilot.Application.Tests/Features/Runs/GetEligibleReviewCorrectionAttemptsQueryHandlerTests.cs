@@ -43,7 +43,7 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandlerTests : IAsyn
         var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, BitConverter.ToUInt64(physicalIdentity), physicalIdentity, Now);
         var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
         var manifestId = Guid.NewGuid();
-        var attempt = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, Now);
+        var attempt = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, Now, 1);
         if (dispatched) attempt.MarkAgentDispatched(Now);
 
         var reportId = Guid.NewGuid();

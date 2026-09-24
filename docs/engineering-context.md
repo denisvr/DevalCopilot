@@ -39,6 +39,8 @@
   role-scoped review-correction response contract.
 - [ADR-0011](decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md):
   Require administrator-provisioned policy before Gemini CLI execution.
+- [ADR-0012](decisions/0012-add-a-durable-run-wide-agent-claim-budget.md): Add
+  a durable run-wide Agent claim budget.
 
 ## Product-specific architecture
 

@@ -306,7 +306,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
 
             var owningAttempt = Attempt.ClaimAgent(
                 Guid.NewGuid(), runId, 1, workspaceId, staleCheckpoint.Id, staleCheckpoint.FingerprintSha256, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, now);
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
             owningAttempt.MarkAgentDispatched(now.AddSeconds(1));
             owningAttempt.CompleteAgent(AgentOutcome.Proposed, staleCheckpoint.FingerprintSha256, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(owningAttempt);
@@ -351,7 +351,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
 
             var priorReview = Attempt.ClaimAgentCriticalReview(
                 Guid.NewGuid(), runId, 2, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, now);
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 2);
             priorReview.MarkAgentDispatched(now.AddSeconds(1));
             priorReview.CompleteAgent(AgentOutcome.Accepted, MatchingFingerprint, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(priorReview);
@@ -420,7 +420,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
 
         var owningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now);
+            TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
         owningAttempt.MarkAgentDispatched(now.AddSeconds(1));
         if (ownerCompletesAsProposed)
         {

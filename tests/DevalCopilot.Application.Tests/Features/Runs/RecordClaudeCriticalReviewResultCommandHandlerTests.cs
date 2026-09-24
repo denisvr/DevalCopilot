@@ -44,7 +44,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         run.Claim(Now);
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), checkpointFingerprint ?? Fingerprint,
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), sequence: 0);
         return (project, run, attempt, inputMessage);
     }
@@ -367,7 +367,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         run.Claim(Now);
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         attempt.MarkAgentDispatched(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

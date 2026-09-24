@@ -29,23 +29,23 @@ public sealed class CollaborationMessageRecordAgentTests
 
     private static Attempt ClaimPlannerAttempt() => Dispatch(Attempt.ClaimAgent(
         Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
 
     private static Attempt ClaimCriticalReviewerAttempt() => Dispatch(Attempt.ClaimAgentCriticalReview(
         Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
 
     private static Attempt ClaimResolverAttempt() => Dispatch(Attempt.ClaimAgentChallengeResolution(
         Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
 
     private static Attempt ClaimImplementerAttempt() => Dispatch(Attempt.ClaimAgentImplementation(
         Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
 
     private static Attempt ClaimCodeReviewerAttempt() => Dispatch(Attempt.ClaimAgentCodeReview(
         Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+        TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
 
     /// <summary>
     /// Overwrites a private-setter property on an already-claimed Attempt purely to construct a
@@ -224,7 +224,7 @@ public sealed class CollaborationMessageRecordAgentTests
     {
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime);
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1);
 
         Assert.Throws<ArgumentException>(() => CollaborationMessage.RecordAgent(
             attempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal,

@@ -138,7 +138,7 @@ public sealed class AgentTokenUsageMigrationTests : IDisposable
 
             var implementation = Attempt.ClaimAgentImplementation(
                 Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint", Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 1024, 2048, now);
+                TimeSpan.FromMinutes(20), 1024, 2048, now, 1);
             implementation.MarkAgentDispatched(now);
             implementation.CompleteImplementation(
                 AgentOutcome.ProviderInvocationFailed, null, now.AddMinutes(20),
@@ -146,7 +146,7 @@ public sealed class AgentTokenUsageMigrationTests : IDisposable
 
             var criticalReview = Attempt.ClaimAgentCriticalReview(
                 Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), "fingerprint", Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 1024, 2048, now);
+                TimeSpan.FromMinutes(10), 1024, 2048, now, 2);
             criticalReview.MarkAgentDispatched(now);
             criticalReview.CompleteAgent(
                 AgentOutcome.ProviderInvocationFailed, null, now.AddMinutes(1),

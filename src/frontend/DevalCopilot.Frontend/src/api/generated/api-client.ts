@@ -2658,6 +2658,9 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     canStop?: boolean;
     latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
     tokenUsageSummary?: RunTokenUsageSummaryResponse;
+    maximumAgentAttempts?: number;
+    agentAttemptsUsed?: number;
+    agentBudgetExhausted?: boolean;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -2689,6 +2692,9 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.canStop = _data["canStop"];
             this.latestAgentAttempt = _data["latestAgentAttempt"] ? RunCockpitAgentAttemptResponse.fromJS(_data["latestAgentAttempt"]) : undefined as any;
             this.tokenUsageSummary = _data["tokenUsageSummary"] ? RunTokenUsageSummaryResponse.fromJS(_data["tokenUsageSummary"]) : undefined as any;
+            this.maximumAgentAttempts = _data["maximumAgentAttempts"];
+            this.agentAttemptsUsed = _data["agentAttemptsUsed"];
+            this.agentBudgetExhausted = _data["agentBudgetExhausted"];
         }
     }
 
@@ -2720,6 +2726,9 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["canStop"] = this.canStop;
         data["latestAgentAttempt"] = this.latestAgentAttempt ? this.latestAgentAttempt.toJSON() : undefined as any;
         data["tokenUsageSummary"] = this.tokenUsageSummary ? this.tokenUsageSummary.toJSON() : undefined as any;
+        data["maximumAgentAttempts"] = this.maximumAgentAttempts;
+        data["agentAttemptsUsed"] = this.agentAttemptsUsed;
+        data["agentBudgetExhausted"] = this.agentBudgetExhausted;
         return data;
     }
 }
@@ -2740,6 +2749,9 @@ export interface IGetRunCockpitResponse {
     canStop?: boolean;
     latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
     tokenUsageSummary?: RunTokenUsageSummaryResponse;
+    maximumAgentAttempts?: number;
+    agentAttemptsUsed?: number;
+    agentBudgetExhausted?: boolean;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {

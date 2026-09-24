@@ -404,7 +404,7 @@ public sealed class AgentProcessExecutionEvidenceTests
 
     private static Attempt ClaimPlanner() => Attempt.ClaimAgent(
         Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-        TimeSpan.FromMinutes(10), 1024, 2048, BaseTime);
+        TimeSpan.FromMinutes(10), 1024, 2048, BaseTime, 1);
 
     private static Attempt ClaimDispatchedPlanner()
     {
@@ -417,7 +417,7 @@ public sealed class AgentProcessExecutionEvidenceTests
     {
         var attempt = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 1024, 2048, BaseTime);
+            TimeSpan.FromMinutes(20), 1024, 2048, BaseTime, 1);
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
         return attempt;
     }
@@ -426,7 +426,7 @@ public sealed class AgentProcessExecutionEvidenceTests
     {
         var attempt = Attempt.ClaimAgentReviewCorrection(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(20), 1024, 2048, BaseTime);
+            TimeSpan.FromMinutes(20), 1024, 2048, BaseTime, 1);
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
         return attempt;
     }

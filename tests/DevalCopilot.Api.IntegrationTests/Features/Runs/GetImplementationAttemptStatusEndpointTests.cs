@@ -29,7 +29,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
             dbContext.Runs.Add(Run.RecordIntent(runId, projectId, 1, "Check assignment", now));
             dbContext.Attempts.Add(Attempt.ClaimAgentImplementation(
                 attemptId, runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('c', 64), Guid.NewGuid(),
-                TimeSpan.FromMinutes(20), 65536, 131072, now));
+                TimeSpan.FromMinutes(20), 65536, 131072, now, 1));
             await dbContext.SaveChangesAsync();
             await dbContext.Database.ExecuteSqlInterpolatedAsync(
                 $"UPDATE attempts SET AgentRequestedModel = {corruptSentinel} WHERE Id = {attemptId}");
@@ -76,7 +76,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
             var attempt = Attempt.ClaimAgentImplementationWithAssignment(
                 Guid.NewGuid(), runId, 1, workspaceId, checkpointId, new string('a', 64), Guid.NewGuid(),
                 TimeSpan.FromMinutes(20), 65536, 131072, now, requestedModel, requestedEffort,
-                AgentPermissionProfile.WorkspaceEditOnly, contractVersion);
+                AgentPermissionProfile.WorkspaceEditOnly, contractVersion, 1);
             attempt.MarkAgentDispatched(now);
             attempt.RecordAgentObservedAssignment(observedModel, observedEffort);
             attempt.CompleteImplementation(AgentOutcome.NoChangesProduced, null, now.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit);

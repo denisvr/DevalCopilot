@@ -58,6 +58,14 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
             .OrderByDescending(attempt => attempt.AttemptNumber)
             .FirstOrDefaultAsync(cancellationToken);
 
+        // The run-wide Agent claim-budget projection: every claimed Agent attempt permanently
+        // consumes one slot regardless of role, provider, dispatch, result, or interruption —
+        // distinct from, and never combined with, the review-correction-specific budget exposed
+        // by GetReviewCorrectionAttemptStatus.
+        var agentAttemptsUsed = await dbContext.Attempts
+            .AsNoTracking()
+            .CountAsync(attempt => attempt.RunId == run.Id && attempt.Kind == AttemptKind.Agent, cancellationToken);
+
         // Only the persisted usage members of dispatched Agent attempts are read — never a
         // prompt, output, path, or session identifier. Each row is reconstructed through the same
         // Domain rule as Attempt.GetAgentTokenUsageEvidence, so an inconsistent row counts as
@@ -110,6 +118,9 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 CanPause: false,
                 CanStop: false,
                 tokenUsageSummary,
+                run.MaximumAgentAttempts,
+                agentAttemptsUsed,
+                agentAttemptsUsed >= run.MaximumAgentAttempts,
                 latestAgentAttempt is null
                     ? null
                     : new RunCockpitAgentAttemptEntry(

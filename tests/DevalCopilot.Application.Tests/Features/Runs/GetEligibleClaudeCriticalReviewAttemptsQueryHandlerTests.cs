@@ -57,7 +57,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandlerTests : I
             checkpointId,
             Fingerprint,
             manifestArtifactId,
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         if (markDispatched)
         {
             attempt.MarkAgentDispatched(Now);
@@ -226,7 +226,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandlerTests : I
         var manifestArtifactId = Guid.NewGuid();
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 1, workspace.Id, Guid.NewGuid(), Fingerprint, manifestArtifactId,
-            TimeSpan.FromMinutes(10), 262144, 524288, Now);
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.GitWorkspaces.Add(workspace);

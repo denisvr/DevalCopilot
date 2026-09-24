@@ -71,6 +71,12 @@ public sealed class SimulatedRunFlowTests(SimulatedRunApiWebApplicationFactory f
         Assert.Null(cockpit.ActiveParticipant.Role);
         Assert.Null(cockpit.ActiveParticipant.Provider);
 
+        // A run that never claimed any Agent attempt still safely reports the run-wide Agent
+        // claim budget: its own default maximum, zero used, never exhausted.
+        Assert.Equal(16, cockpit.MaximumAgentAttempts);
+        Assert.Equal(0, cockpit.AgentAttemptsUsed);
+        Assert.False(cockpit.AgentBudgetExhausted);
+
         // Only events for THIS run: Sequence is a global monotonic counter shared by every
         // run in the database, so it is not expected to equal the event count once more
         // than one run exists.

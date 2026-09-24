@@ -199,7 +199,7 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
 
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), runId, 1, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now);
+            TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
         planningAttempt.MarkAgentDispatched(now.AddSeconds(1));
         planningAttempt.CompleteAgent(AgentOutcome.Proposed, startingCheckpoint.FingerprintSha256, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
@@ -213,7 +213,7 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
 
         var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), runId, 2, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2));
+            TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2), 2);
         acceptanceAttempt.MarkAgentDispatched(now.AddSeconds(2));
         acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, startingCheckpoint.FingerprintSha256, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(acceptanceAttempt);
@@ -228,7 +228,7 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
 
         var implementerAttempt = Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), runId, 3, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(3));
+            TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(3), 3);
         implementerAttempt.MarkAgentDispatched(now.AddSeconds(4));
         implementerAttempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(implementerAttempt);

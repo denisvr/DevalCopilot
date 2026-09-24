@@ -316,19 +316,19 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         {
             AgentResponseContract.Proposal => Attempt.ClaimAgent(
                 Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
-                TimeoutFor(contract), 65536, 131072, now),
+                TimeoutFor(contract), 65536, 131072, now, attemptNumber),
             AgentResponseContract.CriticalReview => Attempt.ClaimAgentCriticalReview(
                 Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
-                TimeoutFor(contract), 65536, 131072, now),
+                TimeoutFor(contract), 65536, 131072, now, attemptNumber),
             AgentResponseContract.ChallengeResolution => Attempt.ClaimAgentChallengeResolution(
                 Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
-                TimeoutFor(contract), 65536, 131072, now),
+                TimeoutFor(contract), 65536, 131072, now, attemptNumber),
             AgentResponseContract.ImplementationReview => Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
-                TimeoutFor(contract), 65536, 131072, now),
+                TimeoutFor(contract), 65536, 131072, now, attemptNumber),
             AgentResponseContract.ImplementationReport => Attempt.ClaimAgentImplementation(
                 Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
-                TimeoutFor(contract), 65536, 131072, now),
+                TimeoutFor(contract), 65536, 131072, now, attemptNumber),
             _ => throw new ArgumentOutOfRangeException(nameof(contract)),
         };
 

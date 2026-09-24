@@ -15,4 +15,7 @@ public sealed record GetRunCockpitResponse(
     bool CanPause,
     bool CanStop,
     RunCockpitAgentAttemptResponse? LatestAgentAttempt,
-    RunTokenUsageSummaryResponse TokenUsageSummary);
+    RunTokenUsageSummaryResponse TokenUsageSummary,
+    int MaximumAgentAttempts,
+    int AgentAttemptsUsed,
+    bool AgentBudgetExhausted);

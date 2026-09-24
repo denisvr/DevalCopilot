@@ -31,7 +31,8 @@ public sealed class AttemptTests
         timeout: timeout ?? TimeSpan.FromMinutes(10),
         maxBytesPerStream: maxBytesPerStream,
         maxTotalCapturedBytes: maxTotalCapturedBytes,
-        claimedAtUtc: BaseTime);
+        claimedAtUtc: BaseTime,
+        agentBudgetSlot: 1);
 
     private static Attempt ClaimReviewCorrectionAttempt() => Attempt.ClaimAgentReviewCorrection(
         Guid.NewGuid(),
@@ -44,7 +45,8 @@ public sealed class AttemptTests
         timeout: TimeSpan.FromMinutes(20),
         maxBytesPerStream: 262144,
         maxTotalCapturedBytes: 524288,
-        claimedAtUtc: BaseTime);
+        claimedAtUtc: BaseTime,
+        agentBudgetSlot: 1);
 
     [Fact]
     public void Claim_creates_a_simulated_attempt()
@@ -344,7 +346,7 @@ public sealed class AttemptTests
 
         var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, workspaceId, checkpointId,
-            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime);
+            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime, 1);
 
         Assert.Equal(AttemptKind.Agent, attempt.Kind);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
@@ -371,7 +373,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 0, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -379,7 +381,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.Empty, Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -387,7 +389,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.Empty,
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Theory]
@@ -398,7 +400,7 @@ public sealed class AttemptTests
     {
         Assert.ThrowsAny<ArgumentException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            fingerprint!, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            fingerprint!, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -406,7 +408,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Theory]
@@ -416,7 +418,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromSeconds(timeoutSeconds), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromSeconds(timeoutSeconds), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -424,7 +426,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), -1, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), -1, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -432,7 +434,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, -1, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, -1, BaseTime, 1));
     }
 
     [Fact]
@@ -662,7 +664,8 @@ public sealed class AttemptTests
         timeout: timeout ?? TimeSpan.FromMinutes(10),
         maxBytesPerStream: maxBytesPerStream,
         maxTotalCapturedBytes: maxTotalCapturedBytes,
-        claimedAtUtc: BaseTime);
+        claimedAtUtc: BaseTime,
+        agentBudgetSlot: 1);
 
     private static Attempt ClaimAgentChallengeResolutionAttempt(
         string checkpointFingerprintSha256 = "fingerprint-1",
@@ -679,7 +682,8 @@ public sealed class AttemptTests
         timeout: timeout ?? TimeSpan.FromMinutes(10),
         maxBytesPerStream: maxBytesPerStream,
         maxTotalCapturedBytes: maxTotalCapturedBytes,
-        claimedAtUtc: BaseTime);
+        claimedAtUtc: BaseTime,
+        agentBudgetSlot: 1);
 
     [Fact]
     public void ClaimAgentCriticalReview_creates_a_critical_review_attempt_with_its_durable_intent_persisted()
@@ -691,7 +695,7 @@ public sealed class AttemptTests
 
         var attempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, workspaceId, checkpointId,
-            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime);
+            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime, 1);
 
         Assert.Equal(AttemptKind.Agent, attempt.Kind);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
@@ -723,7 +727,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 0, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -731,7 +735,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.Empty, Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -739,7 +743,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.Empty,
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Theory]
@@ -750,7 +754,7 @@ public sealed class AttemptTests
     {
         Assert.ThrowsAny<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            fingerprint!, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            fingerprint!, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -758,7 +762,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Theory]
@@ -768,7 +772,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromSeconds(timeoutSeconds), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromSeconds(timeoutSeconds), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -776,7 +780,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), -1, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), -1, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -784,7 +788,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, -1, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, -1, BaseTime, 1));
     }
 
     [Fact]
@@ -797,7 +801,7 @@ public sealed class AttemptTests
 
         var attempt = Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, workspaceId, checkpointId,
-            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime);
+            "fingerprint-1", manifestArtifactId, timeout, 262144, 524288, BaseTime, 1);
 
         Assert.Equal(AttemptKind.Agent, attempt.Kind);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
@@ -824,7 +828,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), Guid.NewGuid(), 0, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -832,7 +836,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.Empty, Guid.NewGuid(),
-            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -840,7 +844,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentChallengeResolution(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(),
-            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            "fingerprint-1", Guid.Empty, TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Theory]
@@ -1047,7 +1051,8 @@ public sealed class AttemptTests
         timeout: timeout ?? TimeSpan.FromMinutes(10),
         maxBytesPerStream: maxBytesPerStream,
         maxTotalCapturedBytes: maxTotalCapturedBytes,
-        claimedAtUtc: BaseTime);
+        claimedAtUtc: BaseTime,
+        agentBudgetSlot: 1);
 
     [Fact]
     public void ClaimAgentImplementation_creates_an_implementation_attempt_with_its_durable_intent_persisted()
@@ -1068,7 +1073,8 @@ public sealed class AttemptTests
             timeout: timeout,
             maxBytesPerStream: 262144,
             maxTotalCapturedBytes: 524288,
-            claimedAtUtc: BaseTime);
+            claimedAtUtc: BaseTime,
+            agentBudgetSlot: 1);
 
         Assert.Equal(AttemptKind.Agent, attempt.Kind);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
@@ -1090,7 +1096,7 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => Attempt.ClaimAgentImplementation(
             Guid.NewGuid(), Guid.NewGuid(), attemptNumber, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
-            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+            Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
     }
 
     [Fact]
@@ -1218,7 +1224,7 @@ public sealed class AttemptTests
             AgentEffectKind.ReadOnly,
             Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
-                Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime).AgentEffect);
+                Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1).AgentEffect);
     }
 
     [Fact]
@@ -1240,11 +1246,11 @@ public sealed class AttemptTests
         AssertMatchesItsOwnContract(
             Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
-                Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime));
+                Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1));
         AssertMatchesItsOwnContract(
             Attempt.ClaimAgentReviewCorrection(
                 Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1",
-                Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, BaseTime));
+                Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, BaseTime, 1));
 
         static void AssertMatchesItsOwnContract(Attempt attempt)
         {

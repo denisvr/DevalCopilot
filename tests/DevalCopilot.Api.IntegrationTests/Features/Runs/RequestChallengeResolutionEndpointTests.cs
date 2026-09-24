@@ -139,7 +139,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
 
             var priorResolution = Attempt.ClaimAgentChallengeResolution(
                 Guid.NewGuid(), runId, 3, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, now);
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 3);
             priorResolution.MarkAgentDispatched(now.AddSeconds(1));
             priorResolution.CompleteAgent(AgentOutcome.Resolved, MatchingFingerprint, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(priorResolution);
@@ -208,7 +208,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
 
         var planningAttempt = Attempt.ClaimAgent(
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now);
+            TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
         planningAttempt.MarkAgentDispatched(now.AddSeconds(1));
         planningAttempt.CompleteAgent(AgentOutcome.Proposed, MatchingFingerprint, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
@@ -222,7 +222,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
 
         var reviewAttempt = Attempt.ClaimAgentCriticalReview(
             Guid.NewGuid(), runId, 2, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(3));
+            TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(3), 2);
         reviewAttempt.MarkAgentDispatched(now.AddSeconds(4));
         reviewAttempt.CompleteAgent(AgentOutcome.Challenged, MatchingFingerprint, now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(reviewAttempt);
