@@ -45,7 +45,7 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandlerT
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingResolution.MarkAgentDispatched(Now);
-        competingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        competingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -113,7 +113,7 @@ public sealed class RecordChallengeResolutionInputAlreadyResolvedCommandHandlerT
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         partialCompetingResolution.MarkAgentDispatched(Now);
-        partialCompetingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        partialCompetingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

@@ -40,6 +40,7 @@ public sealed class CodexImplementationReviewAdapter(IProcessExecutionAdapter pr
             outcome.Succeeded ? ImplementationReviewInvocationOutcome.Exited : ImplementationReviewInvocationOutcome.Failed,
             outcome.StandardOutputTruncated,
             outcome.StandardErrorTruncated,
-            outcome.ProviderSessionId);
+            outcome.ProviderSessionId,
+            outcome.ProcessEvidence);
     }
 }

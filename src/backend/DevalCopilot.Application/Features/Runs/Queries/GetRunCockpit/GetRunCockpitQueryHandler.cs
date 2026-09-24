@@ -52,6 +52,12 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
             autonomousDurationSeconds += (timeProvider.GetUtcNow() - run.LastAdvancedAtUtc).TotalSeconds;
         }
 
+        var latestAgentAttempt = await dbContext.Attempts
+            .AsNoTracking()
+            .Where(attempt => attempt.RunId == run.Id && attempt.Kind == AttemptKind.Agent)
+            .OrderByDescending(attempt => attempt.AttemptNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+
         var stageMap = StageSequence
             .Select(stage => new RunCockpitStageEntry(stage, IsCompleted: stage < run.Stage, IsActive: stage == run.Stage))
             .ToArray();
@@ -70,6 +76,18 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 latestSequence,
                 stageMap,
                 CanPause: false,
-                CanStop: false));
+                CanStop: false,
+                latestAgentAttempt is null
+                    ? null
+                    : new RunCockpitAgentAttemptEntry(
+                        latestAgentAttempt.Id,
+                        latestAgentAttempt.AttemptNumber,
+                        latestAgentAttempt.AgentRole,
+                        latestAgentAttempt.AgentProvider,
+                        latestAgentAttempt.Status,
+                        latestAgentAttempt.AgentOutcome,
+                        latestAgentAttempt.AgentDispatchedAtUtc,
+                        latestAgentAttempt.GetAgentProcessExecutionEvidence(),
+                        latestAgentAttempt.AgentTimeout)));
     }
 }

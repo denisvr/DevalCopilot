@@ -345,6 +345,45 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task A_cancelled_provider_process_records_its_host_measured_evidence_with_the_provider_failure()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call => call <= 3 ? SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint) : SequencedGitWorkspaceEvidenceReader.Matching(ResultFingerprint));
+        var adapter = new FakeImplementationReviewAdapter(_artifactStore)
+        {
+            ResultToReturn = new ImplementationReviewInvocationResult(
+                ImplementationReviewInvocationOutcome.Failed, false, false, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Cancelled, null, TimeSpan.FromSeconds(3))),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _, _, _, _) = await SeedEligibleCodeReviewAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            var status = await PollForTerminalStatusAsync(provider, attemptId);
+            Assert.Equal(AttemptStatus.Failed, status);
+
+            await Task.Delay(TimeSpan.FromMilliseconds(1200));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt!.AgentOutcome);
+        Assert.Empty(dbContext.CollaborationMessages.Where(m => m.AttemptId == attemptId));
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal(ProcessOutcome.Cancelled, persistedAttempt.AgentProcessOutcome);
+        Assert.Null(persistedAttempt.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromSeconds(3), persistedAttempt.AgentProcessDuration);
+    }
+
+    [Fact]
     public async Task An_invalid_final_response_is_recorded_as_invalid_structured_output()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call => call <= 3 ? SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint) : SequencedGitWorkspaceEvidenceReader.Matching(ResultFingerprint));
@@ -617,7 +656,7 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
         Assert.True((await mediator.SendAsync(
             new RecordAgentAttemptResultCommand(
                 runId, codexAttemptId, AgentOutcome.Proposed, Fingerprint, [],
-                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null),
+                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
 
         var proposalMessage = await dbContext.CollaborationMessages.SingleAsync(
@@ -632,7 +671,7 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
         var review = ClaudeCriticalReviewResponseParser.TryParse(AcceptFinalResponseJson);
         Assert.NotNull(review);
         Assert.True((await mediator.SendAsync(
-            new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Accepted, Fingerprint, [], review, null),
+            new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Accepted, Fingerprint, [], review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
 
         var createImplementationResult = await mediator.SendAsync(
@@ -647,7 +686,7 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
         var recordImplementationResult = await mediator.SendAsync(
             new RecordImplementationResultCommand(
                 runId, implementerAttemptId, true, new string('a', 40), ResultFingerprint,
-                [new GitWorkspaceChangedPath(ChangedRelativePath, null, "M", "M")], [], report, null),
+                [new GitWorkspaceChangedPath(ChangedRelativePath, null, "M", "M")], [], report, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
         Assert.True(recordImplementationResult.IsSuccess);
         Assert.Equal(AgentOutcome.Implemented, recordImplementationResult.Value.Outcome);
@@ -823,7 +862,7 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
                     Guid.NewGuid(), _runId, _competingAttemptNumber, _workspaceId, _checkpointId, fingerprintSha256,
                     Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now);
                 competing.MarkAgentDispatched(now);
-                competing.CompleteAgent(AgentOutcome.ReviewApproved, fingerprintSha256, now);
+                competing.CompleteAgent(AgentOutcome.ReviewApproved, fingerprintSha256, now, processEvidence: TestProcessEvidence.CleanExit);
                 freshDbContext.Attempts.Add(competing);
                 freshDbContext.AttemptInputMessages.Add(
                     AttemptInputMessage.Record(Guid.NewGuid(), competing.Id, _executionReportId, sequence: 0));
@@ -896,7 +935,7 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
         public string? FinalResponseJsonToWrite { get; set; }
 
         public ImplementationReviewInvocationResult ResultToReturn { get; set; } =
-            new(ImplementationReviewInvocationOutcome.Exited, false, false, null);
+            new(ImplementationReviewInvocationOutcome.Exited, false, false, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit);
 
         public async Task<ImplementationReviewInvocationResult> InvokeAsync(
             ImplementationReviewInvocationRequest request, CancellationToken cancellationToken)

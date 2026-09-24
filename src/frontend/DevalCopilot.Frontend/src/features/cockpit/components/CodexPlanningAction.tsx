@@ -1,4 +1,5 @@
 import type { AgentAttemptStatusResponse } from '../../../api/clients'
+import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 
 interface CodexPlanningActionProps {
   status: AgentAttemptStatusResponse | null
@@ -63,6 +64,13 @@ export function CodexPlanningAction({
         <p className="dc-codex-planning-status">
           Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
         </p>
+      )}
+      {status && (
+        <ProcessEvidenceLine
+          processExecution={status.processExecution}
+          dispatchedAtUtc={status.dispatchedAtUtc}
+          status={status.status}
+        />
       )}
       {(requestError ?? statusError) && (
         <p className="dc-codex-planning-error" role="status">

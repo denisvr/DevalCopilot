@@ -24,6 +24,7 @@ import { ImplementationAction } from './ImplementationAction'
 import { CodeReviewAction } from './CodeReviewAction'
 import { ReviewCorrectionAction } from './ReviewCorrectionAction'
 import { ConnectionBanner } from './ConnectionBanner'
+import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { RunHeader } from './RunHeader'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
@@ -101,6 +102,9 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
     <>
       <ConnectionBanner state={connection} syncError={syncError} />
       <RunHeader cockpit={cockpit} />
+      {/* A cockpit projection still held from the previously selected run is never rendered as
+          evidence for the newly selected one. */}
+      <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
         <div className="dc-collaboration-column">

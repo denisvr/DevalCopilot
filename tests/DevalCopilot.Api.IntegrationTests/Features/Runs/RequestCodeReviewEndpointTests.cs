@@ -201,7 +201,7 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
             Guid.NewGuid(), runId, 1, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, now);
         planningAttempt.MarkAgentDispatched(now.AddSeconds(1));
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, startingCheckpoint.FingerprintSha256, now.AddSeconds(2));
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, startingCheckpoint.FingerprintSha256, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
 
         var resolvedPlan = CollaborationMessage.Record(
@@ -215,7 +215,7 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
             Guid.NewGuid(), runId, 2, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2));
         acceptanceAttempt.MarkAgentDispatched(now.AddSeconds(2));
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, startingCheckpoint.FingerprintSha256, now.AddSeconds(2));
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, startingCheckpoint.FingerprintSha256, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(acceptanceAttempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, resolvedPlan.Id, 0));
         var acceptance = CollaborationMessage.Record(
@@ -230,7 +230,7 @@ public sealed class RequestCodeReviewEndpointTests : IDisposable
             Guid.NewGuid(), runId, 3, workspaceId, startingCheckpoint.Id, startingCheckpoint.FingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(3));
         implementerAttempt.MarkAgentDispatched(now.AddSeconds(4));
-        implementerAttempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, now.AddSeconds(5));
+        implementerAttempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(implementerAttempt);
 
         var executionReport = CollaborationMessage.Record(

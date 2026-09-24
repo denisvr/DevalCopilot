@@ -19,7 +19,9 @@ public sealed record CodeReviewAttemptStatusQueryResult(
     DateTimeOffset? ClaimedAtUtc,
     DateTimeOffset? DispatchedAtUtc,
     DateTimeOffset? CompletedAtUtc,
-    IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts)
+    IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
+    AgentProcessExecutionEvidence? ProcessExecution = null,
+    TimeSpan? Timeout = null)
 {
     public static readonly CodeReviewAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, []);

@@ -96,7 +96,8 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
             attempt.ClaimedAtUtc, attempt.AgentDispatchedAtUtc, attempt.CompletedAtUtc, artifacts,
             run.MaximumReviewCorrectionAttempts, correctionAttemptsUsed,
             correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts,
-            latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization));
+            latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization,
+            attempt.GetAgentProcessExecutionEvidence(), attempt.AgentTimeout));
     }
 
     private static bool HasExactInputs(

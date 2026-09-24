@@ -90,7 +90,7 @@ public sealed class ReviewCorrectionSupervisor(
 
         if (launchTarget is null)
         {
-            await RecordResultAsync(attempt, false, false, false, null, stoppingToken);
+            await RecordResultAsync(attempt, false, false, false, null, null, stoppingToken);
             return;
         }
 
@@ -105,22 +105,27 @@ public sealed class ReviewCorrectionSupervisor(
         }
         catch (OperationCanceledException)
         {
-            await RecordResultAsync(attempt, false, false, false, null, CancellationToken.None);
+            await RecordResultAsync(attempt, false, false, false, null, null, CancellationToken.None);
             return;
         }
         catch (Exception)
         {
             logger.LogError("review_correction_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
-            await RecordResultAsync(attempt, false, false, false, null, CancellationToken.None);
+            await RecordResultAsync(attempt, false, false, false, null, null, CancellationToken.None);
             return;
         }
 
+        // An Exited classification is trusted only when the host-measured evidence independently
+        // confirms a clean exit; contradictory or missing evidence never becomes a success.
+        var processSucceeded = invocation.Outcome == ImplementationInvocationOutcome.Exited
+            && invocation.ProcessEvidence is { IsCleanExit: true };
         await RecordResultAsync(
             attempt,
-            invocation.Outcome == ImplementationInvocationOutcome.Exited,
+            processSucceeded,
             invocation.StandardOutputTruncated,
             invocation.StandardErrorTruncated,
             invocation.ProviderSessionId,
+            invocation.ProcessEvidence,
             CancellationToken.None);
     }
 
@@ -130,6 +135,7 @@ public sealed class ReviewCorrectionSupervisor(
         bool standardOutputTruncated,
         bool standardErrorTruncated,
         string? providerSessionId,
+        AgentProcessEvidence? processEvidence,
         CancellationToken cancellationToken)
     {
         var completionEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, CancellationToken.None);
@@ -167,7 +173,8 @@ public sealed class ReviewCorrectionSupervisor(
                 evidenceAvailable ? completionEvidence.ChangedPaths : [],
                 sealedArtifacts,
                 correction,
-                providerSessionId), recordingTimeoutSource.Token);
+                providerSessionId,
+                processEvidence), recordingTimeoutSource.Token);
         }
         catch (Exception)
         {

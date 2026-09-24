@@ -1,8 +1,12 @@
 using System.Text.Json;
+using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.RecordChallengeResolutionResult;
+using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -77,7 +81,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         var resolution = Resolution(challengeMessageIds);
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, resolution, null),
+            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, resolution, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -127,7 +131,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
 
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, null, null),
+            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -172,7 +176,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         var resolution = Resolution(challenges.Select(c => c.CollaborationMessageId).ToList());
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, null, NoArtifacts, resolution, null),
+            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, null, NoArtifacts, resolution, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -194,7 +198,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
 
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, null, null),
+            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -218,7 +222,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         var incompleteResolution = Resolution([challenges[0].CollaborationMessageId]);
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, incompleteResolution, null),
+            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, incompleteResolution, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -252,7 +256,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
             [challenges[0].CollaborationMessageId, challenges[0].CollaborationMessageId, challenges[1].CollaborationMessageId]);
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, duplicateResolution, null),
+            new RecordChallengeResolutionResultCommand(run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, duplicateResolution, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -283,7 +287,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
             new RecordChallengeResolutionResultCommand(
-                run.Id, attempt.Id, AgentOutcome.InvalidStructuredOutput, null, NoArtifacts, resolution, null),
+                run.Id, attempt.Id, AgentOutcome.InvalidStructuredOutput, null, NoArtifacts, resolution, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -355,7 +359,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
             new RecordChallengeResolutionResultCommand(
-                run.Id, attempt.Id, AgentOutcome.Resolved, new string('b', 64), NoArtifacts, resolution, null),
+                run.Id, attempt.Id, AgentOutcome.Resolved, new string('b', 64), NoArtifacts, resolution, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -363,5 +367,58 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         Assert.Empty(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
         var journalEvent = Assert.Single(dbContext.Events.Where(e => e.AttemptId == attempt.Id));
         Assert.Equal(RunEventType.AgentAttemptCompleted, journalEvent.EventType);
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_cancellation_evidence_atomically_with_the_provider_failure()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt, originalProposal, challenges) = CreateClaimedChallengeResolutionAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(originalProposal);
+        dbContext.AttemptInputMessages.AddRange(challenges);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordChallengeResolutionResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ProviderInvocationFailed, null, NoArtifacts, null, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Cancelled, null, TimeSpan.FromSeconds(12))),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persisted.AgentOutcome);
+        Assert.Equal(ProcessOutcome.Cancelled, persisted.AgentProcessOutcome);
+        Assert.Null(persisted.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromSeconds(12), persisted.AgentProcessDuration);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_a_resolution_without_process_evidence()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt, originalProposal, challenges) = CreateClaimedChallengeResolutionAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(originalProposal);
+        dbContext.AttemptInputMessages.AddRange(challenges);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordChallengeResolutionResultCommand(
+                run.Id, attempt.Id, AgentOutcome.InvalidStructuredOutput, Fingerprint, NoArtifacts, null, null),
+            CancellationToken.None);
+
+        Assert.Equal(AgentProcessEvidenceRecording.CleanExitRequiredCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Null(attempt.AgentProcessOutcome);
     }
 }

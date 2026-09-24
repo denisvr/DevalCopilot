@@ -52,7 +52,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerReviewCorrectionTest
         var waiting = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
         var competing = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
         competing.MarkAgentDispatched(Now);
-        competing.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, Guid.NewGuid(), Now);
+        competing.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
 
         var reportId = Guid.NewGuid();
         var findingOneId = Guid.NewGuid();

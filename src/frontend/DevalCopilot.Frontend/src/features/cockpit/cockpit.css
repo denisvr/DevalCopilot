@@ -817,3 +817,24 @@
   font-size: 0.75rem;
   margin: 0.25rem 0 0;
 }
+
+/* Host-measured process evidence: always its own line, visually secondary to the semantic
+   outcome it accompanies. */
+.dc-process-evidence {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-latest-agent-attempt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0 1rem 0.5rem;
+}
+
+.dc-latest-agent-attempt-summary {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}

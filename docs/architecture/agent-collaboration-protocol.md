@@ -675,18 +675,24 @@ provider configuration:
 - context-manifest revision;
 - reported context usage and compaction outcome when available.
 
-The Codex Planning attempt, the Claude critical-review attempt, the Codex
-challenge-resolution attempt, and the Claude implementation attempt each
-record only a subset of this today: the provider, role, and response
-contract are each fixed by the attempt's own dedicated factory (never caller-supplied),
-and a provider-session identifier is captured on a best-effort basis only
-when the provider's own JSON output reports one — never required, never
-trusted for anything beyond this closed, cosmetic field, and not currently
-exposed through any API response. Model, reasoning effort, permission mode,
-context usage, and account usage are not recorded by an Agent attempt in this
-slice at all; they remain `Unknown` exactly as the host-runtime-preflight
-projection above already reports them, and no doc, response, or stored fact
-should be read as tracking or enforcing them yet.
+Every Agent attempt records only a subset of this today: the provider, role,
+and response contract are each fixed by the attempt's own dedicated factory
+(never caller-supplied), and a provider-session identifier is captured on a
+best-effort basis only when the provider's own JSON output reports one — never
+required, never trusted for anything beyond this closed, cosmetic field, and
+not currently exposed through any API response. The initial Implementer
+attempt additionally persists durable assignment facts: requested and observed
+model slots, requested and observed effort slots, a permission profile
+(`WorkspaceEditOnly`), and an adapter contract version
+(`claude-implementation-v1`). In practice its requested and observed model
+and effort currently remain null: no model or effort is requested, and the
+Claude adapter does not authoritatively report either, so nothing is
+inferred. There is still no provider selection — the initial Implementer
+remains fixed to Claude Code, no manual provider selection exists, and Gemini
+remains deferred by ADR-0011. Context usage and account usage are not recorded
+by any Agent attempt; they remain `Unknown` exactly as the
+host-runtime-preflight projection above already reports them, and no doc,
+response, or stored fact should be read as tracking or enforcing them yet.
 
 Adapters expose capabilities and supported values through typed queries. The
 application does not assume that Codex and Claude Code use equivalent names or
@@ -701,6 +707,54 @@ decisions, evidence, or raw artifacts from durable history.
 Provider account-usage snapshots are observation evidence rather than agent
 claims. A configured hard threshold participates in attempt eligibility and
 prevents a new invocation for only the affected provider.
+
+### Execution evidence versus semantic outcome
+
+Every Agent attempt keeps four kinds of facts apart, and none of them stands in
+for another:
+
+- **Semantic outcome** — `AgentOutcome` is the workflow classification of the
+  attempt (`Proposed`, `Challenged`, `Implemented`, `ProviderInvocationFailed`,
+  `SourceChanged`, and so on). It is decided by the role's own recording
+  handler from validated output and fresh Git evidence.
+- **Host-measured execution evidence** — how the provider child process
+  actually ended, measured by the host rather than reported by the provider:
+  `Exited`, `TimedOut`, or `Cancelled`; an exit code only for `Exited`; and a
+  non-negative duration, persisted at full tick resolution. It is recorded
+  once, atomically with the terminal outcome, and only for a dispatched
+  attempt whose process produced a real result. Every semantic success
+  outcome and `InvalidStructuredOutput` requires a clean exit (`Exited` with
+  code `0`) — as do `NoChangesProduced`, `ImplementationHeadChanged`,
+  `CorrectionNoChangesProduced`, and `CorrectionHeadChanged`, since each is
+  only ever classified once the process itself is already known to have
+  exited cleanly. A clean exit does not imply a semantic success — for
+  example, a zero exit with a rejected response is still
+  `ProviderInvocationFailed`. Every *other* failure outcome that can genuinely
+  follow a real invocation (`ProviderInvocationFailed`, `SourceChanged`,
+  `CheckpointEvidenceUnavailable`) may carry any real result, so a timeout, a
+  cancellation, or a non-zero exit remains distinguishable. `WorkspaceNoLongerEligible`
+  and every "input already handled" race outcome (`InputAlreadyReviewed`,
+  `InputAlreadyResolved`, `InputAlreadyImplemented`, `InputAlreadyCodeReviewed`,
+  `InputAlreadyCorrected`) are different in kind: each is always detected
+  before the provider is ever invoked, so none of them may ever carry process
+  evidence, regardless of the attempt's dispatch state. `SourceChanged` is
+  deliberately not in that group — it can be detected either before or after
+  a real invocation, so it may carry a real result when one exists.
+- **Provider-reported observations** — the observed model, observed effort,
+  and provider-session identifier are values the provider itself reported.
+  They are independent of process evidence and are never derived from it.
+- **Truthful absence** — an attempt that was never dispatched, whose invocation
+  failed before any process result existed, that a restart reconciled as
+  `Interrupted`, or that predates this evidence has no process evidence at all.
+  It is projected as unknown and is never fabricated or backfilled.
+
+The status API of each role and the run cockpit expose the evidence as a
+separate `processExecution` object beside the semantic `outcome`: its
+`outcome`, `exitCode`, `durationMilliseconds`, and the attempt's configured
+`timeoutMilliseconds`. It never includes an executable path, argument,
+environment value, output, context manifest, session identifier, or
+credential. Raw output is not a usage metric, and this evidence is not a
+token, cost, or account-usage measurement.
 
 ## Token efficiency
 

@@ -1,4 +1,7 @@
+using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationReviewResult;
+using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -76,7 +79,7 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
         var handler = new RecordImplementationReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
 
         var result = await handler.HandleAsync(
-            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, Fingerprint, NoArtifacts, review, null),
+            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -118,7 +121,7 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
         var handler = new RecordImplementationReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
 
         var result = await handler.HandleAsync(
-            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewChangesRequested, Fingerprint, NoArtifacts, review, null),
+            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewChangesRequested, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -151,7 +154,7 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
 
         var driftedFingerprint = new string('c', 64);
         var result = await handler.HandleAsync(
-            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, driftedFingerprint, NoArtifacts, review, null),
+            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, driftedFingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -187,7 +190,7 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
         var handler = new RecordImplementationReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
 
         var result = await handler.HandleAsync(
-            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, Fingerprint, NoArtifacts, review, null),
+            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -204,10 +207,38 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
         var handler = new RecordImplementationReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
 
         var result = await handler.HandleAsync(
-            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, null, NoArtifacts, review, null),
+            new RecordImplementationReviewResultCommand(run.Id, attempt.Id, AgentOutcome.ReviewApproved, null, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("agent_attempts.review_requires_completion_fingerprint", Assert.Single(result.Errors).Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_non_zero_exit_evidence_and_rejects_invalid_output_against_it()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (run, attempt, _, _) = await SeedClaimedCodeReviewAttemptAsync(dbContext);
+        var nonZero = new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 1, TimeSpan.FromSeconds(8));
+
+        var handler = new RecordImplementationReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var rejected = await handler.HandleAsync(
+            new RecordImplementationReviewResultCommand(
+                run.Id, attempt.Id, AgentOutcome.InvalidStructuredOutput, Fingerprint, NoArtifacts, null, null, nonZero),
+            CancellationToken.None);
+        Assert.Equal(AgentProcessEvidenceRecording.CleanExitRequiredCode, Assert.Single(rejected.Errors).Code);
+
+        var recorded = await handler.HandleAsync(
+            new RecordImplementationReviewResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ProviderInvocationFailed, null, NoArtifacts, null, null, nonZero),
+            CancellationToken.None);
+
+        Assert.True(recorded.IsSuccess);
+        await using var verification = _fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persisted.AgentOutcome);
+        Assert.Equal(ProcessOutcome.Exited, persisted.AgentProcessOutcome);
+        Assert.Equal(1, persisted.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromSeconds(8), persisted.AgentProcessDuration);
     }
 }

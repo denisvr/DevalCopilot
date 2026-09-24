@@ -22,4 +22,5 @@ public sealed record ReviewCorrectionAttemptStatusResponse(
     bool BudgetExhausted,
     Guid? EscalationId,
     Guid? EscalationMessageId,
-    bool HasAvailableHumanAuthorization);
+    bool HasAvailableHumanAuthorization,
+    AgentProcessExecutionResponse? ProcessExecution);

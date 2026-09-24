@@ -1,4 +1,5 @@
 import type { ReviewCorrectionAttemptStatusResponse } from '../../../api/clients'
+import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 
 interface ReviewCorrectionActionProps {
   reviewAttemptId: string | null
@@ -86,6 +87,13 @@ export function ReviewCorrectionAction({
         <p role="status">One additional correction attempt is authorized.</p>
       )}
       {status?.hasAttempt && !isActive && <p>Last correction #{status.attemptNumber}: {phaseLabel(status)}.</p>}
+      {status?.hasAttempt && (
+        <ProcessEvidenceLine
+          processExecution={status.processExecution}
+          dispatchedAtUtc={status.dispatchedAtUtc}
+          status={status.status}
+        />
+      )}
       {(requestError ?? authorizationError ?? statusError) && <p role="status">{requestError ?? authorizationError ?? statusError}</p>}
     </section>
   )

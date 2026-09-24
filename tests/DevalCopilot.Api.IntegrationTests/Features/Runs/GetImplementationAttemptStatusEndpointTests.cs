@@ -79,7 +79,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
                 AgentPermissionProfile.WorkspaceEditOnly, contractVersion);
             attempt.MarkAgentDispatched(now);
             attempt.RecordAgentObservedAssignment(observedModel, observedEffort);
-            attempt.CompleteImplementation(AgentOutcome.NoChangesProduced, null, now.AddSeconds(1));
+            attempt.CompleteImplementation(AgentOutcome.NoChangesProduced, null, now.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit);
 
             dbContext.Projects.Add(project);
             dbContext.Runs.Add(run);

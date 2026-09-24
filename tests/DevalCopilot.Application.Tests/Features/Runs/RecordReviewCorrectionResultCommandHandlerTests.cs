@@ -1,7 +1,10 @@
 using System.Text.Json;
+using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationResult;
 using DevalCopilot.Application.Features.Runs.Commands.RecordReviewCorrectionResult;
+using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
@@ -39,7 +42,7 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
         var result = await handler.HandleAsync(
             new RecordReviewCorrectionResultCommand(
                 seed.Run.Id, seed.CorrectionAttempt.Id, true, StartingHead, CorrectionFingerprint,
-                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], correction, null),
+                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], correction, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.IsFailure ? string.Join("; ", result.Errors.Select(error => error.Code)) : null);
@@ -83,7 +86,7 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
         var firstResult = await handler.HandleAsync(
             new RecordReviewCorrectionResultCommand(
                 seed.Run.Id, seed.CorrectionAttempt.Id, true, StartingHead, CorrectionFingerprint,
-                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], firstCorrection, null),
+                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], firstCorrection, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
         Assert.True(firstResult.IsSuccess, firstResult.IsFailure ? string.Join("; ", firstResult.Errors.Select(error => error.Code)) : null);
 
@@ -97,7 +100,7 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
             Guid.NewGuid(), seed.Run.Id, 6, seed.CorrectionAttempt.AgentGitWorkspaceId!.Value,
             firstCheckpoint.Id, firstCheckpoint.FingerprintSha256, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         secondReview.MarkAgentDispatched(Now);
-        secondReview.CompleteAgent(AgentOutcome.ReviewChangesRequested, firstCheckpoint.FingerprintSha256, Now);
+        secondReview.CompleteAgent(AgentOutcome.ReviewChangesRequested, firstCheckpoint.FingerprintSha256, Now, processEvidence: TestProcessEvidence.CleanExit);
         var secondFinding = CollaborationMessage.RecordAgent(
             secondReview,
             Guid.NewGuid(),
@@ -130,7 +133,7 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
         var result = await handler.HandleAsync(
             new RecordReviewCorrectionResultCommand(
                 seed.Run.Id, secondCorrection.Id, true, StartingHead, new string('e', 64),
-                [new GitWorkspaceChangedPath("src/Baz.cs", null, "M", " ")], [], secondCorrectionResult, null),
+                [new GitWorkspaceChangedPath("src/Baz.cs", null, "M", " ")], [], secondCorrectionResult, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.IsFailure ? string.Join("; ", result.Errors.Select(error => error.Code)) : null);
@@ -197,7 +200,7 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
         var result = await handler.HandleAsync(
             new RecordReviewCorrectionResultCommand(
                 seed.Run.Id, seed.CorrectionAttempt.Id, true, StartingHead, CorrectionFingerprint,
-                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], correction, null),
+                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], correction, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -223,7 +226,8 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
         var result = await handler.HandleAsync(
             new RecordReviewCorrectionResultCommand(
                 seed.Run.Id, seed.CorrectionAttempt.Id, processSucceeded, completionHead, completionFingerprint,
-                includeObservedPath ? [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")] : [], [], null, null),
+                includeObservedPath ? [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")] : [], [], null, null,
+                processSucceeded ? TestProcessEvidence.ReportedCleanExit : null),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess, result.IsFailure ? string.Join("; ", result.Errors.Select(error => error.Code)) : null);
@@ -244,7 +248,7 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
         var result = await handler.HandleAsync(
             new RecordReviewCorrectionResultCommand(
                 seed.Run.Id, seed.CorrectionAttempt.Id, true, completionHead, completionFingerprint,
-                includeObservedPath ? [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")] : [], [], null, null),
+                includeObservedPath ? [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")] : [], [], null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -269,7 +273,7 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
 
         var planner = Attempt.ClaimAgent(Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planner.MarkAgentDispatched(Now);
-        planner.CompleteAgent(AgentOutcome.Proposed, StartingFingerprint, Now);
+        planner.CompleteAgent(AgentOutcome.Proposed, StartingFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.RecordAgent(
             planner, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal,
             null, "Implement the requested change.", JsonSerializer.Serialize(new
@@ -283,21 +287,21 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
 
         var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         acceptanceAttempt.MarkAgentDispatched(Now);
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, StartingFingerprint, Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, StartingFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.RecordAgent(
             acceptanceAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance,
             proposal.Id, "Accepted the implementation plan.", JsonSerializer.Serialize(new { rationale = "The plan is complete." }), Now);
 
         var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
-        implementation.CompleteImplementation(AgentOutcome.Implemented, implementationCheckpoint.Id, Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, implementationCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(
             implementation, Guid.NewGuid(), proposal.Actor, CollaborationMessageType.ExecutionReport, proposal.Id,
             "Implemented the requested change.", JsonSerializer.Serialize(new { completedWork = "Updated the implementation.", verification = "Run tests." }), Now);
 
         var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, implementationCheckpoint.Id, ResultFingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         review.MarkAgentDispatched(Now);
-        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, ResultFingerprint, Now);
+        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, ResultFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var firstFinding = CollaborationMessage.RecordAgent(
             review, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.ReviewFinding,
             executionReport.Id, "Fix the null path.", JsonSerializer.Serialize(new { severity = "high", category = "correctness", evidence = "Null path", requiredChange = "Add guard" }), Now);
@@ -335,4 +339,46 @@ public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDataba
         CollaborationMessage SecondFinding,
         Attempt CorrectionAttempt,
         Guid StartingCheckpointId);
+
+    [Fact]
+    public async Task HandleAsync_persists_cancellation_evidence_atomically_with_the_provider_failure()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var seed = await SeedAsync(dbContext);
+        var handler = new RecordReviewCorrectionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+
+        var result = await handler.HandleAsync(
+            new RecordReviewCorrectionResultCommand(
+                seed.Run.Id, seed.CorrectionAttempt.Id, false, StartingHead, CorrectionFingerprint,
+                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], null, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Cancelled, null, TimeSpan.FromSeconds(6))),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess, result.IsFailure ? string.Join("; ", result.Errors.Select(error => error.Code)) : null);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == seed.CorrectionAttempt.Id);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persisted.AgentOutcome);
+        Assert.Equal(ProcessOutcome.Cancelled, persisted.AgentProcessOutcome);
+        Assert.Null(persisted.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromSeconds(6), persisted.AgentProcessDuration);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_a_successful_invocation_without_clean_exit_evidence()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var seed = await SeedAsync(dbContext);
+        var handler = new RecordReviewCorrectionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+
+        var result = await handler.HandleAsync(
+            new RecordReviewCorrectionResultCommand(
+                seed.Run.Id, seed.CorrectionAttempt.Id, true, StartingHead, CorrectionFingerprint,
+                [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], [], null, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromSeconds(6))),
+            CancellationToken.None);
+
+        Assert.Equal(AgentProcessEvidenceRecording.CleanExitRequiredCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, seed.CorrectionAttempt.Status);
+        Assert.Null(seed.CorrectionAttempt.AgentProcessOutcome);
+    }
 }

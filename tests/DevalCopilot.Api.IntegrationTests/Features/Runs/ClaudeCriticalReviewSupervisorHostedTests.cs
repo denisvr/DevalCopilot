@@ -331,6 +331,45 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         Assert.Equal(1, adapter.InvocationCount);
     }
 
+    [Fact]
+    public async Task A_non_zero_provider_exit_records_its_exit_code_with_the_provider_failure()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore)
+        {
+            FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson,
+            ResultToReturn = new CriticalReviewInvocationResult(
+                CriticalReviewInvocationOutcome.Failed, false, false, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 2, TimeSpan.FromMilliseconds(750))),
+        };
+
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            var status = await PollForTerminalStatusAsync(provider, attemptId);
+            Assert.Equal(AttemptStatus.Failed, status);
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt!.AgentOutcome);
+        Assert.Empty(dbContext.CollaborationMessages.Where(m => m.AttemptId == attemptId));
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal(ProcessOutcome.Exited, persistedAttempt.AgentProcessOutcome);
+        Assert.Equal(2, persistedAttempt.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromMilliseconds(750), persistedAttempt.AgentProcessDuration);
+    }
+
     /// <summary>
     /// A final response that does not conform to the Acceptance/Challenge union (here, an
     /// "accept" decision missing its required <c>rationale</c> field) is recorded as
@@ -593,7 +632,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         var recordResult = await mediator.SendAsync(
             new RecordAgentAttemptResultCommand(
                 runId, codexAttemptId, AgentOutcome.Proposed, Fingerprint, [],
-                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null),
+                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
         Assert.True(recordResult.IsSuccess);
 
@@ -755,7 +794,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
                     Guid.NewGuid(), _runId, _competingAttemptNumber, _workspaceId, _checkpointId, fingerprintSha256,
                     Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now);
                 competing.MarkAgentDispatched(now);
-                competing.CompleteAgent(AgentOutcome.Accepted, fingerprintSha256, now);
+                competing.CompleteAgent(AgentOutcome.Accepted, fingerprintSha256, now, processEvidence: TestProcessEvidence.CleanExit);
                 freshDbContext.Attempts.Add(competing);
                 freshDbContext.AttemptInputMessages.Add(
                     AttemptInputMessage.Record(Guid.NewGuid(), competing.Id, _proposalMessageId, sequence: 0));
@@ -786,7 +825,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         public string? FinalResponseJsonToWrite { get; set; }
 
         public CriticalReviewInvocationResult ResultToReturn { get; set; } =
-            new(CriticalReviewInvocationOutcome.Exited, false, false, null);
+            new(CriticalReviewInvocationOutcome.Exited, false, false, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit);
 
         public async Task<CriticalReviewInvocationResult> InvokeAsync(CriticalReviewInvocationRequest request, CancellationToken cancellationToken)
         {

@@ -125,7 +125,7 @@ public sealed class ImplementationSupervisor(
         {
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, observedModel: null,
-                observedEffort: null, CancellationToken.None);
+                observedEffort: null, processEvidence: null, CancellationToken.None);
             return;
         }
 
@@ -155,18 +155,23 @@ public sealed class ImplementationSupervisor(
             logger.LogError("implementation_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, observedModel: null,
-                observedEffort: null, CancellationToken.None);
+                observedEffort: null, processEvidence: null, CancellationToken.None);
             return;
         }
 
+        // An Exited classification is trusted only when the host-measured evidence independently
+        // confirms a clean exit; contradictory or missing evidence never becomes a success.
+        var processSucceeded = invocationResult.Outcome == ImplementationInvocationOutcome.Exited
+            && invocationResult.ProcessEvidence is { IsCleanExit: true };
         await RecordResultAsync(
             attempt,
-            invocationResult.Outcome == ImplementationInvocationOutcome.Exited,
+            processSucceeded,
             invocationResult.StandardOutputTruncated,
             invocationResult.StandardErrorTruncated,
             invocationResult.ProviderSessionId,
             invocationResult.ObservedModel,
             invocationResult.ObservedEffort,
+            invocationResult.ProcessEvidence,
             CancellationToken.None);
     }
 
@@ -178,6 +183,7 @@ public sealed class ImplementationSupervisor(
         string? providerSessionId,
         string? observedModel,
         string? observedEffort,
+        AgentProcessEvidence? processEvidence,
         CancellationToken cancellationToken)
     {
         // Always captured, regardless of processSucceeded: this is the one role whose
@@ -226,7 +232,8 @@ public sealed class ImplementationSupervisor(
                     report,
                     providerSessionId,
                     observedModel,
-                    observedEffort),
+                    observedEffort,
+                    processEvidence),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

@@ -11,4 +11,5 @@ public sealed record AgentAttemptStatusResponse(
     DateTimeOffset? ClaimedAtUtc,
     DateTimeOffset? DispatchedAtUtc,
     DateTimeOffset? CompletedAtUtc,
-    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts);
+    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts,
+    AgentProcessExecutionResponse? ProcessExecution);

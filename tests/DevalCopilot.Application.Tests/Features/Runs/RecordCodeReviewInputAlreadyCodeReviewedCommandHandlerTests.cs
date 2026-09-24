@@ -80,7 +80,7 @@ public sealed class RecordCodeReviewInputAlreadyCodeReviewedCommandHandlerTests(
 
         var competingReview = CreateClaimedCodeReviewAttempt(run.Id, workspace.Id, checkpoint.Id, 2);
         competingReview.MarkAgentDispatched(Now);
-        competingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now);
+        competingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         var inputMessages = new List<AttemptInputMessage>();
         var evidenceRows = new List<AttemptVerificationEvidence>();
@@ -157,7 +157,7 @@ public sealed class RecordCodeReviewInputAlreadyCodeReviewedCommandHandlerTests(
 
         var partialCompetingReview = CreateClaimedCodeReviewAttempt(run.Id, workspace.Id, checkpoint.Id, 2);
         partialCompetingReview.MarkAgentDispatched(Now);
-        partialCompetingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now);
+        partialCompetingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         var inputMessages = new List<AttemptInputMessage>();
         var evidenceRows = new List<AttemptVerificationEvidence>();

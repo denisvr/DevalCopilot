@@ -54,6 +54,8 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
             attempt.ClaimedAtUtc,
             attempt.AgentDispatchedAtUtc,
             attempt.CompletedAtUtc,
-            artifacts));
+            artifacts,
+            attempt.GetAgentProcessExecutionEvidence(),
+            attempt.AgentTimeout));
     }
 }

@@ -173,4 +173,28 @@ public sealed class ReconcileInterruptedImplementationAttemptsCommandHandlerTest
         var persistedPlannerAttempt = await dbContext.Attempts.SingleAsync(a => a.Id == plannerAttempt.Id);
         Assert.Equal(AttemptStatus.Running, persistedPlannerAttempt.Status);
     }
+
+    [Fact]
+    public async Task HandleAsync_never_invents_process_evidence_and_preserves_assignment_facts_for_an_interrupted_implementation()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, _, attempt) = await SeedRunningImplementerAttemptAsync(dbContext, dispatched: true);
+
+        var evidence = new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null);
+        var handler = new ReconcileInterruptedImplementationAttemptsCommandHandler(
+            dbContext, new FakeGitWorkspaceEvidenceReader(evidence), new FixedTimeProvider(Now.AddMinutes(1)));
+
+        var result = await handler.HandleAsync(new ReconcileInterruptedImplementationAttemptsCommand(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = _fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Interrupted, persisted.Status);
+        Assert.NotNull(persisted.AgentDispatchedAtUtc);
+        Assert.Null(persisted.AgentOutcome);
+        Assert.Null(persisted.GetAgentProcessExecutionEvidence());
+        Assert.Null(persisted.AgentProcessOutcome);
+        Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, persisted.AgentPermissionProfile);
+        Assert.Equal("claude-implementation-v1", persisted.AgentAdapterContractVersion);
+    }
 }

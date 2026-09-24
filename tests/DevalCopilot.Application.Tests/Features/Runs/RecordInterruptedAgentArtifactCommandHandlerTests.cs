@@ -204,7 +204,7 @@ public sealed class RecordInterruptedAgentArtifactCommandHandlerTests : IAsyncLi
 
     public static TheoryData<Action<Attempt, DateTimeOffset>> NonRunningStates() => new()
     {
-        (attempt, now) => attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, now),
+        (attempt, now) => attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit),
         (attempt, now) => attempt.Fail(now),
         (attempt, now) => attempt.Interrupt(now),
     };

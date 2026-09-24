@@ -120,6 +120,8 @@ export type {
   RequestReviewCorrectionResponse,
   ReviewCorrectionAttemptStatusResponse,
   AuthorizeReviewCorrectionResponse,
+  AgentProcessExecutionResponse,
+  RunCockpitAgentAttemptResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,

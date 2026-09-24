@@ -4,4 +4,5 @@ public sealed record ReviewCorrectionInvocationResult(
     ImplementationInvocationOutcome Outcome,
     bool StandardOutputTruncated,
     bool StandardErrorTruncated,
-    string? ProviderSessionId);
+    string? ProviderSessionId,
+    AgentProcessEvidence? ProcessEvidence = null);

@@ -65,6 +65,8 @@ public sealed class GetChallengeResolutionAttemptStatusQueryHandler(IDevalCopilo
             attempt.ClaimedAtUtc,
             attempt.AgentDispatchedAtUtc,
             attempt.CompletedAtUtc,
-            artifacts));
+            artifacts,
+            attempt.GetAgentProcessExecutionEvidence(),
+            attempt.AgentTimeout));
     }
 }

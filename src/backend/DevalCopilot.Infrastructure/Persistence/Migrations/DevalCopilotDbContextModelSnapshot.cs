@@ -733,6 +733,16 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("AgentProcessDuration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AgentProcessExitCode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AgentProcessOutcome")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("AgentProtocolVersion")
                         .HasMaxLength(16)
                         .HasColumnType("TEXT");

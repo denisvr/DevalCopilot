@@ -132,7 +132,7 @@ public sealed class AttemptTests
         var resultCheckpointId = Guid.NewGuid();
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, resultCheckpointId, BaseTime.AddSeconds(2));
+        attempt.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, resultCheckpointId, BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Completed, attempt.Status);
         Assert.Equal(AgentOutcome.CorrectionApplied, attempt.AgentOutcome);
@@ -150,8 +150,14 @@ public sealed class AttemptTests
     public void CompleteReviewCorrection_records_non_successful_outcomes_without_a_result_checkpoint(AgentOutcome outcome)
     {
         var attempt = ClaimReviewCorrectionAttempt();
+        var requiresCleanExit = AgentProcessEvidencePolicy.RequiresCleanExit(outcome);
+        if (requiresCleanExit)
+        {
+            attempt.MarkAgentDispatched(BaseTime);
+        }
 
-        attempt.CompleteReviewCorrection(outcome, resultGitCheckpointId: null, BaseTime.AddSeconds(1));
+        attempt.CompleteReviewCorrection(
+            outcome, resultGitCheckpointId: null, BaseTime.AddSeconds(1), requiresCleanExit ? TestProcessEvidence.CleanExit : null);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(outcome, attempt.AgentOutcome);
@@ -164,7 +170,7 @@ public sealed class AttemptTests
         var attempt = ClaimReviewCorrectionAttempt();
 
         Assert.Throws<InvalidOperationException>(() => attempt.CompleteReviewCorrection(
-            AgentOutcome.CorrectionApplied, Guid.NewGuid(), BaseTime.AddSeconds(1)));
+            AgentOutcome.CorrectionApplied, Guid.NewGuid(), BaseTime.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Theory]
@@ -499,7 +505,7 @@ public sealed class AttemptTests
     {
         var attempt = ClaimAgentAttempt();
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
-        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Throws<InvalidOperationException>(() => attempt.RecordAgentProviderSessionId("session-abc"));
     }
@@ -521,7 +527,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentAttempt(checkpointFingerprintSha256: "fingerprint-1");
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Completed, attempt.Status);
         Assert.Equal(AgentOutcome.Proposed, attempt.AgentOutcome);
@@ -537,7 +543,11 @@ public sealed class AttemptTests
         var attempt = ClaimAgentAttempt();
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteAgent(outcome, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(
+            outcome,
+            completionFingerprintSha256: "fingerprint-1",
+            BaseTime.AddSeconds(2),
+            AgentProcessEvidencePolicy.RequiresCleanExit(outcome) ? TestProcessEvidence.CleanExit : null);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(outcome, attempt.AgentOutcome);
@@ -552,7 +562,7 @@ public sealed class AttemptTests
         // The caller believes the outcome is a successful Proposal, but fresh Git evidence
         // disagrees with what this attempt committed to at claim time — the override rule
         // must win regardless of what the caller passed as `outcome`.
-        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(AgentOutcome.SourceChanged, attempt.AgentOutcome);
@@ -578,7 +588,7 @@ public sealed class AttemptTests
         var attempt = Attempt.ClaimProcess(Guid.NewGuid(), Guid.NewGuid(), 1, CreateIntent(), BaseTime);
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: null, BaseTime.AddSeconds(1)));
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: null, BaseTime.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -586,10 +596,10 @@ public sealed class AttemptTests
     {
         var attempt = ClaimAgentAttempt();
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
-        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(3)));
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(3), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -610,7 +620,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentAttempt(checkpointFingerprintSha256: "fingerprint-1");
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1)));
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     // Domain-level backstop: a Proposal is never observable without fresh completion evidence
@@ -622,7 +632,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: null, BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: null, BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -841,7 +851,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteAgent(outcome, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(outcome, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Completed, attempt.Status);
         Assert.Equal(outcome, attempt.AgentOutcome);
@@ -867,7 +877,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -876,7 +886,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(AgentOutcome.SourceChanged, attempt.AgentOutcome);
@@ -888,7 +898,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentCriticalReviewAttempt(checkpointFingerprintSha256: "fingerprint-1");
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1)));
+            () => attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -898,7 +908,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: null, BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Accepted, completionFingerprintSha256: null, BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     /// <summary>
@@ -942,7 +952,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Completed, attempt.Status);
         Assert.Equal(AgentOutcome.Resolved, attempt.AgentOutcome);
@@ -956,7 +966,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -966,7 +976,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -976,7 +986,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Proposed, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Theory]
@@ -997,7 +1007,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-2", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(AgentOutcome.SourceChanged, attempt.AgentOutcome);
@@ -1009,7 +1019,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentChallengeResolutionAttempt(checkpointFingerprintSha256: "fingerprint-1");
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1)));
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -1019,7 +1029,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: null, BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Resolved, completionFingerprintSha256: null, BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     private static Attempt ClaimAgentImplementationAttempt(
@@ -1090,7 +1100,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
         var resultCheckpointId = Guid.NewGuid();
 
-        attempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, BaseTime.AddSeconds(2));
+        attempt.CompleteImplementation(AgentOutcome.Implemented, resultCheckpointId, BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Completed, attempt.Status);
         Assert.Equal(AgentOutcome.Implemented, attempt.AgentOutcome);
@@ -1110,7 +1120,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentImplementationAttempt(checkpointFingerprintSha256: "fingerprint-1");
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(2));
+        attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AgentOutcome.Implemented, attempt.AgentOutcome);
         Assert.NotEqual(AgentOutcome.SourceChanged, attempt.AgentOutcome);
@@ -1122,7 +1132,8 @@ public sealed class AttemptTests
         var attempt = ClaimAgentImplementationAttempt();
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteImplementation(AgentOutcome.NoChangesProduced, resultGitCheckpointId: null, BaseTime.AddSeconds(2));
+        attempt.CompleteImplementation(
+            AgentOutcome.NoChangesProduced, resultGitCheckpointId: null, BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(AgentOutcome.NoChangesProduced, attempt.AgentOutcome);
@@ -1138,7 +1149,11 @@ public sealed class AttemptTests
         var attempt = ClaimAgentImplementationAttempt();
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
-        attempt.CompleteImplementation(outcome, resultGitCheckpointId: null, BaseTime.AddSeconds(2));
+        attempt.CompleteImplementation(
+            outcome,
+            resultGitCheckpointId: null,
+            BaseTime.AddSeconds(2),
+            AgentProcessEvidencePolicy.RequiresCleanExit(outcome) ? TestProcessEvidence.CleanExit : null);
 
         Assert.Equal(AttemptStatus.Failed, attempt.Status);
         Assert.Equal(outcome, attempt.AgentOutcome);
@@ -1150,7 +1165,7 @@ public sealed class AttemptTests
         var attempt = ClaimAgentImplementationAttempt();
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(1)));
+            () => attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(1), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -1160,7 +1175,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<ArgumentException>(
-            () => attempt.CompleteImplementation(AgentOutcome.Implemented, resultGitCheckpointId: null, BaseTime.AddSeconds(2)));
+            () => attempt.CompleteImplementation(AgentOutcome.Implemented, resultGitCheckpointId: null, BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -1180,7 +1195,7 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(2)));
+            () => attempt.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 
     [Fact]
@@ -1251,6 +1266,6 @@ public sealed class AttemptTests
         attempt.MarkAgentDispatched(BaseTime.AddSeconds(1));
 
         Assert.Throws<InvalidOperationException>(
-            () => attempt.CompleteAgent(AgentOutcome.Implemented, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2)));
+            () => attempt.CompleteAgent(AgentOutcome.Implemented, completionFingerprintSha256: "fingerprint-1", BaseTime.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit));
     }
 }

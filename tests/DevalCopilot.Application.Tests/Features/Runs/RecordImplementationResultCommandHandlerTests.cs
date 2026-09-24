@@ -1,8 +1,12 @@
+using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationResult;
+using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -72,7 +76,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
                 run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts,
-                Report(["src/Foo.cs"]), null),
+                Report(["src/Foo.cs"]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -109,7 +113,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
                 run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts,
-                Report(["src/Foo.cs"]), null),
+                Report(["src/Foo.cs"]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -129,7 +133,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, StartingFingerprint, [], NoArtifacts, Report([]), null),
+                run.Id, attempt.Id, true, StartingHeadSha, StartingFingerprint, [], NoArtifacts, Report([]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -152,7 +156,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
                 run.Id, attempt.Id, true, StartingHeadSha, StartingFingerprint, [], NoArtifacts, Report([]), null,
-                ObservedModel: "provider-observed-model", ObservedEffort: null),
+                ObservedModel: "provider-observed-model", ObservedEffort: null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -210,7 +214,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         var handler = new RecordImplementationResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
 
         var result = await handler.HandleAsync(
-            new RecordImplementationResultCommand(run.Id, attempt.Id, true, null, null, [], NoArtifacts, null, null),
+            new RecordImplementationResultCommand(run.Id, attempt.Id, true, null, null, [], NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -256,7 +260,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                r.Id, att.Id, true, StartingHeadSha, ChangedFingerprint, [], NoArtifacts, Report([]), null),
+                r.Id, att.Id, true, StartingHeadSha, ChangedFingerprint, [], NoArtifacts, Report([]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -281,7 +285,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
                 run.Id, attempt.Id, true,
                 malformedHead ?? StartingHeadSha,
                 malformedFingerprint ?? StartingFingerprint,
-                [], NoArtifacts, null, null),
+                [], NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -308,7 +312,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, Report(["src/Foo.cs"]), null),
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, Report(["src/Foo.cs"]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -328,7 +332,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, Report(["../outside.cs"]), null),
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, Report(["../outside.cs"]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -351,7 +355,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, Report(["src/Foo.cs"]), null),
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, Report(["src/Foo.cs"]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -377,7 +381,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, unsafeReport, null),
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, unsafeReport, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         // A supplied-but-invalid report is a malformed command-boundary object, never silently
@@ -410,7 +414,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, duplicatePathReport, null),
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts, duplicatePathReport, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -437,7 +441,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
                 run.Id, attempt.Id, true, ChangedHeadSha, ChangedFingerprint, observedPaths, NoArtifacts,
-                Report(["src/Foo.cs"]), null),
+                Report(["src/Foo.cs"]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -473,7 +477,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, [], NoArtifacts, Report([]), null),
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, [], NoArtifacts, Report([]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -497,7 +501,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
                 run.Id, attempt.Id, true,
                 headPresent ? StartingHeadSha : null,
                 fingerprintPresent ? StartingFingerprint : null,
-                [], NoArtifacts, null, null),
+                [], NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -516,7 +520,7 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
         var handler = new RecordImplementationResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
 
         var result = await handler.HandleAsync(
-            new RecordImplementationResultCommand(run.Id, attempt.Id, true, null, null, observedPaths, NoArtifacts, null, null),
+            new RecordImplementationResultCommand(run.Id, attempt.Id, true, null, null, observedPaths, NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -536,12 +540,108 @@ public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabase
 
         var result = await handler.HandleAsync(
             new RecordImplementationResultCommand(
-                run.Id, attempt.Id, true, StartingHeadSha, StartingFingerprint, observedPaths, NoArtifacts, null, null),
+                run.Id, attempt.Id, true, StartingHeadSha, StartingFingerprint, observedPaths, NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
         Assert.Equal("agent_attempts.incoherent_completion_evidence", Assert.Single(result.Errors).Code);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
         Assert.Equal(WorkspaceStatus.Ready, workspace.Status);
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_timeout_evidence_atomically_with_the_provider_failure()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (_, run, _, attempt) = await SeedAndDispatchAsync(dbContext);
+
+        var handler = new RecordImplementationResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordImplementationResultCommand(
+                run.Id, attempt.Id, false, StartingHeadSha, StartingFingerprint, [], NoArtifacts, null, null,
+                ProcessEvidence: new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromMinutes(20))),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persisted.AgentOutcome);
+        Assert.Equal(AttemptStatus.Failed, persisted.Status);
+        Assert.Equal(ProcessOutcome.TimedOut, persisted.AgentProcessOutcome);
+        Assert.Null(persisted.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromMinutes(20), persisted.AgentProcessDuration);
+        Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, persisted.AgentPermissionProfile);
+        Assert.Equal("claude-implementation-v1", persisted.AgentAdapterContractVersion);
+    }
+
+    [Fact]
+    public async Task HandleAsync_never_fabricates_evidence_when_the_invocation_produced_no_process_result()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (_, run, _, attempt) = await SeedAndDispatchAsync(dbContext);
+
+        var handler = new RecordImplementationResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordImplementationResultCommand(
+                run.Id, attempt.Id, false, StartingHeadSha, StartingFingerprint, [], NoArtifacts, null, null),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persisted.AgentOutcome);
+        Assert.Null(persisted.AgentProcessOutcome);
+        Assert.Null(persisted.AgentProcessExitCode);
+        Assert.Null(persisted.AgentProcessDuration);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HandleAsync_rejects_a_successful_invocation_whose_evidence_is_missing_or_not_a_clean_exit(bool includeNonZeroEvidence)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (_, run, workspace, attempt) = await SeedAndDispatchAsync(dbContext);
+
+        var observedPaths = new[] { new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ") };
+        var handler = new RecordImplementationResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordImplementationResultCommand(
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts,
+                Report(["src/Foo.cs"]), null,
+                ProcessEvidence: includeNonZeroEvidence
+                    ? new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 1, TimeSpan.FromSeconds(1))
+                    : null),
+            CancellationToken.None);
+
+        Assert.Equal(AgentProcessEvidenceRecording.CleanExitRequiredCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Equal(WorkspaceStatus.Ready, workspace.Status);
+        await using var verification = fixture.CreateContext();
+        Assert.Single(verification.GitCheckpoints.Where(checkpoint => checkpoint.WorkspaceId == workspace.Id));
+        Assert.Null((await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id)).AgentProcessOutcome);
+    }
+
+    [Fact]
+    public async Task HandleAsync_records_clean_exit_evidence_together_with_Implemented()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (_, run, _, attempt) = await SeedAndDispatchAsync(dbContext);
+
+        var observedPaths = new[] { new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ") };
+        var handler = new RecordImplementationResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordImplementationResultCommand(
+                run.Id, attempt.Id, true, StartingHeadSha, ChangedFingerprint, observedPaths, NoArtifacts,
+                Report(["src/Foo.cs"]), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AgentOutcome.Implemented, persisted.AgentOutcome);
+        Assert.NotNull(persisted.AgentResultGitCheckpointId);
+        Assert.Equal(TestProcessEvidence.CleanExit, persisted.GetAgentProcessExecutionEvidence());
     }
 }

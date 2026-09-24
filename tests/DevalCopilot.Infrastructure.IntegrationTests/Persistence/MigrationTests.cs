@@ -611,7 +611,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         await context.SaveChangesAsync();
 
         attempt.MarkAgentDispatched(now);
-        attempt.CompleteAgent(AgentOutcome.Accepted, "sha256:fingerprint", now);
+        attempt.CompleteAgent(AgentOutcome.Accepted, "sha256:fingerprint", now, processEvidence: TestProcessEvidence.CleanExit);
 
         var acceptance = CollaborationMessage.Record(
             Guid.NewGuid(),

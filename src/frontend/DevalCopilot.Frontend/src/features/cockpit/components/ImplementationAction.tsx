@@ -1,4 +1,5 @@
 import type { ImplementationAttemptStatusResponse } from '../../../api/clients'
+import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 
 interface ImplementationActionProps {
   planProposalMessageId: string | null
@@ -95,6 +96,13 @@ export function ImplementationAction({
           {formatFact(status.observedModel)} · Effort requested: {formatFact(status.requestedEffort)} · Effort observed:{' '}
           {formatFact(status.observedEffort)} · {permissionProfile} · Adapter contract: {adapterContract}
         </p>
+      )}
+      {status && hasAttempt && (
+        <ProcessEvidenceLine
+          processExecution={status.processExecution}
+          dispatchedAtUtc={status.dispatchedAtUtc}
+          status={status.status}
+        />
       )}
       {status && !isActive && (
         <div className="dc-implementation-result">

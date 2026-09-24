@@ -271,6 +271,47 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task A_timed_out_provider_process_records_its_host_measured_evidence_with_the_provider_failure()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeChallengeResolutionAdapter(_artifactStore)
+        {
+            ResultToReturn = new ChallengeResolutionInvocationResult(
+                ChallengeResolutionInvocationOutcome.Failed, false, false, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromMinutes(10))),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _, _) = await SeedEligibleChallengeResolutionAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            var status = await PollForTerminalStatusAsync(provider, attemptId);
+            Assert.Equal(AttemptStatus.Failed, status);
+
+            // Several more poll ticks pass here while the attempt sits terminal, to prove it is
+            // never retried.
+            await Task.Delay(TimeSpan.FromMilliseconds(1200));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt!.AgentOutcome);
+        Assert.Empty(dbContext.CollaborationMessages.Where(m => m.AttemptId == attemptId));
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal(ProcessOutcome.TimedOut, persistedAttempt.AgentProcessOutcome);
+        Assert.Null(persistedAttempt.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromMinutes(10), persistedAttempt.AgentProcessDuration);
+    }
+
+    [Fact]
     public async Task A_final_response_that_omits_a_challenge_is_recorded_as_invalid_structured_output()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
@@ -464,7 +505,7 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
         Assert.True((await mediator.SendAsync(
             new RecordAgentAttemptResultCommand(
                 runId, codexAttemptId, AgentOutcome.Proposed, Fingerprint, [],
-                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null),
+                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
 
         var proposalMessage = await dbContext.CollaborationMessages.SingleAsync(
@@ -479,7 +520,7 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
         var review = ClaudeCriticalReviewResponseParser.TryParse(ChallengeFinalResponseJson);
         Assert.NotNull(review);
         Assert.True((await mediator.SendAsync(
-            new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Challenged, Fingerprint, [], review, null),
+            new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Challenged, Fingerprint, [], review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
 
         var challengeIds = dbContext.CollaborationMessages
@@ -631,7 +672,7 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
                     Guid.NewGuid(), _runId, _competingAttemptNumber, _workspaceId, _checkpointId, fingerprintSha256,
                     Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, now);
                 competing.MarkAgentDispatched(now);
-                competing.CompleteAgent(AgentOutcome.Resolved, fingerprintSha256, now);
+                competing.CompleteAgent(AgentOutcome.Resolved, fingerprintSha256, now, processEvidence: TestProcessEvidence.CleanExit);
                 freshDbContext.Attempts.Add(competing);
                 for (var index = 0; index < orderedInputMessageIds.Count; index++)
                 {
@@ -657,7 +698,7 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
         public string? FinalResponseJsonToWrite { get; set; }
 
         public ChallengeResolutionInvocationResult ResultToReturn { get; set; } =
-            new(ChallengeResolutionInvocationOutcome.Exited, false, false, null);
+            new(ChallengeResolutionInvocationOutcome.Exited, false, false, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit);
 
         public async Task<ChallengeResolutionInvocationResult> InvokeAsync(
             ChallengeResolutionInvocationRequest request, CancellationToken cancellationToken)

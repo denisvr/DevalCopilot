@@ -780,6 +780,39 @@ public sealed class Attempt
     /// <see cref="Runs.AgentOutcome.Implemented"/>.</summary>
     public Guid? AgentResultGitCheckpointId { get; private set; }
 
+    /// <summary>How this Agent attempt's provider child process actually ended, as measured by the
+    /// host — process-level execution evidence, never a semantic classification (that is
+    /// <see cref="AgentOutcome"/>). Recorded once, only by an Agent completion transition, in the
+    /// same call as the terminal outcome, and only for a dispatched attempt whose provider process
+    /// produced a real result. <see langword="null"/> means the evidence is truthfully absent:
+    /// the attempt was never dispatched, the invocation failed before any process result existed,
+    /// the host was interrupted before recording one, or the attempt predates this evidence.</summary>
+    public ProcessOutcome? AgentProcessOutcome { get; private set; }
+
+    /// <summary>Only set when <see cref="AgentProcessOutcome"/> is <see cref="Runs.ProcessOutcome.Exited"/> —
+    /// mirrors <see cref="ProcessExitCode"/>.</summary>
+    public int? AgentProcessExitCode { get; private set; }
+
+    /// <summary>Non-negative host-measured duration of the provider child process. Set together
+    /// with <see cref="AgentProcessOutcome"/>, never independently.</summary>
+    public TimeSpan? AgentProcessDuration { get; private set; }
+
+    /// <summary>Returns the recorded host-measured process evidence, or <see langword="null"/> when
+    /// it is absent or its persisted shape is not valid evidence — an inconsistent row is reported
+    /// as unknown rather than partially trusted. Non-Agent attempts never have this evidence.</summary>
+    public AgentProcessExecutionEvidence? GetAgentProcessExecutionEvidence()
+    {
+        if (Kind != AttemptKind.Agent
+            || AgentProcessOutcome is not { } outcome
+            || AgentProcessDuration is not { } duration
+            || AgentProcessExecutionEvidence.Validate(outcome, AgentProcessExitCode, duration) is not null)
+        {
+            return null;
+        }
+
+        return AgentProcessExecutionEvidence.Create(outcome, AgentProcessExitCode, duration);
+    }
+
     public void Complete(DateTimeOffset nowUtc)
     {
         if (Status != AttemptStatus.Running)
@@ -948,7 +981,14 @@ public sealed class Attempt
     /// is source drift detected before the provider was ever invoked (no fresh completion
     /// evidence to compare — the pre-dispatch fingerprint mismatch itself was already the entire
     /// evidence).</param>
-    public void CompleteAgent(AgentOutcome outcome, string? completionFingerprintSha256, DateTimeOffset nowUtc)
+    /// <param name="processEvidence">Host-measured evidence of how the provider child process
+    /// ended, recorded atomically with the outcome. Null when no process result exists — always the
+    /// case for every pre-dispatch classification. See <see cref="AgentProcessEvidencePolicy"/>.</param>
+    public void CompleteAgent(
+        AgentOutcome outcome,
+        string? completionFingerprintSha256,
+        DateTimeOffset nowUtc,
+        AgentProcessExecutionEvidence? processEvidence = null)
     {
         if (Kind != AttemptKind.Agent)
         {
@@ -1017,9 +1057,55 @@ public sealed class Attempt
             }
         }
 
+        // Evaluated against the caller's requested outcome, not the drift-overridden one: a caller
+        // may never claim a success (or InvalidStructuredOutput) without clean exit evidence, even
+        // when a fingerprint mismatch then downgrades it to SourceChanged.
+        EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
+
         AgentOutcome = effectiveOutcome;
+        ApplyAgentProcessEvidence(processEvidence);
         Status = isRecognizedSuccessOutcome ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
+    }
+
+    /// <summary>
+    /// Independent Domain backstop for host-measured process evidence, shared by every Agent
+    /// completion transition so the rule cannot drift between them. Evidence is write-once,
+    /// bound to a dispatched attempt, and required (as a clean exit) for every semantic success
+    /// outcome, <see cref="Runs.AgentOutcome.InvalidStructuredOutput"/>, and every other
+    /// classification that can only be reached once the provider process is already known to have
+    /// exited cleanly — <see cref="Runs.AgentOutcome.NoChangesProduced"/>,
+    /// <see cref="Runs.AgentOutcome.ImplementationHeadChanged"/>,
+    /// <see cref="Runs.AgentOutcome.CorrectionNoChangesProduced"/>, and
+    /// <see cref="Runs.AgentOutcome.CorrectionHeadChanged"/> — even though each of those four
+    /// completes this attempt as <see cref="AttemptStatus.Failed"/>. See
+    /// <see cref="AgentProcessEvidencePolicy"/> for the complete, closed rule. Always called before
+    /// any mutation, so a violation leaves the attempt untouched.
+    /// </summary>
+    private void EnsureAgentProcessEvidenceCanBeRecorded(AgentOutcome requestedOutcome, AgentProcessExecutionEvidence? processEvidence)
+    {
+        if (processEvidence is not null && AgentProcessOutcome.HasValue)
+        {
+            throw new InvalidOperationException("Agent process evidence is write-once.");
+        }
+
+        var violation = AgentProcessEvidencePolicy.Evaluate(requestedOutcome, AgentDispatchedAtUtc.HasValue, processEvidence);
+        if (violation is not null)
+        {
+            throw new InvalidOperationException($"{requestedOutcome} cannot be recorded with this process evidence: {violation}.");
+        }
+    }
+
+    private void ApplyAgentProcessEvidence(AgentProcessExecutionEvidence? processEvidence)
+    {
+        if (processEvidence is null)
+        {
+            return;
+        }
+
+        AgentProcessOutcome = processEvidence.Outcome;
+        AgentProcessExitCode = processEvidence.ExitCode;
+        AgentProcessDuration = processEvidence.Duration;
     }
 
     /// <summary>
@@ -1035,7 +1121,11 @@ public sealed class Attempt
     /// that may ever set <see cref="AgentResultGitCheckpointId"/>, and only for
     /// <see cref="Runs.AgentOutcome.Implemented"/>.
     /// </summary>
-    public void CompleteImplementation(AgentOutcome outcome, Guid? resultGitCheckpointId, DateTimeOffset nowUtc)
+    public void CompleteImplementation(
+        AgentOutcome outcome,
+        Guid? resultGitCheckpointId,
+        DateTimeOffset nowUtc,
+        AgentProcessExecutionEvidence? processEvidence = null)
     {
         if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ImplementationReport)
         {
@@ -1087,7 +1177,10 @@ public sealed class Attempt
                 "Only an Implemented outcome may carry a resulting checkpoint identity.", nameof(resultGitCheckpointId));
         }
 
+        EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
+
         AgentOutcome = outcome;
+        ApplyAgentProcessEvidence(processEvidence);
         AgentResultGitCheckpointId = resultGitCheckpointId;
         Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
@@ -1106,7 +1199,11 @@ public sealed class Attempt
     /// <see cref="AgentResultGitCheckpointId"/> for a ReviewCorrection attempt, and only for
     /// <see cref="Runs.AgentOutcome.CorrectionApplied"/>.
     /// </summary>
-    public void CompleteReviewCorrection(AgentOutcome outcome, Guid? resultGitCheckpointId, DateTimeOffset nowUtc)
+    public void CompleteReviewCorrection(
+        AgentOutcome outcome,
+        Guid? resultGitCheckpointId,
+        DateTimeOffset nowUtc,
+        AgentProcessExecutionEvidence? processEvidence = null)
     {
         if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ReviewCorrection)
         {
@@ -1167,7 +1264,10 @@ public sealed class Attempt
                 "Only a CorrectionApplied outcome may carry a resulting checkpoint identity.", nameof(resultGitCheckpointId));
         }
 
+        EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
+
         AgentOutcome = outcome;
+        ApplyAgentProcessEvidence(processEvidence);
         AgentResultGitCheckpointId = resultGitCheckpointId;
         Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;

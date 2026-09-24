@@ -1,4 +1,5 @@
 import type { ChallengeResolutionAttemptStatusResponse } from '../../../api/clients'
+import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 
 interface ChallengeResolutionActionProps {
   challengedReviewAttemptId: string | null
@@ -82,6 +83,13 @@ export function ChallengeResolutionAction({
         <p className="dc-challenge-resolution-status">
           Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
         </p>
+      )}
+      {status && (
+        <ProcessEvidenceLine
+          processExecution={status.processExecution}
+          dispatchedAtUtc={status.dispatchedAtUtc}
+          status={status.status}
+        />
       )}
       {(requestError ?? statusError) && (
         <p className="dc-challenge-resolution-error" role="status">

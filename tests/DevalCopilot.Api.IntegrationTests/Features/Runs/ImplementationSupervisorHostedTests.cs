@@ -255,6 +255,50 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task A_timed_out_implementation_process_records_its_evidence_and_still_flags_the_mutated_workspace()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
+            call <= 4
+                ? Matching(Fingerprint)
+                : MatchingWithChangedPaths(ChangedFingerprint, [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")]));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore)
+        {
+            ResultToReturn = new ImplementationInvocationResult(
+                ImplementationInvocationOutcome.Failed, false, false, null,
+                ProcessEvidence: new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromMinutes(20))),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, workspaceId, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            var status = await PollForTerminalStatusAsync(provider, attemptId);
+            Assert.Equal(AttemptStatus.Failed, status);
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        Assert.Equal(1, adapter.InvocationCount);
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt!.AgentOutcome);
+        Assert.Null(persistedAttempt.AgentResultGitCheckpointId);
+
+        var workspace = await dbContext.GitWorkspaces.SingleAsync(w => w.Id == workspaceId);
+        Assert.Equal(WorkspaceStatus.NeedsAttention, workspace.Status);
+        Assert.Equal(ProcessOutcome.TimedOut, persistedAttempt.AgentProcessOutcome);
+        Assert.Null(persistedAttempt.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromMinutes(20), persistedAttempt.AgentProcessDuration);
+    }
+
+    [Fact]
     public async Task Invalid_structured_output_after_a_worktree_mutation_flags_needs_attention_and_creates_no_result_checkpoint()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
@@ -307,7 +351,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         var adapter = new FakeClaudeImplementationAdapter(_artifactStore)
         {
             FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]),
-            ResultToReturn = new ImplementationInvocationResult(ImplementationInvocationOutcome.Exited, false, false, new string('s', 300)),
+            ResultToReturn = new ImplementationInvocationResult(ImplementationInvocationOutcome.Exited, false, false, new string('s', 300), ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
         };
         await using var provider = BuildServiceProvider(evidenceReader, adapter);
         var (_, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader);
@@ -448,7 +492,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         Assert.True((await mediator.SendAsync(
             new RecordAgentAttemptResultCommand(
                 runId, codexAttemptId, AgentOutcome.Proposed, Fingerprint, [],
-                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null),
+                new ValidatedProposal("Add the ledger table and its query.", ValidCodexProposalStructuredContentJson), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
 
         var proposalMessage = await dbContext.CollaborationMessages.SingleAsync(
@@ -463,7 +507,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         var review = ClaudeCriticalReviewResponseParser.TryParse(AcceptanceFinalResponseJson);
         Assert.NotNull(review);
         Assert.True((await mediator.SendAsync(
-            new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Accepted, Fingerprint, [], review, null),
+            new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Accepted, Fingerprint, [], review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
 
         var createImplementationResult = await mediator.SendAsync(
@@ -572,7 +616,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         public string? StandardErrorToWrite { get; set; }
 
         public ImplementationInvocationResult ResultToReturn { get; set; } =
-            new(ImplementationInvocationOutcome.Exited, false, false, null);
+            new(ImplementationInvocationOutcome.Exited, false, false, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit);
 
         public async Task<ImplementationInvocationResult> InvokeAsync(
             ImplementationInvocationRequest request, CancellationToken cancellationToken)

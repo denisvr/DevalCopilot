@@ -128,6 +128,41 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task Non_zero_correction_exit_records_its_exit_code_with_the_provider_failure()
+    {
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var nonZeroExit = new ReviewCorrectionInvocationResult(
+            ImplementationInvocationOutcome.Failed, false, false, null,
+            new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 1, TimeSpan.FromSeconds(5)));
+        var adapter = new GatedAdapter(_artifactStore) { Result = nonZeroExit };
+        var notifier = new TestNotifier();
+        await using var provider = BuildProvider(evidence, adapter, notifier);
+        var seed = await SeedAsync(provider);
+        var supervisor = CreateSupervisor(provider, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await adapter.Invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            adapter.Release();
+            await notifier.Notified.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        Assert.Equal(1, adapter.InvocationCount);
+        await using var context = provider.GetRequiredService<IDbContextFactory<DevalCopilotDbContext>>().CreateDbContext();
+        var attempt = await context.Attempts.SingleAsync(item => item.Id == seed.CorrectionId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, attempt.AgentOutcome);
+        Assert.Equal(WorkspaceStatus.NeedsAttention, await context.GitWorkspaces.Where(item => item.Id == seed.WorkspaceId).Select(item => item.Status).SingleAsync());
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Equal(ProcessOutcome.Exited, attempt.AgentProcessOutcome);
+        Assert.Equal(1, attempt.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromSeconds(5), attempt.AgentProcessDuration);
+    }
+
+    [Fact]
     public async Task No_changes_produced_is_terminal_and_the_adapter_is_not_repeated()
     {
         var evidence = new SequencedEvidence(_ => Matching());
@@ -183,7 +218,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
             var original = await db.Attempts.SingleAsync(item => item.Id == seed.CorrectionId);
             var duplicate = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), seed.RunId, 6, original.AgentGitWorkspaceId!.Value, original.AgentGitCheckpointId!.Value, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, DateTimeOffset.UtcNow);
             duplicate.MarkAgentDispatched(DateTimeOffset.UtcNow);
-            duplicate.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, Guid.NewGuid(), DateTimeOffset.UtcNow);
+            duplicate.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, Guid.NewGuid(), DateTimeOffset.UtcNow, processEvidence: TestProcessEvidence.CleanExit);
             db.Attempts.Add(duplicate);
             var input = await db.AttemptInputMessages.Where(item => item.AttemptId == seed.CorrectionId).OrderBy(item => item.Sequence).Select(item => item.CollaborationMessageId).ToListAsync();
             db.AttemptInputMessages.AddRange(input.Select((id, index) => AttemptInputMessage.Record(Guid.NewGuid(), duplicate.Id, id, index)));
@@ -260,13 +295,13 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, workspace.ReserveCheckpointNumber(), now, Head, Fingerprint, []);
         var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, project.Id.ToByteArray(), now);
         var capability = HostCapabilitySnapshot.Seed(Capability.ClaudeCli, now); capability.MarkDispatched(now); capability.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\safe\claude.exe", null, "1.0", now, now.AddMinutes(5));
-        var planning = Attempt.ClaimAgent(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); planning.MarkAgentDispatched(now); planning.CompleteAgent(AgentOutcome.Proposed, Fingerprint, now);
+        var planning = Attempt.ClaimAgent(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); planning.MarkAgentDispatched(now); planning.CompleteAgent(AgentOutcome.Proposed, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.Record(Guid.NewGuid(), run.Id, planning.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null, "Implement the correction.", JsonSerializer.Serialize(new { scope = "Correction", implementationSteps = "Apply findings.", risks = "None.", verificationPlan = "Run tests.", escalationPoints = "None." }), CollaborationMessageProvenance.ProviderObserved, now);
-        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); acceptanceAttempt.MarkAgentDispatched(now); acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, now);
+        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); acceptanceAttempt.MarkAgentDispatched(now); acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.Record(Guid.NewGuid(), run.Id, acceptanceAttempt.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Acceptance, proposal.Id, "Accepted the implementation plan.", JsonSerializer.Serialize(new { rationale = "The plan is complete." }), CollaborationMessageProvenance.ProviderObserved, now);
-        var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); implementation.MarkAgentDispatched(now); implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, now);
+        var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); implementation.MarkAgentDispatched(now); implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, now, processEvidence: TestProcessEvidence.CleanExit);
         var report = CollaborationMessage.Record(Guid.NewGuid(), run.Id, implementation.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.Implementer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.ExecutionReport, proposal.Id, "Implementation complete.", JsonSerializer.Serialize(new { completedWork = "Applied the implementation.", verification = "Tests passed." }), CollaborationMessageProvenance.ProviderObserved, now);
-        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); review.MarkAgentDispatched(now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, now);
+        var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now); review.MarkAgentDispatched(now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.Record(Guid.NewGuid(), run.Id, review.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.ReviewFinding, report.Id, "The branch needs correction.", JsonSerializer.Serialize(new { severity = "high", category = "correctness", evidence = "The branch is incomplete.", requiredChange = "Complete the branch." }), CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(1));
         var manifestId = Guid.NewGuid();
         var correction = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now);
@@ -312,7 +347,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Invoked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int InvocationCount => Volatile.Read(ref _invocations);
-        public ReviewCorrectionInvocationResult Result { get; set; } = new(ImplementationInvocationOutcome.Exited, false, false, null);
+        public ReviewCorrectionInvocationResult Result { get; set; } = new(ImplementationInvocationOutcome.Exited, false, false, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit);
         public Guid FindingId { get; set; }
         public bool ThrowCancellation { get; set; }
         public void Release() => _release.TrySetResult();

@@ -38,6 +38,7 @@ public sealed class CodexChallengeResolutionAdapter(IProcessExecutionAdapter pro
             outcome.Succeeded ? ChallengeResolutionInvocationOutcome.Exited : ChallengeResolutionInvocationOutcome.Failed,
             outcome.StandardOutputTruncated,
             outcome.StandardErrorTruncated,
-            outcome.ProviderSessionId);
+            outcome.ProviderSessionId,
+            outcome.ProcessEvidence);
     }
 }

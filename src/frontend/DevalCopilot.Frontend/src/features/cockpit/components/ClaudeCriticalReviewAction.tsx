@@ -1,4 +1,5 @@
 import type { ClaudeCriticalReviewAttemptStatusResponse } from '../../../api/clients'
+import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 
 interface ClaudeCriticalReviewActionProps {
   proposalMessageId: string | null
@@ -81,6 +82,13 @@ export function ClaudeCriticalReviewAction({
         <p className="dc-claude-critical-review-status">
           Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
         </p>
+      )}
+      {status && (
+        <ProcessEvidenceLine
+          processExecution={status.processExecution}
+          dispatchedAtUtc={status.dispatchedAtUtc}
+          status={status.status}
+        />
       )}
       {(requestError ?? statusError) && (
         <p className="dc-claude-critical-review-error" role="status">

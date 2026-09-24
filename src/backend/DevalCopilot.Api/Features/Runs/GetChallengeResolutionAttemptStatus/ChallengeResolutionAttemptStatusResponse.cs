@@ -17,4 +17,5 @@ public sealed record ChallengeResolutionAttemptStatusResponse(
     DateTimeOffset? ClaimedAtUtc,
     DateTimeOffset? DispatchedAtUtc,
     DateTimeOffset? CompletedAtUtc,
-    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts);
+    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts,
+    AgentProcessExecutionResponse? ProcessExecution);

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -118,6 +119,16 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
                     "A validated critical review was supplied for an outcome other than Accepted or Challenged."));
         }
 
+        // Host-measured process evidence is validated against the caller-requested outcome before
+        // any mutation: bound to a dispatched attempt, and required as a clean exit for a semantic
+        // success or InvalidStructuredOutput. Recorded atomically by CompleteAgent below.
+        var processEvidenceError = AgentProcessEvidenceRecording.Validate(
+            command.ProcessEvidence, command.Outcome, attempt.AgentDispatchedAtUtc.HasValue, out var processEvidence);
+        if (processEvidenceError is not null)
+        {
+            return Result<RecordClaudeCriticalReviewResultCommandResult>.Failure(processEvidenceError);
+        }
+
         if (command.ProviderSessionId is { Length: > MaxProviderSessionIdLength })
         {
             return Result<RecordClaudeCriticalReviewResultCommandResult>.Failure(
@@ -156,7 +167,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
             attempt.RecordAgentProviderSessionId(command.ProviderSessionId);
         }
 
-        attempt.CompleteAgent(command.Outcome, command.CompletionFingerprintSha256, nowUtc);
+        attempt.CompleteAgent(command.Outcome, command.CompletionFingerprintSha256, nowUtc, processEvidence);
 
         foreach (var sealedArtifact in command.SealedArtifacts)
         {

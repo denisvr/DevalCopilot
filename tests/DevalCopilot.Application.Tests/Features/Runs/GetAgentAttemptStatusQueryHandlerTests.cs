@@ -55,7 +55,7 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         run.Claim(Now);
         var attempt = ClaimAgentAttempt(run.Id, 1, Now);
         attempt.MarkAgentDispatched(Now.AddSeconds(1));
-        attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
@@ -159,7 +159,7 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         run.Claim(Now);
         var planningAttempt = ClaimAgentAttempt(run.Id, 1, Now);
         planningAttempt.MarkAgentDispatched(Now.AddSeconds(1));
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now.AddSeconds(2));
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         // More recent (higher AttemptNumber) than the planning attempt, and Completed rather than
         // Running, so both attempts can legally coexist on the same run under the run-wide
@@ -169,7 +169,7 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now.AddSeconds(3));
         reviewAttempt.MarkAgentDispatched(Now.AddSeconds(4));
-        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(5));
+        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -184,5 +184,52 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         Assert.Equal(planningAttempt.Id, result.Value.AttemptId);
         Assert.Equal(1, result.Value.AttemptNumber);
         Assert.Equal(AgentOutcome.Proposed, result.Value.Outcome);
+    }
+
+    [Fact]
+    public async Task HandleAsync_projects_host_measured_evidence_as_a_sibling_of_the_semantic_outcome()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Evidence projection", Now);
+        run.Claim(Now);
+        var attempt = ClaimAgentAttempt(run.Id, 1, Now);
+        attempt.MarkAgentDispatched(Now.AddSeconds(1));
+        var timedOut = AgentProcessExecutionEvidence.Create(ProcessOutcome.TimedOut, null, TimeSpan.FromMinutes(10));
+        attempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now.AddMinutes(10), timedOut);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetAgentAttemptStatusQueryHandler(readContext).HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, result.Value.Outcome);
+        Assert.Equal(timedOut, result.Value.ProcessExecution);
+        Assert.Equal(TimeSpan.FromMinutes(10), result.Value.Timeout);
+    }
+
+    [Fact]
+    public async Task HandleAsync_projects_absent_evidence_as_unknown_while_the_attempt_is_running()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Evidence still unknown", Now);
+        run.Claim(Now);
+        var attempt = ClaimAgentAttempt(run.Id, 1, Now);
+        attempt.MarkAgentDispatched(Now.AddSeconds(1));
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var result = await new GetAgentAttemptStatusQueryHandler(dbContext).HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.Outcome);
+        Assert.Null(result.Value.ProcessExecution);
+        Assert.Equal(TimeSpan.FromMinutes(10), result.Value.Timeout);
     }
 }

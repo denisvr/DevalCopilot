@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.RecordImplementationReviewResult;
@@ -22,4 +23,5 @@ public sealed record RecordImplementationReviewResultCommand(
     string? CompletionFingerprintSha256,
     IReadOnlyList<SealedImplementationReviewArtifact> SealedArtifacts,
     ValidatedImplementationReview? Review,
-    string? ProviderSessionId) : ICommand<Result<RecordImplementationReviewResultCommandResult>>;
+    string? ProviderSessionId,
+    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordImplementationReviewResultCommandResult>>;

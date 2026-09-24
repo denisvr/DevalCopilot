@@ -36,7 +36,7 @@ public sealed class GetRunningAgentAttemptsQueryHandlerTests : IAsyncLifetime
         completedRun.Claim(Now);
         var completedAttempt = ClaimAgentAttempt(completedRun.Id);
         completedAttempt.MarkAgentDispatched(Now);
-        completedAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        completedAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         completedRun.Complete(Now);
 
         var processRun = Run.RecordIntent(Guid.NewGuid(), project.Id, 3, "process", Now);

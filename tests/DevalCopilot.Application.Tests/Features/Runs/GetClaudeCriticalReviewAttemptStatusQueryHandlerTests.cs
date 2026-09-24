@@ -66,7 +66,7 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         var reviewedProposalId = Guid.NewGuid();
         var (attempt, inputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now, reviewedProposalId);
         attempt.MarkAgentDispatched(Now.AddSeconds(1));
-        attempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);

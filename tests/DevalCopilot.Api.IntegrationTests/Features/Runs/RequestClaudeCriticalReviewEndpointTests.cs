@@ -308,7 +308,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
                 Guid.NewGuid(), runId, 1, workspaceId, staleCheckpoint.Id, staleCheckpoint.FingerprintSha256, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             owningAttempt.MarkAgentDispatched(now.AddSeconds(1));
-            owningAttempt.CompleteAgent(AgentOutcome.Proposed, staleCheckpoint.FingerprintSha256, now.AddSeconds(2));
+            owningAttempt.CompleteAgent(AgentOutcome.Proposed, staleCheckpoint.FingerprintSha256, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(owningAttempt);
 
             var proposalMessage = CollaborationMessage.Record(
@@ -353,7 +353,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
                 Guid.NewGuid(), runId, 2, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             priorReview.MarkAgentDispatched(now.AddSeconds(1));
-            priorReview.CompleteAgent(AgentOutcome.Accepted, MatchingFingerprint, now.AddSeconds(2));
+            priorReview.CompleteAgent(AgentOutcome.Accepted, MatchingFingerprint, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(priorReview);
             dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorReview.Id, proposalMessageId, sequence: 0));
             await dbContext.SaveChangesAsync();
@@ -424,7 +424,7 @@ public sealed class RequestClaudeCriticalReviewEndpointTests : IDisposable
         owningAttempt.MarkAgentDispatched(now.AddSeconds(1));
         if (ownerCompletesAsProposed)
         {
-            owningAttempt.CompleteAgent(AgentOutcome.Proposed, MatchingFingerprint, now.AddSeconds(2));
+            owningAttempt.CompleteAgent(AgentOutcome.Proposed, MatchingFingerprint, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         }
         else
         {

@@ -31,4 +31,5 @@ public sealed record ImplementationAttemptStatusResponse(
     string? RequestedEffort,
     string? ObservedEffort,
     string? PermissionProfile,
-    string? AdapterContractVersion);
+    string? AdapterContractVersion,
+    AgentProcessExecutionResponse? ProcessExecution);

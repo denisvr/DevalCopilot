@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.RecordChallengeResolutionResult;
@@ -19,4 +20,5 @@ public sealed record RecordChallengeResolutionResultCommand(
     string? CompletionFingerprintSha256,
     IReadOnlyList<SealedChallengeResolutionArtifact> SealedArtifacts,
     ValidatedChallengeResolution? Resolution,
-    string? ProviderSessionId) : ICommand<Result<RecordChallengeResolutionResultCommandResult>>;
+    string? ProviderSessionId,
+    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordChallengeResolutionResultCommandResult>>;

@@ -11,4 +11,5 @@ public sealed record ImplementationInvocationResult(
     bool StandardErrorTruncated,
     string? ProviderSessionId,
     string? ObservedModel = null,
-    string? ObservedEffort = null);
+    string? ObservedEffort = null,
+    AgentProcessEvidence? ProcessEvidence = null);

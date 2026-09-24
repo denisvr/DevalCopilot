@@ -75,7 +75,7 @@ public sealed class ChallengeResolutionInputIdentityQueryScopeTests : IAsyncLife
             Guid.NewGuid(), runId, attemptNumber, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, now);
         attempt.MarkAgentDispatched(now);
-        attempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, now);
+        attempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         return attempt;
     }
 

@@ -22,7 +22,9 @@ public sealed record ReviewCorrectionAttemptStatusQueryResult(
     bool BudgetExhausted,
     Guid? EscalationId,
     Guid? EscalationMessageId,
-    bool HasAvailableHumanAuthorization)
+    bool HasAvailableHumanAuthorization,
+    AgentProcessExecutionEvidence? ProcessExecution = null,
+    TimeSpan? Timeout = null)
 {
     public static readonly ReviewCorrectionAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, 0, null, null, null, [], 2, 0, false, null, null, false);

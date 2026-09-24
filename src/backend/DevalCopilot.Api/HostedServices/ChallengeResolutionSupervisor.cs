@@ -138,7 +138,7 @@ public sealed class ChallengeResolutionSupervisor(
         if (launchTarget is null)
         {
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
             return;
         }
 
@@ -164,16 +164,21 @@ public sealed class ChallengeResolutionSupervisor(
         {
             logger.LogError("challenge_resolution_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
             return;
         }
 
+        // An Exited classification is trusted only when the host-measured evidence independently
+        // confirms a clean exit; contradictory or missing evidence never becomes a success.
+        var processSucceeded = invocationResult.Outcome == ChallengeResolutionInvocationOutcome.Exited
+            && invocationResult.ProcessEvidence is { IsCleanExit: true };
         await RecordResultAsync(
             attempt,
-            invocationResult.Outcome == ChallengeResolutionInvocationOutcome.Exited,
+            processSucceeded,
             invocationResult.StandardOutputTruncated,
             invocationResult.StandardErrorTruncated,
             invocationResult.ProviderSessionId,
+            invocationResult.ProcessEvidence,
             CancellationToken.None);
     }
 
@@ -183,6 +188,7 @@ public sealed class ChallengeResolutionSupervisor(
         bool standardOutputTruncated,
         bool standardErrorTruncated,
         string? providerSessionId,
+        AgentProcessEvidence? processEvidence,
         CancellationToken cancellationToken)
     {
         var completionEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, CancellationToken.None);
@@ -226,7 +232,8 @@ public sealed class ChallengeResolutionSupervisor(
         {
             recordResult = await DispatchAsync(
                 new RecordChallengeResolutionResultCommand(
-                    attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, resolution, providerSessionId),
+                    attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, resolution, providerSessionId,
+                    processEvidence),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

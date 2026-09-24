@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { processAttemptOutputClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
+  AgentProcessExecutionResponse,
   ClaudeCriticalReviewAttemptStatusResponse,
   ChallengeResolutionAttemptStatusResponse,
   GetRunCockpitResponse,
   ParticipantIdentityResponse,
+  RunCockpitAgentAttemptResponse,
 } from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
 import * as useCollaborationTimelineModule from '../hooks/useCollaborationTimeline'
@@ -801,5 +803,78 @@ describe('RunCockpitView', () => {
       rerender(<RunCockpitView runId="run-2" />)
       expect(useChallengeResolutionAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
     })
+  })
+})
+
+describe('RunCockpitView process evidence', () => {
+  const cockpitWithLatestAttempt = new GetRunCockpitResponse({
+    ...runningCockpit,
+    latestAgentAttempt: new RunCockpitAgentAttemptResponse({
+      attemptId: 'attempt-2',
+      attemptNumber: 2,
+      role: 'CriticalReviewer',
+      provider: 'ClaudeCode',
+      status: 'Failed',
+      outcome: 'ProviderInvocationFailed',
+      dispatchedAtUtc: new Date('2026-09-24T10:00:00Z'),
+      processExecution: new AgentProcessExecutionResponse({
+        outcome: 'TimedOut',
+        durationMilliseconds: 600_123,
+        timeoutMilliseconds: 600_000,
+      }),
+    }),
+  })
+
+  it('renders the latest agent attempt semantic result and its process evidence as separate facts', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: cockpitWithLatestAttempt,
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+    })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    const section = screen.getByRole('region', { name: 'Latest agent attempt' })
+    expect(section).toHaveTextContent(
+      'Latest agent attempt #2 · Critical reviewer · Claude Code · Result: ProviderInvocationFailed',
+    )
+    expect(section).toHaveTextContent('Process timed out after 10m 00s · timeout 10m 00s')
+  })
+
+  it('never renders a stale cockpit projection from the previously selected run as evidence for the new run', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: cockpitWithLatestAttempt,
+      cards: [],
+      connection: 'live',
+      loading: true,
+      error: null,
+      syncError: null,
+    })
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.getByRole('region', { name: 'Latest agent attempt' })).toBeInTheDocument()
+
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByRole('region', { name: 'Latest agent attempt' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Process timed out/)).not.toBeInTheDocument()
+  })
+
+  it('renders nothing for a run whose cockpit has no agent attempt yet', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: runningCockpit,
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+    })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.queryByRole('region', { name: 'Latest agent attempt' })).not.toBeInTheDocument()
   })
 })

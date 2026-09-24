@@ -91,7 +91,7 @@ public sealed class ReconcileInterruptedAgentAttemptsCommandHandlerTests : IAsyn
         run.Claim(Now);
         var attempt = ClaimAgentAttempt(run.Id);
         attempt.MarkAgentDispatched(Now);
-        attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        attempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         run.Complete(Now);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -239,4 +239,37 @@ public sealed class ReconcileInterruptedAgentAttemptsCommandHandlerTests : IAsyn
             TimeSpan.FromMinutes(10), 262144, 524288, Now),
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Unhandled role in test setup."),
     };
+
+    [Fact]
+    public async Task HandleAsync_never_invents_process_evidence_for_a_dispatched_but_unrecorded_attempt()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Dispatched then orphaned by a crash", Now);
+        run.Claim(Now);
+        var attempt = ClaimAgentAttempt(run.Id);
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new ReconcileInterruptedAgentAttemptsCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(5)));
+        var result = await handler.HandleAsync(new ReconcileInterruptedAgentAttemptsCommand(), CancellationToken.None);
+
+        // This handler relies on the mediator transaction behavior to save; the test commits
+        // explicitly so the persisted row, not only tracked state, is what gets verified.
+        Assert.True(result.IsSuccess);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await using var verification = _fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Interrupted, persisted.Status);
+        Assert.Equal(Now, persisted.AgentDispatchedAtUtc);
+        Assert.Equal(Now.AddMinutes(5), persisted.CompletedAtUtc);
+        Assert.Null(persisted.AgentOutcome);
+        Assert.Null(persisted.AgentProcessOutcome);
+        Assert.Null(persisted.AgentProcessExitCode);
+        Assert.Null(persisted.AgentProcessDuration);
+        Assert.Null(persisted.GetAgentProcessExecutionEvidence());
+    }
 }

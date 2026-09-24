@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Ports;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.RecordImplementationResult;
 
@@ -43,4 +44,5 @@ public sealed record RecordImplementationResultCommand(
     ValidatedImplementationReport? Report,
     string? ProviderSessionId,
     string? ObservedModel = null,
-    string? ObservedEffort = null) : ICommand<Result<RecordImplementationResultCommandResult>>;
+    string? ObservedEffort = null,
+    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordImplementationResultCommandResult>>;

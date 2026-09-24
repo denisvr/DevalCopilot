@@ -2656,6 +2656,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     stageMap?: StageMapEntryResponse[];
     canPause?: boolean;
     canStop?: boolean;
+    latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -2685,6 +2686,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             }
             this.canPause = _data["canPause"];
             this.canStop = _data["canStop"];
+            this.latestAgentAttempt = _data["latestAgentAttempt"] ? RunCockpitAgentAttemptResponse.fromJS(_data["latestAgentAttempt"]) : undefined as any;
         }
     }
 
@@ -2714,6 +2716,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         }
         data["canPause"] = this.canPause;
         data["canStop"] = this.canStop;
+        data["latestAgentAttempt"] = this.latestAgentAttempt ? this.latestAgentAttempt.toJSON() : undefined as any;
         return data;
     }
 }
@@ -2732,6 +2735,7 @@ export interface IGetRunCockpitResponse {
     stageMap?: StageMapEntryResponse[];
     canPause?: boolean;
     canStop?: boolean;
+    latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -2778,6 +2782,118 @@ export interface IStageMapEntryResponse {
     isActive?: boolean;
 }
 
+export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    role?: string | undefined;
+    provider?: string | undefined;
+    status?: string;
+    outcome?: string | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    processExecution?: AgentProcessExecutionResponse;
+
+    constructor(data?: IRunCockpitAgentAttemptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): RunCockpitAgentAttemptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RunCockpitAgentAttemptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IRunCockpitAgentAttemptResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    role?: string | undefined;
+    provider?: string | undefined;
+    status?: string;
+    outcome?: string | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    processExecution?: AgentProcessExecutionResponse;
+}
+
+export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    durationMilliseconds?: number | undefined;
+    timeoutMilliseconds?: number | undefined;
+
+    constructor(data?: IAgentProcessExecutionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.outcome = _data["outcome"];
+            this.exitCode = _data["exitCode"];
+            this.durationMilliseconds = _data["durationMilliseconds"];
+            this.timeoutMilliseconds = _data["timeoutMilliseconds"];
+        }
+    }
+
+    static fromJS(data: any): AgentProcessExecutionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentProcessExecutionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["outcome"] = this.outcome;
+        data["exitCode"] = this.exitCode;
+        data["durationMilliseconds"] = this.durationMilliseconds;
+        data["timeoutMilliseconds"] = this.timeoutMilliseconds;
+        return data;
+    }
+}
+
+export interface IAgentProcessExecutionResponse {
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    durationMilliseconds?: number | undefined;
+    timeoutMilliseconds?: number | undefined;
+}
+
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {
     hasAttempt?: boolean;
     attemptId?: string | undefined;
@@ -2799,6 +2915,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
     escalationId?: string | undefined;
     escalationMessageId?: string | undefined;
     hasAvailableHumanAuthorization?: boolean;
+    processExecution?: AgentProcessExecutionResponse | undefined;
 
     constructor(data?: IReviewCorrectionAttemptStatusResponse) {
         if (data) {
@@ -2835,6 +2952,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
             this.escalationId = _data["escalationId"];
             this.escalationMessageId = _data["escalationMessageId"];
             this.hasAvailableHumanAuthorization = _data["hasAvailableHumanAuthorization"];
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
         }
     }
 
@@ -2871,6 +2989,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
         data["escalationId"] = this.escalationId;
         data["escalationMessageId"] = this.escalationMessageId;
         data["hasAvailableHumanAuthorization"] = this.hasAvailableHumanAuthorization;
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         return data;
     }
 }
@@ -2896,6 +3015,7 @@ export interface IReviewCorrectionAttemptStatusResponse {
     escalationId?: string | undefined;
     escalationMessageId?: string | undefined;
     hasAvailableHumanAuthorization?: boolean;
+    processExecution?: AgentProcessExecutionResponse | undefined;
 }
 
 export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
@@ -3027,6 +3147,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
     observedEffort?: string | undefined;
     permissionProfile?: string | undefined;
     adapterContractVersion?: string | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
 
     constructor(data?: IImplementationAttemptStatusResponse) {
         if (data) {
@@ -3071,6 +3192,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
             this.observedEffort = _data["observedEffort"];
             this.permissionProfile = _data["permissionProfile"];
             this.adapterContractVersion = _data["adapterContractVersion"];
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
         }
     }
 
@@ -3115,6 +3237,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
         data["observedEffort"] = this.observedEffort;
         data["permissionProfile"] = this.permissionProfile;
         data["adapterContractVersion"] = this.adapterContractVersion;
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3144,6 +3267,7 @@ export interface IImplementationAttemptStatusResponse {
     observedEffort?: string | undefined;
     permissionProfile?: string | undefined;
     adapterContractVersion?: string | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {
@@ -3237,6 +3361,7 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 
     constructor(data?: ICodeReviewAttemptStatusResponse) {
         if (data) {
@@ -3263,6 +3388,7 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
                 for (let item of _data["artifacts"])
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
         }
     }
 
@@ -3289,6 +3415,7 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
             for (let item of this.artifacts)
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3304,6 +3431,7 @@ export interface ICodeReviewAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 }
 
 export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCriticalReviewAttemptStatusResponse {
@@ -3317,6 +3445,7 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 
     constructor(data?: IClaudeCriticalReviewAttemptStatusResponse) {
         if (data) {
@@ -3343,6 +3472,7 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
                 for (let item of _data["artifacts"])
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
         }
     }
 
@@ -3369,6 +3499,7 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
             for (let item of this.artifacts)
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3384,6 +3515,7 @@ export interface IClaudeCriticalReviewAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 }
 
 export class ChallengeResolutionAttemptStatusResponse implements IChallengeResolutionAttemptStatusResponse {
@@ -3398,6 +3530,7 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 
     constructor(data?: IChallengeResolutionAttemptStatusResponse) {
         if (data) {
@@ -3429,6 +3562,7 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
                 for (let item of _data["artifacts"])
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
         }
     }
 
@@ -3460,6 +3594,7 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
             for (let item of this.artifacts)
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3476,6 +3611,7 @@ export interface IChallengeResolutionAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 }
 
 export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
@@ -3488,6 +3624,7 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 
     constructor(data?: IAgentAttemptStatusResponse) {
         if (data) {
@@ -3513,6 +3650,7 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
                 for (let item of _data["artifacts"])
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
         }
     }
 
@@ -3538,6 +3676,7 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
             for (let item of this.artifacts)
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3552,6 +3691,7 @@ export interface IAgentAttemptStatusResponse {
     dispatchedAtUtc?: Date | undefined;
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    processExecution?: AgentProcessExecutionResponse | undefined;
 }
 
 export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {

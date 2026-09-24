@@ -601,6 +601,160 @@ public sealed class AgentAttemptSupervisorHostedTests : IDisposable
         Assert.Equal(AttemptStatus.Running, persistedAttempt!.Status);
     }
 
+    [Fact]
+    public async Task A_timed_out_provider_process_records_its_host_measured_evidence_with_the_provider_failure()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCodexPlanningAdapter(_artifactStore)
+        {
+            ResultToReturn = new CodexPlanningInvocationResult(
+                CodexPlanningInvocationOutcome.Failed, false, false, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromMinutes(10))),
+        };
+
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _) = await SeedEligibleAgentAttemptAsync(provider);
+
+        var persistedAttempt = await RunUntilTerminalAsync(provider, attemptId);
+
+        Assert.Equal(AttemptStatus.Failed, persistedAttempt.Status);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt.AgentOutcome);
+        Assert.Equal(ProcessOutcome.TimedOut, persistedAttempt.AgentProcessOutcome);
+        Assert.Null(persistedAttempt.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromMinutes(10), persistedAttempt.AgentProcessDuration);
+        Assert.Equal(1, adapter.InvocationCount);
+    }
+
+    [Fact]
+    public async Task An_exited_classification_contradicted_by_a_non_zero_exit_is_never_recorded_as_a_proposal()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCodexPlanningAdapter(_artifactStore)
+        {
+            FinalResponseJsonToWrite = ValidFinalResponseJson,
+            ResultToReturn = new CodexPlanningInvocationResult(
+                CodexPlanningInvocationOutcome.Exited, false, false, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 3, TimeSpan.FromSeconds(2))),
+        };
+
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (runId, attemptId, _, _) = await SeedEligibleAgentAttemptAsync(provider);
+
+        var persistedAttempt = await RunUntilTerminalAsync(provider, attemptId);
+
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt.AgentOutcome);
+        Assert.Equal(ProcessOutcome.Exited, persistedAttempt.AgentProcessOutcome);
+        Assert.Equal(3, persistedAttempt.AgentProcessExitCode);
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.RunId == runId));
+    }
+
+    [Fact]
+    public async Task An_invocation_that_never_produced_a_process_result_records_no_evidence()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCodexPlanningAdapter(_artifactStore)
+        {
+            ResultToReturn = new CodexPlanningInvocationResult(CodexPlanningInvocationOutcome.Failed, false, false, null),
+        };
+
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _) = await SeedEligibleAgentAttemptAsync(provider);
+
+        var persistedAttempt = await RunUntilTerminalAsync(provider, attemptId);
+
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt.AgentOutcome);
+        Assert.NotNull(persistedAttempt.AgentDispatchedAtUtc);
+        Assert.Null(persistedAttempt.AgentProcessOutcome);
+        Assert.Null(persistedAttempt.AgentProcessExitCode);
+        Assert.Null(persistedAttempt.AgentProcessDuration);
+    }
+
+    /// <summary>
+    /// Mirrors <c>ProcessAttemptSupervisorHostedTests</c>' host-cancellation coverage for an Agent
+    /// attempt: graceful host shutdown cancels the provider invocation, the process adapter
+    /// reports a real Cancelled result (exactly as <c>ChildProcessExecutionAdapter</c> does), and
+    /// the supervisor still records that known result through its own bounded recording token —
+    /// shutdown never cancels a known result away, and the provider is never invoked again.
+    /// </summary>
+    [Fact]
+    public async Task Host_shutdown_during_invocation_still_records_the_cancelled_process_evidence()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new CancellationAwaitingCodexPlanningAdapter();
+
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _) = await SeedEligibleAgentAttemptAsync(provider);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        await adapter.Invoked.Task.WaitAsync(TerminalPollTimeout);
+        using (var stopCancellation = new CancellationTokenSource(PollTimeout))
+        {
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.AsNoTracking().SingleAsync(attempt => attempt.Id == attemptId);
+        Assert.Equal(AttemptStatus.Failed, persistedAttempt.Status);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt.AgentOutcome);
+        Assert.Equal(ProcessOutcome.Cancelled, persistedAttempt.AgentProcessOutcome);
+        Assert.Null(persistedAttempt.AgentProcessExitCode);
+        Assert.True(persistedAttempt.AgentProcessDuration >= TimeSpan.Zero);
+        Assert.Equal(1, adapter.InvocationCount);
+    }
+
+    private async Task<Attempt> RunUntilTerminalAsync(ServiceProvider provider, Guid attemptId)
+    {
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.NotEqual(AttemptStatus.Running, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        return await dbContext.Attempts.AsNoTracking().SingleAsync(attempt => attempt.Id == attemptId);
+    }
+
+    /// <summary>Blocks until the supervisor's host-shutdown token cancels the invocation, then
+    /// reports the real Cancelled process result a process adapter produces for that case —
+    /// never throwing, and never invoking anything external.</summary>
+    private sealed class CancellationAwaitingCodexPlanningAdapter : ICodexPlanningAdapter
+    {
+        private int _invocationCount;
+
+        public TaskCompletionSource Invoked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int InvocationCount => Volatile.Read(ref _invocationCount);
+
+        public async Task<CodexPlanningInvocationResult> InvokeAsync(CodexPlanningInvocationRequest request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref _invocationCount);
+            var started = TimeProvider.System.GetTimestamp();
+            Invoked.TrySetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            return new CodexPlanningInvocationResult(
+                CodexPlanningInvocationOutcome.Failed, false, false, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Cancelled, null, TimeProvider.System.GetElapsedTime(started)));
+        }
+    }
+
     private ServiceProvider BuildServiceProvider(
         IGitWorkspaceEvidenceReader evidenceReader,
         ICodexPlanningAdapter codexAdapter,
@@ -790,7 +944,7 @@ public sealed class AgentAttemptSupervisorHostedTests : IDisposable
         public string? FinalResponseJsonToWrite { get; set; }
 
         public CodexPlanningInvocationResult ResultToReturn { get; set; } =
-            new(CodexPlanningInvocationOutcome.Exited, false, false, null);
+            new(CodexPlanningInvocationOutcome.Exited, false, false, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit);
 
         public async Task<CodexPlanningInvocationResult> InvokeAsync(CodexPlanningInvocationRequest request, CancellationToken cancellationToken)
         {

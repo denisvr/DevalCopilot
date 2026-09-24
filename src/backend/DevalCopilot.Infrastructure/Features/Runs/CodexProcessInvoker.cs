@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Infrastructure.Features.Runs;
@@ -38,9 +39,18 @@ internal static class CodexProcessInvoker
         int MaxTotalCapturedBytes,
         object OutputSchemaDocument);
 
-    internal sealed record Outcome(bool Succeeded, bool StandardOutputTruncated, bool StandardErrorTruncated, string? ProviderSessionId)
+    /// <summary>The invocation result. <paramref name="ProcessEvidence"/> is set whenever the
+    /// process adapter returned a real result — including a timeout, cancellation, or non-zero
+    /// exit — and is null only when no process result exists at all (<see cref="Failed"/>), so a
+    /// caller can never mistake a pre-start failure for a measured one.</summary>
+    internal sealed record Outcome(
+        bool Succeeded,
+        bool StandardOutputTruncated,
+        bool StandardErrorTruncated,
+        string? ProviderSessionId,
+        AgentProcessEvidence? ProcessEvidence)
     {
-        internal static readonly Outcome Failed = new(false, false, false, null);
+        internal static readonly Outcome Failed = new(false, false, false, null, null);
     }
 
     internal static async Task<Outcome> InvokeAsync(
@@ -148,16 +158,20 @@ internal static class CodexProcessInvoker
                 return Outcome.Failed;
             }
 
+            // Preserved for every real result, never collapsed into the Succeeded flag alone: a
+            // timeout, a cancellation, and a non-zero exit remain distinguishable host-measured facts.
+            var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
             if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
             {
-                return new Outcome(false, result.StandardOutputTruncated, result.StandardErrorTruncated, null);
+                return new Outcome(false, result.StandardOutputTruncated, result.StandardErrorTruncated, null, processEvidence);
             }
 
             return new Outcome(
                 true,
                 result.StandardOutputTruncated,
                 result.StandardErrorTruncated,
-                TryExtractProviderSessionId(result.StandardOutput));
+                TryExtractProviderSessionId(result.StandardOutput),
+                processEvidence);
         }
         finally
         {

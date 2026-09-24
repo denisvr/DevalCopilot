@@ -9,4 +9,5 @@ public sealed record CriticalReviewInvocationResult(
     CriticalReviewInvocationOutcome Outcome,
     bool StandardOutputTruncated,
     bool StandardErrorTruncated,
-    string? ProviderSessionId);
+    string? ProviderSessionId,
+    AgentProcessEvidence? ProcessEvidence = null);

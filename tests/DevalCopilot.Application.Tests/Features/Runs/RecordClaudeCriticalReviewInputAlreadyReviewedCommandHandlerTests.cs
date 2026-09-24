@@ -41,7 +41,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingReview.MarkAgentDispatched(Now);
-        competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var competingInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, reviewedProposalId, sequence: 0);
 
         dbContext.Projects.Add(project);
@@ -78,7 +78,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingReview.MarkAgentDispatched(Now);
-        competingReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now);
+        competingReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var competingInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), competingReview.Id, reviewedProposalId, sequence: 0);
 
         dbContext.Projects.Add(project);
@@ -202,7 +202,7 @@ public sealed class RecordClaudeCriticalReviewInputAlreadyReviewedCommandHandler
             Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint,
             Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, Now);
         unrelatedSuccessfulReview.MarkAgentDispatched(Now);
-        unrelatedSuccessfulReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        unrelatedSuccessfulReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var unrelatedInputMessage = AttemptInputMessage.Record(Guid.NewGuid(), unrelatedSuccessfulReview.Id, Guid.NewGuid(), sequence: 0);
 
         dbContext.Projects.Add(project);

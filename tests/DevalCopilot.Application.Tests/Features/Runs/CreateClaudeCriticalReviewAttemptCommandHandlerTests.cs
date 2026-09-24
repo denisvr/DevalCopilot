@@ -191,7 +191,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, checkpointFingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
         planningAttempt.MarkAgentDispatched(occurredAtUtc);
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, checkpointFingerprintSha256, occurredAtUtc);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, checkpointFingerprintSha256, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
 
         var proposalMessage = CollaborationMessage.Record(
             Guid.NewGuid(),
@@ -297,7 +297,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         nonPlannerAttempt.MarkAgentDispatched(Now);
-        nonPlannerAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        nonPlannerAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var wronglyTypedMessage = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, nonPlannerAttempt.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null,
@@ -748,7 +748,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         priorReview.MarkAgentDispatched(Now);
-        priorReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        priorReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(priorReview);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorReview.Id, proposalMessage.Id, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -776,7 +776,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         priorReview.MarkAgentDispatched(Now);
-        priorReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now);
+        priorReview.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(priorReview);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorReview.Id, proposalMessage.Id, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);

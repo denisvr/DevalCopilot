@@ -130,7 +130,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         planningAttempt.MarkAgentDispatched(Now);
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, planningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
@@ -143,7 +143,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         acceptanceAttempt.MarkAgentDispatched(Now);
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, acceptanceAttempt.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode),
@@ -155,7 +155,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
             Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
-        implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, implementation.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Implementer, AgentProvider.ClaudeCode),
@@ -167,7 +167,7 @@ public sealed class CreateReviewCorrectionAttemptTransactionBoundaryTests : IAsy
             Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         review.MarkAgentDispatched(Now);
-        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now);
+        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, review.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, AgentProvider.Codex),

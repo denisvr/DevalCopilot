@@ -374,7 +374,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         planningAttempt.MarkAgentDispatched(Now);
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         context.Attempts.Add(planningAttempt);
 
         var proposal = CollaborationMessage.Record(
@@ -395,7 +395,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         acceptanceAttempt.MarkAgentDispatched(Now);
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         context.Attempts.Add(acceptanceAttempt);
         context.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, proposal.Id, 0));
         var acceptance = CollaborationMessage.Record(
@@ -407,13 +407,13 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         context.CollaborationMessages.Add(acceptance);
 
         var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint?.Id ?? Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
-        if (completedReview) { review.MarkAgentDispatched(Now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now); }
+        if (completedReview) { review.MarkAgentDispatched(Now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit); }
         else { review.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, Now); }
         if (checkpoint is not null)
         {
             var implementation = Attempt.ClaimAgentImplementation(Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, Now);
             implementation.MarkAgentDispatched(Now);
-            implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now);
+            implementation.CompleteImplementation(AgentOutcome.Implemented, checkpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
             report = CollaborationMessage.Record(Guid.NewGuid(), run.Id, implementation.Id, CollaborationMessage.ProtocolVersionOne,
                 ParticipantIdentity.ForAgent(AgentRole.Implementer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.ExecutionReport, proposal.Id,
                 "Implemented the requested correction.", JsonSerializer.Serialize(new { completedWork = "Updated the implementation.", verification = "Tests passed." }), CollaborationMessageProvenance.ProviderObserved, Now);

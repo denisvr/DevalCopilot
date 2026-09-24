@@ -50,6 +50,8 @@ public sealed class GetAgentAttemptStatusQueryHandler(IDevalCopilotDbContext dbC
             attempt.ClaimedAtUtc,
             attempt.AgentDispatchedAtUtc,
             attempt.CompletedAtUtc,
-            artifacts));
+            artifacts,
+            attempt.GetAgentProcessExecutionEvidence(),
+            attempt.AgentTimeout));
     }
 }

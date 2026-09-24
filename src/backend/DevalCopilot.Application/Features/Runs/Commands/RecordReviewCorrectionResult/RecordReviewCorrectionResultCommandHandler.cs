@@ -4,6 +4,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationResult;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -126,6 +127,15 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             return Failure(Error.Failure("agent_attempts.conflicting_correction_evidence", "A correction result was supplied for a failed invocation."));
         }
 
+        // ProcessSucceeded asserts that the provider process exited with code zero; the host-measured
+        // evidence must say exactly that, never contradict it or be missing.
+        if (command.ProcessSucceeded && command.ProcessEvidence is not { IsCleanExit: true })
+        {
+            return Failure(Error.Failure(
+                AgentProcessEvidenceRecording.CleanExitRequiredCode,
+                "A successful provider invocation requires evidence that the provider process exited with code zero."));
+        }
+
         if (command.ProviderSessionId is { Length: > MaxProviderSessionIdLength })
         {
             return Failure(Error.Failure("agent_attempts.provider_session_id_too_long", "The provider session identifier exceeds its bound."));
@@ -197,6 +207,15 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
 
         var (outcome, mutationSuspected) = Classify(command, attempt, startingCheckpoint, inputMessages.Count == orderedInputs.Count);
 
+        // Validated against the classified outcome before any mutation below, and recorded
+        // atomically by CompleteReviewCorrection.
+        var processEvidenceError = AgentProcessEvidenceRecording.Validate(
+            command.ProcessEvidence, outcome, attempt.AgentDispatchedAtUtc.HasValue, out var processEvidence);
+        if (processEvidenceError is not null)
+        {
+            return Failure(processEvidenceError);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
         if (!string.IsNullOrWhiteSpace(command.ProviderSessionId))
         {
@@ -222,7 +241,7 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             resultCheckpointId = resultCheckpoint.Id;
         }
 
-        attempt.CompleteReviewCorrection(outcome, resultCheckpointId, nowUtc);
+        attempt.CompleteReviewCorrection(outcome, resultCheckpointId, nowUtc, processEvidence);
         if (mutationSuspected)
         {
             workspace.MarkNeedsAttention(AmbiguousMutationReasonCode);

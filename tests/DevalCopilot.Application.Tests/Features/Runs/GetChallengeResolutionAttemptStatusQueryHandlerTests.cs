@@ -71,7 +71,7 @@ public sealed class GetChallengeResolutionAttemptStatusQueryHandlerTests(SqliteD
         var challengeIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
         var (attempt, originalProposal, challenges) = ClaimChallengeResolutionAttempt(run.Id, 1, Now, originalProposalId, challengeIds);
         attempt.MarkAgentDispatched(Now.AddSeconds(1));
-        attempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now.AddSeconds(2));
+        attempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
         dbContext.Attempts.Add(attempt);
@@ -113,7 +113,7 @@ public sealed class GetChallengeResolutionAttemptStatusQueryHandlerTests(SqliteD
         var (secondAttempt, secondProposal, secondChallenges) =
             ClaimChallengeResolutionAttempt(run.Id, 2, Now.AddMinutes(1), Guid.NewGuid(), [Guid.NewGuid(), Guid.NewGuid()]);
         secondAttempt.MarkAgentDispatched(Now.AddMinutes(1).AddSeconds(1));
-        secondAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now.AddMinutes(1).AddSeconds(2));
+        secondAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now.AddMinutes(1).AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

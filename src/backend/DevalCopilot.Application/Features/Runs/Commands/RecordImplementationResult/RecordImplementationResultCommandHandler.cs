@@ -2,6 +2,7 @@ using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -172,6 +173,16 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
                     "A validated implementation report was supplied for a failed provider invocation."));
         }
 
+        // ProcessSucceeded asserts that the provider process exited with code zero; the host-measured
+        // evidence must say exactly that, never contradict it or be missing.
+        if (command.ProcessSucceeded && command.ProcessEvidence is not { IsCleanExit: true })
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(
+                Error.Failure(
+                    AgentProcessEvidenceRecording.CleanExitRequiredCode,
+                    "A successful provider invocation requires evidence that the provider process exited with code zero."));
+        }
+
         if (command.ProviderSessionId is { Length: > MaxProviderSessionIdLength })
         {
             return Result<RecordImplementationResultCommandResult>.Failure(
@@ -207,6 +218,15 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
         // the boundary check above never lets an invalid-but-non-null report reach this point.
         var evidenceAvailable = command.CompletionHeadCommitSha is not null;
         var (outcome, mutationSuspected) = Classify(command, attempt, startingCheckpoint, evidenceAvailable, command.Report);
+
+        // Validated against the classified outcome before any mutation below, and recorded
+        // atomically by CompleteImplementation.
+        var processEvidenceError = AgentProcessEvidenceRecording.Validate(
+            command.ProcessEvidence, outcome, attempt.AgentDispatchedAtUtc.HasValue, out var processEvidence);
+        if (processEvidenceError is not null)
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(processEvidenceError);
+        }
 
         var nowUtc = timeProvider.GetUtcNow();
 
@@ -252,7 +272,7 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             resultCheckpointId = checkpoint.Id;
         }
 
-        attempt.CompleteImplementation(outcome, resultCheckpointId, nowUtc);
+        attempt.CompleteImplementation(outcome, resultCheckpointId, nowUtc, processEvidence);
 
         if (mutationSuspected)
         {

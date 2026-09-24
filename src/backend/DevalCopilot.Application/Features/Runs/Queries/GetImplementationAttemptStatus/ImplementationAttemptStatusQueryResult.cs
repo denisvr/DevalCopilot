@@ -33,7 +33,9 @@ public sealed record ImplementationAttemptStatusQueryResult(
     DateTimeOffset? CompletedAtUtc,
     IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
     AgentAssignmentSnapshot? Assignment,
-    AgentRole? Role)
+    AgentRole? Role,
+    AgentProcessExecutionEvidence? ProcessExecution = null,
+    TimeSpan? Timeout = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

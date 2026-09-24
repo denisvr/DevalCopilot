@@ -74,14 +74,17 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
             return Failed();
         }
 
+        // Preserved for every real result, never collapsed into the closed Exited/Failed
+        // classification alone — mirrors ClaudeImplementationAdapter.
+        var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
         if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         if (!TryParseEnvelope(result.StandardOutput, out var finalResponse, out var sessionId) || finalResponse is null)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         try
@@ -92,15 +95,15 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         }
         catch (IOException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
         catch (UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         return new ReviewCorrectionInvocationResult(
-            ImplementationInvocationOutcome.Exited, result.StandardOutputTruncated, result.StandardErrorTruncated, sessionId);
+            ImplementationInvocationOutcome.Exited, result.StandardOutputTruncated, result.StandardErrorTruncated, sessionId, processEvidence);
     }
 
     private static bool TryParseEnvelope(string output, out string? finalResponse, out string? sessionId)
@@ -166,6 +169,8 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         return environment;
     }
 
-    private static ReviewCorrectionInvocationResult Failed(bool stdoutTruncated = false, bool stderrTruncated = false) =>
-        new(ImplementationInvocationOutcome.Failed, stdoutTruncated, stderrTruncated, null);
+    /// <summary><paramref name="processEvidence"/> is null only when no process result exists.</summary>
+    private static ReviewCorrectionInvocationResult Failed(
+        bool stdoutTruncated = false, bool stderrTruncated = false, AgentProcessEvidence? processEvidence = null) =>
+        new(ImplementationInvocationOutcome.Failed, stdoutTruncated, stderrTruncated, null, processEvidence);
 }

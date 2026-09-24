@@ -154,7 +154,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
         planningAttempt.MarkAgentDispatched(occurredAtUtc);
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, fingerprint, occurredAtUtc);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
 
         var proposal = RecordProposal(dbContext, runId, planningAttempt.Id, occurredAtUtc);
@@ -163,7 +163,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), runId, 2, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
         reviewAttempt.MarkAgentDispatched(occurredAtUtc);
-        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, fingerprint, occurredAtUtc);
+        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(reviewAttempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), reviewAttempt.Id, proposal.Id, sequence: 0));
 
@@ -187,7 +187,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
         originalPlanningAttempt.MarkAgentDispatched(occurredAtUtc);
-        originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, fingerprint, occurredAtUtc);
+        originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(originalPlanningAttempt);
         var originalProposal = RecordProposal(dbContext, runId, originalPlanningAttempt.Id, occurredAtUtc);
 
@@ -209,7 +209,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), runId, 2, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc);
         resolverAttempt.MarkAgentDispatched(occurredAtUtc);
-        resolverAttempt.CompleteAgent(AgentOutcome.Resolved, fingerprint, occurredAtUtc);
+        resolverAttempt.CompleteAgent(AgentOutcome.Resolved, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(resolverAttempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), resolverAttempt.Id, originalProposal.Id, sequence: 0));
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), resolverAttempt.Id, challenge.Id, sequence: 1));
@@ -316,7 +316,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         originalPlanningAttempt.MarkAgentDispatched(Now);
-        originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(originalPlanningAttempt);
         var originalProposal = RecordProposal(dbContext, run.Id, originalPlanningAttempt.Id, Now);
 
@@ -338,7 +338,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         resolverAttempt.MarkAgentDispatched(Now);
-        resolverAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        resolverAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         AttemptProviderSubstitution.SetProvider(resolverAttempt, AgentProvider.ClaudeCode);
         dbContext.Attempts.Add(resolverAttempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), resolverAttempt.Id, originalProposal.Id, sequence: 0));
@@ -399,7 +399,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planningAttempt.MarkAgentDispatched(Now);
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
         var proposal = RecordProposal(dbContext, run.Id, planningAttempt.Id, Now);
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -431,7 +431,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planningAttempt.MarkAgentDispatched(Now);
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
         var proposal = RecordProposal(dbContext, run.Id, planningAttempt.Id, Now);
 
@@ -439,7 +439,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         reviewAttempt.MarkAgentDispatched(Now);
-        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        reviewAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         if (useUndefinedRatherThanNull)
         {
             AttemptProviderSubstitution.SetUndefinedProvider(reviewAttempt);
@@ -496,7 +496,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
             Guid.NewGuid(), run.Id, 3, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         priorImplementation.MarkAgentDispatched(Now);
-        priorImplementation.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), Now);
+        priorImplementation.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(priorImplementation);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorImplementation.Id, proposal.Id, sequence: 0));
         await dbContext.SaveChangesAsync(CancellationToken.None);

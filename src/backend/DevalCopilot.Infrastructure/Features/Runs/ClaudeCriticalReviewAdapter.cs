@@ -135,9 +135,13 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             return Failed();
         }
 
+        // Preserved for every real result — including a timeout, a cancellation, a non-zero exit,
+        // and a zero exit whose envelope is later rejected — never collapsed into the closed
+        // Exited/Failed classification alone.
+        var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
         if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         var envelope = TryParseEnvelope(result.StandardOutput);
@@ -148,7 +152,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             // adapter could not make sense of. Either way, there is no trustworthy final
             // response to seal as a proposal review — recorded as a truthful provider failure,
             // never as an empty or invented success.
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         try
@@ -159,14 +163,15 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         return new CriticalReviewInvocationResult(
             CriticalReviewInvocationOutcome.Exited,
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
-            envelope.SessionId);
+            envelope.SessionId,
+            ProcessEvidence: processEvidence);
     }
 
     /// <summary>Never a searched, invented, or PATH-resolved value — must already be a fully
@@ -298,6 +303,8 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
 
     private sealed record ClaudeEnvelope(bool IsError, string? FinalResponseJson, string? SessionId);
 
-    private static CriticalReviewInvocationResult Failed(bool standardOutputTruncated = false, bool standardErrorTruncated = false) =>
-        new(CriticalReviewInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null);
+    /// <summary><paramref name="processEvidence"/> is null only when no process result exists.</summary>
+    private static CriticalReviewInvocationResult Failed(
+        bool standardOutputTruncated = false, bool standardErrorTruncated = false, AgentProcessEvidence? processEvidence = null) =>
+        new(CriticalReviewInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null, processEvidence);
 }

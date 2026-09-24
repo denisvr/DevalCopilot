@@ -88,7 +88,7 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planner.MarkAgentDispatched(Now);
-        planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var originalProposal = corruption == ResolverLineageCorruption.SimulatedOriginalProposal
             ? CollaborationMessage.Record(
                 Guid.NewGuid(), run.Id, planner.Id, CollaborationMessage.ProtocolVersionOne,
@@ -110,13 +110,13 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
             Guid.NewGuid(), run.Id, 2, workspace.Id, reviewCheckpoint.Id, reviewCheckpoint.FingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         review.MarkAgentDispatched(Now);
-        review.CompleteAgent(AgentOutcome.Challenged, reviewCheckpoint.FingerprintSha256, Now);
+        review.CompleteAgent(AgentOutcome.Challenged, reviewCheckpoint.FingerprintSha256, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         var otherPlanner = Attempt.ClaimAgent(
             Guid.NewGuid(), run.Id, 5, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         otherPlanner.MarkAgentDispatched(Now);
-        otherPlanner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        otherPlanner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var otherProposal = CollaborationMessage.Record(
             Guid.NewGuid(), run.Id, otherPlanner.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
@@ -134,7 +134,7 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
                 TimeSpan.FromMinutes(10), 262144, 524288, Now)
             : null;
         otherReview?.MarkAgentDispatched(Now);
-        otherReview?.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now);
+        otherReview?.CompleteAgent(AgentOutcome.Challenged, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var challengeTwo = CreateChallenge(
             otherRun?.Id ?? run.Id,
             otherReview?.Id ?? review.Id,
@@ -144,7 +144,7 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         resolver.MarkAgentDispatched(Now);
-        resolver.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        resolver.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         var orderedChallenges = corruption == ResolverLineageCorruption.ReorderedChallengeSet
             ? new[] { challengeTwo, challengeOne }
@@ -177,7 +177,7 @@ public sealed class ImplementerExecutionReportEligibilityTests : IAsyncLifetime
             Guid.NewGuid(), run.Id, 4, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
-        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(
             implementation, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.ExecutionReport, revisedProposal.Id, "Implemented the revised plan.",

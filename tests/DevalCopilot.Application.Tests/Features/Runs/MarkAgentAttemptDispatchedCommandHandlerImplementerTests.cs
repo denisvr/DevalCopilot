@@ -39,7 +39,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerImplementerTests(Sql
             Guid.NewGuid(), run.Id, 2, workspace.Id, competingCheckpointId, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(20), 262144, 524288, Now);
         competingImplementation.MarkAgentDispatched(Now);
-        competingImplementation.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), Now);
+        competingImplementation.CompleteImplementation(AgentOutcome.Implemented, Guid.NewGuid(), Now, processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

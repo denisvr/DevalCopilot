@@ -199,7 +199,7 @@ public sealed class ReviewCorrectionDurabilityTests
         run.Claim(Now);
         var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(), TimeSpan.FromMinutes(20), 1, 1, Now);
         review.MarkAgentDispatched(Now);
-        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, new string('a', 64), Now);
+        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, new string('a', 64), Now, processEvidence: TestProcessEvidence.CleanExit);
         var escalationMessage = EscalationMessage(run.Id, Guid.NewGuid());
         var escalation = ReviewCorrectionEscalation.Record(Guid.NewGuid(), run.Id, review.Id, escalationMessage.Id, Now);
         var instruction = includeAuthorization

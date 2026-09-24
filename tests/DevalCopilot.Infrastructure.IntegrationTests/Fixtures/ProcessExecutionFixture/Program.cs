@@ -10,6 +10,15 @@ if (args.Length == 0)
     return 64;
 }
 
+// Interpreter-style launch: when the first argument is an existing "*.fixture-script" file, the
+// mode and its arguments are read from that file and every remaining argument is ignored. This
+// lets an adapter with a fixed provider argument contract (e.g. a script launch target followed by
+// provider flags) still drive a deterministic mode such as sleep-ms or exit-code.
+if (args[0].EndsWith(".fixture-script", StringComparison.OrdinalIgnoreCase) && File.Exists(args[0]))
+{
+    args = File.ReadAllText(args[0]).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
 switch (args[0])
 {
     case "exit-code":

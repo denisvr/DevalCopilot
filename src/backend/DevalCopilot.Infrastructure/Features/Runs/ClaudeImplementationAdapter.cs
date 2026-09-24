@@ -129,19 +129,22 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             return Failed();
         }
 
+        // Preserved for every real result, never collapsed into the closed Exited/Failed
+        // classification alone — mirrors ClaudeCriticalReviewAdapter.
+        var processEvidence = AgentProcessEvidence.FromProcessExecutionResult(result);
         if (result.Outcome != ProcessExecutionOutcome.Exited || result.ExitCode != 0)
         {
             // Deliberately never short-circuits without capturing whatever partial
             // stdout/stderr the process produced — the caller always independently re-reads
             // fresh Git evidence after this returns, regardless of this outcome, since the
             // worktree may already have been mutated before this failure occurred.
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         var envelope = TryParseEnvelope(result.StandardOutput);
         if (envelope is null || envelope.IsError || envelope.FinalResponseJson is null)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         try
@@ -152,14 +155,15 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
         return new ImplementationInvocationResult(
             ImplementationInvocationOutcome.Exited,
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
-            envelope.SessionId);
+            envelope.SessionId,
+            ProcessEvidence: processEvidence);
     }
 
     /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.IsAcceptableLaunchComponent</c>
@@ -253,6 +257,9 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
 
     private sealed record ClaudeEnvelope(bool IsError, string? FinalResponseJson, string? SessionId);
 
-    private static ImplementationInvocationResult Failed(bool standardOutputTruncated = false, bool standardErrorTruncated = false) =>
-        new(ImplementationInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null);
+    /// <summary><paramref name="processEvidence"/> is null only when no process result exists.</summary>
+    private static ImplementationInvocationResult Failed(
+        bool standardOutputTruncated = false, bool standardErrorTruncated = false, AgentProcessEvidence? processEvidence = null) =>
+        new(ImplementationInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null,
+            ProcessEvidence: processEvidence);
 }

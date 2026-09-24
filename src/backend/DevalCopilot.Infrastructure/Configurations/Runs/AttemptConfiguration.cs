@@ -74,6 +74,18 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
                 timeout => timeout.HasValue ? (long?)timeout.Value.TotalMilliseconds : null,
                 milliseconds => milliseconds.HasValue ? TimeSpan.FromMilliseconds(milliseconds.Value) : (TimeSpan?)null);
 
+        // Host-measured Agent process evidence: nullable and never backfilled, so every attempt
+        // recorded before these columns existed truthfully reads as unknown evidence. Unlike
+        // AgentTimeout/ProcessTimeout (a caller-configured bound with no need for finer-than-
+        // millisecond precision), this duration is a real host measurement around one child
+        // process and is persisted as its exact tick count so it round-trips losslessly even when
+        // the measured duration is not a whole number of milliseconds.
+        builder.Property(attempt => attempt.AgentProcessOutcome).HasConversion<string>().HasMaxLength(32);
+        builder.Property(attempt => attempt.AgentProcessDuration)
+            .HasConversion(
+                duration => duration.HasValue ? (long?)duration.Value.Ticks : null,
+                ticks => ticks.HasValue ? TimeSpan.FromTicks(ticks.Value) : (TimeSpan?)null);
+
         builder.HasOne<Run>().WithMany().HasForeignKey(attempt => attempt.RunId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(attempt => new { attempt.RunId, attempt.AttemptNumber }).IsUnique();
 

@@ -13,4 +13,5 @@ public sealed record GetRunCockpitResponse(
     long LatestSequence,
     IReadOnlyList<StageMapEntryResponse> StageMap,
     bool CanPause,
-    bool CanStop);
+    bool CanStop,
+    RunCockpitAgentAttemptResponse? LatestAgentAttempt);

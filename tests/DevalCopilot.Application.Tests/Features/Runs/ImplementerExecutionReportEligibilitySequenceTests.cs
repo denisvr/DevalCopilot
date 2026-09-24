@@ -134,7 +134,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planner.MarkAgentDispatched(Now);
-        planner.CompleteAgent(AgentOutcome.Proposed, StartingFingerprint, Now);
+        planner.CompleteAgent(AgentOutcome.Proposed, StartingFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.RecordAgent(
             planner, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal, null, "Implement the accepted plan.", ProposalJson, Now);
@@ -143,7 +143,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
             Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         acceptanceAttempt.MarkAgentDispatched(Now);
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, StartingFingerprint, Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, StartingFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.RecordAgent(
             acceptanceAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.Acceptance, proposal.Id, "Accepted the plan.", AcceptanceJson, Now);
@@ -152,7 +152,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
-        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(
             implementation, Guid.NewGuid(), proposal.Actor, CollaborationMessageType.ExecutionReport, proposal.Id,
             "Implemented the accepted plan.", ExecutionReportJson, Now);
@@ -190,7 +190,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planner.MarkAgentDispatched(Now);
-        planner.CompleteAgent(AgentOutcome.Proposed, StartingFingerprint, Now);
+        planner.CompleteAgent(AgentOutcome.Proposed, StartingFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.RecordAgent(
             planner, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal, null, "Implement the plan.", ProposalJson, Now);
@@ -199,7 +199,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
             Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         acceptanceAttempt.MarkAgentDispatched(Now);
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, StartingFingerprint, Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, StartingFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.RecordAgent(
             acceptanceAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.Acceptance, proposal.Id, "Accepted the plan.", AcceptanceJson, Now);
@@ -208,7 +208,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, StartingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
-        implementation.CompleteImplementation(AgentOutcome.Implemented, implementationCheckpoint.Id, Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, implementationCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var initialReport = CollaborationMessage.RecordAgent(
             implementation, Guid.NewGuid(), proposal.Actor, CollaborationMessageType.ExecutionReport, proposal.Id,
             "Implemented the plan.", ExecutionReportJson, Now);
@@ -217,7 +217,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
             Guid.NewGuid(), run.Id, 4, workspace.Id, implementationCheckpoint.Id, ResultFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         review.MarkAgentDispatched(Now);
-        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, ResultFingerprint, Now);
+        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, ResultFingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.RecordAgent(
             review, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.ReviewFinding, initialReport.Id, "Add the missing guard.", ReviewFindingJson, Now);
@@ -232,7 +232,7 @@ public sealed class ImplementerExecutionReportEligibilitySequenceTests : IAsyncL
         var correctedReport = CollaborationMessage.RecordAgent(
             correction, Guid.NewGuid(), proposal.Actor, CollaborationMessageType.ExecutionReport, proposal.Id,
             "Correction completed.", ExecutionReportJson, Now);
-        correction.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, correctionCheckpoint.Id, Now);
+        correction.CompleteReviewCorrection(AgentOutcome.CorrectionApplied, correctionCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         context.Projects.Add(project);
         context.Runs.Add(run);

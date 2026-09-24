@@ -93,7 +93,7 @@ public sealed class GetChallengeResolutionAttemptStatusEndpointTests(ChallengeRe
                 Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, manifestArtifactId,
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             attempt.MarkAgentDispatched(now.AddSeconds(1));
-            attempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, now.AddSeconds(5));
+            attempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
             attemptId = attempt.Id;
             dbContext.Attempts.Add(attempt);
             dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, originalProposalId, sequence: 0));
@@ -155,7 +155,7 @@ public sealed class GetChallengeResolutionAttemptStatusEndpointTests(ChallengeRe
                 Guid.NewGuid(), runId, 2, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(2));
             secondAttempt.MarkAgentDispatched(now.AddSeconds(3));
-            secondAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, now.AddSeconds(4));
+            secondAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, now.AddSeconds(4), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(secondAttempt);
             dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), secondAttempt.Id, Guid.NewGuid(), sequence: 0));
 

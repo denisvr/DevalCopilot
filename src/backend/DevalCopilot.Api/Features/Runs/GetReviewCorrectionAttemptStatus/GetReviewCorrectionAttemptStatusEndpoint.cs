@@ -28,6 +28,7 @@ public sealed class GetReviewCorrectionAttemptStatusEndpoint(
             value.Artifacts.Select(artifact => new AgentAttemptArtifactMetadataResponse(
                 artifact.Purpose.ToString(), artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome.ToString())).ToArray(),
             value.MaximumReviewCorrectionAttempts, value.ReviewCorrectionAttemptsUsed, value.BudgetExhausted,
-            value.EscalationId, value.EscalationMessageId, value.HasAvailableHumanAuthorization));
+            value.EscalationId, value.EscalationMessageId, value.HasAvailableHumanAuthorization,
+            AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout)));
     }
 }

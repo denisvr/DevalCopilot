@@ -38,6 +38,17 @@ public sealed class GetRunCockpitEndpoint(
                 value.LatestSequence,
                 stageMap,
                 value.CanPause,
-                value.CanStop));
+                value.CanStop,
+                value.LatestAgentAttempt is { } attempt
+                    ? new RunCockpitAgentAttemptResponse(
+                        attempt.AttemptId,
+                        attempt.AttemptNumber,
+                        attempt.Role?.ToString(),
+                        attempt.Provider?.ToString(),
+                        attempt.Status.ToString(),
+                        attempt.Outcome?.ToString(),
+                        attempt.DispatchedAtUtc,
+                        AgentProcessExecutionResponse.FromAttempt(attempt.ProcessExecution, attempt.Timeout))
+                    : null));
     }
 }

@@ -1,7 +1,11 @@
 using System.Text.Json;
+using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptResult;
+using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -47,7 +51,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         var proposal = new ValidatedProposal("Add the ledger table and its query.", ValidStructuredContentJson);
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -97,7 +101,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         var proposal = new ValidatedProposal("Summary.", ValidStructuredContentJson);
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, providerSessionId),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, providerSessionId, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -118,7 +122,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         var proposal = new ValidatedProposal("Summary.", ValidStructuredContentJson);
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, "session-abc"),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, "session-abc", ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -243,7 +247,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
             new RecordAgentAttemptResultCommand(
-                run.Id, attempt.Id, AgentOutcome.Proposed, new string('b', 64), NoArtifacts, proposal, null),
+                run.Id, attempt.Id, AgentOutcome.Proposed, new string('b', 64), NoArtifacts, proposal, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -390,7 +394,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, null, null),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -435,7 +439,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -460,7 +464,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         var proposal = new ValidatedProposal("Uses a hardcoded password for the ledger.", ValidStructuredContentJson);
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -532,7 +536,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         var proposal = new ValidatedProposal("Summary.", ValidStructuredContentJson);
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, null, NoArtifacts, proposal, null),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, null, NoArtifacts, proposal, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -556,7 +560,7 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
 
         var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, null, null),
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -709,5 +713,89 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         Assert.Equal(AttemptStatus.Running, attempt.Status);
         Assert.Empty(dbContext.Artifacts.Where(a => a.AttemptId == attempt.Id));
         Assert.Empty(dbContext.Events.Where(e => e.AttemptId == attempt.Id));
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_a_proposal_without_clean_exit_evidence_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var proposal = new ValidatedProposal("Add the ledger table and its query.", ValidStructuredContentJson);
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var missing = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null),
+            CancellationToken.None);
+        var nonZero = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 1, TimeSpan.FromSeconds(3))),
+            CancellationToken.None);
+
+        Assert.Equal(AgentProcessEvidenceRecording.CleanExitRequiredCode, Assert.Single(missing.Errors).Code);
+        Assert.Equal(AgentProcessEvidenceRecording.CleanExitRequiredCode, Assert.Single(nonZero.Errors).Code);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Running, persisted.Status);
+        Assert.Null(persisted.AgentOutcome);
+        Assert.Null(persisted.AgentProcessOutcome);
+        Assert.Empty(verification.CollaborationMessages.Where(message => message.RunId == run.Id));
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_non_zero_exit_evidence_atomically_with_the_provider_failure()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ProviderInvocationFailed, null, NoArtifacts, null, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 2, TimeSpan.FromMilliseconds(987))),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Failed, persisted.Status);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persisted.AgentOutcome);
+        Assert.Equal(Now.AddMinutes(1), persisted.CompletedAtUtc);
+        Assert.Equal(ProcessOutcome.Exited, persisted.AgentProcessOutcome);
+        Assert.Equal(2, persisted.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromMilliseconds(987), persisted.AgentProcessDuration);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_malformed_evidence_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ProviderInvocationFailed, null, NoArtifacts, null, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, 124, TimeSpan.FromSeconds(1))),
+            CancellationToken.None);
+
+        Assert.Equal(AgentProcessEvidenceRecording.InvalidEvidenceCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Null(attempt.AgentProcessOutcome);
     }
 }

@@ -50,7 +50,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
                     Guid.NewGuid(), runId, 100 + index, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
                     TimeSpan.FromMinutes(10), 262144, 524288, Now);
                 candidate.MarkAgentDispatched(Now);
-                candidate.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now);
+                candidate.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
                 addCandidatesContext.Attempts.Add(candidate);
             }
 
@@ -126,7 +126,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planner.MarkAgentDispatched(Now);
-        planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.RecordAgent(
             planner, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal, null, "Implement the requested change.",
@@ -136,7 +136,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         acceptanceAttempt.MarkAgentDispatched(Now);
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.RecordAgent(
             acceptanceAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.Acceptance, proposal.Id, "Accepted the proposal.",
@@ -146,7 +146,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
-        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(
             implementation, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.ExecutionReport, proposal.Id, "Implemented the proposal.",
@@ -183,7 +183,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         planner.MarkAgentDispatched(Now);
-        planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now);
+        planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.RecordAgent(
             planner, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.Proposal, null, "Implement the requested change.",
@@ -193,7 +193,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         acceptanceAttempt.MarkAgentDispatched(Now);
-        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         var acceptance = CollaborationMessage.RecordAgent(
             acceptanceAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
             CollaborationMessageType.Acceptance, proposal.Id, "Accepted the proposal.",
@@ -203,7 +203,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         implementation.MarkAgentDispatched(Now);
-        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         var executionReport = CollaborationMessage.RecordAgent(
             implementation, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.ExecutionReport, proposal.Id, "Implemented the proposal.",
@@ -213,7 +213,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             Guid.NewGuid(), run.Id, 4, workspace.Id, resultCheckpoint.Id, resultCheckpoint.FingerprintSha256, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         review.MarkAgentDispatched(Now);
-        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, resultCheckpoint.FingerprintSha256, Now);
+        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, resultCheckpoint.FingerprintSha256, Now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.RecordAgent(
             review, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
             CollaborationMessageType.ReviewFinding, executionReport.Id, "Add the missing guard.",

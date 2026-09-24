@@ -394,7 +394,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingReview.MarkAgentDispatched(Now);
-        competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        competingReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -433,7 +433,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
             Guid.NewGuid(), run.Id, 99, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         unrelatedCompletedReview.MarkAgentDispatched(Now);
-        unrelatedCompletedReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now);
+        unrelatedCompletedReview.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(unrelatedCompletedReview);
         dbContext.AttemptInputMessages.Add(
             AttemptInputMessage.Record(Guid.NewGuid(), unrelatedCompletedReview.Id, reviewedProposalId, sequence: 0));
@@ -474,7 +474,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingResolution.MarkAgentDispatched(Now);
-        competingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now);
+        competingResolution.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);
@@ -634,7 +634,7 @@ public sealed class MarkAgentAttemptDispatchedCommandHandlerTests(SqliteDatabase
             Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, Now);
         competingReview.MarkAgentDispatched(Now);
-        competingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now);
+        competingReview.CompleteAgent(AgentOutcome.ReviewApproved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
 
         dbContext.Projects.Add(project);
         dbContext.Runs.Add(run);

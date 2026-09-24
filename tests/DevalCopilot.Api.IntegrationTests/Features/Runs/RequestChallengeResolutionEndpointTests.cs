@@ -141,7 +141,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
                 Guid.NewGuid(), runId, 3, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
                 TimeSpan.FromMinutes(10), 262144, 524288, now);
             priorResolution.MarkAgentDispatched(now.AddSeconds(1));
-            priorResolution.CompleteAgent(AgentOutcome.Resolved, MatchingFingerprint, now.AddSeconds(2));
+            priorResolution.CompleteAgent(AgentOutcome.Resolved, MatchingFingerprint, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
             dbContext.Attempts.Add(priorResolution);
             dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), priorResolution.Id, challengeIds[0], sequence: 1));
             await dbContext.SaveChangesAsync();
@@ -210,7 +210,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
             Guid.NewGuid(), runId, 1, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, now);
         planningAttempt.MarkAgentDispatched(now.AddSeconds(1));
-        planningAttempt.CompleteAgent(AgentOutcome.Proposed, MatchingFingerprint, now.AddSeconds(2));
+        planningAttempt.CompleteAgent(AgentOutcome.Proposed, MatchingFingerprint, now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(planningAttempt);
 
         var proposal = CollaborationMessage.Record(
@@ -224,7 +224,7 @@ public sealed class RequestChallengeResolutionEndpointTests : IDisposable
             Guid.NewGuid(), runId, 2, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, now.AddSeconds(3));
         reviewAttempt.MarkAgentDispatched(now.AddSeconds(4));
-        reviewAttempt.CompleteAgent(AgentOutcome.Challenged, MatchingFingerprint, now.AddSeconds(5));
+        reviewAttempt.CompleteAgent(AgentOutcome.Challenged, MatchingFingerprint, now.AddSeconds(5), processEvidence: TestProcessEvidence.CleanExit);
         dbContext.Attempts.Add(reviewAttempt);
         dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), reviewAttempt.Id, proposal.Id, sequence: 0));
 

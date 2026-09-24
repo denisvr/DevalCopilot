@@ -1,7 +1,11 @@
 using System.Text.Json;
+using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.RecordClaudeCriticalReviewResult;
+using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -60,7 +64,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var review = AcceptanceReview("The proposal correctly scopes the ledger change.");
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, review, null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -105,7 +109,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var review = ChallengesReview(challengeCount);
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Challenged, Fingerprint, NoArtifacts, review, null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Challenged, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -146,7 +150,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var review = ChallengesReview(3);
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Challenged, Fingerprint, NoArtifacts, review, null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Challenged, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -297,7 +301,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
             new RecordClaudeCriticalReviewResultCommand(
-                run.Id, attempt.Id, AgentOutcome.Accepted, new string('b', 64), NoArtifacts, review, null),
+                run.Id, attempt.Id, AgentOutcome.Accepted, new string('b', 64), NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -344,7 +348,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
             new RecordClaudeCriticalReviewResultCommand(
-                run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, AcceptanceReview(), null),
+                run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, AcceptanceReview(), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -366,7 +370,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, AcceptanceReview(), null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, AcceptanceReview(), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -409,7 +413,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, null, NoArtifacts, AcceptanceReview(), null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, null, NoArtifacts, AcceptanceReview(), null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -432,7 +436,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
 
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, null, null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, null, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -456,7 +460,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var review = ChallengesReview(1);
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, review, null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -481,7 +485,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var review = AcceptanceReview();
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Challenged, Fingerprint, NoArtifacts, review, null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Challenged, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -506,7 +510,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var review = AcceptanceReview("Uses a hardcoded password for the ledger.");
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
         var result = await handler.HandleAsync(
-            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, review, null),
+            new RecordClaudeCriticalReviewResultCommand(run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -566,7 +570,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
             new RecordClaudeCriticalReviewResultCommand(
-                run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, AcceptanceReview(), "session-abc"),
+                run.Id, attempt.Id, AgentOutcome.Accepted, Fingerprint, NoArtifacts, AcceptanceReview(), "session-abc", ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -596,5 +600,40 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
         Assert.Equal("agent_attempts.provider_session_id_too_long", Assert.Single(result.Errors).Code);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
         Assert.Null(attempt.AgentProviderSessionId);
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_timeout_evidence_and_rejects_invalid_output_without_a_clean_exit()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var timedOut = new AgentProcessEvidence(ProcessExecutionOutcome.TimedOut, null, TimeSpan.FromMinutes(10));
+        var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var rejected = await handler.HandleAsync(
+            new RecordClaudeCriticalReviewResultCommand(
+                run.Id, attempt.Id, AgentOutcome.InvalidStructuredOutput, Fingerprint, NoArtifacts, null, null, timedOut),
+            CancellationToken.None);
+        Assert.Equal(AgentProcessEvidenceRecording.CleanExitRequiredCode, Assert.Single(rejected.Errors).Code);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+
+        var recorded = await handler.HandleAsync(
+            new RecordClaudeCriticalReviewResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ProviderInvocationFailed, null, NoArtifacts, null, null, timedOut),
+            CancellationToken.None);
+
+        Assert.True(recorded.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persisted.AgentOutcome);
+        Assert.Equal(ProcessOutcome.TimedOut, persisted.AgentProcessOutcome);
+        Assert.Null(persisted.AgentProcessExitCode);
+        Assert.Equal(TimeSpan.FromMinutes(10), persisted.AgentProcessDuration);
     }
 }
