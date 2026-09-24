@@ -23,6 +23,13 @@ All arrows crossing the .NET host boundary are trust boundaries. External
 output is evidence to validate and persist, never an instruction that can
 expand authority.
 
+Codex and Claude Code are the current provider adapters shown in this diagram,
+not permanent owners of workflow roles. Role, response contract, and execution
+effect are defined independently of provider identity. A new provider requires
+its own validated invocation and safety boundary before it can be selected;
+Gemini execution remains deferred by
+[ADR-0011](../decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md).
+
 ## Runtime containers
 
 ```mermaid

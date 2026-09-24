@@ -1,18 +1,26 @@
 # DevalCopilot
 
-DevalCopilot is a local-first, supervised development orchestrator that enables
-Codex and Claude Code to plan, challenge, implement, review, verify, and improve
-software through one durable workflow.
+DevalCopilot is a local-first, supervised development orchestrator for
+role-based AI agents. It coordinates planning, challenge, implementation,
+review, verification, and improvement through one durable workflow. Workflow
+roles and policies are separate from provider identity; each provider needs an
+explicit, validated adapter before it can perform a role.
 
 The product is not a chat wrapper. It is a control plane for agent-assisted
-software delivery in which:
+software delivery. In the current MVP integrations:
 
-- Codex acts primarily as architect and reviewer;
-- Claude Code acts primarily as critical executor;
-- either agent may challenge assumptions and propose a better course;
+- Codex currently handles planning, challenge resolution, and code review;
+- Claude Code currently handles critical review, implementation, and correction;
+- participants can challenge assumptions and propose a better course;
 - Git and CI provide objective evidence;
 - DevalCopilot owns workflow state, process supervision, policy, and recovery;
 - the human remains the final authority for consequential actions.
+
+These assignments describe the current implementation, not permanent
+requirements of the roles. Additional providers are not automatically
+interchangeable: their invocation and safety contracts must be implemented and
+verified first. Gemini execution remains deferred by
+[ADR-0011](docs/decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md).
 
 ## Current status
 

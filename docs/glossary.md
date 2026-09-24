@@ -5,6 +5,18 @@
 A reasoning and execution participant such as Codex or Claude Code. An agent
 does not own workflow state or authority.
 
+## Agent provider
+
+The specific runtime that executes an agent attempt. Provider identity is
+execution provenance, not workflow authority; support requires a validated
+provider-specific adapter.
+
+## Agent role
+
+A workflow responsibility such as Planner or Implementer. The role determines
+the expected response contract and execution effect independently of the
+provider assigned to the attempt.
+
 ## Agent attempt
 
 One invocation of an agent adapter. Retries create new attempts and never

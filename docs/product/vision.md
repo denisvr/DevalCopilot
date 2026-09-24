@@ -26,17 +26,24 @@ trusted workstation. It is not initially a hosted collaboration service.
 
 ## Operating model
 
-- Codex is primarily responsible for analysis, planning, architecture, review,
-  and resolution of implementation findings.
-- Claude Code is primarily responsible for critical plan review, implementation,
-  local investigation, and correction.
-- Roles are asymmetric but not hierarchical. Claude Code may challenge Codex,
-  and Codex must resolve material challenges explicitly.
+Workflow roles and their authority are defined independently of provider
+identity. The following are the current MVP assignments, not permanent
+requirements of those roles:
+
+- Codex currently performs planning, challenge resolution, and code review.
+- Claude Code currently performs critical plan review, implementation, local
+  investigation, and correction.
+- Roles are asymmetric but not hierarchical. The critical reviewer may
+  challenge the planner, who must resolve material challenges explicitly.
 - Git records source history and isolates candidate work.
 - Local verification and GitHub CI provide objective evidence.
 - DevalCopilot controls state transitions, permissions, budgets, retries,
   process lifecycle, and recovery.
 - The human approves consequential actions and resolves bounded disagreements.
+
+A different provider can perform a role only after its specific invocation,
+response, and safety contracts have been implemented and verified. Provider
+neutrality does not imply arbitrary provider support or automatic fallback.
 
 ## Product principles
 
@@ -92,7 +99,8 @@ worktree. It never modifies its running binary or active data store in place.
 
 ## Long-term direction
 
-The architecture may later support additional agents, execution sandboxes,
-remote workers, reusable workflow templates, policy profiles, and team
-collaboration. None of those possibilities may weaken the deterministic local
-MVP or justify speculative infrastructure.
+The role-first architecture can later accommodate additional validated
+providers. Their execution, along with execution sandboxes, remote workers,
+reusable workflow templates, policy profiles, and team collaboration, remains
+future work. None of those possibilities may weaken the deterministic local MVP
+or justify speculative infrastructure.
