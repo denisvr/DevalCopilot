@@ -813,6 +813,44 @@ public sealed class Attempt
         return AgentProcessExecutionEvidence.Create(outcome, AgentProcessExitCode, duration);
     }
 
+    /// <summary>Provider-reported input token count for this Agent attempt's invocation —
+    /// best-effort observation, never host-measured and never required for any outcome. Recorded
+    /// once, only by an Agent completion transition, in the same call as the terminal outcome, and
+    /// only for a dispatched attempt whose provider reported usage through a proven contract.
+    /// <see langword="null"/> means the evidence is truthfully absent: the attempt was never
+    /// dispatched, its provider has no proven usage contract, the provider did not report usage,
+    /// the host was interrupted before recording one, or the attempt predates this evidence.</summary>
+    public int? AgentInputTokens { get; private set; }
+
+    /// <summary>Provider-reported output token count. Set together with
+    /// <see cref="AgentInputTokens"/>, never independently.</summary>
+    public int? AgentOutputTokens { get; private set; }
+
+    /// <summary>Provider-reported cache-creation input token count. Legitimately null even when
+    /// <see cref="AgentInputTokens"/> is set, for a provider contract without a cache breakdown.</summary>
+    public int? AgentCacheCreationInputTokens { get; private set; }
+
+    /// <summary>Provider-reported cache-read input token count. Legitimately null even when
+    /// <see cref="AgentInputTokens"/> is set, for a provider contract without a cache breakdown.</summary>
+    public int? AgentCacheReadInputTokens { get; private set; }
+
+    /// <summary>The adapter-owned parsing-contract tag that produced the recorded token usage —
+    /// internal provenance only, never a UI-facing value. Set together with
+    /// <see cref="AgentInputTokens"/>, never independently.</summary>
+    public string? AgentTokenUsageSchemaVersion { get; private set; }
+
+    /// <summary>Returns the recorded provider-reported token-usage evidence, or
+    /// <see langword="null"/> when it is absent or its persisted shape is not valid evidence — an
+    /// inconsistent row (for example a missing required member, a negative count, or an unsupported
+    /// provider/schema pair) is reported as
+    /// unknown rather than partially trusted. Non-Agent attempts never have this evidence.</summary>
+    public AgentTokenUsageEvidence? GetAgentTokenUsageEvidence() =>
+        Kind != AttemptKind.Agent
+            ? null
+            : AgentTokenUsageEvidence.FromPersisted(
+                AgentProvider, AgentInputTokens, AgentOutputTokens, AgentCacheCreationInputTokens,
+                AgentCacheReadInputTokens, AgentTokenUsageSchemaVersion);
+
     public void Complete(DateTimeOffset nowUtc)
     {
         if (Status != AttemptStatus.Running)
@@ -984,11 +1022,15 @@ public sealed class Attempt
     /// <param name="processEvidence">Host-measured evidence of how the provider child process
     /// ended, recorded atomically with the outcome. Null when no process result exists — always the
     /// case for every pre-dispatch classification. See <see cref="AgentProcessEvidencePolicy"/>.</param>
+    /// <param name="tokenUsage">Provider-reported token usage, recorded atomically with the outcome
+    /// and process evidence. Null when the provider reported none through a proven contract. See
+    /// <see cref="AgentTokenUsageEvidencePolicy"/>.</param>
     public void CompleteAgent(
         AgentOutcome outcome,
         string? completionFingerprintSha256,
         DateTimeOffset nowUtc,
-        AgentProcessExecutionEvidence? processEvidence = null)
+        AgentProcessExecutionEvidence? processEvidence = null,
+        AgentTokenUsageEvidence? tokenUsage = null)
     {
         if (Kind != AttemptKind.Agent)
         {
@@ -1061,9 +1103,11 @@ public sealed class Attempt
         // may never claim a success (or InvalidStructuredOutput) without clean exit evidence, even
         // when a fingerprint mismatch then downgrades it to SourceChanged.
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
+        EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
 
         AgentOutcome = effectiveOutcome;
         ApplyAgentProcessEvidence(processEvidence);
+        ApplyAgentTokenUsage(tokenUsage);
         Status = isRecognizedSuccessOutcome ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
     }
@@ -1109,6 +1153,41 @@ public sealed class Attempt
     }
 
     /// <summary>
+    /// Independent Domain backstop for provider-reported token usage, shared by every Agent
+    /// completion transition so the rule cannot drift between them. Usage is write-once and bound
+    /// to a dispatched attempt whose outcome is not a pre-invocation classification; unlike process
+    /// evidence it is never required for any outcome. See <see cref="AgentTokenUsageEvidencePolicy"/>.
+    /// Always called before any mutation, so a violation leaves the attempt untouched.
+    /// </summary>
+    private void EnsureAgentTokenUsageCanBeRecorded(AgentOutcome requestedOutcome, AgentTokenUsageEvidence? tokenUsage)
+    {
+        if (tokenUsage is not null && (AgentInputTokens.HasValue || AgentTokenUsageSchemaVersion is not null))
+        {
+            throw new InvalidOperationException("Agent token-usage evidence is write-once.");
+        }
+
+        var violation = AgentTokenUsageEvidencePolicy.Evaluate(AgentProvider, requestedOutcome, AgentDispatchedAtUtc.HasValue, tokenUsage);
+        if (violation is not null)
+        {
+            throw new InvalidOperationException($"{requestedOutcome} cannot be recorded with this token-usage evidence: {violation}.");
+        }
+    }
+
+    private void ApplyAgentTokenUsage(AgentTokenUsageEvidence? tokenUsage)
+    {
+        if (tokenUsage is null)
+        {
+            return;
+        }
+
+        AgentInputTokens = tokenUsage.InputTokens;
+        AgentOutputTokens = tokenUsage.OutputTokens;
+        AgentCacheCreationInputTokens = tokenUsage.CacheCreationInputTokens;
+        AgentCacheReadInputTokens = tokenUsage.CacheReadInputTokens;
+        AgentTokenUsageSchemaVersion = tokenUsage.SchemaVersion;
+    }
+
+    /// <summary>
     /// The single atomic completion transition for a Claude Code implementation attempt —
     /// deliberately independent of <see cref="CompleteAgent"/> and its fingerprint-mismatch-to-
     /// <see cref="Runs.AgentOutcome.SourceChanged"/> override, which must never apply here: a
@@ -1125,7 +1204,8 @@ public sealed class Attempt
         AgentOutcome outcome,
         Guid? resultGitCheckpointId,
         DateTimeOffset nowUtc,
-        AgentProcessExecutionEvidence? processEvidence = null)
+        AgentProcessExecutionEvidence? processEvidence = null,
+        AgentTokenUsageEvidence? tokenUsage = null)
     {
         if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ImplementationReport)
         {
@@ -1178,9 +1258,11 @@ public sealed class Attempt
         }
 
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
+        EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
 
         AgentOutcome = outcome;
         ApplyAgentProcessEvidence(processEvidence);
+        ApplyAgentTokenUsage(tokenUsage);
         AgentResultGitCheckpointId = resultGitCheckpointId;
         Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
@@ -1203,7 +1285,8 @@ public sealed class Attempt
         AgentOutcome outcome,
         Guid? resultGitCheckpointId,
         DateTimeOffset nowUtc,
-        AgentProcessExecutionEvidence? processEvidence = null)
+        AgentProcessExecutionEvidence? processEvidence = null,
+        AgentTokenUsageEvidence? tokenUsage = null)
     {
         if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ReviewCorrection)
         {
@@ -1265,9 +1348,11 @@ public sealed class Attempt
         }
 
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
+        EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
 
         AgentOutcome = outcome;
         ApplyAgentProcessEvidence(processEvidence);
+        ApplyAgentTokenUsage(tokenUsage);
         AgentResultGitCheckpointId = resultGitCheckpointId;
         Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;

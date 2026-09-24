@@ -90,7 +90,7 @@ public sealed class ReviewCorrectionSupervisor(
 
         if (launchTarget is null)
         {
-            await RecordResultAsync(attempt, false, false, false, null, null, stoppingToken);
+            await RecordResultAsync(attempt, false, false, false, null, null, null, stoppingToken);
             return;
         }
 
@@ -105,13 +105,13 @@ public sealed class ReviewCorrectionSupervisor(
         }
         catch (OperationCanceledException)
         {
-            await RecordResultAsync(attempt, false, false, false, null, null, CancellationToken.None);
+            await RecordResultAsync(attempt, false, false, false, null, null, null, CancellationToken.None);
             return;
         }
         catch (Exception)
         {
             logger.LogError("review_correction_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
-            await RecordResultAsync(attempt, false, false, false, null, null, CancellationToken.None);
+            await RecordResultAsync(attempt, false, false, false, null, null, null, CancellationToken.None);
             return;
         }
 
@@ -126,6 +126,7 @@ public sealed class ReviewCorrectionSupervisor(
             invocation.StandardErrorTruncated,
             invocation.ProviderSessionId,
             invocation.ProcessEvidence,
+            invocation.TokenUsage,
             CancellationToken.None);
     }
 
@@ -136,6 +137,7 @@ public sealed class ReviewCorrectionSupervisor(
         bool standardErrorTruncated,
         string? providerSessionId,
         AgentProcessEvidence? processEvidence,
+        AgentTokenUsage? tokenUsage,
         CancellationToken cancellationToken)
     {
         var completionEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, CancellationToken.None);
@@ -174,7 +176,8 @@ public sealed class ReviewCorrectionSupervisor(
                 sealedArtifacts,
                 correction,
                 providerSessionId,
-                processEvidence), recordingTimeoutSource.Token);
+                processEvidence,
+                tokenUsage), recordingTimeoutSource.Token);
         }
         catch (Exception)
         {

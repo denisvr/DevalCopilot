@@ -798,4 +798,115 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
         Assert.Equal(AttemptStatus.Running, attempt.Status);
         Assert.Null(attempt.AgentProcessOutcome);
     }
+
+    [Fact]
+    public async Task HandleAsync_rejects_claude_usage_on_a_codex_proposal_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var proposal = new ValidatedProposal("Add the ledger table and its query.", ValidStructuredContentJson);
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null,
+                TestProcessEvidence.ReportedCleanExit, TestTokenUsage.Reported),
+            CancellationToken.None);
+
+        Assert.Equal(AgentTokenUsageRecording.InvalidEvidenceCode, Assert.Single(result.Errors).Code);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Running, persisted.Status);
+        Assert.Null(persisted.AgentOutcome);
+        Assert.Null(persisted.GetAgentProcessExecutionEvidence());
+        Assert.Null(persisted.GetAgentTokenUsageEvidence());
+        Assert.Empty(verification.CollaborationMessages.Where(message => message.RunId == run.Id));
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_claude_usage_on_a_codex_provider_failure_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ProviderInvocationFailed, null, NoArtifacts, null, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 1, TimeSpan.FromSeconds(2)), TestTokenUsage.Reported),
+            CancellationToken.None);
+
+        Assert.Equal(AgentTokenUsageRecording.InvalidEvidenceCode, Assert.Single(result.Errors).Code);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Running, persisted.Status);
+        Assert.Null(persisted.AgentProcessExitCode);
+        Assert.Null(persisted.GetAgentTokenUsageEvidence());
+    }
+
+    [Fact]
+    public async Task HandleAsync_records_no_token_usage_when_none_was_reported()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var proposal = new ValidatedProposal("Add the ledger table and its query.", ValidStructuredContentJson);
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null, TestProcessEvidence.ReportedCleanExit),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Completed, persisted.Status);
+        Assert.Null(persisted.AgentInputTokens);
+        Assert.Null(persisted.AgentTokenUsageSchemaVersion);
+        Assert.Null(persisted.GetAgentTokenUsageEvidence());
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_malformed_token_usage_with_zero_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var proposal = new ValidatedProposal("Add the ledger table and its query.", ValidStructuredContentJson);
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null,
+                TestProcessEvidence.ReportedCleanExit, new AgentTokenUsage(-1, 5, 0, 0, "claude-cli-usage-v1")),
+            CancellationToken.None);
+
+        Assert.Equal(AgentTokenUsageRecording.InvalidEvidenceCode, Assert.Single(result.Errors).Code);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Running, persisted.Status);
+        Assert.Null(persisted.AgentOutcome);
+        Assert.Null(persisted.AgentProcessOutcome);
+        Assert.Null(persisted.AgentInputTokens);
+        Assert.Empty(verification.CollaborationMessages.Where(message => message.RunId == run.Id));
+    }
 }

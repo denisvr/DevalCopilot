@@ -16,4 +16,5 @@ public sealed record ClaudeCriticalReviewAttemptStatusResponse(
     DateTimeOffset? DispatchedAtUtc,
     DateTimeOffset? CompletedAtUtc,
     IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts,
-    AgentProcessExecutionResponse? ProcessExecution);
+    AgentProcessExecutionResponse? ProcessExecution,
+    AgentTokenUsageResponse? TokenUsage);

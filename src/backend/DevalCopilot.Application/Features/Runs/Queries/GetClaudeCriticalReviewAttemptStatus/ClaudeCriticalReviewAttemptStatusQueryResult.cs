@@ -20,7 +20,8 @@ public sealed record ClaudeCriticalReviewAttemptStatusQueryResult(
     DateTimeOffset? CompletedAtUtc,
     IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
     AgentProcessExecutionEvidence? ProcessExecution = null,
-    TimeSpan? Timeout = null)
+    TimeSpan? Timeout = null,
+    AgentTokenUsageEvidence? TokenUsage = null)
 {
     public static readonly ClaudeCriticalReviewAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, []);

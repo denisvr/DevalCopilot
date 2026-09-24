@@ -14,4 +14,5 @@ public sealed record GetRunCockpitResponse(
     IReadOnlyList<StageMapEntryResponse> StageMap,
     bool CanPause,
     bool CanStop,
-    RunCockpitAgentAttemptResponse? LatestAgentAttempt);
+    RunCockpitAgentAttemptResponse? LatestAgentAttempt,
+    RunTokenUsageSummaryResponse TokenUsageSummary);

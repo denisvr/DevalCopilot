@@ -35,7 +35,8 @@ public sealed record ImplementationAttemptStatusQueryResult(
     AgentAssignmentSnapshot? Assignment,
     AgentRole? Role,
     AgentProcessExecutionEvidence? ProcessExecution = null,
-    TimeSpan? Timeout = null)
+    TimeSpan? Timeout = null,
+    AgentTokenUsageEvidence? TokenUsage = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

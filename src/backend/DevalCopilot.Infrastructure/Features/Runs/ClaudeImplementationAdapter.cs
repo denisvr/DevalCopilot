@@ -142,9 +142,12 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         }
 
         var envelope = TryParseEnvelope(result.StandardOutput);
+        var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(envelope?.Usage, result.StandardOutputTruncated);
         if (envelope is null || envelope.IsError || envelope.FinalResponseJson is null)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
+            // Provider-reported usage is still preserved when the envelope itself was structurally
+            // valid (for example is_error: true) — mirrors ClaudeCriticalReviewAdapter.
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
         }
 
         try
@@ -155,7 +158,7 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
         }
 
         return new ImplementationInvocationResult(
@@ -163,7 +166,8 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
             envelope.SessionId,
-            ProcessEvidence: processEvidence);
+            ProcessEvidence: processEvidence,
+            TokenUsage: tokenUsage);
     }
 
     /// <summary>Mirrors <c>ClaudeCriticalReviewAdapter.IsAcceptableLaunchComponent</c>
@@ -251,15 +255,21 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
                 sessionId = value;
             }
 
-            return new ClaudeEnvelope(isError, finalResponseJson, sessionId);
+            // A missing or malformed usage object never rejects the envelope — see ClaudeCliTokenUsage.
+            return new ClaudeEnvelope(isError, finalResponseJson, sessionId, ClaudeCliTokenUsage.TryRead(root));
         }
     }
 
-    private sealed record ClaudeEnvelope(bool IsError, string? FinalResponseJson, string? SessionId);
+    private sealed record ClaudeEnvelope(bool IsError, string? FinalResponseJson, string? SessionId, AgentTokenUsage? Usage);
 
-    /// <summary><paramref name="processEvidence"/> is null only when no process result exists.</summary>
+    /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
+    /// <paramref name="tokenUsage"/> is null whenever no structurally valid envelope reported
+    /// well-shaped usage.</summary>
     private static ImplementationInvocationResult Failed(
-        bool standardOutputTruncated = false, bool standardErrorTruncated = false, AgentProcessEvidence? processEvidence = null) =>
+        bool standardOutputTruncated = false,
+        bool standardErrorTruncated = false,
+        AgentProcessEvidence? processEvidence = null,
+        AgentTokenUsage? tokenUsage = null) =>
         new(ImplementationInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null,
-            ProcessEvidence: processEvidence);
+            ProcessEvidence: processEvidence, TokenUsage: tokenUsage);
 }

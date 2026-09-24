@@ -82,9 +82,11 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
             return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
-        if (!TryParseEnvelope(result.StandardOutput, out var finalResponse, out var sessionId) || finalResponse is null)
+        var parsed = TryParseEnvelope(result.StandardOutput, out var finalResponse, out var sessionId, out var reportedUsage);
+        var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(reportedUsage, result.StandardOutputTruncated);
+        if (!parsed || finalResponse is null)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
         }
 
         try
@@ -95,21 +97,29 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         }
         catch (IOException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
         }
         catch (UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
         }
 
         return new ReviewCorrectionInvocationResult(
-            ImplementationInvocationOutcome.Exited, result.StandardOutputTruncated, result.StandardErrorTruncated, sessionId, processEvidence);
+            ImplementationInvocationOutcome.Exited, result.StandardOutputTruncated, result.StandardErrorTruncated, sessionId, processEvidence,
+            tokenUsage);
     }
 
-    private static bool TryParseEnvelope(string output, out string? finalResponse, out string? sessionId)
+    /// <summary>Returns true only for a successful, well-shaped envelope. <paramref name="tokenUsage"/>
+    /// is set whenever the envelope is structurally valid — including an <c>is_error: true</c> or
+    /// empty-result envelope, which still returns false — and stays null for a malformed envelope or
+    /// a missing or malformed <c>usage</c> object; usage never decides the return value. See
+    /// <see cref="ClaudeCliTokenUsage"/>.</summary>
+    private static bool TryParseEnvelope(
+        string output, out string? finalResponse, out string? sessionId, out AgentTokenUsage? tokenUsage)
     {
         finalResponse = null;
         sessionId = null;
+        tokenUsage = null;
         try
         {
             using var document = JsonDocument.Parse(output);
@@ -122,12 +132,7 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
                 return false;
             }
 
-            if (error.ValueKind == JsonValueKind.True)
-            {
-                return false;
-            }
-
-            finalResponse = result.ValueKind == JsonValueKind.String ? result.GetString() : result.GetRawText();
+            string? observedSessionId = null;
             if (root.TryGetProperty("session_id", out var session) && session.ValueKind == JsonValueKind.String)
             {
                 var value = session.GetString();
@@ -136,13 +141,21 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
                     return false;
                 }
 
-                sessionId = value;
+                observedSessionId = value;
             }
             else if (root.TryGetProperty("session_id", out session) && session.ValueKind != JsonValueKind.Null)
             {
                 return false;
             }
 
+            tokenUsage = ClaudeCliTokenUsage.TryRead(root);
+            if (error.ValueKind == JsonValueKind.True)
+            {
+                return false;
+            }
+
+            sessionId = observedSessionId;
+            finalResponse = result.ValueKind == JsonValueKind.String ? result.GetString() : result.GetRawText();
             return !string.IsNullOrWhiteSpace(finalResponse);
         }
         catch (JsonException)
@@ -169,8 +182,13 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         return environment;
     }
 
-    /// <summary><paramref name="processEvidence"/> is null only when no process result exists.</summary>
+    /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
+    /// <paramref name="tokenUsage"/> is null whenever no structurally valid envelope reported
+    /// well-shaped usage.</summary>
     private static ReviewCorrectionInvocationResult Failed(
-        bool stdoutTruncated = false, bool stderrTruncated = false, AgentProcessEvidence? processEvidence = null) =>
-        new(ImplementationInvocationOutcome.Failed, stdoutTruncated, stderrTruncated, null, processEvidence);
+        bool stdoutTruncated = false,
+        bool stderrTruncated = false,
+        AgentProcessEvidence? processEvidence = null,
+        AgentTokenUsage? tokenUsage = null) =>
+        new(ImplementationInvocationOutcome.Failed, stdoutTruncated, stderrTruncated, null, processEvidence, tokenUsage);
 }

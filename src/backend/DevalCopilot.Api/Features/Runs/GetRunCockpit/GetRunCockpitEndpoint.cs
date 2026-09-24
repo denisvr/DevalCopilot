@@ -48,7 +48,9 @@ public sealed class GetRunCockpitEndpoint(
                         attempt.Status.ToString(),
                         attempt.Outcome?.ToString(),
                         attempt.DispatchedAtUtc,
-                        AgentProcessExecutionResponse.FromAttempt(attempt.ProcessExecution, attempt.Timeout))
-                    : null));
+                        AgentProcessExecutionResponse.FromAttempt(attempt.ProcessExecution, attempt.Timeout),
+                        AgentTokenUsageResponse.FromAttempt(attempt.TokenUsage))
+                    : null,
+                RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary)));
     }
 }

@@ -58,6 +58,38 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
             .OrderByDescending(attempt => attempt.AttemptNumber)
             .FirstOrDefaultAsync(cancellationToken);
 
+        // Only the persisted usage members of dispatched Agent attempts are read — never a
+        // prompt, output, path, or session identifier. Each row is reconstructed through the same
+        // Domain rule as Attempt.GetAgentTokenUsageEvidence, so an inconsistent row counts as
+        // unknown usage rather than being partially summed.
+        var dispatchedAttemptUsage = dbContext.Attempts
+            .AsNoTracking()
+            .Where(attempt => attempt.RunId == run.Id && attempt.Kind == AttemptKind.Agent && attempt.AgentDispatchedAtUtc != null)
+            .Select(attempt => new
+            {
+                attempt.AgentProvider,
+                attempt.AgentInputTokens,
+                attempt.AgentOutputTokens,
+                attempt.AgentCacheCreationInputTokens,
+                attempt.AgentCacheReadInputTokens,
+                attempt.AgentTokenUsageSchemaVersion,
+            })
+            .AsAsyncEnumerable();
+
+        var tokenUsageAccumulator = new RunCockpitTokenUsageAccumulator();
+        await foreach (var usage in dispatchedAttemptUsage.WithCancellation(cancellationToken))
+        {
+            tokenUsageAccumulator.Add(AgentTokenUsageEvidence.FromPersisted(
+                usage.AgentProvider,
+                usage.AgentInputTokens,
+                usage.AgentOutputTokens,
+                usage.AgentCacheCreationInputTokens,
+                usage.AgentCacheReadInputTokens,
+                usage.AgentTokenUsageSchemaVersion));
+        }
+
+        var tokenUsageSummary = tokenUsageAccumulator.ToSummary();
+
         var stageMap = StageSequence
             .Select(stage => new RunCockpitStageEntry(stage, IsCompleted: stage < run.Stage, IsActive: stage == run.Stage))
             .ToArray();
@@ -77,6 +109,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 stageMap,
                 CanPause: false,
                 CanStop: false,
+                tokenUsageSummary,
                 latestAgentAttempt is null
                     ? null
                     : new RunCockpitAgentAttemptEntry(
@@ -88,6 +121,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                         latestAgentAttempt.AgentOutcome,
                         latestAgentAttempt.AgentDispatchedAtUtc,
                         latestAgentAttempt.GetAgentProcessExecutionEvidence(),
-                        latestAgentAttempt.AgentTimeout)));
+                        latestAgentAttempt.AgentTimeout,
+                        latestAgentAttempt.GetAgentTokenUsageEvidence())));
     }
 }

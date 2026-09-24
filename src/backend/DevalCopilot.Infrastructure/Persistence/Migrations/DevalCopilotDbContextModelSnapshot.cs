@@ -691,6 +691,12 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("AgentCacheCreationInputTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AgentCacheReadInputTokens")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("AgentCheckpointFingerprintSha256")
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
@@ -711,6 +717,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AgentGitWorkspaceId")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("AgentInputTokens")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("AgentMaxBytesPerStream")
                         .HasColumnType("INTEGER");
 
@@ -728,6 +737,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<string>("AgentOutcome")
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("AgentOutputTokens")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("AgentPermissionProfile")
                         .HasMaxLength(32)
@@ -776,6 +788,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
 
                     b.Property<long?>("AgentTimeout")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("AgentTokenUsageSchemaVersion")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("AttemptNumber")
                         .HasColumnType("INTEGER");

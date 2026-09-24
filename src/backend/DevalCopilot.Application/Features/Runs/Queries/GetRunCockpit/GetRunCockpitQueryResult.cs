@@ -16,4 +16,5 @@ public sealed record GetRunCockpitQueryResult(
     IReadOnlyList<RunCockpitStageEntry> StageMap,
     bool CanPause,
     bool CanStop,
+    RunCockpitTokenUsageSummary TokenUsageSummary,
     RunCockpitAgentAttemptEntry? LatestAgentAttempt = null);

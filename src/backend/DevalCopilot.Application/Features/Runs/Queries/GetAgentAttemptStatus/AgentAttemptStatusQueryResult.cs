@@ -19,7 +19,8 @@ public sealed record AgentAttemptStatusQueryResult(
     DateTimeOffset? CompletedAtUtc,
     IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
     AgentProcessExecutionEvidence? ProcessExecution = null,
-    TimeSpan? Timeout = null)
+    TimeSpan? Timeout = null,
+    AgentTokenUsageEvidence? TokenUsage = null)
 {
     public static readonly AgentAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, []);

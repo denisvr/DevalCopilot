@@ -838,3 +838,18 @@
   font-size: 0.8rem;
   color: var(--dc-text-muted);
 }
+
+/* Provider-reported token usage: its own line beside, never merged with, process evidence. */
+.dc-token-usage {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--dc-text-muted);
+}
+
+/* Run-level token usage: the label itself states whether the sum is a total or partial. */
+.dc-run-token-usage {
+  margin: 0;
+  padding: 0 1rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}

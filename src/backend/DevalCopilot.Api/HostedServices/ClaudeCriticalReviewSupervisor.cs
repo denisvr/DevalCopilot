@@ -150,7 +150,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
             // Durably committed to dispatch, but there is nothing to invoke: still recorded as a
             // terminal, safe, closed outcome — never left hanging, never silently skipped.
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -175,7 +175,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
         {
             logger.LogError("claude_critical_review_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -190,6 +190,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
             invocationResult.StandardErrorTruncated,
             invocationResult.ProviderSessionId,
             invocationResult.ProcessEvidence,
+            invocationResult.TokenUsage,
             CancellationToken.None);
     }
 
@@ -200,6 +201,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
         bool standardErrorTruncated,
         string? providerSessionId,
         AgentProcessEvidence? processEvidence,
+        AgentTokenUsage? tokenUsage,
         CancellationToken cancellationToken)
     {
         // Freshly recaptured after the (read-only) invocation, regardless of its process-level
@@ -260,7 +262,8 @@ public sealed class ClaudeCriticalReviewSupervisor(
             recordResult = await DispatchAsync(
                 new RecordClaudeCriticalReviewResultCommand(
                     attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, review, providerSessionId,
-                    processEvidence),
+                    processEvidence,
+                    tokenUsage),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

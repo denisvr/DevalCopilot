@@ -1,5 +1,6 @@
 import type { RunCockpitAgentAttemptResponse } from '../../../api/clients'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
+import { TokenUsageLine } from './TokenUsageLine'
 
 interface LatestAgentAttemptEvidenceProps {
   attempt: RunCockpitAgentAttemptResponse | null | undefined
@@ -20,9 +21,9 @@ const PROVIDER_LABEL: Record<string, string> = {
 
 /**
  * The run's most recent Agent attempt, as the cockpit projection reports it: the semantic
- * outcome and the host-measured process evidence are rendered as two distinct facts, so a clean
- * process exit is never read as a workflow success and a timeout is never read as a semantic
- * classification.
+ * outcome, the host-measured process evidence, and the provider-reported token usage are rendered
+ * as distinct facts, so a clean process exit is never read as a workflow success and a timeout is
+ * never read as a semantic classification.
  */
 export function LatestAgentAttemptEvidence({ attempt }: LatestAgentAttemptEvidenceProps) {
   if (!attempt) {
@@ -43,6 +44,7 @@ export function LatestAgentAttemptEvidence({ attempt }: LatestAgentAttemptEviden
         dispatchedAtUtc={attempt.dispatchedAtUtc}
         status={attempt.status}
       />
+      <TokenUsageLine tokenUsage={attempt.tokenUsage} dispatchedAtUtc={attempt.dispatchedAtUtc} status={attempt.status} />
     </section>
   )
 }

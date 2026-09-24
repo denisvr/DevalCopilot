@@ -145,14 +145,16 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         }
 
         var envelope = TryParseEnvelope(result.StandardOutput);
+        var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(envelope?.Usage, result.StandardOutputTruncated);
         if (envelope is null || envelope.IsError || envelope.FinalResponseJson is null)
         {
             // A non-zero exit is already handled above; this covers a zero exit that still
             // reported a business-level failure (e.g. hitting --max-turns) or an envelope this
             // adapter could not make sense of. Either way, there is no trustworthy final
             // response to seal as a proposal review — recorded as a truthful provider failure,
-            // never as an empty or invented success.
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
+            // never as an empty or invented success. Provider-reported usage is still preserved
+            // when the envelope itself was structurally valid (for example is_error: true).
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
         }
 
         try
@@ -163,7 +165,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
         }
 
         return new CriticalReviewInvocationResult(
@@ -171,7 +173,8 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             result.StandardOutputTruncated,
             result.StandardErrorTruncated,
             envelope.SessionId,
-            ProcessEvidence: processEvidence);
+            ProcessEvidence: processEvidence,
+            TokenUsage: tokenUsage);
     }
 
     /// <summary>Never a searched, invented, or PATH-resolved value — must already be a fully
@@ -233,6 +236,9 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
     /// report at all) — only a present, non-null value of the wrong shape is malformed. Any other
     /// field is tolerated and ignored: this is a fixed contract
     /// against a versioned CLI, not a strict schema over every field the provider may ever add.
+    /// The one addition is <c>usage</c>, read by <see cref="ClaudeCliTokenUsage.TryRead"/> as
+    /// best-effort token-usage evidence: a missing or malformed <c>usage</c> only leaves
+    /// <see cref="ClaudeEnvelope.Usage"/> null and never rejects the envelope.
     /// <c>result</c> is normalized to a bare JSON string regardless of whether the provider
     /// emitted it as a JSON string (containing schema-conformant JSON text) or as a
     /// schema-conformant JSON value directly; either way, the caller feeds the returned text into
@@ -297,14 +303,20 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
                 sessionId = value;
             }
 
-            return new ClaudeEnvelope(isError, finalResponseJson, sessionId);
+            return new ClaudeEnvelope(isError, finalResponseJson, sessionId, ClaudeCliTokenUsage.TryRead(root));
         }
     }
 
-    private sealed record ClaudeEnvelope(bool IsError, string? FinalResponseJson, string? SessionId);
+    private sealed record ClaudeEnvelope(bool IsError, string? FinalResponseJson, string? SessionId, AgentTokenUsage? Usage);
 
-    /// <summary><paramref name="processEvidence"/> is null only when no process result exists.</summary>
+    /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
+    /// <paramref name="tokenUsage"/> is null whenever no structurally valid envelope reported
+    /// well-shaped usage.</summary>
     private static CriticalReviewInvocationResult Failed(
-        bool standardOutputTruncated = false, bool standardErrorTruncated = false, AgentProcessEvidence? processEvidence = null) =>
-        new(CriticalReviewInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null, processEvidence);
+        bool standardOutputTruncated = false,
+        bool standardErrorTruncated = false,
+        AgentProcessEvidence? processEvidence = null,
+        AgentTokenUsage? tokenUsage = null) =>
+        new(CriticalReviewInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null, processEvidence,
+            tokenUsage);
 }

@@ -216,6 +216,16 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             return Failure(processEvidenceError);
         }
 
+        // Provider-reported token usage is best-effort and never required, but when supplied it is
+        // validated before any mutation: bound to a dispatched attempt and never attached to a
+        // pre-invocation outcome. Recorded atomically with the outcome and process evidence below.
+        var tokenUsageError = AgentTokenUsageRecording.Validate(
+            command.TokenUsage, attempt.AgentProvider, outcome, attempt.AgentDispatchedAtUtc.HasValue, out var tokenUsage);
+        if (tokenUsageError is not null)
+        {
+            return Failure(tokenUsageError);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
         if (!string.IsNullOrWhiteSpace(command.ProviderSessionId))
         {
@@ -241,7 +251,7 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             resultCheckpointId = resultCheckpoint.Id;
         }
 
-        attempt.CompleteReviewCorrection(outcome, resultCheckpointId, nowUtc, processEvidence);
+        attempt.CompleteReviewCorrection(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage);
         if (mutationSuspected)
         {
             workspace.MarkNeedsAttention(AmbiguousMutationReasonCode);

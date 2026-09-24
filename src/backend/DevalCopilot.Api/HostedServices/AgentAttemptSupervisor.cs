@@ -128,7 +128,7 @@ public sealed class AgentAttemptSupervisor(
             // Durably committed to dispatch, but there is nothing to invoke: still recorded as a
             // terminal, safe, closed outcome — never left hanging, never silently skipped.
             await RecordResultAsync(attempt, AgentOutcome.ProviderInvocationFailed, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -154,7 +154,7 @@ public sealed class AgentAttemptSupervisor(
         {
             logger.LogError("agent_attempt_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, AgentOutcome.ProviderInvocationFailed, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -172,6 +172,7 @@ public sealed class AgentAttemptSupervisor(
             invocationResult.StandardErrorTruncated,
             invocationResult.ProviderSessionId,
             invocationResult.ProcessEvidence,
+            invocationResult.TokenUsage,
             CancellationToken.None);
     }
 
@@ -182,6 +183,7 @@ public sealed class AgentAttemptSupervisor(
         bool standardErrorTruncated,
         string? providerSessionId,
         AgentProcessEvidence? processEvidence,
+        AgentTokenUsage? tokenUsage,
         CancellationToken cancellationToken)
     {
         // Freshly recaptured after the (possibly read-only) invocation, regardless of its
@@ -237,7 +239,8 @@ public sealed class AgentAttemptSupervisor(
             recordResult = await DispatchAsync(
                 new RecordAgentAttemptResultCommand(
                     attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, proposal, providerSessionId,
-                    processEvidence),
+                    processEvidence,
+                    tokenUsage),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

@@ -138,7 +138,7 @@ public sealed class ChallengeResolutionSupervisor(
         if (launchTarget is null)
         {
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -164,7 +164,7 @@ public sealed class ChallengeResolutionSupervisor(
         {
             logger.LogError("challenge_resolution_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -179,6 +179,7 @@ public sealed class ChallengeResolutionSupervisor(
             invocationResult.StandardErrorTruncated,
             invocationResult.ProviderSessionId,
             invocationResult.ProcessEvidence,
+            invocationResult.TokenUsage,
             CancellationToken.None);
     }
 
@@ -189,6 +190,7 @@ public sealed class ChallengeResolutionSupervisor(
         bool standardErrorTruncated,
         string? providerSessionId,
         AgentProcessEvidence? processEvidence,
+        AgentTokenUsage? tokenUsage,
         CancellationToken cancellationToken)
     {
         var completionEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, CancellationToken.None);
@@ -233,7 +235,8 @@ public sealed class ChallengeResolutionSupervisor(
             recordResult = await DispatchAsync(
                 new RecordChallengeResolutionResultCommand(
                     attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, resolution, providerSessionId,
-                    processEvidence),
+                    processEvidence,
+                    tokenUsage),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

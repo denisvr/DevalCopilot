@@ -710,7 +710,7 @@ prevents a new invocation for only the affected provider.
 
 ### Execution evidence versus semantic outcome
 
-Every Agent attempt keeps four kinds of facts apart, and none of them stands in
+Every Agent attempt keeps five kinds of facts apart, and none of them stands in
 for another:
 
 - **Semantic outcome** — `AgentOutcome` is the workflow classification of the
@@ -743,10 +743,25 @@ for another:
 - **Provider-reported observations** — the observed model, observed effort,
   and provider-session identifier are values the provider itself reported.
   They are independent of process evidence and are never derived from it.
+- **Provider-reported token usage** — `AgentTokenUsageEvidence`: input and
+  output token counts, optional cache-creation and cache-read input token
+  counts, and an internal parsing-contract schema version. Unlike process
+  evidence it is reported by the provider, not measured by the host, and it is
+  best-effort observation only: it is never required for any outcome (there is
+  no clean-exit rule), and it may accompany a success, an
+  `InvalidStructuredOutput`, or a provider failure of a dispatched attempt,
+  since a provider can report the usage it consumed before failing. It is
+  recorded once, atomically with the terminal outcome and any process evidence,
+  and — by reusing the same closed pre-invocation outcome set as process
+  evidence rather than a second copy — never for an undispatched attempt or a
+  pre-invocation outcome. It is never inferred from output length, configured
+  limits, CLI defaults, or another provider's fields.
 - **Truthful absence** — an attempt that was never dispatched, whose invocation
   failed before any process result existed, that a restart reconciled as
   `Interrupted`, or that predates this evidence has no process evidence at all.
-  It is projected as unknown and is never fabricated or backfilled.
+  It is projected as unknown and is never fabricated or backfilled. The same
+  holds for token usage: interrupted, legacy, and pre-migration attempts, and
+  every attempt whose provider has no proven usage contract, read as unknown.
 
 The status API of each role and the run cockpit expose the evidence as a
 separate `processExecution` object beside the semantic `outcome`: its
@@ -755,6 +770,69 @@ separate `processExecution` object beside the semantic `outcome`: its
 environment value, output, context manifest, session identifier, or
 credential. Raw output is not a usage metric, and this evidence is not a
 token, cost, or account-usage measurement.
+
+### Provider token-usage contracts
+
+**Claude Code — proven.** The token-usage contract was verified from the
+installed `@anthropic-ai/claude-code@2.1.276` package's native `claude.exe`
+using the same evidence method as the Claude Code CLI safety contract above:
+literal strings embedded in the compiled binary, never an authenticated model
+invocation. The binary's `--output-format json` result-envelope schema declares
+`usage` as a sibling of `is_error`, `result`, `session_id`, `subtype`,
+`duration_ms`, and `total_cost_usd` on the same envelope object, including the
+`--json-schema` structured-output mode every Claude adapter uses. Its embedded
+usage schema documentation names exactly `input_tokens`, `output_tokens`,
+`cache_creation_input_tokens`, and `cache_read_input_tokens` as numbers, and
+its default usage literal initializes all four to `0`, so they are always
+present rather than optional. The three Claude adapters therefore read only
+those four members, with the schema version `claude-cli-usage-v1`, from the
+same stdout envelope they already validate. Parsing fails closed to "no usage"
+— never to an exception or an invented value — when `usage` is missing or not
+an object, or when any member is missing, not a JSON integer, negative, or
+outside the 32-bit range; a missing or malformed `usage` never rejects an
+otherwise valid review, report, or correction. A single unambiguous `usage`
+object is required: duplicate `usage` members or duplicate
+required count members make usage unknown without rejecting the business result.
+The Domain accepts this evidence only for the exact provider/schema pair
+`ClaudeCode` + `claude-cli-usage-v1`; even a well-formed persisted row with
+a mismatched provider or schema projects as unknown, not as known usage.
+Usage is read only from a
+structurally valid envelope of a clean process exit whose stdout was not
+truncated (a valid `is_error: true` envelope still carries its usage);
+`modelUsage`, `total_cost_usd`, `duration_api_ms`, `stop_reason`, and every
+other field are ignored.
+
+**Codex — not proven; recorded as unknown.** No Codex CLI executable was
+installed or discoverable in the environment where this contract was
+established (the installed Codex desktop application is a different product
+without a bundled CLI), so there was no authoritative local artifact to
+inspect, and third-party sources describe mutually inconsistent token-usage
+event shapes with differently named cache fields. Following the evidence rule
+above, no Codex usage is parsed: every Codex-produced attempt (Planner,
+Resolver, and Code Reviewer) records token usage as unknown until a future
+slice establishes and verifies a real Codex contract.
+
+Each role's status API and the run cockpit expose a separate `tokenUsage`
+object beside `outcome` and `processExecution` — `inputTokens`,
+`outputTokens`, `cacheCreationInputTokens`, and `cacheReadInputTokens`, each
+null while unknown. The schema version is internal provenance and is never
+exposed, and no path, argument, environment value, output, session
+identifier, or credential is included.
+
+The run cockpit also exposes a `tokenUsageSummary` across every dispatched
+Agent attempt of the run, with `attemptsWithKnownUsage`,
+`attemptsWithUnknownUsage`, and sums over the known attempts only. Its
+`completeness` is `NoDispatchedAttempts` when nothing has been dispatched,
+`Complete` only when every dispatched attempt has known usage, and `Partial`
+otherwise. Only a `Complete` summary is ever presented as the run's total; a
+`Partial` sum is shown as partial with the number of attempts it covers.
+The cockpit streams the bounded usage columns of dispatched attempts into a
+constant-memory aggregate; it neither imposes a row cap nor materializes
+all attempts to compute the summary.
+Because Codex usage is currently unknown, any real run that dispatched a Codex
+role normally reports `Partial` — expected and truthful, not a defect. This
+slice records and displays evidence only; it adds no token budget, threshold,
+warning, or stop guardrail.
 
 ## Token efficiency
 
@@ -771,6 +849,9 @@ token, cost, or account-usage measurement.
 - Do not repeat an agent attempt unless state, instructions, evidence, or the
   expected response changed materially.
 - Track input, output, and cached token usage when the provider exposes it.
+  This is implemented as `AgentTokenUsageEvidence` for Claude-produced
+  attempts; it remains pending, and recorded as unknown, for Codex until its
+  output contract is proven (see "Provider token-usage contracts").
 - Stop and escalate when a stage budget is exhausted rather than silently
   borrowing unlimited tokens from the run.
 - Select model capability and reasoning depth according to task risk, not as a

@@ -21,7 +21,8 @@ public sealed record CodeReviewAttemptStatusQueryResult(
     DateTimeOffset? CompletedAtUtc,
     IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
     AgentProcessExecutionEvidence? ProcessExecution = null,
-    TimeSpan? Timeout = null)
+    TimeSpan? Timeout = null,
+    AgentTokenUsageEvidence? TokenUsage = null)
 {
     public static readonly CodeReviewAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, []);

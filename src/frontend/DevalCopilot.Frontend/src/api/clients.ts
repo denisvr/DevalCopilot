@@ -121,7 +121,9 @@ export type {
   ReviewCorrectionAttemptStatusResponse,
   AuthorizeReviewCorrectionResponse,
   AgentProcessExecutionResponse,
+  AgentTokenUsageResponse,
   RunCockpitAgentAttemptResponse,
+  RunTokenUsageSummaryResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,

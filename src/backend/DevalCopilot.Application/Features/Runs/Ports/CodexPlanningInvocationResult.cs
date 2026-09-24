@@ -10,4 +10,5 @@ public sealed record CodexPlanningInvocationResult(
     bool StandardOutputTruncated,
     bool StandardErrorTruncated,
     string? ProviderSessionId,
-    AgentProcessEvidence? ProcessEvidence = null);
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null);

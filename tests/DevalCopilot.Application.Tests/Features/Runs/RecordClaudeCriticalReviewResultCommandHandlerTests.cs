@@ -330,6 +330,35 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandlerTests(SqliteDa
     }
 
     [Fact]
+    public async Task HandleAsync_rejects_an_unproven_usage_schema_before_any_mutation()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt, inputMessage) = CreateClaimedCriticalReviewAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new RecordClaudeCriticalReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordClaudeCriticalReviewResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ProviderInvocationFailed, null, NoArtifacts, null, null,
+                TokenUsage: new AgentTokenUsage(10, 20, null, null, "unproven-usage-v1")),
+            CancellationToken.None);
+
+        Assert.Equal(AgentTokenUsageRecording.InvalidEvidenceCode, Assert.Single(result.Errors).Code);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Running, persisted.Status);
+        Assert.Null(persisted.AgentOutcome);
+        Assert.Null(persisted.GetAgentTokenUsageEvidence());
+        Assert.Empty(verification.Events.Where(runEvent => runEvent.AttemptId == attempt.Id));
+        Assert.Empty(verification.CollaborationMessages.Where(message => message.RunId == run.Id));
+    }
+
+    [Fact]
     public async Task HandleAsync_fails_and_does_not_mutate_a_codex_planning_attempt()
     {
         await using var dbContext = fixture.CreateContext();

@@ -22,4 +22,5 @@ public sealed record RecordClaudeCriticalReviewResultCommand(
     IReadOnlyList<SealedCriticalReviewArtifact> SealedArtifacts,
     ValidatedCriticalReview? Review,
     string? ProviderSessionId,
-    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordClaudeCriticalReviewResultCommandResult>>;
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordClaudeCriticalReviewResultCommandResult>>;

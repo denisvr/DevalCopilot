@@ -1,5 +1,6 @@
 import type { ImplementationAttemptStatusResponse } from '../../../api/clients'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
+import { TokenUsageLine } from './TokenUsageLine'
 
 interface ImplementationActionProps {
   planProposalMessageId: string | null
@@ -98,11 +99,14 @@ export function ImplementationAction({
         </p>
       )}
       {status && hasAttempt && (
-        <ProcessEvidenceLine
-          processExecution={status.processExecution}
-          dispatchedAtUtc={status.dispatchedAtUtc}
-          status={status.status}
-        />
+        <>
+          <ProcessEvidenceLine
+            processExecution={status.processExecution}
+            dispatchedAtUtc={status.dispatchedAtUtc}
+            status={status.status}
+          />
+          <TokenUsageLine tokenUsage={status.tokenUsage} dispatchedAtUtc={status.dispatchedAtUtc} status={status.status} />
+        </>
       )}
       {status && !isActive && (
         <div className="dc-implementation-result">

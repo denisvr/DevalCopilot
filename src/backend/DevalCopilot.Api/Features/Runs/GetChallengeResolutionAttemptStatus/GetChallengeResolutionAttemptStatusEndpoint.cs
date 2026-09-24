@@ -43,6 +43,7 @@ public sealed class GetChallengeResolutionAttemptStatusEndpoint(
                 .Select(artifact => new AgentAttemptArtifactMetadataResponse(
                     artifact.Purpose.ToString(), artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome.ToString()))
                 .ToArray(),
-            AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout)));
+            AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout),
+            AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage)));
     }
 }

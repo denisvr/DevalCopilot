@@ -12,4 +12,5 @@ public sealed record ImplementationInvocationResult(
     string? ProviderSessionId,
     string? ObservedModel = null,
     string? ObservedEffort = null,
-    AgentProcessEvidence? ProcessEvidence = null);
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null);

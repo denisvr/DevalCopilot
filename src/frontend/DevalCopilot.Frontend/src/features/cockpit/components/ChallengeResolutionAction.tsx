@@ -1,5 +1,6 @@
 import type { ChallengeResolutionAttemptStatusResponse } from '../../../api/clients'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
+import { TokenUsageLine } from './TokenUsageLine'
 
 interface ChallengeResolutionActionProps {
   challengedReviewAttemptId: string | null
@@ -85,11 +86,14 @@ export function ChallengeResolutionAction({
         </p>
       )}
       {status && (
-        <ProcessEvidenceLine
-          processExecution={status.processExecution}
-          dispatchedAtUtc={status.dispatchedAtUtc}
-          status={status.status}
-        />
+        <>
+          <ProcessEvidenceLine
+            processExecution={status.processExecution}
+            dispatchedAtUtc={status.dispatchedAtUtc}
+            status={status.status}
+          />
+          <TokenUsageLine tokenUsage={status.tokenUsage} dispatchedAtUtc={status.dispatchedAtUtc} status={status.status} />
+        </>
       )}
       {(requestError ?? statusError) && (
         <p className="dc-challenge-resolution-error" role="status">

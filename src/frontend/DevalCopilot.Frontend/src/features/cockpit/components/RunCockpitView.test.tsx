@@ -4,11 +4,13 @@ import { processAttemptOutputClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
   AgentProcessExecutionResponse,
+  AgentTokenUsageResponse,
   ClaudeCriticalReviewAttemptStatusResponse,
   ChallengeResolutionAttemptStatusResponse,
   GetRunCockpitResponse,
   ParticipantIdentityResponse,
   RunCockpitAgentAttemptResponse,
+  RunTokenUsageSummaryResponse,
 } from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
 import * as useCollaborationTimelineModule from '../hooks/useCollaborationTimeline'
@@ -876,5 +878,104 @@ describe('RunCockpitView process evidence', () => {
     render(<RunCockpitView runId="run-1" />)
 
     expect(screen.queryByRole('region', { name: 'Latest agent attempt' })).not.toBeInTheDocument()
+  })
+})
+
+describe('RunCockpitView token usage', () => {
+  const partialCockpit = new GetRunCockpitResponse({
+    ...runningCockpit,
+    latestAgentAttempt: new RunCockpitAgentAttemptResponse({
+      attemptId: 'attempt-2',
+      attemptNumber: 2,
+      role: 'CriticalReviewer',
+      provider: 'ClaudeCode',
+      status: 'Failed',
+      outcome: 'ProviderInvocationFailed',
+      dispatchedAtUtc: new Date('2026-09-24T10:00:00Z'),
+      processExecution: new AgentProcessExecutionResponse({ outcome: 'Exited', exitCode: 1, durationMilliseconds: 900 }),
+      tokenUsage: new AgentTokenUsageResponse({
+        inputTokens: 1200,
+        outputTokens: 345,
+        cacheCreationInputTokens: 67,
+        cacheReadInputTokens: 890,
+      }),
+    }),
+    tokenUsageSummary: new RunTokenUsageSummaryResponse({
+      completeness: 'Partial',
+      attemptsWithKnownUsage: 1,
+      attemptsWithUnknownUsage: 1,
+      inputTokens: 1200,
+      outputTokens: 345,
+      cacheCreationInputTokens: 67,
+      cacheReadInputTokens: 890,
+    }),
+  })
+
+  function renderWith(cockpit: GetRunCockpitResponse, loading = false) {
+    useRunCockpitMock.mockReturnValue({ cockpit, cards: [], connection: 'live', loading, error: null, syncError: null })
+  }
+
+  it('renders the latest attempt usage beside its process evidence and the run summary as partial', () => {
+    renderWith(partialCockpit)
+
+    render(<RunCockpitView runId="run-1" />)
+
+    const section = screen.getByRole('region', { name: 'Latest agent attempt' })
+    expect(section).toHaveTextContent('Process exited with code 1 after 900 ms')
+    expect(section).toHaveTextContent('Tokens: 1,200 input · 345 output · 67 cache write · 890 cache read')
+
+    const summary = screen.getByLabelText('Run token usage')
+    expect(summary).toHaveAttribute('data-completeness', 'Partial')
+    expect(summary).toHaveTextContent('Partial token count: 1,200 input')
+    expect(summary).toHaveTextContent('so this is not the run total')
+    expect(screen.queryByText(/Run token total/)).not.toBeInTheDocument()
+  })
+
+  it('labels a complete summary as the run total', () => {
+    renderWith(
+      new GetRunCockpitResponse({
+        ...partialCockpit,
+        tokenUsageSummary: new RunTokenUsageSummaryResponse({
+          completeness: 'Complete',
+          attemptsWithKnownUsage: 1,
+          attemptsWithUnknownUsage: 0,
+          inputTokens: 1200,
+          outputTokens: 345,
+        }),
+      }),
+    )
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByLabelText('Run token usage')).toHaveTextContent(
+      'Run token total: 1,200 input · 345 output (all 1 dispatched attempt reported usage)',
+    )
+  })
+
+  it('shows a neutral empty state before any agent attempt is dispatched', () => {
+    renderWith(
+      new GetRunCockpitResponse({
+        ...runningCockpit,
+        tokenUsageSummary: new RunTokenUsageSummaryResponse({ completeness: 'NoDispatchedAttempts', inputTokens: 0, outputTokens: 0 }),
+      }),
+    )
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByLabelText('Run token usage')).toHaveTextContent('No token usage data yet')
+    expect(screen.queryByRole('region', { name: 'Latest agent attempt' })).not.toBeInTheDocument()
+  })
+
+  it('never renders token usage from the previously selected run for the newly selected one', () => {
+    renderWith(partialCockpit, true)
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.getByLabelText('Run token usage')).toBeInTheDocument()
+
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByLabelText('Run token usage')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Partial token count/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Tokens: 1,200 input/)).not.toBeInTheDocument()
   })
 })

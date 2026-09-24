@@ -228,6 +228,16 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             return Result<RecordImplementationResultCommandResult>.Failure(processEvidenceError);
         }
 
+        // Provider-reported token usage is best-effort and never required, but when supplied it is
+        // validated before any mutation: bound to a dispatched attempt and never attached to a
+        // pre-invocation outcome. Recorded atomically with the outcome and process evidence below.
+        var tokenUsageError = AgentTokenUsageRecording.Validate(
+            command.TokenUsage, attempt.AgentProvider, outcome, attempt.AgentDispatchedAtUtc.HasValue, out var tokenUsage);
+        if (tokenUsageError is not null)
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(tokenUsageError);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
 
         try
@@ -272,7 +282,7 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             resultCheckpointId = checkpoint.Id;
         }
 
-        attempt.CompleteImplementation(outcome, resultCheckpointId, nowUtc, processEvidence);
+        attempt.CompleteImplementation(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage);
 
         if (mutationSuspected)
         {

@@ -2657,6 +2657,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     canPause?: boolean;
     canStop?: boolean;
     latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
+    tokenUsageSummary?: RunTokenUsageSummaryResponse;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -2687,6 +2688,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.canPause = _data["canPause"];
             this.canStop = _data["canStop"];
             this.latestAgentAttempt = _data["latestAgentAttempt"] ? RunCockpitAgentAttemptResponse.fromJS(_data["latestAgentAttempt"]) : undefined as any;
+            this.tokenUsageSummary = _data["tokenUsageSummary"] ? RunTokenUsageSummaryResponse.fromJS(_data["tokenUsageSummary"]) : undefined as any;
         }
     }
 
@@ -2717,6 +2719,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["canPause"] = this.canPause;
         data["canStop"] = this.canStop;
         data["latestAgentAttempt"] = this.latestAgentAttempt ? this.latestAgentAttempt.toJSON() : undefined as any;
+        data["tokenUsageSummary"] = this.tokenUsageSummary ? this.tokenUsageSummary.toJSON() : undefined as any;
         return data;
     }
 }
@@ -2736,6 +2739,7 @@ export interface IGetRunCockpitResponse {
     canPause?: boolean;
     canStop?: boolean;
     latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
+    tokenUsageSummary?: RunTokenUsageSummaryResponse;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -2791,6 +2795,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
     outcome?: string | undefined;
     dispatchedAtUtc?: Date | undefined;
     processExecution?: AgentProcessExecutionResponse;
+    tokenUsage?: AgentTokenUsageResponse;
 
     constructor(data?: IRunCockpitAgentAttemptResponse) {
         if (data) {
@@ -2811,6 +2816,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
             this.outcome = _data["outcome"];
             this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
         }
     }
 
@@ -2831,6 +2837,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
         data["outcome"] = this.outcome;
         data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         return data;
     }
 }
@@ -2844,6 +2851,7 @@ export interface IRunCockpitAgentAttemptResponse {
     outcome?: string | undefined;
     dispatchedAtUtc?: Date | undefined;
     processExecution?: AgentProcessExecutionResponse;
+    tokenUsage?: AgentTokenUsageResponse;
 }
 
 export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {
@@ -2894,6 +2902,114 @@ export interface IAgentProcessExecutionResponse {
     timeoutMilliseconds?: number | undefined;
 }
 
+export class AgentTokenUsageResponse implements IAgentTokenUsageResponse {
+    inputTokens?: number | undefined;
+    outputTokens?: number | undefined;
+    cacheCreationInputTokens?: number | undefined;
+    cacheReadInputTokens?: number | undefined;
+
+    constructor(data?: IAgentTokenUsageResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.inputTokens = _data["inputTokens"];
+            this.outputTokens = _data["outputTokens"];
+            this.cacheCreationInputTokens = _data["cacheCreationInputTokens"];
+            this.cacheReadInputTokens = _data["cacheReadInputTokens"];
+        }
+    }
+
+    static fromJS(data: any): AgentTokenUsageResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentTokenUsageResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["inputTokens"] = this.inputTokens;
+        data["outputTokens"] = this.outputTokens;
+        data["cacheCreationInputTokens"] = this.cacheCreationInputTokens;
+        data["cacheReadInputTokens"] = this.cacheReadInputTokens;
+        return data;
+    }
+}
+
+export interface IAgentTokenUsageResponse {
+    inputTokens?: number | undefined;
+    outputTokens?: number | undefined;
+    cacheCreationInputTokens?: number | undefined;
+    cacheReadInputTokens?: number | undefined;
+}
+
+export class RunTokenUsageSummaryResponse implements IRunTokenUsageSummaryResponse {
+    completeness?: string;
+    attemptsWithKnownUsage?: number;
+    attemptsWithUnknownUsage?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    cacheCreationInputTokens?: number | undefined;
+    cacheReadInputTokens?: number | undefined;
+
+    constructor(data?: IRunTokenUsageSummaryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.completeness = _data["completeness"];
+            this.attemptsWithKnownUsage = _data["attemptsWithKnownUsage"];
+            this.attemptsWithUnknownUsage = _data["attemptsWithUnknownUsage"];
+            this.inputTokens = _data["inputTokens"];
+            this.outputTokens = _data["outputTokens"];
+            this.cacheCreationInputTokens = _data["cacheCreationInputTokens"];
+            this.cacheReadInputTokens = _data["cacheReadInputTokens"];
+        }
+    }
+
+    static fromJS(data: any): RunTokenUsageSummaryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RunTokenUsageSummaryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["completeness"] = this.completeness;
+        data["attemptsWithKnownUsage"] = this.attemptsWithKnownUsage;
+        data["attemptsWithUnknownUsage"] = this.attemptsWithUnknownUsage;
+        data["inputTokens"] = this.inputTokens;
+        data["outputTokens"] = this.outputTokens;
+        data["cacheCreationInputTokens"] = this.cacheCreationInputTokens;
+        data["cacheReadInputTokens"] = this.cacheReadInputTokens;
+        return data;
+    }
+}
+
+export interface IRunTokenUsageSummaryResponse {
+    completeness?: string;
+    attemptsWithKnownUsage?: number;
+    attemptsWithUnknownUsage?: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    cacheCreationInputTokens?: number | undefined;
+    cacheReadInputTokens?: number | undefined;
+}
+
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {
     hasAttempt?: boolean;
     attemptId?: string | undefined;
@@ -2916,6 +3032,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
     escalationMessageId?: string | undefined;
     hasAvailableHumanAuthorization?: boolean;
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 
     constructor(data?: IReviewCorrectionAttemptStatusResponse) {
         if (data) {
@@ -2953,6 +3070,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
             this.escalationMessageId = _data["escalationMessageId"];
             this.hasAvailableHumanAuthorization = _data["hasAvailableHumanAuthorization"];
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
         }
     }
 
@@ -2990,6 +3108,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
         data["escalationMessageId"] = this.escalationMessageId;
         data["hasAvailableHumanAuthorization"] = this.hasAvailableHumanAuthorization;
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3016,6 +3135,7 @@ export interface IReviewCorrectionAttemptStatusResponse {
     escalationMessageId?: string | undefined;
     hasAvailableHumanAuthorization?: boolean;
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 }
 
 export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
@@ -3148,6 +3268,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
     permissionProfile?: string | undefined;
     adapterContractVersion?: string | undefined;
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 
     constructor(data?: IImplementationAttemptStatusResponse) {
         if (data) {
@@ -3193,6 +3314,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
             this.permissionProfile = _data["permissionProfile"];
             this.adapterContractVersion = _data["adapterContractVersion"];
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
         }
     }
 
@@ -3238,6 +3360,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
         data["permissionProfile"] = this.permissionProfile;
         data["adapterContractVersion"] = this.adapterContractVersion;
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3268,6 +3391,7 @@ export interface IImplementationAttemptStatusResponse {
     permissionProfile?: string | undefined;
     adapterContractVersion?: string | undefined;
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {
@@ -3362,6 +3486,7 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 
     constructor(data?: ICodeReviewAttemptStatusResponse) {
         if (data) {
@@ -3389,6 +3514,7 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
         }
     }
 
@@ -3416,6 +3542,7 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3432,6 +3559,7 @@ export interface ICodeReviewAttemptStatusResponse {
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 }
 
 export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCriticalReviewAttemptStatusResponse {
@@ -3446,6 +3574,7 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 
     constructor(data?: IClaudeCriticalReviewAttemptStatusResponse) {
         if (data) {
@@ -3473,6 +3602,7 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
         }
     }
 
@@ -3500,6 +3630,7 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3516,6 +3647,7 @@ export interface IClaudeCriticalReviewAttemptStatusResponse {
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 }
 
 export class ChallengeResolutionAttemptStatusResponse implements IChallengeResolutionAttemptStatusResponse {
@@ -3531,6 +3663,7 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 
     constructor(data?: IChallengeResolutionAttemptStatusResponse) {
         if (data) {
@@ -3563,6 +3696,7 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
         }
     }
 
@@ -3595,6 +3729,7 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3612,6 +3747,7 @@ export interface IChallengeResolutionAttemptStatusResponse {
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 }
 
 export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
@@ -3625,6 +3761,7 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 
     constructor(data?: IAgentAttemptStatusResponse) {
         if (data) {
@@ -3651,6 +3788,7 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
         }
     }
 
@@ -3677,6 +3815,7 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3692,6 +3831,7 @@ export interface IAgentAttemptStatusResponse {
     completedAtUtc?: Date | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
 }
 
 export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {

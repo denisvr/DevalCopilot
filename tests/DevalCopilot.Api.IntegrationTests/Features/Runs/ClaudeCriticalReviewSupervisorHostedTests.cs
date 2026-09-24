@@ -370,6 +370,84 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         Assert.Equal(TimeSpan.FromMilliseconds(750), persistedAttempt.AgentProcessDuration);
     }
 
+    [Fact]
+    public async Task Adapter_reported_token_usage_is_recorded_atomically_with_an_accepted_review()
+    {
+        var usage = new AgentTokenUsage(1200, 345, 67, 890, "claude-cli-usage-v1");
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore)
+        {
+            FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson,
+            ResultToReturn = new CriticalReviewInvocationResult(
+                CriticalReviewInvocationOutcome.Exited, false, false, null, TestProcessEvidence.ReportedCleanExit, usage),
+        };
+
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Completed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
+        Assert.Equal(AgentOutcome.Accepted, persistedAttempt!.AgentOutcome);
+        Assert.Equal(TestProcessEvidence.CleanExit, persistedAttempt.GetAgentProcessExecutionEvidence());
+        Assert.Equal(AgentTokenUsageEvidence.Create(1200, 345, 67, 890, "claude-cli-usage-v1"), persistedAttempt.GetAgentTokenUsageEvidence());
+        Assert.Single(dbContext.CollaborationMessages.Where(m => m.AttemptId == attemptId));
+    }
+
+    [Fact]
+    public async Task Adapter_reported_token_usage_is_recorded_with_a_provider_failure_and_absent_usage_stays_unknown()
+    {
+        var usage = new AgentTokenUsage(40, 0, 0, 12, "claude-cli-usage-v1");
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore)
+        {
+            ResultToReturn = new CriticalReviewInvocationResult(
+                CriticalReviewInvocationOutcome.Failed, false, false, null,
+                new AgentProcessEvidence(ProcessExecutionOutcome.Exited, 0, TimeSpan.FromMilliseconds(300)), usage),
+        };
+
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Failed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedAttempt = await dbContext.Attempts.FindAsync(attemptId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, persistedAttempt!.AgentOutcome);
+        Assert.Equal(AgentTokenUsageEvidence.Create(40, 0, 0, 12, "claude-cli-usage-v1"), persistedAttempt.GetAgentTokenUsageEvidence());
+        Assert.Empty(dbContext.CollaborationMessages.Where(m => m.AttemptId == attemptId));
+
+        // The Codex Proposal this review consumed was produced without usage (Codex has no proven
+        // usage contract), so it stays unknown in the same run.
+        var codexPlanner = await dbContext.Attempts
+            .Where(attempt => attempt.RunId == persistedAttempt.RunId && attempt.AgentRole == AgentRole.Planner)
+            .SingleAsync();
+        Assert.Null(codexPlanner.GetAgentTokenUsageEvidence());
+    }
+
     /// <summary>
     /// A final response that does not conform to the Acceptance/Challenge union (here, an
     /// "accept" decision missing its required <c>rationale</c> field) is recorded as

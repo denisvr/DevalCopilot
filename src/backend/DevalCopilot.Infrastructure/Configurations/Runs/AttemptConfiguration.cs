@@ -86,6 +86,15 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
                 duration => duration.HasValue ? (long?)duration.Value.Ticks : null,
                 ticks => ticks.HasValue ? TimeSpan.FromTicks(ticks.Value) : (TimeSpan?)null);
 
+        // Provider-reported Agent token usage: plain nullable integers and a bounded version tag,
+        // never backfilled, so every attempt recorded before these columns existed — and every
+        // attempt whose provider has no proven usage contract — truthfully reads as unknown.
+        builder.Property(attempt => attempt.AgentInputTokens);
+        builder.Property(attempt => attempt.AgentOutputTokens);
+        builder.Property(attempt => attempt.AgentCacheCreationInputTokens);
+        builder.Property(attempt => attempt.AgentCacheReadInputTokens);
+        builder.Property(attempt => attempt.AgentTokenUsageSchemaVersion).HasMaxLength(AgentTokenUsageEvidence.MaxSchemaVersionLength);
+
         builder.HasOne<Run>().WithMany().HasForeignKey(attempt => attempt.RunId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(attempt => new { attempt.RunId, attempt.AttemptNumber }).IsUnique();
 

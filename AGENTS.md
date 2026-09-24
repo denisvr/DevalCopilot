@@ -4,6 +4,8 @@ Before doing any work, read and follow:
 
 1. `../EngineeringStandards/ENGINEERING.md`
 2. `docs/engineering-context.md`
+3. `docs/roadmap/current-work.md` for the last documented handoff and next
+   planner-approved slice; verify its status against Git before relying on it.
 
 Use the engineering contract's task routing to read only the detailed standards
 relevant to the current work. Project-specific instructions may strengthen the
@@ -36,3 +38,14 @@ Respect the role assigned by the project owner for the current workflow.
 - A role changes only when the project owner explicitly reassigns it. Tool
   availability, context pressure, or provider limits do not implicitly change
   ownership.
+
+## Cross-chat continuity
+
+Slice completion requires an updated `docs/roadmap/current-work.md` in the
+same substantive commit. Record the delivered commit, remaining uncommitted
+work, checks actually run, open risks, and the next action; keep it short and
+link to authoritative contracts and ADRs. The planner/reviewer owns next-slice
+approval; the executor reports facts but cannot approve its own next plan.
+On resume, compare HEAD, branch, and staged/unstaged/untracked changes with the
+handoff before editing. Investigate discrepancies; Git and code prevail over
+a stale summary.

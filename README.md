@@ -20,6 +20,9 @@ The repository has an accepted product, architecture, and security baseline,
 and the backend and frontend project scaffolds are in place. Cockpit behavior,
 persistence, and agent collaboration are implemented incrementally against the
 approved [run cockpit specification](docs/product/run-cockpit-specification.md).
+The latest delivered slice and the next required action are recorded in the
+[cross-chat handoff](docs/roadmap/current-work.md); verify it against Git before
+resuming work in a new chat.
 
 The first release is intentionally local-only. It must be complete enough for a
 stable version of DevalCopilot to coordinate development of its next version
@@ -70,6 +73,7 @@ overwrites its own executable or active checkout.
 - [Security plan](docs/security/security-plan.md)
 - [Security threat model](docs/security/threat-model.md)
 - [MVP delivery plan](docs/roadmap/mvp-delivery-plan.md)
+- [Current work and cross-chat handoff](docs/roadmap/current-work.md)
 - [Architecture decisions](docs/decisions/README.md)
 - [Glossary](docs/glossary.md)
 

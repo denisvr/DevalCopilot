@@ -24,7 +24,8 @@ public sealed record ReviewCorrectionAttemptStatusQueryResult(
     Guid? EscalationMessageId,
     bool HasAvailableHumanAuthorization,
     AgentProcessExecutionEvidence? ProcessExecution = null,
-    TimeSpan? Timeout = null)
+    TimeSpan? Timeout = null,
+    AgentTokenUsageEvidence? TokenUsage = null)
 {
     public static readonly ReviewCorrectionAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, 0, null, null, null, [], 2, 0, false, null, null, false);

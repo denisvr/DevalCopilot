@@ -45,4 +45,5 @@ public sealed record RecordImplementationResultCommand(
     string? ProviderSessionId,
     string? ObservedModel = null,
     string? ObservedEffort = null,
-    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordImplementationResultCommandResult>>;
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordImplementationResultCommandResult>>;

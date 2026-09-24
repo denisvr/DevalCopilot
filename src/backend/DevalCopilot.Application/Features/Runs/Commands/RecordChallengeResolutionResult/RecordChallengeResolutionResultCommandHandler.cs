@@ -138,6 +138,16 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             return Result<RecordChallengeResolutionResultCommandResult>.Failure(processEvidenceError);
         }
 
+        // Provider-reported token usage is best-effort and never required, but when supplied it is
+        // validated before any mutation: bound to a dispatched attempt and never attached to a
+        // pre-invocation outcome. Recorded atomically with the outcome and process evidence below.
+        var tokenUsageError = AgentTokenUsageRecording.Validate(
+            command.TokenUsage, attempt.AgentProvider, command.Outcome, attempt.AgentDispatchedAtUtc.HasValue, out var tokenUsage);
+        if (tokenUsageError is not null)
+        {
+            return Result<RecordChallengeResolutionResultCommandResult>.Failure(tokenUsageError);
+        }
+
         if (command.ProviderSessionId is { Length: > MaxProviderSessionIdLength })
         {
             return Result<RecordChallengeResolutionResultCommandResult>.Failure(
@@ -176,7 +186,7 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             attempt.RecordAgentProviderSessionId(command.ProviderSessionId);
         }
 
-        attempt.CompleteAgent(command.Outcome, command.CompletionFingerprintSha256, nowUtc, processEvidence);
+        attempt.CompleteAgent(command.Outcome, command.CompletionFingerprintSha256, nowUtc, processEvidence, tokenUsage);
 
         foreach (var sealedArtifact in command.SealedArtifacts)
         {

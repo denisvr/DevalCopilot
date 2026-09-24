@@ -1,5 +1,6 @@
 import type { CodeReviewAttemptStatusResponse } from '../../../api/clients'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
+import { TokenUsageLine } from './TokenUsageLine'
 
 interface CodeReviewActionProps {
   executionReportMessageId: string | null
@@ -87,11 +88,14 @@ export function CodeReviewAction({
         </p>
       )}
       {status && (
-        <ProcessEvidenceLine
-          processExecution={status.processExecution}
-          dispatchedAtUtc={status.dispatchedAtUtc}
-          status={status.status}
-        />
+        <>
+          <ProcessEvidenceLine
+            processExecution={status.processExecution}
+            dispatchedAtUtc={status.dispatchedAtUtc}
+            status={status.status}
+          />
+          <TokenUsageLine tokenUsage={status.tokenUsage} dispatchedAtUtc={status.dispatchedAtUtc} status={status.status} />
+        </>
       )}
       {(requestError ?? statusError) && (
         <p className="dc-code-review-error" role="status">

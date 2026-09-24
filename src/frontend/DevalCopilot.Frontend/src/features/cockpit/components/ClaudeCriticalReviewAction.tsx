@@ -1,5 +1,6 @@
 import type { ClaudeCriticalReviewAttemptStatusResponse } from '../../../api/clients'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
+import { TokenUsageLine } from './TokenUsageLine'
 
 interface ClaudeCriticalReviewActionProps {
   proposalMessageId: string | null
@@ -84,11 +85,14 @@ export function ClaudeCriticalReviewAction({
         </p>
       )}
       {status && (
-        <ProcessEvidenceLine
-          processExecution={status.processExecution}
-          dispatchedAtUtc={status.dispatchedAtUtc}
-          status={status.status}
-        />
+        <>
+          <ProcessEvidenceLine
+            processExecution={status.processExecution}
+            dispatchedAtUtc={status.dispatchedAtUtc}
+            status={status.status}
+          />
+          <TokenUsageLine tokenUsage={status.tokenUsage} dispatchedAtUtc={status.dispatchedAtUtc} status={status.status} />
+        </>
       )}
       {(requestError ?? statusError) && (
         <p className="dc-claude-critical-review-error" role="status">

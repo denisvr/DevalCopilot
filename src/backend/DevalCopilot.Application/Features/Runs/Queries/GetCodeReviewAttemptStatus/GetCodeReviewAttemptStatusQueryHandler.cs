@@ -56,6 +56,7 @@ public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContex
             attempt.CompletedAtUtc,
             artifacts,
             attempt.GetAgentProcessExecutionEvidence(),
-            attempt.AgentTimeout));
+            attempt.AgentTimeout,
+            attempt.GetAgentTokenUsageEvidence()));
     }
 }

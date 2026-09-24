@@ -21,4 +21,5 @@ public sealed record RecordAgentAttemptResultCommand(
     IReadOnlyList<SealedAgentArtifact> SealedArtifacts,
     ValidatedProposal? Proposal,
     string? ProviderSessionId,
-    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordAgentAttemptResultCommandResult>>;
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordAgentAttemptResultCommandResult>>;

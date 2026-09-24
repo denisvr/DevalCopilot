@@ -124,7 +124,7 @@ public sealed class ImplementationReviewSupervisor(
         if (launchTarget is null)
         {
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -150,7 +150,7 @@ public sealed class ImplementationReviewSupervisor(
         {
             logger.LogError("implementation_review_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
-                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, CancellationToken.None);
+                standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
@@ -165,6 +165,7 @@ public sealed class ImplementationReviewSupervisor(
             invocationResult.StandardErrorTruncated,
             invocationResult.ProviderSessionId,
             invocationResult.ProcessEvidence,
+            invocationResult.TokenUsage,
             CancellationToken.None);
     }
 
@@ -175,6 +176,7 @@ public sealed class ImplementationReviewSupervisor(
         bool standardErrorTruncated,
         string? providerSessionId,
         AgentProcessEvidence? processEvidence,
+        AgentTokenUsage? tokenUsage,
         CancellationToken cancellationToken)
     {
         var completionEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, CancellationToken.None);
@@ -221,7 +223,8 @@ public sealed class ImplementationReviewSupervisor(
             recordResult = await DispatchAsync(
                 new RecordImplementationReviewResultCommand(
                     attempt.RunId, attempt.AttemptId, effectiveOutcome, completionFingerprint, sealedArtifacts, review, providerSessionId,
-                    processEvidence),
+                    processEvidence,
+                    tokenUsage),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

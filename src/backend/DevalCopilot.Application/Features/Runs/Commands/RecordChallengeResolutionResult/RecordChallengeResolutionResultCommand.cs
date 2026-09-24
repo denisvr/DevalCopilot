@@ -21,4 +21,5 @@ public sealed record RecordChallengeResolutionResultCommand(
     IReadOnlyList<SealedChallengeResolutionArtifact> SealedArtifacts,
     ValidatedChallengeResolution? Resolution,
     string? ProviderSessionId,
-    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordChallengeResolutionResultCommandResult>>;
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordChallengeResolutionResultCommandResult>>;

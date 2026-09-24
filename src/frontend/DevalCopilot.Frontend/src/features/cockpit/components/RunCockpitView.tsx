@@ -27,6 +27,7 @@ import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { RunHeader } from './RunHeader'
+import { RunTokenUsageSummary } from './RunTokenUsageSummary'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
 import { WorkflowRail } from './WorkflowRail'
 
@@ -105,6 +106,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
       {/* A cockpit projection still held from the previously selected run is never rendered as
           evidence for the newly selected one. */}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />
+      <RunTokenUsageSummary summary={cockpit.runId === runId ? cockpit.tokenUsageSummary : null} />
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
         <div className="dc-collaboration-column">

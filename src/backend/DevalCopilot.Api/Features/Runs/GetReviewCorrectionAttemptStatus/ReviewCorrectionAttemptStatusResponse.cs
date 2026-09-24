@@ -23,4 +23,5 @@ public sealed record ReviewCorrectionAttemptStatusResponse(
     Guid? EscalationId,
     Guid? EscalationMessageId,
     bool HasAvailableHumanAuthorization,
-    AgentProcessExecutionResponse? ProcessExecution);
+    AgentProcessExecutionResponse? ProcessExecution,
+    AgentTokenUsageResponse? TokenUsage);

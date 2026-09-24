@@ -25,7 +25,7 @@ export function UsageEvidenceRail() {
       </div>
       {!collapsed && (
         <>
-          <div className="dc-placeholder">Run and provider-account usage: not yet collected in this increment.</div>
+          <div className="dc-placeholder">Provider-account usage: not yet collected in this increment.</div>
           {EVIDENCE_TABS.map((tab) => (
             <div key={tab} className="dc-placeholder">
               {tab}: not yet collected.

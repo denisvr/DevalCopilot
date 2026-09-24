@@ -16,4 +16,5 @@ public sealed record RecordReviewCorrectionResultCommand(
     IReadOnlyList<SealedReviewCorrectionArtifact> SealedArtifacts,
     ValidatedReviewCorrection? Correction,
     string? ProviderSessionId,
-    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordReviewCorrectionResultCommandResult>>;
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordReviewCorrectionResultCommandResult>>;

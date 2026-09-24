@@ -109,7 +109,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             assignment,
             attempt.AgentRole,
             attempt.GetAgentProcessExecutionEvidence(),
-            attempt.AgentTimeout));
+            attempt.AgentTimeout,
+            attempt.GetAgentTokenUsageEvidence()));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>

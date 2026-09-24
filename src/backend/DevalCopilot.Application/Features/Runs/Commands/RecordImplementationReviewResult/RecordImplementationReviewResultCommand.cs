@@ -24,4 +24,5 @@ public sealed record RecordImplementationReviewResultCommand(
     IReadOnlyList<SealedImplementationReviewArtifact> SealedArtifacts,
     ValidatedImplementationReview? Review,
     string? ProviderSessionId,
-    AgentProcessEvidence? ProcessEvidence = null) : ICommand<Result<RecordImplementationReviewResultCommandResult>>;
+    AgentProcessEvidence? ProcessEvidence = null,
+    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordImplementationReviewResultCommandResult>>;
