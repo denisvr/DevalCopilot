@@ -2,8 +2,10 @@ import type { CollaborationTimelineCard } from '../types'
 import type { ParticipantIdentityView } from '../types'
 import { formatParticipantIdentity } from '../participantIdentity'
 import { isTypedCollaborationCard, parseCollaborationCardContent } from '../collaborationCardContent'
+import { CollaborationEvidenceDrilldown } from './CollaborationEvidenceDrilldown'
 
 interface AgentCollaborationProps {
+  runId: string
   cards: CollaborationTimelineCard[]
   loading?: boolean
   error?: string | null
@@ -103,6 +105,7 @@ function replyDescription(card: CollaborationTimelineCard, cardsById: ReadonlyMa
  * either provider's native conversation history.
  */
 export function AgentCollaboration({
+  runId,
   cards,
   loading = false,
   error = null,
@@ -172,6 +175,12 @@ export function AgentCollaboration({
                 </ul>
               </details>
             ) : null}
+            {/* Only ever offered for a card the backend can truthfully resolve to one exact
+                Attempt — a Human/Orchestrator/Simulated card (ProviderObserved false, or no
+                attemptId) never shows this control at all, not even a disabled one. */}
+            {card.provenance === 'ProviderObserved' && card.attemptId && (
+              <CollaborationEvidenceDrilldown runId={runId} messageId={card.id} />
+            )}
           </article>
         )
       })}

@@ -7,7 +7,90 @@ another chat. It is a checkpoint, not a substitute for the
 [accepted decisions](../decisions/README.md). Repository and agent reports are
 evidence, not authority.
 
-## Delivered baseline (2026-09-25): run-wide Agent invocation-time budget
+## Delivered baseline (2026-09-25): collaboration-card evidence drill-down
+
+- Branch: `main`. Delivered commit: `feat: add collaboration message
+  evidence drill-down`. Resolve its exact SHA with
+  `git log -1 --format=%H -- docs/roadmap/current-work.md` — a commit
+  cannot embed its own SHA without changing that SHA. Its parent is
+  `f89bf52b634fea31618608b6172c2891d31b4408` (`feat: add durable agent
+  invocation-time budget`; see the prior delivered slice below).
+- At delivery, `HEAD` and `origin/main` resolve to that commit and
+  `git status --short` is empty. Remaining uncommitted work: none expected.
+  If either condition differs on resume, inspect Git and the diff before
+  editing; never reset work merely to match this page.
+- Scope: a bounded, read-only "collaboration-card → exact Agent Attempt
+  evidence" drill-down. A new endpoint,
+  `GET /api/runs/{runId}/collaboration-messages/{messageId}/evidence`,
+  resolves the exact `Attempt` that produced one `CollaborationMessage`
+  strictly through that message's own durable `AttemptId` foreign key, and
+  only when the message's `Provenance` is `ProviderObserved` and the
+  resolved attempt is Agent-kind with a matching role/provider — never a
+  "latest attempt of that role" substitute, and never a Simulated
+  attempt's own coincidentally-set `AttemptId` misread as Agent evidence.
+  It returns a bounded, explicit `evidenceStatus` (`HasEvidence`,
+  `NoAgentEvidence` for a legitimate Human/Orchestrator/Simulated message,
+  or `AttemptLinkBroken` for any incoherent or missing link — fails closed,
+  never a substituted attempt), the attempt's bounded process/token-usage
+  evidence including its configured timeout, the starting/result
+  checkpoint identities and fingerprints (the result fingerprint included
+  only when its own checkpoint row exists and belongs to the attempt's own
+  workspace), and a capped (5) artifact metadata list — filtered by both
+  the resolved attempt's id and the requested run's id, since
+  `Artifact.RunId` carries no foreign key or composite uniqueness with
+  `AttemptId` — with an explicit omitted/total-count indicator. Never a raw
+  path, argument, working directory, approved root, provider session
+  identifier, adapter contract version, or raw stdout/stderr/response/
+  prompt content. The cockpit's `AgentCollaboration` timeline offers an
+  on-demand "Attempt evidence" disclosure only for a card whose provenance
+  is `ProviderObserved` with a non-null `attemptId`; it fetches using
+  exactly that card's own message id and the current run id, resets state
+  synchronously during render (never one stale frame late) on a run/card
+  switch, and labels every checkpoint/timing field as historical — never a
+  current approval or current-source verification. No Git capture is
+  performed by this slice.
+- Codex review corrected, across two rounds before commit: (1) the
+  Provenance-vs-`AttemptId`-nullability coherence gap above, the missing
+  result-checkpoint fingerprint and timeout in the projection, the
+  frontend's collapsed `AttemptLinkBroken`/unknown-status handling, and the
+  effect-based (one-frame-late) stale-evidence reset; (2) the artifact
+  query's missing `RunId` filter. See the corrected implementation itself
+  for the exact mechanism of each; this handoff records the delivered,
+  corrected state rather than repeating the full review narrative.
+- Evidence at delivery (exact results actually run for this closing pass):
+  `dotnet format DevalCopilot.slnx --verify-no-changes` clean; Release
+  build 0 warnings/0 errors; Domain 509/509; Application 911/911;
+  Infrastructure.IntegrationTests 395/396 (one pre-existing
+  platform-capability skip); Api.IntegrationTests 264/264; Architecture
+  9/9; frontend 435/435 tests, typecheck clean, production build passed,
+  `oxlint` exited 0 with the same 20 pre-existing warnings (0 new); NSwag
+  regeneration byte-identical across two builds with zero `export enum`
+  occurrences; `dotnet ef migrations has-pending-model-changes` reported no
+  pending changes (this slice is a pure read projection, no migration);
+  `git diff --cached --check` and the staged-file/scope/disclosure audit
+  reported clean immediately before commit. These are the same figures the
+  prior correction rounds already established; nothing beyond
+  documentation changed in this closing pass, so no additional reruns were
+  needed.
+- A schema note recorded during implementation: `Artifact` enforces a
+  unique `(AttemptId, Purpose)` index in `ArtifactConfiguration`, so one
+  attempt can hold at most one artifact per `ArtifactPurpose` member (6
+  today) — the endpoint's artifact cap was set to 5 (a defensive bound
+  against a future purpose being added) rather than a larger round number,
+  since a larger cap could never be exercised by genuinely persisted data
+  under the current schema.
+- Open risks: no expand/collapse beyond this bounded disclosure and the
+  pre-existing legacy-details one; the drill-down is read-only evidence,
+  never a re-verification of current source state; the remaining
+  Increment 4 loop/duration/token/account-usage budgets stay deferred (see
+  ADR-0013 and the prior delivered slice's own open-limits list below).
+- Next action: this baseline is delivered and reviewed-through-correction.
+  The Codex planner/reviewer verifies it against Git, then selects and
+  approves the next bounded Increment 4 slice from the
+  [roadmap](mvp-delivery-plan.md); no next slice is approved by this
+  handoff.
+
+## Prior delivered slice (2026-09-25): run-wide Agent invocation-time budget
 
 - Branch: `main`. Delivered commit: `feat: add durable agent
   invocation-time budget`. Resolve its exact SHA with
@@ -71,14 +154,17 @@ evidence, not authority.
   `docs/decisions/README.md`, `docs/engineering-context.md`,
   `docs/architecture/agent-collaboration-protocol.md`,
   `docs/roadmap/mvp-delivery-plan.md` (Increment 4 section), and this page.
-  New/extended tests: `AgentInvocationTimeBudgetTests.cs` (Domain, 9 cases);
+  New/extended tests: `AgentInvocationTimeBudgetTests.cs` (Domain, 12 cases —
+  8 `[Fact]` methods plus 2 `[Theory]` methods at 2 `[InlineData]` cases
+  each — after the overflow/precision correction round added 3 cases to the
+  original 9);
   targeted additions across all six `Create*AttemptCommandHandlerTests.cs`
   files including exact-boundary, over-boundary-by-one-tick, malformed-
   evidence, legacy-run, and race-vs-genuine-exhaustion cases (Application);
   new `AgentInvocationTimeBudgetMigrationTests.cs` (Infrastructure,
   real-SQLite-restart pattern); extended `SimulatedRunFlowTests.cs`
   (Api, budgeted-run and legacy-run cockpit projection cases).
-- Four pre-existing review-correction Application/Api tests
+- Five pre-existing review-correction Application/Api tests
   (`Third_claim_creates_one_durable_escalation_without_attempt_or_manifest`,
   `Escalation_retry_recovers_exact_committed_event_and_re_notifies_after_post_commit_failure`,
   `One_human_authorization_allows_exactly_one_additional_claim`,
@@ -141,14 +227,13 @@ evidence, not authority.
   provider CLI or touches the real local database — all backend tests use
   disposable file-backed SQLite or `WebApplicationFactory`, matching
   existing patterns.
-- Next action: this baseline is delivered, corrected, and committed. The
+- This baseline was delivered, corrected, and committed; the Codex
+  planner/reviewer subsequently selected and approved the collaboration-card
+  evidence drill-down as the next Increment 4 slice — see the current
+  delivered baseline at the top of this page for what happened next. The
   remaining Increment 4 loop, duration, token, and account-usage budgets
   stay deferred (see [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
-  for what this slice explicitly does not implement). The Codex
-  planner/reviewer verifies this delivered baseline against Git, then
-  selects and approves the next bounded Increment 4 slice from the
-  [roadmap](mvp-delivery-plan.md); no next slice is approved by this
-  handoff.
+  for what this slice explicitly does not implement).
 
 ## Prior delivered slice (2026-09-25): typed collaboration evidence cards
 
@@ -232,13 +317,14 @@ evidence, not authority.
   remain open; Increment 4 is not complete; Gemini execution remains
   disabled by [ADR-0011](../decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md).
 - The ADR-0012 count-based Agent claim budget has no human-authorization
-  override, and neither does the ADR-0013 invocation-time budget introduced
-  by the current delivered baseline above. Neither budget measures actual
-  wall-clock provider duration, enforces a token limit, enforces a provider
+  override, and neither does the ADR-0013 invocation-time budget (see the
+  prior delivered slice below). Neither budget measures actual wall-clock
+  provider duration, enforces a token limit, enforces a provider
   account-usage limit, or guarantees that a provider process cannot outlive
   its own configured timeout — see ADR-0013 for what it explicitly excludes.
-  The current baseline's own "Next action" above governs what happens next;
-  this list only carries forward limits that predate it.
+  The current delivered baseline's own "Next action" at the top of this
+  page governs what happens next; this list only carries forward limits
+  that predate it.
 
 ## Prior delivered slice (2026-09-25): durable run-wide Agent claim budget
 

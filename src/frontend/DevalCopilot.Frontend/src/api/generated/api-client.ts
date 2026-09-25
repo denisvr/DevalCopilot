@@ -874,6 +874,57 @@ export class GetCollaborationTimelineEndpointClient {
     }
 }
 
+export class GetCollaborationMessageEvidenceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCollaborationMessageEvidence(runId: string, messageId: string): Promise<CollaborationMessageEvidenceResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/collaboration-messages/{messageId}/evidence";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (messageId === undefined || messageId === null)
+            throw new globalThis.Error("The parameter 'messageId' must be defined.");
+        url_ = url_.replace("{messageId}", encodeURIComponent("" + messageId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCollaborationMessageEvidence(_response);
+        });
+    }
+
+    protected processGetCollaborationMessageEvidence(response: Response): Promise<CollaborationMessageEvidenceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CollaborationMessageEvidenceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CollaborationMessageEvidenceResponse>(null as any);
+    }
+}
+
 export class AuthorizeReviewCorrectionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3540,6 +3591,130 @@ export interface ICollaborationMessageTimelineResponse {
     structuredContentJson?: string;
     provenance?: string;
     occurredAtUtc?: Date;
+}
+
+export class CollaborationMessageEvidenceResponse implements ICollaborationMessageEvidenceResponse {
+    evidenceStatus?: string;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    attemptKind?: string | undefined;
+    attemptStatus?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    agentProvider?: string | undefined;
+    agentRole?: string | undefined;
+    agentResponseContract?: string | undefined;
+    agentOutcome?: string | undefined;
+    agentDispatchedAtUtc?: Date | undefined;
+    startingGitCheckpointId?: string | undefined;
+    startingCheckpointFingerprintSha256?: string | undefined;
+    resultGitCheckpointId?: string | undefined;
+    resultCheckpointFingerprintSha256?: string | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+    artifactsOmitted?: boolean;
+    artifactTotalCount?: number;
+
+    constructor(data?: ICollaborationMessageEvidenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.evidenceStatus = _data["evidenceStatus"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.attemptKind = _data["attemptKind"];
+            this.attemptStatus = _data["attemptStatus"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            this.agentProvider = _data["agentProvider"];
+            this.agentRole = _data["agentRole"];
+            this.agentResponseContract = _data["agentResponseContract"];
+            this.agentOutcome = _data["agentOutcome"];
+            this.agentDispatchedAtUtc = _data["agentDispatchedAtUtc"] ? new Date(_data["agentDispatchedAtUtc"].toString()) : undefined as any;
+            this.startingGitCheckpointId = _data["startingGitCheckpointId"];
+            this.startingCheckpointFingerprintSha256 = _data["startingCheckpointFingerprintSha256"];
+            this.resultGitCheckpointId = _data["resultGitCheckpointId"];
+            this.resultCheckpointFingerprintSha256 = _data["resultCheckpointFingerprintSha256"];
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            if (Array.isArray(_data["artifacts"])) {
+                this.artifacts = [] as any;
+                for (let item of _data["artifacts"])
+                    this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
+            }
+            this.artifactsOmitted = _data["artifactsOmitted"];
+            this.artifactTotalCount = _data["artifactTotalCount"];
+        }
+    }
+
+    static fromJS(data: any): CollaborationMessageEvidenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CollaborationMessageEvidenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["evidenceStatus"] = this.evidenceStatus;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["attemptKind"] = this.attemptKind;
+        data["attemptStatus"] = this.attemptStatus;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        data["agentProvider"] = this.agentProvider;
+        data["agentRole"] = this.agentRole;
+        data["agentResponseContract"] = this.agentResponseContract;
+        data["agentOutcome"] = this.agentOutcome;
+        data["agentDispatchedAtUtc"] = this.agentDispatchedAtUtc ? this.agentDispatchedAtUtc.toISOString() : undefined as any;
+        data["startingGitCheckpointId"] = this.startingGitCheckpointId;
+        data["startingCheckpointFingerprintSha256"] = this.startingCheckpointFingerprintSha256;
+        data["resultGitCheckpointId"] = this.resultGitCheckpointId;
+        data["resultCheckpointFingerprintSha256"] = this.resultCheckpointFingerprintSha256;
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        if (Array.isArray(this.artifacts)) {
+            data["artifacts"] = [];
+            for (let item of this.artifacts)
+                data["artifacts"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["artifactsOmitted"] = this.artifactsOmitted;
+        data["artifactTotalCount"] = this.artifactTotalCount;
+        return data;
+    }
+}
+
+export interface ICollaborationMessageEvidenceResponse {
+    evidenceStatus?: string;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    attemptKind?: string | undefined;
+    attemptStatus?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    agentProvider?: string | undefined;
+    agentRole?: string | undefined;
+    agentResponseContract?: string | undefined;
+    agentOutcome?: string | undefined;
+    agentDispatchedAtUtc?: Date | undefined;
+    startingGitCheckpointId?: string | undefined;
+    startingCheckpointFingerprintSha256?: string | undefined;
+    resultGitCheckpointId?: string | undefined;
+    resultCheckpointFingerprintSha256?: string | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+    artifactsOmitted?: boolean;
+    artifactTotalCount?: number;
 }
 
 export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatusResponse {

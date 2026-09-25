@@ -1,23 +1,29 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { CollaborationTimelineCard } from '../types'
 import { AgentCollaboration } from './AgentCollaboration'
+import { collaborationMessageEvidenceClient } from '../../../api/clients'
+
+vi.mock('../../../api/clients', () => ({
+  collaborationMessageEvidenceClient: vi.fn(),
+}))
 
 describe('AgentCollaboration', () => {
   it('shows an explicit empty state before any event has arrived', () => {
-    render(<AgentCollaboration cards={[]} loading={false} error={null} hasSuccessfulResponse />)
+    render(<AgentCollaboration runId="run-1" cards={[]} loading={false} error={null} hasSuccessfulResponse />)
     expect(screen.getByText('No collaboration messages yet.')).toBeInTheDocument()
   })
 
   it('shows loading and failure states without presenting them as an empty timeline', () => {
     const { rerender } = render(
-      <AgentCollaboration cards={[]} loading error={null} hasSuccessfulResponse={false} />,
+      <AgentCollaboration runId="run-1" cards={[]} loading error={null} hasSuccessfulResponse={false} />,
     )
     expect(screen.getByText('Loading collaboration timeline…')).toBeInTheDocument()
     expect(screen.queryByText('No collaboration messages yet.')).not.toBeInTheDocument()
 
     rerender(
       <AgentCollaboration
+        runId="run-1"
         cards={[]}
         loading={false}
         error="Collaboration timeline is unavailable."
@@ -31,6 +37,7 @@ describe('AgentCollaboration', () => {
   it('retains loaded cards while showing a refresh failure', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[fixture()]}
         loading={false}
         error="Collaboration timeline is unavailable."
@@ -49,7 +56,7 @@ describe('AgentCollaboration', () => {
       fixture({ sequence: 3, actor: { kind: 'Agent', role: 'CriticalReviewer', provider: 'ClaudeCode' }, summary: 'Challenge' }),
     ]
 
-    render(<AgentCollaboration cards={cards} />)
+    render(<AgentCollaboration runId="run-1" cards={cards} />)
 
     expect(screen.getByText('Started').closest('article')).toHaveAttribute('data-align', 'center')
     expect(screen.getByText('Proposal').closest('article')).toHaveAttribute('data-align', 'left')
@@ -66,7 +73,7 @@ describe('AgentCollaboration', () => {
       fixture({ sequence: 6, type: 'RevisionResponse', summary: 'Revision response card' }),
     ]
 
-    render(<AgentCollaboration cards={cards} />)
+    render(<AgentCollaboration runId="run-1" cards={cards} />)
 
     expect(screen.getByText('Proposal card').closest('article')).toHaveAttribute('data-type', 'Proposal')
     expect(screen.getByText('Acceptance card').closest('article')).toHaveAttribute('data-type', 'Acceptance')
@@ -81,7 +88,7 @@ describe('AgentCollaboration', () => {
   })
 
   it('labels simulation and presents bounded structured details without claiming a provider transcript', () => {
-    render(<AgentCollaboration cards={[fixture({ details: ['rationale: Durable facts'], inReplyToMessageId: 'prior-message' })]} />)
+    render(<AgentCollaboration runId="run-1" cards={[fixture({ details: ['rationale: Durable facts'], inReplyToMessageId: 'prior-message' })]} />)
 
     expect(screen.getByText(/simulated/i)).toBeInTheDocument()
     expect(screen.getByText('The referenced parent message is not present in the currently loaded timeline; the relationship is not verified here.')).toBeInTheDocument()
@@ -141,7 +148,7 @@ describe('AgentCollaboration', () => {
       }),
     ]
 
-    render(<AgentCollaboration cards={cards} />)
+    render(<AgentCollaboration runId="run-1" cards={cards} />)
 
     expect(screen.getByText('Disputed item')).toBeInTheDocument()
     expect(screen.getByText('Resolution')).toBeInTheDocument()
@@ -156,6 +163,7 @@ describe('AgentCollaboration', () => {
   it('does not invent typed fields from malformed or unknown structured content', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({
             type: 'ReviewFinding',
@@ -183,6 +191,7 @@ describe('AgentCollaboration', () => {
   it('does not render a Decision whose resolution is not one of the protocol closed values', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({
             type: 'Decision',
@@ -206,6 +215,7 @@ describe('AgentCollaboration', () => {
     const text = '<script>alert("unsafe")</script>'
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({
             type: 'Challenge',
@@ -228,6 +238,7 @@ describe('AgentCollaboration', () => {
   it('resolves a reply only by the exact parent id in the loaded run timeline', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({ id: 'finding-a', type: 'ReviewFinding', summary: 'Finding A' }),
           fixture({
@@ -259,6 +270,7 @@ describe('AgentCollaboration', () => {
   it('never describes a later (forward) message as a verified reply parent, even when the id matches', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({ sequence: 1, id: 'response-early', type: 'RevisionResponse', inReplyToMessageId: 'finding-later', summary: 'Response early' }),
           fixture({ sequence: 2, id: 'finding-later', type: 'ReviewFinding', summary: 'Finding later' }),
@@ -273,6 +285,7 @@ describe('AgentCollaboration', () => {
   it('never describes an earlier message of a protocol-incompatible type as a verified reply parent', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({ sequence: 1, id: 'proposal-1', type: 'Proposal', summary: 'A bounded proposal' }),
           // RevisionResponse may only reply to a ReviewFinding per the protocol's closed table —
@@ -291,6 +304,7 @@ describe('AgentCollaboration', () => {
   it('verifies a revised Proposal replying to an earlier Proposal', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({ sequence: 1, id: 'proposal-original', type: 'Proposal', summary: 'The original proposal' }),
           fixture({ sequence: 2, id: 'proposal-revised', type: 'Proposal', inReplyToMessageId: 'proposal-original', summary: 'The revised proposal' }),
@@ -309,6 +323,7 @@ describe('AgentCollaboration', () => {
   it('verifies an ExecutionReport replying to the implemented Proposal, the real Increment 4 path', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({ sequence: 1, id: 'proposal-1', type: 'Proposal', summary: 'The implemented proposal' }),
           fixture({ sequence: 2, id: 'report-1', type: 'ExecutionReport', inReplyToMessageId: 'proposal-1', summary: 'Implemented the proposal' }),
@@ -326,6 +341,7 @@ describe('AgentCollaboration', () => {
   it('displays a readable label and a verified relationship for a Review approval replying to its Execution report', () => {
     render(
       <AgentCollaboration
+        runId="run-1"
         cards={[
           fixture({ sequence: 1, id: 'report-1', type: 'ExecutionReport', summary: 'Implemented the proposal' }),
           fixture({ sequence: 2, id: 'approval-1', type: 'ReviewApproval', inReplyToMessageId: 'report-1', summary: 'The implementation is approved.' }),
@@ -336,6 +352,78 @@ describe('AgentCollaboration', () => {
     expect(screen.getByText(/Review approval/)).toBeInTheDocument()
     expect(screen.queryByText(/ReviewApproval/)).not.toBeInTheDocument()
     expect(screen.getByText('In reply to Execution report message report-1: Implemented the proposal')).toBeInTheDocument()
+  })
+
+  // The Increment 4 drill-down control (see CollaborationEvidenceDrilldown) is only ever offered
+  // for a card the backend can truthfully resolve to one exact Attempt: ProviderObserved
+  // provenance with a non-null attemptId. Every other legitimate shape (Human, Orchestrator,
+  // Simulated) never shows the control at all, not even a disabled one.
+  describe('the attempt evidence drill-down control', () => {
+    it('is offered for a ProviderObserved card with a linked attempt', () => {
+      render(
+        <AgentCollaboration
+          runId="run-1"
+          cards={[fixture({ provenance: 'ProviderObserved', attemptId: 'attempt-1' })]}
+        />,
+      )
+
+      expect(screen.getByText('Attempt evidence')).toBeInTheDocument()
+    })
+
+    it('is never offered for a Simulated card even if it somehow carried an attemptId', () => {
+      render(
+        <AgentCollaboration
+          runId="run-1"
+          cards={[fixture({ provenance: 'Simulated', attemptId: 'attempt-1' })]}
+        />,
+      )
+
+      expect(screen.queryByText('Attempt evidence')).not.toBeInTheDocument()
+    })
+
+    it('is never offered for a ProviderObserved card with no linked attempt', () => {
+      render(
+        <AgentCollaboration
+          runId="run-1"
+          cards={[fixture({ provenance: 'ProviderObserved', attemptId: null })]}
+        />,
+      )
+
+      expect(screen.queryByText('Attempt evidence')).not.toBeInTheDocument()
+    })
+
+    it('is never offered for a HostConstructed or HumanSubmitted card', () => {
+      render(
+        <AgentCollaboration
+          runId="run-1"
+          cards={[
+            fixture({ sequence: 1, id: 'a', provenance: 'HostConstructed', attemptId: null, type: 'Escalation' }),
+            fixture({ sequence: 2, id: 'b', provenance: 'HumanSubmitted', attemptId: null, type: 'HumanInstruction' }),
+          ]}
+        />,
+      )
+
+      expect(screen.queryByText('Attempt evidence')).not.toBeInTheDocument()
+    })
+
+    it('fetches using the card own messageId and the run id when expanded, never a substituted id', async () => {
+      const getCollaborationMessageEvidence = vi.fn().mockReturnValue(new Promise(() => {}))
+      vi.mocked(collaborationMessageEvidenceClient).mockReturnValue({
+        getCollaborationMessageEvidence,
+      } as unknown as ReturnType<typeof collaborationMessageEvidenceClient>)
+
+      render(
+        <AgentCollaboration
+          runId="the-run"
+          cards={[fixture({ id: 'the-message', provenance: 'ProviderObserved', attemptId: 'attempt-1' })]}
+        />,
+      )
+
+      const summary = screen.getByText('Attempt evidence')
+      fireEvent.click(summary)
+
+      await waitFor(() => expect(getCollaborationMessageEvidence).toHaveBeenCalledWith('the-run', 'the-message'))
+    })
   })
 
   function fixture(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {

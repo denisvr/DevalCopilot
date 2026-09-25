@@ -18,6 +18,7 @@ import {
   GetProviderRuntimePreflightEndpointClient,
   GetRunCockpitEndpointClient,
   GetCollaborationTimelineEndpointClient,
+  GetCollaborationMessageEvidenceEndpointClient,
   GetRunEventsEndpointClient,
   PrepareRepositoryWorkspaceEndpointClient,
   RecheckProjectPhysicalIdentityEndpointClient,
@@ -47,6 +48,7 @@ export const registerProjectClient = () => new RegisterProjectEndpointClient(get
 export const startSimulatedRunClient = () => new StartSimulatedRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const collaborationTimelineClient = () => new GetCollaborationTimelineEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const collaborationMessageEvidenceClient = () => new GetCollaborationMessageEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const providerRuntimePreflightClient = () => new GetProviderRuntimePreflightEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -101,6 +103,7 @@ export type {
   RequestHostCapabilityRefreshResponse,
   RunEventResponse,
   CollaborationMessageTimelineResponse,
+  CollaborationMessageEvidenceResponse,
   StageMapEntryResponse,
   UpdateVerificationCommandRequest,
   VerificationCommandResponse,

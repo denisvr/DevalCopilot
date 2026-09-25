@@ -200,7 +200,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               if (reviewAttemptId) void requestReviewCorrection.request(runId, reviewAttemptId)
             }}
           />
-          <AgentCollaboration {...collaborationTimeline} />
+          <AgentCollaboration runId={runId} {...collaborationTimeline} />
         </div>
         <UsageEvidenceRail />
       </div>
