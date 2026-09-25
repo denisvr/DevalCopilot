@@ -29,6 +29,7 @@ function evidence(overrides: Partial<CollaborationMessageEvidenceResponse> = {})
     agentRole: 'Planner',
     agentResponseContract: 'Proposal',
     agentOutcome: 'Proposed',
+    agentDispatchedAtUtc: new Date('2026-09-24T10:00:00Z') as never,
     startingGitCheckpointId: 'checkpoint-1',
     artifacts: [],
     artifactsOmitted: false,
@@ -142,6 +143,50 @@ describe('CollaborationEvidenceDrilldown', () => {
 
     expect(screen.getByText('checkpoint-result')).toBeInTheDocument()
     expect(screen.queryByText('Result checkpoint fingerprint (historical)')).not.toBeInTheDocument()
+  })
+
+  // Regression: this component renders processExecution.outcome/durationMilliseconds directly
+  // rather than through ProcessEvidenceLine, so it must reuse the same shared trust check
+  // (hasTrustedProcessEvidence) rather than trusting the raw object. A well-formed-looking
+  // processExecution paired with a still-Running attemptStatus must never be shown as if the
+  // process had concluded — the configured timeout stays visible regardless, since it is a
+  // separate, always-known value.
+  it('never shows process outcome/duration for a still-running attempt, even with a well-formed-looking object', async () => {
+    mockClient(
+      vi.fn().mockResolvedValue(
+        evidence({
+          attemptStatus: 'Running',
+          processExecution: { outcome: 'Exited', exitCode: 0, durationMilliseconds: 1234, timeoutMilliseconds: 600000 } as never,
+        }),
+      ),
+    )
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+
+    fireEvent.click(screen.getByText('Attempt evidence'))
+    await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
+
+    expect(screen.getByText('Configured timeout (historical)')).toBeInTheDocument()
+    expect(screen.getByText('600000 ms')).toBeInTheDocument()
+    expect(screen.queryByText('Process outcome (historical)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Process duration (historical)')).not.toBeInTheDocument()
+  })
+
+  it('never shows process outcome/duration for an undispatched attempt, even with a well-formed-looking object', async () => {
+    mockClient(
+      vi.fn().mockResolvedValue(
+        evidence({
+          agentDispatchedAtUtc: undefined,
+          processExecution: { outcome: 'TimedOut', durationMilliseconds: 1234, timeoutMilliseconds: 600000 } as never,
+        }),
+      ),
+    )
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+
+    fireEvent.click(screen.getByText('Attempt evidence'))
+    await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
+
+    expect(screen.queryByText('Process outcome (historical)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Process duration (historical)')).not.toBeInTheDocument()
   })
 
   it('shows an error state with a retry action that fetches again', async () => {

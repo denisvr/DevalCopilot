@@ -288,6 +288,20 @@ already concluded when attempts are, in fact, still running. See the
 [agent-collaboration-protocol](../architecture/agent-collaboration-protocol.md)
 for its exact evidence-state contract.
 
+This same "never trust a still-running or undispatched attempt's own record"
+rule also applies to that attempt's individual process-execution evidence
+(outcome, exit code, measured duration) shown beside its semantic outcome —
+distinct from, and unaffected by, this run-wide summary above, which already
+reads each attempt's status directly rather than through the per-attempt
+projection. Each role's own status view, the cockpit's latest-attempt panel,
+and the collaboration-message evidence drill-down all show that attempt's
+process outcome/exit code/duration as unknown whenever the attempt has not
+concluded, even if the underlying record already carries seemingly
+well-formed process fields — the presentation logic checks the attempt's own
+running/dispatched state before it ever consults the record's shape, exactly
+as it already does for token usage. The attempt's configured timeout is a
+separate, always-known value shown regardless of this check.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

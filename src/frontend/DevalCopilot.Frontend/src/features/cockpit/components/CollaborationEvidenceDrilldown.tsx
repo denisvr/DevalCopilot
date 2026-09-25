@@ -1,3 +1,4 @@
+import { hasTrustedProcessEvidence } from '../describeProcessEvidence'
 import { useCollaborationMessageEvidence } from '../hooks/useCollaborationMessageEvidence'
 
 interface CollaborationEvidenceDrilldownProps {
@@ -30,6 +31,19 @@ function formatField(label: string, value: string | number | boolean | null | un
  */
 export function CollaborationEvidenceDrilldown({ runId, messageId }: CollaborationEvidenceDrilldownProps) {
   const { state, fetchEvidence } = useCollaborationMessageEvidence(runId, messageId)
+  // The endpoint's own resolution already fails closed to `AttemptLinkBroken`/`NoAgentEvidence`
+  // before this component ever sees a `success` state, but this drill-down renders `outcome`/
+  // `durationMilliseconds` directly (not through `ProcessEvidenceLine`), so it reuses the exact
+  // same shared trust check as that component — never a duplicated inline rule — to guard against
+  // a still-running or undispatched attempt's process fields being shown as if concluded.
+  const trustedProcessExecution =
+    state.status === 'success' &&
+    hasTrustedProcessEvidence(state.evidence.processExecution, {
+      dispatched: Boolean(state.evidence.agentDispatchedAtUtc),
+      running: state.evidence.attemptStatus === 'Running',
+    })
+      ? state.evidence.processExecution
+      : null
 
   return (
     <details
@@ -93,13 +107,12 @@ export function CollaborationEvidenceDrilldown({ runId, messageId }: Collaborati
                 ? `${state.evidence.processExecution.timeoutMilliseconds} ms`
                 : null,
             )}
-            {state.evidence.processExecution &&
-              formatField('Process outcome (historical)', state.evidence.processExecution.outcome ?? null)}
-            {state.evidence.processExecution &&
+            {trustedProcessExecution && formatField('Process outcome (historical)', trustedProcessExecution.outcome ?? null)}
+            {trustedProcessExecution &&
               formatField(
                 'Process duration (historical)',
-                state.evidence.processExecution.durationMilliseconds != null
-                  ? `${state.evidence.processExecution.durationMilliseconds} ms`
+                trustedProcessExecution.durationMilliseconds != null
+                  ? `${trustedProcessExecution.durationMilliseconds} ms`
                   : null,
               )}
             {state.evidence.tokenUsage &&

@@ -825,6 +825,27 @@ environment value, output, context manifest, session identifier, or
 credential. Raw output is not a usage metric, and this evidence is not a
 token, cost, or account-usage measurement.
 
+This per-attempt projection shares the same fail-closed rule the provider
+token-usage contracts describe below, and shares it through a single
+Domain-level source of truth rather than a duplicated check:
+`Attempt.GetAgentProcessExecutionEvidence()` itself reports unknown process
+evidence whenever the attempt is still `Running` or has never been dispatched
+(`AgentDispatchedAtUtc` is `null`), even when its persisted row already
+carries seemingly well-formed process fields (for example a corrupted or
+prematurely-populated row) — every one of the per-role status endpoints
+(planner, critical review, challenge resolution, code review, implementation,
+review correction), the run cockpit's own `latestAgentAttempt.processExecution`,
+and the collaboration-message evidence drill-down call this same method, so
+the guarantee holds identically everywhere a single attempt's process
+evidence is projected. The attempt's configured `timeoutMilliseconds` is a
+separate, always-known-at-claim-time value and is never gated behind this
+rule — it remains visible even while `outcome`/`exitCode`/`durationMilliseconds`
+are unknown. The run-wide process-duration summary below is unaffected by
+this rule: it reads each attempt's own `Status` directly from its bounded
+per-row projection rather than through `GetAgentProcessExecutionEvidence()`,
+so a still-running attempt was already, and remains, correctly bucketed as
+pending there.
+
 ### Run-wide Agent process-duration evidence summary
 
 The run cockpit additionally exposes a bounded, read-only, run-wide summary of

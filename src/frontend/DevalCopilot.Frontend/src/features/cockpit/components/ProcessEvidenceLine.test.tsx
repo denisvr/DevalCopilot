@@ -194,4 +194,29 @@ describe('ProcessEvidenceLine', () => {
 
     expect(document.querySelectorAll('.dc-process-evidence')).toHaveLength(0)
   })
+
+  // Regression: a well-formed-looking process object (exactly what a tampered or prematurely
+  // populated persisted row would look like) must never be shown as concluded evidence, in either
+  // the rendered text or the `data-process-outcome` test hook, while the attempt is still running or
+  // was never dispatched — the two must always agree with each other.
+  it('never trusts a well-formed-looking process object for a still-running attempt, in either the text or the outcome attribute', () => {
+    render(<ProcessEvidenceLine processExecution={evidence('Exited', 0)} dispatchedAtUtc={dispatchedAtUtc} status="Running" />)
+
+    expect(evidenceLine()).toHaveTextContent('Process result not yet recorded · timeout 10m 00s')
+    expect(evidenceLine()).toHaveAttribute('data-process-outcome', 'Unknown')
+  })
+
+  it('never trusts a well-formed-looking process object for an undispatched attempt, in either the text or the outcome attribute', () => {
+    render(<ProcessEvidenceLine processExecution={evidence('TimedOut')} dispatchedAtUtc={undefined} status="Failed" />)
+
+    expect(evidenceLine()).toHaveTextContent('Process not started · timeout 10m 00s')
+    expect(evidenceLine()).toHaveAttribute('data-process-outcome', 'Unknown')
+  })
+
+  it('still trusts genuine evidence, including a nonzero exit code, for a dispatched terminal attempt', () => {
+    render(<ProcessEvidenceLine processExecution={evidence('Exited', 137)} dispatchedAtUtc={dispatchedAtUtc} status="Failed" />)
+
+    expect(evidenceLine()).toHaveTextContent('Process exited with code 137 after 2.5 s · timeout 10m 00s')
+    expect(evidenceLine()).toHaveAttribute('data-process-outcome', 'Exited')
+  })
 })

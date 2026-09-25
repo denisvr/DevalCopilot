@@ -829,11 +829,19 @@ public sealed class Attempt
     public TimeSpan? AgentProcessDuration { get; private set; }
 
     /// <summary>Returns the recorded host-measured process evidence, or <see langword="null"/> when
-    /// it is absent or its persisted shape is not valid evidence — an inconsistent row is reported
-    /// as unknown rather than partially trusted. Non-Agent attempts never have this evidence.</summary>
+    /// it is absent, its persisted shape is not valid evidence — an inconsistent row is reported
+    /// as unknown rather than partially trusted — or the attempt has not yet concluded. A still-
+    /// <see cref="AttemptStatus.Running"/> or never-dispatched (<see cref="AgentDispatchedAtUtc"/>
+    /// is <see langword="null"/>) attempt always reports unknown process evidence here, even when
+    /// its persisted row already carries seemingly well-formed process fields (for example a
+    /// corrupted or prematurely populated row) — non-terminal evidence is never trusted by any
+    /// caller of this method, mirroring <see cref="GetAgentTokenUsageEvidence"/>'s own rule. Non-Agent
+    /// attempts never have this evidence.</summary>
     public AgentProcessExecutionEvidence? GetAgentProcessExecutionEvidence()
     {
         if (Kind != AttemptKind.Agent
+            || Status == AttemptStatus.Running
+            || AgentDispatchedAtUtc is null
             || AgentProcessOutcome is not { } outcome
             || AgentProcessDuration is not { } duration
             || AgentProcessExecutionEvidence.Validate(outcome, AgentProcessExitCode, duration) is not null)

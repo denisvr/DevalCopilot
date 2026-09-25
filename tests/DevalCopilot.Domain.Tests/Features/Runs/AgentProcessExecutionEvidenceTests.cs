@@ -376,6 +376,63 @@ public sealed class AgentProcessExecutionEvidenceTests
         Assert.NotNull(attempt.AgentDispatchedAtUtc);
     }
 
+    // Regression for the fix mirroring GetAgentTokenUsageEvidence's own status/dispatch gate: a
+    // still-Running attempt must never trust its persisted process fields as evidence, even when
+    // they already look completely well-formed (for example a corrupted or prematurely populated
+    // row) — no legitimate Domain path can reach this shape, so the tampering is done directly via
+    // reflection on the private setters, mirroring AgentAssignmentTests's own pattern.
+    [Fact]
+    public void A_running_attempt_never_trusts_well_formed_persisted_process_fields()
+    {
+        var attempt = ClaimDispatchedPlanner();
+        SetPrivateProperty(attempt, nameof(Attempt.AgentProcessOutcome), (ProcessOutcome?)ProcessOutcome.Exited);
+        SetPrivateProperty(attempt, nameof(Attempt.AgentProcessExitCode), (int?)0);
+        SetPrivateProperty(attempt, nameof(Attempt.AgentProcessDuration), (TimeSpan?)TimeSpan.FromSeconds(1));
+
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+        Assert.Null(attempt.GetAgentProcessExecutionEvidence());
+    }
+
+    // Same rule for the other half of the gate: a terminal attempt that was never dispatched
+    // cannot legitimately carry process evidence either (no provider child process could ever
+    // have run), so a tampered row here is also reported as unknown rather than trusted.
+    [Fact]
+    public void An_undispatched_terminal_attempt_never_trusts_well_formed_persisted_process_fields()
+    {
+        var attempt = ClaimPlanner();
+        attempt.CompleteAgent(AgentOutcome.SourceChanged, null, BaseTime);
+        SetPrivateProperty(attempt, nameof(Attempt.AgentProcessOutcome), (ProcessOutcome?)ProcessOutcome.Exited);
+        SetPrivateProperty(attempt, nameof(Attempt.AgentProcessExitCode), (int?)0);
+        SetPrivateProperty(attempt, nameof(Attempt.AgentProcessDuration), (TimeSpan?)TimeSpan.FromSeconds(1));
+
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+        Assert.NotEqual(AttemptStatus.Running, attempt.Status);
+        Assert.Null(attempt.GetAgentProcessExecutionEvidence());
+    }
+
+    // A genuinely dispatched, terminal attempt is unaffected by the fix above: nonzero exit,
+    // TimedOut, and Cancelled evidence all remain visible exactly as before (also covered by the
+    // CompleteAgent/CompleteImplementation/CompleteReviewCorrection tests above, which each end in
+    // a genuinely dispatched, terminal attempt).
+    [Theory]
+    [InlineData(ProcessOutcome.Exited, 137)]
+    [InlineData(ProcessOutcome.TimedOut, null)]
+    [InlineData(ProcessOutcome.Cancelled, null)]
+    public void A_genuinely_dispatched_terminal_attempt_still_reports_real_evidence(ProcessOutcome outcome, int? exitCode)
+    {
+        var attempt = ClaimDispatchedPlanner();
+        var evidence = AgentProcessExecutionEvidence.Create(outcome, exitCode, TimeSpan.FromSeconds(9));
+
+        attempt.CompleteAgent(AgentOutcome.ProviderInvocationFailed, null, BaseTime.AddSeconds(2), evidence);
+
+        Assert.NotNull(attempt.AgentDispatchedAtUtc);
+        Assert.NotEqual(AttemptStatus.Running, attempt.Status);
+        Assert.Equal(evidence, attempt.GetAgentProcessExecutionEvidence());
+    }
+
+    private static void SetPrivateProperty<TValue>(Attempt attempt, string propertyName, TValue value) =>
+        typeof(Attempt).GetProperty(propertyName)!.SetValue(attempt, value);
+
     [Fact]
     public void Non_agent_attempts_never_expose_agent_process_evidence()
     {

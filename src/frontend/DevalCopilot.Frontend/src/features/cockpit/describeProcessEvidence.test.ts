@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeProcessEvidence, formatMilliseconds } from './describeProcessEvidence'
+import { describeProcessEvidence, formatMilliseconds, hasTrustedProcessEvidence } from './describeProcessEvidence'
 
 const terminal = { dispatched: true, running: false }
 
@@ -47,6 +47,45 @@ describe('describeProcessEvidence', () => {
   it('never trusts an unrecognized outcome or an Exited outcome without an exit code', () => {
     expect(describeProcessEvidence({ outcome: 'Crashed', durationMilliseconds: 10 }, terminal)).toBe('Process evidence unknown')
     expect(describeProcessEvidence({ outcome: 'Exited', durationMilliseconds: 10 }, terminal)).toBe('Process evidence unknown')
+  })
+
+  // Regression: dispatch/running state must be checked BEFORE the evidence object's own shape. A
+  // well-formed-looking object (exactly what a tampered or prematurely-populated persisted row
+  // would look like) must never be described as measured evidence while the attempt is still
+  // running or was never dispatched — mirrors describeTokenUsage's own ordering fix.
+  it('never describes a well-formed-looking object as measured evidence for a running or undispatched attempt', () => {
+    const wellFormed = { outcome: 'Exited', exitCode: 0, durationMilliseconds: 1250, timeoutMilliseconds: 600_000 }
+
+    expect(describeProcessEvidence(wellFormed, { dispatched: true, running: true })).toBe(
+      'Process result not yet recorded · timeout 10m 00s',
+    )
+    expect(describeProcessEvidence(wellFormed, { dispatched: false, running: false })).toBe(
+      'Process not started · timeout 10m 00s',
+    )
+  })
+})
+
+describe('hasTrustedProcessEvidence', () => {
+  const wellFormed = { outcome: 'Exited', exitCode: 0, durationMilliseconds: 1250 }
+
+  it('never trusts well-formed-looking evidence for a running or undispatched attempt', () => {
+    expect(hasTrustedProcessEvidence(wellFormed, { dispatched: true, running: true })).toBe(false)
+    expect(hasTrustedProcessEvidence(wellFormed, { dispatched: false, running: false })).toBe(false)
+    expect(hasTrustedProcessEvidence(wellFormed, { dispatched: false, running: true })).toBe(false)
+  })
+
+  it('trusts well-formed evidence for a genuinely dispatched, terminal attempt, including nonzero exit, TimedOut, and Cancelled', () => {
+    expect(hasTrustedProcessEvidence(wellFormed, terminal)).toBe(true)
+    expect(hasTrustedProcessEvidence({ outcome: 'Exited', exitCode: 137 }, terminal)).toBe(true)
+    expect(hasTrustedProcessEvidence({ outcome: 'TimedOut', durationMilliseconds: 600_000 }, terminal)).toBe(true)
+    expect(hasTrustedProcessEvidence({ outcome: 'Cancelled', durationMilliseconds: 4000 }, terminal)).toBe(true)
+  })
+
+  it('never trusts an absent, unrecognized, or malformed-Exited object even when dispatched and terminal', () => {
+    expect(hasTrustedProcessEvidence(null, terminal)).toBe(false)
+    expect(hasTrustedProcessEvidence(undefined, terminal)).toBe(false)
+    expect(hasTrustedProcessEvidence({ outcome: 'Crashed' }, terminal)).toBe(false)
+    expect(hasTrustedProcessEvidence({ outcome: 'Exited' }, terminal)).toBe(false)
   })
 })
 
