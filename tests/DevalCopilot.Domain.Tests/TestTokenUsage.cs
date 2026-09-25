@@ -12,4 +12,9 @@ internal static class TestTokenUsage
     /// <summary>Claude usage with absent optional cache breakdown.</summary>
     public static AgentTokenUsageEvidence InputOutputOnly { get; } =
         AgentTokenUsageEvidence.Create(500, 60, null, null, AgentTokenUsageEvidencePolicy.ClaudeCliSchemaVersion);
+
+    /// <summary>Codex usage: never a cache breakdown, since <c>cached_input_tokens</c> has no
+    /// proven correspondence to Claude's cache-creation/cache-read members.</summary>
+    public static AgentTokenUsageEvidence CodexReported { get; } =
+        AgentTokenUsageEvidence.Create(2400, 120, null, null, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion);
 }

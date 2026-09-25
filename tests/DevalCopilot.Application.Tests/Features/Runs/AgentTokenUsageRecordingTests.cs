@@ -120,4 +120,41 @@ public sealed class AgentTokenUsageRecordingTests
             null, AgentProvider.Codex, AgentOutcome.ProviderInvocationFailed, true, out var evidence));
         Assert.Null(evidence);
     }
+
+    [Fact]
+    public void Validate_accepts_codex_usage_reported_through_its_own_proven_schema()
+    {
+        var error = AgentTokenUsageRecording.Validate(
+            TestTokenUsage.CodexReported, AgentProvider.Codex, AgentOutcome.ProviderInvocationFailed, true, out var evidence);
+
+        Assert.Null(error);
+        Assert.Equal(TestTokenUsage.CodexEvidence, evidence);
+        Assert.Null(evidence!.CacheCreationInputTokens);
+        Assert.Null(evidence.CacheReadInputTokens);
+    }
+
+    [Theory]
+    [InlineData(5, null)]
+    [InlineData(null, 5)]
+    [InlineData(5, 5)]
+    public void Validate_rejects_codex_usage_with_a_cache_breakdown_with_zero_mutation(int? cacheCreation, int? cacheRead)
+    {
+        var error = AgentTokenUsageRecording.Validate(
+            new AgentTokenUsage(2400, 120, cacheCreation, cacheRead, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion),
+            AgentProvider.Codex, AgentOutcome.ProviderInvocationFailed, true, out var evidence);
+
+        Assert.Equal(AgentTokenUsageRecording.InvalidEvidenceCode, error?.Code);
+        Assert.Null(evidence);
+    }
+
+    // Preserved: this rule is Codex-schema-specific and never touches Claude's own cache behavior.
+    [Fact]
+    public void Validate_still_accepts_a_claude_cache_breakdown()
+    {
+        var error = AgentTokenUsageRecording.Validate(
+            TestTokenUsage.Reported, AgentProvider.ClaudeCode, AgentOutcome.ProviderInvocationFailed, true, out var evidence);
+
+        Assert.Null(error);
+        Assert.Equal(TestTokenUsage.Evidence, evidence);
+    }
 }

@@ -35,6 +35,9 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
     private static readonly AgentTokenUsageEvidence Usage = AgentTokenUsageEvidence.Create(1200, 345, 67, 890, SchemaVersionSentinel);
     private static readonly AgentTokenUsageEvidence OtherUsage = AgentTokenUsageEvidence.Create(800, 55, 3, 110, SchemaVersionSentinel);
 
+    private static readonly AgentTokenUsageEvidence CodexUsage =
+        AgentTokenUsageEvidence.Create(2400, 120, null, null, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion);
+
     public static TheoryData<string, AgentResponseContract> ClaudeRoleRoutes => new()
     {
         { "agent-attempts/claude-critical-review", AgentResponseContract.CriticalReview },
@@ -72,7 +75,7 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
 
     [Theory]
     [MemberData(nameof(CodexRoleRoutes))]
-    public async Task Codex_role_status_exposes_unknown_usage_without_a_proven_provider_contract(
+    public async Task Codex_role_status_exposes_null_usage_when_none_was_reported(
         string route, AgentResponseContract contract)
     {
         var runId = await SeedRunAsync();
@@ -82,6 +85,31 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         using var document = JsonDocument.Parse(body);
         var usage = AssertBoundedShape(document.RootElement.GetProperty("tokenUsage"), UsageFields);
         Assert.All(UsageFields, field => Assert.Equal(JsonValueKind.Null, usage.GetProperty(field).ValueKind));
+        AssertNoDisclosure(body);
+    }
+
+    // Codex now has its own proven usage contract (see CodexCliTokenUsage), distinct from Claude's:
+    // input/output counts are known, but the cache members stay null because Codex's single
+    // "served from cache" count has no proven correspondence to Claude's cache-creation/cache-read
+    // breakdown.
+    [Theory]
+    [MemberData(nameof(CodexRoleRoutes))]
+    public async Task Each_codex_role_status_exposes_its_own_proven_usage_as_a_bounded_sibling_of_the_outcome_and_process_evidence(
+        string route, AgentResponseContract contract)
+    {
+        var runId = await SeedRunAsync();
+        await AddAttemptAsync(runId, 1, contract, AgentOutcome.ProviderInvocationFailed, CodexUsage);
+
+        var body = await GetOkBodyAsync($"/api/runs/{runId}/{route}");
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+
+        Assert.Equal("ProviderInvocationFailed", root.GetProperty("outcome").GetString());
+        var usage = AssertBoundedShape(root.GetProperty("tokenUsage"), UsageFields);
+        Assert.Equal(2400, usage.GetProperty("inputTokens").GetInt32());
+        Assert.Equal(120, usage.GetProperty("outputTokens").GetInt32());
+        Assert.Equal(JsonValueKind.Null, usage.GetProperty("cacheCreationInputTokens").ValueKind);
+        Assert.Equal(JsonValueKind.Null, usage.GetProperty("cacheReadInputTokens").ValueKind);
         AssertNoDisclosure(body);
     }
 
@@ -139,8 +167,8 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         AssertNoDisclosure(body);
     }
 
-    // The ordinary mixed-provider case: a Codex attempt has no proven usage contract, so its usage
-    // is unknown and the summary is Partial — its sum covers only the known Claude attempt.
+    // The ordinary case of an attempt whose provider genuinely reported nothing: its usage is
+    // unknown and the summary is Partial — its sum covers only the known Claude attempt.
     [Fact]
     public async Task The_cockpit_reports_a_partial_sum_when_any_dispatched_attempt_lacks_usage()
     {
@@ -157,6 +185,30 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         Assert.Equal(1, summary.GetProperty("attemptsWithUnknownUsage").GetInt32());
         Assert.Equal(1200, summary.GetProperty("inputTokens").GetInt64());
         Assert.Equal(345, summary.GetProperty("outputTokens").GetInt64());
+        AssertNoDisclosure(body);
+    }
+
+    // The same run reported Partial before either attempt had known usage (the prior test above);
+    // once both providers report their own proven usage, completeness flips to Complete, and the
+    // sum now includes the Codex attempt's input/output counts with no cache contribution.
+    [Fact]
+    public async Task The_cockpit_reports_a_complete_total_when_a_codex_attempt_reports_its_own_proven_usage_alongside_a_claude_attempt()
+    {
+        var runId = await SeedRunAsync();
+        await AddAttemptAsync(runId, 1, AgentResponseContract.Proposal, AgentOutcome.ProviderInvocationFailed, CodexUsage);
+        await AddAttemptAsync(runId, 2, AgentResponseContract.CriticalReview, AgentOutcome.ProviderInvocationFailed, Usage);
+
+        var body = await GetOkBodyAsync($"/api/runs/{runId}/cockpit");
+        using var document = JsonDocument.Parse(body);
+        var summary = AssertBoundedShape(document.RootElement.GetProperty("tokenUsageSummary"), SummaryFields);
+
+        Assert.Equal("Complete", summary.GetProperty("completeness").GetString());
+        Assert.Equal(2, summary.GetProperty("attemptsWithKnownUsage").GetInt32());
+        Assert.Equal(0, summary.GetProperty("attemptsWithUnknownUsage").GetInt32());
+        Assert.Equal(3600, summary.GetProperty("inputTokens").GetInt64());
+        Assert.Equal(465, summary.GetProperty("outputTokens").GetInt64());
+        Assert.Equal(67, summary.GetProperty("cacheCreationInputTokens").GetInt64());
+        Assert.Equal(890, summary.GetProperty("cacheReadInputTokens").GetInt64());
         AssertNoDisclosure(body);
     }
 
@@ -241,6 +293,43 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         Assert.Equal(0, summary.GetProperty("inputTokens").GetInt64());
         Assert.All(UsageFields, field => Assert.Equal(
             JsonValueKind.Null, cockpit.RootElement.GetProperty("latestAgentAttempt").GetProperty("tokenUsage").GetProperty(field).ValueKind));
+        AssertNoDisclosure(statusBody);
+        AssertNoDisclosure(cockpitBody);
+    }
+
+    // A row that could only exist through manual tampering or a future bug, never through this
+    // application's own recording path: the correct Codex provider and its own proven schema, but a
+    // stray cache value that contract never produces. Unlike Corrupt_provider_schema_pair above
+    // (wrong provider/schema pairing), this exercises the shape rule itself end to end, including
+    // the run-cockpit aggregate.
+    [Fact]
+    public async Task A_persisted_codex_row_with_a_stray_cache_value_is_unknown_in_status_and_cockpit()
+    {
+        var runId = await SeedRunAsync();
+        await AddAttemptAsync(runId, 1, AgentResponseContract.Proposal, AgentOutcome.ProviderInvocationFailed, usage: null);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE attempts
+                   SET AgentInputTokens = {2400}, AgentOutputTokens = {120},
+                       AgentCacheCreationInputTokens = {5}, AgentCacheReadInputTokens = {null},
+                       AgentTokenUsageSchemaVersion = {AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion}
+                   WHERE RunId = {runId}");
+        }
+
+        var statusBody = await GetOkBodyAsync($"/api/runs/{runId}/agent-attempts/codex-plan");
+        using var status = JsonDocument.Parse(statusBody);
+        var statusUsage = status.RootElement.GetProperty("tokenUsage");
+        Assert.All(UsageFields, field => Assert.Equal(JsonValueKind.Null, statusUsage.GetProperty(field).ValueKind));
+
+        var cockpitBody = await GetOkBodyAsync($"/api/runs/{runId}/cockpit");
+        using var cockpit = JsonDocument.Parse(cockpitBody);
+        var summary = cockpit.RootElement.GetProperty("tokenUsageSummary");
+        Assert.Equal("Partial", summary.GetProperty("completeness").GetString());
+        Assert.Equal(0, summary.GetProperty("attemptsWithKnownUsage").GetInt32());
+        Assert.Equal(1, summary.GetProperty("attemptsWithUnknownUsage").GetInt32());
+        Assert.Equal(0, summary.GetProperty("inputTokens").GetInt64());
         AssertNoDisclosure(statusBody);
         AssertNoDisclosure(cockpitBody);
     }

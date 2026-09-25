@@ -106,6 +106,16 @@ public sealed record AgentTokenUsageEvidence
             return AgentTokenUsageEvidenceViolation.InvalidSchemaVersion;
         }
 
+        // Codex's own proven contract (see CodexCliTokenUsage) never produces a cache-creation or
+        // cache-read count — cached_input_tokens has no proven correspondence to Claude's separate
+        // breakdown, so a non-null value under this schema is not evidence the contract proves,
+        // whether offered for recording or already sitting in a persisted row.
+        if (string.Equals(schemaVersion, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion, StringComparison.Ordinal)
+            && (cacheCreationInputTokens is not null || cacheReadInputTokens is not null))
+        {
+            return AgentTokenUsageEvidenceViolation.CodexUsageCannotIncludeACacheBreakdown;
+        }
+
         return null;
     }
 }

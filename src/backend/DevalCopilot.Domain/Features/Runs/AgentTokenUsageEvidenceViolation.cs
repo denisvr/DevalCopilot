@@ -34,4 +34,12 @@ public enum AgentTokenUsageEvidenceViolation
 
     /// <summary>The attempt provider and parsing-contract tag are not an evidenced pair.</summary>
     UnsupportedProviderSchema = 7,
+
+    /// <summary>The schema version is Codex's own proven contract
+    /// (<see cref="AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion"/>), yet a cache-creation or
+    /// cache-read input token count is present. Codex's own contract never carries either — see
+    /// <see cref="AgentTokenUsageEvidence.CacheCreationInputTokens"/> and
+    /// <see cref="AgentTokenUsageEvidence.CacheReadInputTokens"/> — so a non-null value under that
+    /// schema is not evidence this contract proves, never an authoritative cache breakdown.</summary>
+    CodexUsageCannotIncludeACacheBreakdown = 8,
 }

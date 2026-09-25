@@ -10,10 +10,11 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Features.Runs;
 
 /// <summary>
 /// Proves the three Claude adapters read provider-reported token usage from the proven
-/// <c>--output-format json</c> envelope contract, fail closed to "no usage" for every malformed
-/// <c>usage</c> shape without rejecting an otherwise valid business result, and that the three
-/// Codex adapters never report usage at all — Codex has no proven usage contract. Every case uses
-/// a scripted process adapter with deterministic stdout; no real provider or model is invoked.
+/// <c>--output-format json</c> envelope contract, and the three Codex adapters read it from the
+/// proven <c>exec --json</c> terminal <c>turn.completed</c> JSONL event contract, each failing
+/// closed to "no usage" for every malformed shape without rejecting an otherwise valid business
+/// result. Every case uses a scripted process adapter with deterministic stdout; no real provider
+/// or model is invoked.
 /// </summary>
 public sealed class AgentTokenUsageAdapterTests : IDisposable
 {
@@ -22,6 +23,11 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
         "\"usage\":{\"input_tokens\":1200,\"output_tokens\":345,\"cache_creation_input_tokens\":67,\"cache_read_input_tokens\":890}";
 
     private static readonly AgentTokenUsage ExpectedUsage = new(1200, 345, 67, 890, "claude-cli-usage-v1");
+
+    private const string ValidCodexUsage =
+        "\"usage\":{\"input_tokens\":2400,\"cached_input_tokens\":300,\"output_tokens\":120,\"reasoning_output_tokens\":40}";
+
+    private static readonly AgentTokenUsage ExpectedCodexUsage = new(2400, 120, null, null, "codex-cli-usage-v1");
 
     private readonly string _artifactRoot = Path.Combine(Path.GetTempPath(), $"devalcopilot-usage-artifacts-{Guid.NewGuid():N}");
     private readonly string _workspacePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-usage-workspace-{Guid.NewGuid():N}");
@@ -175,47 +181,264 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
         }
     }
 
-    // Codex has no proven token-usage contract in this environment, so even stdout that contains
-    // a Claude-shaped usage object, or a third-party-described Codex token_count event, never
-    // becomes usage evidence for any Codex-produced attempt.
-    [Theory]
-    [InlineData("{\"is_error\":false," + ValidResult + "," + ValidUsage + "}")]
-    [InlineData("{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":10,\"cached_input_tokens\":2,\"output_tokens\":3}}")]
-    [InlineData("{\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":10,\"output_tokens\":3}}}}")]
-    public async Task Every_codex_adapter_always_reports_unknown_usage(string stdout)
+    private static string CodexLine(string members) => "{\"type\":\"turn.completed\"," + members + "}";
+
+    // Every prefix line below is well-formed JSON with a unique string "type" this reader does not
+    // otherwise recognize, so it is safely ignored — unlike the deliberately unparseable or
+    // ambiguous lines exercised by StreamPoisoningLines below, which must poison the whole capture
+    // rather than merely being skipped.
+    private static string CodexStdout(params string[] terminalEventLines) => string.Join(
+        "\n",
+        new[]
+        {
+            "{\"type\":\"thread.started\",\"thread_id\":\"abc\"}",
+            "{\"type\":\"turn.started\"}",
+            "{\"type\":\"item.started\",\"item\":{\"id\":\"1\"}}",
+        }.Concat(terminalEventLines));
+
+    [Fact]
+    public async Task Every_codex_adapter_reports_the_terminal_turn_completed_usage_alongside_a_successful_result()
     {
-        var fake = Clean(stdout);
+        var stdout = CodexStdout(CodexLine(ValidCodexUsage));
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Equal(ExpectedCodexUsage, result.Usage);
+            Assert.NotNull(result.ProcessEvidence);
+        }
+    }
+
+    public static TheoryData<string> MalformedCodexUsage => new()
+    {
+        // Missing entirely.
+        CodexLine(string.Empty).Replace(",}", "}", StringComparison.Ordinal),
+        // Wrong JSON types for the object itself.
+        CodexLine("\"usage\":null"),
+        CodexLine("\"usage\":[]"),
+        CodexLine("\"usage\":\"2400\""),
+        // A missing member — including the exact documented-but-incomplete shape a third party
+        // might describe (no reasoning_output_tokens).
+        CodexLine("\"usage\":{\"input_tokens\":2400,\"cached_input_tokens\":300,\"output_tokens\":120}"),
+        // A negative member.
+        CodexLine("\"usage\":{\"input_tokens\":-1,\"cached_input_tokens\":300,\"output_tokens\":120,\"reasoning_output_tokens\":40}"),
+        // A non-integer member.
+        CodexLine("\"usage\":{\"input_tokens\":2400.5,\"cached_input_tokens\":300,\"output_tokens\":120,\"reasoning_output_tokens\":40}"),
+        // A string member.
+        CodexLine("\"usage\":{\"input_tokens\":\"2400\",\"cached_input_tokens\":300,\"output_tokens\":120,\"reasoning_output_tokens\":40}"),
+        // A null member.
+        CodexLine("\"usage\":{\"input_tokens\":2400,\"cached_input_tokens\":null,\"output_tokens\":120,\"reasoning_output_tokens\":40}"),
+        // Outside the int range.
+        CodexLine("\"usage\":{\"input_tokens\":3000000000,\"cached_input_tokens\":300,\"output_tokens\":120,\"reasoning_output_tokens\":40}"),
+        // Duplicate required members are ambiguous in either order; never accept the last value.
+        CodexLine("\"usage\":{\"input_tokens\":2400,\"input_tokens\":1,\"cached_input_tokens\":300,\"output_tokens\":120,\"reasoning_output_tokens\":40}"),
+        CodexLine(
+            "\"usage\":{\"input_tokens\":2400,\"cached_input_tokens\":300,\"output_tokens\":120,\"output_tokens\":1,\"reasoning_output_tokens\":40}"),
+        // Duplicate root usage members on the same event are equally ambiguous.
+        CodexLine(ValidCodexUsage + ",\"usage\":{\"input_tokens\":1,\"cached_input_tokens\":1,\"output_tokens\":1,\"reasoning_output_tokens\":1}"),
+        // A third-party-described alternative Codex event shape this contract does not recognize
+        // — never authoritative per the evidence rule, no matter how plausible it looks.
+        "{\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":10,\"output_tokens\":3}}}}",
+        // A Claude-shaped envelope never becomes Codex usage: it has no "turn.completed" event.
+        "{\"is_error\":false," + ValidResult + "," + ValidUsage + "}",
+    };
+
+    [Theory]
+    [MemberData(nameof(MalformedCodexUsage))]
+    public async Task A_malformed_missing_or_unrecognized_codex_event_omits_usage_without_failing_an_otherwise_valid_result(
+        string terminalLine)
+    {
+        var stdout = CodexStdout(terminalLine);
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
+
+    [Fact]
+    public async Task A_duplicate_terminal_turn_completed_event_never_yields_usage()
+    {
+        var stdout = CodexStdout(CodexLine(ValidCodexUsage), CodexLine(ValidCodexUsage));
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
+
+    [Fact]
+    public async Task A_turn_completed_event_alongside_a_contradictory_turn_failed_event_never_yields_usage()
+    {
+        var stdout = CodexStdout(CodexLine(ValidCodexUsage), "{\"type\":\"turn.failed\"}");
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
+
+    [Fact]
+    public async Task A_lone_turn_failed_event_never_yields_usage()
+    {
+        var stdout = CodexStdout("{\"type\":\"turn.failed\"}");
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
+
+    // Every line here is either unreadable or ambiguous in a way that could be concealing,
+    // duplicating, or replacing the real terminal event — so it must poison the entire capture
+    // rather than being silently skipped, even though a perfectly valid turn.completed event sits
+    // elsewhere in the very same stream.
+    public static TheoryData<string> StreamPoisoningLines => new()
+    {
+        // Not JSON at all.
+        "not even json",
+        // Valid JSON, but not an object.
+        "[1,2,3]",
+        "\"just a string\"",
+        "42",
+        // A well-formed object with no "type" member at all.
+        "{\"no_type\":true}",
+        // A "type" member that is not a string.
+        "{\"type\":123}",
+        "{\"type\":null}",
+        // A duplicate "type" member — ambiguous regardless of whether the values agree, since a
+        // single-value read could silently select either one and conceal the other.
+        "{\"type\":\"turn.started\",\"type\":\"turn.started\"}",
+        // The exact concealment shape this correction targets: a naive read could select
+        // "turn.completed" here and never learn the same event also declares "turn.failed".
+        "{\"type\":\"turn.completed\"," + ValidCodexUsage + ",\"type\":\"turn.failed\"}",
+    };
+
+    [Theory]
+    [MemberData(nameof(StreamPoisoningLines))]
+    public async Task A_stream_poisoning_line_before_an_otherwise_valid_turn_completed_event_never_yields_usage(string poisoningLine)
+    {
+        var stdout = CodexStdout(poisoningLine, CodexLine(ValidCodexUsage));
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(StreamPoisoningLines))]
+    public async Task A_stream_poisoning_line_after_an_otherwise_valid_turn_completed_event_never_yields_usage(string poisoningLine)
+    {
+        var stdout = CodexStdout(CodexLine(ValidCodexUsage), poisoningLine);
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
+
+    // Standalone version of the concealment case above: even alone (no separate valid event
+    // elsewhere to protect), a duplicate "type" declaring both turn.completed and turn.failed on
+    // the very same event must never be read as a trustworthy turn.completed with usage.
+    [Fact]
+    public async Task A_duplicate_root_type_that_could_conceal_a_turn_failed_declaration_never_yields_usage()
+    {
+        var stdout = CodexStdout("{\"type\":\"turn.completed\"," + ValidCodexUsage + ",\"type\":\"turn.failed\"}");
+
+        foreach (var result in await InvokeCodexAdaptersAsync(Clean(stdout)))
+        {
+            Assert.True(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+        }
+    }
+
+    [Fact]
+    public async Task A_truncated_codex_stdout_capture_never_yields_usage_even_when_the_retained_text_parses()
+    {
+        var stdout = CodexStdout(CodexLine(ValidCodexUsage));
+        var truncated = new ScriptedProcessExecutionAdapter(_ => Result(ProcessExecutionOutcome.Exited, 0, stdout) with { StandardOutputTruncated = true });
+
+        foreach (var result in await InvokeCodexAdaptersAsync(truncated))
+        {
+            Assert.Null(result.Usage);
+        }
+    }
+
+    [Theory]
+    [InlineData(ProcessExecutionOutcome.Exited, 1)]
+    [InlineData(ProcessExecutionOutcome.TimedOut, null)]
+    [InlineData(ProcessExecutionOutcome.Cancelled, null)]
+    public async Task A_non_clean_codex_process_result_never_yields_usage_even_when_stdout_contains_a_valid_event(
+        ProcessExecutionOutcome outcome, int? exitCode)
+    {
+        var stdout = CodexStdout(CodexLine(ValidCodexUsage));
+        var fake = new ScriptedProcessExecutionAdapter(_ => Result(outcome, exitCode, stdout));
+
+        foreach (var result in await InvokeCodexAdaptersAsync(fake))
+        {
+            Assert.False(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+            Assert.NotNull(result.ProcessEvidence);
+        }
+    }
+
+    [Fact]
+    public async Task Every_codex_adapter_reports_no_usage_when_no_process_result_exists()
+    {
+        var throwing = new ScriptedProcessExecutionAdapter(_ => throw new InvalidOperationException("start failure"));
+
+        foreach (var result in await InvokeCodexAdaptersAsync(throwing))
+        {
+            Assert.False(result.Succeeded, result.Adapter);
+            Assert.Null(result.Usage);
+            Assert.Null(result.ProcessEvidence);
+        }
+    }
+
+    private async Task<IReadOnlyList<(string Adapter, bool Succeeded, AgentTokenUsage? Usage, AgentProcessEvidence? ProcessEvidence)>>
+        InvokeCodexAdaptersAsync(IProcessExecutionAdapter processAdapter)
+    {
         var executable = CreateLaunchFile();
         var timeout = TimeSpan.FromSeconds(30);
+        var results = new List<(string, bool, AgentTokenUsage?, AgentProcessEvidence?)>();
 
         var (runId, attemptId, manifest) = await NewInvocationAsync();
-        var planning = await new CodexPlanningAdapter(fake, _artifactStore).InvokeAsync(
+        var planning = await new CodexPlanningAdapter(processAdapter, _artifactStore).InvokeAsync(
             new CodexPlanningInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
                 executable, null, timeout, 65536, 131072),
             CancellationToken.None);
+        results.Add(("Planner", planning.Outcome == CodexPlanningInvocationOutcome.Exited, planning.TokenUsage, planning.ProcessEvidence));
 
         (runId, attemptId, manifest) = await NewInvocationAsync();
-        var resolution = await new CodexChallengeResolutionAdapter(fake, _artifactStore).InvokeAsync(
+        var resolution = await new CodexChallengeResolutionAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ChallengeResolutionInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
                 executable, null, timeout, 65536, 131072),
             CancellationToken.None);
+        results.Add((
+            "ChallengeResolution", resolution.Outcome == ChallengeResolutionInvocationOutcome.Exited, resolution.TokenUsage,
+            resolution.ProcessEvidence));
 
         (runId, attemptId, manifest) = await NewInvocationAsync();
-        var codeReview = await new CodexImplementationReviewAdapter(fake, _artifactStore).InvokeAsync(
+        var codeReview = await new CodexImplementationReviewAdapter(processAdapter, _artifactStore).InvokeAsync(
             new ImplementationReviewInvocationRequest(
                 runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
                 executable, null, timeout, 65536, 131072),
             CancellationToken.None);
+        results.Add((
+            "CodeReview", codeReview.Outcome == ImplementationReviewInvocationOutcome.Exited, codeReview.TokenUsage,
+            codeReview.ProcessEvidence));
 
-        Assert.Equal(3, fake.CallCount);
-        Assert.NotNull(planning.ProcessEvidence);
-        Assert.Null(planning.TokenUsage);
-        Assert.NotNull(resolution.ProcessEvidence);
-        Assert.Null(resolution.TokenUsage);
-        Assert.NotNull(codeReview.ProcessEvidence);
-        Assert.Null(codeReview.TokenUsage);
+        Assert.Equal(3, results.Count);
+        return results;
     }
 
     [Fact]

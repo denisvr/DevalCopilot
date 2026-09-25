@@ -41,6 +41,7 @@ public sealed class CodexImplementationReviewAdapter(IProcessExecutionAdapter pr
             outcome.StandardOutputTruncated,
             outcome.StandardErrorTruncated,
             outcome.ProviderSessionId,
-            outcome.ProcessEvidence);
+            outcome.ProcessEvidence,
+            outcome.TokenUsage);
     }
 }

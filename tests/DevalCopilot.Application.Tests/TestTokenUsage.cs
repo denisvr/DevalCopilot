@@ -13,4 +13,12 @@ internal static class TestTokenUsage
     /// <summary>The same usage as Domain evidence.</summary>
     public static AgentTokenUsageEvidence Evidence { get; } =
         AgentTokenUsageEvidence.Create(1200, 345, 67, 890, "claude-cli-usage-v1");
+
+    /// <summary>Codex usage as an adapter reports it through the provider-neutral port: never a
+    /// cache breakdown.</summary>
+    public static AgentTokenUsage CodexReported { get; } = new(2400, 120, null, null, "codex-cli-usage-v1");
+
+    /// <summary>The same Codex usage as Domain evidence.</summary>
+    public static AgentTokenUsageEvidence CodexEvidence { get; } =
+        AgentTokenUsageEvidence.Create(2400, 120, null, null, "codex-cli-usage-v1");
 }

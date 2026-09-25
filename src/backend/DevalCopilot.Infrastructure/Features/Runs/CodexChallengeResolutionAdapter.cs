@@ -39,6 +39,7 @@ public sealed class CodexChallengeResolutionAdapter(IProcessExecutionAdapter pro
             outcome.StandardOutputTruncated,
             outcome.StandardErrorTruncated,
             outcome.ProviderSessionId,
-            outcome.ProcessEvidence);
+            outcome.ProcessEvidence,
+            outcome.TokenUsage);
     }
 }

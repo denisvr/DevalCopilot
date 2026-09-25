@@ -48,7 +48,8 @@ internal static class CodexProcessInvoker
         bool StandardOutputTruncated,
         bool StandardErrorTruncated,
         string? ProviderSessionId,
-        AgentProcessEvidence? ProcessEvidence)
+        AgentProcessEvidence? ProcessEvidence,
+        AgentTokenUsage? TokenUsage = null)
     {
         internal static readonly Outcome Failed = new(false, false, false, null, null);
     }
@@ -171,7 +172,8 @@ internal static class CodexProcessInvoker
                 result.StandardOutputTruncated,
                 result.StandardErrorTruncated,
                 TryExtractProviderSessionId(result.StandardOutput),
-                processEvidence);
+                processEvidence,
+                CodexCliTokenUsage.UnlessTruncated(CodexCliTokenUsage.TryRead(result.StandardOutput), result.StandardOutputTruncated));
         }
         finally
         {

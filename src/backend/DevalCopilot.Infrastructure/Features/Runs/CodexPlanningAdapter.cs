@@ -37,6 +37,7 @@ public sealed class CodexPlanningAdapter(IProcessExecutionAdapter processExecuti
             outcome.StandardOutputTruncated,
             outcome.StandardErrorTruncated,
             outcome.ProviderSessionId,
-            outcome.ProcessEvidence);
+            outcome.ProcessEvidence,
+            outcome.TokenUsage);
     }
 }

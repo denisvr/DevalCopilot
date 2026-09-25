@@ -855,6 +855,37 @@ public sealed class RecordAgentAttemptResultCommandHandlerTests(SqliteDatabaseFi
     }
 
     [Fact]
+    public async Task HandleAsync_records_codex_usage_reported_through_its_own_proven_schema()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt) = CreateClaimedAgentAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var proposal = new ValidatedProposal("Add the ledger table and its query.", ValidStructuredContentJson);
+        var handler = new RecordAgentAttemptResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordAgentAttemptResultCommand(
+                run.Id, attempt.Id, AgentOutcome.Proposed, Fingerprint, NoArtifacts, proposal, null,
+                TestProcessEvidence.ReportedCleanExit, TestTokenUsage.CodexReported),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal(AttemptStatus.Completed, persisted.Status);
+        Assert.Equal(2400, persisted.AgentInputTokens);
+        Assert.Equal(120, persisted.AgentOutputTokens);
+        Assert.Null(persisted.AgentCacheCreationInputTokens);
+        Assert.Null(persisted.AgentCacheReadInputTokens);
+        Assert.Equal("codex-cli-usage-v1", persisted.AgentTokenUsageSchemaVersion);
+        Assert.Equal(TestTokenUsage.CodexEvidence, persisted.GetAgentTokenUsageEvidence());
+    }
+
+    [Fact]
     public async Task HandleAsync_records_no_token_usage_when_none_was_reported()
     {
         await using var dbContext = fixture.CreateContext();

@@ -856,15 +856,49 @@ truncated (a valid `is_error: true` envelope still carries its usage);
 `modelUsage`, `total_cost_usd`, `duration_api_ms`, `stop_reason`, and every
 other field are ignored.
 
-**Codex — not proven; recorded as unknown.** No Codex CLI executable was
-installed or discoverable in the environment where this contract was
-established (the installed Codex desktop application is a different product
-without a bundled CLI), so there was no authoritative local artifact to
-inspect, and third-party sources describe mutually inconsistent token-usage
-event shapes with differently named cache fields. Following the evidence rule
-above, no Codex usage is parsed: every Codex-produced attempt (Planner,
-Resolver, and Code Reviewer) records token usage as unknown until a future
-slice establishes and verifies a real Codex contract.
+**Codex — proven.** The token-usage contract was verified from the installed
+Codex CLI (`codex-cli 0.155.0-alpha.16.4`) using two independent read-only
+sources, never an authenticated model invocation: the CLI's own `codex exec
+--help` output, which documents `--json` as "Print events to stdout as
+JSONL", and the official non-interactive-mode documentation
+(`https://developers.openai.com/codex/noninteractive`), which documents the
+JSONL event stream's `thread.started`, `turn.started`, `turn.completed`,
+`turn.failed`, `item.*`, and `error` event types and shows the exact
+terminal-turn shape
+`{"type":"turn.completed","usage":{"input_tokens":24763,"cached_input_tokens":24448,"output_tokens":122,"reasoning_output_tokens":0}}`.
+The installed executable's own embedded strings independently confirm every
+one of those event tags and usage member names, alongside a richer internal
+`TokenUsage`/`TokenUsageInfo` shape this documented stream does not expose.
+The three Codex adapters therefore read `input_tokens` and `output_tokens`
+from the `usage` object of the stream's unique terminal `turn.completed`
+event, with the schema version `codex-cli-usage-v1`, from the same
+already-captured JSONL stdout `CodexProcessInvoker` already scans for the
+provider session identifier. `cached_input_tokens` and
+`reasoning_output_tokens` are read only to confirm the documented shape is
+complete, then discarded: `cached_input_tokens` has no proven correspondence
+to Claude's separate `cache_creation_input_tokens`/`cache_read_input_tokens`
+breakdown, so Codex usage never carries a cache-creation or cache-read count
+— both stay null. Parsing fails closed to "no usage" — never an exception or
+an invented value — for malformed JSONL, a missing, duplicated, or
+contradictory terminal turn event (more than one `turn.completed`, or a
+`turn.completed` alongside a `turn.failed`), a missing or malformed `usage`
+object, or any member that is missing, not a JSON integer, negative,
+duplicated, or outside the 32-bit range. A single unreadable or ambiguous
+line anywhere in the captured stdout — one that is not valid JSON, is not a
+JSON object, does not declare `type` exactly once, or declares `type` as
+anything other than a string — makes the *entire* capture untrustworthy, not
+just that one line: this reader can never confirm such a line was not itself
+concealing, duplicating, or replacing the real terminal event (for example a
+single event object that declares `type` twice, once as `turn.completed` and
+once as `turn.failed` — a naive single-value property read could silently
+select either declaration and never surface the other). Only a line that
+parses as a well-formed, unambiguously single-typed event of a kind this
+reader does not otherwise recognize is safely ignored. Usage is read only
+from a clean process exit whose stdout was not truncated. The Domain accepts
+this evidence only for the exact provider/schema pair `Codex` +
+`codex-cli-usage-v1`; even a well-formed persisted row with a mismatched
+provider or schema (for example a stray `claude-cli-usage-v1` value on a
+Codex-produced row) projects as unknown, not as known usage.
 
 Each role's status API and the run cockpit expose a separate `tokenUsage`
 object beside `outcome` and `processExecution` — `inputTokens`,
@@ -883,10 +917,15 @@ otherwise. Only a `Complete` summary is ever presented as the run's total; a
 The cockpit streams the bounded usage columns of dispatched attempts into a
 constant-memory aggregate; it neither imposes a row cap nor materializes
 all attempts to compute the summary.
-Because Codex usage is currently unknown, any real run that dispatched a Codex
-role normally reports `Partial` — expected and truthful, not a defect. This
-slice records and displays evidence only; it adds no token budget, threshold,
-warning, or stop guardrail.
+A Codex-dispatched attempt whose invocation captured a clean, complete,
+unambiguous terminal `turn.completed` event now reports known usage like a
+Claude-dispatched attempt does; a run's summary is `Partial` only when at
+least one dispatched attempt's provider genuinely reported nothing, or
+reported it in a shape this evidence policy does not trust — never merely
+because the attempt's provider is Codex. This slice records and displays
+evidence only; it adds no token budget, threshold, warning, or stop
+guardrail. Provider-reported per-invocation tokens are not account usage,
+cost, or an enforceable token budget for either provider.
 
 ## Token efficiency
 
@@ -903,9 +942,11 @@ warning, or stop guardrail.
 - Do not repeat an agent attempt unless state, instructions, evidence, or the
   expected response changed materially.
 - Track input, output, and cached token usage when the provider exposes it.
-  This is implemented as `AgentTokenUsageEvidence` for Claude-produced
-  attempts; it remains pending, and recorded as unknown, for Codex until its
-  output contract is proven (see "Provider token-usage contracts").
+  This is implemented as `AgentTokenUsageEvidence` for both Claude- and
+  Codex-produced attempts, each against its own proven, versioned parsing
+  contract (see "Provider token-usage contracts"); a provider without a
+  proven contract, or a report in an unrecognized shape, still records as
+  unknown rather than an inferred value.
 - Stop and escalate when a stage budget is exhausted rather than silently
   borrowing unlimited tokens from the run.
 - Select model capability and reasoning depth according to task risk, not as a

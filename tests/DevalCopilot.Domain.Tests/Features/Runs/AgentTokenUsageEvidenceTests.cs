@@ -50,6 +50,9 @@ public sealed class AgentTokenUsageEvidenceTests
     [InlineData(0, 0, 0, 0, "", AgentTokenUsageEvidenceViolation.InvalidSchemaVersion)]
     [InlineData(0, 0, 0, 0, "   ", AgentTokenUsageEvidenceViolation.InvalidSchemaVersion)]
     [InlineData(0, 0, 0, 0, null, AgentTokenUsageEvidenceViolation.InvalidSchemaVersion)]
+    [InlineData(2400, 120, 5, null, "codex-cli-usage-v1", AgentTokenUsageEvidenceViolation.CodexUsageCannotIncludeACacheBreakdown)]
+    [InlineData(2400, 120, null, 5, "codex-cli-usage-v1", AgentTokenUsageEvidenceViolation.CodexUsageCannotIncludeACacheBreakdown)]
+    [InlineData(2400, 120, 5, 5, "codex-cli-usage-v1", AgentTokenUsageEvidenceViolation.CodexUsageCannotIncludeACacheBreakdown)]
     public void Validate_and_Create_reject_every_invalid_shape(
         int input, int output, int? cacheCreation, int? cacheRead, string? schemaVersion, AgentTokenUsageEvidenceViolation expected)
     {
@@ -109,6 +112,56 @@ public sealed class AgentTokenUsageEvidenceTests
     }
 
     [Fact]
+    public void FromPersisted_accepts_the_proven_codex_provider_schema_pair_without_a_cache_breakdown()
+    {
+        var evidence = AgentTokenUsageEvidence.FromPersisted(
+            AgentProvider.Codex, 2400, 120, null, null, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion);
+
+        Assert.Equal(TestTokenUsage.CodexReported, evidence);
+        Assert.Null(evidence!.CacheCreationInputTokens);
+        Assert.Null(evidence.CacheReadInputTokens);
+    }
+
+    // A row that could only exist through manual tampering or a future bug, never through this
+    // application's own recording path (which now rejects the shape before it can ever be
+    // persisted) — FromPersisted is the single choke point Attempt.GetAgentTokenUsageEvidence and
+    // the run-cockpit aggregate both use, so this one assertion also proves the cockpit sum never
+    // trusts such a row as known usage.
+    [Theory]
+    [InlineData(5, null)]
+    [InlineData(null, 5)]
+    [InlineData(5, 5)]
+    public void FromPersisted_projects_a_persisted_codex_row_with_a_stray_cache_value_as_unknown(
+        int? cacheCreation, int? cacheRead)
+    {
+        Assert.Null(AgentTokenUsageEvidence.FromPersisted(
+            AgentProvider.Codex, 2400, 120, cacheCreation, cacheRead, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion));
+    }
+
+    // Preserved: this rule is Codex-schema-specific. A persisted Claude row with the same cache
+    // values remains fully known, exactly as before.
+    [Fact]
+    public void FromPersisted_still_accepts_a_claude_cache_breakdown()
+    {
+        Assert.Equal(
+            TestTokenUsage.Reported,
+            AgentTokenUsageEvidence.FromPersisted(
+                AgentProvider.ClaudeCode, 1200, 345, 67, 890, AgentTokenUsageEvidencePolicy.ClaudeCliSchemaVersion));
+    }
+
+    // The Domain transition itself can never be reached with this shape: the sealed evidence type
+    // is only ever constructed via Create (which throws here) or FromPersisted (which returns
+    // null above) — there is no path that lets Attempt.CompleteAgent see it.
+    [Fact]
+    public void Create_rejects_codex_evidence_with_a_cache_breakdown_before_it_can_reach_any_domain_transition()
+    {
+        var error = Assert.Throws<ArgumentException>(() => AgentTokenUsageEvidence.Create(
+            2400, 120, 5, null, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion));
+
+        Assert.Contains(nameof(AgentTokenUsageEvidenceViolation.CodexUsageCannotIncludeACacheBreakdown), error.Message);
+    }
+
+    [Fact]
     public void A_codex_attempt_rejects_claude_usage_before_any_transition_mutation()
     {
         var attempt = ClaimDispatchedPlanner();
@@ -117,6 +170,19 @@ public sealed class AgentTokenUsageEvidenceTests
             AgentOutcome.ProviderInvocationFailed, null, BaseTime, TestProcessEvidence.CleanExit, TestTokenUsage.Reported));
 
         AssertUntouched(attempt);
+    }
+
+    [Fact]
+    public void A_codex_attempt_records_usage_reported_through_its_own_proven_schema()
+    {
+        var attempt = ClaimDispatchedPlanner();
+
+        attempt.CompleteAgent(
+            AgentOutcome.Proposed, Fingerprint, BaseTime, TestProcessEvidence.CleanExit, TestTokenUsage.CodexReported);
+
+        Assert.Equal(TestTokenUsage.CodexReported, attempt.GetAgentTokenUsageEvidence());
+        Assert.Null(attempt.AgentCacheCreationInputTokens);
+        Assert.Null(attempt.AgentCacheReadInputTokens);
     }
 
     // Sync guard: the token-usage policy reuses AgentProcessEvidencePolicy.IsPreInvocationOutcome

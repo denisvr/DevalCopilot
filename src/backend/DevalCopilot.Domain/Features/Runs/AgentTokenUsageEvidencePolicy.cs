@@ -12,13 +12,19 @@ namespace DevalCopilot.Domain.Features.Runs;
 /// </summary>
 public static class AgentTokenUsageEvidencePolicy
 {
-    /// <summary>The only locally evidenced provider usage contract. A new provider or schema
-    /// requires explicit adapter-contract evidence before it can become authoritative.</summary>
+    /// <summary>The locally evidenced Claude Code provider usage contract. A new provider or
+    /// schema requires explicit adapter-contract evidence before it can become authoritative.</summary>
     public const string ClaudeCliSchemaVersion = "claude-cli-usage-v1";
 
+    /// <summary>The locally evidenced Codex CLI provider usage contract: the <c>usage</c> object
+    /// of the unique terminal <c>turn.completed</c> JSONL event on <c>codex exec --json</c>
+    /// non-interactive stdout. See <c>CodexCliTokenUsage</c> for the parsing contract this schema
+    /// version tags.</summary>
+    public const string CodexCliSchemaVersion = "codex-cli-usage-v1";
+
     public static bool IsSupportedSource(AgentProvider? provider, string? schemaVersion) =>
-        provider == AgentProvider.ClaudeCode
-        && string.Equals(schemaVersion, ClaudeCliSchemaVersion, StringComparison.Ordinal);
+        (provider == AgentProvider.ClaudeCode && string.Equals(schemaVersion, ClaudeCliSchemaVersion, StringComparison.Ordinal))
+        || (provider == AgentProvider.Codex && string.Equals(schemaVersion, CodexCliSchemaVersion, StringComparison.Ordinal));
 
     /// <summary>Returns the first violation, or <see langword="null"/> when the combination is
     /// valid. Absent evidence is always valid. Present evidence must come from the exact proven

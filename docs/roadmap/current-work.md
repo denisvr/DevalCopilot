@@ -7,7 +7,99 @@ another chat. It is a checkpoint, not a substitute for the
 [accepted decisions](../decisions/README.md). Repository and agent reports are
 evidence, not authority.
 
-## Delivered baseline (2026-09-25): collaboration-card evidence drill-down
+## Delivered baseline (2026-09-25): durable Codex CLI token-usage evidence
+
+- Branch: `main`. Delivered commit: `feat: record Codex CLI token usage
+  evidence`. Resolve its exact SHA with
+  `git log -1 --format=%H -- docs/roadmap/current-work.md` — a commit
+  cannot embed its own SHA without changing that SHA. Its parent is
+  `7e95e61733236af310f8c971df1cb87933008e25` (`feat: add collaboration
+  message evidence drill-down`; see the prior delivered slice below).
+- At delivery, `HEAD` and `origin/main` resolve to that commit and
+  `git status --short` is empty. Remaining uncommitted work: none expected.
+  If either condition differs on resume, inspect Git and the diff before
+  editing; never reset work merely to match this page.
+- Scope: a bounded, read-only Codex CLI token-usage evidence contract —
+  Codex's counterpart to the existing Claude token-usage evidence. A new
+  `CodexCliTokenUsage` (Infrastructure) reads `input_tokens`/`output_tokens`
+  from the `usage` object of `codex exec --json`'s unique terminal
+  `turn.completed` JSONL event, tagged with a new, independent
+  `codex-cli-usage-v1` schema registered in
+  `AgentTokenUsageEvidencePolicy.IsSupportedSource` alongside the existing
+  `claude-cli-usage-v1` pair. Wired through the shared `CodexProcessInvoker`
+  and all three Codex adapters (Planner, Resolver, Code Reviewer) into their
+  already-existing, already-generic result-recording path — no change was
+  needed to the command handlers, supervisors, or `Attempt`'s completion
+  transitions. Codex usage never carries a cache-creation or cache-read
+  count (`cached_input_tokens` has no proven correspondence to Claude's
+  separate breakdown): `AgentTokenUsageEvidence.Validate` now rejects a
+  `codex-cli-usage-v1` shape that carries either cache field as
+  `CodexUsageCannotIncludeACacheBreakdown`, which — because every
+  `AgentTokenUsageEvidence` instance is only ever constructed through
+  `Create` or `FromPersisted` — simultaneously enforces zero-mutation
+  recording-time rejection, an unreachable Domain transition, and a
+  truthful "unknown" projection for an already-persisted malformed row
+  everywhere `FromPersisted` is the read path, including the run-cockpit
+  aggregate. No Git capture, migration, endpoint, generated-client shape, or
+  frontend change was needed.
+- Authoritative code: `CodexCliTokenUsage.cs`,
+  `AgentTokenUsageEvidencePolicy.cs`, `AgentTokenUsageEvidence.cs`,
+  `AgentTokenUsageEvidenceViolation.cs`, `CodexProcessInvoker.cs`, and the
+  three `Codex*Adapter.cs` files (all under `src/backend`). Authoritative
+  docs: the "Provider token-usage contracts" section of
+  [agent-collaboration-protocol.md](../architecture/agent-collaboration-protocol.md),
+  which documents the read-only evidence method (installed `codex-cli
+  0.155.0-alpha.16.4`'s own `codex exec --help` output and embedded strings,
+  cross-checked against the official non-interactive-mode documentation),
+  the exact fail-closed parsing rules, and the cache-breakdown restriction.
+- Two correction rounds were applied before commit, both confined to files
+  already in scope: (1) the JSONL scanner originally skipped any line it
+  could not parse or uniquely type, which could silently trust a
+  `turn.completed` event while missing a concealed or contradictory
+  `turn.failed` declaration (e.g. a duplicated root `type` member) elsewhere
+  in the same captured stdout; corrected so any such line voids usage for
+  the entire capture, not just that line. (2) The cache-breakdown
+  restriction above, added after review found Codex usage could still carry
+  an unproven, non-null cache count through validation. See the corrected
+  implementation itself for the exact mechanism of each; this handoff
+  records the delivered, corrected state rather than repeating the
+  round-by-round narrative.
+- Evidence at delivery (exact results actually run for this closing pass):
+  `dotnet format DevalCopilot.slnx --verify-no-changes` clean; Release
+  build 0 warnings/0 errors; Domain 519/519; Application 917/917;
+  Infrastructure.IntegrationTests 435/436 (one pre-existing
+  platform-capability skip); Api.IntegrationTests 269/269; Architecture
+  9/9; `dotnet ef migrations has-pending-model-changes` reported no
+  pending changes (an enum member and validation logic only, no schema
+  change); NSwag regeneration confirmed byte-identical to `HEAD` with zero
+  `export enum` occurrences; `git diff --check` and
+  `git diff --cached --check` both reported no whitespace errors
+  immediately before commit. No frontend file changed across any round of
+  this slice (confirmed by `git status --short` under the frontend project
+  root each time), so the frontend suite, typecheck, and production build
+  were **not rerun** — carried forward from the prior delivered baseline
+  below, which they remain unaffected by. No automated test invokes a real
+  provider or model; every case uses fake process results and inline JSONL
+  fixtures.
+- Open risks, explicitly carried forward and unchanged by this slice: no
+  measured wall-clock duration, no token budget or threshold, no provider
+  account-usage measurement, and no guarantee a provider process cannot
+  outlive its own configured timeout (same exclusions ADR-0013 already
+  states for process time). Codex's own richer internal
+  `TokenUsage`/`TokenUsageInfo` fields (`cache_write_input_tokens`,
+  `total_tokens`, `codex_rollout_budget_units`) are not part of the
+  documented `--json` stream and are deliberately not parsed. Provider-
+  reported per-invocation tokens are not account usage, cost, or an
+  enforceable token budget for either provider. The remaining Increment 4
+  loop/duration/token/account-usage budgets stay deferred (see
+  [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)).
+- Next action: this baseline is delivered and Codex-reviewed (technically
+  approved). The Codex planner/reviewer verifies it against Git, then
+  selects and approves the next bounded Increment 4 slice from the
+  [roadmap](mvp-delivery-plan.md); no next slice is approved by this
+  handoff.
+
+## Prior delivered slice (2026-09-25): collaboration-card evidence drill-down
 
 - Branch: `main`. Delivered commit: `feat: add collaboration message
   evidence drill-down`. Resolve its exact SHA with
