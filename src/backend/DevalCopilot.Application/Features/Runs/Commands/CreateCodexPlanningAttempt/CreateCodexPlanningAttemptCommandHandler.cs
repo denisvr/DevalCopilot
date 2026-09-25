@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -95,6 +96,34 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         {
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
                 Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."));
+        }
+
+        // The independent run-wide Agent invocation-TIME budget (see the companion ADR to
+        // ADR-0012), enforced alongside — never instead of — the count-based budget above, at the
+        // same point: before any provider-availability probe or evidence capture. A run with no
+        // time-budget policy (a historical Run predating this decision) skips this check entirely
+        // rather than being bound by a fabricated ceiling.
+        if (run.MaximumAgentInvocationTime is { } maximumAgentInvocationTime)
+        {
+            var reservedAgentInvocationTime = await AgentInvocationTimeBudget.ComputeReservedAsync(dbContext, run.Id, asNoTracking: false, cancellationToken);
+            if (reservedAgentInvocationTime is null)
+            {
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                    Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
+            }
+
+            var projectedAgentInvocationTime = AgentInvocationTimeReservation.ComputeProjectedReservation(reservedAgentInvocationTime.Value, InvocationTimeout);
+            if (projectedAgentInvocationTime is null)
+            {
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                    Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
+            }
+
+            if (projectedAgentInvocationTime.Value > maximumAgentInvocationTime)
+            {
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                    Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
+            }
         }
 
         var codexSnapshot = await dbContext.HostCapabilitySnapshots
@@ -233,11 +262,41 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             {
                 var agentAttemptsUsedNow = await dbContext.Attempts.AsNoTracking().CountAsync(
                     candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent, cancellationToken);
-                return agentAttemptsUsedNow >= run.MaximumAgentAttempts
-                    ? Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                        Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."))
-                    : Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                        Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));
+                if (agentAttemptsUsedNow >= run.MaximumAgentAttempts)
+                {
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                        Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."));
+                }
+
+                // Distinguishes a genuine time-budget rejection from a merely lost slot race: a
+                // concurrent claim that also committed real reserved time can push this run over
+                // its time ceiling even while count capacity remains, and that must never be
+                // misreported as a retryable slot conflict.
+                if (run.MaximumAgentInvocationTime is { } maximumAgentInvocationTimeOnRace)
+                {
+                    var reservedAgentInvocationTimeNow = await AgentInvocationTimeBudget.ComputeReservedAsync(dbContext, run.Id, asNoTracking: true, cancellationToken);
+                    if (reservedAgentInvocationTimeNow is null)
+                    {
+                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                            Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
+                    }
+
+                    var projectedAgentInvocationTimeOnRace = AgentInvocationTimeReservation.ComputeProjectedReservation(reservedAgentInvocationTimeNow.Value, InvocationTimeout);
+                    if (projectedAgentInvocationTimeOnRace is null)
+                    {
+                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                            Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
+                    }
+
+                    if (projectedAgentInvocationTimeOnRace.Value > maximumAgentInvocationTimeOnRace)
+                    {
+                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                            Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
+                    }
+                }
+
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                    Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));
             }
 
             // Not a race loss on any known invariant — no competing Running attempt and no

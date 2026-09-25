@@ -10,6 +10,15 @@ public sealed class Run
     {
     }
 
+    /// <summary>The fixed default reserved-time policy every new Run is assigned by
+    /// <see cref="RecordIntent"/> — see the run-wide Agent invocation-time budget ADR. Unlike
+    /// <see cref="MaximumAgentAttempts"/>'s historical backfill (ADR-0012), a historical Run
+    /// predating that decision is never assigned this value retroactively: only rows constructed
+    /// through this factory ever receive it, so a Run persisted directly (e.g. by an additive
+    /// migration backfill) keeps <see cref="MaximumAgentInvocationTime"/> truthfully
+    /// <see langword="null"/>.</summary>
+    public static readonly TimeSpan DefaultMaximumAgentInvocationTime = TimeSpan.FromMinutes(120);
+
     public static Run RecordIntent(
         Guid id,
         Guid projectId,
@@ -17,7 +26,8 @@ public sealed class Run
         string objective,
         DateTimeOffset nowUtc,
         int maximumReviewCorrectionAttempts = 2,
-        int maximumAgentAttempts = 16)
+        int maximumAgentAttempts = 16,
+        TimeSpan? maximumAgentInvocationTime = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
@@ -36,6 +46,11 @@ public sealed class Run
             throw new ArgumentOutOfRangeException(nameof(maximumAgentAttempts));
         }
 
+        if (maximumAgentInvocationTime is { } requestedInvocationTime && requestedInvocationTime <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maximumAgentInvocationTime), requestedInvocationTime, "Must be a positive, bounded reservation ceiling.");
+        }
+
         return new Run
         {
             Id = id,
@@ -50,6 +65,7 @@ public sealed class Run
             AccumulatedAutonomousSeconds = 0,
             MaximumReviewCorrectionAttempts = maximumReviewCorrectionAttempts,
             MaximumAgentAttempts = maximumAgentAttempts,
+            MaximumAgentInvocationTime = maximumAgentInvocationTime ?? DefaultMaximumAgentInvocationTime,
         };
     }
 
@@ -101,6 +117,20 @@ public sealed class Run
     /// override: it is a hard ceiling for the run.
     /// </summary>
     public int MaximumAgentAttempts { get; private set; }
+
+    /// <summary>
+    /// Maximum total reserved Agent invocation time for this run, independent of and enforced
+    /// alongside <see cref="MaximumAgentAttempts"/> — see the run-wide Agent invocation-time
+    /// budget ADR. Every claimed Agent attempt permanently reserves its own configured
+    /// <see cref="Attempt.AgentTimeout"/>, whether later dispatched, failed, or interrupted;
+    /// Simulated and Process attempts never consume it. <see langword="null"/> means this Run has
+    /// no time-budget policy at all — truthfully distinguishing a historical Run that predates
+    /// this decision (never assigned a fabricated value) from a Run that carries a real, bounded
+    /// policy. Unlike <see cref="MaximumAgentAttempts"/>, no historical Run's value is ever
+    /// migrated or backfilled: only <see cref="RecordIntent"/> ever assigns a non-null value, to a
+    /// newly created Run.
+    /// </summary>
+    public TimeSpan? MaximumAgentInvocationTime { get; private set; }
 
     /// <summary>
     /// The hosted supervisor claims recorded intent and starts the simulated attempt.

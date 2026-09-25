@@ -194,8 +194,22 @@ attempts never consume it. Unlike the review-correction control, exhaustion
 has no human override — it is a hard stop for the run's remaining
 Agent-claiming paths. See
 [ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md).
-The remaining Increment 4 loop, duration, token, and account-usage budgets
-remain deferred.
+
+A third, independent control implements a durable run-wide Agent
+invocation-time budget: a default maximum of 120 minutes of reserved Agent
+invocation time per run, enforced alongside (never instead of) the 16-claim
+count budget above, on the same six Agent-claiming paths, at the same check
+point. Every claim permanently reserves its own configured timeout, including
+claims that later fail or are interrupted; Simulated and Process attempts
+never consume it. A historical run recorded before this control existed keeps
+no time-budget policy at all (truthfully `NULL`), never a fabricated ceiling.
+See
+[ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md).
+This is a reservation ceiling only — it does not measure actual wall-clock
+process duration, enforce token or provider account-usage limits, or
+independently guarantee a provider invocation cannot outlive its own
+configured timeout. The remaining Increment 4 loop, token, and account-usage
+budgets remain deferred.
 
 ## Increment 5: Local supervised delivery loop
 

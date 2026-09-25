@@ -2661,6 +2661,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     maximumAgentAttempts?: number;
     agentAttemptsUsed?: number;
     agentBudgetExhausted?: boolean;
+    agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -2695,6 +2696,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.maximumAgentAttempts = _data["maximumAgentAttempts"];
             this.agentAttemptsUsed = _data["agentAttemptsUsed"];
             this.agentBudgetExhausted = _data["agentBudgetExhausted"];
+            this.agentInvocationTimeBudget = _data["agentInvocationTimeBudget"] ? AgentInvocationTimeBudgetResponse.fromJS(_data["agentInvocationTimeBudget"]) : undefined as any;
         }
     }
 
@@ -2729,6 +2731,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["maximumAgentAttempts"] = this.maximumAgentAttempts;
         data["agentAttemptsUsed"] = this.agentAttemptsUsed;
         data["agentBudgetExhausted"] = this.agentBudgetExhausted;
+        data["agentInvocationTimeBudget"] = this.agentInvocationTimeBudget ? this.agentInvocationTimeBudget.toJSON() : undefined as any;
         return data;
     }
 }
@@ -2752,6 +2755,7 @@ export interface IGetRunCockpitResponse {
     maximumAgentAttempts?: number;
     agentAttemptsUsed?: number;
     agentBudgetExhausted?: boolean;
+    agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -3020,6 +3024,58 @@ export interface IRunTokenUsageSummaryResponse {
     outputTokens?: number;
     cacheCreationInputTokens?: number | undefined;
     cacheReadInputTokens?: number | undefined;
+}
+
+export class AgentInvocationTimeBudgetResponse implements IAgentInvocationTimeBudgetResponse {
+    maximumMilliseconds?: number | undefined;
+    reservedMilliseconds?: number | undefined;
+    remainingMilliseconds?: number | undefined;
+    isLegacyUnknown?: boolean;
+    evidenceInvalid?: boolean;
+
+    constructor(data?: IAgentInvocationTimeBudgetResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.maximumMilliseconds = _data["maximumMilliseconds"];
+            this.reservedMilliseconds = _data["reservedMilliseconds"];
+            this.remainingMilliseconds = _data["remainingMilliseconds"];
+            this.isLegacyUnknown = _data["isLegacyUnknown"];
+            this.evidenceInvalid = _data["evidenceInvalid"];
+        }
+    }
+
+    static fromJS(data: any): AgentInvocationTimeBudgetResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentInvocationTimeBudgetResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["maximumMilliseconds"] = this.maximumMilliseconds;
+        data["reservedMilliseconds"] = this.reservedMilliseconds;
+        data["remainingMilliseconds"] = this.remainingMilliseconds;
+        data["isLegacyUnknown"] = this.isLegacyUnknown;
+        data["evidenceInvalid"] = this.evidenceInvalid;
+        return data;
+    }
+}
+
+export interface IAgentInvocationTimeBudgetResponse {
+    maximumMilliseconds?: number | undefined;
+    reservedMilliseconds?: number | undefined;
+    remainingMilliseconds?: number | undefined;
+    isLegacyUnknown?: boolean;
+    evidenceInvalid?: boolean;
 }
 
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {

@@ -699,6 +699,27 @@ paths, though attempts already claimed may still finish, and the run itself
 is not automatically terminated. See
 [ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md).
 
+Independently again, each run also persists a fixed default maximum of 120
+minutes of reserved Agent invocation time
+(`Run.MaximumAgentInvocationTime`) — a second run-wide ceiling, enforced
+alongside (never instead of) the 16-claim count budget above, on every one of
+the same six Agent-claiming paths, at the same point each already checks the
+count budget. Every claimed Agent attempt permanently reserves its own
+configured `AgentTimeout`, regardless of role, provider, dispatch, result, or
+interruption; Simulated and Process attempts never consume it. An
+over-budget claim is rejected with `agent_attempts.time_budget_exceeded`,
+kept distinct from a merely lost `(RunId, AgentBudgetSlot)` slot race
+(`agent_attempts.budget_slot_conflict`) the same way ADR-0012 already
+distinguishes a lost slot race from genuine count exhaustion. Unlike
+ADR-0012's own historical backfill, a Run recorded before this decision keeps
+`MaximumAgentInvocationTime` truthfully `NULL` — no time-budget policy at
+all, never a fabricated ceiling — and every Agent-claiming handler skips this
+check entirely for such a run. The `GetRunCockpit` projection exposes this as
+its own bounded `AgentInvocationTimeBudget` object (maximum, reserved,
+remaining, a legacy/unknown flag, and a fail-closed evidence-invalid flag),
+never combined with the count budget's own fields. See
+[ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md).
+
 Each agent attempt is intended to eventually record requested and effective
 provider configuration:
 

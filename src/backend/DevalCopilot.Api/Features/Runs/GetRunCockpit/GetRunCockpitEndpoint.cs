@@ -54,6 +54,7 @@ public sealed class GetRunCockpitEndpoint(
                 RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary),
                 value.MaximumAgentAttempts,
                 value.AgentAttemptsUsed,
-                value.AgentBudgetExhausted));
+                value.AgentBudgetExhausted,
+                AgentInvocationTimeBudgetResponse.FromDomain(value.AgentInvocationTimeBudget)));
     }
 }

@@ -119,10 +119,13 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         bool leaseActive = true,
         bool hasCheckpoint = true,
         bool codexObserved = true,
-        int maximumAgentAttempts = 16)
+        int maximumAgentAttempts = 16,
+        TimeSpan? maximumAgentInvocationTime = null)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the next increment", Now, maximumAgentAttempts: maximumAgentAttempts);
+        var run = Run.RecordIntent(
+            Guid.NewGuid(), project.Id, 1, "Review the next increment", Now,
+            maximumAgentAttempts: maximumAgentAttempts, maximumAgentInvocationTime: maximumAgentInvocationTime);
         run.Claim(Now);
 
         var workspace = GitWorkspace.Prepare(
@@ -293,6 +296,31 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
         Assert.True(result.IsFailure);
         Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+        Assert.Equal(2, dbContext.Attempts.Count(a => a.RunId == run.Id));
+    }
+
+    // The independent run-wide Agent invocation-TIME budget, enforced alongside the count budget
+    // above at the same point in this handler.
+    [Fact]
+    public async Task HandleAsync_fails_when_the_run_wide_agent_invocation_time_budget_is_exceeded()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        // The seeded planning and challenged-review attempts already reserve 10 minutes each (20
+        // total); this handler's own fixed 10-minute InvocationTimeout would push the total to 30
+        // minutes against a 25-minute ceiling.
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(
+            dbContext, maximumAgentInvocationTime: TimeSpan.FromMinutes(25));
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(dbContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.time_budget_exceeded", Assert.Single(result.Errors).Code);
         Assert.Equal(2, dbContext.Attempts.Count(a => a.RunId == run.Id));
     }
 

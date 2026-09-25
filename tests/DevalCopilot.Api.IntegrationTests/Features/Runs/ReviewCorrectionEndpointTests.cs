@@ -138,7 +138,10 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
     [Fact]
     public async Task Escalation_and_authorization_return_committed_event_sequences_and_are_idempotent()
     {
-        var seed = await SeedCorrectionChainAsync();
+        // A generous ceiling: this test exercises escalation/authorization mechanics, never the
+        // independent time budget, which the seeded chain plus two failed prior corrections would
+        // otherwise reach exactly (120 minutes reserved against the real 120-minute default).
+        var seed = await SeedCorrectionChainAsync(maximumAgentInvocationTime: TimeSpan.FromHours(24));
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -205,13 +208,16 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
         return client;
     }
 
-    private async Task<(Guid RunId, Guid ReviewId, Guid ExecutionReportId)> SeedCorrectionChainAsync(bool claimRun = true)
+    private async Task<(Guid RunId, Guid ReviewId, Guid ExecutionReportId)> SeedCorrectionChainAsync(
+        bool claimRun = true, TimeSpan? maximumAgentInvocationTime = null)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
         var now = DateTimeOffset.UtcNow;
         var project = Project.Register(Guid.NewGuid(), "Review correction API", $@"C:\repos\{Guid.NewGuid():N}", now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Correct the implementation", now);
+        var run = Run.RecordIntent(
+            Guid.NewGuid(), project.Id, 1, "Correct the implementation", now,
+            maximumAgentInvocationTime: maximumAgentInvocationTime);
         if (claimRun) run.Claim(now);
         var workspace = GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", now);
         workspace.MarkReady();

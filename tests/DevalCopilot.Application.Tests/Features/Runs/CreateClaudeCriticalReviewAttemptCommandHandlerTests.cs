@@ -116,10 +116,13 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         bool claudeObserved = true,
         CapabilityLaunchKind claudeLaunchKind = CapabilityLaunchKind.DirectExecutable,
         bool seedClaudeCapability = true,
-        int maximumAgentAttempts = 16)
+        int maximumAgentAttempts = 16,
+        TimeSpan? maximumAgentInvocationTime = null)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the next increment", Now, maximumAgentAttempts: maximumAgentAttempts);
+        var run = Run.RecordIntent(
+            Guid.NewGuid(), project.Id, 1, "Review the next increment", Now,
+            maximumAgentAttempts: maximumAgentAttempts, maximumAgentInvocationTime: maximumAgentInvocationTime);
         if (claimRun)
         {
             run.Claim(Now);
@@ -276,6 +279,33 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
 
         Assert.True(result.IsFailure);
         Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+        Assert.Single(dbContext.Attempts.Where(a => a.RunId == run.Id));
+    }
+
+    // The independent run-wide Agent invocation-TIME budget, enforced alongside the count budget
+    // above at the same point in this handler.
+    [Fact]
+    public async Task HandleAsync_fails_when_the_run_wide_agent_invocation_time_budget_is_exceeded()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(
+            dbContext, claimRun: false, maximumAgentInvocationTime: TimeSpan.FromMinutes(15));
+        // SeedCompletedProposal's own planning attempt reserves 10 minutes; this handler's own
+        // fixed 10-minute InvocationTimeout would push the total to 20 minutes against a
+        // 15-minute ceiling.
+        var (planningAttempt, proposalMessage) = SeedCompletedProposal(run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        dbContext.Attempts.Add(planningAttempt);
+        dbContext.CollaborationMessages.Add(proposalMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(
+            new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.time_budget_exceeded", Assert.Single(result.Errors).Code);
         Assert.Single(dbContext.Attempts.Where(a => a.RunId == run.Id));
     }
 

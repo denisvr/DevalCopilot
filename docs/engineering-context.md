@@ -41,6 +41,8 @@
   Require administrator-provisioned policy before Gemini CLI execution.
 - [ADR-0012](decisions/0012-add-a-durable-run-wide-agent-claim-budget.md): Add
   a durable run-wide Agent claim budget.
+- [ADR-0013](decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md):
+  Add a durable run-wide Agent invocation-time budget.
 
 ## Product-specific architecture
 

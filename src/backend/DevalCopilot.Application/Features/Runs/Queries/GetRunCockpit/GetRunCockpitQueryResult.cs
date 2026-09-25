@@ -20,4 +20,5 @@ public sealed record GetRunCockpitQueryResult(
     int MaximumAgentAttempts,
     int AgentAttemptsUsed,
     bool AgentBudgetExhausted,
+    RunCockpitAgentInvocationTimeBudgetSummary AgentInvocationTimeBudget,
     RunCockpitAgentAttemptEntry? LatestAgentAttempt = null);

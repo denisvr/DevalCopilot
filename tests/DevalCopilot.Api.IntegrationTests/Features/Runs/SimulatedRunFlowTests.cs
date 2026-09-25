@@ -7,6 +7,7 @@ using DevalCopilot.Api.Features.Runs.StartSimulatedRun;
 using DevalCopilot.Api.IntegrationTests.Fixtures;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -77,6 +78,15 @@ public sealed class SimulatedRunFlowTests(SimulatedRunApiWebApplicationFactory f
         Assert.Equal(0, cockpit.AgentAttemptsUsed);
         Assert.False(cockpit.AgentBudgetExhausted);
 
+        // The independent run-wide Agent invocation-TIME budget: a newly created run is budgeted
+        // (never the legacy/unknown state), has reserved nothing, and its remaining time equals
+        // its own maximum — a bounded, truthful projection, never a fabricated "exhausted" flag.
+        Assert.False(cockpit.AgentInvocationTimeBudget.IsLegacyUnknown);
+        Assert.False(cockpit.AgentInvocationTimeBudget.EvidenceInvalid);
+        Assert.Equal((long)TimeSpan.FromMinutes(120).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.MaximumMilliseconds);
+        Assert.Equal(0L, cockpit.AgentInvocationTimeBudget.ReservedMilliseconds);
+        Assert.Equal((long)TimeSpan.FromMinutes(120).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.RemainingMilliseconds);
+
         // Only events for THIS run: Sequence is a global monotonic counter shared by every
         // run in the database, so it is not expected to equal the event count once more
         // than one run exists.
@@ -93,6 +103,35 @@ public sealed class SimulatedRunFlowTests(SimulatedRunApiWebApplicationFactory f
         Assert.Equal(["Proposal", "Challenge", "Decision", "ExecutionReport"], timeline.Select(message => message.Type));
         Assert.All(timeline, message => Assert.Equal("Simulated", message.Provenance));
         Assert.Equal(timeline[1].Id, timeline[2].InReplyToMessageId);
+    }
+
+    [Fact]
+    public async Task Cockpit_reports_the_legacy_unknown_time_budget_state_for_a_run_that_predates_the_policy()
+    {
+        using var client = CreateAuthenticatedClient();
+        var projectId = await RegisterProjectAsync("Legacy time budget");
+
+        var startResponse = await client.PostAsJsonAsync(
+            "/api/runs/simulated", new StartSimulatedRunRequest(projectId, "Prove the legacy time-budget state"));
+        var started = await startResponse.Content.ReadFromJsonAsync<StartSimulatedRunResponse>();
+        await WaitForTerminalCockpitAsync(client, started!.RunId);
+
+        // Reproduces a historical Run predating the time-budget decision — a direct write against
+        // the persisted column, exactly as the additive migration itself would have left it.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE runs SET MaximumAgentInvocationTime = NULL WHERE Id = {started.RunId}");
+        }
+
+        var cockpit = await client.GetFromJsonAsync<GetRunCockpitResponse>($"/api/runs/{started.RunId}/cockpit");
+
+        Assert.True(cockpit!.AgentInvocationTimeBudget.IsLegacyUnknown);
+        Assert.False(cockpit.AgentInvocationTimeBudget.EvidenceInvalid);
+        Assert.Null(cockpit.AgentInvocationTimeBudget.MaximumMilliseconds);
+        Assert.Null(cockpit.AgentInvocationTimeBudget.ReservedMilliseconds);
+        Assert.Null(cockpit.AgentInvocationTimeBudget.RemainingMilliseconds);
     }
 
     [Fact]

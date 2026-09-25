@@ -117,10 +117,12 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
 
     private async Task<(Run Run, GitWorkspace Workspace)> SeedEligibleRunAsync(
         DevalCopilotDbContext dbContext, bool workspaceReady = true, bool leaseActive = true, bool codexObserved = true,
-        int maximumAgentAttempts = 16)
+        int maximumAgentAttempts = 16, TimeSpan? maximumAgentInvocationTime = null)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Review the next increment", Now, maximumAgentAttempts: maximumAgentAttempts);
+        var run = Run.RecordIntent(
+            Guid.NewGuid(), project.Id, 1, "Review the next increment", Now,
+            maximumAgentAttempts: maximumAgentAttempts, maximumAgentInvocationTime: maximumAgentInvocationTime);
         run.Claim(Now);
 
         var workspace = GitWorkspace.Prepare(
@@ -343,6 +345,43 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
 
         Assert.True(result.IsFailure);
         Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+        Assert.Equal(3, dbContext.Attempts.Count(a => a.RunId == run.Id));
+    }
+
+    // The independent run-wide Agent invocation-TIME budget, enforced alongside the count budget
+    // above at the same point in this handler.
+    [Fact]
+    public async Task HandleAsync_fails_when_the_run_wide_agent_invocation_time_budget_is_exceeded()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        // The seeded planning, critical-review, and implementer attempts already reserve 10
+        // minutes each (30 total); this handler's own fixed 10-minute InvocationTimeout would push
+        // the total to 40 minutes against a 35-minute ceiling.
+        var (run, workspace) = await SeedEligibleRunAsync(dbContext, maximumAgentInvocationTime: TimeSpan.FromMinutes(35));
+
+        var startingCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
+        dbContext.GitCheckpoints.Add(startingCheckpoint);
+        var resultFingerprint = new string('b', 64);
+        var resultCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 2, Now, new string('b', 40), resultFingerprint, []);
+        dbContext.GitCheckpoints.Add(resultCheckpoint);
+
+        var (_, _, executionReport) = SeedImplementedExecution(
+            dbContext, run.Id, workspace.Id, startingCheckpoint.Id, resultCheckpoint.Id, Fingerprint, Now);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var commandOne = VerificationCommand.Configure(Guid.NewGuid(), run.ProjectId, 1, "Backend tests", DotnetExecutablePath, ["test"], 300, true, Now);
+        dbContext.VerificationCommands.Add(commandOne);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        SeedPassedVerificationExecution(dbContext, run.ProjectId, workspace.Id, workspace, resultCheckpoint, commandOne, 1, Now);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var handler = new CreateCodeReviewAttemptCommandHandler(
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(resultFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateCodeReviewAttemptCommand(run.Id, executionReport.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.time_budget_exceeded", Assert.Single(result.Errors).Code);
         Assert.Equal(3, dbContext.Attempts.Count(a => a.RunId == run.Id));
     }
 

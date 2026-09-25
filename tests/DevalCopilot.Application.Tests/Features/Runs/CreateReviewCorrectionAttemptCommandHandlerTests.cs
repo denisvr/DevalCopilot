@@ -79,6 +79,30 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         Assert.Equal(4, await context.Attempts.CountAsync(item => item.RunId == seed.Run.Id));
     }
 
+    // The independent run-wide Agent invocation-TIME budget: checked at the exact same point as
+    // the count budget above — still before the review-correction-specific
+    // budget/escalation/ADR-0010-authorization logic — so a globally time-exhausted run never
+    // consumes a review-correction human authorization either.
+    [Fact]
+    public async Task Run_wide_time_budget_exhaustion_is_checked_before_the_review_correction_specific_budget_and_never_consumes_an_authorization()
+    {
+        await using var context = _fixture.CreateContext();
+        // The seeded Planner/CriticalReviewer/Implementer/CodeReviewer chain already reserves 20
+        // minutes each (80 total); this handler's own fixed 20-minute InvocationTimeout would push
+        // the total to 100 minutes against a 90-minute ceiling — while the count budget (default
+        // 16) and the review-correction-specific budget (default 2) both still have room.
+        var seed = await SeedAsync(context, maximumAgentInvocationTime: TimeSpan.FromMinutes(90));
+        var handler = Handler(context);
+
+        var result = await handler.HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.time_budget_exceeded", Assert.Single(result.Errors).Code);
+        Assert.Empty(await context.ReviewCorrectionEscalations.ToListAsync());
+        Assert.Empty(await context.ReviewCorrectionAuthorizations.ToListAsync());
+        Assert.Equal(4, await context.Attempts.CountAsync(item => item.RunId == seed.Run.Id));
+    }
+
     // Deterministically simulates a concurrent request winning the race for the exact
     // AgentBudgetSlot this handler independently computes, injected strictly between this
     // handler's own pre-check and its own final SaveChangesAsync. Below the maximum, losing this
@@ -209,7 +233,10 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
     public async Task Third_claim_creates_one_durable_escalation_without_attempt_or_manifest()
     {
         await using var context = _fixture.CreateContext();
-        var seed = await SeedAsync(context);
+        // A generous ceiling: this test exercises the review-correction-specific escalation
+        // mechanics, never the independent time budget, which two failed prior corrections plus
+        // the seeded chain would otherwise approach.
+        var seed = await SeedAsync(context, maximumAgentInvocationTime: TimeSpan.FromHours(24));
         for (var number = 5; number <= 6; number++)
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
@@ -239,7 +266,9 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
     public async Task Escalation_retry_recovers_exact_committed_event_and_re_notifies_after_post_commit_failure()
     {
         await using var seedContext = _fixture.CreateContext();
-        var seed = await SeedAsync(seedContext);
+        // A generous ceiling: this test exercises escalation-retry mechanics, never the
+        // independent time budget.
+        var seed = await SeedAsync(seedContext, maximumAgentInvocationTime: TimeSpan.FromHours(24));
         for (var number = 5; number <= 6; number++)
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
@@ -284,7 +313,9 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
     public async Task One_human_authorization_allows_exactly_one_additional_claim()
     {
         await using var context = _fixture.CreateContext();
-        var seed = await SeedAsync(context);
+        // A generous ceiling: this test exercises the human-authorization claim path, never the
+        // independent time budget.
+        var seed = await SeedAsync(context, maximumAgentInvocationTime: TimeSpan.FromHours(24));
         for (var number = 5; number <= 6; number++)
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
@@ -318,7 +349,9 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
     public async Task Authorization_retry_recovers_exact_committed_event_and_re_notifies_after_post_commit_failure()
     {
         await using var seedContext = _fixture.CreateContext();
-        var seed = await SeedAsync(seedContext);
+        // A generous ceiling: this test exercises authorization-retry mechanics, never the
+        // independent time budget.
+        var seed = await SeedAsync(seedContext, maximumAgentInvocationTime: TimeSpan.FromHours(24));
         for (var number = 5; number <= 6; number++)
         {
             var priorCorrection = Attempt.ClaimAgentReviewCorrection(
@@ -427,10 +460,13 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         bool completedReview = true,
         bool includeFindings = true,
         GitWorkspaceEvidenceResult? evidence = null,
-        int maximumAgentAttempts = 16)
+        int maximumAgentAttempts = 16,
+        TimeSpan? maximumAgentInvocationTime = null)
     {
         var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Correct the implementation", Now, maximumAgentAttempts: maximumAgentAttempts);
+        var run = Run.RecordIntent(
+            Guid.NewGuid(), project.Id, 1, "Correct the implementation", Now,
+            maximumAgentAttempts: maximumAgentAttempts, maximumAgentInvocationTime: maximumAgentInvocationTime);
         if (claimRun) run.Claim(Now);
         var workspace = GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", Now);
         if (workspaceReady) workspace.MarkReady();

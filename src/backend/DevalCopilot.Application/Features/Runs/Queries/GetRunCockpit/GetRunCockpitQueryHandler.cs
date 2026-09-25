@@ -98,6 +98,22 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
 
         var tokenUsageSummary = tokenUsageAccumulator.ToSummary();
 
+        // The independent run-wide Agent invocation-TIME budget projection: never combined with the
+        // count-budget fields above, and never a fabricated policy for a historical Run that
+        // predates this decision.
+        RunCockpitAgentInvocationTimeBudgetSummary agentInvocationTimeBudget;
+        if (run.MaximumAgentInvocationTime is not { } maximumAgentInvocationTime)
+        {
+            agentInvocationTimeBudget = RunCockpitAgentInvocationTimeBudgetSummary.LegacyUnknown();
+        }
+        else
+        {
+            var reservedAgentInvocationTime = await AgentInvocationTimeBudget.ComputeReservedAsync(dbContext, run.Id, asNoTracking: true, cancellationToken);
+            agentInvocationTimeBudget = reservedAgentInvocationTime is null
+                ? RunCockpitAgentInvocationTimeBudgetSummary.EvidenceInvalidFor(maximumAgentInvocationTime)
+                : RunCockpitAgentInvocationTimeBudgetSummary.Budgeted(maximumAgentInvocationTime, reservedAgentInvocationTime.Value);
+        }
+
         var stageMap = StageSequence
             .Select(stage => new RunCockpitStageEntry(stage, IsCompleted: stage < run.Stage, IsActive: stage == run.Stage))
             .ToArray();
@@ -121,6 +137,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 run.MaximumAgentAttempts,
                 agentAttemptsUsed,
                 agentAttemptsUsed >= run.MaximumAgentAttempts,
+                agentInvocationTimeBudget,
                 latestAgentAttempt is null
                     ? null
                     : new RunCockpitAgentAttemptEntry(
