@@ -18,6 +18,7 @@ import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 import { AgentInvocationTimeBudgetBanner } from './AgentInvocationTimeBudgetBanner'
+import { AgentProcessDurationSummaryBanner } from './AgentProcessDurationSummaryBanner'
 import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
@@ -121,6 +122,16 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           remainingMilliseconds={cockpit.agentInvocationTimeBudget?.remainingMilliseconds}
           isLegacyUnknown={cockpit.agentInvocationTimeBudget?.isLegacyUnknown ?? false}
           evidenceInvalid={cockpit.agentInvocationTimeBudget?.evidenceInvalid ?? false}
+        />
+      )}
+      {cockpit.runId === runId && (
+        <AgentProcessDurationSummaryBanner
+          status={cockpit.agentProcessDurationSummary?.status}
+          totalMeasuredMilliseconds={cockpit.agentProcessDurationSummary?.totalMeasuredMilliseconds}
+          dispatchedAttemptCount={cockpit.agentProcessDurationSummary?.dispatchedAttemptCount}
+          pendingAttemptCount={cockpit.agentProcessDurationSummary?.pendingAttemptCount}
+          validEvidenceCount={cockpit.agentProcessDurationSummary?.validEvidenceCount}
+          malformedEvidenceCount={cockpit.agentProcessDurationSummary?.malformedEvidenceCount}
         />
       )}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />

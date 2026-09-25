@@ -223,6 +223,29 @@ reported window. When any hard threshold is reached:
 Provider account usage does not replace run budgets. A run may have budget left
 while its provider allowance is exhausted, or the reverse.
 
+### Host-measured Agent process-duration summary
+
+A separate, read-only summary shows how much Agent process time the host has
+actually measured for this run so far — pure telemetry, never a budget, never
+combined with the run budgets above. It reports one of six evidence states: no
+Agent attempt dispatched yet; a complete measured total (shown even when that
+total is a real zero); attempts still running with no complete picture yet;
+partial evidence (some attempts measured, at least one terminal attempt
+missing evidence); evidence unavailable (terminal attempts exist but none of
+them produced usable evidence); or every observed measurement is valid but
+their combined total is too large to display. The measured total is shown
+only in the complete state, so it can never be mistaken for an exhaustive
+figure while evidence is still partial, pending, unavailable, or
+unrepresentable, and a genuine zero-duration measurement is never confused
+with "nothing measured yet" — it displays as an explicit zero, distinct from
+a positive value too small to show as a whole millisecond (shown as "less
+than 1 ms" rather than rounded down to zero). A run with any missing or
+malformed evidence is never described as though every dispatched attempt had
+already concluded when attempts are, in fact, still running. See the
+"Run-wide Agent process-duration evidence summary" section of the
+[agent-collaboration-protocol](../architecture/agent-collaboration-protocol.md)
+for its exact evidence-state contract.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

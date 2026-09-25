@@ -825,6 +825,83 @@ environment value, output, context manifest, session identifier, or
 credential. Raw output is not a usage metric, and this evidence is not a
 token, cost, or account-usage measurement.
 
+### Run-wide Agent process-duration evidence summary
+
+The run cockpit additionally exposes a bounded, read-only, run-wide summary of
+the host-measured process evidence above — pure telemetry, never a budget, and
+strictly distinct from the two Agent budgets ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md)'s
+count budget and [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)'s
+reservation-time budget, which reasons only about *configured* `AgentTimeout`
+values, never measured duration). It answers only "what has the host actually
+measured so far", derived exclusively from this run's own dispatched Agent
+attempts' `AgentProcessOutcome`/`AgentProcessExitCode`/`AgentProcessDuration`
+evidence, and it enforces nothing.
+
+The summary is one closed evidence-state classification
+(`AgentProcessDurationEvidenceStatus`) plus bounded counts and an optional
+exact total:
+
+- `NoDispatchedAttempts` — this run has dispatched no Agent attempt at all.
+- `Complete` — every dispatched Agent attempt has reached a terminal result
+  and every one of them carries valid process evidence. Only this state
+  carries a non-null `TotalMeasuredDuration` (the exact tick-resolution sum),
+  so a real zero-duration measurement is always visibly distinct from "no
+  measurement is available yet" (which is always `null`).
+- `PendingEvidence` — at least one dispatched attempt is still running, and
+  every terminal attempt observed so far has valid evidence.
+- `PartialEvidence` — at least one terminal attempt has valid evidence and at
+  least one other terminal attempt has missing or malformed evidence (with or
+  without attempts still pending). The total is never shown for this state,
+  since a partial sum would understate the run's real usage; the malformed
+  attempt is never silently dropped or treated as zero — it is counted
+  separately in `MalformedEvidenceCount`.
+- `MalformedEvidence` — one or more terminal attempts exist, but none of them
+  carries valid evidence — with or without attempts still pending. Never
+  conflated with a real zero-duration measurement, which is `Complete` with a
+  zero total instead, and never described as if every dispatched attempt had
+  reached a terminal result when `PendingAttemptCount` is nonzero.
+- `UnrepresentableTotal` — every terminal attempt observed so far carries
+  valid evidence (no malformed evidence at all) — with or without attempts
+  still pending — but the exact running sum of those valid durations
+  overflows what a `TimeSpan` can represent. This is deliberately distinct
+  from `MalformedEvidence`: the individual measurements are real and valid,
+  only their total is unrepresentable, so this state is never described using
+  malformed/invalid wording. `TotalMeasuredDuration` stays `null`, matching
+  every other non-`Complete` state.
+
+Summation is overflow-safe and honest about which fact failed: when every
+individual duration observed is itself valid but their running sum overflows
+what a `TimeSpan` can represent, the result is `UnrepresentableTotal`, not
+`MalformedEvidence` — the individual measurements are never discredited
+merely because their sum cannot be represented. Malformed evidence still
+dominates the classification exactly as before: a run with any malformed
+terminal attempt is classified as `MalformedEvidence`/`PartialEvidence`
+(per the valid-evidence count) even if the valid subset's own sum would
+independently overflow, since the malformed evidence is the more important
+fact to surface. The read side streams a minimal per-attempt projection
+(terminal status plus process-evidence fields) through a one-pass,
+constant-memory accumulator — the same shape the existing token-usage
+accumulator uses — rather than materializing full `Attempt` entities. The API
+projection (`AgentProcessDurationSummaryResponse`) carries only the status
+string, an optional `totalMeasuredMilliseconds`, and bounded counts
+(`dispatchedAttemptCount`, `pendingAttemptCount`, `validEvidenceCount`,
+`malformedEvidenceCount`) — never a path, argument, output, manifest, session
+identifier, or credential. The Domain-level sum itself remains exact — it is
+computed from real `TimeSpan`/tick values with checked, overflow-safe integer
+arithmetic, so `TotalMeasuredDuration` is exactly correct wherever it is
+representable at all (that is, wherever the state is not
+`UnrepresentableTotal`). `totalMeasuredMilliseconds` is projected from that
+exact sum as a `double` (`TimeSpan.TotalMilliseconds`), not a truncated
+integer: a truncating integer cast would silently collapse a genuinely
+positive sub-millisecond total (fewer than 10,000 ticks) down to exactly
+zero, making it indistinguishable from "nothing measured". The `double`
+projection reliably preserves that zero-versus-positive distinction, but it
+is not a promise of full tick-level precision in the wire format at every
+magnitude — a `double` cannot exactly represent every possible tick-derived
+millisecond value — so it serves the zero/non-zero and coarse display
+purposes this summary is for, not exact reproduction of the underlying
+ticks.
+
 ### Provider token-usage contracts
 
 **Claude Code — proven.** The token-usage contract was verified from the

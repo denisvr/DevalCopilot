@@ -2713,6 +2713,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     agentAttemptsUsed?: number;
     agentBudgetExhausted?: boolean;
     agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
+    agentProcessDurationSummary?: AgentProcessDurationSummaryResponse;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -2748,6 +2749,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.agentAttemptsUsed = _data["agentAttemptsUsed"];
             this.agentBudgetExhausted = _data["agentBudgetExhausted"];
             this.agentInvocationTimeBudget = _data["agentInvocationTimeBudget"] ? AgentInvocationTimeBudgetResponse.fromJS(_data["agentInvocationTimeBudget"]) : undefined as any;
+            this.agentProcessDurationSummary = _data["agentProcessDurationSummary"] ? AgentProcessDurationSummaryResponse.fromJS(_data["agentProcessDurationSummary"]) : undefined as any;
         }
     }
 
@@ -2783,6 +2785,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["agentAttemptsUsed"] = this.agentAttemptsUsed;
         data["agentBudgetExhausted"] = this.agentBudgetExhausted;
         data["agentInvocationTimeBudget"] = this.agentInvocationTimeBudget ? this.agentInvocationTimeBudget.toJSON() : undefined as any;
+        data["agentProcessDurationSummary"] = this.agentProcessDurationSummary ? this.agentProcessDurationSummary.toJSON() : undefined as any;
         return data;
     }
 }
@@ -2807,6 +2810,7 @@ export interface IGetRunCockpitResponse {
     agentAttemptsUsed?: number;
     agentBudgetExhausted?: boolean;
     agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
+    agentProcessDurationSummary?: AgentProcessDurationSummaryResponse;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -3127,6 +3131,62 @@ export interface IAgentInvocationTimeBudgetResponse {
     remainingMilliseconds?: number | undefined;
     isLegacyUnknown?: boolean;
     evidenceInvalid?: boolean;
+}
+
+export class AgentProcessDurationSummaryResponse implements IAgentProcessDurationSummaryResponse {
+    status?: string;
+    totalMeasuredMilliseconds?: number | undefined;
+    dispatchedAttemptCount?: number;
+    pendingAttemptCount?: number;
+    validEvidenceCount?: number;
+    malformedEvidenceCount?: number;
+
+    constructor(data?: IAgentProcessDurationSummaryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.totalMeasuredMilliseconds = _data["totalMeasuredMilliseconds"];
+            this.dispatchedAttemptCount = _data["dispatchedAttemptCount"];
+            this.pendingAttemptCount = _data["pendingAttemptCount"];
+            this.validEvidenceCount = _data["validEvidenceCount"];
+            this.malformedEvidenceCount = _data["malformedEvidenceCount"];
+        }
+    }
+
+    static fromJS(data: any): AgentProcessDurationSummaryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentProcessDurationSummaryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["totalMeasuredMilliseconds"] = this.totalMeasuredMilliseconds;
+        data["dispatchedAttemptCount"] = this.dispatchedAttemptCount;
+        data["pendingAttemptCount"] = this.pendingAttemptCount;
+        data["validEvidenceCount"] = this.validEvidenceCount;
+        data["malformedEvidenceCount"] = this.malformedEvidenceCount;
+        return data;
+    }
+}
+
+export interface IAgentProcessDurationSummaryResponse {
+    status?: string;
+    totalMeasuredMilliseconds?: number | undefined;
+    dispatchedAttemptCount?: number;
+    pendingAttemptCount?: number;
+    validEvidenceCount?: number;
+    malformedEvidenceCount?: number;
 }
 
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {

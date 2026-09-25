@@ -19,4 +19,5 @@ public sealed record GetRunCockpitResponse(
     int MaximumAgentAttempts,
     int AgentAttemptsUsed,
     bool AgentBudgetExhausted,
-    AgentInvocationTimeBudgetResponse AgentInvocationTimeBudget);
+    AgentInvocationTimeBudgetResponse AgentInvocationTimeBudget,
+    AgentProcessDurationSummaryResponse AgentProcessDurationSummary);
