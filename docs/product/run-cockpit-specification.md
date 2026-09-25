@@ -132,9 +132,20 @@ Supported card types include:
 - review finding and revision response;
 - verification, Git, CI, approval, and human-intervention events.
 
-Collapsed cards show a decision-relevant summary. Expanded cards expose bounded
-details, linked evidence, and raw artifacts. The active card is visually tied
-to the participant marked `Working`.
+Collapsed cards show a decision-relevant summary. Challenge, Decision,
+ReviewFinding, and RevisionResponse cards additionally expose their bounded
+structured fields with readable labels. A reply is described as verified only
+when its parent message is both present in the currently loaded timeline and
+an earlier, protocol-compatible parent for the reply's own type; a matching id
+that fails either check is described only as an observed reference, never as a
+verified relationship, and a parent absent from the loaded timeline is never
+asserted to be outside the API's bounded window — only that it is not present
+in what is currently loaded. The active card is visually tied to the
+participant marked `Working`.
+
+Expanded cards are intended to later expose linked evidence and raw artifacts;
+the cockpit does not yet implement that expand interaction, only the bounded
+legacy-details disclosure described above.
 
 The timeline is reconstructed from durable events. It does not rely on the
 continued availability of either provider's native conversation history.

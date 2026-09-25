@@ -47,6 +47,7 @@ function toCard(message: CollaborationMessageTimelineResponse): CollaborationTim
     inReplyToMessageId: message.inReplyToMessageId ?? null,
     summary: message.summary ?? '',
     details: parseDetails(message.structuredContentJson),
+    structuredContentJson: message.structuredContentJson ?? '',
     provenance: message.provenance ?? '',
     occurredAtUtc: (message.occurredAtUtc as unknown as string) ?? '',
   }

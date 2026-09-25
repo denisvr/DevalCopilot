@@ -7,83 +7,112 @@ another chat. It is a checkpoint, not a substitute for the
 [accepted decisions](../decisions/README.md). Repository and agent reports are
 evidence, not authority.
 
-## Delivered baseline (2026-09-25)
+## Delivered baseline (2026-09-25): typed collaboration evidence cards
 
-- Branch: `main`. Delivered slice: a durable run-wide Agent claim budget —
-  every run gets a default maximum of 16 claimed Agent attempts, spanning all
-  six Agent-claiming paths (Planner proposal, Claude critical review, Codex
-  challenge resolution, Claude implementation, Codex implementation review,
-  Claude review correction). Every claim permanently consumes one
-  `Attempt.AgentBudgetSlot`, unique per run; an additive migration backfills
-  historical attempts and raises any historical run's maximum to at least its
-  real usage. A lost race for one slot is classified as
-  `agent_attempts.budget_slot_conflict` (safe, retryable) when the run is not
-  actually at its maximum, and as `agent_attempts.budget_exhausted` only when
-  it genuinely is — re-derived from fresh persisted state on every claim
-  handler, never inferred from the exception alone. The cockpit exposes
-  used/maximum/exhausted state and a clear human next action, kept distinct
-  from the existing review-correction budget. See
-  [ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md)
-  for the accepted design and its rejected alternatives, and the
+- Branch: `main`. Delivered slice: the cockpit's `AgentCollaboration` surface
+  now renders `Challenge`, `Decision`, `ReviewFinding`, and `RevisionResponse`
+  cards with their bounded structured fields as readable labels, including
+  `Decision.resolution`'s closed enum (`accepted`, `partiallyAccepted`,
+  `rejected`, matching `ChallengeResolutionOutputSchema` exactly); any other
+  value fails closed to the existing unavailable-details fallback rather than
+  rendering as if it were a valid protocol value. Every card type's readable
+  label and reply-parent verification now mirrors the complete, current
+  `CollaborationMessageType` enum and `CollaborationMessageReplyPolicy`
+  exactly, including `ReviewApproval` (verified only against an
+  `ExecutionReport` parent) and the `Proposal`/`ExecutionReport` reply shapes
+  audited during review. A reply is described as verified only when its
+  parent is both present in the currently loaded timeline and an earlier,
+  protocol-compatible parent for the reply's own type; a matching id that
+  fails either check is described only as an observed reference, and a parent
+  absent from the loaded timeline is described only as not present in what is
+  currently loaded — never asserted to be outside the API's bounded window,
+  since absence does not prove that. See the
   [collaboration protocol](../architecture/agent-collaboration-protocol.md)
-  and [delivery plan](mvp-delivery-plan.md) for how it is documented.
-- Delivered commit: `feat: add durable run-wide agent claim budget`, the
-  commit containing this handoff and the slice above. Resolve its exact SHA
-  with `git log -1 --format=%H -- docs/roadmap/current-work.md`. A commit
-  cannot embed its own SHA without changing that SHA; the final delivery
-  report states the resolved literal hash. Its parent chain runs through
-  `a0ce17a71a002f337b8d5167f83dbb1a0995d40d` (`docs: record deferred product
-  ideas`) and `f0af8d2` (`feat: record durable agent token usage evidence`).
+  ("Version 1.0 reply semantics") and the
+  [cockpit specification](../product/run-cockpit-specification.md)
+  ("Collaboration timeline") for the accepted, corrected description, which
+  keeps this implemented behavior distinct from the still-aspirational
+  linked-evidence/raw-artifact expand interaction.
+- Delivered commit: `feat: add typed collaboration evidence cards`. Resolve
+  its exact SHA with `git log -1 --format=%H -- docs/roadmap/current-work.md`
+  — a commit cannot embed its own SHA without changing that SHA. Its parent is
+  `80c908c6fbaeb5fc7a27e47b8d92fa2a7da8165f` (`feat: add durable run-wide
+  agent claim budget`; see the prior delivered slice below).
 - At delivery, `HEAD` and `origin/main` resolve to that commit and
   `git status --short` is empty. Remaining uncommitted work: none expected.
   If either condition differs on resume, inspect Git and the diff before
   editing; never reset work merely to match this page.
-- Codex planner/reviewer verdict: GO, including the concurrency corrections
-  (isolating the `(RunId, AgentBudgetSlot)` index in the race proof, and
-  distinguishing a safe below-maximum slot conflict from genuine exhaustion).
-  This handoff records that delivered, reviewed state; it does not itself
-  select or approve any further slice.
+- Codex planner/reviewer verdict: GO, after three review rounds that
+  corrected: `Decision.resolution`'s closed values (an invalid capitalized
+  fixture, and a missing fail-closed check for unknown resolutions); the
+  reply-parent truthfulness of both the UI copy and the documentation (never
+  asserting a present-but-forward or present-but-incompatible parent as
+  verified, and never asserting an absent parent is outside the bounded
+  window); the frontend reply-parent table and protocol documentation against
+  the real `CollaborationMessageReplyPolicy` (a revised Proposal's Proposal
+  parent, and `ExecutionReport`'s real Proposal-reply path); and a complete
+  audit against the current `CollaborationMessageType` enum that found and
+  fixed one remaining omission (`ReviewApproval`). This handoff records that
+  delivered, reviewed state; it does not itself select or approve any further
+  slice.
 
 ## Evidence actually run
 
-- Backend: Domain 497/497; Application 882/882;
-  Infrastructure.IntegrationTests 392/393 (one pre-existing
-  platform-capability skip, unrelated to this slice); Api.IntegrationTests
-  254/254. Release build passed with 0 warnings. `dotnet format
-  --verify-no-changes` passed for every touched backend project.
-- Frontend: 390 tests passed, plus typecheck and a production build.
-- NSwag regenerated the client as part of the Release build; the additive
-  migration was generated with `dotnet ef migrations add` and hand-reviewed
-  for its backfill SQL. `dotnet ef migrations has-pending-model-changes`
-  reported no pending model changes — migration and model agree.
-  `git diff --cached --check` reported no whitespace errors before commit
-  (only pre-existing CRLF-normalization notices, not whitespace errors).
-- The budget-slot race classification is covered by both a genuine
-  two-`DbContext` SQLite race (with distinct `AttemptNumber` values isolating
-  the `(RunId, AgentBudgetSlot)` index from the unrelated `(RunId,
-  AttemptNumber)` and one-`Running`-attempt indexes) and a canary test proving
-  the race would silently succeed without that index, plus, per claim
-  handler, deterministic race-injection tests for both the safe-conflict and
-  genuine-exhaustion branches. All tests used disposable file-backed SQLite
-  and deterministic provider doubles, never the real local database or an
-  authenticated provider invocation.
+- Frontend only: 405 tests passed across 48 files (focused runs of the
+  changed files' own suites also passed at each review round); typecheck
+  clean; production build passed; lint (`oxlint`) exited 0 with 20
+  pre-existing warnings, all confined to files this slice never touched (0 in
+  changed files). `git diff --check` reported no whitespace errors (only
+  pre-existing CRLF-normalization notices, not whitespace errors), checked
+  fresh after every correction round, including the final one before commit.
+- Backend, API, persistence, the generated NSwag client, and provider
+  behavior did not change in this slice — confirmed by the diff scope itself
+  (frontend cockpit files and documentation only; no `src/backend`,
+  `tests/DevalCopilot.*` backend projects, migrations, or generated-client
+  changes). Backend test suites (Domain, Application, Infrastructure
+  integration, Api integration) were accordingly **not rerun** for this
+  frontend-only slice; their evidence remains whatever the prior delivered
+  slice below recorded.
 
 ## Open limits and next action
 
-- Codex CLI token usage remains `Unknown`: no authoritative local contract
-  was proven. Claude usage is best-effort, not account usage; token-budget
-  enforcement and account-usage stop guardrails remain open. Increment 4 is
-  not complete. Gemini execution remains disabled by
-  [ADR-0011](../decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md).
-- The Agent claim budget delivered here has no human-authorization override
-  (unlike review correction): exhaustion is a hard stop for a run's remaining
-  Agent-claiming paths. Automatic cancellation, retry, or provider fallback in
-  response to exhaustion remain out of scope.
+- The cockpit does not yet implement an expand/collapse interaction beyond
+  the bounded legacy-details disclosure; linked evidence and raw artifacts
+  remain aspirational specification, not current behavior (see the cockpit
+  specification).
+- Reply verification is a display-only re-check of the backend's own closed
+  policy; it never invalidates or corrects durable data, and a run whose
+  loaded timeline window does not yet include a real parent will show that
+  parent as merely "not present" until it loads, not as confirmed missing.
+- Prior open limits carry forward unchanged: Codex CLI token usage remains
+  `Unknown`; Claude usage is best-effort, not account usage; token-budget
+  enforcement and account-usage stop guardrails remain open; Increment 4 is
+  not complete; Gemini execution remains disabled by
+  [ADR-0011](../decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md);
+  the Agent claim budget has no human-authorization override.
 - Next action: the Codex planner/reviewer verifies this delivered baseline
   against Git, then selects and approves a bounded next Increment 4 slice
   from the [roadmap](mvp-delivery-plan.md). No next slice is approved by this
   handoff. Claude implements only a subsequently approved execution prompt;
   it does not set the roadmap or accept its own work.
+
+## Prior delivered slice (2026-09-25): durable run-wide Agent claim budget
+
+- Delivered commit: `feat: add durable run-wide agent claim budget`
+  (`80c908c6fbaeb5fc7a27e47b8d92fa2a7da8165f`). Every run gets a default
+  maximum of 16 claimed Agent attempts, spanning all six Agent-claiming
+  paths; every claim permanently consumes one `Attempt.AgentBudgetSlot`,
+  unique per run; an additive migration backfills historical attempts and
+  raises any historical run's maximum to at least its real usage. A lost
+  race for one slot is classified as `agent_attempts.budget_slot_conflict`
+  (safe, retryable) below the maximum, and as `agent_attempts.budget_exhausted`
+  only when the run is genuinely at capacity. See
+  [ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md).
+- Evidence at delivery: Domain 497/497; Application 882/882;
+  Infrastructure.IntegrationTests 392/393 (one pre-existing
+  platform-capability skip); Api.IntegrationTests 254/254; frontend 390/390
+  plus typecheck and production build; Release build 0 warnings; `dotnet ef
+  migrations has-pending-model-changes` reported no pending model changes.
 
 ## Closure rule for future slices
 

@@ -590,6 +590,36 @@
   margin-top: 0.75rem;
 }
 
+.dc-card-structured-content {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.75rem 0 0;
+}
+
+.dc-card-structured-content div {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.dc-card-structured-content dt {
+  color: var(--dc-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dc-card-structured-content dd {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.dc-card-details-unavailable {
+  margin: 0.75rem 0 0;
+  color: var(--dc-text-muted);
+  font-size: 0.8rem;
+}
+
 .dc-card-details summary {
   cursor: pointer;
 }

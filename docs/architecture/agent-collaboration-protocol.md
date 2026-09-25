@@ -209,6 +209,22 @@ automated tests use deterministic adapters and doubles and never invoke a real
 provider. The durable envelopes do not authorize automatic verification,
 publication, fallback, or parallel execution.
 
+The cockpit presents the bounded `Challenge`, `Decision`, `ReviewFinding`, and
+`RevisionResponse` fields as typed cards, including `Decision.resolution`'s own
+closed enum (`accepted`, `partiallyAccepted`, `rejected` — see
+`ChallengeResolutionOutputSchema`); any other value fails closed rather than
+rendering as if it were a valid protocol value. A reply is presented as a
+verified parent relationship only when the parent message is both present in
+the current run's currently loaded timeline and an earlier, protocol-compatible
+parent for the reply's own type per the reply-semantics table below; a matching
+id that fails either check is reported only as an observed reference, never
+reconstructed into an asserted relationship. A parent absent from the loaded
+timeline is reported only as not present in what is currently loaded — never
+asserted to be outside the API's bounded window, since its absence does not
+prove that. The presentation never adds affected paths to the durable
+`ReviewFinding` ledger and never treats malformed or unknown structured content
+as a semantic fact.
+
 ## Message types
 
 ### Proposal
@@ -273,19 +289,23 @@ Orchestrator, and never carries arbitrary instruction text.
 
 ## Version 1.0 reply semantics
 
-The durable ledger validates each reply against this closed relationship table.
-A proposal starts a thread and cannot reply. Every other message type must reply
-to an earlier message in the same run.
+The durable ledger validates each reply against this closed relationship table
+(`CollaborationMessageReplyPolicy`). A root proposal starts a thread with no
+reply; a revised proposal instead replies to the exact prior proposal it
+supersedes, so a proposal's own reply is optional, never forbidden. Every
+other message type must reply to an earlier message in the same run.
 
 | Message type | Allowed parent type |
 |---|---|
+| Proposal (revised only; a root proposal has no parent) | Proposal |
 | Acceptance, Challenge | Proposal |
 | Decision | Proposal or Challenge |
-| Execution report | Decision |
+| Execution report | Decision or Proposal (the current Increment 4 Implementer path always replies to Proposal; Decision remains the aspirational later full-loop shape) |
 | Review finding | Execution report |
 | Revision response | Review finding |
 | Question | Proposal, Challenge, Decision, Execution report, or Review finding |
 | Escalation | Proposal, Challenge, Decision, Execution report, Review finding, Revision response, or Question |
+| Review approval | Execution report |
 | Human instruction | Escalation |
 
 Question and escalation are therefore bounded by the fact that needs an answer

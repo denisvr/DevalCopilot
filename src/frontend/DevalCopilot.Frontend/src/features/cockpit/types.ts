@@ -26,6 +26,7 @@ export interface CollaborationTimelineCard {
   inReplyToMessageId: string | null
   summary: string
   details: string[]
+  structuredContentJson?: string
   provenance: string
   occurredAtUtc: string
 }

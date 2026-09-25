@@ -528,6 +528,45 @@ describe('RunCockpitView', () => {
     })
   })
 
+  it('exposes typed findings and revision responses through the real cockpit collaboration surface', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: runningCockpit,
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+    })
+    useCollaborationTimelineMock.mockReturnValue({
+      cards: [
+        providerObservedCodexProposal({
+          id: 'finding-1',
+          type: 'ReviewFinding',
+          summary: 'The input guard is missing.',
+          structuredContentJson: '{"severity":"high","category":"correctness","evidence":"The input is unchecked.","requiredChange":"Add the guard."}',
+        }),
+        providerObservedCodexProposal({
+          sequence: 2,
+          id: 'response-1',
+          type: 'RevisionResponse',
+          summary: 'The guard was added.',
+          inReplyToMessageId: 'finding-1',
+          structuredContentJson: '{"disposition":"Fixed","evidence":"The guard rejects invalid input.","resultingSourceChanges":"Added the guard."}',
+        }),
+      ],
+      loading: false,
+      error: null,
+      hasSuccessfulResponse: true,
+    })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByText('The input guard is missing.')).toBeInTheDocument()
+    expect(screen.getByText('The guard was added.')).toBeInTheDocument()
+    expect(screen.getByText('Required change')).toBeInTheDocument()
+    expect(screen.getByText('In reply to Review finding message finding-1: The input guard is missing.')).toBeInTheDocument()
+  })
+
   describe('Claude critical review wiring', () => {
     it('withholds the request action until a real Codex Proposal exists for this run', () => {
       useRunCockpitMock.mockReturnValue({
