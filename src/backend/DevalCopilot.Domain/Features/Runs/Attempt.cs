@@ -871,12 +871,17 @@ public sealed class Attempt
     public string? AgentTokenUsageSchemaVersion { get; private set; }
 
     /// <summary>Returns the recorded provider-reported token-usage evidence, or
-    /// <see langword="null"/> when it is absent or its persisted shape is not valid evidence — an
+    /// <see langword="null"/> when it is absent, its persisted shape is not valid evidence — an
     /// inconsistent row (for example a missing required member, a negative count, or an unsupported
-    /// provider/schema pair) is reported as
-    /// unknown rather than partially trusted. Non-Agent attempts never have this evidence.</summary>
+    /// provider/schema pair) is reported as unknown rather than partially trusted — or the attempt
+    /// has not yet concluded. A still-<see cref="AttemptStatus.Running"/> or never-dispatched
+    /// (<see cref="AgentDispatchedAtUtc"/> is <see langword="null"/>) attempt always reports unknown
+    /// usage here, even when its persisted row already carries seemingly well-formed token fields
+    /// (for example a corrupted or prematurely populated row) — non-terminal evidence is never
+    /// trusted by any caller of this method, mirroring the run-wide token-usage summary's own rule.
+    /// Non-Agent attempts never have this evidence.</summary>
     public AgentTokenUsageEvidence? GetAgentTokenUsageEvidence() =>
-        Kind != AttemptKind.Agent
+        Kind != AttemptKind.Agent || Status == AttemptStatus.Running || AgentDispatchedAtUtc is null
             ? null
             : AgentTokenUsageEvidence.FromPersisted(
                 AgentProvider, AgentInputTokens, AgentOutputTokens, AgentCacheCreationInputTokens,

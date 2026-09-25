@@ -15,9 +15,13 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// Exercises the provider-reported token usage exposed by the Agent status endpoints and the run
 /// cockpit through the real MVC pipeline: per-attempt usage is a bounded sibling of the semantic
 /// outcome and the process evidence, absent usage is explicit, the internal schema version never
-/// reaches a response, and the run-level summary distinguishes Complete, Partial, and
-/// NoDispatchedAttempts so a partial sum is never presented as the run's total. Background
-/// supervisors are removed by the factory, so every attempt below is seeded before a request.
+/// reaches a response, and the run-level summary distinguishes Complete, Partial, PendingEvidence, and
+/// NoDispatchedAttempts so a partial sum is never presented as the run's total. Most scenarios in this
+/// file use terminal attempts; see <c>RunTokenUsageSummaryEndpointTests</c> for the run-wide
+/// pending-attempt and pending-vs-terminal-unknown scenarios, and the two still-running/undispatched
+/// cases near the end of this file for the equivalent fail-closed proof on a single attempt's own
+/// status and cockpit <c>latestAgentAttempt</c> projection. Background supervisors are removed by
+/// the factory, so every attempt below is seeded before a request.
 /// </summary>
 public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factory)
     : IClassFixture<ApiWebApplicationFactory>
@@ -28,8 +32,9 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
     private static readonly HashSet<string> UsageFields = ["inputTokens", "outputTokens", "cacheCreationInputTokens", "cacheReadInputTokens"];
     private static readonly HashSet<string> SummaryFields =
     [
-        "completeness", "attemptsWithKnownUsage", "attemptsWithUnknownUsage", "inputTokens", "outputTokens",
-        "cacheCreationInputTokens", "cacheReadInputTokens",
+        "completeness", "attemptsWithKnownUsage", "attemptsWithUnknownUsage", "pendingAttemptCount",
+        "terminalAttemptsWithUnknownUsage", "inputTokens", "outputTokens", "cacheCreationInputTokens",
+        "cacheReadInputTokens",
     ];
 
     private static readonly AgentTokenUsageEvidence Usage = AgentTokenUsageEvidence.Create(1200, 345, 67, 890, SchemaVersionSentinel);
@@ -330,6 +335,74 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         Assert.Equal(0, summary.GetProperty("attemptsWithKnownUsage").GetInt32());
         Assert.Equal(1, summary.GetProperty("attemptsWithUnknownUsage").GetInt32());
         Assert.Equal(0, summary.GetProperty("inputTokens").GetInt64());
+        AssertNoDisclosure(statusBody);
+        AssertNoDisclosure(cockpitBody);
+    }
+
+    // The fail-closed rule already proven for the run-wide summary (RunTokenUsageSummaryEndpointTests)
+    // must hold for a single attempt's own status/cockpit projection too: a still-Running attempt's
+    // persisted row is never trusted, even when every token field already looks well-formed (a
+    // corrupted or prematurely populated row) — reachable only through tampering or a bug, since this
+    // application only ever writes usage fields in the same transaction as a terminal transition.
+    [Fact]
+    public async Task A_still_running_attempts_well_formed_persisted_usage_is_unknown_in_status_and_cockpit()
+    {
+        var runId = await SeedRunAsync();
+        await AddAttemptAsync(runId, 1, AgentResponseContract.CriticalReview, AgentOutcome.ProviderInvocationFailed, usage: null);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE attempts
+                   SET Status = {nameof(AttemptStatus.Running)}, AgentOutcome = NULL, CompletedAtUtc = NULL,
+                       AgentInputTokens = {1200}, AgentOutputTokens = {345},
+                       AgentCacheCreationInputTokens = {67}, AgentCacheReadInputTokens = {890},
+                       AgentTokenUsageSchemaVersion = {SchemaVersionSentinel}
+                   WHERE RunId = {runId}");
+        }
+
+        var statusBody = await GetOkBodyAsync($"/api/runs/{runId}/agent-attempts/claude-critical-review");
+        using var status = JsonDocument.Parse(statusBody);
+        var statusUsage = status.RootElement.GetProperty("tokenUsage");
+        Assert.All(UsageFields, field => Assert.Equal(JsonValueKind.Null, statusUsage.GetProperty(field).ValueKind));
+
+        var cockpitBody = await GetOkBodyAsync($"/api/runs/{runId}/cockpit");
+        using var cockpit = JsonDocument.Parse(cockpitBody);
+        var latestUsage = cockpit.RootElement.GetProperty("latestAgentAttempt").GetProperty("tokenUsage");
+        Assert.All(UsageFields, field => Assert.Equal(JsonValueKind.Null, latestUsage.GetProperty(field).ValueKind));
+        var summary = cockpit.RootElement.GetProperty("tokenUsageSummary");
+        Assert.Equal("PendingEvidence", summary.GetProperty("completeness").GetString());
+        AssertNoDisclosure(statusBody);
+        AssertNoDisclosure(cockpitBody);
+    }
+
+    // The dispatch-side half of the same rule: a never-dispatched attempt's persisted row must never
+    // be trusted either, even if it is already terminal and its token fields already look well-formed.
+    [Fact]
+    public async Task An_undispatched_attempts_well_formed_persisted_usage_is_unknown_in_status_and_cockpit()
+    {
+        var runId = await SeedRunAsync();
+        await AddAttemptAsync(runId, 1, AgentResponseContract.Proposal, AgentOutcome.SourceChanged, usage: null, dispatched: false);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE attempts
+                   SET AgentInputTokens = {2400}, AgentOutputTokens = {120},
+                       AgentCacheCreationInputTokens = {(int?)null}, AgentCacheReadInputTokens = {(int?)null},
+                       AgentTokenUsageSchemaVersion = {AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion}
+                   WHERE RunId = {runId}");
+        }
+
+        var statusBody = await GetOkBodyAsync($"/api/runs/{runId}/agent-attempts/codex-plan");
+        using var status = JsonDocument.Parse(statusBody);
+        var statusUsage = status.RootElement.GetProperty("tokenUsage");
+        Assert.All(UsageFields, field => Assert.Equal(JsonValueKind.Null, statusUsage.GetProperty(field).ValueKind));
+
+        var cockpitBody = await GetOkBodyAsync($"/api/runs/{runId}/cockpit");
+        using var cockpit = JsonDocument.Parse(cockpitBody);
+        var latestUsage = cockpit.RootElement.GetProperty("latestAgentAttempt").GetProperty("tokenUsage");
+        Assert.All(UsageFields, field => Assert.Equal(JsonValueKind.Null, latestUsage.GetProperty(field).ValueKind));
         AssertNoDisclosure(statusBody);
         AssertNoDisclosure(cockpitBody);
     }

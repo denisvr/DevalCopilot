@@ -982,27 +982,71 @@ object beside `outcome` and `processExecution` — `inputTokens`,
 `outputTokens`, `cacheCreationInputTokens`, and `cacheReadInputTokens`, each
 null while unknown. The schema version is internal provenance and is never
 exposed, and no path, argument, environment value, output, session
-identifier, or credential is included.
+identifier, or credential is included. This per-attempt projection shares the
+same fail-closed rule as the run-wide summary below, and shares it through a
+single Domain-level source of truth rather than a duplicated check:
+`Attempt.GetAgentTokenUsageEvidence()` itself reports unknown usage whenever
+the attempt is still `Running` or has never been dispatched
+(`AgentDispatchedAtUtc` is `null`), even when its persisted row already
+carries seemingly well-formed token fields (for example a corrupted or
+prematurely-populated row) — every one of the per-role status endpoints
+(planner, critical review, challenge resolution, code review, implementation,
+review correction) and the run cockpit's own `latestAgentAttempt.tokenUsage`
+call this same method, so the guarantee holds identically everywhere a single
+attempt's usage is projected, not only in the run-wide accumulator.
 
 The run cockpit also exposes a `tokenUsageSummary` across every dispatched
 Agent attempt of the run, with `attemptsWithKnownUsage`,
 `attemptsWithUnknownUsage`, and sums over the known attempts only. Its
 `completeness` is `NoDispatchedAttempts` when nothing has been dispatched,
-`Complete` only when every dispatched attempt has known usage, and `Partial`
-otherwise. Only a `Complete` summary is ever presented as the run's total; a
-`Partial` sum is shown as partial with the number of attempts it covers.
-The cockpit streams the bounded usage columns of dispatched attempts into a
-constant-memory aggregate; it neither imposes a row cap nor materializes
-all attempts to compute the summary.
+`Complete` only when every dispatched attempt is terminal and has known usage,
+`PendingEvidence` when at least one dispatched attempt is still running and
+every terminal attempt observed so far has known usage, and `Partial`
+whenever at least one *terminal* attempt lacks known usage (with or without
+other attempts still running). Only a `Complete` summary is ever presented as
+the run's total; a `Partial` or `PendingEvidence` sum is shown as covering
+only the number of attempts it actually includes. `PendingEvidence` is kept
+distinct from `Partial`: nothing has failed to report usage in that state,
+some dispatched attempts simply have not concluded yet — a still-`Running`
+attempt's usage is never trusted, even when its persisted row already
+carries seemingly-valid token fields (for example from a corrupted or
+prematurely-populated row); only a terminal attempt's usage evidence is ever
+summed or counted as known.
+
+`attemptsWithUnknownUsage` keeps its original, broader meaning — every
+dispatched attempt without known usage, for any reason — so no existing
+reader of that field is broken by this distinction. Two additional bounded
+counts split it further without replacing it: `pendingAttemptCount` (still
+running; not a failure) and `terminalAttemptsWithUnknownUsage` (concluded
+without a trusted usage contract; a genuine gap). `attemptsWithUnknownUsage`
+always equals `pendingAttemptCount` plus `terminalAttemptsWithUnknownUsage`.
+The read side passes each dispatched attempt's own terminal status alongside
+its usage evidence into the same one-pass, constant-memory accumulator used
+before; it neither imposes a row cap nor materializes all attempts to compute
+the summary.
 A Codex-dispatched attempt whose invocation captured a clean, complete,
 unambiguous terminal `turn.completed` event now reports known usage like a
-Claude-dispatched attempt does; a run's summary is `Partial` only when at
-least one dispatched attempt's provider genuinely reported nothing, or
+Claude-dispatched attempt does; a run's summary reports a terminal-unknown
+attempt only when that attempt's provider genuinely reported nothing, or
 reported it in a shape this evidence policy does not trust — never merely
-because the attempt's provider is Codex. This slice records and displays
-evidence only; it adds no token budget, threshold, warning, or stop
-guardrail. Provider-reported per-invocation tokens are not account usage,
-cost, or an enforceable token budget for either provider.
+because the attempt's provider is Codex, and never because the attempt simply
+has not finished yet. This slice records and displays evidence only; it adds
+no token budget, threshold, warning, or stop guardrail. Provider-reported
+per-invocation tokens are not account usage, cost, or an enforceable token
+
+The cockpit's presentation of a `Partial` or `PendingEvidence` summary names
+`pendingAttemptCount` and `terminalAttemptsWithUnknownUsage` separately rather
+than folding them into one undifferentiated gap: a still-running attempt is
+always described as "still running," a concluded attempt with no trusted
+usage contract is always described as having "concluded without usable
+token-usage evidence," and both clauses are shown together only when both
+counts are genuinely nonzero (a run with known, pending, and terminal-unknown
+attempts at once). When `attemptsWithKnownUsage` is zero, the presentation
+shows no numeric token count at all — the summary's zero-valued sums in that
+state reflect an unpopulated accumulator, not a provider-reported zero — and
+once at least one attempt has known usage its sum is always shown exactly as
+reported, including a genuine zero.
+budget for either provider.
 
 ## Token efficiency
 

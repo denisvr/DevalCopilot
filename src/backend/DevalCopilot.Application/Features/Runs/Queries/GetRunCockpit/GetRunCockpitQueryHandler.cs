@@ -70,9 +70,11 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
         // read — never a prompt, output, path, or session identifier. Each row is reconstructed
         // through the same Domain rules as Attempt.GetAgentTokenUsageEvidence and
         // Attempt.GetAgentProcessExecutionEvidence, so an inconsistent row counts as unknown
-        // usage/evidence rather than being partially summed. One projection and one pass feed both
-        // accumulators below, keeping this bounded to a minimal per-attempt shape rather than
-        // materializing full Attempt entities or querying twice.
+        // usage/evidence rather than being partially summed. The attempt's own Status is passed
+        // alongside its usage so a still-Running attempt is always bucketed as pending, never as
+        // known usage, even if its persisted row already carries seemingly-valid token fields. One
+        // projection and one pass feed both accumulators below, keeping this bounded to a minimal
+        // per-attempt shape rather than materializing full Attempt entities or querying twice.
         var dispatchedAttemptEvidence = dbContext.Attempts
             .AsNoTracking()
             .Where(attempt => attempt.RunId == run.Id && attempt.Kind == AttemptKind.Agent && attempt.AgentDispatchedAtUtc != null)
@@ -95,13 +97,15 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
         var processDurationAccumulator = new RunCockpitAgentProcessDurationAccumulator();
         await foreach (var attempt in dispatchedAttemptEvidence.WithCancellation(cancellationToken))
         {
-            tokenUsageAccumulator.Add(AgentTokenUsageEvidence.FromPersisted(
-                attempt.AgentProvider,
-                attempt.AgentInputTokens,
-                attempt.AgentOutputTokens,
-                attempt.AgentCacheCreationInputTokens,
-                attempt.AgentCacheReadInputTokens,
-                attempt.AgentTokenUsageSchemaVersion));
+            tokenUsageAccumulator.Add(
+                attempt.Status,
+                AgentTokenUsageEvidence.FromPersisted(
+                    attempt.AgentProvider,
+                    attempt.AgentInputTokens,
+                    attempt.AgentOutputTokens,
+                    attempt.AgentCacheCreationInputTokens,
+                    attempt.AgentCacheReadInputTokens,
+                    attempt.AgentTokenUsageSchemaVersion));
 
             AgentProcessExecutionEvidence? processEvidence = null;
             if (attempt.AgentProcessOutcome is { } processOutcome

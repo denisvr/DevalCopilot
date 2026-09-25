@@ -212,6 +212,81 @@ public sealed class AgentTokenUsageMigrationTests : IDisposable
         Assert.Null(persisted.GetAgentTokenUsageEvidence());
     }
 
+    // The fail-closed rule this pass extends from the run-wide summary to every single-attempt read
+    // path: Attempt.GetAgentTokenUsageEvidence() itself must never trust a persisted row's token
+    // fields while the attempt has not concluded — even when every field is otherwise well-formed,
+    // exactly the shape a genuine terminal attempt would have. This can only happen through a
+    // concurrent partial write, a bug, or manual tampering, never through this application's own
+    // recording path (which only ever writes usage fields in the same transaction as a terminal
+    // status transition) — so the row is constructed directly here rather than through the Domain API.
+    [Fact]
+    public async Task A_still_running_attempts_well_formed_persisted_usage_is_never_trusted()
+    {
+        var now = new DateTimeOffset(2026, 9, 25, 9, 0, 0, TimeSpan.Zero);
+        var attemptId = Guid.NewGuid();
+        await using (var context = CreateContext())
+        {
+            await context.Database.MigrateAsync();
+            var project = Project.Register(Guid.NewGuid(), "Running usage guard", $@"C:\repos\running-usage-guard-{Guid.NewGuid():N}", now);
+            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Running usage", now);
+            context.Projects.Add(project);
+            context.Runs.Add(run);
+            await context.SaveChangesAsync();
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts
+                       (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments, AgentProvider,
+                        AgentResponseContract, AgentDispatchedAtUtc, AgentInputTokens, AgentOutputTokens,
+                        AgentCacheCreationInputTokens, AgentCacheReadInputTokens, AgentTokenUsageSchemaVersion)
+                   VALUES
+                       ({attemptId}, {run.Id}, {1}, {nameof(AttemptKind.Agent)}, {nameof(AttemptStatus.Running)}, {now}, {""},
+                        {nameof(AgentProvider.ClaudeCode)}, {nameof(AgentResponseContract.CriticalReview)}, {now},
+                        {1200}, {345}, {67}, {890}, {"claude-cli-usage-v1"})");
+        }
+
+        await using var reopened = CreateContext();
+        var persisted = await reopened.Attempts.AsNoTracking().SingleAsync(attempt => attempt.Id == attemptId);
+        Assert.Equal(AttemptStatus.Running, persisted.Status);
+        Assert.NotNull(persisted.AgentDispatchedAtUtc);
+        Assert.Equal(1200, persisted.AgentInputTokens);
+        Assert.Null(persisted.GetAgentTokenUsageEvidence());
+    }
+
+    // The dispatch-side half of the same rule: a never-dispatched attempt's persisted row must never
+    // be trusted either, even if it is already terminal and its token fields already look well-formed
+    // (again, only reachable through tampering or a bug, since this application only ever writes usage
+    // fields for a dispatched attempt).
+    [Fact]
+    public async Task An_undispatched_attempts_well_formed_persisted_usage_is_never_trusted_even_when_terminal()
+    {
+        var now = new DateTimeOffset(2026, 9, 25, 9, 30, 0, TimeSpan.Zero);
+        var attemptId = Guid.NewGuid();
+        await using (var context = CreateContext())
+        {
+            await context.Database.MigrateAsync();
+            var project = Project.Register(Guid.NewGuid(), "Undispatched usage guard", $@"C:\repos\undispatched-usage-guard-{Guid.NewGuid():N}", now);
+            var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Undispatched usage", now);
+            context.Projects.Add(project);
+            context.Runs.Add(run);
+            await context.SaveChangesAsync();
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO attempts
+                       (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, CompletedAtUtc, ProcessArguments, AgentProvider,
+                        AgentResponseContract, AgentDispatchedAtUtc, AgentInputTokens, AgentOutputTokens,
+                        AgentCacheCreationInputTokens, AgentCacheReadInputTokens, AgentTokenUsageSchemaVersion)
+                   VALUES
+                       ({attemptId}, {run.Id}, {1}, {nameof(AttemptKind.Agent)}, {nameof(AttemptStatus.Failed)}, {now}, {now}, {""},
+                        {nameof(AgentProvider.ClaudeCode)}, {nameof(AgentResponseContract.CriticalReview)}, {(DateTimeOffset?)null},
+                        {1200}, {345}, {67}, {890}, {"claude-cli-usage-v1"})");
+        }
+
+        await using var reopened = CreateContext();
+        var persisted = await reopened.Attempts.AsNoTracking().SingleAsync(attempt => attempt.Id == attemptId);
+        Assert.Equal(AttemptStatus.Failed, persisted.Status);
+        Assert.Null(persisted.AgentDispatchedAtUtc);
+        Assert.Equal(1200, persisted.AgentInputTokens);
+        Assert.Null(persisted.GetAgentTokenUsageEvidence());
+    }
+
     private static void AssertUsageUnknown(Attempt attempt)
     {
         Assert.Null(attempt.AgentInputTokens);

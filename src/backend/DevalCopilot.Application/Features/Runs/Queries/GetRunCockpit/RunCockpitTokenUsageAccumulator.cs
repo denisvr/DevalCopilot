@@ -2,22 +2,35 @@ using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Queries.GetRunCockpit;
 
-/// <summary>One-pass, constant-memory aggregation over dispatched Agent attempts. An absent or
-/// untrusted row contributes only to the unknown count, never to a partial sum.</summary>
+/// <summary>One-pass, constant-memory aggregation over dispatched Agent attempts. A still-
+/// <see cref="AttemptStatus.Running"/> attempt always contributes only to the pending count, even
+/// when its persisted row unexpectedly already carries seemingly-valid usage fields — non-terminal
+/// evidence is never trusted, regardless of what is physically stored. A terminal attempt without
+/// known usage contributes only to the terminal-unknown count, never to a partial sum.</summary>
 internal sealed class RunCockpitTokenUsageAccumulator
 {
     private int _known;
-    private int _unknown;
+    private int _pending;
+    private int _terminalUnknown;
     private long _input;
     private long _output;
     private long? _cacheCreation;
     private long? _cacheRead;
 
-    public void Add(AgentTokenUsageEvidence? usage)
+    public void Add(AttemptStatus status, AgentTokenUsageEvidence? usage)
     {
+        if (status == AttemptStatus.Running)
+        {
+            // A Running attempt has not concluded, so any usage value already sitting in its
+            // persisted row cannot be trusted yet — it is discarded here rather than summed, even
+            // if it happens to already be well-formed.
+            _pending = checked(_pending + 1);
+            return;
+        }
+
         if (usage is null)
         {
-            _unknown = checked(_unknown + 1);
+            _terminalUnknown = checked(_terminalUnknown + 1);
             return;
         }
 
@@ -35,11 +48,18 @@ internal sealed class RunCockpitTokenUsageAccumulator
         }
     }
 
-    public RunCockpitTokenUsageSummary ToSummary() => new(
-        _known == 0 && _unknown == 0
+    public RunCockpitTokenUsageSummary ToSummary()
+    {
+        var unknown = checked(_pending + _terminalUnknown);
+        var completeness = _known == 0 && unknown == 0
             ? RunTokenUsageCompleteness.NoDispatchedAttempts
-            : _unknown == 0
+            : unknown == 0
                 ? RunTokenUsageCompleteness.Complete
-                : RunTokenUsageCompleteness.Partial,
-        _known, _unknown, _input, _output, _cacheCreation, _cacheRead);
+                : _terminalUnknown == 0
+                    ? RunTokenUsageCompleteness.PendingEvidence
+                    : RunTokenUsageCompleteness.Partial;
+
+        return new RunCockpitTokenUsageSummary(
+            completeness, _known, unknown, _pending, _terminalUnknown, _input, _output, _cacheCreation, _cacheRead);
+    }
 }

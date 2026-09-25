@@ -149,6 +149,27 @@ describe('TokenUsageLine', () => {
 
     expect(document.querySelectorAll('.dc-token-usage')).toHaveLength(0)
   })
+
+  // The ordering fix this pass makes: TokenUsageLine's "Known"/"Unknown" attribute and text must
+  // never trust a malformed/tampered usage object that already looks well-formed while the attempt
+  // has not concluded — status is decisive regardless of what the object physically contains.
+  it('never renders a tampered well-formed-looking usage object as known while still running', () => {
+    const tamperedButShapedLikeKnownUsage = new AgentTokenUsageResponse({ inputTokens: 1200, outputTokens: 345 })
+
+    render(<TokenUsageLine tokenUsage={tamperedButShapedLikeKnownUsage} dispatchedAtUtc={dispatchedAtUtc} status="Running" />)
+
+    expect(usageLine()).toHaveTextContent('Token usage not yet recorded')
+    expect(usageLine()).toHaveAttribute('data-token-usage', 'Unknown')
+  })
+
+  it('never renders a tampered well-formed-looking usage object as known for an undispatched attempt', () => {
+    const tamperedButShapedLikeKnownUsage = new AgentTokenUsageResponse({ inputTokens: 2400, outputTokens: 120 })
+
+    render(<TokenUsageLine tokenUsage={tamperedButShapedLikeKnownUsage} dispatchedAtUtc={undefined} status="Failed" />)
+
+    expect(usageLine()).toHaveTextContent('Token usage: none (provider not invoked)')
+    expect(usageLine()).toHaveAttribute('data-token-usage', 'Unknown')
+  })
 })
 
 describe('RunTokenUsageSummary', () => {
@@ -179,6 +200,8 @@ describe('RunTokenUsageSummary', () => {
           completeness: 'Partial',
           attemptsWithKnownUsage: 1,
           attemptsWithUnknownUsage: 1,
+          pendingAttemptCount: 0,
+          terminalAttemptsWithUnknownUsage: 1,
           inputTokens: 1200,
           outputTokens: 345,
         })}
@@ -200,6 +223,28 @@ describe('RunTokenUsageSummary', () => {
     )
 
     expect(screen.getByLabelText('Run token usage')).toHaveTextContent('No token usage data yet')
+  })
+
+  it('never renders a still-running attempt under a total or partial-failure label', () => {
+    render(
+      <RunTokenUsageSummary
+        summary={new RunTokenUsageSummaryResponse({
+          completeness: 'PendingEvidence',
+          attemptsWithKnownUsage: 1,
+          attemptsWithUnknownUsage: 1,
+          pendingAttemptCount: 1,
+          terminalAttemptsWithUnknownUsage: 0,
+          inputTokens: 1000,
+          outputTokens: 200,
+        })}
+      />,
+    )
+
+    const summary = screen.getByLabelText('Run token usage')
+    expect(summary).toHaveAttribute('data-completeness', 'PendingEvidence')
+    expect(summary).toHaveTextContent('still running')
+    expect(summary.textContent).not.toMatch(/Run token total/)
+    expect(summary.textContent).not.toMatch(/no usage evidence/)
   })
 
   it('renders nothing without a summary', () => {

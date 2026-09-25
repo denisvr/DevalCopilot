@@ -3025,6 +3025,8 @@ export class RunTokenUsageSummaryResponse implements IRunTokenUsageSummaryRespon
     completeness?: string;
     attemptsWithKnownUsage?: number;
     attemptsWithUnknownUsage?: number;
+    pendingAttemptCount?: number;
+    terminalAttemptsWithUnknownUsage?: number;
     inputTokens?: number;
     outputTokens?: number;
     cacheCreationInputTokens?: number | undefined;
@@ -3044,6 +3046,8 @@ export class RunTokenUsageSummaryResponse implements IRunTokenUsageSummaryRespon
             this.completeness = _data["completeness"];
             this.attemptsWithKnownUsage = _data["attemptsWithKnownUsage"];
             this.attemptsWithUnknownUsage = _data["attemptsWithUnknownUsage"];
+            this.pendingAttemptCount = _data["pendingAttemptCount"];
+            this.terminalAttemptsWithUnknownUsage = _data["terminalAttemptsWithUnknownUsage"];
             this.inputTokens = _data["inputTokens"];
             this.outputTokens = _data["outputTokens"];
             this.cacheCreationInputTokens = _data["cacheCreationInputTokens"];
@@ -3063,6 +3067,8 @@ export class RunTokenUsageSummaryResponse implements IRunTokenUsageSummaryRespon
         data["completeness"] = this.completeness;
         data["attemptsWithKnownUsage"] = this.attemptsWithKnownUsage;
         data["attemptsWithUnknownUsage"] = this.attemptsWithUnknownUsage;
+        data["pendingAttemptCount"] = this.pendingAttemptCount;
+        data["terminalAttemptsWithUnknownUsage"] = this.terminalAttemptsWithUnknownUsage;
         data["inputTokens"] = this.inputTokens;
         data["outputTokens"] = this.outputTokens;
         data["cacheCreationInputTokens"] = this.cacheCreationInputTokens;
@@ -3075,6 +3081,8 @@ export interface IRunTokenUsageSummaryResponse {
     completeness?: string;
     attemptsWithKnownUsage?: number;
     attemptsWithUnknownUsage?: number;
+    pendingAttemptCount?: number;
+    terminalAttemptsWithUnknownUsage?: number;
     inputTokens?: number;
     outputTokens?: number;
     cacheCreationInputTokens?: number | undefined;

@@ -12,71 +12,88 @@ record of past delivered slices — this page does not restate it.
 changes against this page. Investigate any discrepancy; Git and code prevail
 over a stale summary. Never reset work merely to match this page.
 
-## Latest delivered baseline (2026-09-25): run-wide Agent process-duration evidence summary
+## Latest delivered baseline (2026-09-25): pending-vs-terminal-unknown token-usage evidence, extended to every per-attempt read path
 
-- Branch: `main`. Delivered commit: `feat: add run-wide agent
-  process-duration evidence summary`. Resolve its exact SHA with
-  `git log -1 --format=%H -- docs/roadmap/current-work.md` — a commit cannot
-  embed its own SHA without changing that SHA. Its parent is
-  `ebd9350acb07aa9f09fda558797a3b78d6776a08` (`feat: record Codex CLI token
-  usage evidence`; see the prior delivered slice's own commit for that
-  history).
+- Branch: `main`. Delivered commit: `feat: add pending-vs-terminal-unknown
+  token-usage evidence`. Resolve its exact SHA with `git log -1
+  --format=%H -- docs/roadmap/current-work.md` — a commit cannot embed its
+  own SHA without changing that SHA. Its parent is
+  `850c01d598eeacd2ed8a44c44872fb4f17305a02` (`feat: add run-wide agent
+  process-duration evidence summary`).
 - At delivery, `HEAD` and `origin/main` resolve to that commit and
   `git status --short` is empty. Remaining uncommitted work: none expected.
   If either condition differs on resume, inspect Git and the diff before
   editing; never reset work merely to match this page.
-- Codex-approved (GO) after one correction round (overflow-safe summation
-  classified as a distinct `UnrepresentableTotal` state rather than
-  `MalformedEvidence`, and honest messaging when malformed evidence coexists
-  with still-pending attempts) and a documentation-precision correction pass
-  (the `double` millisecond projection preserves only the zero-vs-positive
-  distinction, not full tick-level precision at every magnitude — the exact
-  sum lives at the Domain level as checked `TimeSpan`/tick arithmetic).
-- Scope: a bounded, read-only, run-wide summary of HOST-MEASURED Agent
-  process-duration evidence in `GetRunCockpit`, alongside the existing
-  token-usage summary and both Agent budgets ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md),
-  [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)).
-  Pure telemetry — never a budget, never enforcing anything. One closed
-  evidence-state enum (`AgentProcessDurationEvidenceStatus`: `NoDispatchedAttempts`,
-  `Complete`, `PendingEvidence`, `PartialEvidence`, `MalformedEvidence`,
-  `UnrepresentableTotal`) plus bounded counts and an optional exact total,
-  non-null only for `Complete`. No ADR added or edited; no migration needed
-  (pure read projection).
-- Files: `AgentProcessDurationEvidenceStatus.cs`,
-  `RunCockpitAgentProcessDurationSummary.cs`,
-  `RunCockpitAgentProcessDurationAccumulator.cs`, `GetRunCockpitQueryHandler.cs`,
-  `GetRunCockpitQueryResult.cs` (Application);
-  `AgentProcessDurationSummaryResponse.cs`, `GetRunCockpitResponse.cs`,
-  `GetRunCockpitEndpoint.cs` (Api); `AgentProcessDurationSummaryBanner.tsx`
-  (+ `.test.tsx`), `RunCockpitView.tsx`, regenerated `api-client.ts`
-  (frontend). Docs: the "Run-wide Agent process-duration evidence summary"
-  section of [agent-collaboration-protocol.md](../architecture/agent-collaboration-protocol.md)
-  and the "Host-measured Agent process-duration summary" subsection of
-  [run-cockpit-specification.md](../product/run-cockpit-specification.md).
-  Tests: `RunCockpitAgentProcessDurationSummaryTests.cs` (Application, 13
-  cases: 11 original + 2 new for `UnrepresentableTotal`),
-  `AgentProcessDurationSummaryEndpointTests.cs` (Api, 9 cases: 5 original + 4
-  new), `AgentProcessDurationSummaryBanner.test.tsx` (12 cases: 7 original +
-  5 new).
-- Checks actually run (most recent pass): `dotnet format
-  DevalCopilot.slnx --verify-no-changes` clean; Release build 0
-  warnings/0 errors; Domain 519/519; Application 930/930 (917 base + 13 in
-  the touched test file); Infrastructure.IntegrationTests 435/436 (one
-  pre-existing platform-capability skip); Api.IntegrationTests 278/278 (269
-  base + 9 new); Architecture 9/9; `dotnet ef migrations
-  has-pending-model-changes` reported no pending changes; frontend 447/447
-  tests (442 base + 5 net new), `tsc --noEmit` clean, production build
-  passed, `oxlint` exited 0 with the same 20 pre-existing warnings (0 new);
-  `git diff --check` clean (only the pre-existing CRLF-normalization notice
-  on `api-client.ts`). No automated test invokes a real provider or model.
-  These are the same checks Codex reviewed before approval; none needed
-  rerunning to close this slice, since no file changed after that pass.
-- Open risks specific to this slice: pure telemetry, not a budget or
-  account-usage measurement; never guarantees a provider process cannot
-  outlive its own configured timeout (same exclusion ADR-0013 states);
-  a still-pending attempt never contributes a partial duration to the total
-  by design; `PartialEvidence`/`PendingEvidence` deliberately show no
-  partial/labeled sum at all.
+- Codex-approved (GO) after two correction rounds: (1) frontend copy —
+  `describeTokenUsage` now names pending vs. terminal-unknown attempts
+  explicitly instead of one undifferentiated "no usage evidence" phrase, and
+  never renders a bare "0 input / 0 output" when zero attempts have known
+  usage (a genuine terminal zero still displays as a real zero); (2) a
+  fail-closed gap found beyond the run-wide summary — every per-role
+  attempt-status endpoint and the cockpit's own `latestAgentAttempt.tokenUsage`
+  read a single attempt's usage through `Attempt.GetAgentTokenUsageEvidence()`,
+  which checked only shape, never whether the attempt had concluded. Fixed at
+  that single shared source (`src/backend/DevalCopilot.Domain/Features/Runs/Attempt.cs`):
+  it now also returns `null` whenever `Status == AttemptStatus.Running` or
+  `AgentDispatchedAtUtc is null`, so a corrupted or prematurely populated row
+  is never trusted regardless of which of the seven call sites reads it. The
+  frontend mirrors this: `describeTokenUsage.ts`/`TokenUsageLine.tsx` now
+  check running/dispatch state before checking whether usage fields look
+  well-formed, via a new exported `hasTrustedTokenUsage(usage, context)`.
+- Scope: tightens the run-wide `tokenUsageSummary` in `GetRunCockpit` so a
+  dispatched Agent attempt still `Running` is never counted as known usage,
+  even when its persisted row already carries seemingly-valid token fields —
+  only a terminal attempt's usage evidence is ever trusted or summed.
+  `RunTokenUsageCompleteness` gains one new, appended member,
+  `PendingEvidence` (at least one dispatched attempt still running; every
+  terminal attempt observed so far has known usage), kept distinct from
+  `Partial` (now: at least one *terminal* attempt lacks known usage).
+  `RunCockpitTokenUsageSummary`/`RunTokenUsageSummaryResponse` gain two
+  additive bounded counts, `PendingAttemptCount`/`pendingAttemptCount` and
+  `TerminalAttemptsWithUnknownUsage`/`terminalAttemptsWithUnknownUsage`; the
+  pre-existing `AttemptsWithUnknownUsage`/`attemptsWithUnknownUsage` field
+  keeps its original, broader meaning (every dispatched attempt without known
+  usage) and always equals the sum of the two new counts — an additive split,
+  not a breaking change; `Completeness` remains a plain `string` wire value,
+  not a generated TS enum. No migration, provider parser, invocation,
+  account-usage inference, token threshold, claim/dispatch gate, or automatic
+  stop behavior was added. The process-duration summary's own files and both
+  ADR-0012/ADR-0013 were not touched.
+- Files: `RunTokenUsageCompleteness.cs`, `RunCockpitTokenUsageAccumulator.cs`,
+  `RunCockpitTokenUsageSummary.cs`, `GetRunCockpitQueryHandler.cs`,
+  `Attempt.cs` (Domain — the shared fail-closed fix) (Application/Domain);
+  `RunTokenUsageSummaryResponse.cs` (Api); `describeTokenUsage.ts` and
+  `TokenUsageLine.tsx` (both modified production frontend files, not just
+  their tests), regenerated `api-client.ts` (frontend). Tests:
+  `RunCockpitTokenUsageSummaryTests.cs`, `AgentTokenUsageEndpointTests.cs`,
+  `AgentTokenUsageMigrationTests.cs`, `describeTokenUsage.test.ts`,
+  `TokenUsageLine.test.tsx` (all extended); new
+  `RunTokenUsageSummaryEndpointTests.cs` (Api). Docs: the token-usage
+  sections of [agent-collaboration-protocol.md](../architecture/agent-collaboration-protocol.md)
+  and [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+- Checks actually run (final validation pass, after both correction rounds):
+  `dotnet format DevalCopilot.slnx --verify-no-changes` clean; Release build
+  0 warnings/0 errors (rebuilt twice, byte-identical `api-client.ts` both
+  times, zero `export enum` occurrences — no API response shape changed by
+  the second correction round); Domain 519/519; Application 939/939;
+  Infrastructure.IntegrationTests 437/438 (one pre-existing
+  platform-capability skip); Api.IntegrationTests 286/286; Architecture 9/9;
+  `dotnet ef migrations has-pending-model-changes` reported no pending
+  changes; frontend 458/458 vitest tests, `tsc --noEmit` clean, `oxlint`
+  exited 0 with the same 20 pre-existing warnings (0 new), `vite build`
+  production build passed; `git diff --check` reported no whitespace errors
+  (only the pre-existing CRLF-normalization notice on `api-client.ts`).
+  `git status --short` confirmed zero diff on every process-duration-summary
+  file and on ADR-0012/ADR-0013. No automated test invokes a real provider or
+  model.
+- Open risks specific to this slice: `Attempt.GetAgentProcessExecutionEvidence()`
+  has the same latent status-blind gap this slice fixed for token-usage
+  evidence (`Attempt.GetAgentTokenUsageEvidence()`), but fixing it was
+  explicitly out of scope here — it is process-duration evidence, not
+  token-usage evidence, and remains unaddressed. The run-wide Agent
+  claim-count budget ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md))
+  and invocation-time budget ([ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md))
+  are unaffected by and independent of this evidence-only change.
 - Next action: this baseline is delivered and Codex-reviewed (GO). The Codex
   planner/reviewer selects and approves the next bounded Increment 4 slice
   from the [roadmap](mvp-delivery-plan.md); no next slice is approved by
@@ -101,6 +118,10 @@ over a stale summary. Never reset work merely to match this page.
   re-check of the backend's closed reply policy; a parent absent from the
   currently loaded timeline window is shown as "not present," never as
   confirmed missing.
+- `Attempt.GetAgentProcessExecutionEvidence()` has the same latent
+  status-blind gap that `Attempt.GetAgentTokenUsageEvidence()` had before the
+  slice above fixed it for token-usage evidence; it has not been corrected
+  for process-duration evidence.
 
 ## Closure rule for future slices
 

@@ -201,6 +201,48 @@ Crossing a warning threshold raises visible attention. Exhausting a hard budget
 prevents a new attempt and creates a durable escalation; it never borrows
 silently from another provider or run.
 
+### Run-wide token-usage evidence summary
+
+A separate, read-only summary sums provider-reported token usage across every
+Agent attempt this run has dispatched — pure evidence, never a budget or
+guardrail. It reports one of four states: no attempt dispatched yet; a
+complete total (every dispatched attempt has concluded and reported known
+usage); attempts still running with no complete picture yet, shown as a
+partial count that is not yet the total (nothing has failed to report usage,
+some attempts simply have not finished); or a genuine partial gap, where at
+least one attempt that has already concluded reported no usable usage. Only
+the complete state is ever labeled a total. A dispatched attempt that is
+still running never contributes its usage to any sum or "known" count, even
+if a corrupted or prematurely-populated record already shows token values for
+it — only a concluded attempt's usage is ever trusted. This lets the cockpit
+tell a reader "still counting" apart from "some attempts never reported
+usage," which the run-total label alone cannot convey.
+
+When a run's gap spans both still-running and concluded-without-usage
+attempts at once, the cockpit names each count separately rather than folding
+them into one phrase — "N attempts concluded without usable token-usage
+evidence" is always distinguished from "N attempts still running," and both
+are shown together only when both are genuinely present. A dispatched attempt
+is never described as a "terminal usage gap" merely because it has not
+concluded yet. When no attempt has reported known usage, the cockpit shows no
+numeric token count at all, rather than displaying an unpopulated zero as if
+the provider had actually reported it; once at least one attempt's usage is
+known, its sum is shown exactly as reported, including a genuine zero. See
+the "Provider token-usage contracts" section of the
+[agent-collaboration-protocol](../architecture/agent-collaboration-protocol.md)
+for its exact evidence-state contract.
+
+This same "never trust a still-running or undispatched attempt's usage" rule
+applies uniformly wherever a single attempt's own token usage is shown, not
+only in this run-wide sum: each role's own status view and the cockpit's
+latest-attempt panel show that attempt's usage as not-yet-recorded (or, when
+undispatched, as no usage at all) whenever the attempt has not concluded,
+even if the underlying record already carries seemingly well-formed token
+values — the presentation logic checks the attempt's own running/dispatched
+state before it ever consults the usage record's shape, so a malformed or
+tampered record cannot be mistaken for genuine usage just because it looks
+complete.
+
 ### Provider account usage guardrails
 
 Account usage is a provider-reported, time-windowed allowance snapshot. Each

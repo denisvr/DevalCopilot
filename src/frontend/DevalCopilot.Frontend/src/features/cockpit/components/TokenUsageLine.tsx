@@ -1,4 +1,4 @@
-import { describeTokenUsage, hasKnownTokenUsage, type TokenUsageView } from '../describeTokenUsage'
+import { describeTokenUsage, hasTrustedTokenUsage, type TokenUsageView } from '../describeTokenUsage'
 
 interface TokenUsageLineProps {
   tokenUsage: TokenUsageView | null | undefined
@@ -12,13 +12,11 @@ interface TokenUsageLineProps {
  * a schema version, path, argument, environment value, output, session identifier, or credential.
  */
 export function TokenUsageLine({ tokenUsage, dispatchedAtUtc, status }: TokenUsageLineProps) {
-  const text = describeTokenUsage(tokenUsage, {
-    dispatched: Boolean(dispatchedAtUtc),
-    running: status === 'Running',
-  })
+  const context = { dispatched: Boolean(dispatchedAtUtc), running: status === 'Running' }
+  const text = describeTokenUsage(tokenUsage, context)
 
   return (
-    <p className="dc-token-usage" data-token-usage={hasKnownTokenUsage(tokenUsage) ? 'Known' : 'Unknown'}>
+    <p className="dc-token-usage" data-token-usage={hasTrustedTokenUsage(tokenUsage, context) ? 'Known' : 'Unknown'}>
       {text}
     </p>
   )
