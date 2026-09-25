@@ -14,6 +14,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -31,6 +32,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={onRequest}
+        globalClaimBlock={null}
       />,
     )
 
@@ -56,6 +58,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -85,6 +88,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -123,6 +127,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -153,6 +158,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -170,6 +176,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -199,6 +206,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -225,6 +233,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -256,6 +265,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -274,6 +284,7 @@ describe('ImplementationAction', () => {
         requesting={true}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -290,6 +301,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -316,6 +328,7 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError="This resolved plan already has a successful implementation."
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -333,9 +346,28 @@ describe('ImplementationAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
     expect(screen.getByRole('status')).toHaveTextContent('Implementation attempt status is unavailable.')
+  })
+
+  it('withholds the request and attributes the block to the global run-wide budget, never this role', () => {
+    render(
+      <ImplementationAction
+        planProposalMessageId="proposal-1"
+        status={null}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={{ reason: 'CountBudgetExhausted' }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/run-wide agent claim budget/i)
   })
 })

@@ -1,4 +1,6 @@
 import type { ReviewCorrectionAttemptStatusResponse } from '../../../api/clients'
+import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -14,6 +16,12 @@ interface ReviewCorrectionActionProps {
   authorizing?: boolean
   authorizationError?: string | null
   onAuthorize?: () => void
+  /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
+   * Review correction's own human-authorization budget (ADR-0010) is a SEPARATE mechanism that
+   * cannot override this one: an available or granted authorization never makes a new Agent
+   * claim possible while this global block is present. Never a positive eligibility signal —
+   * see `deriveGlobalAgentClaimBlock`. */
+  globalClaimBlock: GlobalAgentClaimBlock | null
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -45,6 +53,7 @@ export function ReviewCorrectionAction({
   authorizing,
   authorizationError,
   onAuthorize = () => undefined,
+  globalClaimBlock,
 }: ReviewCorrectionActionProps) {
   if (reviewOutcome !== 'ReviewChangesRequested' || !reviewAttemptId) return null
 
@@ -64,12 +73,26 @@ export function ReviewCorrectionAction({
   return (
     <section className="dc-review-correction-action" aria-label="Review correction">
       {isActive && <p aria-busy="true">Review correction {phaseLabel(status).toLowerCase()}…</p>}
-      {!isActive && canRequest && (
+      {!isActive && canRequest && !hasAvailableAuthorization && globalClaimBlock && (
+        <p className="dc-review-correction-global-block" role="status">
+          {describeGlobalAgentClaimBlock(globalClaimBlock)}
+        </p>
+      )}
+      {!isActive && canRequest && !globalClaimBlock && (
         <button type="button" disabled={requesting || statusLoading} onClick={onRequest}>
           {requesting ? 'Requesting…' : 'Request review correction'}
         </button>
       )}
-      {canCreateEscalation && (
+      {canCreateEscalation && globalClaimBlock && (
+        // Creating an escalation still calls CreateReviewCorrectionAttempt, whose handler checks
+        // the ADR-0012/ADR-0013 global budgets BEFORE its escalation branch — so this control
+        // withholds the button here too, for the same known-certain-rejection reason as every
+        // other Agent-claim control, rather than offering an action that cannot actually succeed.
+        <p className="dc-review-correction-global-block" role="status">
+          {describeGlobalAgentClaimBlock(globalClaimBlock)}
+        </p>
+      )}
+      {canCreateEscalation && !globalClaimBlock && (
         <button type="button" disabled={requesting || statusLoading} onClick={onRequest}>
           {requesting ? 'Creating…' : 'Create human escalation'}
         </button>
@@ -77,15 +100,31 @@ export function ReviewCorrectionAction({
       {canAuthorize && (
         <div role="alert">
           <p>Review correction attempts are exhausted. No provider invocation will occur without explicit authorization.</p>
-          {status?.escalationId && (
-            <button type="button" disabled={authorizing || statusLoading} onClick={onAuthorize}>
-              {authorizing ? 'Authorizing…' : 'Authorize one additional correction'}
-            </button>
+          {globalClaimBlock ? (
+            // A human authorization for this review-correction-specific budget (ADR-0010) is a
+            // separate mechanism from the run-wide ADR-0012/ADR-0013 budgets below, and cannot
+            // override them: authorizing here would still not let a new Agent claim proceed.
+            <p className="dc-review-correction-global-block" role="status">
+              This authorization cannot proceed: {describeGlobalAgentClaimBlock(globalClaimBlock).charAt(0).toLowerCase()}
+              {describeGlobalAgentClaimBlock(globalClaimBlock).slice(1)}
+            </p>
+          ) : (
+            status?.escalationId && (
+              <button type="button" disabled={authorizing || statusLoading} onClick={onAuthorize}>
+                {authorizing ? 'Authorizing…' : 'Authorize one additional correction'}
+              </button>
+            )
           )}
         </div>
       )}
-      {hasAvailableAuthorization && !isActive && (
+      {hasAvailableAuthorization && !isActive && !globalClaimBlock && (
         <p role="status">One additional correction attempt is authorized.</p>
+      )}
+      {hasAvailableAuthorization && !isActive && globalClaimBlock && (
+        <p className="dc-review-correction-global-block" role="status">
+          An additional correction attempt is authorized, but {describeGlobalAgentClaimBlock(globalClaimBlock).charAt(0).toLowerCase()}
+          {describeGlobalAgentClaimBlock(globalClaimBlock).slice(1)} The authorization does not override this.
+        </p>
       )}
       {status?.hasAttempt && !isActive && <p>Last correction #{status.attemptNumber}: {phaseLabel(status)}.</p>}
       {status?.hasAttempt && (

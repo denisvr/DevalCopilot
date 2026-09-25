@@ -201,6 +201,46 @@ Crossing a warning threshold raises visible attention. Exhausting a hard budget
 prevents a new attempt and creates a durable escalation; it never borrows
 silently from another provider or run.
 
+### Known global claim block
+
+Each of the cockpit's six Agent-claim controls (Codex planning, Claude
+critical review, Codex challenge resolution, Claude implementation, Codex code
+review, and Claude review correction) consults one small, pure, additive
+derivation — `deriveGlobalAgentClaimBlock` — computed from the same run-wide
+count budget ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md))
+and invocation-time budget
+([ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md))
+projections the `AgentClaimBudgetBanner` and `AgentInvocationTimeBudgetBanner`
+already display. When it finds a known hard stop already visible in the
+loaded projection — the count budget exhausted, the invocation-time budget's
+remaining time at zero or below, or that budget's own prior evidence marked
+invalid — the control withholds its request button and shows a short message
+naming the run-wide budget as the cause, instead of offering an action the
+server is already known to reject. This is a UI-honesty check only, never a
+grant of permission: a control showing no known block still submits its
+request to the backend, which independently re-verifies every budget and
+every role-specific eligibility rule in full before acting. The derivation is
+never a full eligibility calculator — a positive remaining-time figure is
+never read as proof that any one role's own configured timeout will fit
+within it, and a legacy run with no time-budget policy at all
+(`isLegacyUnknown`) is never treated as blocked on time grounds. A missing,
+malformed, or stale projection — including one still describing a previously
+selected run — is treated as unavailable and therefore blocking, never as a
+permissive default, and a run switch recomputes this derivation synchronously
+from the newly selected run's own `runId`, so a previous run's block state is
+never shown for even one render frame. The review-correction control's own
+separate human-authorization budget ([ADR-0010](../decisions/0010-add-review-correction-response-contract.md))
+is a distinct mechanism scoped to that one role; an available or granted
+authorization is never presented as overriding this global block, and its
+authorize affordance is withheld with the same run-wide-budget message while
+a global block is present. Creating a human escalation is ALSO withheld under
+a global block: `CreateReviewCorrectionAttemptCommandHandler` checks the
+ADR-0012/ADR-0013 global budgets before it ever reaches its own escalation
+branch, so an escalation request submitted while a global block is present
+cannot actually succeed — the control withholds that button too, for the
+same known-certain-rejection reason as every other Agent-claim control,
+rather than offering an action that would only be rejected server-side.
+
 ### Run-wide token-usage evidence summary
 
 A separate, read-only summary sums provider-reported token usage across every

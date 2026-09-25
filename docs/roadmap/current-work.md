@@ -12,105 +12,133 @@ record of past delivered slices — this page does not restate it.
 changes against this page. Investigate any discrepancy; Git and code prevail
 over a stale summary. Never reset work merely to match this page.
 
-## Latest delivered baseline (2026-09-25): process-evidence lifecycle fail-closed fix, extended from token usage
+## Latest delivered baseline (2026-09-25): known global Agent-claim block for the six claim controls
 
-- Branch: `main`. Delivered commit: `feat: fail-close host-measured process
-  evidence for running and undispatched attempts`. Resolve its exact SHA
-  with `git log -1 --format=%H -- docs/roadmap/current-work.md` — a commit
-  cannot embed its own SHA without changing that SHA. Its parent is
-  `81fa6f7b146a219bcce2c0830eafbedbc0c36371` (`feat: add
-  pending-vs-terminal-unknown token-usage evidence`; see the prior delivered
-  slice's own commit for that history).
+- Branch: `main`. Delivered commit: `feat: add known global agent-claim
+  block to the cockpit`. Resolve its exact SHA with `git log -1
+  --format=%H -- docs/roadmap/current-work.md` — a commit cannot embed its
+  own SHA without changing that SHA. Its parent is
+  `56156e04d65b63eae5ba1b4341a7be419f9850d2` (`feat: fail-close
+  host-measured process evidence for running and undispatched attempts`).
 - At delivery, `HEAD` and `origin/main` resolve to that commit and
   `git status --short` is empty. Remaining uncommitted work: none expected.
   If either condition differs on resume, inspect Git and the diff before
   editing; never reset work merely to match this page.
-- Codex-approved (GO).
-- Scope: the prior slice's own flagged open risk — `Attempt.GetAgentProcessExecutionEvidence()`
-  had the identical latent status-blind gap as `GetAgentTokenUsageEvidence()`
-  before it was fixed, and was explicitly left unfixed as out of scope for
-  that slice. This slice closes it, for process evidence instead of token
-  usage, mirroring the exact same fix pattern: `Attempt.GetAgentProcessExecutionEvidence()`
-  (`src/backend/DevalCopilot.Domain/Features/Runs/Attempt.cs`) now also
-  returns `null` whenever `Status == AttemptStatus.Running` or
-  `AgentDispatchedAtUtc is null`, even when the persisted
-  `AgentProcessOutcome`/`AgentProcessExitCode`/`AgentProcessDuration` fields
-  already look shape-valid (a corrupted or prematurely populated row). A
-  genuinely dispatched, terminal attempt's evidence is unaffected, including
-  a nonzero exit code, `TimedOut`, and `Cancelled`. No recording rule changed
-  — this is a read-time trust fix only.
-- Three read paths call this single shared method and are therefore fixed
-  together: every per-role status endpoint's own `processExecution`, the run
-  cockpit's `latestAgentAttempt.processExecution`, and the
-  collaboration-message evidence drill-down endpoint
-  (`GetCollaborationMessageEvidenceQueryHandler`). Confirmed unaffected by
-  diff: the run-wide process-duration summary
-  (`RunCockpitAgentProcessDurationAccumulator`/`RunCockpitAgentProcessDurationSummary`)
-  already reads each attempt's `Status` directly from its own bounded
-  per-row projection in `GetRunCockpitQueryHandler`, never through
-  `GetAgentProcessExecutionEvidence()`, so it needed no change and shows
-  zero diff.
-- Frontend: `describeProcessEvidence.ts` and `ProcessEvidenceLine.tsx`
-  (`src/frontend/DevalCopilot.Frontend/src/features/cockpit/`) reordered to
-  check dispatched/running state before ever consulting the process object's
-  own shape — a new `hasTrustedProcessEvidence` helper mirrors the prior
-  slice's own `hasTrustedTokenUsage`. `ProcessEvidenceLine`'s
-  `data-process-outcome` test-hook attribute now always agrees with the
-  rendered text (previously it read the raw, untrusted `outcome` value
-  directly). The configured timeout remains a separate, always-known value
-  shown regardless of trust state. Found one direct-render bypass —
-  `CollaborationEvidenceDrilldown.tsx` renders `processExecution.outcome`/
-  `durationMilliseconds` directly rather than through `ProcessEvidenceLine`
-  — and gave it the same guard by reusing `hasTrustedProcessEvidence` rather
-  than duplicating the check inline.
-- New/extended tests: Domain
-  (`AgentProcessExecutionEvidenceTests.cs` — running/undispatched-tampered
-  via reflection on private setters mirroring `AgentAssignmentTests`'s own
-  pattern, plus a genuinely-dispatched-terminal confirmation covering
-  nonzero exit/`TimedOut`/`Cancelled`); Infrastructure (new
-  `AgentProcessExecutionEvidenceTrustMigrationTests.cs`, mirroring
-  `AgentTokenUsageMigrationTests.cs`'s raw-SQL-tampered-row-against-real-SQLite
-  pattern); Api (new `AgentProcessExecutionEvidenceTrustEndpointTests.cs`,
-  covering a representative per-role status endpoint, the cockpit
-  `latestAgentAttempt`, and the collaboration-evidence drill-down, each
-  against a tampered Running/undispatched row); frontend
-  (`describeProcessEvidence.test.ts`, `ProcessEvidenceLine.test.tsx`,
-  `CollaborationEvidenceDrilldown.test.tsx` — a well-formed-looking object
-  paired with a running/undispatched context proves both the text and the
-  outcome attribute report the not-yet-known state).
-- Explicitly unchanged, confirmed by diff scope: ADR-0012, ADR-0013; no
-  migration; no public API response shape/field change (only which values
-  are null when); token-usage's own already-committed files
-  (`AgentTokenUsageEvidence.cs`, `describeTokenUsage.ts`, `TokenUsageLine.tsx`)
-  untouched.
-- Checks run for this pass (all suites rerun in full for this slice, exact
-  counts): `dotnet format DevalCopilot.slnx --verify-no-changes` clean;
-  Release build 0 warnings/0 errors; Domain 524/524 (519 baseline + 5 new);
-  Application 939/939 (unaffected — no Application file touched by this
-  slice); Infrastructure.IntegrationTests 440/441 (437/438 baseline + 3 new,
-  the same one pre-existing platform-capability skip); Api.IntegrationTests
-  288/288 (286 baseline + 2 new); Architecture 9/9; `dotnet ef migrations
-  has-pending-model-changes` reported no pending changes; NSwag regeneration
-  confirmed byte-identical across two consecutive builds with zero
-  `export enum` occurrences (no public response shape/field changed);
-  frontend 467/467 vitest tests, `tsc --noEmit` clean, `oxlint` exited 0 with
-  the same 20 pre-existing warnings (0 new, 0 in files this slice touched),
-  `vite build` production build passed; `git diff --check` reported no
-  whitespace errors (only the pre-existing CRLF-normalization notice on
-  `api-client.ts`). No automated test invokes a real provider or model; all
-  Infrastructure/Api tests use disposable file-backed SQLite, never the real
-  local database.
-- Open risks specific to this slice: this fix is read-time only and does not
-  change what evidence is ever recorded, add a measured-duration or
-  token-usage enforcement mechanism, or alter ADR-0013's existing
-  invocation-time reservation budget (already in place and unaffected — see
-  [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)).
-  No new open risk beyond what the carried-forward list below already
-  states.
-- Next action: this baseline is delivered and Codex-reviewed (GO). The Codex
-  planner/reviewer selects and approves the next bounded Increment 4 slice
-  from the [roadmap](mvp-delivery-plan.md); no next slice is approved by
-  this handoff.
+- Codex-approved (GO) after two correction rounds, both folded into the
+  final behavior described below rather than restated round by round — Git
+  history retains the full narrative if it's ever needed. Codex approved
+  this slice; it has not approved a next one.
+- Scope: frontend-only, additive UI-honesty slice. The cockpit's six
+  Agent-claim controls (Codex planning, Claude critical review, Codex
+  challenge resolution, Claude implementation, Codex code review, Claude
+  review correction) did not check the two existing run-wide budgets
+  ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md)
+  count budget, [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
+  invocation-time budget) before offering a request action, even though the
+  cockpit projection already carries both. A new pure function,
+  `deriveGlobalAgentClaimBlock` (`src/frontend/DevalCopilot.Frontend/src/features/cockpit/deriveGlobalAgentClaimBlock.ts`),
+  derives a `GlobalAgentClaimBlockReason` (`CountBudgetExhausted`,
+  `TimeBudgetExhausted`, `TimeBudgetEvidenceInvalid`, or
+  `BudgetProjectionUnavailable`) — deliberately never named "eligible" or
+  "authorized," since it is only ever a veto signal, never a grant. It is
+  `null` only to mean "no known global hard stop found here," never "this
+  claim is allowed." A genuinely well-formed legacy run (`isLegacyUnknown`
+  with `maximumMilliseconds`/`reservedMilliseconds`/`remainingMilliseconds`
+  all absent, matching `RunCockpitAgentInvocationTimeBudgetSummary.LegacyUnknown()`
+  exactly) is never treated as a block; an `isLegacyUnknown` shape that
+  unexpectedly carries any populated time field is incoherent and fails
+  closed instead. A positive remaining-time figure is never read as proof
+  any one role's configured timeout fits within it. Any missing, malformed
+  (including non-integer/`NaN`/`Infinity` count fields), internally
+  inconsistent, or previous-run-stale projection fails closed to
+  `BudgetProjectionUnavailable` rather than being read as healthy. The
+  `remainingMilliseconds` check accepts exactly the one-millisecond
+  discrepancy that independent truncation of three separately-rounded
+  `TimeSpan` fields can legitimately produce at the API boundary
+  (`AgentInvocationTimeBudgetResponse.FromDomain` truncates
+  `Maximum`/`Reserved`/`Remaining` independently rather than computing
+  `Remaining` from the other two on the wire, even though the Domain layer
+  computes it exactly at the tick level) — never a wider or reversed
+  discrepancy, and never a claim of tick-level wire precision the contract
+  does not make. `RunCockpitView.tsx` computes the block synchronously
+  during render from the currently selected `runId` (mirroring the existing
+  `cockpit.runId === runId` guard already used by the two budget banners and
+  the latest-attempt/token-usage panels), so a previously selected run's
+  block state is never shown for the newly selected run, even for one
+  frame. All six `*Action.tsx` components take a `globalClaimBlock` prop and
+  withhold their request button (showing an attributed, run-wide-budget
+  message instead) exactly when it is non-null. `ReviewCorrectionAction.tsx`
+  additionally ensures its own separate ADR-0010 human-authorization
+  affordances never present themselves as an effective path around this
+  global block: `CreateReviewCorrectionAttemptCommandHandler` checks the
+  ADR-0012/ADR-0013 global budgets before it ever reaches its own escalation
+  branch, so creating a human escalation cannot actually succeed while a
+  global block is present either — its "Create human escalation" button is
+  withheld under a global block exactly like the plain request button, while
+  review-correction-specific budget exhaustion *without* a global block
+  still permits it; the authorize button and the "authorized" status line
+  are replaced with an explicit "does not override" message while a global
+  block is present. No backend, migration, or generated-client
+  (`api-client.ts`) file changed at any point in this slice — the derivation
+  reads only fields the cockpit projection already returns
+  (`maximumAgentAttempts`/`agentAttemptsUsed`/`agentBudgetExhausted`/
+  `agentInvocationTimeBudget.*`).
+- Files changed: new `deriveGlobalAgentClaimBlock.ts` and
+  `deriveGlobalAgentClaimBlock.test.ts`; modified `RunCockpitView.tsx`,
+  `CodexPlanningAction.tsx`, `ClaudeCriticalReviewAction.tsx`,
+  `ChallengeResolutionAction.tsx`, `ImplementationAction.tsx`,
+  `CodeReviewAction.tsx`, `ReviewCorrectionAction.tsx`, and their six
+  `*.test.tsx` files, plus `ProcessEvidenceLine.test.tsx` and
+  `TokenUsageLine.test.tsx` (a `globalClaimBlock: null` default added to
+  their shared fixtures) and `RunCockpitView.test.tsx` (a shared
+  `healthyAgentClaimBudget` fixture, a run-switch test, and budget fields on
+  the two connection-banner fixtures) — all under
+  `src/frontend/DevalCopilot.Frontend/src/features/cockpit/`. Documentation:
+  this page, `docs/product/run-cockpit-specification.md` (new "Known global
+  claim block" subsection), and one unrelated wording fix in
+  `docs/architecture/agent-collaboration-protocol.md` (a sentence describing
+  provider-reported tokens was missing its final clause, "budget for either
+  provider.").
+- Checks actually run (final state, frontend-only): full frontend
+  `vitest run` — 510/510 passed (baseline before this slice was 467/467);
+  `tsc -b` clean; `oxlint` exited 0 with the same 20 pre-existing warnings,
+  0 in any file this slice touched; `vite build` production build
+  succeeded; `git diff --check` reported no whitespace errors on every
+  touched file. Backend suites (Domain, Application,
+  Infrastructure.IntegrationTests, Api.IntegrationTests, Architecture) and
+  the generated NSwag client were **not rerun at any point in this slice**,
+  confirmed by `git status --short` showing no changed file under
+  `src/backend`, no migration, and no change to `api-client.ts` throughout
+  every round — this slice touched only files under
+  `src/frontend/DevalCopilot.Frontend/src/features/cockpit/` and three
+  Markdown files.
+- Open risks/limitations specific to this slice: this is a UI-honesty
+  pre-check only — it never replaces or weakens server-side enforcement, and
+  a stale UI snapshot can still race with a real claim (the server remains
+  authoritative and independently re-verifies both budgets and every
+  role-specific rule). It only catches the three known hard-stop cases
+  already visible in the loaded cockpit projection; it is not a full
+  eligibility calculator and does not know any role's own configured
+  timeout. Carries forward every open risk already listed under the
+  delivered baseline below, unchanged.
+- Next action: Codex approved this slice (GO); it has not approved a next
+  one. The Codex planner/reviewer selects and approves the next bounded
+  Increment 4 slice from the [roadmap](mvp-delivery-plan.md).
+
+## Prior delivered baseline (2026-09-25): process-evidence lifecycle fail-closed fix
+
+- Commit `56156e0` (`feat: fail-close host-measured process evidence for
+  running and undispatched attempts`) on `main`, Codex-approved (GO).
+  Extended the identical read-time fail-closed fix already applied to
+  `Attempt.GetAgentTokenUsageEvidence()` to its sibling
+  `Attempt.GetAgentProcessExecutionEvidence()`, so a still-`Running` or
+  undispatched attempt's process outcome/exit code/duration is never trusted
+  by any of its three shared read paths (per-role status endpoints, the
+  cockpit's `latestAgentAttempt`, and the collaboration-evidence
+  drill-down). See the process-evidence sections of
+  [agent-collaboration-protocol.md](../architecture/agent-collaboration-protocol.md)
+  and [run-cockpit-specification.md](../product/run-cockpit-specification.md)
+  for the delivered contract.
 
 ## Prior delivered baseline (2026-09-25): pending-vs-terminal-unknown token-usage evidence
 
@@ -120,9 +148,7 @@ over a stale summary. Never reset work merely to match this page.
   `Running` or undispatched attempt is never counted as known usage. See the
   token-usage sections of [agent-collaboration-protocol.md](../architecture/agent-collaboration-protocol.md)
   and [run-cockpit-specification.md](../product/run-cockpit-specification.md)
-  for the delivered contract. Its own flagged open risk — the identical
-  status-blind gap in `Attempt.GetAgentProcessExecutionEvidence()` — is
-  resolved by the baseline above and is no longer open.
+  for the delivered contract.
 
 ## Open risks (carried forward)
 

@@ -15,6 +15,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -33,6 +34,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={onRequest}
+        globalClaimBlock={null}
       />,
     )
 
@@ -58,6 +60,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -84,6 +87,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -110,6 +114,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -136,6 +141,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -164,6 +170,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -195,6 +202,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -214,6 +222,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={true}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -239,6 +248,7 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError="This challenged review already has a successful resolution."
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -257,9 +267,29 @@ describe('ChallengeResolutionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
     expect(screen.getByRole('status')).toHaveTextContent('Challenge resolution attempt status is unavailable.')
+  })
+
+  it('withholds the request and attributes the block to the global run-wide budget, never this role', () => {
+    render(
+      <ChallengeResolutionAction
+        challengedReviewAttemptId="review-1"
+        reviewedProposalMessageId="proposal-1"
+        status={null}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={{ reason: 'BudgetProjectionUnavailable' }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/budget status is confirmed/i)
   })
 })

@@ -30,6 +30,7 @@ function renderAction(overrides: Partial<ComponentProps<typeof ReviewCorrectionA
       requesting={false}
       requestError={null}
       onRequest={vi.fn()}
+      globalClaimBlock={null}
       {...overrides}
     />,
   )
@@ -70,6 +71,7 @@ describe('ReviewCorrectionAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
     expect(screen.getByText(/running/)).toBeInTheDocument()
@@ -88,6 +90,7 @@ describe('ReviewCorrectionAction', () => {
         requesting
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
     expect(screen.getByRole('button')).toBeDisabled()
@@ -125,6 +128,7 @@ describe('ReviewCorrectionAction', () => {
         requesting={false}
         requestError="A review correction could not be requested for this run."
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
     expect(screen.getByRole('status')).toHaveTextContent('A review correction could not be requested for this run.')
@@ -195,6 +199,76 @@ describe('ReviewCorrectionAction', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Request review correction' }))
     expect(onRequest).toHaveBeenCalledOnce()
     expect(onAuthorize).not.toHaveBeenCalled()
+  })
+
+  it('withholds the plain request and attributes the block to the global run-wide budget, never this role', () => {
+    const onRequest = vi.fn()
+    renderAction({
+      status: status({ hasAttempt: false, status: undefined, outcome: undefined, budgetExhausted: false }),
+      onRequest,
+      globalClaimBlock: { reason: 'CountBudgetExhausted' },
+    })
+
+    expect(screen.queryByRole('button', { name: 'Request review correction' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/run-wide agent claim budget/i)
+  })
+
+  it('never presents an available review-correction authorization as an effective path around a known global block', () => {
+    renderAction({
+      status: status({ budgetExhausted: true, hasAvailableHumanAuthorization: true }),
+      globalClaimBlock: { reason: 'TimeBudgetExhausted' },
+    })
+
+    // The review-correction-specific authorization (ADR-0010) exists, but the run-wide
+    // ADR-0013 invocation-time budget is separately exhausted — the request button must not
+    // reappear as though the authorization overrides that global hard stop.
+    expect(screen.queryByRole('button', { name: 'Request review correction' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/invocation-time budget/i)
+    expect(screen.getByRole('status')).toHaveTextContent(/does not override/i)
+  })
+
+  it('never lets a granted escalation authorization proceed while a known global block is present', () => {
+    const onAuthorize = vi.fn()
+    renderAction({
+      status: status({ budgetExhausted: true, escalationId: 'escalation-1', hasAvailableHumanAuthorization: false }),
+      onAuthorize,
+      globalClaimBlock: { reason: 'CountBudgetExhausted' },
+    })
+
+    expect(screen.queryByRole('button', { name: /Authorize one additional correction/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/This authorization cannot proceed/i)).toBeInTheDocument()
+  })
+
+  it('withholds creating a human escalation while a global count-budget block is present, since the handler checks the global budget before its escalation branch', () => {
+    renderAction({
+      status: status({ budgetExhausted: true, escalationId: undefined, outcome: undefined, status: undefined }),
+      globalClaimBlock: { reason: 'CountBudgetExhausted' },
+    })
+
+    expect(screen.queryByRole('button', { name: 'Create human escalation' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/run-wide agent claim budget/i)
+  })
+
+  it('withholds creating a human escalation while a global time-budget block is present', () => {
+    renderAction({
+      status: status({ budgetExhausted: true, escalationId: undefined, outcome: undefined, status: undefined }),
+      globalClaimBlock: { reason: 'TimeBudgetExhausted' },
+    })
+
+    expect(screen.queryByRole('button', { name: 'Create human escalation' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/invocation-time budget/i)
+  })
+
+  it('still permits creating a human escalation for review-correction-specific budget exhaustion when no global block is present', () => {
+    const onRequest = vi.fn()
+    renderAction({
+      status: status({ budgetExhausted: true, escalationId: undefined, outcome: undefined, status: undefined }),
+      onRequest,
+      globalClaimBlock: null,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create human escalation' }))
+    expect(onRequest).toHaveBeenCalledOnce()
   })
 
   it('uses role-first wording and does not persist identifiers or output in browser storage or URL', () => {

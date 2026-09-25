@@ -1,4 +1,6 @@
 import type { AgentAttemptStatusResponse } from '../../../api/clients'
+import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -9,6 +11,9 @@ interface CodexPlanningActionProps {
   requesting: boolean
   requestError: string | null
   onRequest: () => void
+  /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
+   * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
+  globalClaimBlock: GlobalAgentClaimBlock | null
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -42,6 +47,7 @@ export function CodexPlanningAction({
   requesting,
   requestError,
   onRequest,
+  globalClaimBlock,
 }: CodexPlanningActionProps) {
   const isActive = status?.status === 'Running'
 
@@ -50,6 +56,10 @@ export function CodexPlanningAction({
       {isActive ? (
         <p className="dc-codex-planning-status" aria-busy="true">
           Codex plan {phaseLabel(status).toLowerCase()}…
+        </p>
+      ) : globalClaimBlock ? (
+        <p className="dc-codex-planning-global-block" role="status">
+          {describeGlobalAgentClaimBlock(globalClaimBlock)}
         </p>
       ) : (
         <button

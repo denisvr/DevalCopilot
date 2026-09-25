@@ -1,4 +1,6 @@
 import type { ImplementationAttemptStatusResponse } from '../../../api/clients'
+import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -10,6 +12,9 @@ interface ImplementationActionProps {
   requesting: boolean
   requestError: string | null
   onRequest: () => void
+  /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
+   * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
+  globalClaimBlock: GlobalAgentClaimBlock | null
 }
 
 function phaseLabel(status: ImplementationAttemptStatusResponse): string {
@@ -52,6 +57,7 @@ export function ImplementationAction({
   requesting,
   requestError,
   onRequest,
+  globalClaimBlock,
 }: ImplementationActionProps) {
   if (!planProposalMessageId) {
     return null
@@ -81,7 +87,12 @@ export function ImplementationAction({
           Implementation {phaseLabel(status).toLowerCase()}…
         </p>
       )}
-      {!isActive && canRequest && (
+      {!isActive && canRequest && globalClaimBlock && (
+        <p className="dc-implementation-global-block" role="status">
+          {describeGlobalAgentClaimBlock(globalClaimBlock)}
+        </p>
+      )}
+      {!isActive && canRequest && !globalClaimBlock && (
         <button
           type="button"
           className="dc-implementation-request"

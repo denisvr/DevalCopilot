@@ -1054,6 +1054,7 @@ because the attempt's provider is Codex, and never because the attempt simply
 has not finished yet. This slice records and displays evidence only; it adds
 no token budget, threshold, warning, or stop guardrail. Provider-reported
 per-invocation tokens are not account usage, cost, or an enforceable token
+budget for either provider.
 
 The cockpit's presentation of a `Partial` or `PendingEvidence` summary names
 `pendingAttemptCount` and `terminalAttemptsWithUnknownUsage` separately rather

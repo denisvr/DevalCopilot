@@ -14,6 +14,7 @@ describe('CodeReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -31,6 +32,7 @@ describe('CodeReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={onRequest}
+        globalClaimBlock={null}
       />,
     )
 
@@ -55,6 +57,7 @@ describe('CodeReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -84,6 +87,7 @@ describe('CodeReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -109,6 +113,7 @@ describe('CodeReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -125,6 +130,7 @@ describe('CodeReviewAction', () => {
         requesting={true}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -155,6 +161,7 @@ describe('CodeReviewAction', () => {
         requesting={false}
         requestError={SafeHumanDetail}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -173,9 +180,28 @@ describe('CodeReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
     expect(screen.getByRole('status')).toHaveTextContent('Code review attempt status is unavailable.')
+  })
+
+  it('withholds the request and attributes the block to the global run-wide budget, never this role', () => {
+    render(
+      <CodeReviewAction
+        executionReportMessageId="message-1"
+        status={null}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={{ reason: 'TimeBudgetEvidenceInvalid' }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Request code review' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/invocation-time evidence/i)
   })
 })

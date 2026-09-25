@@ -14,6 +14,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -31,6 +32,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={onRequest}
+        globalClaimBlock={null}
       />,
     )
 
@@ -55,6 +57,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -80,6 +83,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -109,6 +113,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -134,6 +139,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -164,6 +170,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -184,6 +191,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={true}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -208,6 +216,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError="This run already has a Claude critical-review attempt in progress."
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -225,9 +234,28 @@ describe('ClaudeCriticalReviewAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
     expect(screen.getByRole('status')).toHaveTextContent('Claude critical review attempt status is unavailable.')
+  })
+
+  it('withholds the request and attributes the block to the global run-wide budget, never this role', () => {
+    render(
+      <ClaudeCriticalReviewAction
+        proposalMessageId="message-1"
+        status={null}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={{ reason: 'TimeBudgetExhausted' }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/invocation-time budget/i)
   })
 })

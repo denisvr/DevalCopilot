@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { processAttemptOutputClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
+  AgentInvocationTimeBudgetResponse,
   AgentProcessExecutionResponse,
   AgentTokenUsageResponse,
   ClaudeCriticalReviewAttemptStatusResponse,
@@ -167,6 +168,22 @@ function mockProcessOutputClient(getProcessAttemptOutput: ReturnType<typeof vi.f
   } as unknown as ReturnType<typeof processAttemptOutputClient>)
 }
 
+// A healthy, non-exhausted budget state shared by every fixture below, so tests exercising
+// role-specific wiring are never incidentally blocked by `deriveGlobalAgentClaimBlock`
+// (see its own dedicated test file for the budget-blocking scenarios themselves).
+const healthyAgentClaimBudget = {
+  maximumAgentAttempts: 16,
+  agentAttemptsUsed: 1,
+  agentBudgetExhausted: false,
+  agentInvocationTimeBudget: new AgentInvocationTimeBudgetResponse({
+    maximumMilliseconds: 7_200_000,
+    reservedMilliseconds: 600_000,
+    remainingMilliseconds: 6_600_000,
+    isLegacyUnknown: false,
+    evidenceInvalid: false,
+  }),
+}
+
 const runningCockpit = new GetRunCockpitResponse({
   runId: 'run-1',
   projectId: 'project-1',
@@ -181,7 +198,8 @@ const runningCockpit = new GetRunCockpitResponse({
   stageMap: [],
   canPause: false,
   canStop: false,
-})
+  ...healthyAgentClaimBudget,
+} as ConstructorParameters<typeof GetRunCockpitResponse>[0])
 
 function processOutputCard(overrides: Partial<CollaborationCard>): CollaborationCard {
   return {
@@ -287,7 +305,8 @@ describe('RunCockpitView', () => {
         stageMap: [],
         canPause: false,
         canStop: false,
-      }),
+        ...healthyAgentClaimBudget,
+      } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
       cards: [],
       connection: 'disconnected',
       loading: false,
@@ -316,7 +335,8 @@ describe('RunCockpitView', () => {
         stageMap: [],
         canPause: false,
         canStop: false,
-      }),
+        ...healthyAgentClaimBudget,
+      } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
       cards: [],
       connection: 'disconnected',
       loading: false,
@@ -330,6 +350,68 @@ describe('RunCockpitView', () => {
     // and the cockpit already on screen is untouched by it.
     expect(screen.getByRole('status')).toHaveTextContent('cockpit query unavailable')
     expect(screen.getByText('Prove the walking skeleton')).toBeInTheDocument()
+  })
+
+  it('never carries a previously selected run\'s global claim block into the newly selected run, even transiently', () => {
+    const exhaustedRunOne = new GetRunCockpitResponse({
+      runId: 'run-1',
+      projectId: 'project-1',
+      projectName: 'DevalCopilot',
+      executionNumber: 1,
+      objective: 'Prove the walking skeleton',
+      lifecycle: 'Running',
+      stage: 'Plan',
+      activeParticipant: new ParticipantIdentityResponse({ kind: 'Agent', role: 'Planner', provider: 'Codex' }),
+      autonomousDurationSeconds: 5,
+      latestSequence: 2,
+      stageMap: [],
+      canPause: false,
+      canStop: false,
+      maximumAgentAttempts: 16,
+      agentAttemptsUsed: 16,
+      agentBudgetExhausted: true,
+      agentInvocationTimeBudget: healthyAgentClaimBudget.agentInvocationTimeBudget,
+    } as ConstructorParameters<typeof GetRunCockpitResponse>[0])
+
+    useRunCockpitMock.mockReturnValue({
+      cockpit: exhaustedRunOne,
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+    })
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+    expect(screen.getByText(/run-wide agent claim budget/i)).toBeInTheDocument()
+
+    // The user selects a different run, but the cockpit hook has not yet caught up with a
+    // projection for it (still returning the previous run's own projection, by identity). The
+    // newly selected run must never inherit run-1's exhausted state, even for this one frame:
+    // it must show the honest "unavailable" state instead, since no coherent data for run-2 has
+    // arrived yet.
+    rerender(<RunCockpitView runId="run-2" />)
+    expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/run-wide agent claim budget/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/budget status is confirmed/i)).toBeInTheDocument()
+
+    // Once the hook catches up with run-2's own healthy projection, the action reflects it
+    // immediately.
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({
+        ...exhaustedRunOne,
+        runId: 'run-2',
+        ...healthyAgentClaimBudget,
+      } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+    })
+    rerender(<RunCockpitView runId="run-2" />)
+    expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
   })
 
   describe('live output wiring', () => {

@@ -1,4 +1,6 @@
 import type { CodeReviewAttemptStatusResponse } from '../../../api/clients'
+import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -10,6 +12,9 @@ interface CodeReviewActionProps {
   requesting: boolean
   requestError: string | null
   onRequest: () => void
+  /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
+   * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
+  globalClaimBlock: GlobalAgentClaimBlock | null
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -56,6 +61,7 @@ export function CodeReviewAction({
   requesting,
   requestError,
   onRequest,
+  globalClaimBlock,
 }: CodeReviewActionProps) {
   if (!executionReportMessageId) {
     return null
@@ -77,7 +83,12 @@ export function CodeReviewAction({
           Code review {phaseLabel(status).toLowerCase()}…
         </p>
       )}
-      {!isActive && canRequest && (
+      {!isActive && canRequest && globalClaimBlock && (
+        <p className="dc-code-review-global-block" role="status">
+          {describeGlobalAgentClaimBlock(globalClaimBlock)}
+        </p>
+      )}
+      {!isActive && canRequest && !globalClaimBlock && (
         <button type="button" className="dc-code-review-request" disabled={requesting || statusLoading} onClick={onRequest}>
           {requesting ? 'Requesting…' : 'Request code review'}
         </button>

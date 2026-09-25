@@ -14,6 +14,7 @@ describe('CodexPlanningAction', () => {
         requesting={false}
         requestError={null}
         onRequest={onRequest}
+        globalClaimBlock={null}
       />,
     )
 
@@ -30,6 +31,7 @@ describe('CodexPlanningAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -53,6 +55,7 @@ describe('CodexPlanningAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -76,6 +79,7 @@ describe('CodexPlanningAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -100,6 +104,7 @@ describe('CodexPlanningAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -117,6 +122,7 @@ describe('CodexPlanningAction', () => {
         requesting={true}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -132,6 +138,7 @@ describe('CodexPlanningAction', () => {
         requesting={false}
         requestError="This run already has a Codex planning attempt in progress."
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
@@ -148,9 +155,28 @@ describe('CodexPlanningAction', () => {
         requesting={false}
         requestError={null}
         onRequest={vi.fn()}
+        globalClaimBlock={null}
       />,
     )
 
     expect(screen.getByRole('status')).toHaveTextContent('Codex planning attempt status is unavailable.')
+  })
+
+  it('withholds the request and attributes the block to the global run-wide budget, never this role', () => {
+    const onRequest = vi.fn()
+    render(
+      <CodexPlanningAction
+        status={null}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={onRequest}
+        globalClaimBlock={{ reason: 'CountBudgetExhausted' }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/run-wide agent claim budget/i)
   })
 })

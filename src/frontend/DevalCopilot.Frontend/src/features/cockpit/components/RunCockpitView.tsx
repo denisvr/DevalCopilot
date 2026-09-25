@@ -13,6 +13,7 @@ import { useRequestCodeReview } from '../hooks/useRequestCodeReview'
 import { useReviewCorrectionAttemptStatus } from '../hooks/useReviewCorrectionAttemptStatus'
 import { useRequestReviewCorrection } from '../hooks/useRequestReviewCorrection'
 import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrection'
+import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
@@ -101,6 +102,10 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   }
 
   const currentProcessAttemptId = selectCurrentProcessAttemptId(cards)
+  // Recomputed synchronously during render from the currently selected `runId`, never from an
+  // effect: a cockpit projection still describing the previously selected run must never be
+  // read as this run's budget state, even for one render frame (see `deriveGlobalAgentClaimBlock`).
+  const globalClaimBlock = deriveGlobalAgentClaimBlock(cockpit, runId)
 
   return (
     <>
@@ -146,6 +151,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             requesting={requestCodexPlanningAttempt.requesting}
             requestError={requestCodexPlanningAttempt.error}
             onRequest={() => void requestCodexPlanningAttempt.request(runId)}
+            globalClaimBlock={globalClaimBlock}
           />
           <ClaudeCriticalReviewAction
             proposalMessageId={latestCodexProposalMessageId}
@@ -157,6 +163,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             onRequest={() =>
               latestCodexProposalMessageId && void requestClaudeCriticalReview.request(runId, latestCodexProposalMessageId)
             }
+            globalClaimBlock={globalClaimBlock}
           />
           <ChallengeResolutionAction
             challengedReviewAttemptId={latestChallengedReviewAttemptId}
@@ -169,6 +176,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             onRequest={() =>
               latestChallengedReviewAttemptId && void requestChallengeResolution.request(runId, latestChallengedReviewAttemptId)
             }
+            globalClaimBlock={globalClaimBlock}
           />
           <ImplementationAction
             planProposalMessageId={eligiblePlanProposalMessageId}
@@ -180,6 +188,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             onRequest={() =>
               eligiblePlanProposalMessageId && void requestImplementation.request(runId, eligiblePlanProposalMessageId)
             }
+            globalClaimBlock={globalClaimBlock}
           />
           <CodeReviewAction
             executionReportMessageId={latestExecutionReportMessageId}
@@ -191,6 +200,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             onRequest={() =>
               latestExecutionReportMessageId && void requestCodeReview.request(runId, latestExecutionReportMessageId)
             }
+            globalClaimBlock={globalClaimBlock}
           />
           <ReviewCorrectionAction
             reviewAttemptId={codeReviewAttemptStatus.status?.attemptId ?? null}
@@ -202,6 +212,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             requestError={requestReviewCorrection.error}
             authorizing={authorizeReviewCorrection.authorizing}
             authorizationError={authorizeReviewCorrection.error}
+            globalClaimBlock={globalClaimBlock}
             onAuthorize={() => {
               const escalationId = reviewCorrectionAttemptStatus.status?.escalationId
               if (escalationId) void authorizeReviewCorrection.authorize(runId, escalationId)

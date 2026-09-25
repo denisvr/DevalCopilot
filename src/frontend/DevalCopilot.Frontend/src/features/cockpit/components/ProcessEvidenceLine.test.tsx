@@ -24,6 +24,7 @@ const common = {
   requesting: false,
   requestError: null,
   onRequest: vi.fn(),
+  globalClaimBlock: null,
 }
 
 const dispatchedAtUtc = new Date('2026-09-24T10:00:00Z')
