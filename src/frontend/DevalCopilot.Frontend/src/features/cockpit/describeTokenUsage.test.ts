@@ -245,10 +245,24 @@ describe('describeProviderAttribution', () => {
     expect(describeProviderAttribution(null)).toBe('Unrecognized provider')
     expect(describeProviderAttribution(undefined)).toBe('Unrecognized provider')
   })
+
+  // Regression: a plain-object lookup table falls through to inherited `Object.prototype` members
+  // for these exact keys (e.g. `{}['toString']` resolves to the inherited function rather than
+  // `undefined`), which would have leaked an unrelated value instead of the honest fallback label.
+  it('never resolves an inherited Object.prototype member name to anything but the honest fallback label', () => {
+    expect(describeProviderAttribution('toString')).toBe('Unrecognized provider')
+    expect(describeProviderAttribution('constructor')).toBe('Unrecognized provider')
+    expect(describeProviderAttribution('__proto__')).toBe('Unrecognized provider')
+    expect(describeProviderAttribution('hasOwnProperty')).toBe('Unrecognized provider')
+    expect(describeProviderAttribution('valueOf')).toBe('Unrecognized provider')
+  })
 })
 
 describe('describeProviderTokenUsage', () => {
-  it('prefixes the provider label onto exactly the same run-token-usage phrasing', () => {
+  // Regression: a provider bucket must never read as "Run token total" or "the run total" — that
+  // phrasing names the whole run, not this bucket, and previously made a Codex- or Claude-Code-
+  // only subtotal look like it was claiming to be the run-wide total.
+  it('labels a complete Codex bucket with Codex-scoped wording, never "Run token total"', () => {
     const text = describeProviderTokenUsage({
       attribution: 'Codex',
       summary: {
@@ -260,7 +274,68 @@ describe('describeProviderTokenUsage', () => {
       },
     })
 
-    expect(text).toBe('Codex: Run token total: 1,000 input · 200 output (all 1 dispatched attempt reported usage)')
+    expect(text).toBe('Codex: Codex token total: 1,000 input · 200 output (all 1 dispatched attempt reported usage)')
+    expect(text).not.toMatch(/Run token total/)
+  })
+
+  it('labels a complete Claude Code bucket with Claude-Code-scoped wording, never "Run token total"', () => {
+    const text = describeProviderTokenUsage({
+      attribution: 'ClaudeCode',
+      summary: {
+        completeness: 'Complete',
+        attemptsWithKnownUsage: 2,
+        attemptsWithUnknownUsage: 0,
+        inputTokens: 500,
+        outputTokens: 50,
+      },
+    })
+
+    expect(text).toBe('Claude Code: Claude Code token total: 500 input · 50 output (all 2 dispatched attempts reported usage)')
+    expect(text).not.toMatch(/Run token total/)
+  })
+
+  it('never implies a partial Codex bucket is the run-wide total', () => {
+    const text = describeProviderTokenUsage({
+      attribution: 'Codex',
+      summary: {
+        completeness: 'Partial',
+        attemptsWithKnownUsage: 1,
+        attemptsWithUnknownUsage: 1,
+        pendingAttemptCount: 0,
+        terminalAttemptsWithUnknownUsage: 1,
+        inputTokens: 1000,
+        outputTokens: 200,
+      },
+    })
+
+    expect(text).toBe(
+      "Codex: Partial token count: 1,000 input · 200 output from 1 of 2 dispatched attempts"
+        + " — 1 attempt concluded without usable token-usage evidence, so this is not Codex's total",
+    )
+    expect(text).not.toMatch(/the run total/)
+    expect(text).not.toMatch(/Run token total/)
+  })
+
+  it('never implies a partial Claude Code bucket still awaiting evidence is the run-wide total', () => {
+    const text = describeProviderTokenUsage({
+      attribution: 'ClaudeCode',
+      summary: {
+        completeness: 'PendingEvidence',
+        attemptsWithKnownUsage: 1,
+        attemptsWithUnknownUsage: 1,
+        pendingAttemptCount: 1,
+        terminalAttemptsWithUnknownUsage: 0,
+        inputTokens: 500,
+        outputTokens: 50,
+      },
+    })
+
+    expect(text).toBe(
+      "Claude Code: Partial token count so far: 500 input · 50 output from 1 of 2 dispatched attempts"
+        + " — 1 attempt still running, so this is not Claude Code's total yet",
+    )
+    expect(text).not.toMatch(/the run total/)
+    expect(text).not.toMatch(/Run token total/)
   })
 
   it('describes an empty Claude Code bucket without a numeric total', () => {
@@ -275,5 +350,27 @@ describe('describeProviderTokenUsage', () => {
   it('treats a missing entry or summary as unavailable rather than throwing', () => {
     expect(describeProviderTokenUsage(undefined)).toBe('Unrecognized provider: Token usage summary unavailable')
     expect(describeProviderTokenUsage({ attribution: 'Unattributed' })).toBe('Unattributed: Token usage summary unavailable')
+  })
+})
+
+describe('describeRunTokenUsage wording is unaffected by the provider-bucket wording split', () => {
+  it('still labels a complete run-wide summary "Run token total"', () => {
+    expect(
+      describeRunTokenUsage({ completeness: 'Complete', attemptsWithKnownUsage: 1, attemptsWithUnknownUsage: 0, inputTokens: 10, outputTokens: 2 }),
+    ).toMatch(/^Run token total:/)
+  })
+
+  it('still phrases a partial run-wide summary against "the run total"', () => {
+    const text = describeRunTokenUsage({
+      completeness: 'Partial',
+      attemptsWithKnownUsage: 1,
+      attemptsWithUnknownUsage: 1,
+      pendingAttemptCount: 0,
+      terminalAttemptsWithUnknownUsage: 1,
+      inputTokens: 10,
+      outputTokens: 2,
+    })
+
+    expect(text).toMatch(/so this is not the run total$/)
   })
 })

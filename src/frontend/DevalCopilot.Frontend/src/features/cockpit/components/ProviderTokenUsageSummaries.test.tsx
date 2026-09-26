@@ -37,7 +37,7 @@ describe('ProviderTokenUsageSummaries', () => {
 
     expect(items[0]).toHaveAttribute('data-attribution', 'Codex')
     expect(items[0]).toHaveAttribute('data-completeness', 'Complete')
-    expect(items[0]).toHaveTextContent('Codex: Run token total: 1,000 input · 200 output')
+    expect(items[0]).toHaveTextContent('Codex: Codex token total: 1,000 input · 200 output')
 
     expect(items[1]).toHaveAttribute('data-attribution', 'ClaudeCode')
     expect(items[1]).toHaveTextContent('Claude Code: No token usage data yet')
@@ -67,7 +67,22 @@ describe('ProviderTokenUsageSummaries', () => {
     )
 
     const item = screen.getByLabelText('Provider token usage').querySelector('li')!
-    expect(item).toHaveTextContent('so this is not the run total')
-    expect(item.textContent).not.toMatch(/total:/i)
+    expect(item).toHaveTextContent("so this is not Codex's total")
+    expect(item.textContent).not.toMatch(/the run total/)
+    expect(item.textContent).not.toMatch(/^Codex: Codex token total:/)
+  })
+
+  // Regression: an unrecognized attribution (including one colliding with an inherited
+  // Object.prototype member name) must still render the honest fallback label, never leak an
+  // inherited property value or crash the render.
+  it('renders the honest fallback label for an attribution this build does not recognize', () => {
+    render(
+      <ProviderTokenUsageSummaries
+        entries={[{ attribution: 'toString', summary: { completeness: 'NoDispatchedAttempts', inputTokens: 0, outputTokens: 0 } }]}
+      />,
+    )
+
+    const item = screen.getByLabelText('Provider token usage').querySelector('li')!
+    expect(item).toHaveTextContent('Unrecognized provider: No token usage data yet')
   })
 })

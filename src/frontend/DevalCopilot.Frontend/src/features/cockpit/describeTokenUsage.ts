@@ -112,20 +112,6 @@ function describeUnknownUsageGap(pendingCount: number, terminalUnknownCount: num
   return terminalClause || pendingClause
 }
 
-/**
- * Describes the run-level token-usage summary. Only a `Complete` summary is ever labeled a total; a
- * `Partial` sum is always labeled partial and names how many dispatched attempts it covers, so a
- * reader can never mistake it for the run's true total. `PendingEvidence` is kept distinct from
- * `Partial`: nothing has failed to report usage, some dispatched attempts simply have not concluded
- * yet — a still-running attempt's usage is never trusted even if already persisted.
- *
- * When no attempt has known usage yet (`attemptsWithKnownUsage` is zero), no numeric token count is
- * ever rendered — the summary's zero-valued sums in that state are an unpopulated accumulator, not a
- * provider-reported zero, and showing "0 input / 0 output" would misstate a real measurement that
- * does not exist. Conversely, once at least one attempt has known usage, its sum is shown exactly as
- * reported, including a genuine zero — a provider that truthfully reported no tokens is not the same
- * as no measurement at all.
- */
 /** One provider bucket's own run-scoped token-usage summary. Structurally matches the generated
  * `RunCockpitProviderTokenUsageEntryResponse`: `attribution` is `'Codex'`, `'ClaudeCode'`, or
  * `'Unattributed'` (a dispatched Agent attempt whose recorded provider is missing or unrecognized —
@@ -135,25 +121,65 @@ export interface RunCockpitProviderTokenUsageEntryView {
   summary?: RunTokenUsageSummaryView
 }
 
-const PROVIDER_ATTRIBUTION_LABELS: Record<string, string> = {
-  Codex: 'Codex',
-  ClaudeCode: 'Claude Code',
-  Unattributed: 'Unattributed',
-}
+// A `Map`, not a plain object: an object literal's bracket lookup falls through to inherited
+// `Object.prototype` members (`toString`, `constructor`, `__proto__`, ...) for those exact keys,
+// which would silently resolve to a function or another object instead of `undefined`. A `Map`'s
+// `get` has no prototype-chain fallback, so every unrecognized key — including those names —
+// reaches the "Unrecognized provider" fallback below.
+const PROVIDER_ATTRIBUTION_LABELS = new Map<string, string>([
+  ['Codex', 'Codex'],
+  ['ClaudeCode', 'Claude Code'],
+  ['Unattributed', 'Unattributed'],
+])
 
 /** A human label for a provider-attribution value. An attribution this cockpit build does not
- * recognize is still labeled honestly rather than hidden or guessed at. */
+ * recognize — including a value that collides with an inherited `Object.prototype` member name —
+ * is still labeled honestly rather than hidden, guessed at, or resolved to unrelated data. */
 export function describeProviderAttribution(attribution: string | null | undefined): string {
-  return (attribution && PROVIDER_ATTRIBUTION_LABELS[attribution]) || 'Unrecognized provider'
+  return (attribution && PROVIDER_ATTRIBUTION_LABELS.get(attribution)) || 'Unrecognized provider'
 }
 
-/** Describes one provider bucket's own token-usage summary, reusing exactly the same completeness
- * rules and phrasing as the run-wide summary (see `describeRunTokenUsage`), scoped to that bucket. */
-export function describeProviderTokenUsage(entry: RunCockpitProviderTokenUsageEntryView | null | undefined): string {
-  return `${describeProviderAttribution(entry?.attribution)}: ${describeRunTokenUsage(entry?.summary)}`
+/** The wording fragments that distinguish the run-wide summary's phrasing from a single provider
+ * bucket's phrasing, while sharing every completeness rule and count computation in
+ * `describeUsageSummary` below. Only the total-related fragments change: a bucket's `Complete`
+ * state is a genuine total for that bucket alone, but must never read as "the run total" (which
+ * names the whole run), and a partial bucket must never imply it is a partial run-wide count. */
+interface TokenUsageSummaryWording {
+  totalLabel: string
+  notTotalPhrase: string
+  notTotalYetPhrase: string
 }
 
-export function describeRunTokenUsage(summary: RunTokenUsageSummaryView | null | undefined): string {
+const RUN_WIDE_WORDING: TokenUsageSummaryWording = {
+  totalLabel: 'Run token total',
+  notTotalPhrase: 'the run total',
+  notTotalYetPhrase: 'the run total yet',
+}
+
+function providerBucketWording(providerLabel: string): TokenUsageSummaryWording {
+  return {
+    totalLabel: `${providerLabel} token total`,
+    notTotalPhrase: `${providerLabel}'s total`,
+    notTotalYetPhrase: `${providerLabel}'s total yet`,
+  }
+}
+
+/**
+ * Describes a token-usage summary under the given wording. Only a `Complete` summary is ever
+ * labeled a total; a `Partial` sum is always labeled partial and names how many dispatched
+ * attempts it covers, so a reader can never mistake it for the labeled subject's true total.
+ * `PendingEvidence` is kept distinct from `Partial`: nothing has failed to report usage, some
+ * dispatched attempts simply have not concluded yet — a still-running attempt's usage is never
+ * trusted even if already persisted.
+ *
+ * When no attempt has known usage yet (`attemptsWithKnownUsage` is zero), no numeric token count is
+ * ever rendered — the summary's zero-valued sums in that state are an unpopulated accumulator, not a
+ * provider-reported zero, and showing "0 input / 0 output" would misstate a real measurement that
+ * does not exist. Conversely, once at least one attempt has known usage, its sum is shown exactly as
+ * reported, including a genuine zero — a provider that truthfully reported no tokens is not the same
+ * as no measurement at all.
+ */
+function describeUsageSummary(summary: RunTokenUsageSummaryView | null | undefined, wording: TokenUsageSummaryWording): string {
   const known = summary?.attemptsWithKnownUsage ?? 0
   const unknown = summary?.attemptsWithUnknownUsage ?? 0
   const pending = summary?.pendingAttemptCount ?? 0
@@ -161,7 +187,7 @@ export function describeRunTokenUsage(summary: RunTokenUsageSummaryView | null |
 
   switch (summary?.completeness) {
     case 'Complete':
-      return `Run token total: ${describeCounts(summary)} (all ${plural(known, 'dispatched attempt')} reported usage)`
+      return `${wording.totalLabel}: ${describeCounts(summary)} (all ${plural(known, 'dispatched attempt')} reported usage)`
     case 'Partial': {
       const gap = describeUnknownUsageGap(pending, terminalUnknown)
       if (known === 0) {
@@ -169,16 +195,16 @@ export function describeRunTokenUsage(summary: RunTokenUsageSummaryView | null |
       }
       return (
         `Partial token count: ${describeCounts(summary)} from ${known} of ${plural(known + unknown, 'dispatched attempt')}`
-        + ` — ${gap}, so this is not the run total`
+        + ` — ${gap}, so this is not ${wording.notTotalPhrase}`
       )
     }
     case 'PendingEvidence': {
       if (known === 0) {
-        return `No token usage recorded yet — ${plural(pending, 'attempt')} still running, so this is not the run total yet`
+        return `No token usage recorded yet — ${plural(pending, 'attempt')} still running, so this is not ${wording.notTotalYetPhrase}`
       }
       return (
         `Partial token count so far: ${describeCounts(summary)} from ${known} of ${plural(known + pending, 'dispatched attempt')}`
-        + ` — ${plural(pending, 'attempt')} still running, so this is not the run total yet`
+        + ` — ${plural(pending, 'attempt')} still running, so this is not ${wording.notTotalYetPhrase}`
       )
     }
     case 'NoDispatchedAttempts':
@@ -186,4 +212,18 @@ export function describeRunTokenUsage(summary: RunTokenUsageSummaryView | null |
     default:
       return 'Token usage summary unavailable'
   }
+}
+
+/** Describes one provider bucket's own token-usage summary. Shares every completeness rule with
+ * the run-wide summary (see `describeUsageSummary`), but never reuses its "Run token total" or
+ * "the run total" wording: a bucket's own total or partial count is always phrased against that
+ * bucket's own provider label, never against "the run", so it can never be mistaken for — or read
+ * as implying — the separate run-wide total. */
+export function describeProviderTokenUsage(entry: RunCockpitProviderTokenUsageEntryView | null | undefined): string {
+  const label = describeProviderAttribution(entry?.attribution)
+  return `${label}: ${describeUsageSummary(entry?.summary, providerBucketWording(label))}`
+}
+
+export function describeRunTokenUsage(summary: RunTokenUsageSummaryView | null | undefined): string {
+  return describeUsageSummary(summary, RUN_WIDE_WORDING)
 }

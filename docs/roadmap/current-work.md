@@ -60,9 +60,37 @@ over a stale summary. Never reset work merely to match this page.
   this slice does not address Increment 4's open account-usage exit
   criterion; that remains open exactly as recorded below.
 - Review follow-up: Codex recorded **NO-GO** for two narrow frontend
-  presentation defects in the [planner handoff](planner-handoff.md). Claude
-  corrects those defects in this same slice and reports a new commit; Codex
-  retains final acceptance. No next slice is approved by this entry.
+  presentation defects in the [planner handoff](planner-handoff.md), corrected
+  in commit (resolve its exact SHA with `git log -1 --format=%H --
+  docs/roadmap/current-work.md`), parent `e3805a887068a3b7707594eef6a2d52602a00401`.
+  Frontend-only correction, no backend/API/adapter/persistence/threshold
+  change:
+  1. `describeProviderAttribution` (`describeTokenUsage.ts`) now looks up its
+     label through a `Map` instead of a plain object, so an `attribution`
+     value colliding with an inherited `Object.prototype` member name
+     (`toString`, `constructor`, `__proto__`, `hasOwnProperty`, `valueOf`)
+     resolves to the honest "Unrecognized provider" fallback instead of
+     leaking an inherited property.
+  2. Provider-bucket wording is now scoped to that bucket's own provider
+     label via a shared `describeUsageSummary(summary, wording)` helper
+     (`totalLabel`/`notTotalPhrase`/`notTotalYetPhrase`), so a bucket reads
+     e.g. `"Codex token total: ..."` / `"...so this is not Codex's total"`
+     rather than reusing the run-wide `"Run token total"` / `"the run
+     total"` copy. `describeRunTokenUsage`'s own wording, exported signature,
+     and every completeness rule are unchanged (still `"Run token total"` /
+     `"the run total"` verbatim); no existing run-wide test needed updating
+     beyond the two provider-bucket fixture tests that asserted the old,
+     incorrect shared wording.
+  - Checks actually run for the correction: frontend 563/563 tests (+7 new:
+    5 own-property regression cases in `describeTokenUsage.test.ts` and
+    `ProviderTokenUsageSummaries.test.tsx`, 2 provider-vs-run-wide wording
+    cases), `tsc -b` clean, `oxlint` exited 0 with the same 20 pre-existing
+    warnings (0 new), `vite build` production build passed, `git diff
+    --check` reported no whitespace errors. Backend was not rebuilt or
+    retested for this frontend-only change.
+  - Claude reports this correction; it does not approve the slice or start
+    another. Codex reviews the correction for GO/NO-GO in the
+    [planner handoff](planner-handoff.md).
 
 ## Prior delivered baseline (2026-09-26): shared instructions and planner handoff
 
