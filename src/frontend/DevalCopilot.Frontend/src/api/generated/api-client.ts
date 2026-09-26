@@ -2714,6 +2714,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     agentBudgetExhausted?: boolean;
     agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
     agentProcessDurationSummary?: AgentProcessDurationSummaryResponse;
+    agentClaimPathTimeFits?: AgentClaimPathTimeFitResponse[];
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -2750,6 +2751,11 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.agentBudgetExhausted = _data["agentBudgetExhausted"];
             this.agentInvocationTimeBudget = _data["agentInvocationTimeBudget"] ? AgentInvocationTimeBudgetResponse.fromJS(_data["agentInvocationTimeBudget"]) : undefined as any;
             this.agentProcessDurationSummary = _data["agentProcessDurationSummary"] ? AgentProcessDurationSummaryResponse.fromJS(_data["agentProcessDurationSummary"]) : undefined as any;
+            if (Array.isArray(_data["agentClaimPathTimeFits"])) {
+                this.agentClaimPathTimeFits = [] as any;
+                for (let item of _data["agentClaimPathTimeFits"])
+                    this.agentClaimPathTimeFits!.push(AgentClaimPathTimeFitResponse.fromJS(item));
+            }
         }
     }
 
@@ -2786,6 +2792,11 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["agentBudgetExhausted"] = this.agentBudgetExhausted;
         data["agentInvocationTimeBudget"] = this.agentInvocationTimeBudget ? this.agentInvocationTimeBudget.toJSON() : undefined as any;
         data["agentProcessDurationSummary"] = this.agentProcessDurationSummary ? this.agentProcessDurationSummary.toJSON() : undefined as any;
+        if (Array.isArray(this.agentClaimPathTimeFits)) {
+            data["agentClaimPathTimeFits"] = [];
+            for (let item of this.agentClaimPathTimeFits)
+                data["agentClaimPathTimeFits"].push(item ? item.toJSON() : undefined as any);
+        }
         return data;
     }
 }
@@ -2811,6 +2822,7 @@ export interface IGetRunCockpitResponse {
     agentBudgetExhausted?: boolean;
     agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
     agentProcessDurationSummary?: AgentProcessDurationSummaryResponse;
+    agentClaimPathTimeFits?: AgentClaimPathTimeFitResponse[];
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -3195,6 +3207,46 @@ export interface IAgentProcessDurationSummaryResponse {
     pendingAttemptCount?: number;
     validEvidenceCount?: number;
     malformedEvidenceCount?: number;
+}
+
+export class AgentClaimPathTimeFitResponse implements IAgentClaimPathTimeFitResponse {
+    claimPath?: string;
+    fit?: string;
+
+    constructor(data?: IAgentClaimPathTimeFitResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.claimPath = _data["claimPath"];
+            this.fit = _data["fit"];
+        }
+    }
+
+    static fromJS(data: any): AgentClaimPathTimeFitResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentClaimPathTimeFitResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["claimPath"] = this.claimPath;
+        data["fit"] = this.fit;
+        return data;
+    }
+}
+
+export interface IAgentClaimPathTimeFitResponse {
+    claimPath?: string;
+    fit?: string;
 }
 
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {

@@ -24,7 +24,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
     : ICommandHandler<CreateReviewCorrectionAttemptCommand, Result<CreateReviewCorrectionAttemptCommandResult>>
 {
     private const int MaxContextManifestBytes = 32 * 1024;
-    private static readonly TimeSpan InvocationTimeout = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan InvocationTimeout = AgentClaimPathPolicy.GetInvocationTimeout(AgentClaimPath.ReviewCorrection);
     private const int MaxBytesPerStream = 256 * 1024;
     private const int MaxTotalCapturedBytes = 512 * 1024;
 

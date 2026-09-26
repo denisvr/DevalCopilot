@@ -12,14 +12,14 @@ record of past delivered slices — this page does not restate it.
 changes against this page. Investigate any discrepancy; Git and code prevail
 over a stale summary. Never reset work merely to match this page.
 
-## Latest delivered baseline (2026-09-25): known global Agent-claim block for the six claim controls
+## Latest delivered baseline (2026-09-26): candidate-specific invocation-time fit
 
-- Branch: `main`. Delivered commit: `feat: add known global agent-claim
-  block to the cockpit`. Resolve its exact SHA with `git log -1
-  --format=%H -- docs/roadmap/current-work.md` — a commit cannot embed its
-  own SHA without changing that SHA. Its parent is
-  `56156e04d65b63eae5ba1b4341a7be419f9850d2` (`feat: fail-close
-  host-measured process evidence for running and undispatched attempts`).
+- Branch: `main`. Delivered commit: `feat: add candidate-specific
+  invocation-time fit to the cockpit`. Resolve its exact SHA with
+  `git log -1 --format=%H -- docs/roadmap/current-work.md` — a commit
+  cannot embed its own SHA without changing that SHA. Its parent is
+  `ba186ab22a0b5a3846192eaa971493ffa77eb2a2` (`feat: add known global
+  agent-claim block to the cockpit`).
 - At delivery, `HEAD` and `origin/main` resolve to that commit and
   `git status --short` is empty. Remaining uncommitted work: none expected.
   If either condition differs on resume, inspect Git and the diff before
@@ -28,102 +28,94 @@ over a stale summary. Never reset work merely to match this page.
   final behavior described below rather than restated round by round — Git
   history retains the full narrative if it's ever needed. Codex approved
   this slice; it has not approved a next one.
-- Scope: frontend-only, additive UI-honesty slice. The cockpit's six
-  Agent-claim controls (Codex planning, Claude critical review, Codex
-  challenge resolution, Claude implementation, Codex code review, Claude
-  review correction) did not check the two existing run-wide budgets
-  ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md)
-  count budget, [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
-  invocation-time budget) before offering a request action, even though the
-  cockpit projection already carries both. A new pure function,
-  `deriveGlobalAgentClaimBlock` (`src/frontend/DevalCopilot.Frontend/src/features/cockpit/deriveGlobalAgentClaimBlock.ts`),
-  derives a `GlobalAgentClaimBlockReason` (`CountBudgetExhausted`,
-  `TimeBudgetExhausted`, `TimeBudgetEvidenceInvalid`, or
-  `BudgetProjectionUnavailable`) — deliberately never named "eligible" or
-  "authorized," since it is only ever a veto signal, never a grant. It is
-  `null` only to mean "no known global hard stop found here," never "this
-  claim is allowed." A genuinely well-formed legacy run (`isLegacyUnknown`
-  with `maximumMilliseconds`/`reservedMilliseconds`/`remainingMilliseconds`
-  all absent, matching `RunCockpitAgentInvocationTimeBudgetSummary.LegacyUnknown()`
-  exactly) is never treated as a block; an `isLegacyUnknown` shape that
-  unexpectedly carries any populated time field is incoherent and fails
-  closed instead. A positive remaining-time figure is never read as proof
-  any one role's configured timeout fits within it. Any missing, malformed
-  (including non-integer/`NaN`/`Infinity` count fields), internally
-  inconsistent, or previous-run-stale projection fails closed to
-  `BudgetProjectionUnavailable` rather than being read as healthy. The
-  `remainingMilliseconds` check accepts exactly the one-millisecond
-  discrepancy that independent truncation of three separately-rounded
-  `TimeSpan` fields can legitimately produce at the API boundary
-  (`AgentInvocationTimeBudgetResponse.FromDomain` truncates
-  `Maximum`/`Reserved`/`Remaining` independently rather than computing
-  `Remaining` from the other two on the wire, even though the Domain layer
-  computes it exactly at the tick level) — never a wider or reversed
-  discrepancy, and never a claim of tick-level wire precision the contract
-  does not make. `RunCockpitView.tsx` computes the block synchronously
-  during render from the currently selected `runId` (mirroring the existing
-  `cockpit.runId === runId` guard already used by the two budget banners and
-  the latest-attempt/token-usage panels), so a previously selected run's
-  block state is never shown for the newly selected run, even for one
-  frame. All six `*Action.tsx` components take a `globalClaimBlock` prop and
-  withhold their request button (showing an attributed, run-wide-budget
-  message instead) exactly when it is non-null. `ReviewCorrectionAction.tsx`
-  additionally ensures its own separate ADR-0010 human-authorization
-  affordances never present themselves as an effective path around this
-  global block: `CreateReviewCorrectionAttemptCommandHandler` checks the
-  ADR-0012/ADR-0013 global budgets before it ever reaches its own escalation
-  branch, so creating a human escalation cannot actually succeed while a
-  global block is present either — its "Create human escalation" button is
-  withheld under a global block exactly like the plain request button, while
-  review-correction-specific budget exhaustion *without* a global block
-  still permits it; the authorize button and the "authorized" status line
-  are replaced with an explicit "does not override" message while a global
-  block is present. No backend, migration, or generated-client
-  (`api-client.ts`) file changed at any point in this slice — the derivation
-  reads only fields the cockpit projection already returns
-  (`maximumAgentAttempts`/`agentAttemptsUsed`/`agentBudgetExhausted`/
-  `agentInvocationTimeBudget.*`).
-- Files changed: new `deriveGlobalAgentClaimBlock.ts` and
-  `deriveGlobalAgentClaimBlock.test.ts`; modified `RunCockpitView.tsx`,
-  `CodexPlanningAction.tsx`, `ClaudeCriticalReviewAction.tsx`,
-  `ChallengeResolutionAction.tsx`, `ImplementationAction.tsx`,
-  `CodeReviewAction.tsx`, `ReviewCorrectionAction.tsx`, and their six
-  `*.test.tsx` files, plus `ProcessEvidenceLine.test.tsx` and
-  `TokenUsageLine.test.tsx` (a `globalClaimBlock: null` default added to
-  their shared fixtures) and `RunCockpitView.test.tsx` (a shared
-  `healthyAgentClaimBudget` fixture, a run-switch test, and budget fields on
-  the two connection-banner fixtures) — all under
-  `src/frontend/DevalCopilot.Frontend/src/features/cockpit/`. Documentation:
-  this page, `docs/product/run-cockpit-specification.md` (new "Known global
-  claim block" subsection), and one unrelated wording fix in
-  `docs/architecture/agent-collaboration-protocol.md` (a sentence describing
-  provider-reported tokens was missing its final clause, "budget for either
-  provider.").
-- Checks actually run (final state, frontend-only): full frontend
-  `vitest run` — 510/510 passed (baseline before this slice was 467/467);
-  `tsc -b` clean; `oxlint` exited 0 with the same 20 pre-existing warnings,
-  0 in any file this slice touched; `vite build` production build
-  succeeded; `git diff --check` reported no whitespace errors on every
-  touched file. Backend suites (Domain, Application,
-  Infrastructure.IntegrationTests, Api.IntegrationTests, Architecture) and
-  the generated NSwag client were **not rerun at any point in this slice**,
-  confirmed by `git status --short` showing no changed file under
-  `src/backend`, no migration, and no change to `api-client.ts` throughout
-  every round — this slice touched only files under
-  `src/frontend/DevalCopilot.Frontend/src/features/cockpit/` and three
-  Markdown files.
-- Open risks/limitations specific to this slice: this is a UI-honesty
-  pre-check only — it never replaces or weakens server-side enforcement, and
-  a stale UI snapshot can still race with a real claim (the server remains
-  authoritative and independently re-verifies both budgets and every
-  role-specific rule). It only catches the three known hard-stop cases
-  already visible in the loaded cockpit projection; it is not a full
-  eligibility calculator and does not know any role's own configured
-  timeout. Carries forward every open risk already listed under the
-  delivered baseline below, unchanged.
-- Next action: Codex approved this slice (GO); it has not approved a next
-  one. The Codex planner/reviewer selects and approves the next bounded
-  Increment 4 slice from the [roadmap](mvp-delivery-plan.md).
+- Scope: a bounded, additive slice closing the known gap the prior slice's
+  own `deriveGlobalAgentClaimBlock` deliberately left open — it never knows
+  any one role's own configured invocation timeout, so it cannot tell
+  whether a *positive* remaining reserved time actually fits a *specific*
+  claim path's own configured duration. Adds: (1) `AgentClaimPath` and
+  `AgentClaimPathPolicy` (`src/backend/DevalCopilot.Application/Features/Runs/`)
+  centralizing the six previously-hardcoded-per-handler `InvocationTimeout`
+  values, timeout unchanged, now the single source both the six
+  `Create*AttemptCommandHandler`s and the new projection read; (2) an
+  additive per-claim-path advisory fit projection in `GetRunCockpit`
+  (`RunCockpitAgentClaimPathTimeFitEntry.cs`,
+  `RunCockpitAgentClaimPathTimeFitProjection.cs`), reusing the existing
+  exact `TimeSpan`/tick-level reserved-time computation with no extra
+  database query, exposed as `agentClaimPathTimeFits` on
+  `GetRunCockpitResponse` (new `AgentClaimPathTimeFitResponse`, plain
+  strings, zero generated TS enums, carrying only claim path and fit — no
+  role/provider mapping); (3) a new frontend derivation
+  `deriveAgentClaimPathTimeFit` (+ tests), wired into all six cockpit
+  action components (including both of Review Correction's controls)
+  alongside — never in place of — the existing `globalClaimBlock`; both
+  signals are shown together when both apply. See the "Candidate-specific
+  invocation-time fit" subsection of
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md)
+  for the full behavior contract.
+- `AgentClaimPath`/`AgentClaimPathPolicy` live at
+  `src/backend/DevalCopilot.Application/Features/Runs/` (namespace
+  `DevalCopilot.Application.Features.Runs`), the same flat placement as the
+  sibling cross-cutting Application helper `AgentInvocationTimeBudget.cs` —
+  not Domain (claim-path timeout is Application-owned execution
+  configuration, not a Domain invariant) and not on `AgentAttemptContract`/
+  `AgentRole` (per ADR-0009's separation of role/effect/provider-assignment
+  concerns; Implementer alone spans two distinct claim paths). The six
+  configured timeout values (10/10/10/20/10/20 minutes) are unchanged from
+  each handler's own prior inline value — a pure centralization. The fit
+  DTO (`RunCockpitAgentClaimPathTimeFitEntry`/`AgentClaimPathTimeFitResponse`)
+  carries only claim path and fit — no role/provider mapping, since no
+  present consumer reads it (the six cockpit action components already know
+  their own claim path statically).
+- `deriveAgentClaimPathTimeFit.ts` fails the entire six-entry projection
+  closed (`ProjectionUnavailable`) — never just the affected path — on: a
+  run-selection mismatch; any unrecognized claim-path value; a missing or
+  duplicated (agreeing or contradictory) entry for any of the six known
+  paths; an unrecognized fit value on ANY of the six entries, including one
+  the caller did not ask about; or ANY of the six entries' fit value
+  contradicting the run-wide `agentInvocationTimeBudget.isLegacyUnknown`/
+  `evidenceInvalid` state `deriveGlobalAgentClaimBlock` already reads (both
+  are derived from the same underlying budget data and must never
+  contradict). A requested path whose own entry looks perfectly coherent in
+  isolation still fails closed if a *different* path's entry is wrong — a
+  projection that can be wrong for one path cannot be trusted for any path.
+  The derivation never performs client-side millisecond/tick arithmetic to
+  re-derive the fit conclusion — it only trusts the backend's own closed fit
+  state once every entry is proven coherent. `deriveGlobalAgentClaimBlock.ts`
+  and its own tests were not touched by this slice.
+- Checks actually run (final state): `dotnet format --verify-no-changes`
+  clean; Release build 0 warnings/0 errors; Domain 524/524; Application
+  956/956; Infrastructure.IntegrationTests 440/441 (one pre-existing
+  platform-capability skip); Api.IntegrationTests 288/288; Architecture
+  9/9; `dotnet ef migrations has-pending-model-changes` reported no pending
+  changes (read/refactor only, no schema change); NSwag regeneration
+  byte-identical across two builds with zero `export enum` occurrences and
+  the leaner `AgentClaimPathTimeFitResponse` shape; frontend 545/545 tests,
+  `tsc -b` clean, `oxlint` exited 0 with the same 20 pre-existing warnings
+  (0 new), `vite build` production build passed; `git diff --check`
+  reported no whitespace errors (only the pre-existing CRLF-normalization
+  notice on `api-client.ts`).
+- No migration, no ADR change, no change to `deriveGlobalAgentClaimBlock.ts`
+  or its own tests, no change to the six configured timeout values, no
+  change to any already-delivered persisted `Attempt.Role`/`Attempt.Provider`
+  field or its historical provenance. This remains advisory-only: it adds no
+  new server-side enforcement — ADR-0013's own reservation-time check
+  (already delivered) is unchanged.
+- Next action: this baseline is delivered and Codex-reviewed (GO). The Codex
+  planner/reviewer selects and approves the next bounded Increment 4 slice
+  from the [roadmap](mvp-delivery-plan.md); no next slice is approved by
+  this handoff.
+
+## Prior delivered baseline (2026-09-25): known global Agent-claim block for the six claim controls
+
+- Commit `ba186ab` (`feat: add known global agent-claim block to the
+  cockpit`) on `main`, Codex-approved (GO). Added `deriveGlobalAgentClaimBlock`,
+  a pure frontend veto signal (never a grant) surfacing exhausted count
+  budget, zero/negative/invalid remaining time, or an unavailable
+  projection across all six cockpit Agent-claim controls, including both
+  of Review Correction's own controls. See the "Known global claim block"
+  section of
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md)
+  for the delivered contract.
 
 ## Prior delivered baseline (2026-09-25): process-evidence lifecycle fail-closed fix
 

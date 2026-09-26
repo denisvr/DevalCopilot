@@ -683,8 +683,13 @@ The human may explicitly authorize exactly one additional claim; that
 authorization is recorded as a HumanInstruction and atomically consumed with
 the correction attempt claim. This is explicit continuation, not generic
 pause/resume, provider fallback, Gemini support, or automatic orchestration.
-Token, account-usage, duration, and the remaining Increment 4 controls remain
-deferred.
+Token and account-usage enforcement, measured wall-clock duration, and the
+remaining Increment 4 controls remain deferred. The run-wide Agent
+invocation-*time* reservation budget described immediately below is not one
+of these: it is delivered and enforced today (see
+[ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)),
+though it reasons only about each attempt's own *configured* timeout, never
+measured duration.
 
 Independently, each run also persists a default maximum of 16 claimed Agent
 attempts — a run-wide ceiling spanning all six Agent-claiming paths (Planner

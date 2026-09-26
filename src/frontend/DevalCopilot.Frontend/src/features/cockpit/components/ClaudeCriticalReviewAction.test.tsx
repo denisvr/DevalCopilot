@@ -15,6 +15,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -33,6 +34,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={onRequest}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -58,6 +60,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -84,6 +87,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -114,6 +118,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -140,6 +145,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -171,6 +177,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -192,6 +199,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -217,6 +225,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError="This run already has a Claude critical-review attempt in progress."
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -235,6 +244,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -252,6 +262,7 @@ describe('ClaudeCriticalReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={{ reason: 'TimeBudgetExhausted' }}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 

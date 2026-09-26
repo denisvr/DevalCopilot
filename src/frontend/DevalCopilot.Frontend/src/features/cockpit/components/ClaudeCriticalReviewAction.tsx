@@ -1,6 +1,8 @@
 import type { ClaudeCriticalReviewAttemptStatusResponse } from '../../../api/clients'
 import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
+import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -15,6 +17,9 @@ interface ClaudeCriticalReviewActionProps {
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
+  /** The advisory, candidate-specific time-fit result for THIS claim path — separate from, and
+   * combined with, `globalClaimBlock`. See `deriveAgentClaimPathTimeFit`. */
+  timeFit: AgentClaimPathTimeFit
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -56,6 +61,7 @@ export function ClaudeCriticalReviewAction({
   requestError,
   onRequest,
   globalClaimBlock,
+  timeFit,
 }: ClaudeCriticalReviewActionProps) {
   if (!proposalMessageId) {
     return null
@@ -67,6 +73,7 @@ export function ClaudeCriticalReviewAction({
     reviewsCurrentProposal &&
     (status?.outcome === 'Accepted' || status?.outcome === 'Challenged' || status?.outcome === 'InputAlreadyReviewed')
   const canRequest = !isActive && !isSettledForCurrentProposal
+  const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
 
   return (
     <section className="dc-claude-critical-review-action" aria-label="Claude critical review">
@@ -80,7 +87,12 @@ export function ClaudeCriticalReviewAction({
           {describeGlobalAgentClaimBlock(globalClaimBlock)}
         </p>
       )}
-      {!isActive && canRequest && !globalClaimBlock && (
+      {!isActive && canRequest && timeFitBlocked && (
+        <p className="dc-claude-critical-review-time-fit-block" role="status">
+          {describeAgentClaimPathTimeFitBlock(timeFit)}
+        </p>
+      )}
+      {!isActive && canRequest && !globalClaimBlock && !timeFitBlocked && (
         <button
           type="button"
           className="dc-claude-critical-review-request"

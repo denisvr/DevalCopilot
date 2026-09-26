@@ -22,4 +22,5 @@ public sealed record GetRunCockpitQueryResult(
     bool AgentBudgetExhausted,
     RunCockpitAgentInvocationTimeBudgetSummary AgentInvocationTimeBudget,
     RunCockpitAgentProcessDurationSummary AgentProcessDurationSummary,
+    IReadOnlyList<RunCockpitAgentClaimPathTimeFitEntry> AgentClaimPathTimeFits,
     RunCockpitAgentAttemptEntry? LatestAgentAttempt = null);

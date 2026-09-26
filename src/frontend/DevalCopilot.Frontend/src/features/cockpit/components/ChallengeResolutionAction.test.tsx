@@ -16,6 +16,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -35,6 +36,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={onRequest}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -61,6 +63,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -88,6 +91,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -115,6 +119,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -142,6 +147,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -171,6 +177,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -203,6 +210,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -223,6 +231,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -249,6 +258,7 @@ describe('ChallengeResolutionAction', () => {
         requestError="This challenged review already has a successful resolution."
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -268,6 +278,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -286,6 +297,7 @@ describe('ChallengeResolutionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={{ reason: 'BudgetProjectionUnavailable' }}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 

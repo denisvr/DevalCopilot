@@ -1,6 +1,8 @@
 import type { ChallengeResolutionAttemptStatusResponse } from '../../../api/clients'
 import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
+import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -16,6 +18,9 @@ interface ChallengeResolutionActionProps {
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
+  /** The advisory, candidate-specific time-fit result for THIS claim path — separate from, and
+   * combined with, `globalClaimBlock`. See `deriveAgentClaimPathTimeFit`. */
+  timeFit: AgentClaimPathTimeFit
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -58,6 +63,7 @@ export function ChallengeResolutionAction({
   requestError,
   onRequest,
   globalClaimBlock,
+  timeFit,
 }: ChallengeResolutionActionProps) {
   if (!challengedReviewAttemptId) {
     return null
@@ -68,6 +74,7 @@ export function ChallengeResolutionAction({
   const isSettledForCurrentReview =
     resolvesCurrentReview && (status?.outcome === 'Resolved' || status?.outcome === 'InputAlreadyResolved')
   const canRequest = !isActive && !isSettledForCurrentReview
+  const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
 
   return (
     <section className="dc-challenge-resolution-action" aria-label="Codex challenge resolution">
@@ -81,7 +88,12 @@ export function ChallengeResolutionAction({
           {describeGlobalAgentClaimBlock(globalClaimBlock)}
         </p>
       )}
-      {!isActive && canRequest && !globalClaimBlock && (
+      {!isActive && canRequest && timeFitBlocked && (
+        <p className="dc-challenge-resolution-time-fit-block" role="status">
+          {describeAgentClaimPathTimeFitBlock(timeFit)}
+        </p>
+      )}
+      {!isActive && canRequest && !globalClaimBlock && !timeFitBlocked && (
         <button
           type="button"
           className="dc-challenge-resolution-request"

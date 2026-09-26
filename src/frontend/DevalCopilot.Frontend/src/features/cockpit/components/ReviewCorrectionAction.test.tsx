@@ -31,6 +31,7 @@ function renderAction(overrides: Partial<ComponentProps<typeof ReviewCorrectionA
       requestError={null}
       onRequest={vi.fn()}
       globalClaimBlock={null}
+      timeFit={{ reason: 'Fits' }}
       {...overrides}
     />,
   )
@@ -72,6 +73,7 @@ describe('ReviewCorrectionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
     expect(screen.getByText(/running/)).toBeInTheDocument()
@@ -91,6 +93,7 @@ describe('ReviewCorrectionAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
     expect(screen.getByRole('button')).toBeDisabled()
@@ -129,6 +132,7 @@ describe('ReviewCorrectionAction', () => {
         requestError="A review correction could not be requested for this run."
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
     expect(screen.getByRole('status')).toHaveTextContent('A review correction could not be requested for this run.')
@@ -269,6 +273,49 @@ describe('ReviewCorrectionAction', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Create human escalation' }))
     expect(onRequest).toHaveBeenCalledOnce()
+  })
+
+  it('withholds the plain request and attributes the block to this specific request\'s own time fit, never the global budget', () => {
+    const onRequest = vi.fn()
+    renderAction({
+      status: status({ hasAttempt: false, status: undefined, outcome: undefined, budgetExhausted: false }),
+      onRequest,
+      timeFit: { reason: 'DoesNotFit' },
+    })
+
+    expect(screen.queryByRole('button', { name: 'Request review correction' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/insufficient reserved invocation time/i)
+  })
+
+  it('withholds creating a human escalation while this specific request\'s own time fit is blocked, mirroring the global-block withholding', () => {
+    renderAction({
+      status: status({ budgetExhausted: true, escalationId: undefined, outcome: undefined, status: undefined }),
+      timeFit: { reason: 'DoesNotFit' },
+    })
+
+    expect(screen.queryByRole('button', { name: 'Create human escalation' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(/insufficient reserved invocation time/i)
+  })
+
+  it('shows both the global block and the candidate-fit block together when both apply, never hiding one for the other', () => {
+    renderAction({
+      status: status({ hasAttempt: false, status: undefined, outcome: undefined, budgetExhausted: false }),
+      globalClaimBlock: { reason: 'CountBudgetExhausted' },
+      timeFit: { reason: 'DoesNotFit' },
+    })
+
+    expect(screen.queryByRole('button', { name: 'Request review correction' })).not.toBeInTheDocument()
+    expect(screen.getByText(/run-wide agent claim budget/i)).toBeInTheDocument()
+    expect(screen.getByText(/insufficient reserved invocation time/i)).toBeInTheDocument()
+  })
+
+  it('still permits the plain request when the candidate time fits and no global block is present', () => {
+    renderAction({
+      status: status({ hasAttempt: false, status: undefined, outcome: undefined, budgetExhausted: false }),
+      timeFit: { reason: 'Fits' },
+    })
+
+    expect(screen.getByRole('button', { name: 'Request review correction' })).toBeInTheDocument()
   })
 
   it('uses role-first wording and does not persist identifiers or output in browser storage or URL', () => {

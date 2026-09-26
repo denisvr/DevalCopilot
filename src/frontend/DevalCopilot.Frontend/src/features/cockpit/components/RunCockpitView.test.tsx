@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { processAttemptOutputClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
+  AgentClaimPathTimeFitResponse,
   AgentInvocationTimeBudgetResponse,
   AgentProcessExecutionResponse,
   AgentTokenUsageResponse,
@@ -182,6 +183,17 @@ const healthyAgentClaimBudget = {
     isLegacyUnknown: false,
     evidenceInvalid: false,
   }),
+  // Every claim path fits comfortably within this healthy budget, so tests exercising
+  // role-specific wiring are never incidentally blocked by `deriveAgentClaimPathTimeFit`
+  // either (see its own dedicated test file for the fit/no-fit scenarios themselves).
+  agentClaimPathTimeFits: [
+    new AgentClaimPathTimeFitResponse({ claimPath: 'CodexPlanning', fit: 'Fits' }),
+    new AgentClaimPathTimeFitResponse({ claimPath: 'ClaudeCriticalReview', fit: 'Fits' }),
+    new AgentClaimPathTimeFitResponse({ claimPath: 'ChallengeResolution', fit: 'Fits' }),
+    new AgentClaimPathTimeFitResponse({ claimPath: 'Implementation', fit: 'Fits' }),
+    new AgentClaimPathTimeFitResponse({ claimPath: 'CodeReview', fit: 'Fits' }),
+    new AgentClaimPathTimeFitResponse({ claimPath: 'ReviewCorrection', fit: 'Fits' }),
+  ],
 }
 
 const runningCockpit = new GetRunCockpitResponse({
@@ -925,6 +937,138 @@ describe('RunCockpitView', () => {
 
       rerender(<RunCockpitView runId="run-2" />)
       expect(useChallengeResolutionAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
+    })
+  })
+
+  describe('candidate-specific time-fit wiring', () => {
+    function cockpitWithFits(overrides: Partial<Record<string, string>>) {
+      const paths = ['CodexPlanning', 'ClaudeCriticalReview', 'ChallengeResolution', 'Implementation', 'CodeReview', 'ReviewCorrection']
+      return new GetRunCockpitResponse({
+        ...runningCockpit,
+        agentClaimPathTimeFits: paths.map(
+          (path) =>
+            new AgentClaimPathTimeFitResponse({
+              claimPath: path,
+              fit: overrides[path] ?? 'Fits',
+            }),
+        ),
+      } as ConstructorParameters<typeof GetRunCockpitResponse>[0])
+    }
+
+    it('the ten/twenty-minute split: a 10-minute claim path still offers its action while a 20-minute one is withheld on its own time fit', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: cockpitWithFits({ Implementation: 'DoesNotFit' }),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      // CodexPlanning (a 10-minute-configured path) is unaffected by Implementation's own
+      // (20-minute-configured) time-fit block: each claim path's fit is independent.
+      expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
+    })
+
+    it('withholds the challenge-resolution action on its own time fit, with copy distinct from the global-block copy', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: cockpitWithFits({ ChallengeResolution: 'DoesNotFit' }),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: new ClaudeCriticalReviewAttemptStatusResponse({
+          attemptId: 'review-1',
+          attemptNumber: 1,
+          status: 'Completed',
+          outcome: 'Challenged',
+          reviewedProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+      expect(screen.getByText(/insufficient reserved invocation time/i)).toBeInTheDocument()
+      expect(screen.queryByText(/run-wide agent claim budget/i)).not.toBeInTheDocument()
+    })
+
+    it('represents both the global block and the candidate-fit block together when both apply, never hiding one for the other', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: new GetRunCockpitResponse({
+          ...cockpitWithFits({ ChallengeResolution: 'DoesNotFit' }),
+          agentBudgetExhausted: true,
+          agentAttemptsUsed: 16,
+        } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: new ClaudeCriticalReviewAttemptStatusResponse({
+          attemptId: 'review-1',
+          attemptNumber: 1,
+          status: 'Completed',
+          outcome: 'Challenged',
+          reviewedProposalMessageId: 'message-1',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+      // Both the global count-budget block AND the ChallengeResolution-specific time-fit block
+      // are present at once — the global message appears once per withheld action (CodexPlanning
+      // and ChallengeResolution both show it), so this asserts "at least one", not "exactly one".
+      expect(screen.getAllByText(/run-wide agent claim budget/i).length).toBeGreaterThan(0)
+      expect(screen.getByText(/insufficient reserved invocation time/i)).toBeInTheDocument()
+    })
+
+    it('never carries a previously selected run\'s candidate-fit state into the newly selected run, even transiently', () => {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: cockpitWithFits({ CodexPlanning: 'DoesNotFit' }),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+      expect(screen.getByText(/insufficient reserved invocation time/i)).toBeInTheDocument()
+
+      // Selecting a different run while the hook still returns run-1's own stale projection
+      // must never carry run-1's DoesNotFit state — or its Fits state — into run-2: the honest
+      // "unavailable" state is shown instead until run-2's own projection arrives.
+      rerender(<RunCockpitView runId="run-2" />)
+      expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+      expect(screen.queryByText(/insufficient reserved invocation time/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/time-fit status is confirmed/i)).toBeInTheDocument()
+
+      useRunCockpitMock.mockReturnValue({
+        cockpit: new GetRunCockpitResponse({ ...cockpitWithFits({}), runId: 'run-2' } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+      })
+      rerender(<RunCockpitView runId="run-2" />)
+      expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
     })
   })
 })

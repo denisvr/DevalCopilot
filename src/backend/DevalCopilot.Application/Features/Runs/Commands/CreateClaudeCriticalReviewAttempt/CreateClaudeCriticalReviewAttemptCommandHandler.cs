@@ -28,7 +28,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
     /// document, never a transcript or repository copy.</summary>
     private const int MaxContextManifestBytes = 32 * 1024;
 
-    private static readonly TimeSpan InvocationTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan InvocationTimeout = AgentClaimPathPolicy.GetInvocationTimeout(AgentClaimPath.ClaudeCriticalReview);
     private const int MaxBytesPerStream = 256 * 1024;
     private const int MaxTotalCapturedBytes = 512 * 1024;
 

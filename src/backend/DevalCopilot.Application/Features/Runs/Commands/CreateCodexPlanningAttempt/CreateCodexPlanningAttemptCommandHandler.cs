@@ -22,7 +22,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
     /// document, never a transcript or repository copy.</summary>
     private const int MaxContextManifestBytes = 16 * 1024;
 
-    private static readonly TimeSpan InvocationTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan InvocationTimeout = AgentClaimPathPolicy.GetInvocationTimeout(AgentClaimPath.CodexPlanning);
     private const int MaxBytesPerStream = 256 * 1024;
     private const int MaxTotalCapturedBytes = 512 * 1024;
 

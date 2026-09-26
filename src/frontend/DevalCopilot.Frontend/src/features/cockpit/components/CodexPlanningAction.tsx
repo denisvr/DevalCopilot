@@ -1,6 +1,8 @@
 import type { AgentAttemptStatusResponse } from '../../../api/clients'
 import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
+import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -14,6 +16,10 @@ interface CodexPlanningActionProps {
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
+  /** The advisory, candidate-specific time-fit result for THIS claim path (ADR-0013's
+   * companion candidate-fit projection) — separate from, and combined with, `globalClaimBlock`.
+   * Never a positive eligibility signal on its own — see `deriveAgentClaimPathTimeFit`. */
+  timeFit: AgentClaimPathTimeFit
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -48,8 +54,10 @@ export function CodexPlanningAction({
   requestError,
   onRequest,
   globalClaimBlock,
+  timeFit,
 }: CodexPlanningActionProps) {
   const isActive = status?.status === 'Running'
+  const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
 
   return (
     <section className="dc-codex-planning-action" aria-label="Codex planning">
@@ -57,19 +65,29 @@ export function CodexPlanningAction({
         <p className="dc-codex-planning-status" aria-busy="true">
           Codex plan {phaseLabel(status).toLowerCase()}…
         </p>
-      ) : globalClaimBlock ? (
-        <p className="dc-codex-planning-global-block" role="status">
-          {describeGlobalAgentClaimBlock(globalClaimBlock)}
-        </p>
       ) : (
-        <button
-          type="button"
-          className="dc-codex-planning-request"
-          disabled={requesting || statusLoading}
-          onClick={onRequest}
-        >
-          {requesting ? 'Requesting…' : 'Request Codex plan'}
-        </button>
+        <>
+          {globalClaimBlock && (
+            <p className="dc-codex-planning-global-block" role="status">
+              {describeGlobalAgentClaimBlock(globalClaimBlock)}
+            </p>
+          )}
+          {timeFitBlocked && (
+            <p className="dc-codex-planning-time-fit-block" role="status">
+              {describeAgentClaimPathTimeFitBlock(timeFit)}
+            </p>
+          )}
+          {!globalClaimBlock && !timeFitBlocked && (
+            <button
+              type="button"
+              className="dc-codex-planning-request"
+              disabled={requesting || statusLoading}
+              onClick={onRequest}
+            >
+              {requesting ? 'Requesting…' : 'Request Codex plan'}
+            </button>
+          )}
+        </>
       )}
       {status && !isActive && (
         <p className="dc-codex-planning-status">

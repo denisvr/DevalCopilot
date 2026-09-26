@@ -137,6 +137,8 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 : RunCockpitAgentInvocationTimeBudgetSummary.Budgeted(maximumAgentInvocationTime, reservedAgentInvocationTime.Value);
         }
 
+        var agentClaimPathTimeFits = RunCockpitAgentClaimPathTimeFitProjection.Compute(agentInvocationTimeBudget);
+
         var stageMap = StageSequence
             .Select(stage => new RunCockpitStageEntry(stage, IsCompleted: stage < run.Stage, IsActive: stage == run.Stage))
             .ToArray();
@@ -162,6 +164,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 agentAttemptsUsed >= run.MaximumAgentAttempts,
                 agentInvocationTimeBudget,
                 agentProcessDurationSummary,
+                agentClaimPathTimeFits,
                 latestAgentAttempt is null
                     ? null
                     : new RunCockpitAgentAttemptEntry(

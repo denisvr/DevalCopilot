@@ -35,7 +35,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
     /// work) — deliberately longer than the single-turn critical-review/resolution stages, but
     /// still a hard bound: cancellation and process-tree termination apply the same way once it
     /// elapses.</summary>
-    private static readonly TimeSpan InvocationTimeout = TimeSpan.FromMinutes(20);
+    private static readonly TimeSpan InvocationTimeout = AgentClaimPathPolicy.GetInvocationTimeout(AgentClaimPath.Implementation);
     private const int MaxBytesPerStream = 256 * 1024;
     private const int MaxTotalCapturedBytes = 512 * 1024;
 

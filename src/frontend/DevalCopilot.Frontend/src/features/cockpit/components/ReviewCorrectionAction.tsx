@@ -1,6 +1,8 @@
 import type { ReviewCorrectionAttemptStatusResponse } from '../../../api/clients'
 import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
+import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -22,6 +24,12 @@ interface ReviewCorrectionActionProps {
    * claim possible while this global block is present. Never a positive eligibility signal —
    * see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
+  /** The advisory, candidate-specific time-fit result for review correction's own configured
+   * timeout — a SEPARATE, additive signal from `globalClaimBlock`. Both the plain request
+   * button and the human-escalation button are withheld together when this blocks, exactly like
+   * they already are together for `globalClaimBlock`, and this signal is never overridden by
+   * ADR-0010's human authorization either. See `deriveAgentClaimPathTimeFit`. */
+  timeFit: AgentClaimPathTimeFit
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -54,6 +62,7 @@ export function ReviewCorrectionAction({
   authorizationError,
   onAuthorize = () => undefined,
   globalClaimBlock,
+  timeFit,
 }: ReviewCorrectionActionProps) {
   if (reviewOutcome !== 'ReviewChangesRequested' || !reviewAttemptId) return null
 
@@ -69,6 +78,8 @@ export function ReviewCorrectionAction({
   )
   const canCreateEscalation = !isActive && !isSettled && budgetExhausted && !hasCurrentEscalation
   const canAuthorize = !isActive && budgetExhausted && hasCurrentEscalation && !hasAvailableAuthorization
+  const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
+  const anyBlock = Boolean(globalClaimBlock) || timeFitBlocked
 
   return (
     <section className="dc-review-correction-action" aria-label="Review correction">
@@ -78,7 +89,12 @@ export function ReviewCorrectionAction({
           {describeGlobalAgentClaimBlock(globalClaimBlock)}
         </p>
       )}
-      {!isActive && canRequest && !globalClaimBlock && (
+      {!isActive && canRequest && !hasAvailableAuthorization && timeFitBlocked && (
+        <p className="dc-review-correction-time-fit-block" role="status">
+          {describeAgentClaimPathTimeFitBlock(timeFit)}
+        </p>
+      )}
+      {!isActive && canRequest && !anyBlock && (
         <button type="button" disabled={requesting || statusLoading} onClick={onRequest}>
           {requesting ? 'Requesting…' : 'Request review correction'}
         </button>
@@ -92,7 +108,15 @@ export function ReviewCorrectionAction({
           {describeGlobalAgentClaimBlock(globalClaimBlock)}
         </p>
       )}
-      {canCreateEscalation && !globalClaimBlock && (
+      {canCreateEscalation && timeFitBlocked && (
+        // Mirrors the global-block withholding immediately above: the same handler check also
+        // fails when this claim path's own configured timeout does not fit, so the escalation
+        // button is withheld here too, for the same known-certain-rejection reason.
+        <p className="dc-review-correction-time-fit-block" role="status">
+          {describeAgentClaimPathTimeFitBlock(timeFit)}
+        </p>
+      )}
+      {canCreateEscalation && !anyBlock && (
         <button type="button" disabled={requesting || statusLoading} onClick={onRequest}>
           {requesting ? 'Creating…' : 'Create human escalation'}
         </button>
@@ -100,14 +124,25 @@ export function ReviewCorrectionAction({
       {canAuthorize && (
         <div role="alert">
           <p>Review correction attempts are exhausted. No provider invocation will occur without explicit authorization.</p>
-          {globalClaimBlock ? (
+          {anyBlock ? (
             // A human authorization for this review-correction-specific budget (ADR-0010) is a
-            // separate mechanism from the run-wide ADR-0012/ADR-0013 budgets below, and cannot
-            // override them: authorizing here would still not let a new Agent claim proceed.
-            <p className="dc-review-correction-global-block" role="status">
-              This authorization cannot proceed: {describeGlobalAgentClaimBlock(globalClaimBlock).charAt(0).toLowerCase()}
-              {describeGlobalAgentClaimBlock(globalClaimBlock).slice(1)}
-            </p>
+            // separate mechanism from the run-wide ADR-0012/ADR-0013 budgets and this claim
+            // path's own candidate-fit signal below, and cannot override either: authorizing
+            // here would still not let a new Agent claim proceed.
+            <>
+              {globalClaimBlock && (
+                <p className="dc-review-correction-global-block" role="status">
+                  This authorization cannot proceed: {describeGlobalAgentClaimBlock(globalClaimBlock).charAt(0).toLowerCase()}
+                  {describeGlobalAgentClaimBlock(globalClaimBlock).slice(1)}
+                </p>
+              )}
+              {timeFitBlocked && (
+                <p className="dc-review-correction-time-fit-block" role="status">
+                  This authorization cannot proceed: {describeAgentClaimPathTimeFitBlock(timeFit)!.charAt(0).toLowerCase()}
+                  {describeAgentClaimPathTimeFitBlock(timeFit)!.slice(1)}
+                </p>
+              )}
+            </>
           ) : (
             status?.escalationId && (
               <button type="button" disabled={authorizing || statusLoading} onClick={onAuthorize}>
@@ -117,13 +152,19 @@ export function ReviewCorrectionAction({
           )}
         </div>
       )}
-      {hasAvailableAuthorization && !isActive && !globalClaimBlock && (
+      {hasAvailableAuthorization && !isActive && !anyBlock && (
         <p role="status">One additional correction attempt is authorized.</p>
       )}
       {hasAvailableAuthorization && !isActive && globalClaimBlock && (
         <p className="dc-review-correction-global-block" role="status">
           An additional correction attempt is authorized, but {describeGlobalAgentClaimBlock(globalClaimBlock).charAt(0).toLowerCase()}
           {describeGlobalAgentClaimBlock(globalClaimBlock).slice(1)} The authorization does not override this.
+        </p>
+      )}
+      {hasAvailableAuthorization && !isActive && timeFitBlocked && (
+        <p className="dc-review-correction-time-fit-block" role="status">
+          An additional correction attempt is authorized, but {describeAgentClaimPathTimeFitBlock(timeFit)!.charAt(0).toLowerCase()}
+          {describeAgentClaimPathTimeFitBlock(timeFit)!.slice(1)} The authorization does not override this.
         </p>
       )}
       {status?.hasAttempt && !isActive && <p>Last correction #{status.attemptNumber}: {phaseLabel(status)}.</p>}

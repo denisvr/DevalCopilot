@@ -15,6 +15,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={onRequest}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -32,6 +33,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -56,6 +58,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -80,6 +83,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -105,6 +109,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -123,6 +128,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -139,6 +145,7 @@ describe('CodexPlanningAction', () => {
         requestError="This run already has a Codex planning attempt in progress."
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -156,6 +163,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -173,6 +181,7 @@ describe('CodexPlanningAction', () => {
         requestError={null}
         onRequest={onRequest}
         globalClaimBlock={{ reason: 'CountBudgetExhausted' }}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 

@@ -127,6 +127,7 @@ export type {
   AgentTokenUsageResponse,
   RunCockpitAgentAttemptResponse,
   RunTokenUsageSummaryResponse,
+  AgentClaimPathTimeFitResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,

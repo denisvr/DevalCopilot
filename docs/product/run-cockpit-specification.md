@@ -241,6 +241,64 @@ cannot actually succeed — the control withholds that button too, for the
 same known-certain-rejection reason as every other Agent-claim control,
 rather than offering an action that would only be rejected server-side.
 
+### Candidate-specific invocation-time fit
+
+`deriveGlobalAgentClaimBlock` above deliberately never references any one
+role's own configured invocation timeout, so it cannot say whether a
+*positive* remaining time actually fits a *specific* claim path's own
+configured duration (e.g. exactly 10 minutes remaining fits a 10-minute-
+configured claim path but not a 20-minute one). A separate, additive
+derivation — `deriveAgentClaimPathTimeFit` — closes this gap using a new,
+backend-computed per-claim-path projection (`agentClaimPathTimeFits` on the
+cockpit response) that reuses the exact `TimeSpan`/tick-level reserved-time
+computation already behind the invocation-time budget, compared against each
+of the six claim paths' own centrally configured timeout (`AgentClaimPath`/
+`AgentClaimPathPolicy`, an Application-layer execution-configuration concern
+owned by the same six command handlers that already read it — not a Domain
+invariant). Each entry on the wire carries only its claim path and its fit
+outcome; it carries no role/provider mapping, since each of the six cockpit
+action components already knows its own claim path statically and needs
+nothing further from the server to look up its own entry. Each of the six
+Agent-claim controls consults its own claim path's entry and shows a message
+attributing a block to "insufficient reserved invocation time for this
+specific request" — wording kept strictly distinct from
+`describeGlobalAgentClaimBlock`'s run-wide budget copy, so a reader never
+conflates a candidate-specific refusal with a global one. A candidate timeout
+exactly equal to the remaining time still fits ("fits with zero slack"); a
+legacy run with no time-budget policy at all is reported as
+`LegacyUnknown`, never as a fit or no-fit answer, and never treated as a
+block; a run whose prior invocation-time evidence is invalid, or a
+projection that is missing, duplicated (whether or not the duplicates
+agree — a contradiction is never resolved by trusting one of two answers),
+unknown-shaped (including an unrecognized claim-path value anywhere in the
+list), or still describes a previously selected run, fails closed and
+blocks. The frontend also cross-checks each claim path's fit state against
+the run-wide invocation-time budget's own `isLegacyUnknown`/`evidenceInvalid`
+fields (the same fields behind the global block above): both signals are
+derived from the same underlying budget data, so a claim-path entry
+reporting `Fits`/`DoesNotFit` while the run-wide summary reports
+`isLegacyUnknown` or `evidenceInvalid` (or the reverse) is incoherent and
+fails closed instead of trusting either side. The frontend never re-derives
+or double-checks the fit conclusion itself with client-side millisecond or
+tick arithmetic — it only ever trusts the backend's own closed fit state
+once it has proven the received shape is coherent; the backend remains the
+sole authority for the fit comparison itself. This signal is purely
+advisory, exactly like the global block: a `Fits` result is never presented,
+worded, or implied as the server having granted or pre-approved the claim,
+and it is combined with — never a replacement for — the global block above;
+when both apply to the same control, both messages are shown, since neither
+withholding reason should hide the other. The review-correction control's
+plain request and its "Create human escalation" affordance are both
+withheld together on this signal too, for the same reason they are already
+withheld together under a global block:
+`CreateReviewCorrectionAttemptCommandHandler`'s time-budget check precedes
+its escalation branch, so a request that does not fit cannot succeed either
+way. Like the global block, this is UI honesty only — the backend remains
+the sole authority for every claim, and the run switch guard is identical:
+the derivation is recomputed synchronously from the newly selected run's own
+`runId`, so a previous run's fit state is never shown for even one render
+frame.
+
 ### Run-wide token-usage evidence summary
 
 A separate, read-only summary sums provider-reported token usage across every

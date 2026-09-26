@@ -56,6 +56,7 @@ public sealed class GetRunCockpitEndpoint(
                 value.AgentAttemptsUsed,
                 value.AgentBudgetExhausted,
                 AgentInvocationTimeBudgetResponse.FromDomain(value.AgentInvocationTimeBudget),
-                AgentProcessDurationSummaryResponse.FromDomain(value.AgentProcessDurationSummary)));
+                AgentProcessDurationSummaryResponse.FromDomain(value.AgentProcessDurationSummary),
+                value.AgentClaimPathTimeFits.Select(AgentClaimPathTimeFitResponse.FromDomain).ToArray()));
     }
 }

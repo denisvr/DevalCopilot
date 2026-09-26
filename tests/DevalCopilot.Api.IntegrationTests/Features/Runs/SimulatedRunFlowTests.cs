@@ -87,6 +87,21 @@ public sealed class SimulatedRunFlowTests(SimulatedRunApiWebApplicationFactory f
         Assert.Equal(0L, cockpit.AgentInvocationTimeBudget.ReservedMilliseconds);
         Assert.Equal((long)TimeSpan.FromMinutes(120).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.RemainingMilliseconds);
 
+        // The additive, advisory per-claim-path time-fit projection: with the full 120-minute
+        // default remaining, every one of the six currently supported claim paths fits — every
+        // status crosses the wire as a plain string (this repo's zero-generated-enum convention).
+        // Carries only the claim path and its fit outcome, never a role/provider mapping: the six
+        // cockpit action components already know their own claim path statically.
+        Assert.Equal(6, cockpit.AgentClaimPathTimeFits.Count);
+        Assert.All(cockpit.AgentClaimPathTimeFits, entry => Assert.Equal("Fits", entry.Fit));
+        var fitsByPath = cockpit.AgentClaimPathTimeFits.ToDictionary(entry => entry.ClaimPath!);
+        Assert.Contains("CodexPlanning", fitsByPath.Keys);
+        Assert.Contains("ClaudeCriticalReview", fitsByPath.Keys);
+        Assert.Contains("ChallengeResolution", fitsByPath.Keys);
+        Assert.Contains("Implementation", fitsByPath.Keys);
+        Assert.Contains("CodeReview", fitsByPath.Keys);
+        Assert.Contains("ReviewCorrection", fitsByPath.Keys);
+
         // Only events for THIS run: Sequence is a global monotonic counter shared by every
         // run in the database, so it is not expected to equal the event count once more
         // than one run exists.
@@ -132,6 +147,11 @@ public sealed class SimulatedRunFlowTests(SimulatedRunApiWebApplicationFactory f
         Assert.Null(cockpit.AgentInvocationTimeBudget.MaximumMilliseconds);
         Assert.Null(cockpit.AgentInvocationTimeBudget.ReservedMilliseconds);
         Assert.Null(cockpit.AgentInvocationTimeBudget.RemainingMilliseconds);
+
+        // A legacy run's per-claim-path fit projection is truthfully "not a fit or no-fit answer"
+        // for every claim path — never fabricated as Fits or DoesNotFit.
+        Assert.Equal(6, cockpit.AgentClaimPathTimeFits.Count);
+        Assert.All(cockpit.AgentClaimPathTimeFits, entry => Assert.Equal("LegacyUnknown", entry.Fit));
     }
 
     [Fact]

@@ -14,6 +14,7 @@ import { useReviewCorrectionAttemptStatus } from '../hooks/useReviewCorrectionAt
 import { useRequestReviewCorrection } from '../hooks/useRequestReviewCorrection'
 import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrection'
 import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
@@ -106,6 +107,16 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   // effect: a cockpit projection still describing the previously selected run must never be
   // read as this run's budget state, even for one render frame (see `deriveGlobalAgentClaimBlock`).
   const globalClaimBlock = deriveGlobalAgentClaimBlock(cockpit, runId)
+  // A separate, additive per-claim-path signal: whether THIS SPECIFIC claim path's own
+  // configured invocation timeout fits the run's remaining reserved time. Computed synchronously
+  // during render from the same currently selected `runId`, for the exact same stale-projection
+  // reason as `globalClaimBlock` above.
+  const codexPlanningTimeFit = deriveAgentClaimPathTimeFit(cockpit, runId, 'CodexPlanning')
+  const claudeCriticalReviewTimeFit = deriveAgentClaimPathTimeFit(cockpit, runId, 'ClaudeCriticalReview')
+  const challengeResolutionTimeFit = deriveAgentClaimPathTimeFit(cockpit, runId, 'ChallengeResolution')
+  const implementationTimeFit = deriveAgentClaimPathTimeFit(cockpit, runId, 'Implementation')
+  const codeReviewTimeFit = deriveAgentClaimPathTimeFit(cockpit, runId, 'CodeReview')
+  const reviewCorrectionTimeFit = deriveAgentClaimPathTimeFit(cockpit, runId, 'ReviewCorrection')
 
   return (
     <>
@@ -152,6 +163,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             requestError={requestCodexPlanningAttempt.error}
             onRequest={() => void requestCodexPlanningAttempt.request(runId)}
             globalClaimBlock={globalClaimBlock}
+            timeFit={codexPlanningTimeFit}
           />
           <ClaudeCriticalReviewAction
             proposalMessageId={latestCodexProposalMessageId}
@@ -164,6 +176,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               latestCodexProposalMessageId && void requestClaudeCriticalReview.request(runId, latestCodexProposalMessageId)
             }
             globalClaimBlock={globalClaimBlock}
+            timeFit={claudeCriticalReviewTimeFit}
           />
           <ChallengeResolutionAction
             challengedReviewAttemptId={latestChallengedReviewAttemptId}
@@ -177,6 +190,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               latestChallengedReviewAttemptId && void requestChallengeResolution.request(runId, latestChallengedReviewAttemptId)
             }
             globalClaimBlock={globalClaimBlock}
+            timeFit={challengeResolutionTimeFit}
           />
           <ImplementationAction
             planProposalMessageId={eligiblePlanProposalMessageId}
@@ -189,6 +203,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               eligiblePlanProposalMessageId && void requestImplementation.request(runId, eligiblePlanProposalMessageId)
             }
             globalClaimBlock={globalClaimBlock}
+            timeFit={implementationTimeFit}
           />
           <CodeReviewAction
             executionReportMessageId={latestExecutionReportMessageId}
@@ -201,6 +216,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               latestExecutionReportMessageId && void requestCodeReview.request(runId, latestExecutionReportMessageId)
             }
             globalClaimBlock={globalClaimBlock}
+            timeFit={codeReviewTimeFit}
           />
           <ReviewCorrectionAction
             reviewAttemptId={codeReviewAttemptStatus.status?.attemptId ?? null}
@@ -213,6 +229,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             authorizing={authorizeReviewCorrection.authorizing}
             authorizationError={authorizeReviewCorrection.error}
             globalClaimBlock={globalClaimBlock}
+            timeFit={reviewCorrectionTimeFit}
             onAuthorize={() => {
               const escalationId = reviewCorrectionAttemptStatus.status?.escalationId
               if (escalationId) void authorizeReviewCorrection.authorize(runId, escalationId)

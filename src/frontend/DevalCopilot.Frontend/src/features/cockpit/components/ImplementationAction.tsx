@@ -1,6 +1,8 @@
 import type { ImplementationAttemptStatusResponse } from '../../../api/clients'
 import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
+import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
+import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -15,6 +17,9 @@ interface ImplementationActionProps {
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
+  /** The advisory, candidate-specific time-fit result for THIS claim path — separate from, and
+   * combined with, `globalClaimBlock`. See `deriveAgentClaimPathTimeFit`. */
+  timeFit: AgentClaimPathTimeFit
 }
 
 function phaseLabel(status: ImplementationAttemptStatusResponse): string {
@@ -58,6 +63,7 @@ export function ImplementationAction({
   requestError,
   onRequest,
   globalClaimBlock,
+  timeFit,
 }: ImplementationActionProps) {
   if (!planProposalMessageId) {
     return null
@@ -69,6 +75,7 @@ export function ImplementationAction({
   const isSettledForCurrentPlan =
     implementsCurrentPlan && (status?.outcome === 'Implemented' || status?.outcome === 'InputAlreadyImplemented')
   const canRequest = !isActive && !isSettledForCurrentPlan
+  const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
   const assignmentProvider = status?.provider === 'ClaudeCode'
     ? 'Claude Code'
     : status?.provider === 'Codex'
@@ -92,7 +99,12 @@ export function ImplementationAction({
           {describeGlobalAgentClaimBlock(globalClaimBlock)}
         </p>
       )}
-      {!isActive && canRequest && !globalClaimBlock && (
+      {!isActive && canRequest && timeFitBlocked && (
+        <p className="dc-implementation-time-fit-block" role="status">
+          {describeAgentClaimPathTimeFitBlock(timeFit)}
+        </p>
+      )}
+      {!isActive && canRequest && !globalClaimBlock && !timeFitBlocked && (
         <button
           type="button"
           className="dc-implementation-request"

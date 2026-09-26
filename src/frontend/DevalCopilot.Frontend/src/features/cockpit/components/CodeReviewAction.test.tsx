@@ -15,6 +15,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -33,6 +34,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={onRequest}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -58,6 +60,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -88,6 +91,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -114,6 +118,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -131,6 +136,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -162,6 +168,7 @@ describe('CodeReviewAction', () => {
         requestError={SafeHumanDetail}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -181,6 +188,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -198,6 +206,7 @@ describe('CodeReviewAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={{ reason: 'TimeBudgetEvidenceInvalid' }}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 

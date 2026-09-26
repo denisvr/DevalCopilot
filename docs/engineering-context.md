@@ -68,8 +68,10 @@
 - Agent context is assembled progressively from the smallest sufficient set of
   durable records and evidence. Complete transcripts and unchanged repository
   content are not replayed by default.
-- Token usage is a visible, enforceable budget at attempt, stage, and run level
-  when provider data is available.
+- Token usage is a visible, best-effort measurement at attempt and run level
+  when provider data is available. It is not an enforceable budget: no token
+  or account-usage threshold is enforced anywhere in the system today (see
+  the open risks in `docs/roadmap/current-work.md`).
 - Git, Codex, Claude Code, and GitHub integrations are replaceable
   Infrastructure adapters behind narrow Application ports.
 - The MVP uses existing local CLI authentication and never copies provider

@@ -15,6 +15,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -33,6 +34,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={onRequest}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -59,6 +61,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -89,6 +92,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -128,6 +132,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -159,6 +164,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -177,6 +183,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -207,6 +214,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -234,6 +242,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -266,6 +275,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -285,6 +295,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -302,6 +313,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -329,6 +341,7 @@ describe('ImplementationAction', () => {
         requestError="This resolved plan already has a successful implementation."
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -347,6 +360,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
@@ -364,6 +378,7 @@ describe('ImplementationAction', () => {
         requestError={null}
         onRequest={vi.fn()}
         globalClaimBlock={{ reason: 'CountBudgetExhausted' }}
+        timeFit={{ reason: 'Fits' }}
       />,
     )
 
