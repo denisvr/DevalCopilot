@@ -58,18 +58,27 @@ second delivery ledger or an approval log. Update it when selecting a bounded
 execution slice or changing a review decision; distinguish selected work from
 ideas and verify it against Git, code, the roadmap, and accepted ADRs.
 
-Slice completion requires an updated `docs/roadmap/current-work.md` in the
-same substantive commit. Record the delivered commit, remaining uncommitted
-work, checks actually run, open risks, and the next action; keep it short and
-link to authoritative contracts and ADRs. The planner/reviewer owns next-slice
-selection; the executor reports facts but cannot select its own next plan.
-After committing a completed slice, the executor must push `main` to
-`origin/main` with a normal fast-forward push, verify that the remote branch
-points to the delivered commit, and report the result. A local-only commit is
-not a completed delivery. If the push fails or the remote has diverged, stop
-and report the discrepancy; do not force-push or reconcile remote history
-without planner/reviewer direction. Publishing the delivery does not constitute
-planner/reviewer acceptance.
+The executor first presents the completed slice as an **uncommitted and
+unpushed** diff, including the updated `docs/roadmap/current-work.md` and
+checks actually run. The planner/reviewer inspects Git, code, tests, and
+evidence and gives an explicit GO or actionable NO-GO. A NO-GO stays
+uncommitted while the executor makes the bounded correction and returns it
+for review. The executor must not commit or push before the planner/reviewer
+explicitly authorizes that reviewed diff; selecting a slice is not commit/push
+authorization. If the diff materially changes after GO, return it for review
+again before committing.
+
+After GO, the executor commits the reviewed substantive slice, including
+`current-work.md` in the same commit, then pushes `main` to `origin/main` with
+a normal fast-forward push, verifies that the remote branch points to the
+delivered commit, and reports the result. The handoff records the delivered
+commit, remaining uncommitted work, checks actually run, open risks, and next
+action; keep it short and link to authoritative contracts and ADRs. A
+local-only commit is not a completed delivery. If the push fails or the remote
+has diverged, stop and report the discrepancy; do not force-push or reconcile
+remote history without planner/reviewer direction. The planner/reviewer owns
+next-slice selection; the executor reports facts but cannot select its own
+next plan.
 On resume, compare HEAD, branch, and staged/unstaged/untracked changes with the
 handoff before editing. Investigate discrepancies; Git and code prevail over
 a stale summary.
@@ -86,8 +95,8 @@ state. The executor verifies these once before editing and reports a material
 discrepancy rather than assuming a stale prompt still applies. Do not try to
 embed a commit's own SHA in that same commit's documentation.
 
-At a delivered slice's review, the planner/reviewer decides GO/NO-GO from Git,
-code, and evidence. After GO, it also prepares the next bounded proposal in
-the same review pass when a safe next candidate is identifiable, and may
+At an uncommitted slice's review, the planner/reviewer decides GO/NO-GO from
+Git, code, and evidence. After GO and verified publication, it also prepares
+the next bounded proposal when a safe candidate is identifiable, and may
 select and dispatch it. A NO-GO remains a correction of the current slice,
 not permission for the executor to start a different one.

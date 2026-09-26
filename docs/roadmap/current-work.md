@@ -11,12 +11,13 @@ untracked changes before editing; do not reset work to match this page.
 
 ## Current checkpoint (2026-09-26)
 
-- Latest delivery (pending Codex review): the bounded, read-only configured
-  Claude Implementer permission mode fact, built on parent
-  `89575350d6b1ac2ed347b6246da427840b83fcc0` (`main`/`origin/main` at the
-  start of this slice). Checkout clean at delivery. This delivery has not yet
-  been reviewed; Codex owns GO/NO-GO and records its decision in
-  [planner-handoff.md](planner-handoff.md).
+- Latest accepted delivery: the bounded, read-only configured Claude
+  Implementer permission mode fact in
+  `6050203da62fe7b2e02664b8fd246a0a400166c5`, built on parent
+  `89575350d6b1ac2ed347b6246da427840b83fcc0` (`main`/`origin/main` at
+  the start of this slice). Checkout clean at delivery. Codex recorded technical
+  GO after publication, with the premature commit/push noted as a process
+  exception in [planner-handoff.md](planner-handoff.md).
 - Delivered behavior: the implementation-attempt status query, API response,
   and cockpit (`ImplementationAction`) now expose a new `ConfiguredPermissionMode`
   / `configuredPermissionMode` fact — the fixed `acceptEdits` CLI permission
@@ -48,15 +49,17 @@ untracked changes before editing; do not reset work to match this page.
   src/backend/DevalCopilot.Api` (its own MSBuild target runs on every Debug
   build); the resulting `api-client.ts` diff is additive only (one new
   optional field on `ImplementationAttemptStatusResponse`).
-- No API, persistence, adapter, threshold, authorization override, claim
-  eligibility, or provider-account-usage change of any kind. The
+- No provider API access, persistence, adapter, threshold, authorization
+  override, claim eligibility, or provider-account-usage change of any kind. The
   provider-allowance evidence slice remains closed without implementation:
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: Codex reviews this delivery for GO/NO-GO and, on GO, selects
-  the next bounded slice per [planner-handoff.md](planner-handoff.md). No
-  next execution slice is approved yet.
+- Next action: Codex investigates remaining Increment 4 runtime-control
+  contracts before selecting another bounded slice. Under the corrected
+  workflow in [AGENTS.md](../../AGENTS.md), Claude submits its next completed
+  diff without commit or push; Codex GO must precede both. No next execution
+  slice has been selected yet.
 
 ## Open risks
 
