@@ -14,10 +14,10 @@ over a stale summary. Never reset work merely to match this page.
 
 ## Latest delivered baseline (2026-09-26): provider-separated run token-usage projection
 
-- Branch: `main`. Delivered commit: resolve its exact SHA with `git log -1
-  --format=%H -- docs/roadmap/current-work.md` (a commit cannot embed its own
-  SHA). Its parent is `63bd7191caaa45b8747f13b2d4fce8828a19c21f` (`docs: close
-  blocked provider allowance slice`).
+- Branch: `main`. Delivered commit:
+  `e3805a887068a3b7707594eef6a2d52602a00401`, parent
+  `63bd7191caaa45b8747f13b2d4fce8828a19c21f` (`docs: close blocked
+  provider allowance slice`).
 - Owner-authorized, bounded slice (replacing the closed Provider allowance
   evidence attempt): a read-only, provider-separated run token-usage
   projection in the cockpit, built entirely from existing trusted per-attempt
@@ -59,10 +59,10 @@ over a stale summary. Never reset work merely to match this page.
   tests, no new adapter, and no account-allowance observation of any kind —
   this slice does not address Increment 4's open account-usage exit
   criterion; that remains open exactly as recorded below.
-- Next action: this baseline is delivered but not yet Codex-reviewed. Codex
-  (planner/reviewer) evaluates and records GO/NO-GO in
-  [planner-handoff.md](planner-handoff.md); no next slice is approved by this
-  entry.
+- Review follow-up: Codex recorded **NO-GO** for two narrow frontend
+  presentation defects in the [planner handoff](planner-handoff.md). Claude
+  corrects those defects in this same slice and reports a new commit; Codex
+  retains final acceptance. No next slice is approved by this entry.
 
 ## Prior delivered baseline (2026-09-26): shared instructions and planner handoff
 

@@ -14,17 +14,36 @@ prevail over any stale summary here.
   assignment changes only when the owner explicitly changes it; see
   [AGENTS.md](../../AGENTS.md).
 - The latest Codex-accepted slice is candidate-specific invocation-time fit.
-  Verify its delivered commit and clean-tree claim in the
-  [shared handoff](current-work.md) and Git rather than copying a SHA here.
+  The subsequent provider-separated run token-usage projection was delivered
+  in `e3805a8` but has a **NO-GO** review decision pending a narrow frontend
+  correction; see below. Do not treat delivery as acceptance.
 - The owner-authorized **Provider allowance evidence** execution slice stopped
   at its explicit evidence gate. Claude reported no implementation; Codex
   verified no code, test, or migration changes in the current checkout. The
-  slice is closed without delivery or acceptance. No execution slice is now
-  approved, and no implementation review is pending.
+  slice is closed without delivery or acceptance. No next slice is approved.
 - Provider account usage remains unobserved and unenforced. The remaining
   [Increment 4 deliverable and exit criterion](mvp-delivery-plan.md) are open;
   preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
   and later accepted decisions.
+
+## Review NO-GO: provider-separated run token usage (`e3805a8`)
+
+- The backend partitions the existing dispatched-attempt evidence into Codex,
+  Claude Code, and Unattributed in the existing single pass; the run-wide
+  summary remains intact. Focused Application (8), API (3), and frontend (66)
+  tests passed independently during review. No migration or provider adapter
+  was added. These observations do not accept the slice yet.
+- Correct two frontend presentation defects within this slice: (1) an
+  unrecognized `attribution` such as `toString`, `constructor`, or `__proto__`
+  currently resolves through inherited `Object` properties rather than the
+  promised "Unrecognized provider" label; use an own-property-safe lookup and
+  test those values; (2) a provider bucket currently reuses "Run token total"
+  and "not the run total" wording, conflating a bucket's subtotal with the
+  separate run-wide summary. Use provider-scoped wording while retaining the
+  existing run-wide copy, completeness semantics, and partial-vs-total rule.
+- Do not expand this correction into budgets, provider account usage, adapters,
+  persistence, or another slice. Claude reports a correction commit and checks;
+  Codex reviews it for GO/NO-GO. No next slice is approved.
 
 ## Closed without delivery: Provider allowance evidence
 
