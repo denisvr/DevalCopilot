@@ -12,18 +12,35 @@ record of past delivered slices — this page does not restate it.
 changes against this page. Investigate any discrepancy; Git and code prevail
 over a stale summary. Never reset work merely to match this page.
 
-## Latest delivered baseline (2026-09-26): candidate-specific invocation-time fit
+## Latest delivered baseline (2026-09-26): shared instructions and planner handoff
 
-- Branch: `main`. Delivered commit: `feat: add candidate-specific
-  invocation-time fit to the cockpit`. Resolve its exact SHA with
-  `git log -1 --format=%H -- docs/roadmap/current-work.md` — a commit
-  cannot embed its own SHA without changing that SHA. Its parent is
+- Branch: `main`. Delivered commit: `docs: unify agent instructions and add
+  planner handoff`. Resolve its exact SHA with `git log -1 --format=%H --
+  docs/roadmap/current-work.md`; a commit cannot embed its own SHA.
+- Documentation-only follow-up: [AGENTS.md](../../AGENTS.md) is the shared
+  project-instruction source; [CLAUDE.md](../../CLAUDE.md) imports it while
+  retaining the engineering-context and delivery-handoff imports. The new
+  [planner/reviewer handoff](planner-handoff.md) records the separate decision
+  state and new-chat resume procedure without copying delivery history.
+  The [README](../../README.md) indexes this arrangement.
+- At creation, the working tree is clean and there is no remaining uncommitted
+  work. The commit is local; remote synchronization must be checked on resume.
+  No backend, frontend, migration, adapter, or product behavior changed.
+- Checks actually run: staged diff and whitespace audits, changed-document
+  relative-link and Claude import-target checks. Code test, build, EF, and
+  generated-client checks were not rerun for this documentation-only change.
+- Next action: Codex remains the planner/reviewer and has approved no next
+  slice. Consult the [planner handoff](planner-handoff.md) before deciding on
+  further Increment 4 work.
+
+## Prior delivered baseline (2026-09-26): candidate-specific invocation-time fit
+
+- Commit: `17254808e0920743b0cc214900c57a6a3d100c4d` (`feat: add
+  candidate-specific invocation-time fit to the cockpit`). Its parent is
   `ba186ab22a0b5a3846192eaa971493ffa77eb2a2` (`feat: add known global
   agent-claim block to the cockpit`).
-- At delivery, `HEAD` and `origin/main` resolve to that commit and
-  `git status --short` is empty. Remaining uncommitted work: none expected.
-  If either condition differs on resume, inspect Git and the diff before
-  editing; never reset work merely to match this page.
+- At that delivery, `HEAD` and `origin/main` resolved to the candidate-fit
+  commit and `git status --short` was empty. Remaining uncommitted work: none.
 - Codex-approved (GO) after two correction rounds, both folded into the
   final behavior described below rather than restated round by round — Git
   history retains the full narrative if it's ever needed. Codex approved

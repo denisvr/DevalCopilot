@@ -82,6 +82,7 @@ overwrites its own executable or active checkout.
 - [Security threat model](docs/security/threat-model.md)
 - [MVP delivery plan](docs/roadmap/mvp-delivery-plan.md)
 - [Current work and cross-chat handoff](docs/roadmap/current-work.md)
+- [Planner/reviewer handoff](docs/roadmap/planner-handoff.md)
 - [Architecture decisions](docs/decisions/README.md)
 - [Glossary](docs/glossary.md)
 
@@ -90,6 +91,8 @@ overwrites its own executable or active checkout.
 This project adopts the sibling `EngineeringStandards` repository through
 `AGENTS.md`, `CLAUDE.md`, and `docs/engineering-context.md`. Shared standards
 are referenced rather than copied so updates remain deliberate and reviewable.
+`AGENTS.md` is the shared project-instruction source; `CLAUDE.md` imports it
+and adds only Claude Code-specific guidance.
 
 All source code, committed documentation, identifiers, and canonical product
 copy are written in English. Product localization may be added through explicit

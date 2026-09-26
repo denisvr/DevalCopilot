@@ -41,6 +41,12 @@ Respect the role assigned by the project owner for the current workflow.
 
 ## Cross-chat continuity
 
+When acting as planner/reviewer, also read
+`docs/roadmap/planner-handoff.md` after the shared handoff. It records the
+planner-owned decision state, not a second delivery ledger. Update it when
+approving a slice or changing a review decision; distinguish approved work
+from ideas and verify it against Git, code, the roadmap, and accepted ADRs.
+
 Slice completion requires an updated `docs/roadmap/current-work.md` in the
 same substantive commit. Record the delivered commit, remaining uncommitted
 work, checks actually run, open risks, and the next action; keep it short and
