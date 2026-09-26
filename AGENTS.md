@@ -60,6 +60,13 @@ same substantive commit. Record the delivered commit, remaining uncommitted
 work, checks actually run, open risks, and the next action; keep it short and
 link to authoritative contracts and ADRs. The planner/reviewer owns next-slice
 approval; the executor reports facts but cannot approve its own next plan.
+After committing a completed slice, the executor must push `main` to
+`origin/main` with a normal fast-forward push, verify that the remote branch
+points to the delivered commit, and report the result. A local-only commit is
+not a completed delivery. If the push fails or the remote has diverged, stop
+and report the discrepancy; do not force-push or reconcile remote history
+without planner/reviewer direction. Publishing the delivery does not constitute
+planner/reviewer acceptance.
 On resume, compare HEAD, branch, and staged/unstaged/untracked changes with the
 handoff before editing. Investigate discrepancies; Git and code prevail over
 a stale summary.

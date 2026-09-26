@@ -56,6 +56,9 @@ in Git rather than accumulating here.
    put the **exact post-approval HEAD SHA**, branch, and expected clean/dirty
    staged/unstaged/untracked state in the prompt sent to Claude. The executor
    verifies these once before editing and stops on a material discrepancy.
+   The prompt also explicitly requires Claude to push the completed slice to
+   `origin/main`, verify the remote commit, and report any push failure without
+   rewriting or reconciling remote history on its own.
    The approval commit cannot contain its own SHA; the subsequent prompt can.
    A GO or an unapproved proposal never approves the next executor slice.
 4. The executor updates `current-work.md` with delivery facts in the
