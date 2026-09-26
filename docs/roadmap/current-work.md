@@ -11,13 +11,11 @@ untracked changes before editing; do not reset work to match this page.
 
 ## Current checkpoint (2026-09-26)
 
-- Latest delivery: the bounded, frontend-only one-Agent-claim-slot-remaining
-  warning, delivered in commit (resolve its exact SHA with `git log -1
-  --format=%H -- docs/roadmap/current-work.md`; a commit cannot embed its own
-  SHA), parent `b3cc8ec856b30b4385daa1e14a829aa97d899e2c` (the planner's
-  approval commit). Branch `main`, checkout clean at both the pre-edit
-  preflight and this delivery. Not yet reviewed by Codex; delivery is not
-  acceptance.
+- Latest accepted delivery: the bounded, frontend-only one-Agent-claim-slot-
+  remaining warning in `e79f03e891bb3a5a2f0fea06f670432f5fedcb02`,
+  parent `b3cc8ec856b30b4385daa1e14a829aa97d899e2c` (the planner's
+  approval commit). Branch `main`, checkout clean at delivery and Codex
+  review; Codex recorded **GO** in [planner-handoff.md](planner-handoff.md).
 - Delivered behavior: a new, additive `OneAgentClaimSlotRemainingWarning`
   (backed by the pure `deriveOneAgentClaimSlotRemainingWarning`) shows exactly
   one claimed Agent attempt before the existing run-wide count budget
@@ -52,9 +50,9 @@ untracked changes before editing; do not reset work to match this page.
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: this baseline is delivered but not yet Codex-reviewed. Codex
-  evaluates and records GO/NO-GO in [planner-handoff.md](planner-handoff.md);
-  no next slice is approved by this entry.
+- Next action: Codex investigates provider-supported runtime-control
+  contracts against the remaining Increment 4 roadmap before proposing
+  another bounded slice. No next execution slice is approved by this GO.
 
 ## Open risks
 
