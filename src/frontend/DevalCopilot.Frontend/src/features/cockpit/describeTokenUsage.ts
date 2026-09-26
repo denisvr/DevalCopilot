@@ -126,6 +126,33 @@ function describeUnknownUsageGap(pendingCount: number, terminalUnknownCount: num
  * reported, including a genuine zero — a provider that truthfully reported no tokens is not the same
  * as no measurement at all.
  */
+/** One provider bucket's own run-scoped token-usage summary. Structurally matches the generated
+ * `RunCockpitProviderTokenUsageEntryResponse`: `attribution` is `'Codex'`, `'ClaudeCode'`, or
+ * `'Unattributed'` (a dispatched Agent attempt whose recorded provider is missing or unrecognized —
+ * never silently dropped from the projection). */
+export interface RunCockpitProviderTokenUsageEntryView {
+  attribution?: string
+  summary?: RunTokenUsageSummaryView
+}
+
+const PROVIDER_ATTRIBUTION_LABELS: Record<string, string> = {
+  Codex: 'Codex',
+  ClaudeCode: 'Claude Code',
+  Unattributed: 'Unattributed',
+}
+
+/** A human label for a provider-attribution value. An attribution this cockpit build does not
+ * recognize is still labeled honestly rather than hidden or guessed at. */
+export function describeProviderAttribution(attribution: string | null | undefined): string {
+  return (attribution && PROVIDER_ATTRIBUTION_LABELS[attribution]) || 'Unrecognized provider'
+}
+
+/** Describes one provider bucket's own token-usage summary, reusing exactly the same completeness
+ * rules and phrasing as the run-wide summary (see `describeRunTokenUsage`), scoped to that bucket. */
+export function describeProviderTokenUsage(entry: RunCockpitProviderTokenUsageEntryView | null | undefined): string {
+  return `${describeProviderAttribution(entry?.attribution)}: ${describeRunTokenUsage(entry?.summary)}`
+}
+
 export function describeRunTokenUsage(summary: RunTokenUsageSummaryView | null | undefined): string {
   const known = summary?.attemptsWithKnownUsage ?? 0
   const unknown = summary?.attemptsWithUnknownUsage ?? 0

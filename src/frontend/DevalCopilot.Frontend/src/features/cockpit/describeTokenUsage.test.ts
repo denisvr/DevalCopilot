@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { describeRunTokenUsage, describeTokenUsage, formatTokenCount, hasKnownTokenUsage, hasTrustedTokenUsage } from './describeTokenUsage'
+import {
+  describeProviderAttribution,
+  describeProviderTokenUsage,
+  describeRunTokenUsage,
+  describeTokenUsage,
+  formatTokenCount,
+  hasKnownTokenUsage,
+  hasTrustedTokenUsage,
+} from './describeTokenUsage'
 
 const terminal = { dispatched: true, running: false }
 
@@ -219,5 +227,53 @@ describe('describeRunTokenUsage', () => {
       'Token usage summary unavailable',
     )
     expect(describeRunTokenUsage(undefined)).toBe('Token usage summary unavailable')
+  })
+})
+
+describe('describeProviderAttribution', () => {
+  it('labels the two known providers', () => {
+    expect(describeProviderAttribution('Codex')).toBe('Codex')
+    expect(describeProviderAttribution('ClaudeCode')).toBe('Claude Code')
+  })
+
+  it('labels the unattributed bucket honestly rather than hiding it', () => {
+    expect(describeProviderAttribution('Unattributed')).toBe('Unattributed')
+  })
+
+  it('never crashes or invents a label for an attribution this build does not recognize', () => {
+    expect(describeProviderAttribution('SomeFutureProvider')).toBe('Unrecognized provider')
+    expect(describeProviderAttribution(null)).toBe('Unrecognized provider')
+    expect(describeProviderAttribution(undefined)).toBe('Unrecognized provider')
+  })
+})
+
+describe('describeProviderTokenUsage', () => {
+  it('prefixes the provider label onto exactly the same run-token-usage phrasing', () => {
+    const text = describeProviderTokenUsage({
+      attribution: 'Codex',
+      summary: {
+        completeness: 'Complete',
+        attemptsWithKnownUsage: 1,
+        attemptsWithUnknownUsage: 0,
+        inputTokens: 1000,
+        outputTokens: 200,
+      },
+    })
+
+    expect(text).toBe('Codex: Run token total: 1,000 input · 200 output (all 1 dispatched attempt reported usage)')
+  })
+
+  it('describes an empty Claude Code bucket without a numeric total', () => {
+    const text = describeProviderTokenUsage({
+      attribution: 'ClaudeCode',
+      summary: { completeness: 'NoDispatchedAttempts', inputTokens: 0, outputTokens: 0 },
+    })
+
+    expect(text).toBe('Claude Code: No token usage data yet — no agent attempt has been dispatched')
+  })
+
+  it('treats a missing entry or summary as unavailable rather than throwing', () => {
+    expect(describeProviderTokenUsage(undefined)).toBe('Unrecognized provider: Token usage summary unavailable')
+    expect(describeProviderTokenUsage({ attribution: 'Unattributed' })).toBe('Unattributed: Token usage summary unavailable')
   })
 })

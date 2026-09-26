@@ -31,6 +31,7 @@ import { ReviewCorrectionAction } from './ReviewCorrectionAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
+import { ProviderTokenUsageSummaries } from './ProviderTokenUsageSummaries'
 import { RunHeader } from './RunHeader'
 import { RunTokenUsageSummary } from './RunTokenUsageSummary'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
@@ -152,6 +153,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
       )}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />
       <RunTokenUsageSummary summary={cockpit.runId === runId ? cockpit.tokenUsageSummary : null} />
+      <ProviderTokenUsageSummaries entries={cockpit.runId === runId ? cockpit.providerTokenUsageSummaries : null} />
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
         <div className="dc-collaboration-column">

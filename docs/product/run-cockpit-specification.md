@@ -330,6 +330,29 @@ the "Provider token-usage contracts" section of the
 [agent-collaboration-protocol](../architecture/agent-collaboration-protocol.md)
 for its exact evidence-state contract.
 
+### Provider-separated token-usage projection
+
+A separate, read-only projection splits the same dispatched-Agent-attempt
+evidence the run-wide summary above sums into one independent summary per
+provider bucket — Codex, Claude Code, and Unattributed — so a reader can see
+each provider's own usage without losing the existing run-wide total, which
+this projection never changes or replaces. It uses only already-recorded,
+already-trusted per-attempt evidence (the same recorded provider and
+provider-reported usage every other cockpit token-usage read path already
+trusts); it observes no new provider surface, adds no new adapter, and
+enforces no threshold or guardrail — pure additional evidence, exactly like
+the run-wide summary it sits beside.
+
+The cockpit always shows exactly three buckets, even when a bucket has no
+dispatched attempts at all, so a reader can always find Codex and Claude Code
+in a stable position. Unattributed is the fail-closed bucket for a dispatched
+Agent attempt whose recorded provider is missing or not one of the two known
+providers — never silently dropped from the projection and never guessed
+into the wrong provider's bucket. Each bucket follows exactly the same
+completeness rules, "never trust a still-running attempt's usage" rule, and
+partial-vs-total labeling as the run-wide summary above, independently and
+scoped only to that bucket's own dispatched attempts.
+
 This same "never trust a still-running or undispatched attempt's usage" rule
 applies uniformly wherever a single attempt's own token usage is shown, not
 only in this run-wide sum: each role's own status view and the cockpit's

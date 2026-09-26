@@ -12,7 +12,59 @@ record of past delivered slices — this page does not restate it.
 changes against this page. Investigate any discrepancy; Git and code prevail
 over a stale summary. Never reset work merely to match this page.
 
-## Latest delivered baseline (2026-09-26): shared instructions and planner handoff
+## Latest delivered baseline (2026-09-26): provider-separated run token-usage projection
+
+- Branch: `main`. Delivered commit: resolve its exact SHA with `git log -1
+  --format=%H -- docs/roadmap/current-work.md` (a commit cannot embed its own
+  SHA). Its parent is `63bd7191caaa45b8747f13b2d4fce8828a19c21f` (`docs: close
+  blocked provider allowance slice`).
+- Owner-authorized, bounded slice (replacing the closed Provider allowance
+  evidence attempt): a read-only, provider-separated run token-usage
+  projection in the cockpit, built entirely from existing trusted per-attempt
+  evidence — no new provider adapter, no account-allowance observation, no
+  threshold, no claim-eligibility change, and no migration, exactly as scoped.
+- Scope delivered: `RunCockpitProviderTokenUsageProjection` (Application,
+  `Features/Runs/Queries/GetRunCockpit/`) partitions the same dispatched-
+  Agent-attempt evidence the existing run-wide `RunCockpitTokenUsageSummary`
+  sums into three fixed buckets — Codex, ClaudeCode, and Unattributed (a
+  dispatched attempt with a missing or unrecognized recorded provider) — in
+  one single-pass, constant-memory accumulator fed from
+  `GetRunCockpitQueryHandler`'s existing bounded projection loop (no
+  additional database round trip). Exposed as the new
+  `ProviderTokenUsageSummaries` field on `GetRunCockpitQueryResult` /
+  `GetRunCockpitResponse` (API: `RunCockpitProviderTokenUsageEntryResponse`,
+  attribution crosses the wire as a plain string, no generated TS enum), and
+  rendered by the new `ProviderTokenUsageSummaries` frontend component
+  alongside — never in place of — the existing `RunTokenUsageSummary`. The
+  existing run-wide summary and its own tests are unchanged.
+- Each bucket reuses the exact same completeness/fail-closed rules as the
+  run-wide summary (a still-`Running` attempt's usage is never trusted;
+  only a `Complete` bucket may be shown as that provider's total), scoped
+  independently to only that bucket's own dispatched attempts. See the new
+  "Provider-separated token-usage projection" subsection of
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+- Checks actually run: `dotnet format --verify-no-changes` clean; Release
+  build 0 warnings/0 errors; Domain 524/524; Application 964/964 (+8 new);
+  Infrastructure.IntegrationTests 440/441 (one pre-existing platform-
+  capability skip, unrelated); Api.IntegrationTests 291/291 (+3 new);
+  Architecture 9/9; `dotnet ef migrations has-pending-model-changes` reported
+  no pending changes; NSwag regeneration byte-identical across two builds
+  with zero `export enum` occurrences; frontend 556/556 tests (+11 new),
+  `tsc -b` clean, `oxlint` exited 0 with the same 20 pre-existing warnings (0
+  new), `vite build` production build passed; `git diff --check` reported no
+  whitespace errors (only the pre-existing CRLF-normalization notice on
+  `api-client.ts`).
+- No migration, no ADR change, no change to the existing run-wide
+  `RunCockpitTokenUsageSummary`/`RunCockpitTokenUsageAccumulator` or their own
+  tests, no new adapter, and no account-allowance observation of any kind —
+  this slice does not address Increment 4's open account-usage exit
+  criterion; that remains open exactly as recorded below.
+- Next action: this baseline is delivered but not yet Codex-reviewed. Codex
+  (planner/reviewer) evaluates and records GO/NO-GO in
+  [planner-handoff.md](planner-handoff.md); no next slice is approved by this
+  entry.
+
+## Prior delivered baseline (2026-09-26): shared instructions and planner handoff
 
 - Branch: `main`. Delivered baseline commit:
   `c914c19ba6b9d8d8f61cbbdaad220a5d46884172` (`docs: unify agent

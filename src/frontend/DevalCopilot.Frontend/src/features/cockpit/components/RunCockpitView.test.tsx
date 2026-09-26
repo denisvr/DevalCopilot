@@ -12,6 +12,7 @@ import {
   GetRunCockpitResponse,
   ParticipantIdentityResponse,
   RunCockpitAgentAttemptResponse,
+  RunCockpitProviderTokenUsageEntryResponse,
   RunTokenUsageSummaryResponse,
 } from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
@@ -1242,5 +1243,72 @@ describe('RunCockpitView token usage', () => {
     expect(screen.queryByLabelText('Run token usage')).not.toBeInTheDocument()
     expect(screen.queryByText(/Partial token count/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Tokens: 1,200 input/)).not.toBeInTheDocument()
+  })
+
+  it('renders the provider-separated projection beside, and consistent with, the run-wide summary', () => {
+    renderWith(
+      new GetRunCockpitResponse({
+        ...partialCockpit,
+        providerTokenUsageSummaries: [
+          new RunCockpitProviderTokenUsageEntryResponse({
+            attribution: 'Codex',
+            summary: new RunTokenUsageSummaryResponse({ completeness: 'NoDispatchedAttempts', inputTokens: 0, outputTokens: 0 }),
+          }),
+          new RunCockpitProviderTokenUsageEntryResponse({
+            attribution: 'ClaudeCode',
+            summary: new RunTokenUsageSummaryResponse({
+              completeness: 'Partial',
+              attemptsWithKnownUsage: 1,
+              attemptsWithUnknownUsage: 1,
+              inputTokens: 1200,
+              outputTokens: 345,
+            }),
+          }),
+          new RunCockpitProviderTokenUsageEntryResponse({
+            attribution: 'Unattributed',
+            summary: new RunTokenUsageSummaryResponse({ completeness: 'NoDispatchedAttempts', inputTokens: 0, outputTokens: 0 }),
+          }),
+        ],
+      }),
+    )
+
+    render(<RunCockpitView runId="run-1" />)
+
+    const list = screen.getByLabelText('Provider token usage')
+    expect(list.querySelectorAll('li')).toHaveLength(3)
+    expect(list).toHaveTextContent('Claude Code: Partial token count: 1,200 input · 345 output')
+    expect(list).toHaveTextContent('Codex: No token usage data yet')
+    expect(list).toHaveTextContent('Unattributed: No token usage data yet')
+    // Both the run-wide and the provider-separated projections are shown together, never one in
+    // place of the other.
+    expect(screen.getByLabelText('Run token usage')).toBeInTheDocument()
+  })
+
+  it('never renders the previously selected run\'s provider buckets for the newly selected run', () => {
+    renderWith(
+      new GetRunCockpitResponse({
+        ...partialCockpit,
+        providerTokenUsageSummaries: [
+          new RunCockpitProviderTokenUsageEntryResponse({
+            attribution: 'Codex',
+            summary: new RunTokenUsageSummaryResponse({
+              completeness: 'Complete',
+              attemptsWithKnownUsage: 1,
+              attemptsWithUnknownUsage: 0,
+              inputTokens: 1000,
+              outputTokens: 200,
+            }),
+          }),
+        ],
+      }),
+      true,
+    )
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.getByLabelText('Provider token usage')).toBeInTheDocument()
+
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByLabelText('Provider token usage')).not.toBeInTheDocument()
   })
 })

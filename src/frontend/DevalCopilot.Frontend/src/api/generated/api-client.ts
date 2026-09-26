@@ -2709,6 +2709,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     canStop?: boolean;
     latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
     tokenUsageSummary?: RunTokenUsageSummaryResponse;
+    providerTokenUsageSummaries?: RunCockpitProviderTokenUsageEntryResponse[];
     maximumAgentAttempts?: number;
     agentAttemptsUsed?: number;
     agentBudgetExhausted?: boolean;
@@ -2746,6 +2747,11 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.canStop = _data["canStop"];
             this.latestAgentAttempt = _data["latestAgentAttempt"] ? RunCockpitAgentAttemptResponse.fromJS(_data["latestAgentAttempt"]) : undefined as any;
             this.tokenUsageSummary = _data["tokenUsageSummary"] ? RunTokenUsageSummaryResponse.fromJS(_data["tokenUsageSummary"]) : undefined as any;
+            if (Array.isArray(_data["providerTokenUsageSummaries"])) {
+                this.providerTokenUsageSummaries = [] as any;
+                for (let item of _data["providerTokenUsageSummaries"])
+                    this.providerTokenUsageSummaries!.push(RunCockpitProviderTokenUsageEntryResponse.fromJS(item));
+            }
             this.maximumAgentAttempts = _data["maximumAgentAttempts"];
             this.agentAttemptsUsed = _data["agentAttemptsUsed"];
             this.agentBudgetExhausted = _data["agentBudgetExhausted"];
@@ -2787,6 +2793,11 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["canStop"] = this.canStop;
         data["latestAgentAttempt"] = this.latestAgentAttempt ? this.latestAgentAttempt.toJSON() : undefined as any;
         data["tokenUsageSummary"] = this.tokenUsageSummary ? this.tokenUsageSummary.toJSON() : undefined as any;
+        if (Array.isArray(this.providerTokenUsageSummaries)) {
+            data["providerTokenUsageSummaries"] = [];
+            for (let item of this.providerTokenUsageSummaries)
+                data["providerTokenUsageSummaries"].push(item ? item.toJSON() : undefined as any);
+        }
         data["maximumAgentAttempts"] = this.maximumAgentAttempts;
         data["agentAttemptsUsed"] = this.agentAttemptsUsed;
         data["agentBudgetExhausted"] = this.agentBudgetExhausted;
@@ -2817,6 +2828,7 @@ export interface IGetRunCockpitResponse {
     canStop?: boolean;
     latestAgentAttempt?: RunCockpitAgentAttemptResponse | undefined;
     tokenUsageSummary?: RunTokenUsageSummaryResponse;
+    providerTokenUsageSummaries?: RunCockpitProviderTokenUsageEntryResponse[];
     maximumAgentAttempts?: number;
     agentAttemptsUsed?: number;
     agentBudgetExhausted?: boolean;
@@ -3099,6 +3111,46 @@ export interface IRunTokenUsageSummaryResponse {
     outputTokens?: number;
     cacheCreationInputTokens?: number | undefined;
     cacheReadInputTokens?: number | undefined;
+}
+
+export class RunCockpitProviderTokenUsageEntryResponse implements IRunCockpitProviderTokenUsageEntryResponse {
+    attribution?: string;
+    summary?: RunTokenUsageSummaryResponse;
+
+    constructor(data?: IRunCockpitProviderTokenUsageEntryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attribution = _data["attribution"];
+            this.summary = _data["summary"] ? RunTokenUsageSummaryResponse.fromJS(_data["summary"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): RunCockpitProviderTokenUsageEntryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RunCockpitProviderTokenUsageEntryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attribution"] = this.attribution;
+        data["summary"] = this.summary ? this.summary.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IRunCockpitProviderTokenUsageEntryResponse {
+    attribution?: string;
+    summary?: RunTokenUsageSummaryResponse;
 }
 
 export class AgentInvocationTimeBudgetResponse implements IAgentInvocationTimeBudgetResponse {

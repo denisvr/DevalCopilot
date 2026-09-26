@@ -94,18 +94,20 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
             .AsAsyncEnumerable();
 
         var tokenUsageAccumulator = new RunCockpitTokenUsageAccumulator();
+        var providerTokenUsageAccumulator = new RunCockpitProviderTokenUsageAccumulator();
         var processDurationAccumulator = new RunCockpitAgentProcessDurationAccumulator();
         await foreach (var attempt in dispatchedAttemptEvidence.WithCancellation(cancellationToken))
         {
-            tokenUsageAccumulator.Add(
-                attempt.Status,
-                AgentTokenUsageEvidence.FromPersisted(
-                    attempt.AgentProvider,
-                    attempt.AgentInputTokens,
-                    attempt.AgentOutputTokens,
-                    attempt.AgentCacheCreationInputTokens,
-                    attempt.AgentCacheReadInputTokens,
-                    attempt.AgentTokenUsageSchemaVersion));
+            var tokenUsageEvidence = AgentTokenUsageEvidence.FromPersisted(
+                attempt.AgentProvider,
+                attempt.AgentInputTokens,
+                attempt.AgentOutputTokens,
+                attempt.AgentCacheCreationInputTokens,
+                attempt.AgentCacheReadInputTokens,
+                attempt.AgentTokenUsageSchemaVersion);
+
+            tokenUsageAccumulator.Add(attempt.Status, tokenUsageEvidence);
+            providerTokenUsageAccumulator.Add(attempt.Status, attempt.AgentProvider, tokenUsageEvidence);
 
             AgentProcessExecutionEvidence? processEvidence = null;
             if (attempt.AgentProcessOutcome is { } processOutcome
@@ -119,6 +121,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
         }
 
         var tokenUsageSummary = tokenUsageAccumulator.ToSummary();
+        var providerTokenUsageSummaries = providerTokenUsageAccumulator.ToEntries();
         var agentProcessDurationSummary = processDurationAccumulator.ToSummary();
 
         // The independent run-wide Agent invocation-TIME budget projection: never combined with the
@@ -159,6 +162,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 CanPause: false,
                 CanStop: false,
                 tokenUsageSummary,
+                providerTokenUsageSummaries,
                 run.MaximumAgentAttempts,
                 agentAttemptsUsed,
                 agentAttemptsUsed >= run.MaximumAgentAttempts,

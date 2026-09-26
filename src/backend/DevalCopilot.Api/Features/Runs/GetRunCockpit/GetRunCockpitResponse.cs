@@ -16,6 +16,7 @@ public sealed record GetRunCockpitResponse(
     bool CanStop,
     RunCockpitAgentAttemptResponse? LatestAgentAttempt,
     RunTokenUsageSummaryResponse TokenUsageSummary,
+    IReadOnlyList<RunCockpitProviderTokenUsageEntryResponse> ProviderTokenUsageSummaries,
     int MaximumAgentAttempts,
     int AgentAttemptsUsed,
     bool AgentBudgetExhausted,

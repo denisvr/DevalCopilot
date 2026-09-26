@@ -52,6 +52,7 @@ public sealed class GetRunCockpitEndpoint(
                         AgentTokenUsageResponse.FromAttempt(attempt.TokenUsage))
                     : null,
                 RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary),
+                value.ProviderTokenUsageSummaries.Select(RunCockpitProviderTokenUsageEntryResponse.FromDomain).ToArray(),
                 value.MaximumAgentAttempts,
                 value.AgentAttemptsUsed,
                 value.AgentBudgetExhausted,
