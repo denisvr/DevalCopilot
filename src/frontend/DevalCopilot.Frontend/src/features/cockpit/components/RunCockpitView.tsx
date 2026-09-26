@@ -31,6 +31,7 @@ import { ReviewCorrectionAction } from './ReviewCorrectionAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
+import { OneAgentClaimSlotRemainingWarning } from './OneAgentClaimSlotRemainingWarning'
 import { ProviderTokenUsageSummaries } from './ProviderTokenUsageSummaries'
 import { RunHeader } from './RunHeader'
 import { RunTokenUsageSummary } from './RunTokenUsageSummary'
@@ -132,6 +133,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           agentBudgetExhausted={cockpit.agentBudgetExhausted ?? false}
         />
       )}
+      {cockpit.runId === runId && <OneAgentClaimSlotRemainingWarning cockpit={cockpit} selectedRunId={runId} />}
       {cockpit.runId === runId && (
         <AgentInvocationTimeBudgetBanner
           maximumMilliseconds={cockpit.agentInvocationTimeBudget?.maximumMilliseconds}

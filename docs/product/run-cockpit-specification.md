@@ -241,6 +241,31 @@ cannot actually succeed — the control withholds that button too, for the
 same known-certain-rejection reason as every other Agent-claim control,
 rather than offering an action that would only be rejected server-side.
 
+### One Agent claim slot remaining warning
+
+A separate, additive, read-only warning — `deriveOneAgentClaimSlotRemainingWarning`
+and its `OneAgentClaimSlotRemainingWarning` presentation — appears exactly one
+claimed Agent attempt before the run-wide count budget above is fully
+exhausted, so the owner has a chance to review the evidence gathered so far
+before spending the last claim. `AgentClaimBudgetBanner` itself is unchanged
+and continues to speak only once the budget is actually exhausted; this
+warning is a distinct, earlier signal shown alongside it, never a replacement
+for its copy or behavior. It reads `maximumAgentAttempts` (the actual
+persisted ceiling, including any historically raised maximum — never a
+hardcoded default) and `agentAttemptsUsed` directly from the cockpit
+projection's own nullable fields, never through the `?? 0`/`?? false`
+presentation fallbacks `RunCockpitView` applies only for
+`AgentClaimBudgetBanner`'s own always-rendering props: a missing or
+inconsistent value here means "unknown", never a coincidentally-matching
+zero or false. It shows only when the maximum and used count are coherent,
+positive/non-negative finite integers, `agentBudgetExhausted` is the literal
+`false`, and `agentAttemptsUsed` equals exactly `maximumAgentAttempts - 1` —
+never for an exhausted, over-budget, unknown, or malformed state, and never
+for a projection still describing a previously selected run. Its own copy
+states plainly that other controls may still block the next attempt even
+though a budget slot remains; it never grants or vetoes any action, and the
+backend remains the sole authority for every claim.
+
 ### Candidate-specific invocation-time fit
 
 `deriveGlobalAgentClaimBlock` above deliberately never references any one

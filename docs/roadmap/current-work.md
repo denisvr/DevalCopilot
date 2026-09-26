@@ -11,45 +11,50 @@ untracked changes before editing; do not reset work to match this page.
 
 ## Current checkpoint (2026-09-26)
 
-- Latest accepted delivery: recorded collaboration-input provenance, delivered
-  in `b812263af8995b717f6e0bd7d0e9c774be26e187` and corrected in
-  `a5463187216b5632920345e5cb9023b3b226ba5b` and
-  `679071b585ef05025b1154e56ffd7ff8f2ba9fb4`. Codex reviewed the final
-  correction and recorded **GO** in [planner-handoff.md](planner-handoff.md).
-  The branch was `main` and the checkout clean at review. `origin/main` was a
-  stale local tracking ref at `c914c19`; verify its live state before relying
-  on it. The executor reported no remaining uncommitted work; this separate
-  process-documentation update is not part of the delivered feature.
-- Delivered behavior: the existing collaboration-message evidence drill-down
-  shows a bounded, ordered list of the producing Agent attempt's durable
-  `AttemptInputMessage` references. Same-run ownership and sequence coherence
-  fail closed; only a Planner's zero-row set is `Empty`; all other zero-row
-  roles are `Invalid`. A valid 11-input review-correction set truthfully shows
-  10 entries and an omission signal. Missing attempt/actor role or provider
-  returns `AttemptLinkBroken`. This is recorded collaboration input identity,
-  not a complete prompt, provider transcript, or resumable native session.
-  See [the collaboration protocol](../architecture/agent-collaboration-protocol.md).
-- Checks actually run by the executor across the delivery and corrections:
-  Release build 0 warnings/0 errors; Domain 524/524; Application 983/983;
-  Infrastructure.IntegrationTests 440/441 (one pre-existing capability skip);
-  Api.IntegrationTests 295/295; Architecture 9/9; EF reported no pending model
-  changes; `dotnet format --verify-no-changes` and `git diff --check` clean;
-  NSwag byte-identical after corrections, with no generated enums. The initial
-  frontend delivery passed 578/578 tests, TypeScript, lint (0 new warnings),
-  and production build; the backend-only corrections did not rerun frontend.
-  Codex independently inspected the delivery/correction diffs and ran focused
-  Application (35/35) and API (4/4) tests on the final state; it did not rerun
-  the executor's full matrix.
-- No migration, adapter, provider-account observation, native-session resume,
-  budget enforcement, or new runtime-control contract was delivered. The
+- Latest delivery: the bounded, frontend-only one-Agent-claim-slot-remaining
+  warning, delivered in commit (resolve its exact SHA with `git log -1
+  --format=%H -- docs/roadmap/current-work.md`; a commit cannot embed its own
+  SHA), parent `b3cc8ec856b30b4385daa1e14a829aa97d899e2c` (the planner's
+  approval commit). Branch `main`, checkout clean at both the pre-edit
+  preflight and this delivery. Not yet reviewed by Codex; delivery is not
+  acceptance.
+- Delivered behavior: a new, additive `OneAgentClaimSlotRemainingWarning`
+  (backed by the pure `deriveOneAgentClaimSlotRemainingWarning`) shows exactly
+  one claimed Agent attempt before the existing run-wide count budget
+  ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md))
+  is exhausted, so the owner can review evidence before the last claim.
+  `AgentClaimBudgetBanner`'s own exhausted-state copy, claim-button vetoes,
+  time-fit signals, and server-side enforcement are all unchanged — this
+  warning is shown alongside, never in place of, the existing banner. It reads
+  `maximumAgentAttempts` (the actual persisted ceiling, including any
+  historically raised maximum) and `agentAttemptsUsed` directly from the
+  cockpit projection's own nullable fields — never through the `?? 0`/
+  `?? false` fallbacks `RunCockpitView` applies only for
+  `AgentClaimBudgetBanner`'s own always-rendering props — and requires
+  `agentBudgetExhausted === false` (the literal boolean, not a coalesced
+  default) plus `agentAttemptsUsed === maximumAgentAttempts - 1` on coherent,
+  finite, non-negative integers for the currently selected run; it shows
+  nothing for an exhausted, over-budget, unknown, malformed, or stale-run
+  projection. Its own copy states that other controls may still block the
+  next attempt and never implies eligibility. See the new "One Agent claim
+  slot remaining warning" subsection of
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+- Checks actually run: frontend 605/605 tests (+27 new: derivation coherence/
+  edge cases, component rendering, and `RunCockpitView` wiring proving both
+  banners coexist and the exhausted banner's own copy is untouched), `tsc -b`
+  clean, `oxlint` exited 0 with the same 20 pre-existing warnings (0 new),
+  `vite build` production build passed, `git diff --check` reported no
+  whitespace errors. No backend/API file was touched by this slice, so its
+  suites were not rerun; NSwag/migrations are consequently unaffected.
+- No API, persistence, adapter, threshold, authorization override, claim
+  eligibility, or provider-account-usage change of any kind. The
   provider-allowance evidence slice remains closed without implementation:
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: the owner approved the bounded frontend-only one-Agent-claim-
-  slot warning in [planner-handoff.md](planner-handoff.md). Claude may execute
-  only that slice after checking the exact Git preflight in Codex's prompt;
-  Codex retains GO/NO-GO and final acceptance.
+- Next action: this baseline is delivered but not yet Codex-reviewed. Codex
+  evaluates and records GO/NO-GO in [planner-handoff.md](planner-handoff.md);
+  no next slice is approved by this entry.
 
 ## Open risks
 

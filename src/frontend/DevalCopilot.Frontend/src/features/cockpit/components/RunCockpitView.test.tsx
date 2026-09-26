@@ -1312,3 +1312,73 @@ describe('RunCockpitView token usage', () => {
     expect(screen.queryByLabelText('Provider token usage')).not.toBeInTheDocument()
   })
 })
+
+describe('RunCockpitView one Agent claim slot remaining warning', () => {
+  function renderWith(cockpit: GetRunCockpitResponse, loading = false) {
+    useRunCockpitMock.mockReturnValue({ cockpit, cards: [], connection: 'live', loading, error: null, syncError: null })
+  }
+
+  it('renders alongside the exhausted banner\'s own healthy (non-exhausted) state without it, and shows nothing when the budget is not down to its last slot', () => {
+    renderWith(runningCockpit)
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Only one Agent claim slot remains/)).not.toBeInTheDocument()
+  })
+
+  it('renders the one-slot-remaining warning without ever showing the exhausted banner, and never implies the next claim is eligible', () => {
+    renderWith(
+      new GetRunCockpitResponse({
+        ...runningCockpit,
+        maximumAgentAttempts: 16,
+        agentAttemptsUsed: 15,
+        agentBudgetExhausted: false,
+      } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+    )
+
+    render(<RunCockpitView runId="run-1" />)
+
+    const warning = screen.getByRole('status')
+    expect(warning).toHaveTextContent('Only one Agent claim slot remains for this run (15/16 used).')
+    expect(warning).toHaveTextContent('other controls may still block that attempt')
+    // The exhausted banner's own copy/behavior is untouched by this warning.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/reached its maximum/)).not.toBeInTheDocument()
+  })
+
+  it('shows only the existing exhausted banner, never this warning, once the budget is fully exhausted', () => {
+    renderWith(
+      new GetRunCockpitResponse({
+        ...runningCockpit,
+        maximumAgentAttempts: 16,
+        agentAttemptsUsed: 16,
+        agentBudgetExhausted: true,
+      } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+    )
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('reached its maximum of 16 claimed Agent attempts')
+    expect(screen.queryByText(/Only one Agent claim slot remains/)).not.toBeInTheDocument()
+  })
+
+  it('never carries a previously selected run\'s one-slot-remaining warning into the newly selected run, even transiently', () => {
+    renderWith(
+      new GetRunCockpitResponse({
+        ...runningCockpit,
+        maximumAgentAttempts: 16,
+        agentAttemptsUsed: 15,
+        agentBudgetExhausted: false,
+      } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+      true,
+    )
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.getByRole('status')).toBeInTheDocument()
+
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByText(/Only one Agent claim slot remains/)).not.toBeInTheDocument()
+  })
+})
