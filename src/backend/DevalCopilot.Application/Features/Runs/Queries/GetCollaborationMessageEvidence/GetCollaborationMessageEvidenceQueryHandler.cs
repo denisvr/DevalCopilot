@@ -20,11 +20,12 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
 
     /// <summary>A small, bounded cap on how many recorded collaboration-input references one
     /// evidence response ever returns — never a silent truncation; see
-    /// <see cref="CollaborationMessageEvidenceQueryResult.InputMessagesOmitted"/>. The largest input
-    /// set any current attempt shape can durably record is a Resolver's Proposal plus up to five
-    /// Challenges (six rows total; see <c>ClaudeCriticalReviewAttempt</c>'s own one-to-five Challenge
-    /// bound), so this cap is a defensive bound against a future shape recording more, not a limit
-    /// this schema can exceed today.</summary>
+    /// <see cref="CollaborationMessageEvidenceQueryResult.InputMessagesOmitted"/>. Unlike
+    /// <see cref="MaxArtifacts"/>, this IS a limit a real current attempt shape can exceed today: a
+    /// review-correction (Implementer/<c>ReviewCorrection</c>) attempt records its Execution report
+    /// plus up to <see cref="ReviewCorrectionOutputSchema.MaximumFindings"/> Review findings — 11
+    /// rows at the bound — so <see cref="CollaborationMessageEvidenceQueryResult.InputMessagesOmitted"/>
+    /// is a real, reachable signal, not merely defensive.</summary>
     private const int MaxInputMessages = 10;
 
     public async Task<Result<CollaborationMessageEvidenceQueryResult>> HandleAsync(
@@ -118,7 +119,7 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
         }
 
         var (inputMessagesStatus, inputMessages, inputMessagesOmitted, inputMessageTotalCount) =
-            await ResolveInputMessagesAsync(dbContext, attempt.Id, query.RunId, cancellationToken);
+            await ResolveInputMessagesAsync(dbContext, attempt.Id, attempt.AgentRole!.Value, query.RunId, cancellationToken);
 
         return Result<CollaborationMessageEvidenceQueryResult>.Success(new CollaborationMessageEvidenceQueryResult(
             CollaborationMessageEvidenceStatus.HasEvidence,
@@ -152,17 +153,23 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
     /// <summary>
     /// Resolves this attempt's own durable, ordered <see cref="AttemptInputMessage"/> set — the
     /// recorded collaboration inputs it was launched against — never a complete prompt, complete
-    /// context manifest, or resumable provider session. A legitimate attempt (for example a
-    /// Planner) may have none at all (<see cref="AttemptInputMessageEvidenceStatus.Empty"/>).
-    /// Otherwise the stored 0-based sequence must be gapless and duplicate-free, and every
-    /// referenced message must resolve to a real <see cref="CollaborationMessage"/> row belonging
-    /// to THIS SAME <paramref name="runId"/> — a gap, a duplicate, or a missing/foreign reference
-    /// fails the entire set closed (<see cref="AttemptInputMessageEvidenceStatus.Invalid"/>) rather
-    /// than silently presenting only the resolvable subset, which would misrepresent this attempt's
-    /// real ordered input identity. Only a coherent set is ever capped and presented.
+    /// context manifest, or resumable provider session. Zero rows is role-aware: only
+    /// <see cref="AgentRole.Planner"/> legitimately starts from no prior collaboration fact
+    /// (<see cref="AttemptInputMessageEvidenceStatus.Empty"/>); every other current role
+    /// (<see cref="AgentRole.CriticalReviewer"/>, <see cref="AgentRole.Resolver"/>,
+    /// <see cref="AgentRole.Implementer"/>, <see cref="AgentRole.CodeReviewer"/>) always persists at
+    /// least one required input row, so zero rows for any of them is never presented as an innocent
+    /// empty set — it fails closed the same way a gap or a foreign reference does
+    /// (<see cref="AttemptInputMessageEvidenceStatus.Invalid"/>), since it could equally be evidence
+    /// of a lost or corrupted input set. When rows do exist, the stored 0-based sequence must be
+    /// gapless and duplicate-free, and every referenced message must resolve to a real
+    /// <see cref="CollaborationMessage"/> row belonging to THIS SAME <paramref name="runId"/> — a
+    /// gap, a duplicate, or a missing/foreign reference fails the entire set closed rather than
+    /// silently presenting only the resolvable subset, which would misrepresent this attempt's real
+    /// ordered input identity. Only a coherent set is ever capped and presented.
     /// </summary>
     private static async Task<(AttemptInputMessageEvidenceStatus Status, IReadOnlyList<AttemptInputMessageEvidence> InputMessages, bool Omitted, int TotalCount)>
-        ResolveInputMessagesAsync(IDevalCopilotDbContext dbContext, Guid attemptId, Guid runId, CancellationToken cancellationToken)
+        ResolveInputMessagesAsync(IDevalCopilotDbContext dbContext, Guid attemptId, AgentRole role, Guid runId, CancellationToken cancellationToken)
     {
         var inputRows = await dbContext.AttemptInputMessages
             .AsNoTracking()
@@ -173,7 +180,14 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
 
         if (inputRows.Length == 0)
         {
-            return (AttemptInputMessageEvidenceStatus.Empty, [], false, 0);
+            // Only a Planner attempt legitimately records no inputs. Every other role's own claim
+            // path always persists at least one required AttemptInputMessage row, so an
+            // observed-empty set for one of them is never distinguishable from a lost or corrupted
+            // input set — it must fail closed exactly like a gap or a foreign reference, never be
+            // reported as the same innocent "started from none" state a Planner's real empty set is.
+            return role == AgentRole.Planner
+                ? (AttemptInputMessageEvidenceStatus.Empty, [], false, 0)
+                : (AttemptInputMessageEvidenceStatus.Invalid, [], false, 0);
         }
 
         if (!AttemptInputMessageCoherence.IsGaplessFromZero(inputRows.Select(row => row.Sequence).ToArray()))

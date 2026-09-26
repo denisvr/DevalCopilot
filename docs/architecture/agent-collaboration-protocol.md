@@ -935,22 +935,31 @@ The collaboration-message evidence drill-down (see the shared
 the exact, ordered `AttemptInputMessage` set the producing Agent attempt was
 launched against — labeled everywhere as **recorded collaboration inputs**,
 never as the complete prompt, complete context manifest, or a resumable
-provider session: it is a durable reference list, not a transcript. A
-legitimate attempt may record none at all (a Planner attempt starts from no
-prior collaboration fact); this is reported as `Empty`, never confused with an
-unverifiable set.
+provider session: it is a durable reference list, not a transcript. Zero
+recorded rows is role-aware, never a blanket "empty" default: only a
+`Planner` attempt legitimately starts from no prior collaboration fact and
+is reported as `Empty`. Every other current role (`CriticalReviewer`,
+`Resolver`, `Implementer`, `CodeReviewer`) always persists at least one
+required input row through its own claim path, so zero rows observed for any
+of them reports `Invalid` instead — an empty set there is indistinguishable
+from a lost or corrupted one, and must never be presented as the same
+innocent "started from none" state a genuine Planner attempt reports.
 
 Resolution is strict: every referenced `CollaborationMessage` must resolve
 within the same run the drill-down was requested for — a cross-run or
 dangling reference is never followed — and the attempt's own stored 0-based
 sequence must be gapless and duplicate-free. Any incoherence (a gap, a
-duplicate, or a missing/foreign message) fails the *entire* set closed
-(`Invalid`) rather than presenting only the resolvable subset, which would
-misrepresent the attempt's real ordered input identity — the same "a
-partially trustworthy read is not trustworthy" principle this drill-down
-already applies to its process and token-usage evidence. A coherent set is
-capped at a small, explicit bound with an honest omission signal, mirroring
-the existing bounded artifact list.
+duplicate, a missing/foreign message, or the role-aware zero-rows case above)
+fails the *entire* set closed (`Invalid`) rather than presenting only the
+resolvable subset, which would misrepresent the attempt's real ordered input
+identity — the same "a partially trustworthy read is not trustworthy"
+principle this drill-down already applies to its process and token-usage
+evidence. A coherent set is capped at a small, explicit bound with an honest
+omission signal, mirroring the existing bounded artifact list: unlike that
+cap, this one is a real, reachable limit today, not merely defensive — a
+review-correction (`Implementer`/`ReviewCorrection`) attempt's own Execution
+report plus up to `ReviewCorrectionOutputSchema.MaximumFindings` (10) Review
+findings is 11 rows at the bound.
 
 Each returned entry carries only its own recorded sequence, the referenced
 message's durable id, its `CollaborationMessageType`, its own timeline

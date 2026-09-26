@@ -226,4 +226,49 @@ public sealed class CollaborationMessageInputEvidenceEndpointTests(ApiWebApplica
         Assert.Empty(root.GetProperty("inputMessages").EnumerateArray());
         Assert.Equal(2, root.GetProperty("inputMessageTotalCount").GetInt32());
     }
+
+    // Regression for the reviewed NO-GO: only a Planner attempt legitimately records zero inputs.
+    // A CriticalReviewer attempt's own claim path always persists a required input row, so an
+    // observed-empty set for it must report Invalid — never the same Empty state a genuine
+    // Planner attempt reports — since it is otherwise indistinguishable from a lost/corrupted set.
+    [Fact]
+    public async Task A_critical_reviewer_attempt_with_zero_recorded_inputs_reports_Invalid_never_Empty()
+    {
+        var runId = await SeedRunAsync("Zero inputs for a non-Planner role");
+        Guid messageId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var now = DateTimeOffset.UtcNow;
+
+            var reviewAttempt = Attempt.ClaimAgentCriticalReview(
+                Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
+            reviewAttempt.MarkAgentDispatched(now.AddSeconds(1));
+            // The reply target only needs a non-empty id at this construction level; its resolved
+            // type is validated elsewhere, so a placeholder is sufficient here.
+            var acceptance = CollaborationMessage.RecordAgent(
+                reviewAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
+                CollaborationMessageType.Acceptance, Guid.NewGuid(), "An acceptance", "{\"rationale\":\"Looks correct\"}", now.AddSeconds(2));
+            messageId = acceptance.Id;
+            // Deliberately no AttemptInputMessage row — a CriticalReviewer attempt always persists
+            // its reviewed Proposal as input; this reproduces a lost/corrupted input set.
+            dbContext.Attempts.Add(reviewAttempt);
+            dbContext.CollaborationMessages.Add(acceptance);
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var client = CreateAuthenticatedClient();
+        var response = await client.GetAsync($"/api/runs/{runId}/collaboration-messages/{messageId}/evidence");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        Assert.Equal("HasEvidence", root.GetProperty("evidenceStatus").GetString());
+        Assert.Equal("Invalid", root.GetProperty("inputMessagesStatus").GetString());
+        Assert.Empty(root.GetProperty("inputMessages").EnumerateArray());
+        Assert.False(root.GetProperty("inputMessagesOmitted").GetBoolean());
+        Assert.Equal(0, root.GetProperty("inputMessageTotalCount").GetInt32());
+    }
 }

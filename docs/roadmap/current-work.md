@@ -72,10 +72,48 @@ over a stale summary. Never reset work merely to match this page.
   token-usage behavior — this slice does not close Increment 4's
   provider-session-resume or account-usage exit criteria; those remain open
   exactly as recorded below.
-- Next action: Codex recorded **NO-GO pending a bounded correction** in
-  [planner-handoff.md](planner-handoff.md). Claude corrects the findings within
-  this approved slice; Codex reviews again. No next slice is approved by this
-  delivery.
+- Review follow-up: Codex recorded **NO-GO** in
+  [planner-handoff.md](planner-handoff.md) for two findings, corrected in
+  commit (resolve its exact SHA with `git log -1 --format=%H --
+  docs/roadmap/current-work.md`), parent `8195d2ab2216de05085fbbad5237a506af6030fa`
+  (the planner's NO-GO decision commit). Both corrections stay within this
+  approved, read-only slice:
+  1. **Role-aware zero-input handling.** `ResolveInputMessagesAsync` now takes
+     the producing attempt's own `AgentRole`. Only `AgentRole.Planner`
+     legitimately records zero `AttemptInputMessage` rows and reports `Empty`;
+     every other current role (`CriticalReviewer`, `Resolver`, `Implementer`,
+     `CodeReviewer`) always persists at least one required input row through
+     its own claim path, so zero rows for any of them now reports `Invalid` —
+     never the same innocent "started from none" state, since it is otherwise
+     indistinguishable from a lost or corrupted input set. Every existing
+     `HasEvidence`/`NoAgentEvidence`/`AttemptLinkBroken` status and the
+     coherent/gap/cross-run/cap behaviors from the original delivery are
+     unchanged.
+  2. **Evidence correction.** The `MaxInputMessages` doc comment previously
+     claimed no current shape can exceed 10 inputs; corrected to name the real
+     11-row bound (a review-correction attempt's Execution report plus up to
+     `ReviewCorrectionOutputSchema.MaximumFindings` (10) Review findings). The
+     bounded-overflow test previously used 10 Challenges on one critical
+     review — a shape no real attempt can produce, since the real Challenge
+     bound is one to five — and now uses that real 11-input review-correction
+     shape instead.
+  - Regression coverage added: a `[Theory]` proving `CriticalReviewer`,
+    `Resolver`, `Implementer`, and `CodeReviewer` each report `Invalid` (never
+    `Empty`) for zero recorded inputs (Application), plus one focused API
+    regression for the same `CriticalReviewer` case.
+  - Checks actually run for the correction: `dotnet format` clean (after one
+    `dotnet format` pass); Release build 0/0; Domain 524/524, Application
+    982/982 (+4 new), Infrastructure.IntegrationTests 440/441 (one
+    pre-existing, unrelated skip), Api.IntegrationTests 295/295 (+1 new),
+    Architecture 9/9; `dotnet ef migrations has-pending-model-changes`
+    reported no pending changes; NSwag regeneration byte-identical to the
+    prior delivery's own hash (the API contract shape is unchanged), zero
+    `export enum` occurrences; `git diff --check` reported no whitespace
+    errors. No frontend file changed for this correction, so the frontend
+    suite was not rerun.
+  - Claude reports this correction; it does not approve the slice or start
+    another. Codex reviews the correction for GO/NO-GO in the
+    [planner handoff](planner-handoff.md).
 
 ## Prior delivered baseline (2026-09-26): provider-separated run token-usage projection
 
