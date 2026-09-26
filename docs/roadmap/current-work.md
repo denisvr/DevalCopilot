@@ -112,8 +112,10 @@ over a stale summary. Never reset work merely to match this page.
     errors. No frontend file changed for this correction, so the frontend
     suite was not rerun.
   - Claude reports this correction; it does not approve the slice or start
-    another. Codex reviews the correction for GO/NO-GO in the
-    [planner handoff](planner-handoff.md).
+    another. Codex reviewed it and recorded a further **NO-GO** for a nullable
+    role dereference on incoherent persisted evidence in the
+    [planner handoff](planner-handoff.md). Claude corrects that one guard
+    within this slice; Codex reviews again. No next slice is approved.
 
 ## Prior delivered baseline (2026-09-26): provider-separated run token-usage projection
 

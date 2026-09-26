@@ -25,8 +25,9 @@ prevail over any stale summary here.
   preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
   and later accepted decisions.
 - The owner-approved, bounded collaboration-input provenance slice below was
-  delivered in `b812263`. Codex's review is **NO-GO pending correction** as
-  recorded below; delivery is not acceptance. No next slice is approved.
+  delivered in `b812263` and corrected in `a546318`. Codex's correction
+  review is **NO-GO pending one further fail-closed guard** as recorded below;
+  delivery is not acceptance. No next slice is approved.
 - The owner has granted Codex standing permission to plan and propose later
   slices without requesting permission to do the planning. A later proposal is
   not execution approval; Claude still needs a separately approved bounded
@@ -104,6 +105,27 @@ prevail over any stale summary here.
   into session resume, adapters, account budgets, or a new slice. Codex must
   review the correction and record GO before the agreed post-delivery process
   improvements proceed. No next execution slice is approved.
+
+## Correction review NO-GO: nullable role dereference (`a546318`)
+
+- The prior two findings are fixed: only Planner now reports `Empty` for zero
+  rows; the real 11-input review-correction shape proves honest capping. Codex
+  inspected the correction and independently ran focused Application (18/18)
+  and API (4/4) tests. The broader matrix in `current-work.md` is
+  executor-reported; no frontend files changed in the correction.
+- One new blocking edge remains: the evidence query's existing role/provider
+  equality check accepts a pair of null roles as equal. The correction then
+  calls `attempt.AgentRole!.Value`; for a corrupted or historical
+  ProviderObserved/Agent pair with both roles null, the endpoint throws rather
+  than returning the existing `AttemptLinkBroken` fail-closed status. A
+  provider-observed output must have a defined role and provider. Reject
+  missing attempt/actor role or provider before dereferencing; add a focused
+  persisted-data regression test that exercises the nullable pair and proves
+  `AttemptLinkBroken` with no input evidence. Preserve valid historical and
+  current records and all existing response contracts.
+- This guard remains within the approved evidence slice. No next slice is
+  approved. The three owner-requested process improvements wait for GO on the
+  corrected delivery, then proceed in a separate documentation commit.
 
 ## Review GO: provider-separated run token usage (`e3805a8` + `281b3e1`)
 
