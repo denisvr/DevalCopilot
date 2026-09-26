@@ -14,9 +14,10 @@ over a stale summary. Never reset work merely to match this page.
 
 ## Latest delivered baseline (2026-09-26): shared instructions and planner handoff
 
-- Branch: `main`. Delivered commit: `docs: unify agent instructions and add
-  planner handoff`. Resolve its exact SHA with `git log -1 --format=%H --
-  docs/roadmap/current-work.md`; a commit cannot embed its own SHA.
+- Branch: `main`. Delivered baseline commit:
+  `c914c19ba6b9d8d8f61cbbdaad220a5d46884172` (`docs: unify agent
+  instructions and add planner handoff`). Later handoff-only decision commits
+  do not change the product baseline.
 - Documentation-only follow-up: [AGENTS.md](../../AGENTS.md) is the shared
   project-instruction source; [CLAUDE.md](../../CLAUDE.md) imports it while
   retaining the engineering-context and delivery-handoff imports. The new
@@ -29,11 +30,15 @@ over a stale summary. Never reset work merely to match this page.
 - Checks actually run: staged diff and whitespace audits, changed-document
   relative-link and Claude import-target checks. Code test, build, EF, and
   generated-client checks were not rerun for this documentation-only change.
-- Next action: the owner authorized Claude to execute the bounded Provider
-  allowance evidence slice approved by Codex in the
-  [planner handoff](planner-handoff.md). This decision followed the delivered
-  baseline; the slice is not yet delivered or accepted. Claude reports evidence
-  or blockers, and Codex retains review and final acceptance.
+- Subsequent decision: the owner-authorized Provider allowance evidence slice
+  stopped at its provider-contract gate without implementation, tests, or
+  acceptance. The current checkout contains no uncommitted code, tests, or
+  migrations from that slice. See the [planner handoff](planner-handoff.md)
+  for the decision and remaining blocker. Provider account-usage observation
+  and guardrails remain open.
+- Next action: Codex proposes a different bounded Increment 4 slice for owner
+  approval. No execution slice is currently approved; Claude must not resume
+  the stopped slice or build `Unknown`-only scaffolding from its old prompt.
 
 ## Prior delivered baseline (2026-09-26): candidate-specific invocation-time fit
 
