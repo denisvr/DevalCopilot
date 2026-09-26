@@ -33,4 +33,10 @@ public sealed record ImplementationAttemptStatusResponse(
     string? PermissionProfile,
     string? AdapterContractVersion,
     AgentProcessExecutionResponse? ProcessExecution,
-    AgentTokenUsageResponse? TokenUsage);
+    AgentTokenUsageResponse? TokenUsage,
+    /// <summary>The Claude Implementer CLI permission mode this attempt's fixed adapter contract
+    /// configures — a static, read-only configuration fact, never provider-observed effective
+    /// behavior, mode availability, or invocation eligibility. <see langword="null"/> unless
+    /// provider, role, permission profile, and adapter contract version all agree with the
+    /// current, single supported implementation adapter.</summary>
+    string? ConfiguredPermissionMode);

@@ -106,6 +106,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal(observedEffort, root.GetProperty("observedEffort").GetString());
         Assert.Equal("WorkspaceEditOnly", root.GetProperty("permissionProfile").GetString());
         Assert.Equal(contractVersion, root.GetProperty("adapterContractVersion").GetString());
+        Assert.Equal("acceptEdits", root.GetProperty("configuredPermissionMode").GetString());
 
         Assert.DoesNotContain(forbiddenSentinel, body, StringComparison.Ordinal);
         Assert.DoesNotContain("C:\\repos\\", body, StringComparison.OrdinalIgnoreCase);
@@ -113,5 +114,43 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.DoesNotContain("prompt", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("environment", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("transcript", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Shows_no_configured_permission_mode_for_a_mismatched_adapter_contract_version()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var projectId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        var checkpointId = Guid.NewGuid();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var project = Project.Register(projectId, "Mismatched adapter contract", $@"C:\repos\{Guid.NewGuid():N}", now);
+            var run = Run.RecordIntent(runId, projectId, 1, "Implement with a newer adapter contract", now);
+            var attempt = Attempt.ClaimAgentImplementationWithAssignment(
+                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, new string('a', 64), Guid.NewGuid(),
+                TimeSpan.FromMinutes(20), 65536, 131072, now, requestedModel: null, requestedEffort: null,
+                AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v2", 1);
+
+            dbContext.Projects.Add(project);
+            dbContext.Runs.Add(run);
+            dbContext.Attempts.Add(attempt);
+            dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), 0));
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiWebApplicationFactory.ValidSecret);
+        var response = await client.GetAsync($"/api/runs/{runId}/agent-attempts/implementation");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        Assert.Equal("claude-implementation-v2", root.GetProperty("adapterContractVersion").GetString());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
     }
 }

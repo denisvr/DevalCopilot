@@ -142,6 +142,57 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
         Assert.Null(result.Value.Assignment.RequestedEffort);
         Assert.Null(result.Value.Assignment.ObservedEffort);
         Assert.Null(result.Value.Assignment.AdapterContractVersion);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
     }
 
+    [Fact]
+    public async Task HandleAsync_reports_the_configured_permission_mode_for_a_coherent_default_assignment()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        await using (var seed = _fixture.CreateContext())
+        {
+            var project = Project.Register(Guid.NewGuid(), "Configured permission mode", @"C:\repo", Now);
+            seed.Projects.Add(project);
+            seed.Runs.Add(Run.RecordIntent(runId, project.Id, 1, "Inspect configured permission mode", Now));
+            seed.Attempts.Add(Attempt.ClaimAgentImplementation(
+                attemptId, runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('e', 64), Guid.NewGuid(),
+                TimeSpan.FromMinutes(20), 65536, 131072, Now, 1));
+            seed.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attemptId, Guid.NewGuid(), 0));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetImplementationAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetImplementationAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("acceptEdits", result.Value.ConfiguredPermissionMode);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_permission_mode_for_a_mismatched_adapter_contract_version()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        await using (var seed = _fixture.CreateContext())
+        {
+            var project = Project.Register(Guid.NewGuid(), "Mismatched adapter contract", @"C:\repo", Now);
+            seed.Projects.Add(project);
+            seed.Runs.Add(Run.RecordIntent(runId, project.Id, 1, "Inspect mismatched adapter contract", Now));
+            seed.Attempts.Add(Attempt.ClaimAgentImplementationWithAssignment(
+                attemptId, runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('f', 64), Guid.NewGuid(),
+                TimeSpan.FromMinutes(20), 65536, 131072, Now, requestedModel: null, requestedEffort: null,
+                AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v2", 1));
+            seed.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attemptId, Guid.NewGuid(), 0));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetImplementationAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetImplementationAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+    }
 }

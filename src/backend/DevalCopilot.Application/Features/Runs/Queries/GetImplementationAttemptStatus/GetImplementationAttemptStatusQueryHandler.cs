@@ -10,6 +10,13 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetImplementationAttemp
 public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbContext dbContext)
     : IQueryHandler<GetImplementationAttemptStatusQuery, Result<ImplementationAttemptStatusQueryResult>>
 {
+    // Mirrors the adapter contract version already fixed at claim time (Attempt.ClaimAgentImplementation)
+    // and the fixed CLI argument hardcoded in ClaudeImplementationAdapter's own "--permission-mode" entry.
+    // Duplicated here rather than shared across layers, exactly like AdapterContractVersion is already
+    // duplicated between Attempt.cs and CreateImplementationAttemptCommandHandler.
+    private const string ClaudeImplementerAdapterContractVersion = "claude-implementation-v1";
+    private const string ConfiguredClaudeImplementerPermissionMode = "acceptEdits";
+
     public async Task<Result<ImplementationAttemptStatusQueryResult>> HandleAsync(
         GetImplementationAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -89,6 +96,14 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
+        var configuredPermissionMode =
+            attempt.AgentRole == AgentRole.Implementer
+            && assignment.Provider == AgentProvider.ClaudeCode
+            && assignment.PermissionProfile == AgentPermissionProfile.WorkspaceEditOnly
+            && assignment.AdapterContractVersion == ClaudeImplementerAdapterContractVersion
+                ? ConfiguredClaudeImplementerPermissionMode
+                : null;
+
         return Result<ImplementationAttemptStatusQueryResult>.Success(new ImplementationAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -110,7 +125,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             attempt.AgentRole,
             attempt.GetAgentProcessExecutionEvidence(),
             attempt.AgentTimeout,
-            attempt.GetAgentTokenUsageEvidence()));
+            attempt.GetAgentTokenUsageEvidence(),
+            configuredPermissionMode));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>

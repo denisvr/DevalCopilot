@@ -36,7 +36,13 @@ public sealed record ImplementationAttemptStatusQueryResult(
     AgentRole? Role,
     AgentProcessExecutionEvidence? ProcessExecution = null,
     TimeSpan? Timeout = null,
-    AgentTokenUsageEvidence? TokenUsage = null)
+    AgentTokenUsageEvidence? TokenUsage = null,
+    /// <summary>The Claude Implementer CLI permission mode this attempt's fixed adapter contract
+    /// configures — never provider-observed effective behavior, mode availability, or invocation
+    /// eligibility. Populated only when provider, role, permission profile, and adapter contract
+    /// version all agree with the current, single supported implementation adapter; otherwise
+    /// <see langword="null"/>, exactly like every other assignment fact here.</summary>
+    string? ConfiguredPermissionMode = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

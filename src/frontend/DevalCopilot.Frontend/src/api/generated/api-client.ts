@@ -3560,6 +3560,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
     adapterContractVersion?: string | undefined;
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredPermissionMode?: string | undefined;
 
     constructor(data?: IImplementationAttemptStatusResponse) {
         if (data) {
@@ -3606,6 +3607,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
             this.adapterContractVersion = _data["adapterContractVersion"];
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.configuredPermissionMode = _data["configuredPermissionMode"];
         }
     }
 
@@ -3652,6 +3654,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
         data["adapterContractVersion"] = this.adapterContractVersion;
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["configuredPermissionMode"] = this.configuredPermissionMode;
         return data;
     }
 }
@@ -3683,6 +3686,7 @@ export interface IImplementationAttemptStatusResponse {
     adapterContractVersion?: string | undefined;
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredPermissionMode?: string | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {

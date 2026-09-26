@@ -123,6 +123,7 @@ describe('ImplementationAction', () => {
             observedEffort: 'medium-observed',
             permissionProfile: 'WorkspaceEditOnly',
             adapterContractVersion: 'claude-implementation-v1',
+            configuredPermissionMode: 'acceptEdits',
             changedRelativePaths: [],
           })
         }
@@ -138,7 +139,7 @@ describe('ImplementationAction', () => {
 
     expect(screen.getByText(/Claude Code · Implementer · Model requested: claude-model-requested/)).toBeInTheDocument()
     expect(screen.getByText(/Model observed: claude-model-observed · Effort requested: high-requested · Effort observed: medium-observed/)).toBeInTheDocument()
-    expect(screen.getByText(/Workspace edit only · Adapter contract: claude-implementation-v1/)).toBeInTheDocument()
+    expect(screen.getByText(/Workspace edit only · Adapter contract: claude-implementation-v1 · Configured permission mode: acceptEdits/)).toBeInTheDocument()
     expect(screen.queryByText(/C:\\|credential|environment|prompt|transcript|raw output/i)).not.toBeInTheDocument()
   })
 
@@ -169,7 +170,7 @@ describe('ImplementationAction', () => {
     )
 
     expect(screen.getByText(/Model requested: Unknown · Model observed: Unknown · Effort requested: Unknown · Effort observed: Unknown/)).toBeInTheDocument()
-    expect(screen.getByText(/Unknown · Adapter contract: Unknown/)).toBeInTheDocument()
+    expect(screen.getByText(/Unknown · Adapter contract: Unknown · Configured permission mode: Unknown/)).toBeInTheDocument()
   })
 
   it('does not render assignment or last-attempt identity when the backend says there is no attempt', () => {
@@ -206,6 +207,7 @@ describe('ImplementationAction', () => {
           role: 'UnrecognizedRoleSentinel',
           permissionProfile: 'UnrecognizedProfileSentinel',
           adapterContractVersion: 'unrecognized-contract-sentinel',
+          configuredPermissionMode: 'unrecognized-permission-mode-sentinel',
           changedRelativePaths: [],
         })}
         statusLoading={false}
@@ -219,7 +221,10 @@ describe('ImplementationAction', () => {
     )
 
     expect(screen.getByText(/Unknown · Unknown · Model requested: Unknown/)).toBeInTheDocument()
-    expect(screen.queryByText(/UnrecognizedProviderSentinel|UnrecognizedRoleSentinel|UnrecognizedProfileSentinel|unrecognized-contract-sentinel/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Configured permission mode: Unknown/)).toBeInTheDocument()
+    expect(screen.queryByText(
+      /UnrecognizedProviderSentinel|UnrecognizedRoleSentinel|UnrecognizedProfileSentinel|unrecognized-contract-sentinel|unrecognized-permission-mode-sentinel/,
+    )).not.toBeInTheDocument()
   })
 
   it('allows requesting a fresh implementation once a newer resolved plan supersedes an already-implemented one', () => {

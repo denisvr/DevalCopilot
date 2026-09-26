@@ -11,48 +11,52 @@ untracked changes before editing; do not reset work to match this page.
 
 ## Current checkpoint (2026-09-26)
 
-- Latest accepted delivery: the bounded, frontend-only one-Agent-claim-slot-
-  remaining warning in `e79f03e891bb3a5a2f0fea06f670432f5fedcb02`,
-  parent `b3cc8ec856b30b4385daa1e14a829aa97d899e2c` (the planner's
-  approval commit). Branch `main`, checkout clean at delivery and Codex
-  review; Codex recorded **GO** in [planner-handoff.md](planner-handoff.md).
-- Delivered behavior: a new, additive `OneAgentClaimSlotRemainingWarning`
-  (backed by the pure `deriveOneAgentClaimSlotRemainingWarning`) shows exactly
-  one claimed Agent attempt before the existing run-wide count budget
-  ([ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md))
-  is exhausted, so the owner can review evidence before the last claim.
-  `AgentClaimBudgetBanner`'s own exhausted-state copy, claim-button vetoes,
-  time-fit signals, and server-side enforcement are all unchanged — this
-  warning is shown alongside, never in place of, the existing banner. It reads
-  `maximumAgentAttempts` (the actual persisted ceiling, including any
-  historically raised maximum) and `agentAttemptsUsed` directly from the
-  cockpit projection's own nullable fields — never through the `?? 0`/
-  `?? false` fallbacks `RunCockpitView` applies only for
-  `AgentClaimBudgetBanner`'s own always-rendering props — and requires
-  `agentBudgetExhausted === false` (the literal boolean, not a coalesced
-  default) plus `agentAttemptsUsed === maximumAgentAttempts - 1` on coherent,
-  finite, non-negative integers for the currently selected run; it shows
-  nothing for an exhausted, over-budget, unknown, malformed, or stale-run
-  projection. Its own copy states that other controls may still block the
-  next attempt and never implies eligibility. See the new "One Agent claim
-  slot remaining warning" subsection of
+- Latest delivery (pending Codex review): the bounded, read-only configured
+  Claude Implementer permission mode fact, built on parent
+  `89575350d6b1ac2ed347b6246da427840b83fcc0` (`main`/`origin/main` at the
+  start of this slice). Checkout clean at delivery. This delivery has not yet
+  been reviewed; Codex owns GO/NO-GO and records its decision in
+  [planner-handoff.md](planner-handoff.md).
+- Delivered behavior: the implementation-attempt status query, API response,
+  and cockpit (`ImplementationAction`) now expose a new `ConfiguredPermissionMode`
+  / `configuredPermissionMode` fact — the fixed `acceptEdits` CLI permission
+  mode the existing, unchanged `ClaudeImplementationAdapter` always passes for
+  this role. It is derived, never persisted: `GetImplementationAttemptStatusQueryHandler`
+  returns it only when the attempt's own `AgentRole.Implementer`,
+  `AgentProvider.ClaudeCode`, `AgentPermissionProfile.WorkspaceEditOnly`, and
+  `AgentAdapterContractVersion == "claude-implementation-v1"` all agree;
+  otherwise it is `null`/`Unknown`, exactly like every other assignment fact
+  on this status. `ImplementationAction` renders it beside the existing
+  provider/role/permission-profile/adapter-contract line with the same
+  fail-closed sentinel-matching convention already used for those facts,
+  labeled "Configured permission mode" — never claimed as provider-observed
+  effective behavior, mode availability, or invocation eligibility. No adapter
+  argument, provider policy, authorization, claim/dispatch behavior, database
+  schema/migration, or other Claude role changed. See the new "Configured
+  Claude Implementer permission mode" subsection of
   [run-cockpit-specification.md](../product/run-cockpit-specification.md).
-- Checks actually run: frontend 605/605 tests (+27 new: derivation coherence/
-  edge cases, component rendering, and `RunCockpitView` wiring proving both
-  banners coexist and the exhausted banner's own copy is untouched), `tsc -b`
-  clean, `oxlint` exited 0 with the same 20 pre-existing warnings (0 new),
-  `vite build` production build passed, `git diff --check` reported no
-  whitespace errors. No backend/API file was touched by this slice, so its
-  suites were not rerun; NSwag/migrations are consequently unaffected.
+- Checks actually run: full .NET suites green (Domain.Tests 524/524,
+  Application.Tests 985/985 incl. 2 new cases for the coherent and
+  mismatched-adapter-contract-version paths, Infrastructure.IntegrationTests
+  440/441 with 1 pre-existing unrelated skip, Api.IntegrationTests 296/296
+  incl. 1 new mismatched-contract-version case, Architecture.Tests 9/9);
+  frontend 605/605 tests (existing `ImplementationAction` assertions extended
+  for the valid, absent, and mismatched-sentinel cases), `tsc -b` clean,
+  `oxlint` exited 0 with the same 20 pre-existing warnings (0 new), `vite
+  build` production build passed, `git diff --check` reported no whitespace
+  errors. The NSwag client was regenerated via `dotnet build
+  src/backend/DevalCopilot.Api` (its own MSBuild target runs on every Debug
+  build); the resulting `api-client.ts` diff is additive only (one new
+  optional field on `ImplementationAttemptStatusResponse`).
 - No API, persistence, adapter, threshold, authorization override, claim
   eligibility, or provider-account-usage change of any kind. The
   provider-allowance evidence slice remains closed without implementation:
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: Codex investigates provider-supported runtime-control
-  contracts against the remaining Increment 4 roadmap before proposing
-  another bounded slice. No next execution slice is approved by this GO.
+- Next action: Codex reviews this delivery for GO/NO-GO and, on GO, selects
+  the next bounded slice per [planner-handoff.md](planner-handoff.md). No
+  next execution slice is approved yet.
 
 ## Open risks
 

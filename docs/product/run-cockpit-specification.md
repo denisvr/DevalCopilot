@@ -448,6 +448,25 @@ running/dispatched state before it ever consults the record's shape, exactly
 as it already does for token usage. The attempt's configured timeout is a
 separate, always-known value shown regardless of this check.
 
+### Configured Claude Implementer permission mode
+
+A bounded, read-only fact on the Claude Implementer attempt status — the
+`acceptEdits` CLI permission mode that this role's single supported adapter
+contract fixes for every invocation. It states what the adapter is configured
+to pass, never what the provider actually honored, never that another mode is
+available, and never that another invocation is eligible; it is shown beside
+the existing provider, role, permission profile, and adapter contract facts on
+the implementation action, never as a replacement for any of them. It is
+populated only when this attempt's own provider, role, permission profile, and
+adapter contract version all agree with the current, single supported
+implementation path (`ClaudeCode`, `Implementer`, `WorkspaceEditOnly`,
+`claude-implementation-v1`) — for example, a historical attempt recorded
+against a superseded adapter contract version shows `Unknown` here exactly
+like every other assignment fact, never the current adapter's mode by
+assumption. It carries no runtime-control, authorization, or claim-eligibility
+meaning of its own; the backend remains the sole authority for every claim and
+dispatch decision.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:
