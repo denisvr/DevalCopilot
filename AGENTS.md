@@ -1,6 +1,6 @@
 # Project instructions
 
-Before doing any work, read and follow:
+At the start of a new chat or slice, before doing work, read and follow:
 
 1. `../EngineeringStandards/ENGINEERING.md`
 2. `docs/engineering-context.md`
@@ -10,6 +10,13 @@ Before doing any work, read and follow:
 Use the engineering contract's task routing to read only the detailed standards
 relevant to the current work. Project-specific instructions may strengthen the
 contract but cannot weaken its non-negotiable rules.
+
+Within an uninterrupted slice or its review-correction round, reuse already-read
+instructions instead of rereading every handoff and standard on each message.
+Read newly relevant or changed material when the task requires it. A compacted
+conversation does not by itself require a full reread or a documentation update;
+recover missing context from the relevant handoff and verify current facts
+against Git before acting.
 
 All source code, committed documentation, identifiers, tests, and canonical
 product copy must be written in English. Conversation with the project owner may
@@ -42,10 +49,11 @@ Respect the role assigned by the project owner for the current workflow.
 ## Cross-chat continuity
 
 When acting as planner/reviewer, also read
-`docs/roadmap/planner-handoff.md` after the shared handoff. It records the
-planner-owned decision state, not a second delivery ledger. Update it when
-approving a slice or changing a review decision; distinguish approved work
-from ideas and verify it against Git, code, the roadmap, and accepted ADRs.
+`docs/roadmap/planner-handoff.md` after the shared handoff at the start of a
+new chat or planning slice. It records the planner-owned decision state, not a
+second delivery ledger. Update it when approving a slice or changing a review
+decision; distinguish approved work from ideas and verify it against Git, code,
+the roadmap, and accepted ADRs.
 
 Slice completion requires an updated `docs/roadmap/current-work.md` in the
 same substantive commit. Record the delivered commit, remaining uncommitted
@@ -55,3 +63,9 @@ approval; the executor reports facts but cannot approve its own next plan.
 On resume, compare HEAD, branch, and staged/unstaged/untracked changes with the
 handoff before editing. Investigate discrepancies; Git and code prevail over
 a stale summary.
+
+Handoff updates follow durable events, not conversation length: the executor
+updates `current-work.md` when delivering a slice; the planner/reviewer updates
+`planner-handoff.md` when approving a slice or recording a review decision.
+Compaction alone changes neither record. Per-slice prompts should state the new
+objective and boundaries without repeating these standing instructions.
