@@ -24,6 +24,54 @@ prevail over any stale summary here.
   [Increment 4 deliverable and exit criterion](mvp-delivery-plan.md) are open;
   preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
   and later accepted decisions.
+- **Proposed, not approved:** read-only collaboration-input provenance in the
+  existing attempt-evidence drill-down, as bounded below. The owner has asked
+  for a planning proposal, not authorized execution.
+
+## Proposed next slice: recorded collaboration-input provenance (unapproved)
+
+- Objective: let an owner inspect the ordered, durable collaboration-message
+  inputs recorded for the exact Agent attempt behind a provider-observed
+  timeline card. Extend the existing evidence query/API and on-demand cockpit
+  drill-down; reuse `AttemptInputMessage`, not a provider transcript or a new
+  persistence model. Label these as **recorded collaboration inputs**, not the
+  complete prompt, complete context manifest, or a resumable session.
+- Boundaries: read-only; no new migration, adapter, CLI probing, raw artifact
+  access, native-session open/resume, automatic continuation, changed claim or
+  dispatch policy, token/account budget, or generic handoff framework. A
+  planning attempt legitimately has no `AttemptInputMessage` rows. Other roles
+  must not render a missing or incoherent set as complete. This slice advances
+  the Increment 4 structured/visible collaboration and context-provenance
+  outcome; it does not close its provider-session-resume or account-usage exit
+  criteria.
+- Safety gates: resolve the producing attempt through the current run-scoped,
+  role/provider-coherent evidence path; resolve each input message in the same
+  run and preserve the stored sequence. Do not leak a cross-run or unresolved
+  input reference. Apply a small explicit result cap with an honest omission
+  signal, and fail closed on gaps, duplicates, or missing/foreign messages.
+  Preserve the existing `NoAgentEvidence`/`AttemptLinkBroken` semantics and
+  exclude native session IDs, raw prompts, context-manifest content, secrets,
+  and raw provider output. Do not imply an input is visible in the currently
+  loaded 100-message timeline window when it is not.
+- Acceptance evidence: focused Application and API tests for correct ordered
+  same-run inputs, empty planning input, cross-run/missing/gapped input,
+  bounded overflow, and unchanged existing evidence statuses; frontend tests
+  for honest labels, unavailable/omitted states, and a timeline-window miss.
+  Run relevant backend/frontend build, test, formatting, generated-client, and
+  diff checks under the engineering contract. Update `current-work.md` in the
+  substantive delivery commit and report the exact commit/checks/risks. Codex
+  reviews and decides GO/NO-GO separately.
+- Executor prompt, only if the owner approves: "Implement the planner-approved
+  recorded collaboration-input provenance slice in the existing
+  collaboration-message attempt-evidence drill-down. Read the required project
+  entry documents at this new slice boundary, verify Git and the unapproved
+  proposal's owner approval, then follow the objective, exclusions, safety
+  gates, and acceptance evidence above. Use only durable `AttemptInputMessage`
+  links and same-run collaboration messages; never claim a complete prompt or
+  native-session resume. Stop and report if the persisted input contract cannot
+  support a truthful, bounded projection. Validate the change, update
+  `docs/roadmap/current-work.md` in the substantive commit, and report facts;
+  do not approve another slice."
 
 ## Review GO: provider-separated run token usage (`e3805a8` + `281b3e1`)
 
