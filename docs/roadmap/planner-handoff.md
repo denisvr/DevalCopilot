@@ -16,15 +16,50 @@ prevail over any stale summary here.
 - The latest Codex-accepted slice is candidate-specific invocation-time fit.
   Verify its delivered commit and clean-tree claim in the
   [shared handoff](current-work.md) and Git rather than copying a SHA here.
-- No review is currently pending, no next slice or executor prompt is approved,
-  and no implementation is authorized by this document.
-- The next planner decision is which bounded remaining Increment 4 control to
-  address. Inspect the [Increment 4 deliverables and exit criteria](mvp-delivery-plan.md)
-  and the shared handoff's open risks against current code and tests before
-  proposing one. Do not infer that an item is unimplemented from roadmap prose
-  alone. Preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
-  and later accepted decisions; do not pull Gemini, fallback, parallel
-  executors, or Increment 5 forward by implication.
+- The project owner authorized execution of the planner-proposed **Provider
+  allowance evidence** slice by sending its bounded prompt to Claude. Codex
+  approves that slice for execution under the boundaries below. It is not yet
+  delivered or accepted; no implementation review is currently pending.
+- This decision addresses the account-usage observation part of the remaining
+  [Increment 4 deliverable](mvp-delivery-plan.md). The shared handoff's open
+  risks and the current code confirm that provider account usage is not yet
+  collected or enforced. Preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
+  and later accepted decisions.
+
+## Approved execution slice: Provider allowance evidence
+
+- Objective: observe and persist bounded, host-scoped allowance snapshots for
+  Codex and Claude Code when an authoritative provider contract is verified;
+  expose separate read-only provider/window projections in the API and cockpit.
+  Keep `Unknown` and `Unavailable` explicit, including freshness and reset
+  information when supported. Provider-specific observation belongs in
+  Infrastructure behind a provider-neutral Application port.
+- Exclusions: no warning or stop threshold, claim-eligibility change, human
+  override, token-budget enforcement, Gemini, fallback, parallel executor,
+  model/effort/permission selection, context compaction, session resume, or
+  Increment 5 work. This slice does not satisfy Increment 4's account-usage
+  stop criterion by itself.
+- Stop gates: prove each provider's observation contract from authoritative
+  evidence before implementing its adapter; never infer account usage from
+  per-attempt tokens, process duration, authentication, or an installed CLI.
+  If one provider lacks a safe contract, leave it `Unknown` and report that
+  limit. If neither provider has one, stop before adding persistence or UI
+  scaffolding and report the blocker for planner review. Never read
+  undocumented provider storage or persist credentials, cookies, tokens, or
+  complete provider payloads. Keep external observation outside EF transactions.
+- Acceptance evidence: focused Domain/Application invariant tests, disposable
+  SQLite persistence tests, deterministic provider-adapter failure tests,
+  authenticated MVC response tests, and frontend tests for separate provider
+  windows and honest unknown/stale states. Report formatter, Release build,
+  affected tests, migration/model check, architecture tests, generated-client
+  drift, frontend type/lint/build checks, and diff review. The executor records
+  delivered facts in `current-work.md` in the substantive commit; Codex alone
+  reviews and accepts that result.
+
+Executor instruction: implement only this evidence slice under the detailed
+prompt already sent by the owner, applying the stop gates above. Report a
+blocker if a provider contract or required safety boundary cannot be verified;
+do not expand the slice to make the evidence appear available.
 
 ## Resume and decision protocol
 

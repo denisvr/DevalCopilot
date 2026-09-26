@@ -29,9 +29,11 @@ over a stale summary. Never reset work merely to match this page.
 - Checks actually run: staged diff and whitespace audits, changed-document
   relative-link and Claude import-target checks. Code test, build, EF, and
   generated-client checks were not rerun for this documentation-only change.
-- Next action: Codex remains the planner/reviewer and has approved no next
-  slice. Consult the [planner handoff](planner-handoff.md) before deciding on
-  further Increment 4 work.
+- Next action: the owner authorized Claude to execute the bounded Provider
+  allowance evidence slice approved by Codex in the
+  [planner handoff](planner-handoff.md). This decision followed the delivered
+  baseline; the slice is not yet delivered or accepted. Claude reports evidence
+  or blockers, and Codex retains review and final acceptance.
 
 ## Prior delivered baseline (2026-09-26): candidate-specific invocation-time fit
 
