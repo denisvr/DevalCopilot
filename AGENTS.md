@@ -69,3 +69,16 @@ updates `current-work.md` when delivering a slice; the planner/reviewer updates
 `planner-handoff.md` when approving a slice or recording a review decision.
 Compaction alone changes neither record. Per-slice prompts should state the new
 objective and boundaries without repeating these standing instructions.
+
+After recording an execution approval, the planner/reviewer gives the executor
+the exact expected `HEAD` commit in the prompt (normally the approval commit),
+the expected branch, and the expected staged/unstaged/untracked state. The
+executor verifies these once before editing and reports a discrepancy rather
+than assuming a stale prompt still applies. Do not try to embed a commit's own
+SHA in that same commit's documentation.
+
+At a delivered slice's review, the planner/reviewer decides GO/NO-GO from Git,
+code, and evidence. After GO, it also prepares the next bounded proposal in
+the same review pass when a safe next candidate is identifiable, marking it
+unapproved until the project owner authorizes execution. A NO-GO remains a
+correction of the current slice, not permission to start a different one.
