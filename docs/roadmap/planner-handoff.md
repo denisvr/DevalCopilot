@@ -24,9 +24,9 @@ prevail over any stale summary here.
   [Increment 4 deliverable and exit criterion](mvp-delivery-plan.md) are open;
   preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
   and later accepted decisions.
-- **Approved for Claude execution by the owner:** the bounded, read-only
-  collaboration-input provenance slice below. Approval is for this slice only;
-  Codex still owns review and final acceptance.
+- The owner-approved, bounded collaboration-input provenance slice below was
+  delivered in `b812263`. Codex's review is **NO-GO pending correction** as
+  recorded below; delivery is not acceptance. No next slice is approved.
 - The owner has granted Codex standing permission to plan and propose later
   slices without requesting permission to do the planning. A later proposal is
   not execution approval; Claude still needs a separately approved bounded
@@ -76,6 +76,34 @@ prevail over any stale summary here.
   support a truthful, bounded projection. Validate the change, update
   `docs/roadmap/current-work.md` in the substantive commit, and report facts;
   do not approve another slice."
+
+## Review NO-GO: recorded collaboration-input provenance (`b812263`)
+
+- Git review: `main` at `b812263`, clean working tree, parent `c4eb852`;
+  the local `origin/main` tracking ref is still at `c914c19` (10 commits
+  behind HEAD). Codex inspected the backend/API/frontend diff and independently
+  ran the focused Application provenance/coherence tests (14/14). The broader
+  build/test matrix in `current-work.md` is executor-reported, not independently
+  rerun for this review.
+- **Blocking finding:** `ResolveInputMessagesAsync` returns `Empty` for *every*
+  attempt with zero input rows. Only a Planner can legitimately have none;
+  the other Agent claim paths persist required inputs. A lost/corrupt input
+  set for a CriticalReviewer, Resolver, Implementer, CodeReviewer, or review
+  correction attempt would therefore be presented as an innocent empty set,
+  and the UI says the attempt "started from none." That contradicts this
+  slice's explicit fail-closed boundary. Make zero rows role-aware, returning
+  `Invalid` for non-Planner roles; add focused Application/API/frontend
+  regression evidence for that distinction and preserve existing statuses.
+- **Evidence correction:** the handler comment says no current shape can
+  exceed 10 inputs, but a valid review-correction claim may record its
+  ExecutionReport plus 10 ReviewFindings (11 inputs). The overflow test uses
+  10 Challenges on one review although the real Challenge bound is five.
+  Correct the comment and make the bounded-overflow test use the real
+  review-correction shape, or otherwise prove a valid 11-input path.
+- This is a correction within the approved slice, not permission to broaden
+  into session resume, adapters, account budgets, or a new slice. Codex must
+  review the correction and record GO before the agreed post-delivery process
+  improvements proceed. No next execution slice is approved.
 
 ## Review GO: provider-separated run token usage (`e3805a8` + `281b3e1`)
 

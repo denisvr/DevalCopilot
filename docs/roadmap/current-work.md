@@ -72,10 +72,10 @@ over a stale summary. Never reset work merely to match this page.
   token-usage behavior — this slice does not close Increment 4's
   provider-session-resume or account-usage exit criteria; those remain open
   exactly as recorded below.
-- Next action: this baseline is delivered but not yet Codex-reviewed. Codex
-  (planner/reviewer) evaluates and records GO/NO-GO in
-  [planner-handoff.md](planner-handoff.md); no next slice is approved by this
-  entry.
+- Next action: Codex recorded **NO-GO pending a bounded correction** in
+  [planner-handoff.md](planner-handoff.md). Claude corrects the findings within
+  this approved slice; Codex reviews again. No next slice is approved by this
+  delivery.
 
 ## Prior delivered baseline (2026-09-26): provider-separated run token-usage projection
 
