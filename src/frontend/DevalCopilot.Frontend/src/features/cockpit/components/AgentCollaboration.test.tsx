@@ -424,6 +424,50 @@ describe('AgentCollaboration', () => {
 
       await waitFor(() => expect(getCollaborationMessageEvidence).toHaveBeenCalledWith('the-run', 'the-message'))
     })
+
+    // Proves the wiring, not just the isolated AttemptInputMessages component (see its own tests):
+    // AgentCollaboration's own cardsById — the same map that already verifies reply-parent
+    // relationships — reaches the drill-down's recorded-collaboration-input section too, so a
+    // recorded input referencing a sibling card already in this timeline shows that card's real
+    // summary, never a fabricated one.
+    it('resolves a recorded collaboration input against this same timeline\'s own already-loaded cards', async () => {
+      vi.mocked(collaborationMessageEvidenceClient).mockReturnValue({
+        getCollaborationMessageEvidence: vi.fn().mockResolvedValue({
+          evidenceStatus: 'HasEvidence',
+          attemptId: 'attempt-2',
+          artifacts: [],
+          artifactsOmitted: false,
+          artifactTotalCount: 0,
+          inputMessagesStatus: 'Recorded',
+          inputMessages: [{ sequence: 0, collaborationMessageId: 'proposal-1', type: 'Proposal', collaborationMessageSequence: 1 }],
+          inputMessagesOmitted: false,
+          inputMessageTotalCount: 1,
+        }),
+      } as unknown as ReturnType<typeof collaborationMessageEvidenceClient>)
+
+      render(
+        <AgentCollaboration
+          runId="run-1"
+          cards={[
+            fixture({ sequence: 1, id: 'proposal-1', type: 'Proposal', summary: 'Add the ledger table' }),
+            fixture({
+              sequence: 2,
+              id: 'revised-proposal-1',
+              type: 'Proposal',
+              inReplyToMessageId: 'proposal-1',
+              summary: 'A revised proposal',
+              provenance: 'ProviderObserved',
+              attemptId: 'attempt-2',
+            }),
+          ]}
+        />,
+      )
+
+      // Only the second (ProviderObserved, linked) card offers the drill-down control at all.
+      fireEvent.click(screen.getByText('Attempt evidence'))
+
+      await waitFor(() => expect(screen.getByText('1. Proposal: Add the ledger table')).toBeInTheDocument())
+    })
   })
 
   function fixture(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {

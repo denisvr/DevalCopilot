@@ -12,7 +12,72 @@ record of past delivered slices — this page does not restate it.
 changes against this page. Investigate any discrepancy; Git and code prevail
 over a stale summary. Never reset work merely to match this page.
 
-## Latest delivered baseline (2026-09-26): provider-separated run token-usage projection
+## Latest delivered baseline (2026-09-26): recorded collaboration-input provenance
+
+- Branch: `main`. Delivered commit: resolve its exact SHA with `git log -1
+  --format=%H -- docs/roadmap/current-work.md` (a commit cannot embed its own
+  SHA). Its parent is `c4eb8528e4902fac29d18460710b09972bae395c` (`docs:
+  approve collaboration input provenance slice`).
+- Owner-authorized, bounded, read-only slice: extends the existing
+  collaboration-message attempt-evidence drill-down to show the ordered,
+  durable `AttemptInputMessage` references for the exact producing Agent
+  attempt, labeled everywhere as **recorded collaboration inputs** — never
+  the complete prompt, complete context manifest, or a resumable provider
+  session. No new persistence, adapter, native-session resume, or
+  execution-policy change, exactly as scoped.
+- Scope delivered (Application, `Features/Runs/Queries/GetCollaborationMessageEvidence/`):
+  `AttemptInputMessageCoherence.IsGaplessFromZero` (pure gap/duplicate check)
+  and `GetCollaborationMessageEvidenceQueryHandler`'s new
+  `ResolveInputMessagesAsync` resolve the exact attempt's own
+  `AttemptInputMessage` rows, preserve their stored order, and require every
+  referenced `CollaborationMessage` to resolve within the SAME run — a gap, a
+  duplicate, or a missing/foreign reference fails the entire set closed
+  (`AttemptInputMessageEvidenceStatus.Invalid`) rather than presenting a
+  partial subset. A legitimate attempt with none (e.g. a Planner) reports
+  `Empty`. A coherent set is bounded at 10 entries with an honest
+  `InputMessagesOmitted` signal, mirroring the existing artifact cap. Exposed
+  as new `inputMessagesStatus`/`inputMessages`/`inputMessagesOmitted`/
+  `inputMessageTotalCount` fields on `CollaborationMessageEvidenceResponse`
+  (API: `AttemptInputMessageEvidenceResponse`, `type` crosses the wire as a
+  plain string, no generated TS enum). Every existing `evidenceStatus`
+  (`HasEvidence`/`NoAgentEvidence`/`AttemptLinkBroken`) and artifact behavior
+  is unchanged.
+- Frontend: new `AttemptInputMessages` component and
+  `describeAttemptInputMessages.ts` render the three states honestly (`Empty`,
+  `Invalid`, and the ordered `Recorded` list), reusing
+  `AgentCollaboration.tsx`'s own already-loaded-timeline map (the same one
+  that verifies reply-parent relationships) to show a referenced message's
+  real summary only when it is actually present in the caller's currently
+  loaded window — otherwise stating "not present in the currently loaded
+  timeline" rather than implying visibility. `CollaborationEvidenceDrilldown`
+  and `AgentCollaboration` now thread that map through; a small shared
+  `collaborationMessageTypeLabel.ts` module holds the message-type label
+  table so importing it does not affect either component's fast-refresh
+  boundary (oxlint `react(only-export-components)`).
+- See the new "Recorded collaboration-input provenance" subsection of
+  [agent-collaboration-protocol.md](../architecture/agent-collaboration-protocol.md).
+- Checks actually run: `dotnet format --verify-no-changes` clean (after one
+  `dotnet format` pass fixing doc-comment line wrapping); Release build 0
+  warnings/0 errors; Domain 524/524; Application 978/978 (+14 new);
+  Infrastructure.IntegrationTests 440/441 (one pre-existing platform-
+  capability skip, unrelated); Api.IntegrationTests 294/294 (+3 new);
+  Architecture 9/9; `dotnet ef migrations has-pending-model-changes` reported
+  no pending changes; NSwag regeneration byte-identical across two builds
+  with zero `export enum` occurrences; frontend 578/578 tests (+15 new),
+  `tsc -b` clean, `oxlint` exited 0 with the same 20 pre-existing warnings (0
+  new), `vite build` production build passed; `git diff --check` reported no
+  whitespace errors (only the pre-existing CRLF-normalization notices).
+- No migration, no ADR change, no new adapter, no native-session resume, and
+  no change to any existing evidence status, artifact, process, or
+  token-usage behavior — this slice does not close Increment 4's
+  provider-session-resume or account-usage exit criteria; those remain open
+  exactly as recorded below.
+- Next action: this baseline is delivered but not yet Codex-reviewed. Codex
+  (planner/reviewer) evaluates and records GO/NO-GO in
+  [planner-handoff.md](planner-handoff.md); no next slice is approved by this
+  entry.
+
+## Prior delivered baseline (2026-09-26): provider-separated run token-usage projection
 
 - Branch: `main`. Delivered commit:
   `e3805a887068a3b7707594eef6a2d52602a00401`, parent

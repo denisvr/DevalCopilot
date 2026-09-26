@@ -54,6 +54,14 @@ public sealed class GetCollaborationMessageEvidenceEndpoint(
                     artifact.Purpose.ToString(), artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome.ToString()))
                 .ToArray(),
             value.ArtifactsOmitted,
-            value.ArtifactTotalCount));
+            value.ArtifactTotalCount,
+            value.InputMessagesStatus.ToString(),
+            value.InputMessages
+                .Select(inputMessage => new AttemptInputMessageEvidenceResponse(
+                    inputMessage.Sequence, inputMessage.CollaborationMessageId, inputMessage.Type.ToString(),
+                    inputMessage.CollaborationMessageSequence, inputMessage.OccurredAtUtc))
+                .ToArray(),
+            value.InputMessagesOmitted,
+            value.InputMessageTotalCount));
     }
 }

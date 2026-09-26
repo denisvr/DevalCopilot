@@ -35,4 +35,16 @@ public sealed record CollaborationMessageEvidenceResponse(
     AgentTokenUsageResponse? TokenUsage,
     IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts,
     bool ArtifactsOmitted,
-    int ArtifactTotalCount);
+    int ArtifactTotalCount,
+    /// <summary>The closed, honest shape of this attempt's recorded collaboration-input set —
+    /// <c>"Empty"</c> (a legitimate attempt with none, e.g. a Planner), <c>"Recorded"</c> (a
+    /// coherent, ordered set — see <c>InputMessages</c>), or <c>"Invalid"</c> (an unresolvable set;
+    /// never partially shown). Crosses the wire as a plain string, matching <c>EvidenceStatus</c>'s
+    /// own convention.</summary>
+    string InputMessagesStatus,
+    /// <summary>This attempt's own ordered, same-run recorded collaboration inputs — never a
+    /// complete prompt, complete context manifest, or resumable provider session — populated only
+    /// when <c>InputMessagesStatus</c> is <c>"Recorded"</c>.</summary>
+    IReadOnlyList<AttemptInputMessageEvidenceResponse> InputMessages,
+    bool InputMessagesOmitted,
+    int InputMessageTotalCount);

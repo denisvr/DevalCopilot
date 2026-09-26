@@ -78,13 +78,34 @@ public sealed record CollaborationMessageEvidenceQueryResult(
     bool ArtifactsOmitted,
     /// <summary>The attempt's real total artifact count, independent of how many are returned in
     /// <see cref="Artifacts"/>.</summary>
-    int ArtifactTotalCount)
+    int ArtifactTotalCount,
+    /// <summary>The closed, honest shape of this attempt's recorded collaboration-input set —
+    /// never the complete prompt, complete context manifest, or a resumable provider session. Read
+    /// this before <see cref="InputMessages"/>: both <see cref="AttemptInputMessageEvidenceStatus.Empty"/>
+    /// and <see cref="AttemptInputMessageEvidenceStatus.Invalid"/> also present an empty list, for
+    /// different, non-interchangeable reasons.</summary>
+    AttemptInputMessageEvidenceStatus InputMessagesStatus,
+    /// <summary>The attempt's own ordered, same-run collaboration-message references, in stored
+    /// sequence order, bounded by a small explicit cap — populated only when
+    /// <see cref="InputMessagesStatus"/> is <see cref="AttemptInputMessageEvidenceStatus.Recorded"/>.</summary>
+    IReadOnlyList<AttemptInputMessageEvidence> InputMessages,
+    /// <summary>True when this attempt has more coherent recorded inputs than the bounded cap
+    /// returned in <see cref="InputMessages"/> — the omission is always stated, never silent.</summary>
+    bool InputMessagesOmitted,
+    /// <summary>The attempt's real total recorded-input row count, independent of how many are
+    /// returned in <see cref="InputMessages"/> and independent of <see cref="InputMessagesStatus"/>
+    /// (even an <see cref="AttemptInputMessageEvidenceStatus.Invalid"/> set reports its real row
+    /// count here — a count is not content, and stating it truthfully does not require trusting the
+    /// set's coherence).</summary>
+    int InputMessageTotalCount)
 {
     public static readonly CollaborationMessageEvidenceQueryResult NoAgentEvidence = new(
         CollaborationMessageEvidenceStatus.NoAgentEvidence,
-        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, [], false, 0);
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, [], false, 0,
+        AttemptInputMessageEvidenceStatus.Empty, [], false, 0);
 
     public static readonly CollaborationMessageEvidenceQueryResult AttemptLinkBroken = new(
         CollaborationMessageEvidenceStatus.AttemptLinkBroken,
-        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, [], false, 0);
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, [], false, 0,
+        AttemptInputMessageEvidenceStatus.Empty, [], false, 0);
 }

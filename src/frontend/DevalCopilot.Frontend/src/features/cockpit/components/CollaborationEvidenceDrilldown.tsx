@@ -1,9 +1,15 @@
 import { hasTrustedProcessEvidence } from '../describeProcessEvidence'
 import { useCollaborationMessageEvidence } from '../hooks/useCollaborationMessageEvidence'
+import type { CollaborationTimelineCard } from '../types'
+import { AttemptInputMessages } from './AttemptInputMessages'
 
 interface CollaborationEvidenceDrilldownProps {
   runId: string
   messageId: string
+  /** The caller's own currently loaded timeline, keyed by message id — used only to describe
+   * whether a recorded collaboration input is present there; this drill-down never fetches or
+   * assumes a wider window than the caller already holds. */
+  cardsById: ReadonlyMap<string, CollaborationTimelineCard>
 }
 
 function formatField(label: string, value: string | number | boolean | null | undefined) {
@@ -29,7 +35,7 @@ function formatField(label: string, value: string | number | boolean | null | un
  * the backend endpoint returns. Never writes fetched evidence to `localStorage`,
  * `sessionStorage`, or a URL query parameter.
  */
-export function CollaborationEvidenceDrilldown({ runId, messageId }: CollaborationEvidenceDrilldownProps) {
+export function CollaborationEvidenceDrilldown({ runId, messageId, cardsById }: CollaborationEvidenceDrilldownProps) {
   const { state, fetchEvidence } = useCollaborationMessageEvidence(runId, messageId)
   // The endpoint's own resolution already fails closed to `AttemptLinkBroken`/`NoAgentEvidence`
   // before this component ever sees a `success` state, but this drill-down renders `outcome`/
@@ -139,6 +145,7 @@ export function CollaborationEvidenceDrilldown({ runId, messageId }: Collaborati
               {state.evidence.artifactsOmitted && <p className="dc-empty-state">Additional artifacts were omitted.</p>}
             </>
           )}
+          <AttemptInputMessages evidence={state.evidence} cardsById={cardsById} />
         </div>
       )}
     </details>

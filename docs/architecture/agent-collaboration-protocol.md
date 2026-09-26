@@ -928,6 +928,40 @@ millisecond value — so it serves the zero/non-zero and coarse display
 purposes this summary is for, not exact reproduction of the underlying
 ticks.
 
+### Recorded collaboration-input provenance
+
+The collaboration-message evidence drill-down (see the shared
+`Attempt.GetAgentProcessExecutionEvidence()` rule above) additionally exposes
+the exact, ordered `AttemptInputMessage` set the producing Agent attempt was
+launched against — labeled everywhere as **recorded collaboration inputs**,
+never as the complete prompt, complete context manifest, or a resumable
+provider session: it is a durable reference list, not a transcript. A
+legitimate attempt may record none at all (a Planner attempt starts from no
+prior collaboration fact); this is reported as `Empty`, never confused with an
+unverifiable set.
+
+Resolution is strict: every referenced `CollaborationMessage` must resolve
+within the same run the drill-down was requested for — a cross-run or
+dangling reference is never followed — and the attempt's own stored 0-based
+sequence must be gapless and duplicate-free. Any incoherence (a gap, a
+duplicate, or a missing/foreign message) fails the *entire* set closed
+(`Invalid`) rather than presenting only the resolvable subset, which would
+misrepresent the attempt's real ordered input identity — the same "a
+partially trustworthy read is not trustworthy" principle this drill-down
+already applies to its process and token-usage evidence. A coherent set is
+capped at a small, explicit bound with an honest omission signal, mirroring
+the existing bounded artifact list.
+
+Each returned entry carries only its own recorded sequence, the referenced
+message's durable id, its `CollaborationMessageType`, its own timeline
+sequence, and its recorded time — never that message's summary, structured
+content, or any other payload. The cockpit cross-references the referenced id
+against its own already-loaded collaboration timeline (the same map that
+already verifies reply-parent relationships) to show that message's
+already-displayed summary; a reference the currently loaded timeline window
+does not contain is described as such — "not present in the currently loaded
+timeline" — never rendered as if it were visible there.
+
 ### Provider token-usage contracts
 
 **Claude Code — proven.** The token-usage contract was verified from the

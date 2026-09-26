@@ -18,6 +18,15 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
     /// exceed today.</summary>
     private const int MaxArtifacts = 5;
 
+    /// <summary>A small, bounded cap on how many recorded collaboration-input references one
+    /// evidence response ever returns — never a silent truncation; see
+    /// <see cref="CollaborationMessageEvidenceQueryResult.InputMessagesOmitted"/>. The largest input
+    /// set any current attempt shape can durably record is a Resolver's Proposal plus up to five
+    /// Challenges (six rows total; see <c>ClaudeCriticalReviewAttempt</c>'s own one-to-five Challenge
+    /// bound), so this cap is a defensive bound against a future shape recording more, not a limit
+    /// this schema can exceed today.</summary>
+    private const int MaxInputMessages = 10;
+
     public async Task<Result<CollaborationMessageEvidenceQueryResult>> HandleAsync(
         GetCollaborationMessageEvidenceQuery query, CancellationToken cancellationToken)
     {
@@ -108,6 +117,9 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
             }
         }
 
+        var (inputMessagesStatus, inputMessages, inputMessagesOmitted, inputMessageTotalCount) =
+            await ResolveInputMessagesAsync(dbContext, attempt.Id, query.RunId, cancellationToken);
+
         return Result<CollaborationMessageEvidenceQueryResult>.Success(new CollaborationMessageEvidenceQueryResult(
             CollaborationMessageEvidenceStatus.HasEvidence,
             attempt.Id,
@@ -130,6 +142,68 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
             attempt.GetAgentTokenUsageEvidence(),
             artifacts,
             totalArtifactCount > MaxArtifacts,
-            totalArtifactCount));
+            totalArtifactCount,
+            inputMessagesStatus,
+            inputMessages,
+            inputMessagesOmitted,
+            inputMessageTotalCount));
+    }
+
+    /// <summary>
+    /// Resolves this attempt's own durable, ordered <see cref="AttemptInputMessage"/> set — the
+    /// recorded collaboration inputs it was launched against — never a complete prompt, complete
+    /// context manifest, or resumable provider session. A legitimate attempt (for example a
+    /// Planner) may have none at all (<see cref="AttemptInputMessageEvidenceStatus.Empty"/>).
+    /// Otherwise the stored 0-based sequence must be gapless and duplicate-free, and every
+    /// referenced message must resolve to a real <see cref="CollaborationMessage"/> row belonging
+    /// to THIS SAME <paramref name="runId"/> — a gap, a duplicate, or a missing/foreign reference
+    /// fails the entire set closed (<see cref="AttemptInputMessageEvidenceStatus.Invalid"/>) rather
+    /// than silently presenting only the resolvable subset, which would misrepresent this attempt's
+    /// real ordered input identity. Only a coherent set is ever capped and presented.
+    /// </summary>
+    private static async Task<(AttemptInputMessageEvidenceStatus Status, IReadOnlyList<AttemptInputMessageEvidence> InputMessages, bool Omitted, int TotalCount)>
+        ResolveInputMessagesAsync(IDevalCopilotDbContext dbContext, Guid attemptId, Guid runId, CancellationToken cancellationToken)
+    {
+        var inputRows = await dbContext.AttemptInputMessages
+            .AsNoTracking()
+            .Where(inputMessage => inputMessage.AttemptId == attemptId)
+            .OrderBy(inputMessage => inputMessage.Sequence)
+            .Select(inputMessage => new { inputMessage.Sequence, inputMessage.CollaborationMessageId })
+            .ToArrayAsync(cancellationToken);
+
+        if (inputRows.Length == 0)
+        {
+            return (AttemptInputMessageEvidenceStatus.Empty, [], false, 0);
+        }
+
+        if (!AttemptInputMessageCoherence.IsGaplessFromZero(inputRows.Select(row => row.Sequence).ToArray()))
+        {
+            return (AttemptInputMessageEvidenceStatus.Invalid, [], false, inputRows.Length);
+        }
+
+        // Resolved only within this run — never a cross-run leak, and never a dangling reference
+        // silently ignored.
+        var referencedMessageIds = inputRows.Select(row => row.CollaborationMessageId).ToArray();
+        var resolvedMessages = await dbContext.CollaborationMessages
+            .AsNoTracking()
+            .Where(candidate => candidate.RunId == runId && referencedMessageIds.Contains(candidate.Id))
+            .Select(candidate => new { candidate.Id, candidate.Sequence, candidate.Type, candidate.OccurredAtUtc })
+            .ToDictionaryAsync(candidate => candidate.Id, cancellationToken);
+
+        if (resolvedMessages.Count != inputRows.Length)
+        {
+            return (AttemptInputMessageEvidenceStatus.Invalid, [], false, inputRows.Length);
+        }
+
+        var boundedInputMessages = inputRows
+            .Take(MaxInputMessages)
+            .Select(row =>
+            {
+                var resolved = resolvedMessages[row.CollaborationMessageId];
+                return new AttemptInputMessageEvidence(row.Sequence, resolved.Id, resolved.Type, resolved.Sequence, resolved.OccurredAtUtc);
+            })
+            .ToArray();
+
+        return (AttemptInputMessageEvidenceStatus.Recorded, boundedInputMessages, inputRows.Length > MaxInputMessages, inputRows.Length);
     }
 }

@@ -2,6 +2,7 @@ import type { CollaborationTimelineCard } from '../types'
 import type { ParticipantIdentityView } from '../types'
 import { formatParticipantIdentity } from '../participantIdentity'
 import { isTypedCollaborationCard, parseCollaborationCardContent } from '../collaborationCardContent'
+import { typeLabelFor } from '../collaborationMessageTypeLabel'
 import { CollaborationEvidenceDrilldown } from './CollaborationEvidenceDrilldown'
 
 interface AgentCollaborationProps {
@@ -20,26 +21,6 @@ function alignmentFor(actor: ParticipantIdentityView): 'left' | 'right' | 'cente
     return 'right'
   }
   return 'center'
-}
-
-/** Mirrors the backend's `CollaborationMessageType` enum with a readable label, so a card
- * never falls back to showing the raw enum identifier as its type. */
-const TYPE_LABEL: Record<string, string> = {
-  Proposal: 'Proposal',
-  Acceptance: 'Acceptance',
-  Challenge: 'Challenge',
-  Question: 'Question',
-  Decision: 'Decision',
-  ExecutionReport: 'Execution report',
-  ReviewFinding: 'Review finding',
-  RevisionResponse: 'Revision response',
-  Escalation: 'Escalation',
-  ReviewApproval: 'Review approval',
-  HumanInstruction: 'Human instruction',
-}
-
-function typeLabelFor(type: string): string {
-  return TYPE_LABEL[type] ?? type
 }
 
 /** Mirrors the backend's closed Domain policy exactly (`CollaborationMessageReplyPolicy`,
@@ -179,7 +160,7 @@ export function AgentCollaboration({
                 Attempt — a Human/Orchestrator/Simulated card (ProviderObserved false, or no
                 attemptId) never shows this control at all, not even a disabled one. */}
             {card.provenance === 'ProviderObserved' && card.attemptId && (
-              <CollaborationEvidenceDrilldown runId={runId} messageId={card.id} />
+              <CollaborationEvidenceDrilldown runId={runId} messageId={card.id} cardsById={cardsById} />
             )}
           </article>
         )

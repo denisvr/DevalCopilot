@@ -8,6 +8,11 @@ vi.mock('../../../api/clients', () => ({
   collaborationMessageEvidenceClient: vi.fn(),
 }))
 
+// None of these tests exercise the recorded-collaboration-input timeline cross-reference —
+// see describeAttemptInputMessages.test.ts and AttemptInputMessages.test.tsx for that — so an
+// empty loaded-timeline map is sufficient here.
+const emptyCardsById = new Map()
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason: unknown) => void
@@ -47,7 +52,7 @@ function mockClient(getCollaborationMessageEvidence: ReturnType<typeof vi.fn>) {
 describe('CollaborationEvidenceDrilldown', () => {
   it('shows only the collapsed control before it is expanded', () => {
     mockClient(vi.fn())
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     expect(screen.getByText('Attempt evidence')).toBeInTheDocument()
     expect(screen.queryByText(/Historical attempt evidence/)).not.toBeInTheDocument()
@@ -56,7 +61,7 @@ describe('CollaborationEvidenceDrilldown', () => {
   it('shows a loading state while the fetch is in flight', async () => {
     const pending = deferred<CollaborationMessageEvidenceResponse>()
     mockClient(vi.fn().mockReturnValue(pending.promise))
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
 
@@ -65,7 +70,7 @@ describe('CollaborationEvidenceDrilldown', () => {
 
   it('renders the bounded evidence with an explicit historical-evidence caveat once loaded', async () => {
     mockClient(vi.fn().mockResolvedValue(evidence()))
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
 
@@ -78,7 +83,7 @@ describe('CollaborationEvidenceDrilldown', () => {
 
   it('shows a distinct unavailable state, not an error, when the message legitimately has no agent evidence', async () => {
     mockClient(vi.fn().mockResolvedValue(evidence({ evidenceStatus: 'NoAgentEvidence', attemptId: undefined })))
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
 
@@ -87,7 +92,7 @@ describe('CollaborationEvidenceDrilldown', () => {
 
   it('shows a distinct broken-link state and never the historical-evidence success panel for it', async () => {
     mockClient(vi.fn().mockResolvedValue(evidence({ evidenceStatus: 'AttemptLinkBroken', attemptId: undefined })))
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
 
@@ -112,7 +117,7 @@ describe('CollaborationEvidenceDrilldown', () => {
         }),
       ),
     )
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
     await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
@@ -136,7 +141,7 @@ describe('CollaborationEvidenceDrilldown', () => {
         }),
       ),
     )
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
     await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
@@ -160,7 +165,7 @@ describe('CollaborationEvidenceDrilldown', () => {
         }),
       ),
     )
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
     await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
@@ -180,7 +185,7 @@ describe('CollaborationEvidenceDrilldown', () => {
         }),
       ),
     )
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
     await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
@@ -192,7 +197,7 @@ describe('CollaborationEvidenceDrilldown', () => {
   it('shows an error state with a retry action that fetches again', async () => {
     const getCollaborationMessageEvidence = vi.fn().mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce(evidence())
     mockClient(getCollaborationMessageEvidence)
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
     await waitFor(() => expect(screen.getByText('Attempt evidence is unavailable.')).toBeInTheDocument())
@@ -204,7 +209,7 @@ describe('CollaborationEvidenceDrilldown', () => {
 
   it('never renders a raw output viewer — only bounded metadata fields', async () => {
     mockClient(vi.fn().mockResolvedValue(evidence()))
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
     await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
@@ -220,7 +225,7 @@ describe('CollaborationEvidenceDrilldown', () => {
     document.cookie = ''
     const sentinel = 'SENTINEL-drilldown-do-not-persist-me'
     mockClient(vi.fn().mockResolvedValue(evidence({ agentOutcome: sentinel })))
-    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" />)
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
 
     fireEvent.click(screen.getByText('Attempt evidence'))
     await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())

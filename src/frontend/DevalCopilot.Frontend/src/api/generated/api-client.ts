@@ -3787,6 +3787,10 @@ export class CollaborationMessageEvidenceResponse implements ICollaborationMessa
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     artifactsOmitted?: boolean;
     artifactTotalCount?: number;
+    inputMessagesStatus?: string;
+    inputMessages?: AttemptInputMessageEvidenceResponse[];
+    inputMessagesOmitted?: boolean;
+    inputMessageTotalCount?: number;
 
     constructor(data?: ICollaborationMessageEvidenceResponse) {
         if (data) {
@@ -3824,6 +3828,14 @@ export class CollaborationMessageEvidenceResponse implements ICollaborationMessa
             }
             this.artifactsOmitted = _data["artifactsOmitted"];
             this.artifactTotalCount = _data["artifactTotalCount"];
+            this.inputMessagesStatus = _data["inputMessagesStatus"];
+            if (Array.isArray(_data["inputMessages"])) {
+                this.inputMessages = [] as any;
+                for (let item of _data["inputMessages"])
+                    this.inputMessages!.push(AttemptInputMessageEvidenceResponse.fromJS(item));
+            }
+            this.inputMessagesOmitted = _data["inputMessagesOmitted"];
+            this.inputMessageTotalCount = _data["inputMessageTotalCount"];
         }
     }
 
@@ -3861,6 +3873,14 @@ export class CollaborationMessageEvidenceResponse implements ICollaborationMessa
         }
         data["artifactsOmitted"] = this.artifactsOmitted;
         data["artifactTotalCount"] = this.artifactTotalCount;
+        data["inputMessagesStatus"] = this.inputMessagesStatus;
+        if (Array.isArray(this.inputMessages)) {
+            data["inputMessages"] = [];
+            for (let item of this.inputMessages)
+                data["inputMessages"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["inputMessagesOmitted"] = this.inputMessagesOmitted;
+        data["inputMessageTotalCount"] = this.inputMessageTotalCount;
         return data;
     }
 }
@@ -3887,6 +3907,62 @@ export interface ICollaborationMessageEvidenceResponse {
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     artifactsOmitted?: boolean;
     artifactTotalCount?: number;
+    inputMessagesStatus?: string;
+    inputMessages?: AttemptInputMessageEvidenceResponse[];
+    inputMessagesOmitted?: boolean;
+    inputMessageTotalCount?: number;
+}
+
+export class AttemptInputMessageEvidenceResponse implements IAttemptInputMessageEvidenceResponse {
+    sequence?: number;
+    collaborationMessageId?: string;
+    type?: string;
+    collaborationMessageSequence?: number;
+    occurredAtUtc?: Date;
+
+    constructor(data?: IAttemptInputMessageEvidenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sequence = _data["sequence"];
+            this.collaborationMessageId = _data["collaborationMessageId"];
+            this.type = _data["type"];
+            this.collaborationMessageSequence = _data["collaborationMessageSequence"];
+            this.occurredAtUtc = _data["occurredAtUtc"] ? new Date(_data["occurredAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): AttemptInputMessageEvidenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AttemptInputMessageEvidenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sequence"] = this.sequence;
+        data["collaborationMessageId"] = this.collaborationMessageId;
+        data["type"] = this.type;
+        data["collaborationMessageSequence"] = this.collaborationMessageSequence;
+        data["occurredAtUtc"] = this.occurredAtUtc ? this.occurredAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IAttemptInputMessageEvidenceResponse {
+    sequence?: number;
+    collaborationMessageId?: string;
+    type?: string;
+    collaborationMessageSequence?: number;
+    occurredAtUtc?: Date;
 }
 
 export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatusResponse {
