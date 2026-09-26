@@ -13,10 +13,9 @@ prevail over any stale summary here.
   prompts, and final acceptance. Claude is the bounded execution agent. This
   assignment changes only when the owner explicitly changes it; see
   [AGENTS.md](../../AGENTS.md).
-- The latest Codex-accepted slice is candidate-specific invocation-time fit.
-  The subsequent provider-separated run token-usage projection was delivered
-  in `e3805a8` but has a **NO-GO** review decision pending a narrow frontend
-  correction; see below. Do not treat delivery as acceptance.
+- The latest Codex-accepted slice is the provider-separated run token-usage
+  projection (`e3805a8`), with its frontend correction (`281b3e1`). Codex
+  reviewed the correction and recorded **GO** below. No next slice is approved.
 - The owner-authorized **Provider allowance evidence** execution slice stopped
   at its explicit evidence gate. Claude reported no implementation; Codex
   verified no code, test, or migration changes in the current checkout. The
@@ -26,24 +25,24 @@ prevail over any stale summary here.
   preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
   and later accepted decisions.
 
-## Review NO-GO: provider-separated run token usage (`e3805a8`)
+## Review GO: provider-separated run token usage (`e3805a8` + `281b3e1`)
 
 - The backend partitions the existing dispatched-attempt evidence into Codex,
   Claude Code, and Unattributed in the existing single pass; the run-wide
   summary remains intact. Focused Application (8), API (3), and frontend (66)
-  tests passed independently during review. No migration or provider adapter
-  was added. These observations do not accept the slice yet.
-- Correct two frontend presentation defects within this slice: (1) an
-  unrecognized `attribution` such as `toString`, `constructor`, or `__proto__`
-  currently resolves through inherited `Object` properties rather than the
-  promised "Unrecognized provider" label; use an own-property-safe lookup and
-  test those values; (2) a provider bucket currently reuses "Run token total"
-  and "not the run total" wording, conflating a bucket's subtotal with the
-  separate run-wide summary. Use provider-scoped wording while retaining the
-  existing run-wide copy, completeness semantics, and partial-vs-total rule.
-- Do not expand this correction into budgets, provider account usage, adapters,
-  persistence, or another slice. Claude reports a correction commit and checks;
-  Codex reviews it for GO/NO-GO. No next slice is approved.
+  tests passed independently on the initial review; that review found two
+  frontend presentation defects and recorded NO-GO.
+- Commit `281b3e1` resolves both findings within the same slice: an own-key-safe
+  `Map` lookup labels prototype-colliding and other unknown attributions
+  honestly, and provider buckets use provider-scoped total/partial wording
+  while the run-wide copy and completeness rules remain unchanged. Codex
+  inspected the correction diff and independently ran the full frontend suite
+  (563/563), TypeScript/production build, and lint (exit 0, existing warnings).
+  The correction touched no backend, API, adapter, persistence, or threshold
+  files; backend tests were not rerun after this frontend-only commit.
+- **GO** for this bounded read-only slice. It does not implement token budgets
+  or provider account-usage guardrails; Increment 4 remains open. No next
+  execution slice is approved by this review.
 
 ## Closed without delivery: Provider allowance evidence
 

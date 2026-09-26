@@ -61,8 +61,9 @@ over a stale summary. Never reset work merely to match this page.
   criterion; that remains open exactly as recorded below.
 - Review follow-up: Codex recorded **NO-GO** for two narrow frontend
   presentation defects in the [planner handoff](planner-handoff.md), corrected
-  in commit (resolve its exact SHA with `git log -1 --format=%H --
-  docs/roadmap/current-work.md`), parent `e3805a887068a3b7707594eef6a2d52602a00401`.
+  in commit `281b3e135405a01a15f966d79180854731f84025`, parent
+  `8cc01510cd90344fc39ab1234454aff5c958c35f` (the planner's NO-GO
+  decision commit).
   Frontend-only correction, no backend/API/adapter/persistence/threshold
   change:
   1. `describeProviderAttribution` (`describeTokenUsage.ts`) now looks up its
@@ -88,9 +89,16 @@ over a stale summary. Never reset work merely to match this page.
     warnings (0 new), `vite build` production build passed, `git diff
     --check` reported no whitespace errors. Backend was not rebuilt or
     retested for this frontend-only change.
-  - Claude reports this correction; it does not approve the slice or start
-    another. Codex reviews the correction for GO/NO-GO in the
+  - Codex independently inspected the correction diff and ran frontend
+    563/563 tests, TypeScript/production build, lint (exit 0 with existing
+    warnings), and diff check; backend tests were not rerun for the
+    frontend-only correction. Codex recorded **GO** in the
     [planner handoff](planner-handoff.md).
+- Next action: the planner/reviewer may propose another bounded Increment 4
+  slice for owner approval. No next execution slice is approved by this GO.
+- Remaining uncommitted work at the correction handoff: none. Remote
+  synchronization remains separate and must be verified before relying on
+  `origin/main` as this baseline.
 
 ## Prior delivered baseline (2026-09-26): shared instructions and planner handoff
 
