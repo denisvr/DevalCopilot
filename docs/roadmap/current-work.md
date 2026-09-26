@@ -94,9 +94,10 @@ over a stale summary. Never reset work merely to match this page.
     warnings), and diff check; backend tests were not rerun for the
     frontend-only correction. Codex recorded **GO** in the
     [planner handoff](planner-handoff.md).
-- Next action: the planner/reviewer has recorded an unapproved, bounded
-  collaboration-input provenance proposal in [planner-handoff.md](planner-handoff.md)
-  for owner review. No next execution slice is approved by this GO.
+- Next action: the owner approved the bounded collaboration-input provenance
+  execution slice in [planner-handoff.md](planner-handoff.md). Claude may
+  implement that slice; Codex retains review and final acceptance. Later
+  planning needs no separate permission, but later execution does.
 - Remaining uncommitted work at the correction handoff: none. Remote
   synchronization remains separate and must be verified before relying on
   `origin/main` as this baseline.

@@ -15,20 +15,24 @@ prevail over any stale summary here.
   [AGENTS.md](../../AGENTS.md).
 - The latest Codex-accepted slice is the provider-separated run token-usage
   projection (`e3805a8`), with its frontend correction (`281b3e1`). Codex
-  reviewed the correction and recorded **GO** below. No next slice is approved.
+  reviewed the correction and recorded **GO** below.
 - The owner-authorized **Provider allowance evidence** execution slice stopped
   at its explicit evidence gate. Claude reported no implementation; Codex
   verified no code, test, or migration changes in the current checkout. The
-  slice is closed without delivery or acceptance. No next slice is approved.
+  slice is closed without delivery or acceptance.
 - Provider account usage remains unobserved and unenforced. The remaining
   [Increment 4 deliverable and exit criterion](mvp-delivery-plan.md) are open;
   preserve [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
   and later accepted decisions.
-- **Proposed, not approved:** read-only collaboration-input provenance in the
-  existing attempt-evidence drill-down, as bounded below. The owner has asked
-  for a planning proposal, not authorized execution.
+- **Approved for Claude execution by the owner:** the bounded, read-only
+  collaboration-input provenance slice below. Approval is for this slice only;
+  Codex still owns review and final acceptance.
+- The owner has granted Codex standing permission to plan and propose later
+  slices without requesting permission to do the planning. A later proposal is
+  not execution approval; Claude still needs a separately approved bounded
+  prompt before starting it.
 
-## Proposed next slice: recorded collaboration-input provenance (unapproved)
+## Approved execution slice: recorded collaboration-input provenance
 
 - Objective: let an owner inspect the ordered, durable collaboration-message
   inputs recorded for the exact Agent attempt behind a provider-observed
@@ -61,11 +65,11 @@ prevail over any stale summary here.
   diff checks under the engineering contract. Update `current-work.md` in the
   substantive delivery commit and report the exact commit/checks/risks. Codex
   reviews and decides GO/NO-GO separately.
-- Executor prompt, only if the owner approves: "Implement the planner-approved
+- Executor prompt: "Implement the planner-approved
   recorded collaboration-input provenance slice in the existing
   collaboration-message attempt-evidence drill-down. Read the required project
-  entry documents at this new slice boundary, verify Git and the unapproved
-  proposal's owner approval, then follow the objective, exclusions, safety
+  entry documents at this new slice boundary, verify Git and this recorded
+  approval, then follow the objective, exclusions, safety
   gates, and acceptance evidence above. Use only durable `AttemptInputMessage`
   links and same-run collaboration messages; never claim a complete prompt or
   native-session resume. Stop and report if the persisted input contract cannot
@@ -127,11 +131,12 @@ prevail over any stale summary here.
    the diff and evidence. Distinguish checks run independently from results
    reported by the executor. A GO on one slice does not approve the next.
 4. If selecting a slice, record its objective, boundaries, risks, stop gates,
-   and acceptance evidence here **only after** the owner asks for that planning
-   decision. Include a short executor prompt or a link to a longer approved
-   specification; do not turn this page into a prompt archive. Mark proposals
-   as unapproved until the owner authorizes execution. Keep the shared
-   handoff's next-action wording aligned without duplicating delivery history.
+   and acceptance evidence here. The owner has granted standing permission to
+   plan later slices without asking first. Include a short executor prompt or
+   a link to a longer approved specification; do not turn this page into a
+   prompt archive. Mark proposals as unapproved until the owner authorizes
+   execution. Keep the shared handoff's next-action wording aligned without
+   duplicating delivery history.
 5. On a decision change or accepted delivery, update this page concisely.
    The executor updates delivery facts in `current-work.md`; the planner owns
    this decision state. Link to contracts and tests instead of accumulating
