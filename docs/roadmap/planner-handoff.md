@@ -25,15 +25,17 @@ in Git rather than accumulating here.
   resolved. The review trail is recoverable in commits `8195d2a` and
   `057b488`. This GO accepts only the bounded, read-only evidence slice; it
   does not close Increment 4's provider-session or account-usage criteria.
-- **No next execution slice is approved.** The next candidate below is a
-  proposal for owner review, not an instruction to Claude.
+- **Approved for Claude execution:** the owner authorized the bounded
+  one-Agent-claim-slot warning below with "ok próximo" on 2026-09-26. The
+  pre-approval code/documentation base was `018156c`. This approval covers
+  only that frontend slice; Codex retains review and final acceptance.
 - The Provider allowance evidence slice remains closed without delivery:
   neither local CLI exposed a proven safe, authoritative, machine-readable
   account-allowance observation contract. Do not build `Unknown`-only
   persistence/UI scaffolding or substitute direct authenticated API calls
   without a new owner-approved architecture decision.
 
-## Next proposal: one Agent claim slot remaining (unapproved)
+## Approved execution slice: one Agent claim slot remaining
 
 - Objective: warn in the cockpit when the existing durable run-wide Agent
   claim count has exactly one slot left. The current
@@ -52,15 +54,19 @@ in Git rather than accumulating here.
   show it for exhausted, over-budget, unknown, or invalid values. Use the
   actual persisted maximum (including historical raised maxima), never a
   hard-coded 16. The copy must say that other controls may still block the
-  next attempt; it cannot grant or veto an action.
+  next attempt; it cannot grant or veto an action. `RunCockpitView` currently
+  coalesces missing budget fields to zero/false for the existing exhausted
+  banner. The new warning must inspect the original nullable fields and
+  require `agentBudgetExhausted === false`, not treat those fallback values
+  as trusted evidence.
 - Acceptance evidence: focused frontend tests for 15/16, historical 18/19,
   16/16 exhaustion, malformed/inconsistent values, and no change to existing
   claim gating or exhausted copy; frontend typecheck, lint, production build,
   and `git diff --check`. If backend/API files remain untouched, do not claim
   to have rerun their suites. Update `current-work.md` in the substantive
   delivery commit; Codex reviews GO/NO-GO separately.
-- Executor prompt draft (usable only after owner approval and an exact Git
-  preflight header): "Implement the approved frontend-only one-Agent-claim-
+- Executor prompt (send with the exact post-approval HEAD in its preflight
+  header): "Implement the approved frontend-only one-Agent-claim-
   slot-remaining warning in the existing cockpit budget presentation. Follow
   the objective, exclusions, safety gates, and acceptance evidence in
   `docs/roadmap/planner-handoff.md`. Verify the exact expected branch, HEAD,

@@ -46,9 +46,10 @@ untracked changes before editing; do not reset work to match this page.
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: Codex's next bounded Increment 4 proposal is recorded as
-  **unapproved** in [planner-handoff.md](planner-handoff.md). The owner must
-  authorize execution separately; no next executor slice is approved here.
+- Next action: the owner approved the bounded frontend-only one-Agent-claim-
+  slot warning in [planner-handoff.md](planner-handoff.md). Claude may execute
+  only that slice after checking the exact Git preflight in Codex's prompt;
+  Codex retains GO/NO-GO and final acceptance.
 
 ## Open risks
 
