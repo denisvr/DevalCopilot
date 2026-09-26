@@ -192,6 +192,50 @@ public sealed class GetCollaborationMessageEvidenceQueryHandlerTests(SqliteDatab
         Assert.Null(result.Value.AttemptId);
     }
 
+    // Regression for the reviewed edge the equality-only coherence check missed: a corrupted or
+    // historical row where BOTH the attempt's own AgentRole/AgentProvider AND the message's own
+    // ActorAgentRole/ActorAgentProvider are null compares "equal" under a naive `!=` check (null
+    // == null), so the read side must reject an undefined role/provider explicitly and BEFORE ever
+    // dereferencing it — never let the pair's mutual nullness slip past as if it were coherent.
+    [Fact]
+    public async Task HandleAsync_fails_closed_when_the_attempts_and_messages_role_and_provider_are_both_null_rather_than_merely_equal()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Nullable role and provider pair", Now);
+        run.Claim(Now);
+        var attempt = ClaimDispatchedPlannerAttempt(run.Id, 1, Now);
+        var message = RecordProposal(attempt, Now.AddSeconds(2));
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.CollaborationMessages.Add(message);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        // Corrupts BOTH sides to null — a shape no Domain factory can itself produce (a real
+        // ProviderObserved message always has a role-bound actor, and a real Agent attempt always
+        // has a defined role/provider), reproduced directly to prove the read side never treats a
+        // pair of undefined values as a coherent match, and never throws while resolving it.
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE attempts SET AgentRole = NULL, AgentProvider = NULL WHERE Id = {attempt.Id}");
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE collaboration_messages SET ActorAgentRole = NULL, ActorAgentProvider = NULL WHERE Id = {message.Id}");
+
+        var handler = new GetCollaborationMessageEvidenceQueryHandler(dbContext);
+        var result = await handler.HandleAsync(
+            new GetCollaborationMessageEvidenceQuery(run.Id, message.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(CollaborationMessageEvidenceStatus.AttemptLinkBroken, result.Value.Status);
+        Assert.Null(result.Value.AttemptId);
+        // No input evidence is ever produced alongside a broken link — the same defaults every
+        // other AttemptLinkBroken path returns.
+        Assert.Equal(AttemptInputMessageEvidenceStatus.Empty, result.Value.InputMessagesStatus);
+        Assert.Empty(result.Value.InputMessages);
+        Assert.False(result.Value.InputMessagesOmitted);
+        Assert.Equal(0, result.Value.InputMessageTotalCount);
+    }
+
     [Fact]
     public async Task HandleAsync_fails_closed_when_the_linked_row_is_not_an_agent_kind_attempt()
     {

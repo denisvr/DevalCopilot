@@ -943,7 +943,14 @@ is reported as `Empty`. Every other current role (`CriticalReviewer`,
 required input row through its own claim path, so zero rows observed for any
 of them reports `Invalid` instead — an empty set there is indistinguishable
 from a lost or corrupted one, and must never be presented as the same
-innocent "started from none" state a genuine Planner attempt reports.
+innocent "started from none" state a genuine Planner attempt reports. This
+role-aware read is only ever reached once the resolved attempt's own role and
+provider are proven coherent with the message's own actor AND both are
+proven defined: an attempt/message pair whose role and provider are both
+undefined is never treated as a trivially "equal" (null-equals-null) match —
+it fails closed to the same `AttemptLinkBroken` status any other incoherent
+link produces, never a thrown error and never a role dereferenced from an
+undefined value.
 
 Resolution is strict: every referenced `CollaborationMessage` must resolve
 within the same run the drill-down was requested for — a cross-run or

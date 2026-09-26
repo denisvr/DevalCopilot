@@ -70,11 +70,20 @@ public sealed class GetCollaborationMessageEvidenceQueryHandler(IDevalCopilotDbC
 
         // Coherence, not mere presence: the resolved row must actually be the Agent attempt this
         // ProviderObserved message's own actor claims. A missing row, a non-Agent attempt (e.g. a
-        // corrupted link pointing at a Simulated/Process row), or a role/provider mismatch are all
-        // equally untrustworthy — every one of them fails closed to the same distinct status rather
-        // than substituting the wrong attempt's evidence.
+        // corrupted link pointing at a Simulated/Process row), a role/provider mismatch, or either
+        // side's role/provider being undefined are all equally untrustworthy — every one of them
+        // fails closed to the same distinct status rather than substituting the wrong attempt's
+        // evidence. A defined role and provider are checked explicitly and BEFORE the equality
+        // comparison: a corrupted or historical row with a null role/provider on both sides would
+        // otherwise compare equal (null == null) and slip past an equality-only check, and a
+        // later caller dereferencing that "coherent" role would throw instead of failing closed.
+        // A real ProviderObserved message always has a role-bound actor
+        // (CollaborationMessage.RecordCore enforces this at construction), so this guards only
+        // against an otherwise-impossible corrupted or historical row, never a normal path.
         if (attempt is null
             || attempt.Kind != AttemptKind.Agent
+            || attempt.AgentRole is null
+            || attempt.AgentProvider is null
             || attempt.AgentRole != message.ActorAgentRole
             || attempt.AgentProvider != message.ActorAgentProvider)
         {

@@ -111,11 +111,45 @@ over a stale summary. Never reset work merely to match this page.
     `export enum` occurrences; `git diff --check` reported no whitespace
     errors. No frontend file changed for this correction, so the frontend
     suite was not rerun.
-  - Claude reports this correction; it does not approve the slice or start
-    another. Codex reviewed it and recorded a further **NO-GO** for a nullable
-    role dereference on incoherent persisted evidence in the
-    [planner handoff](planner-handoff.md). Claude corrects that one guard
-    within this slice; Codex reviews again. No next slice is approved.
+  - Review follow-up: Codex reviewed `a546318` and recorded a further **NO-GO**
+    in [planner-handoff.md](planner-handoff.md) for one remaining edge,
+    corrected in commit (resolve its exact SHA with `git log -1 --format=%H --
+    docs/roadmap/current-work.md`), parent
+    `057b4885c5df0e25e806564f06c1721bec504616` (the planner's NO-GO decision
+    commit). Also within this same approved, read-only slice:
+    the evidence query's attempt/message role-and-provider coherence check
+    (`attempt.AgentRole != message.ActorAgentRole`, likewise for provider)
+    accepted a pair of null roles/providers as "equal", so a corrupted or
+    historical `ProviderObserved`/`Agent` pair with both sides undefined would
+    reach `attempt.AgentRole!.Value` and throw instead of returning the
+    existing `AttemptLinkBroken` fail-closed status.
+    `GetCollaborationMessageEvidenceQueryHandler`'s coherence check now
+    explicitly rejects a null `AgentRole`/`AgentProvider` on the attempt side
+    BEFORE the equality comparison, so an undefined pair (equal or not) always
+    fails closed to `AttemptLinkBroken` — never a null-reference throw, and
+    never a coherent-looking match. Every valid `HasEvidence` shape, every
+    existing `AttemptLinkBroken`/`NoAgentEvidence` path, and the API response
+    contract are unchanged.
+  - Regression coverage added: a focused SQLite-persisted test
+    (`GetCollaborationMessageEvidenceQueryHandlerTests`) that corrupts both a
+    real attempt's and its linked message's role/provider columns to `NULL`
+    via raw SQL (a shape no Domain factory can produce) and proves the result
+    is `AttemptLinkBroken` with `attemptId` null and every input-evidence
+    field at its default (`Empty`/empty list/not omitted/zero count) — never a
+    thrown exception.
+  - Checks actually run for this correction: `dotnet format --verify-no-changes`
+    clean; Release build 0/0; Domain 524/524, Application 983/983 (+1 new),
+    Infrastructure.IntegrationTests 440/441 (one pre-existing, unrelated
+    skip), Api.IntegrationTests 295/295 (unchanged), Architecture 9/9;
+    `dotnet ef migrations has-pending-model-changes` reported no pending
+    changes; NSwag regeneration byte-identical to the prior delivery's own
+    hash (the API contract shape is unchanged), zero `export enum`
+    occurrences; `git diff --check` reported no whitespace errors. No
+    frontend file changed for this correction, so the frontend suite was not
+    rerun.
+  - Claude reports this correction; it does not approve the slice, make the
+    three owner-requested process improvements, or start another slice. Codex
+    retains final acceptance in the [planner handoff](planner-handoff.md).
 
 ## Prior delivered baseline (2026-09-26): provider-separated run token-usage projection
 
