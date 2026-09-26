@@ -29,14 +29,48 @@ in Git rather than accumulating here.
   uncommitted diff first; only an explicit GO authorizes Claude to commit and
   push that reviewed diff. Slice selection needs no routine owner approval,
   but is not commit/push authorization.
-- No next execution slice selected in this review. Investigate the remaining
-  Increment 4 runtime-control contracts before dispatching another bounded
-  slice.
+- **Selected next execution slice:** expose the current Claude Implementer
+  adapter's disabled provider-session persistence as an attempt-scoped,
+  read-only configured fact, under the limits below. This does not implement
+  resume or claim provider-session availability.
 - The Provider allowance evidence slice remains closed without delivery:
   neither local CLI exposed a proven safe, authoritative, machine-readable
   account-allowance observation contract. Do not build `Unknown`-only
   persistence/UI scaffolding or substitute direct authenticated API calls
   without a new accepted architecture decision.
+
+## Selected slice: configured Claude Implementer session persistence
+
+- Objective: on the existing implementation-attempt status and cockpit, show
+  that the current `ClaudeImplementationAdapter` passes
+  `--no-session-persistence`. The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  says this print-mode flag prevents saving the provider session and therefore
+  prevents resuming it. Label the fact as **configured**, not as a live
+  provider-observed outcome. DevalCopilot's own durable attempt history and
+  any bounded provider-session identifier remain distinct.
+- Derive `Disabled` only when the attempt's own provider `ClaudeCode`, role
+  `Implementer`, permission profile `WorkspaceEditOnly`, and adapter contract
+  `claude-implementation-v1` agree with the unchanged current adapter. For no
+  attempt or a valid but mismatched/historical assignment, return
+  null/`Unknown`; retain the existing fail-closed error for an invalid or
+  absent assignment. Do not infer a historical invocation from today's
+  adapter. Keep the host-wide `ProviderRuntimePreflight.Sessions` unchanged.
+- Exclusions: no adapter arguments, persistence schema, provider-session ID
+  exposure, session open/resume/fork UI, session lookup, provider storage
+  access, authentication, authorization, claim/dispatch logic, model/effort
+  selection, compaction, account allowance, Codex, Gemini, or other Claude
+  roles. No authenticated provider invocation or direct provider API call.
+- Stop gates: report a blocker if the installed adapter no longer passes the
+  flag, if the provider contract no longer supports the stated meaning, if
+  the coherent attempt mapping cannot fail closed, or if implementation
+  requires changing session behavior, policy, or persistence. Do not broaden
+  scope to make resume possible.
+- Acceptance evidence: focused Application/API/frontend tests for coherent,
+  no-attempt, and mismatched/unknown cases; truthful UI wording; additive
+  NSwag regeneration if the response changes; affected .NET tests, frontend
+  tests/typecheck/lint/build, and `git diff --check`. Clarify the product
+  specification and prepare `current-work.md` with actual checks and risks.
+  Present the complete diff uncommitted and unpushed for Codex GO/NO-GO.
 
 ## Decision and preflight protocol
 

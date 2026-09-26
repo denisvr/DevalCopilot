@@ -55,11 +55,10 @@ untracked changes before editing; do not reset work to match this page.
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: Codex investigates remaining Increment 4 runtime-control
-  contracts before selecting another bounded slice. Under the corrected
-  workflow in [AGENTS.md](../../AGENTS.md), Claude submits its next completed
-  diff without commit or push; Codex GO must precede both. No next execution
-  slice has been selected yet.
+- Next action: Claude implements the selected, bounded configured-session-
+  persistence fact in [planner-handoff.md](planner-handoff.md). Under the
+  corrected workflow in [AGENTS.md](../../AGENTS.md), Claude submits its
+  completed diff without commit or push; Codex GO must precede both.
 
 ## Open risks
 
