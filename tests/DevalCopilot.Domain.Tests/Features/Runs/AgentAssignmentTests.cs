@@ -117,6 +117,44 @@ public sealed class AgentAssignmentTests
     }
 
     [Fact]
+    public void ClaimAgentCriticalReview_persists_a_concrete_read_only_critical_reviewer_assignment()
+    {
+        var attempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow, 1);
+
+        var assignment = attempt.GetAssignmentSnapshot();
+
+        Assert.NotNull(assignment);
+        Assert.Equal(AgentProvider.ClaudeCode, assignment.Provider);
+        Assert.Null(assignment.RequestedModel);
+        Assert.Null(assignment.ObservedModel);
+        Assert.Null(assignment.RequestedEffort);
+        Assert.Null(assignment.ObservedEffort);
+        Assert.Equal(AgentPermissionProfile.ReadOnly, assignment.PermissionProfile);
+        Assert.Equal("claude-critical-review-v1", assignment.AdapterContractVersion);
+    }
+
+    [Fact]
+    public void ClaimAgentReviewCorrection_persists_a_concrete_workspace_edit_only_implementer_assignment()
+    {
+        var attempt = Attempt.ClaimAgentReviewCorrection(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow, 1);
+
+        var assignment = attempt.GetAssignmentSnapshot();
+
+        Assert.NotNull(assignment);
+        Assert.Equal(AgentProvider.ClaudeCode, assignment.Provider);
+        Assert.Null(assignment.RequestedModel);
+        Assert.Null(assignment.ObservedModel);
+        Assert.Null(assignment.RequestedEffort);
+        Assert.Null(assignment.ObservedEffort);
+        Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, assignment.PermissionProfile);
+        Assert.Equal("claude-review-correction-v1", assignment.AdapterContractVersion);
+    }
+
+    [Fact]
     public void Legacy_persisted_null_assignment_columns_remain_explicitly_unknown()
     {
         // Simulates a pre-existing row claimed before these two columns were ever populated for

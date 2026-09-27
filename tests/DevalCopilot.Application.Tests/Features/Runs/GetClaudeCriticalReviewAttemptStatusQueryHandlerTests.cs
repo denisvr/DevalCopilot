@@ -1,6 +1,7 @@
 using DevalCopilot.Application.Features.Runs.Queries.GetClaudeCriticalReviewAttemptStatus;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -42,6 +43,11 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         Assert.Null(result.Value.AttemptId);
         Assert.Null(result.Value.ReviewedProposalMessageId);
         Assert.Empty(result.Value.Artifacts);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+        Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
+        Assert.Null(result.Value.ConfiguredBuiltInTools);
     }
 
     [Fact]
@@ -96,6 +102,134 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandlerTests(Sqlite
         Assert.Equal(128, artifact.ByteLength);
         Assert.False(artifact.Truncated);
         Assert.Equal(ArtifactCaptureOutcome.Captured, artifact.CaptureOutcome);
+        Assert.Equal("plan", result.Value.ConfiguredPermissionMode);
+        Assert.Equal("Disabled", result.Value.ConfiguredSessionPersistence);
+        Assert.Equal("None", result.Value.ConfiguredPermissionPrompts);
+        Assert.Equal("Ineligible", result.Value.ConfiguredResumeEligibility);
+        Assert.Equal("None", result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_permission_mode_for_a_valid_historical_nullable_assignment()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Historical critical review assignment", Now);
+        run.Claim(Now);
+        var (attempt, inputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentPermissionProfile = NULL, AgentAdapterContractVersion = NULL
+            WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetClaudeCriticalReviewAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetClaudeCriticalReviewAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+        Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
+        Assert.Null(result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_permission_mode_for_a_mismatched_adapter_contract_version()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Mismatched critical review adapter contract", Now);
+        run.Claim(Now);
+        var (attempt, inputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentAdapterContractVersion = 'claude-critical-review-v2' WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetClaudeCriticalReviewAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetClaudeCriticalReviewAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+        Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
+        Assert.Null(result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_permission_mode_for_a_mismatched_response_contract()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Mismatched critical review response contract", Now);
+        run.Claim(Now);
+        var (attempt, inputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        // A valid, defined AgentResponseContract that is not CriticalReview — everything else
+        // about this attempt's persisted assignment (role, provider, permission profile, adapter
+        // contract version) otherwise remains exactly coherent, proving the response-contract
+        // check alone withholds all five configured facts.
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentResponseContract = 'ChallengeResolution' WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetClaudeCriticalReviewAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetClaudeCriticalReviewAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+        Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
+        Assert.Null(result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_fails_closed_for_an_unparseable_persisted_permission_profile_without_mutating_it()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Corrupt critical review permission profile", Now);
+        run.Claim(Now);
+        var (attempt, inputMessage) = ClaimCriticalReviewAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(inputMessage);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var sentinel = "InvalidPermissionSentinel";
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE attempts SET AgentPermissionProfile = {sentinel} WHERE Id = {attempt.Id}");
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetClaudeCriticalReviewAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetClaudeCriticalReviewAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("agent_attempts.invalid_assignment", error.Code);
+        Assert.DoesNotContain(sentinel, error.Description, StringComparison.Ordinal);
+        var persistedValue = await readContext.Database
+            .SqlQueryRaw<string>("SELECT AgentPermissionProfile AS Value FROM attempts WHERE Id = {0}", attempt.Id)
+            .SingleAsync();
+        Assert.Equal(sentinel, persistedValue);
     }
 
     [Fact]

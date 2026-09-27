@@ -80,6 +80,12 @@ export function ReviewCorrectionAction({
   const canAuthorize = !isActive && budgetExhausted && hasCurrentEscalation && !hasAvailableAuthorization
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
   const anyBlock = Boolean(globalClaimBlock) || timeFitBlocked
+  const configuredPermissionMode = status?.configuredPermissionMode === 'acceptEdits' ? 'acceptEdits' : 'Unknown'
+  const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
+  const configuredPermissionPrompts = status?.configuredPermissionPrompts === 'None' ? 'None' : 'Unknown'
+  const configuredResumeEligibility = status?.configuredResumeEligibility === 'Ineligible' ? 'Ineligible' : 'Unknown'
+  const configuredBuiltInTools =
+    status?.configuredBuiltInTools === 'Read,Edit,Write,Glob,Grep' ? 'Read,Edit,Write,Glob,Grep' : 'Unknown'
 
   return (
     <section className="dc-review-correction-action" aria-label="Review correction">
@@ -168,6 +174,14 @@ export function ReviewCorrectionAction({
         </p>
       )}
       {status?.hasAttempt && !isActive && <p>Last correction #{status.attemptNumber}: {phaseLabel(status)}.</p>}
+      {status?.hasAttempt && (
+        <p className="dc-review-correction-assignment">
+          Configured permission mode: {configuredPermissionMode} · Configured provider-session persistence:{' '}
+          {configuredSessionPersistence} · Configured permission confirmations: {configuredPermissionPrompts} ·{' '}
+          Configured resume eligibility: {configuredResumeEligibility} · Configured built-in tools:{' '}
+          {configuredBuiltInTools}
+        </p>
+      )}
       {status?.hasAttempt && (
         <>
           <ProcessEvidenceLine

@@ -8,7 +8,136 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted delivery: immutable assignment provenance for the three
+- Current delivery, based on parent `6312438046e9da0a43e2231ecc76f3e8eee62ac6`:
+  immutable assignment provenance for the two remaining current Claude Code
+  paths (CriticalReviewer and Implementer ReviewCorrection) at claim time,
+  plus five configured adapter facts on each path's existing attempt status
+  and cockpit action. See [planner-handoff.md](planner-handoff.md) for the
+  selection and review record.
+  - `Attempt.ClaimAgentCriticalReview` now persists a concrete
+    `AgentPermissionProfile.ReadOnly` and the fixed adapter contract version
+    `claude-critical-review-v1`; `Attempt.ClaimAgentReviewCorrection` now
+    persists `AgentPermissionProfile.WorkspaceEditOnly` and the fixed adapter
+    contract version `claude-review-correction-v1` — both using the existing
+    nullable `AgentPermissionProfile` / `AgentAdapterContractVersion`
+    columns already shared with the Implementer and Codex roles; no
+    migration was needed. Requested/observed model and effort remain `null`
+    for both paths. The `AgentPermissionProfile.ReadOnly` XML comment was
+    made provider-neutral (assigned read-only workspace intent, never a
+    proven or observed effective isolation boundary, and never that shell,
+    network, or MCP actions are absent) since it is now shared by a Claude
+    Code path, not only Codex roles. Legacy rows with `null`
+    permission-profile/adapter-contract-version columns continue to project
+    as `Unknown`/`null` via the existing `Attempt.GetAssignmentSnapshot()`
+    degrade-to-Unknown behavior — never retroactively treated as coherent.
+  - `GetClaudeCriticalReviewAttemptStatusQueryHandler` now calls
+    `Attempt.GetAssignmentSnapshot()`, fails the whole status closed with the
+    existing `agent_attempts.invalid_assignment` error for malformed
+    assignment metadata (new for this role, mirroring the Implementer
+    handler's own try/catch and null-snapshot guard), and discloses five
+    facts — `configuredPermissionMode: "plan"`,
+    `configuredSessionPersistence: "Disabled"`,
+    `configuredPermissionPrompts: "None"`,
+    `configuredResumeEligibility: "Ineligible"`, and
+    `configuredBuiltInTools: "None"` (the adapter's explicit empty `--tools`
+    argument) — only for a coherent current assignment.
+    `GetReviewCorrectionAttemptStatusQueryHandler` gained the identical five
+    facts for its own path (`configuredPermissionMode: "acceptEdits"`,
+    `configuredBuiltInTools: "Read,Edit,Write,Glob,Grep"`, the same three
+    other values), added as a pure addition strictly after the existing
+    current-review lineage and budget/escalation computation: its own
+    `ImplementerExecutionReportEligibility.LoadSnapshotAsync` call is now
+    wrapped to fail closed on a corrupt persisted assignment enum anywhere
+    in the run (previously an unhandled exception, now the same fail-closed
+    `agent_attempts.invalid_assignment` result used elsewhere), and the
+    resolved correction attempt's own `GetAssignmentSnapshot()` gates the
+    five facts — neither change alters which attempt is resolved as
+    "current" or how the budget/escalation facts are computed; both
+    existing handler tests covering that lineage remain green unchanged.
+    Both status handlers preserve strict `null`/`Unknown` fallback for no
+    attempt or a valid historical/mismatched assignment, exactly mirroring
+    the Implementer and Codex-role precedent. All facts describe fixed CLI
+    arguments only — never observed effective access, an MCP or complete
+    security boundary, model or effort, or invocation eligibility.
+  - The two response contracts remain role-specific, each gaining exactly
+    the same five new fields, mapped through their existing endpoints; no
+    raw provider/role/permission-profile/adapter-contract-version field was
+    added to either. `ClaudeCriticalReviewAction.tsx` and
+    `ReviewCorrectionAction.tsx` each render a new "Configured permission
+    mode: … · Configured provider-session persistence: … · Configured
+    permission confirmations: … · Configured resume eligibility: … ·
+    Configured built-in tools: …" line, whitelist-comparing the single
+    recognized literal per fact and rendering `Unknown` for anything else —
+    never a provider-supplied value verbatim. Documented in the new
+    "Configured Claude CriticalReviewer and Implementer ReviewCorrection
+    permission mode, session persistence, permission confirmations, resume
+    eligibility, and built-in tools" subsection of
+    [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+  - Two pre-existing shared cross-role disclosure-guard test files
+    (`AgentTokenUsageEndpointTests` and
+    `AgentProcessExecutionEvidenceEndpointTests`) scan every role route's raw
+    response body for the substring "session"; both already carried a
+    narrow, route-gated exception for the Implementer's own
+    `configuredSessionPersistence` fact. That exception is now also opted in
+    for the CriticalReviewer route (`route is "agent-attempts/implementation"
+    or "agent-attempts/claude-critical-review"`), since this attempt status
+    now legitimately carries the same fact; every other disclosure check in
+    both files, and the exception's own scoping (root-level only, single
+    occurrence, exactly one of the two coherent values), is unchanged. No
+    equivalent carve-out was needed for the two new endpoint test files
+    themselves (`GetClaudeCriticalReviewAttemptStatusEndpointTests`,
+    `ReviewCorrectionEndpointTests`) or the frontend, since neither has a
+    pre-existing blanket "prompt"/"session" scan.
+  - `ClaudeCriticalReviewAdapterTests` and `ClaudeReviewCorrectionAdapterTests`
+    were extended with comments and (for ReviewCorrection) new assertions
+    tying their existing exact-argument indices to the newly disclosed
+    facts; no adapter argument changed.
+  - Correction round: `GetClaudeCriticalReviewAttemptStatusQueryHandler`'s
+    coherence condition now also requires
+    `attempt.AgentResponseContract == AgentResponseContract.CriticalReview`,
+    proven by a new focused test that persists an otherwise-fully-coherent
+    attempt with a different, valid response contract and asserts all five
+    facts remain `null`.
+    `GetReviewCorrectionAttemptStatusQueryHandler`'s own coherence condition
+    now also states `attempt.AgentResponseContract ==
+    AgentResponseContract.ReviewCorrection` explicitly — the attempt
+    resolved above was already exclusively selected by that same contract in
+    the lineage query, so this is a defensive, explicit restatement of an
+    already-guaranteed fact, never a change to lineage selection; both
+    existing lineage/budget tests remain green unchanged. The handler's own
+    comment on its `LoadSnapshotAsync` try/catch was corrected: it now
+    states plainly that this fail-closed path can fire from an unparseable
+    assignment enum on *any* attempt in the run, not only the eventual
+    review-correction candidate, and that it is a broader run-wide guard
+    layered above, not a replacement for, the later per-attempt
+    `GetAssignmentSnapshot()` check on the resolved correction attempt
+    itself. The cockpit specification already described the coherence rule
+    as covering "provider, role, response contract, permission profile, and
+    adapter contract version," so no documentation change was needed there.
+  - Checks actually run: Application.Tests focused
+    `GetClaudeCriticalReviewAttemptStatusQueryHandlerTests` 9/9 (1 new
+    mismatched-response-contract case) and
+    `GetReviewCorrectionAttemptStatusQueryHandlerTests` 6/6 unchanged, full
+    Application.Tests 1007/1007; Api.IntegrationTests focused
+    `GetClaudeCriticalReviewAttemptStatusEndpointTests` +
+    `ReviewCorrectionEndpointTests` 19/19 unchanged; `git diff --check`
+    reported no new errors. Domain.Tests 529/529, full Api.IntegrationTests
+    322/322, Architecture.Tests 9/9, Infrastructure.IntegrationTests 440/441
+    (one pre-existing unrelated skip), frontend 615/615, `tsc -b`, `oxlint`,
+    and `vite build` were not rerun in this correction — they are untouched
+    by comment-only and coherence-condition-only backend changes with no
+    response-shape or frontend change; their results from the immediately
+    preceding round remain applicable. The NSwag client was not regenerated
+    in this round — no response DTO changed; its prior additive-only diff
+    (40 insertion lines) is unchanged. Automated tests never call a real
+    provider.
+  - Remaining risks: none newly introduced. Provider-session resume, runtime
+    controls, and the other open items below remain unchanged and open.
+  - Verification to perform after publication: confirm `main`, `HEAD`, and
+    local `origin/main` at the delivered commit; independently rerun the
+    checks above; confirm the live remote points to the delivered commit
+    before selecting the next Increment 4 slice.
+- Previously accepted delivery: immutable assignment provenance for the three
   current Codex read-only roles (Planner, Resolver, CodeReviewer) at claim
   time, plus two configured adapter facts on each role's existing attempt
   status and cockpit action, in `1f69319614252ad4fb9e6bf1a8e93d61b33ac05d`
@@ -100,8 +229,9 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     reconfirmed against it.
   - Remaining risks: none newly introduced. Provider-session resume, runtime
     controls, and the other open items below remain unchanged and open.
-  - Next action: no next Increment 4 slice is selected yet; Codex selects and
-    dispatches the next bounded slice.
+  - Next action after this slice: superseded by the Claude CriticalReviewer
+    and ReviewCorrection assignment-provenance slice recorded at the top of
+    this checkpoint.
 - Previously accepted delivery: the bounded, read-only configured Claude
   Implementer built-in tool list fact in
   `90c84b79917aa681c25f04182ca485defdfb3357` (parent

@@ -45,10 +45,18 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
         Assert.NotNull(fake.Request);
         var request = fake.Request!;
         Assert.Equal(23, request.Arguments.Count);
+        // These fixed flags are exactly the arguments GetReviewCorrectionAttemptStatusQueryHandler
+        // discloses as configured facts (permission prompts, built-in tools, permission mode, and
+        // provider-session persistence/resume eligibility) for a coherent current ReviewCorrection
+        // assignment — this test is their sole source of truth that the disclosed literals still
+        // match what the adapter actually passes.
+        Assert.Equal("--permission-prompts", request.Arguments[11]);
+        Assert.Equal("none", request.Arguments[12]);
         Assert.Equal("--tools", request.Arguments[15]);
         Assert.Equal("Read,Edit,Write,Glob,Grep", request.Arguments[16]);
         Assert.Equal("--permission-mode", request.Arguments[18]);
         Assert.Equal("acceptEdits", request.Arguments[19]);
+        Assert.Equal("--no-session-persistence", request.Arguments[20]);
         Assert.DoesNotContain("--max-turns", request.Arguments);
         Assert.Equal(manifest.Text, Encoding.UTF8.GetString(request.StandardInput!));
         Assert.DoesNotContain("PATH", request.EnvironmentVariables.Keys, StringComparer.OrdinalIgnoreCase);

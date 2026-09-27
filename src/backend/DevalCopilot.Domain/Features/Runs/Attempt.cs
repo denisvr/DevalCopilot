@@ -229,6 +229,12 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
+            // ClaudeCriticalReviewAdapter is read-only (its fixed empty "--tools" allowlist and
+            // "--permission-mode plan" arguments) — a concrete, non-Unknown permission profile
+            // and a dedicated adapter contract version, never caller-supplied.
+            AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
+            AgentAdapterContractVersion = "claude-critical-review-v1",
             AgentBudgetSlot = agentBudgetSlot,
         };
     }
@@ -532,6 +538,12 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
+            // ClaudeReviewCorrectionAdapter passes the same workspace-edit allowlist and
+            // permission mode as the initial implementation adapter — a concrete, non-Unknown
+            // permission profile and a dedicated adapter contract version, never caller-supplied.
+            AgentPermissionProfile = Runs.AgentPermissionProfile.WorkspaceEditOnly,
+            AgentAdapterContractVersion = "claude-review-correction-v1",
             AgentBudgetSlot = agentBudgetSlot,
         };
     }

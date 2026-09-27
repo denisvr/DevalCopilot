@@ -95,6 +95,77 @@ describe('ClaudeCriticalReviewAction', () => {
     expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
   })
 
+  it('shows the configured assignment facts for a coherent attempt', () => {
+    render(
+      <ClaudeCriticalReviewAction
+        proposalMessageId="message-1"
+        status={
+          new ClaudeCriticalReviewAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'Accepted',
+            reviewedProposalMessageId: 'message-1',
+            configuredPermissionMode: 'plan',
+            configuredSessionPersistence: 'Disabled',
+            configuredPermissionPrompts: 'None',
+            configuredResumeEligibility: 'Ineligible',
+            configuredBuiltInTools: 'None',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText(
+      'Configured permission mode: plan · Configured provider-session persistence: Disabled · Configured permission confirmations: None · Configured resume eligibility: Ineligible · Configured built-in tools: None',
+    )).toBeInTheDocument()
+  })
+
+  it('shows Unknown configured facts and never an unrecognized backend value verbatim', () => {
+    render(
+      <ClaudeCriticalReviewAction
+        proposalMessageId="message-1"
+        status={
+          new ClaudeCriticalReviewAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'Accepted',
+            reviewedProposalMessageId: 'message-1',
+            configuredPermissionMode: 'unrecognized-mode-sentinel',
+            configuredSessionPersistence: 'unrecognized-session-sentinel',
+            configuredPermissionPrompts: 'unrecognized-prompts-sentinel',
+            configuredResumeEligibility: 'unrecognized-resume-sentinel',
+            configuredBuiltInTools: 'unrecognized-tools-sentinel',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText(
+      'Configured permission mode: Unknown · Configured provider-session persistence: Unknown · Configured permission confirmations: Unknown · Configured resume eligibility: Unknown · Configured built-in tools: Unknown',
+    )).toBeInTheDocument()
+    expect(screen.queryByText(
+      /unrecognized-mode-sentinel|unrecognized-session-sentinel|unrecognized-prompts-sentinel|unrecognized-resume-sentinel|unrecognized-tools-sentinel/,
+    )).not.toBeInTheDocument()
+  })
+
   it.each([
     ['Accepted', 'Proposal accepted'],
     ['Challenged', 'Proposal challenged'],

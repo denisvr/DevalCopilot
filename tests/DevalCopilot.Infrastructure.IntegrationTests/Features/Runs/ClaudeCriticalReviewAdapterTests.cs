@@ -84,6 +84,12 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         Assert.Equal("--restricted", arguments[8]);
         Assert.Equal("--disable-slash-commands", arguments[9]);
         Assert.Equal("--no-chrome", arguments[10]);
+        // The next five fixed flags are exactly the arguments
+        // GetClaudeCriticalReviewAttemptStatusQueryHandler discloses as configured facts
+        // (permission prompts, built-in tools, permission mode, and provider-session
+        // persistence/resume eligibility) for a coherent current CriticalReviewer assignment —
+        // this test is their sole source of truth that the disclosed literals still match what
+        // the adapter actually passes.
         Assert.Equal("--permission-prompts", arguments[11]);
         Assert.Equal("none", arguments[12]);
         Assert.Equal("--prompt-suggestions", arguments[13]);

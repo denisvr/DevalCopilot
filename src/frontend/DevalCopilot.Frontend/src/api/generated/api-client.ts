@@ -3324,6 +3324,11 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
     hasAvailableHumanAuthorization?: boolean;
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredPermissionMode?: string | undefined;
+    configuredSessionPersistence?: string | undefined;
+    configuredPermissionPrompts?: string | undefined;
+    configuredResumeEligibility?: string | undefined;
+    configuredBuiltInTools?: string | undefined;
 
     constructor(data?: IReviewCorrectionAttemptStatusResponse) {
         if (data) {
@@ -3362,6 +3367,11 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
             this.hasAvailableHumanAuthorization = _data["hasAvailableHumanAuthorization"];
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.configuredPermissionMode = _data["configuredPermissionMode"];
+            this.configuredSessionPersistence = _data["configuredSessionPersistence"];
+            this.configuredPermissionPrompts = _data["configuredPermissionPrompts"];
+            this.configuredResumeEligibility = _data["configuredResumeEligibility"];
+            this.configuredBuiltInTools = _data["configuredBuiltInTools"];
         }
     }
 
@@ -3400,6 +3410,11 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
         data["hasAvailableHumanAuthorization"] = this.hasAvailableHumanAuthorization;
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["configuredPermissionMode"] = this.configuredPermissionMode;
+        data["configuredSessionPersistence"] = this.configuredSessionPersistence;
+        data["configuredPermissionPrompts"] = this.configuredPermissionPrompts;
+        data["configuredResumeEligibility"] = this.configuredResumeEligibility;
+        data["configuredBuiltInTools"] = this.configuredBuiltInTools;
         return data;
     }
 }
@@ -3427,6 +3442,11 @@ export interface IReviewCorrectionAttemptStatusResponse {
     hasAvailableHumanAuthorization?: boolean;
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredPermissionMode?: string | undefined;
+    configuredSessionPersistence?: string | undefined;
+    configuredPermissionPrompts?: string | undefined;
+    configuredResumeEligibility?: string | undefined;
+    configuredBuiltInTools?: string | undefined;
 }
 
 export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
@@ -4094,6 +4114,11 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredPermissionMode?: string | undefined;
+    configuredSessionPersistence?: string | undefined;
+    configuredPermissionPrompts?: string | undefined;
+    configuredResumeEligibility?: string | undefined;
+    configuredBuiltInTools?: string | undefined;
 
     constructor(data?: IClaudeCriticalReviewAttemptStatusResponse) {
         if (data) {
@@ -4122,6 +4147,11 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.configuredPermissionMode = _data["configuredPermissionMode"];
+            this.configuredSessionPersistence = _data["configuredSessionPersistence"];
+            this.configuredPermissionPrompts = _data["configuredPermissionPrompts"];
+            this.configuredResumeEligibility = _data["configuredResumeEligibility"];
+            this.configuredBuiltInTools = _data["configuredBuiltInTools"];
         }
     }
 
@@ -4150,6 +4180,11 @@ export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCritica
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["configuredPermissionMode"] = this.configuredPermissionMode;
+        data["configuredSessionPersistence"] = this.configuredSessionPersistence;
+        data["configuredPermissionPrompts"] = this.configuredPermissionPrompts;
+        data["configuredResumeEligibility"] = this.configuredResumeEligibility;
+        data["configuredBuiltInTools"] = this.configuredBuiltInTools;
         return data;
     }
 }
@@ -4167,6 +4202,11 @@ export interface IClaudeCriticalReviewAttemptStatusResponse {
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredPermissionMode?: string | undefined;
+    configuredSessionPersistence?: string | undefined;
+    configuredPermissionPrompts?: string | undefined;
+    configuredResumeEligibility?: string | undefined;
+    configuredBuiltInTools?: string | undefined;
 }
 
 export class ChallengeResolutionAttemptStatusResponse implements IChallengeResolutionAttemptStatusResponse {

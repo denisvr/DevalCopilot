@@ -85,7 +85,10 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
         Assert.Equal(JsonValueKind.Null, evidence.GetProperty("exitCode").ValueKind);
         Assert.Equal(600_123, evidence.GetProperty("durationMilliseconds").GetInt64());
         Assert.Equal(TimeoutFor(contract).TotalMilliseconds, evidence.GetProperty("timeoutMilliseconds").GetInt64());
-        AssertNoDisclosure(body, manifestArtifactId, routePermitsConfiguredSessionPersistence: route == "agent-attempts/implementation");
+        AssertNoDisclosure(
+            body,
+            manifestArtifactId,
+            routePermitsConfiguredSessionPersistence: route is "agent-attempts/implementation" or "agent-attempts/claude-critical-review");
     }
 
     [Fact]
@@ -120,7 +123,7 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
         Assert.Equal(JsonValueKind.Null, evidence.GetProperty("exitCode").ValueKind);
         Assert.Equal(JsonValueKind.Null, evidence.GetProperty("durationMilliseconds").ValueKind);
         Assert.Equal(600_000, evidence.GetProperty("timeoutMilliseconds").GetInt64());
-        AssertNoDisclosure(body, manifestArtifactId);
+        AssertNoDisclosure(body, manifestArtifactId, routePermitsConfiguredSessionPersistence: true);
     }
 
     [Fact]
@@ -255,10 +258,11 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
             StringComparison.OrdinalIgnoreCase);
     }
 
-    // Only the caller-confirmed implementation-status route legitimately carries one root-level
-    // "configuredSessionPersistence" property (a static, non-secret configuration fact — see
-    // ImplementationAttemptStatusResponse.ConfiguredSessionPersistence), never a provider-session
-    // identifier or other disclosure. This exception is scoped as narrowly as possible: it does
+    // Only the caller-confirmed implementation-status and critical-review-status routes
+    // legitimately carry one root-level "configuredSessionPersistence" property (a static,
+    // non-secret configuration fact — see ImplementationAttemptStatusResponse and
+    // ClaudeCriticalReviewAttemptStatusResponse's own ConfiguredSessionPersistence fields), never
+    // a provider-session identifier or other disclosure. This exception is scoped as narrowly as possible: it does
     // nothing unless the caller explicitly says the route permits it; even then, JSON parsing must
     // confirm the property sits directly on the root object (never nested under another object,
     // which JsonElement.TryGetProperty on the root cannot see) with exactly one of its two coherent

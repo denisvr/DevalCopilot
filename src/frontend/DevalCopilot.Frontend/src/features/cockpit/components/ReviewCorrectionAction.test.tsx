@@ -57,6 +57,41 @@ describe('ReviewCorrectionAction', () => {
     expect(screen.getByText(new RegExp(label))).toBeInTheDocument()
   })
 
+  it('shows the configured assignment facts for a coherent attempt', () => {
+    renderAction({
+      status: status({
+        configuredPermissionMode: 'acceptEdits',
+        configuredSessionPersistence: 'Disabled',
+        configuredPermissionPrompts: 'None',
+        configuredResumeEligibility: 'Ineligible',
+        configuredBuiltInTools: 'Read,Edit,Write,Glob,Grep',
+      }),
+    })
+
+    expect(screen.getByText(
+      'Configured permission mode: acceptEdits · Configured provider-session persistence: Disabled · Configured permission confirmations: None · Configured resume eligibility: Ineligible · Configured built-in tools: Read,Edit,Write,Glob,Grep',
+    )).toBeInTheDocument()
+  })
+
+  it('shows Unknown configured facts and never an unrecognized backend value verbatim', () => {
+    renderAction({
+      status: status({
+        configuredPermissionMode: 'unrecognized-mode-sentinel',
+        configuredSessionPersistence: 'unrecognized-session-sentinel',
+        configuredPermissionPrompts: 'unrecognized-prompts-sentinel',
+        configuredResumeEligibility: 'unrecognized-resume-sentinel',
+        configuredBuiltInTools: 'unrecognized-tools-sentinel',
+      }),
+    })
+
+    expect(screen.getByText(
+      'Configured permission mode: Unknown · Configured provider-session persistence: Unknown · Configured permission confirmations: Unknown · Configured resume eligibility: Unknown · Configured built-in tools: Unknown',
+    )).toBeInTheDocument()
+    expect(screen.queryByText(
+      /unrecognized-mode-sentinel|unrecognized-session-sentinel|unrecognized-prompts-sentinel|unrecognized-resume-sentinel|unrecognized-tools-sentinel/,
+    )).not.toBeInTheDocument()
+  })
+
   it('renders Pending and Running without exposing a request button', () => {
     const { rerender } = renderAction({ status: status({ status: 'Running', dispatchedAtUtc: undefined, outcome: undefined }) })
     expect(screen.getByText(/pending/)).toBeInTheDocument()

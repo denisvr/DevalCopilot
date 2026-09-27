@@ -75,7 +75,9 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         Assert.Equal(345, usage.GetProperty("outputTokens").GetInt32());
         Assert.Equal(67, usage.GetProperty("cacheCreationInputTokens").GetInt32());
         Assert.Equal(890, usage.GetProperty("cacheReadInputTokens").GetInt32());
-        AssertNoDisclosure(body, routePermitsConfiguredSessionPersistence: route == "agent-attempts/implementation");
+        AssertNoDisclosure(
+            body,
+            routePermitsConfiguredSessionPersistence: route is "agent-attempts/implementation" or "agent-attempts/claude-critical-review");
     }
 
     [Theory]
@@ -298,7 +300,7 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         Assert.Equal(0, summary.GetProperty("inputTokens").GetInt64());
         Assert.All(UsageFields, field => Assert.Equal(
             JsonValueKind.Null, cockpit.RootElement.GetProperty("latestAgentAttempt").GetProperty("tokenUsage").GetProperty(field).ValueKind));
-        AssertNoDisclosure(statusBody);
+        AssertNoDisclosure(statusBody, routePermitsConfiguredSessionPersistence: contract == AgentResponseContract.CriticalReview);
         AssertNoDisclosure(cockpitBody);
     }
 
@@ -372,7 +374,7 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
         Assert.All(UsageFields, field => Assert.Equal(JsonValueKind.Null, latestUsage.GetProperty(field).ValueKind));
         var summary = cockpit.RootElement.GetProperty("tokenUsageSummary");
         Assert.Equal("PendingEvidence", summary.GetProperty("completeness").GetString());
-        AssertNoDisclosure(statusBody);
+        AssertNoDisclosure(statusBody, routePermitsConfiguredSessionPersistence: true);
         AssertNoDisclosure(cockpitBody);
     }
 
@@ -478,10 +480,11 @@ public sealed class AgentTokenUsageEndpointTests(ApiWebApplicationFactory factor
             StringComparison.OrdinalIgnoreCase);
     }
 
-    // Only the caller-confirmed implementation-status route legitimately carries one root-level
-    // "configuredSessionPersistence" property (a static, non-secret configuration fact — see
-    // ImplementationAttemptStatusResponse.ConfiguredSessionPersistence), never a provider-session
-    // identifier or other disclosure. This exception is scoped as narrowly as possible: it does
+    // Only the caller-confirmed implementation-status and critical-review-status routes
+    // legitimately carry one root-level "configuredSessionPersistence" property (a static,
+    // non-secret configuration fact — see ImplementationAttemptStatusResponse and
+    // ClaudeCriticalReviewAttemptStatusResponse's own ConfiguredSessionPersistence fields), never
+    // a provider-session identifier or other disclosure. This exception is scoped as narrowly as possible: it does
     // nothing unless the caller explicitly says the route permits it; even then, JSON parsing must
     // confirm the property sits directly on the root object (never nested under another object,
     // which JsonElement.TryGetProperty on the root cannot see) with exactly one of its two coherent

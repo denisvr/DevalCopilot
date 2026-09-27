@@ -592,6 +592,47 @@ Claude Implementer role, rather than returning a success value reporting
 claim-eligibility meaning of their own; the backend remains the sole
 authority for every claim and dispatch decision.
 
+### Configured Claude CriticalReviewer and Implementer ReviewCorrection permission mode, session persistence, permission confirmations, resume eligibility, and built-in tools
+
+Five bounded, read-only facts — the same set already shown for the Claude
+Implementer's initial implementation path above — on each of the two
+remaining current Claude Code paths' own attempt status: the CriticalReviewer
+review and the Implementer's own review-correction attempt. Each states only
+what that attempt's fixed adapter contract is configured to pass: `plan`
+(CriticalReviewer) or `acceptEdits` (ReviewCorrection) for
+`configuredPermissionMode`; `Disabled` for `configuredSessionPersistence`;
+`None` for `configuredPermissionPrompts`; `Ineligible` for
+`configuredResumeEligibility`; and `None` (the CriticalReviewer adapter's
+explicit empty `--tools` argument) or `Read,Edit,Write,Glob,Grep`
+(ReviewCorrection) for `configuredBuiltInTools`. The current
+`ClaudeCriticalReviewAdapter` and `ClaudeReviewCorrectionAdapter` pass all of
+these arguments explicitly, and the
+[Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
+documents them exactly as it does for the Implementer's own facts above,
+including that `--no-session-persistence` prevents resume and that `--tools`
+governs built-in tools but never MCP tools. None of these facts are observed
+effective access, an MCP or complete security boundary, model or effort, or
+invocation eligibility of any kind. Each attempt claims a concrete,
+non-Unknown permission profile — `ReadOnly` for CriticalReviewer,
+`WorkspaceEditOnly` for ReviewCorrection — and a distinct, fixed adapter
+contract version (`claude-critical-review-v1` and
+`claude-review-correction-v1` respectively) at claim time; all five facts are
+populated only when that attempt's own provider, role, response contract,
+permission profile, and adapter contract version all agree with the current,
+single supported path for that role — no attempt yet, and a valid but
+historical or mismatched assignment, both show `Unknown`/`null` here, never
+the current adapter's configuration by assumption. An invalid or otherwise
+unparseable assignment fails the whole status closed with the existing
+`agent_attempts.invalid_assignment` error, exactly as it already does for
+every other role, rather than returning a success value reporting `Unknown`,
+and never discloses the raw malformed value. Review correction's own
+current-review lineage and budget/escalation semantics are entirely
+unaffected by these facts — they are resolved exactly as before, and these
+five facts are attached only after that resolution, never in place of it.
+These facts carry no runtime-control, authorization, or claim-eligibility
+meaning of their own; the backend remains the sole authority for every claim
+and dispatch decision.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

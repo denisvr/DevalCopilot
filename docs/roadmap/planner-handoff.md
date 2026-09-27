@@ -9,6 +9,115 @@ code before relying on it; older decision detail remains in Git.
 
 ## Current decision (2026-09-27)
 
+- **GO for publication of the reviewed Claude CriticalReviewer/ReviewCorrection
+  slice**, with one bounded comment-only cleanup before the substantive
+  commit. Reverified `main`, `HEAD`, local `origin/main`, and live
+  `origin/main` at `6312438046e9da0a43e2231ecc76f3e8eee62ac6`; no
+  staged or untracked files, 27 tracked modifications including this planner
+  note. Both fact guards now require their exact response contract; the new
+  persisted CriticalReviewer mismatch test proves all five facts stay null.
+  Focused Application status tests passed independently (15/15), and
+  `git diff --check` found no errors apart from the existing generated-client
+  line-ending warning. The executor reports the other full suites and
+  correction checks in `current-work.md`. Immediately before committing,
+  remove or rewrite only the stale sentence in the ReviewCorrection handler's
+  later per-attempt-check comment that says an unrelated corrupt attempt on
+  the run can never fail this status; the earlier run-wide snapshot catch can
+  do exactly that. This is a comment-only correction and needs no extra
+  functional review if no other substantive code or contract changes occur.
+  Include the commit-ready `current-work.md` and this planner note in the
+  substantive commit; authorize normal fast-forward push, live-remote
+  verification, and a tightly bounded factual `current-work.md` SHA closure.
+  Stop for review if code behavior changes materially, the push fails, or the
+  remote diverges. No next slice is selected here.
+
+- First uncommitted Claude CriticalReviewer/ReviewCorrection diff: **NO-GO,
+  narrow correction in the same slice**. Verified `main`, `HEAD`, local
+  `origin/main`, and live `origin/main` at
+  `6312438046e9da0a43e2231ecc76f3e8eee62ac6`; no staged or untracked
+  files, 27 tracked modifications including this planner note. The reported
+  suites are green and `git diff --check` found no errors. CriticalReviewer
+  status queries by role but its configured-fact coherence guard omits
+  `AgentResponseContract.CriticalReview`, contrary to the selected exact-path
+  condition: a valid row with that role and a different response contract can
+  receive all five current adapter facts. Include the response-contract guard
+  and a focused persisted mismatch test proving all five facts stay null.
+  ReviewCorrection already selects only `ReviewCorrection` contract attempts;
+  make that exact contract explicit in its fact guard for consistency without
+  changing lineage selection. Correct the ReviewCorrection handler comment
+  claiming unrelated corrupt attempts cannot fail this status: its new
+  `LoadSnapshotAsync` catch returns `invalid_assignment` when any attempt in
+  the run has an unparseable assignment enum. Keep documentation aligned if
+  affected. Preserve every other implementation and the commit-ready
+  `current-work.md`; run affected Application tests, relevant API tests if
+  touched, then `git diff --check`. Return the complete uncommitted, unpushed
+  diff for review. No commit/push GO.
+
+- Verified next-slice baseline after publication: `main`, `HEAD`, local
+  `origin/main`, and live `origin/main` all equal
+  `6312438046e9da0a43e2231ecc76f3e8eee62ac6`; staged, unstaged, and
+  untracked state was empty before this planner note. The substantive Codex
+  read-only-role slice is `1f69319614252ad4fb9e6bf1a8e93d61b33ac05d`;
+  its factual `current-work.md` closure is this baseline.
+- Selected one coherent, larger Increment 4 slice for the two remaining
+  current Claude Code paths: CriticalReviewer and Implementer ReviewCorrection.
+  Persist claim-time assignment provenance on each existing `Attempt` using
+  existing nullable columns: `ClaudeCode`, `ReadOnly` for CriticalReviewer and
+  `WorkspaceEditOnly` for ReviewCorrection, with distinct fixed adapter
+  contract versions `claude-critical-review-v1` and
+  `claude-review-correction-v1`. The `ReadOnly` enum description must become
+  provider-neutral and describe assigned read-only workspace intent without
+  claiming effective isolation or absence of shell/network/MCP actions. Keep
+  requested and observed model/effort null; do not infer CLI defaults. Legacy
+  null-column rows remain Unknown, never backfilled or reinterpreted.
+- On each role's existing attempt status and cockpit action, disclose five
+  configured adapter facts only for a coherent current assignment of the exact
+  response contract: permission mode (`plan` for CriticalReviewer,
+  `acceptEdits` for ReviewCorrection); provider-session persistence
+  (`Disabled`); permission prompts (`None`); resume eligibility
+  (`Ineligible`); and built-in tools (`None` for the CriticalReviewer adapter's
+  explicit empty `--tools` argument, `Read,Edit,Write,Glob,Grep` for
+  ReviewCorrection). The current adapters pass all these arguments explicitly.
+  The [official Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  documents these flags, including that `--no-session-persistence` prevents
+  resume and that `--tools` governs built-in tools but not MCP tools. Values
+  describe configured CLI arguments, not observed effective access, an MCP or
+  complete security boundary, model/effort, or invocation eligibility. No
+  attempt or a valid historical/mismatched assignment produces null/Unknown;
+  malformed assignment metadata fails the whole status closed with
+  `agent_attempts.invalid_assignment` without leaking raw metadata.
+- Boundaries: the two Domain claim factories and the `ReadOnly` enum comment;
+  the two role-specific status projections, MVC responses/mappings, generated
+  TypeScript client, cockpit actions, focused tests, cockpit specification, and
+  two handoffs. Preserve ReviewCorrection's current-review and budget
+  semantics. Extend its adapter's existing argument test to assert the fixed
+  flags being disclosed; do not change adapter arguments. Keep role-specific
+  response contracts and query ownership. Exclude invocation/preflight,
+  claim/dispatch authorization and budgets, schema/migrations, other paths,
+  session identifiers or resume actions, model/effort discovery or selection,
+  context/compaction, account allowance, `--max-turns`, and fallback. Stop if
+  the fixed flags or coherent historical/current distinction cannot be proved,
+  ReviewCorrection's lineage query cannot fail closed without changing its
+  eligibility semantics, or truthful disclosure needs excluded behavior or an
+  ADR reversal. Do not add Unknown-only scaffolding.
+- Acceptance: current, no-attempt, valid legacy/mismatch, and malformed
+  persisted assignment cases for both paths; exact claim-time versions and
+  null model/effort; unchanged ReviewCorrection budget/current-review behavior;
+  strict API disclosure guards (including the permission-prompts field);
+  whitelisted UI literals with Unknown fallback; exact adapter argument tests;
+  NSwag drift checked. Run relevant Domain, Application, API, Infrastructure,
+  Architecture, and frontend suites, typecheck, lint, build, and
+  `git diff --check`, reporting exact outcomes. Make `current-work.md`
+  commit-ready from the verified parent with actual checks and open risks,
+  without a future SHA or transient pre-publication wording. Claude returns
+  an uncommitted, unpushed complete diff for Codex GO/NO-GO. Selection grants
+  no commit/push GO. After a future GO, one instruction covers the reviewed
+  substantive commit, normal fast-forward push, live-remote verification, and
+  tightly bounded factual SHA closure; a material change, failed push, or
+  divergence stops for review.
+
+## Prior decision: Codex read-only role assignment provenance
+
 - **GO for publication of the reviewed Codex read-only-role slice**, including
   the narrow correction. `main`, `HEAD`, local `origin/main`, and live
   `origin/main` were reverified at

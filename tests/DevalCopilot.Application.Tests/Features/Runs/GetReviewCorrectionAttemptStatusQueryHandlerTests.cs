@@ -95,6 +95,128 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
         Assert.Null(result.Value.EscalationId);
         Assert.Null(result.Value.EscalationMessageId);
         Assert.False(result.Value.HasAvailableHumanAuthorization);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+        Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
+        Assert.Null(result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_the_configured_permission_mode_for_a_coherent_current_correction_attempt()
+    {
+        Guid runId;
+        Guid correctionAttemptId;
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            var seed = SeedReviewCorrectionAttempt(seedContext);
+            runId = seed.RunId;
+            correctionAttemptId = seed.CorrectionAttemptId;
+            await seedContext.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetReviewCorrectionAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetReviewCorrectionAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.HasAttempt);
+        Assert.Equal(correctionAttemptId, result.Value.AttemptId);
+        Assert.Equal("acceptEdits", result.Value.ConfiguredPermissionMode);
+        Assert.Equal("Disabled", result.Value.ConfiguredSessionPersistence);
+        Assert.Equal("None", result.Value.ConfiguredPermissionPrompts);
+        Assert.Equal("Ineligible", result.Value.ConfiguredResumeEligibility);
+        Assert.Equal("Read,Edit,Write,Glob,Grep", result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_permission_mode_for_a_valid_historical_nullable_assignment()
+    {
+        Guid runId;
+        Guid correctionAttemptId;
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            var seed = SeedReviewCorrectionAttempt(seedContext);
+            runId = seed.RunId;
+            correctionAttemptId = seed.CorrectionAttemptId;
+            await seedContext.SaveChangesAsync(CancellationToken.None);
+            await seedContext.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE attempts SET AgentPermissionProfile = NULL, AgentAdapterContractVersion = NULL
+                WHERE Id = {correctionAttemptId}
+                """);
+        }
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetReviewCorrectionAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetReviewCorrectionAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.HasAttempt);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+        Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
+        Assert.Null(result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_permission_mode_for_a_mismatched_adapter_contract_version()
+    {
+        Guid runId;
+        Guid correctionAttemptId;
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            var seed = SeedReviewCorrectionAttempt(seedContext);
+            runId = seed.RunId;
+            correctionAttemptId = seed.CorrectionAttemptId;
+            await seedContext.SaveChangesAsync(CancellationToken.None);
+            await seedContext.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v2'
+                WHERE Id = {correctionAttemptId}
+                """);
+        }
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetReviewCorrectionAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetReviewCorrectionAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.HasAttempt);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+        Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
+        Assert.Null(result.Value.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task HandleAsync_fails_closed_for_an_unparseable_persisted_permission_profile_without_changing_lineage_or_mutating_it()
+    {
+        Guid runId;
+        Guid correctionAttemptId;
+        var sentinel = "InvalidPermissionSentinel";
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            var seed = SeedReviewCorrectionAttempt(seedContext);
+            runId = seed.RunId;
+            correctionAttemptId = seed.CorrectionAttemptId;
+            await seedContext.SaveChangesAsync(CancellationToken.None);
+            await seedContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE attempts SET AgentPermissionProfile = {sentinel} WHERE Id = {correctionAttemptId}");
+        }
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetReviewCorrectionAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetReviewCorrectionAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("agent_attempts.invalid_assignment", error.Code);
+        Assert.DoesNotContain(sentinel, error.Description, StringComparison.Ordinal);
+        var persistedValue = await context.Database
+            .SqlQueryRaw<string>("SELECT AgentPermissionProfile AS Value FROM attempts WHERE Id = {0}", correctionAttemptId)
+            .SingleAsync();
+        Assert.Equal(sentinel, persistedValue);
     }
 
     private async Task<(int Count, Guid? ReportId)> MeasureAsync(Guid runId, Guid expectedReportId)
@@ -234,9 +356,89 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
         return new ReviewSeed(run.Id, review.Id, executionReport.Id);
     }
 
+    private static ReviewCorrectionSeed SeedReviewCorrectionAttempt(DevalCopilotDbContext context)
+    {
+        var project = Project.Register(Guid.NewGuid(), "Review correction status project", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Correct the implementation", Now);
+        run.Claim(Now);
+        var workspace = GitWorkspace.Prepare(
+            Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "main", new string('a', 40), "main", Now);
+        workspace.MarkReady();
+        var startingCheckpoint = GitCheckpoint.Capture(
+            Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
+        var resultCheckpoint = GitCheckpoint.Capture(
+            Guid.NewGuid(), workspace.Id, 2, Now.AddMinutes(1), new string('b', 40), new string('b', 64), []);
+
+        var planner = Attempt.ClaimAgent(
+            Guid.NewGuid(), run.Id, 1, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
+        planner.MarkAgentDispatched(Now);
+        planner.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
+        var proposal = CollaborationMessage.RecordAgent(
+            planner, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
+            CollaborationMessageType.Proposal, null, "Implement the requested change.",
+            "{\"scope\":\"Status\",\"implementationSteps\":\"Apply the change\",\"risks\":\"None\",\"verificationPlan\":\"Tests\",\"escalationPoints\":\"None\"}", Now);
+
+        var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), run.Id, 2, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
+        acceptanceAttempt.MarkAgentDispatched(Now);
+        acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
+        var acceptance = CollaborationMessage.RecordAgent(
+            acceptanceAttempt, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex),
+            CollaborationMessageType.Acceptance, proposal.Id, "Accepted the proposal.",
+            "{\"rationale\":\"The plan is complete.\"}", Now);
+
+        var implementation = Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), run.Id, 3, workspace.Id, startingCheckpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 3);
+        implementation.MarkAgentDispatched(Now);
+        implementation.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
+        var executionReport = CollaborationMessage.RecordAgent(
+            implementation, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
+            CollaborationMessageType.ExecutionReport, proposal.Id, "Implemented the proposal.",
+            "{\"completedWork\":\"Applied the change.\",\"verification\":\"Tests passed.\"}", Now);
+
+        var review = Attempt.ClaimAgentCodeReview(
+            Guid.NewGuid(), run.Id, 4, workspace.Id, resultCheckpoint.Id, resultCheckpoint.FingerprintSha256, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 4);
+        review.MarkAgentDispatched(Now);
+        review.CompleteAgent(AgentOutcome.ReviewChangesRequested, resultCheckpoint.FingerprintSha256, Now, processEvidence: TestProcessEvidence.CleanExit);
+        var finding = CollaborationMessage.RecordAgent(
+            review, Guid.NewGuid(), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode),
+            CollaborationMessageType.ReviewFinding, executionReport.Id, "Add the missing guard.",
+            "{\"severity\":\"high\",\"category\":\"correctness\",\"evidence\":\"The input is unchecked.\",\"requiredChange\":\"Add the guard.\"}", Now);
+
+        // The correction attempt's own claimed input identity must exactly match the current
+        // review's ordered inputs (ExecutionReport, then every Finding) for the handler's lineage
+        // resolution to recognize it as "the" attempt answering the current review — see
+        // GetReviewCorrectionAttemptStatusQueryHandler.HasExactInputs.
+        var correction = Attempt.ClaimAgentReviewCorrection(
+            Guid.NewGuid(), run.Id, 5, workspace.Id, resultCheckpoint.Id, resultCheckpoint.FingerprintSha256, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, 5);
+
+        context.Projects.Add(project);
+        context.Runs.Add(run);
+        context.GitWorkspaces.Add(workspace);
+        context.GitCheckpoints.AddRange(startingCheckpoint, resultCheckpoint);
+        context.Attempts.AddRange(planner, acceptanceAttempt, implementation, review, correction);
+        context.CollaborationMessages.AddRange(proposal, acceptance, executionReport, finding);
+        context.AttemptInputMessages.AddRange(
+            AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, proposal.Id, 0),
+            AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, proposal.Id, 0),
+            AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, acceptance.Id, 1),
+            AttemptInputMessage.Record(Guid.NewGuid(), review.Id, executionReport.Id, 0),
+            AttemptInputMessage.Record(Guid.NewGuid(), correction.Id, executionReport.Id, 0),
+            AttemptInputMessage.Record(Guid.NewGuid(), correction.Id, finding.Id, 1));
+
+        return new ReviewCorrectionSeed(run.Id, correction.Id);
+    }
+
     private sealed record Seed(Guid RunId, Guid ExecutionReportId);
 
     private sealed record ReviewSeed(Guid RunId, Guid ReviewAttemptId, Guid ExecutionReportId);
+
+    private sealed record ReviewCorrectionSeed(Guid RunId, Guid CorrectionAttemptId);
 
     private sealed class SelectCountingInterceptor : DbCommandInterceptor
     {

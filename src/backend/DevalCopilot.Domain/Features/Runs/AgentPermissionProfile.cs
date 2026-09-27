@@ -10,10 +10,10 @@ public enum AgentPermissionProfile
     /// not part of the assignment.</summary>
     WorkspaceEditOnly = 1,
 
-    /// <summary>The configured Codex CLI <c>--sandbox read-only</c> policy governing
-    /// model-generated commands for this assignment — workspace mutation is not part of the
-    /// configured intent. This states what the adapter is configured to pass, never a proven or
-    /// observed effective isolation boundary, and never that shell, network, or MCP actions are
+    /// <summary>The assigned read-only workspace intent for this assignment — workspace mutation
+    /// is not part of the configured intent, for whichever provider adapter this assignment
+    /// names. This states what the adapter is configured to pass, never a proven or observed
+    /// effective isolation boundary, and never that shell, network, or MCP actions are
     /// absent.</summary>
     ReadOnly = 2,
 }

@@ -30,6 +30,11 @@ public sealed class GetReviewCorrectionAttemptStatusEndpoint(
             value.MaximumReviewCorrectionAttempts, value.ReviewCorrectionAttemptsUsed, value.BudgetExhausted,
             value.EscalationId, value.EscalationMessageId, value.HasAvailableHumanAuthorization,
             AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout),
-            AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage)));
+            AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage),
+            value.ConfiguredPermissionMode,
+            value.ConfiguredSessionPersistence,
+            value.ConfiguredPermissionPrompts,
+            value.ConfiguredResumeEligibility,
+            value.ConfiguredBuiltInTools));
     }
 }

@@ -102,6 +102,11 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
             Assert.False(beforeJson.RootElement.GetProperty("hasAvailableHumanAuthorization").GetBoolean());
             Assert.Empty(beforeJson.RootElement.GetProperty("artifacts").EnumerateArray());
             Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("processExecution").ValueKind);
+            Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("configuredPermissionMode").ValueKind);
+            Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("configuredSessionPersistence").ValueKind);
+            Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("configuredPermissionPrompts").ValueKind);
+            Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("configuredResumeEligibility").ValueKind);
+            Assert.Equal(JsonValueKind.Null, beforeJson.RootElement.GetProperty("configuredBuiltInTools").ValueKind);
         }
 
         var post = await client.PostAsJsonAsync($"/api/runs/{seed.RunId}/agent-attempts/review-correction", new RequestReviewCorrectionRequest(seed.ReviewId));
@@ -132,7 +137,72 @@ public sealed class ReviewCorrectionEndpointTests : IDisposable
         Assert.Equal(JsonValueKind.Null, processExecution.GetProperty("durationMilliseconds").ValueKind);
         Assert.True(processExecution.GetProperty("timeoutMilliseconds").GetInt64() > 0);
         Assert.Equal(4, processExecution.EnumerateObject().Count());
+        // The just-created attempt uses the real ClaimAgentReviewCorrection claim factory, so its
+        // assignment is coherent by default — these configured facts are populated even while the
+        // attempt is still Running, exactly like every other assignment fact on this attempt.
+        Assert.Equal("acceptEdits", afterJson.RootElement.GetProperty("configuredPermissionMode").GetString());
+        Assert.Equal("Disabled", afterJson.RootElement.GetProperty("configuredSessionPersistence").GetString());
+        Assert.Equal("None", afterJson.RootElement.GetProperty("configuredPermissionPrompts").GetString());
+        Assert.Equal("Ineligible", afterJson.RootElement.GetProperty("configuredResumeEligibility").GetString());
+        Assert.Equal("Read,Edit,Write,Glob,Grep", afterJson.RootElement.GetProperty("configuredBuiltInTools").GetString());
         AssertNoDisclosure(afterBody);
+    }
+
+    [Fact]
+    public async Task Shows_no_configured_permission_mode_for_a_mismatched_adapter_contract_version()
+    {
+        var seed = await SeedCorrectionChainAsync();
+        using var client = AuthenticatedClient();
+        var post = await client.PostAsJsonAsync($"/api/runs/{seed.RunId}/agent-attempts/review-correction", new RequestReviewCorrectionRequest(seed.ReviewId));
+        var attemptId = JsonDocument.Parse(await post.Content.ReadAsStringAsync()).RootElement.GetProperty("attemptId").GetGuid();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v2' WHERE Id = {attemptId}");
+        }
+
+        var after = await client.GetAsync($"/api/runs/{seed.RunId}/agent-attempts/review-correction");
+        var afterBody = await after.Content.ReadAsStringAsync();
+        Assert.Equal(HttpStatusCode.OK, after.StatusCode);
+        using var afterJson = JsonDocument.Parse(afterBody);
+        Assert.Equal(JsonValueKind.Null, afterJson.RootElement.GetProperty("configuredPermissionMode").ValueKind);
+        Assert.Equal(JsonValueKind.Null, afterJson.RootElement.GetProperty("configuredSessionPersistence").ValueKind);
+        Assert.Equal(JsonValueKind.Null, afterJson.RootElement.GetProperty("configuredPermissionPrompts").ValueKind);
+        Assert.Equal(JsonValueKind.Null, afterJson.RootElement.GetProperty("configuredResumeEligibility").ValueKind);
+        Assert.Equal(JsonValueKind.Null, afterJson.RootElement.GetProperty("configuredBuiltInTools").ValueKind);
+    }
+
+    [Fact]
+    public async Task Corrupt_assignment_metadata_returns_a_safe_failure_without_mutating_or_disclosing_it()
+    {
+        var seed = await SeedCorrectionChainAsync();
+        using var client = AuthenticatedClient();
+        var post = await client.PostAsJsonAsync($"/api/runs/{seed.RunId}/agent-attempts/review-correction", new RequestReviewCorrectionRequest(seed.ReviewId));
+        var attemptId = JsonDocument.Parse(await post.Content.ReadAsStringAsync()).RootElement.GetProperty("attemptId").GetGuid();
+        var corruptSentinel = "InvalidPermissionSentinel";
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE attempts SET AgentPermissionProfile = {corruptSentinel} WHERE Id = {attemptId}");
+        }
+
+        var after = await client.GetAsync($"/api/runs/{seed.RunId}/agent-attempts/review-correction");
+        var afterBody = await after.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, after.StatusCode);
+        Assert.Contains("agent_attempts.invalid_assignment", afterBody, StringComparison.Ordinal);
+        Assert.DoesNotContain(corruptSentinel, afterBody, StringComparison.Ordinal);
+
+        using var verifyScope = _factory.Services.CreateScope();
+        var verify = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedValue = await verify.Database
+            .SqlQueryRaw<string>("SELECT AgentPermissionProfile AS Value FROM attempts WHERE Id = {0}", attemptId)
+            .SingleAsync();
+        Assert.Equal(corruptSentinel, persistedValue);
     }
 
     [Fact]

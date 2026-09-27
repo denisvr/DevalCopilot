@@ -74,6 +74,12 @@ export function ClaudeCriticalReviewAction({
     (status?.outcome === 'Accepted' || status?.outcome === 'Challenged' || status?.outcome === 'InputAlreadyReviewed')
   const canRequest = !isActive && !isSettledForCurrentProposal
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
+  const hasAttempt = status?.hasAttempt !== false
+  const configuredPermissionMode = status?.configuredPermissionMode === 'plan' ? 'plan' : 'Unknown'
+  const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
+  const configuredPermissionPrompts = status?.configuredPermissionPrompts === 'None' ? 'None' : 'Unknown'
+  const configuredResumeEligibility = status?.configuredResumeEligibility === 'Ineligible' ? 'Ineligible' : 'Unknown'
+  const configuredBuiltInTools = status?.configuredBuiltInTools === 'None' ? 'None' : 'Unknown'
 
   return (
     <section className="dc-claude-critical-review-action" aria-label="Claude critical review">
@@ -105,6 +111,14 @@ export function ClaudeCriticalReviewAction({
       {status && !isActive && (
         <p className="dc-claude-critical-review-status">
           Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
+        </p>
+      )}
+      {status && hasAttempt && (
+        <p className="dc-claude-critical-review-assignment">
+          Configured permission mode: {configuredPermissionMode} · Configured provider-session persistence:{' '}
+          {configuredSessionPersistence} · Configured permission confirmations: {configuredPermissionPrompts} ·{' '}
+          Configured resume eligibility: {configuredResumeEligibility} · Configured built-in tools:{' '}
+          {configuredBuiltInTools}
         </p>
       )}
       {status && (

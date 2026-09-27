@@ -10,6 +10,16 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetClaudeCriticalReview
 public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopilotDbContext dbContext)
     : IQueryHandler<GetClaudeCriticalReviewAttemptStatusQuery, Result<ClaudeCriticalReviewAttemptStatusQueryResult>>
 {
+    // Mirrors the adapter contract version fixed at claim time (Attempt.ClaimAgentCriticalReview)
+    // and the current ClaudeCriticalReviewAdapter's own fixed CLI arguments — fixed configuration
+    // facts, never a provider-observed result and never invocation eligibility.
+    private const string ClaudeCriticalReviewerAdapterContractVersion = "claude-critical-review-v1";
+    private const string ConfiguredClaudeCriticalReviewerPermissionMode = "plan";
+    private const string ConfiguredClaudeCriticalReviewerSessionPersistence = "Disabled";
+    private const string ConfiguredClaudeCriticalReviewerPermissionPrompts = "None";
+    private const string ConfiguredClaudeCriticalReviewerResumeEligibility = "Ineligible";
+    private const string ConfiguredClaudeCriticalReviewerBuiltInTools = "None";
+
     public async Task<Result<ClaudeCriticalReviewAttemptStatusQueryResult>> HandleAsync(
         GetClaudeCriticalReviewAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -20,16 +30,38 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
-        var attempt = await dbContext.Attempts
-            .AsNoTracking()
-            .Where(candidate =>
-                candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.CriticalReviewer)
-            .OrderByDescending(candidate => candidate.AttemptNumber)
-            .FirstOrDefaultAsync(cancellationToken);
+        Attempt? attempt;
+        try
+        {
+            attempt = await dbContext.Attempts
+                .AsNoTracking()
+                .Where(candidate =>
+                    candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.CriticalReviewer)
+                .OrderByDescending(candidate => candidate.AttemptNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            return InvalidAssignment();
+        }
+        catch (FormatException)
+        {
+            return InvalidAssignment();
+        }
+        catch (InvalidOperationException)
+        {
+            return InvalidAssignment();
+        }
 
         if (attempt is null)
         {
             return Result<ClaudeCriticalReviewAttemptStatusQueryResult>.Success(ClaudeCriticalReviewAttemptStatusQueryResult.NoAttempt);
+        }
+
+        var assignment = attempt.GetAssignmentSnapshot();
+        if (assignment is null)
+        {
+            return InvalidAssignment();
         }
 
         var artifacts = await dbContext.Artifacts
@@ -44,6 +76,24 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
             .Select(inputMessage => (Guid?)inputMessage.CollaborationMessageId)
             .SingleOrDefaultAsync(cancellationToken);
 
+        var isCoherentDefaultCriticalReviewerAssignment =
+            attempt.AgentRole == AgentRole.CriticalReviewer
+            && attempt.AgentResponseContract == AgentResponseContract.CriticalReview
+            && assignment.Provider == AgentProvider.ClaudeCode
+            && assignment.PermissionProfile == AgentPermissionProfile.ReadOnly
+            && assignment.AdapterContractVersion == ClaudeCriticalReviewerAdapterContractVersion;
+
+        var configuredPermissionMode = isCoherentDefaultCriticalReviewerAssignment
+            ? ConfiguredClaudeCriticalReviewerPermissionMode : null;
+        var configuredSessionPersistence = isCoherentDefaultCriticalReviewerAssignment
+            ? ConfiguredClaudeCriticalReviewerSessionPersistence : null;
+        var configuredPermissionPrompts = isCoherentDefaultCriticalReviewerAssignment
+            ? ConfiguredClaudeCriticalReviewerPermissionPrompts : null;
+        var configuredResumeEligibility = isCoherentDefaultCriticalReviewerAssignment
+            ? ConfiguredClaudeCriticalReviewerResumeEligibility : null;
+        var configuredBuiltInTools = isCoherentDefaultCriticalReviewerAssignment
+            ? ConfiguredClaudeCriticalReviewerBuiltInTools : null;
+
         return Result<ClaudeCriticalReviewAttemptStatusQueryResult>.Success(new ClaudeCriticalReviewAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -57,6 +107,15 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
             artifacts,
             attempt.GetAgentProcessExecutionEvidence(),
             attempt.AgentTimeout,
-            attempt.GetAgentTokenUsageEvidence()));
+            attempt.GetAgentTokenUsageEvidence(),
+            configuredPermissionMode,
+            configuredSessionPersistence,
+            configuredPermissionPrompts,
+            configuredResumeEligibility,
+            configuredBuiltInTools));
     }
+
+    private static Result<ClaudeCriticalReviewAttemptStatusQueryResult> InvalidAssignment() =>
+        Result<ClaudeCriticalReviewAttemptStatusQueryResult>.Failure(
+            Error.Failure("agent_attempts.invalid_assignment", "Critical review assignment metadata is unavailable."));
 }

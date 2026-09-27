@@ -11,6 +11,16 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetReviewCorrectionAtte
 public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDbContext dbContext)
     : IQueryHandler<GetReviewCorrectionAttemptStatusQuery, Result<ReviewCorrectionAttemptStatusQueryResult>>
 {
+    // Mirrors the adapter contract version fixed at claim time (Attempt.ClaimAgentReviewCorrection)
+    // and the current ClaudeReviewCorrectionAdapter's own fixed CLI arguments — fixed
+    // configuration facts, never a provider-observed result and never invocation eligibility.
+    private const string ClaudeReviewCorrectionAdapterContractVersion = "claude-review-correction-v1";
+    private const string ConfiguredClaudeReviewCorrectionPermissionMode = "acceptEdits";
+    private const string ConfiguredClaudeReviewCorrectionSessionPersistence = "Disabled";
+    private const string ConfiguredClaudeReviewCorrectionPermissionPrompts = "None";
+    private const string ConfiguredClaudeReviewCorrectionResumeEligibility = "Ineligible";
+    private const string ConfiguredClaudeReviewCorrectionBuiltInTools = "Read,Edit,Write,Glob,Grep";
+
     public async Task<Result<ReviewCorrectionAttemptStatusQueryResult>> HandleAsync(
         GetReviewCorrectionAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -24,8 +34,33 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
         // Materialize the complete run-local lineage once. Eligibility is deliberately fail
         // closed, but it must not turn each historical candidate into another recursive EF graph
         // walk; the snapshot keeps this read-side query bounded by the run, not candidate count.
-        var snapshot = await ImplementerExecutionReportEligibility.LoadSnapshotAsync(
-            dbContext, query.RunId, cancellationToken);
+        // This load materializes every attempt on the run, including their AgentPermissionProfile
+        // and AgentAdapterContractVersion columns, so an unparseable assignment enum on ANY
+        // attempt in this run — not only the eventual review-correction candidate — throws here
+        // during enum materialization. Caught below and reported as the same fail-closed
+        // invalid_assignment result used elsewhere, without altering any lineage or budget
+        // computation that follows: this run-wide fail-closed behavior is a broader guard than
+        // the later per-attempt GetAssignmentSnapshot() check on the resolved correction attempt
+        // itself, not a replacement for it.
+        ImplementerExecutionReportEligibility.Snapshot snapshot;
+        try
+        {
+            snapshot = await ImplementerExecutionReportEligibility.LoadSnapshotAsync(
+                dbContext, query.RunId, cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            return InvalidAssignment();
+        }
+        catch (FormatException)
+        {
+            return InvalidAssignment();
+        }
+        catch (InvalidOperationException)
+        {
+            return InvalidAssignment();
+        }
+
         var correctionAttemptsUsed = snapshot.AttemptsById.Values.Count(candidate =>
             candidate.RunId == query.RunId
             && candidate.Kind == AttemptKind.Agent
@@ -80,6 +115,19 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
                 latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization));
         }
 
+        // This assignment check is a pure addition after the lineage/budget computation above,
+        // which is unaffected by it: it neither changes which attempt is resolved as "the current
+        // correction attempt" nor how the budget/escalation facts are computed. It fails the whole
+        // status closed when this exact resolved attempt's own persisted assignment metadata is
+        // malformed. A corrupt assignment on some other, unrelated attempt on the run is not
+        // caught here — that case already fails closed earlier, at the LoadSnapshotAsync call
+        // above, during enum materialization of every attempt on the run.
+        var assignment = attempt.GetAssignmentSnapshot();
+        if (assignment is null)
+        {
+            return InvalidAssignment();
+        }
+
         var reviewableExecutionReportMessageId = ResolveReviewableExecutionReportMessageId(snapshot, attempt);
 
         var artifacts = await dbContext.Artifacts.AsNoTracking()
@@ -90,6 +138,28 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
         var responseCount = await dbContext.CollaborationMessages.AsNoTracking()
             .CountAsync(message => message.AttemptId == attempt.Id && message.Type == CollaborationMessageType.RevisionResponse, cancellationToken);
 
+        // attempt is already selected above by AgentResponseContract.ReviewCorrection (the
+        // lineage query's own candidate filter); restating that contract here is a defensive,
+        // explicit coherence check on the same already-guaranteed fact, never a change to which
+        // attempt lineage resolution selects.
+        var isCoherentDefaultReviewCorrectionAssignment =
+            attempt.AgentRole == AgentRole.Implementer
+            && attempt.AgentResponseContract == AgentResponseContract.ReviewCorrection
+            && assignment.Provider == AgentProvider.ClaudeCode
+            && assignment.PermissionProfile == AgentPermissionProfile.WorkspaceEditOnly
+            && assignment.AdapterContractVersion == ClaudeReviewCorrectionAdapterContractVersion;
+
+        var configuredPermissionMode = isCoherentDefaultReviewCorrectionAssignment
+            ? ConfiguredClaudeReviewCorrectionPermissionMode : null;
+        var configuredSessionPersistence = isCoherentDefaultReviewCorrectionAssignment
+            ? ConfiguredClaudeReviewCorrectionSessionPersistence : null;
+        var configuredPermissionPrompts = isCoherentDefaultReviewCorrectionAssignment
+            ? ConfiguredClaudeReviewCorrectionPermissionPrompts : null;
+        var configuredResumeEligibility = isCoherentDefaultReviewCorrectionAssignment
+            ? ConfiguredClaudeReviewCorrectionResumeEligibility : null;
+        var configuredBuiltInTools = isCoherentDefaultReviewCorrectionAssignment
+            ? ConfiguredClaudeReviewCorrectionBuiltInTools : null;
+
         return Result<ReviewCorrectionAttemptStatusQueryResult>.Success(new ReviewCorrectionAttemptStatusQueryResult(
             true, attempt.Id, attempt.AttemptNumber, currentReview?.ReviewAttempt.Id, reviewableExecutionReportMessageId, attempt.Status, attempt.AgentOutcome,
             attempt.AgentGitCheckpointId, attempt.AgentResultGitCheckpointId, responseCount,
@@ -97,8 +167,14 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
             run.MaximumReviewCorrectionAttempts, correctionAttemptsUsed,
             correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts,
             latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization,
-            attempt.GetAgentProcessExecutionEvidence(), attempt.AgentTimeout, attempt.GetAgentTokenUsageEvidence()));
+            attempt.GetAgentProcessExecutionEvidence(), attempt.AgentTimeout, attempt.GetAgentTokenUsageEvidence(),
+            configuredPermissionMode, configuredSessionPersistence, configuredPermissionPrompts,
+            configuredResumeEligibility, configuredBuiltInTools));
     }
+
+    private static Result<ReviewCorrectionAttemptStatusQueryResult> InvalidAssignment() =>
+        Result<ReviewCorrectionAttemptStatusQueryResult>.Failure(
+            Error.Failure("agent_attempts.invalid_assignment", "Review correction assignment metadata is unavailable."));
 
     private static bool HasExactInputs(
         IReadOnlyList<AttemptInputMessage> inputs,
