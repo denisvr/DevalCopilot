@@ -33,6 +33,18 @@ in Git rather than accumulating here.
   adapter's disabled provider-session persistence as an attempt-scoped,
   read-only configured fact, under the limits below. This does not implement
   resume or claim provider-session availability.
+- **GO, pending publication:** Codex reviewed the uncommitted configured
+  Claude Implementer session-persistence diff on `a114f29`. The two earlier
+  disclosure-guard findings are corrected: only the implementation-status
+  route permits exactly one root-level `configuredSessionPersistence` property
+  with `Disabled` or null; nested, other-route, unexpected-value, and actual
+  session disclosures remain rejected. The product spec retains the invalid-
+  assignment error. Codex independently passed API 307/307, focused
+  Application 8/8, focused frontend 19/19, TypeScript typecheck, and diff
+  check; broader suites are executor-reported. Claude may make only the
+  mechanical `current-work.md` delivery-status cleanup described in the GO
+  handoff, then commit this reviewed slice and push `main` fast-forward to
+  `origin/main`. Any substantive post-GO change returns for review.
 - The Provider allowance evidence slice remains closed without delivery:
   neither local CLI exposed a proven safe, authoritative, machine-readable
   account-allowance observation contract. Do not build `Unknown`-only

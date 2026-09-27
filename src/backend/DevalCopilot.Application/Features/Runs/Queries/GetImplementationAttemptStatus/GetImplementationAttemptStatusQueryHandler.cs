@@ -17,6 +17,11 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
     private const string ClaudeImplementerAdapterContractVersion = "claude-implementation-v1";
     private const string ConfiguredClaudeImplementerPermissionMode = "acceptEdits";
 
+    // Mirrors the current adapter's own hardcoded "--no-session-persistence" argument
+    // (ClaudeImplementationAdapter) — a fixed CLI configuration fact, never a provider-observed
+    // result and never DevalCopilot's own durable attempt history.
+    private const string ConfiguredClaudeImplementerSessionPersistence = "Disabled";
+
     public async Task<Result<ImplementationAttemptStatusQueryResult>> HandleAsync(
         GetImplementationAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -96,13 +101,19 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
                 .SingleOrDefaultAsync(cancellationToken);
         }
 
-        var configuredPermissionMode =
+        var isCoherentDefaultImplementationAssignment =
             attempt.AgentRole == AgentRole.Implementer
             && assignment.Provider == AgentProvider.ClaudeCode
             && assignment.PermissionProfile == AgentPermissionProfile.WorkspaceEditOnly
-            && assignment.AdapterContractVersion == ClaudeImplementerAdapterContractVersion
-                ? ConfiguredClaudeImplementerPermissionMode
-                : null;
+            && assignment.AdapterContractVersion == ClaudeImplementerAdapterContractVersion;
+
+        var configuredPermissionMode = isCoherentDefaultImplementationAssignment
+            ? ConfiguredClaudeImplementerPermissionMode
+            : null;
+
+        var configuredSessionPersistence = isCoherentDefaultImplementationAssignment
+            ? ConfiguredClaudeImplementerSessionPersistence
+            : null;
 
         return Result<ImplementationAttemptStatusQueryResult>.Success(new ImplementationAttemptStatusQueryResult(
             true,
@@ -126,7 +137,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             attempt.GetAgentProcessExecutionEvidence(),
             attempt.AgentTimeout,
             attempt.GetAgentTokenUsageEvidence(),
-            configuredPermissionMode));
+            configuredPermissionMode,
+            configuredSessionPersistence));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>

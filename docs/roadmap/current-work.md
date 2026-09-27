@@ -9,56 +9,55 @@ code prevail over a stale summary here. At a new chat or slice, compare branch,
 `HEAD`, the local `origin/main` tracking ref, and all staged, unstaged, and
 untracked changes before editing; do not reset work to match this page.
 
-## Current checkpoint (2026-09-26)
+## Current checkpoint (2026-09-27)
 
 - Latest accepted delivery: the bounded, read-only configured Claude
-  Implementer permission mode fact in
-  `6050203da62fe7b2e02664b8fd246a0a400166c5`, built on parent
-  `89575350d6b1ac2ed347b6246da427840b83fcc0` (`main`/`origin/main` at
-  the start of this slice). Checkout clean at delivery. Codex recorded technical
-  GO after publication, with the premature commit/push noted as a process
-  exception in [planner-handoff.md](planner-handoff.md).
+  Implementer session persistence fact, built on parent
+  `a114f29064befa25f95541678fa73db6da2ab331` (`main`/`origin/main` at the
+  start of this slice). Checkout clean at delivery. Codex reviewed the
+  uncommitted diff across two correction rounds and recorded **GO**; see
+  [planner-handoff.md](planner-handoff.md).
 - Delivered behavior: the implementation-attempt status query, API response,
-  and cockpit (`ImplementationAction`) now expose a new `ConfiguredPermissionMode`
-  / `configuredPermissionMode` fact — the fixed `acceptEdits` CLI permission
-  mode the existing, unchanged `ClaudeImplementationAdapter` always passes for
-  this role. It is derived, never persisted: `GetImplementationAttemptStatusQueryHandler`
-  returns it only when the attempt's own `AgentRole.Implementer`,
-  `AgentProvider.ClaudeCode`, `AgentPermissionProfile.WorkspaceEditOnly`, and
-  `AgentAdapterContractVersion == "claude-implementation-v1"` all agree;
-  otherwise it is `null`/`Unknown`, exactly like every other assignment fact
-  on this status. `ImplementationAction` renders it beside the existing
-  provider/role/permission-profile/adapter-contract line with the same
-  fail-closed sentinel-matching convention already used for those facts,
-  labeled "Configured permission mode" — never claimed as provider-observed
-  effective behavior, mode availability, or invocation eligibility. No adapter
-  argument, provider policy, authorization, claim/dispatch behavior, database
-  schema/migration, or other Claude role changed. See the new "Configured
-  Claude Implementer permission mode" subsection of
-  [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+  and cockpit (`ImplementationAction`) now expose a new
+  `ConfiguredSessionPersistence` / `configuredSessionPersistence` fact
+  alongside the existing `ConfiguredPermissionMode` fact — `"Disabled"` (the
+  current `ClaudeImplementationAdapter`'s existing, unchanged
+  `--no-session-persistence` argument) only when the attempt's own provider,
+  role, permission profile, and adapter contract version all agree with the
+  current supported implementation path; otherwise `null`/`Unknown`, with the
+  existing fail-closed `agent_attempts.invalid_assignment` error preserved
+  for invalid or absent assignment metadata (never a success value reporting
+  `Unknown`). No adapter argument, session behavior, persistence schema,
+  provider-session identifier exposure, resume/open/fork UI, authorization,
+  claim/dispatch logic, or other Claude role changed;
+  `ProviderRuntimePreflight.Sessions` is untouched. Documented in the new
+  "Configured Claude Implementer session persistence" subsection of
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md),
+  which also states plainly that this fact is separate from DevalCopilot's
+  own durable attempt history. Two pre-existing, shared cross-role API
+  disclosure guards (`AgentProcessExecutionEvidenceEndpointTests` and
+  `AgentTokenUsageEndpointTests`) were narrowed during review to permit
+  exactly this one root-level property with value `Disabled`/`null`, scoped
+  to the implementation-status route only and verified JSON-root-level via
+  `JsonDocument`, with negative tests proving a nested occurrence, an
+  unexpected value, or the same literal on a non-permitted route is still
+  rejected; every other disclosure guard is unchanged.
 - Checks actually run: full .NET suites green (Domain.Tests 524/524,
-  Application.Tests 985/985 incl. 2 new cases for the coherent and
-  mismatched-adapter-contract-version paths, Infrastructure.IntegrationTests
-  440/441 with 1 pre-existing unrelated skip, Api.IntegrationTests 296/296
-  incl. 1 new mismatched-contract-version case, Architecture.Tests 9/9);
-  frontend 605/605 tests (existing `ImplementationAction` assertions extended
-  for the valid, absent, and mismatched-sentinel cases), `tsc -b` clean,
-  `oxlint` exited 0 with the same 20 pre-existing warnings (0 new), `vite
-  build` production build passed, `git diff --check` reported no whitespace
-  errors. The NSwag client was regenerated via `dotnet build
-  src/backend/DevalCopilot.Api` (its own MSBuild target runs on every Debug
-  build); the resulting `api-client.ts` diff is additive only (one new
-  optional field on `ImplementationAttemptStatusResponse`).
+  Application.Tests 986/986, Infrastructure.IntegrationTests 440/441 with 1
+  pre-existing unrelated skip, Api.IntegrationTests 307/307, Architecture.Tests
+  9/9); frontend 605/605 tests, `tsc -b` clean, `oxlint` exited 0 with the
+  same 20 pre-existing warnings (0 new), `vite build` production build
+  passed, `git diff --check` reported no whitespace errors. The NSwag client
+  was regenerated via `dotnet build src/backend/DevalCopilot.Api`; the
+  resulting `api-client.ts` diff is additive only (one new optional field).
 - No provider API access, persistence, adapter, threshold, authorization
   override, claim eligibility, or provider-account-usage change of any kind. The
   provider-allowance evidence slice remains closed without implementation:
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: Claude implements the selected, bounded configured-session-
-  persistence fact in [planner-handoff.md](planner-handoff.md). Under the
-  corrected workflow in [AGENTS.md](../../AGENTS.md), Claude submits its
-  completed diff without commit or push; Codex GO must precede both.
+- Next action: Codex verifies this publication and selects the next bounded
+  slice per [planner-handoff.md](planner-handoff.md); none is approved yet.
 
 ## Open risks
 

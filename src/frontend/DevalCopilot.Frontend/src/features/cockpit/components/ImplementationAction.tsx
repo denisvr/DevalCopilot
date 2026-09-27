@@ -87,6 +87,7 @@ export function ImplementationAction({
     ? 'claude-implementation-v1'
     : 'Unknown'
   const configuredPermissionMode = status?.configuredPermissionMode === 'acceptEdits' ? 'acceptEdits' : 'Unknown'
+  const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
   const formatFact = (value: string | undefined) => value || 'Unknown'
   return (
     <section className="dc-implementation-action" aria-label="Claude implementation">
@@ -120,7 +121,8 @@ export function ImplementationAction({
           {assignmentProvider} · {assignmentRole} · Model requested: {formatFact(status.requestedModel)} · Model observed:{' '}
           {formatFact(status.observedModel)} · Effort requested: {formatFact(status.requestedEffort)} · Effort observed:{' '}
           {formatFact(status.observedEffort)} · {permissionProfile} · Adapter contract: {adapterContract} ·{' '}
-          Configured permission mode: {configuredPermissionMode}
+          Configured permission mode: {configuredPermissionMode} · Configured provider-session persistence:{' '}
+          {configuredSessionPersistence}
         </p>
       )}
       {status && hasAttempt && (

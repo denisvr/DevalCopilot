@@ -85,7 +85,7 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
         Assert.Equal(JsonValueKind.Null, evidence.GetProperty("exitCode").ValueKind);
         Assert.Equal(600_123, evidence.GetProperty("durationMilliseconds").GetInt64());
         Assert.Equal(TimeoutFor(contract).TotalMilliseconds, evidence.GetProperty("timeoutMilliseconds").GetInt64());
-        AssertNoDisclosure(body, manifestArtifactId);
+        AssertNoDisclosure(body, manifestArtifactId, routePermitsConfiguredSessionPersistence: route == "agent-attempts/implementation");
     }
 
     [Fact]
@@ -170,6 +170,67 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
         Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("latestAgentAttempt").ValueKind);
     }
 
+    [Fact]
+    public void AssertNoDisclosure_permits_only_the_two_coherent_root_level_configured_session_persistence_values()
+    {
+        var manifestArtifactId = Guid.NewGuid();
+
+        AssertNoDisclosure(
+            """{"configuredPermissionMode":"acceptEdits","configuredSessionPersistence":"Disabled"}""",
+            manifestArtifactId, routePermitsConfiguredSessionPersistence: true);
+        AssertNoDisclosure(
+            """{"configuredPermissionMode":null,"configuredSessionPersistence":null}""",
+            manifestArtifactId, routePermitsConfiguredSessionPersistence: true);
+    }
+
+    [Fact]
+    public void AssertNoDisclosure_still_rejects_a_real_session_disclosure_alongside_the_safe_fact()
+    {
+        var manifestArtifactId = Guid.NewGuid();
+
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoDisclosure(
+            $$"""{"configuredSessionPersistence":"Disabled","providerSessionId":"{{SessionSentinel}}"}""",
+            manifestArtifactId, routePermitsConfiguredSessionPersistence: true));
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoDisclosure(
+            """{"configuredSessionPersistence":"Disabled","note":"a live session resumed"}""",
+            manifestArtifactId, routePermitsConfiguredSessionPersistence: true));
+    }
+
+    [Fact]
+    public void AssertNoDisclosure_still_rejects_an_unexpected_value_for_the_same_property()
+    {
+        var manifestArtifactId = Guid.NewGuid();
+
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoDisclosure(
+            """{"configuredSessionPersistence":"Enabled"}""", manifestArtifactId, routePermitsConfiguredSessionPersistence: true));
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoDisclosure(
+            $$"""{"configuredSessionPersistence":"{{SessionSentinel}}"}""",
+            manifestArtifactId, routePermitsConfiguredSessionPersistence: true));
+    }
+
+    [Fact]
+    public void AssertNoDisclosure_rejects_the_safe_literal_property_on_a_route_that_does_not_permit_it()
+    {
+        var manifestArtifactId = Guid.NewGuid();
+
+        // Same call as the permitted case above, but without opting the route in — proves the
+        // exception is route-gated, not merely value-gated.
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoDisclosure(
+            """{"configuredSessionPersistence":"Disabled"}""", manifestArtifactId));
+    }
+
+    [Fact]
+    public void AssertNoDisclosure_rejects_the_safe_literal_nested_under_another_object()
+    {
+        var manifestArtifactId = Guid.NewGuid();
+
+        // Same literal text and value, but not a root-level property — TryGetProperty on the root
+        // element cannot see it, so the exception never applies here even though the route opts in.
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoDisclosure(
+            """{"assignment":{"configuredSessionPersistence":"Disabled"}}""",
+            manifestArtifactId, routePermitsConfiguredSessionPersistence: true));
+    }
+
     private static JsonElement AssertBoundedEvidenceShape(JsonElement evidence)
     {
         Assert.Equal(JsonValueKind.Object, evidence.ValueKind);
@@ -177,7 +238,8 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
         return evidence;
     }
 
-    private static void AssertNoDisclosure(string body, Guid manifestArtifactId)
+    private static void AssertNoDisclosure(
+        string body, Guid manifestArtifactId, bool routePermitsConfiguredSessionPersistence = false)
     {
         Assert.DoesNotContain(SessionSentinel, body, StringComparison.Ordinal);
         Assert.DoesNotContain(manifestArtifactId.ToString(), body, StringComparison.OrdinalIgnoreCase);
@@ -187,7 +249,58 @@ public sealed class AgentProcessExecutionEvidenceEndpointTests(ApiWebApplication
         Assert.DoesNotContain("argument", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("environment", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("manifest", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("session", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "session",
+            RemoveOnlyTheRootLevelConfiguredSessionPersistenceFact(body, routePermitsConfiguredSessionPersistence),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Only the caller-confirmed implementation-status route legitimately carries one root-level
+    // "configuredSessionPersistence" property (a static, non-secret configuration fact — see
+    // ImplementationAttemptStatusResponse.ConfiguredSessionPersistence), never a provider-session
+    // identifier or other disclosure. This exception is scoped as narrowly as possible: it does
+    // nothing unless the caller explicitly says the route permits it; even then, JSON parsing must
+    // confirm the property sits directly on the root object (never nested under another object,
+    // which JsonElement.TryGetProperty on the root cannot see) with exactly one of its two coherent
+    // values, and the exact literal text for that value must occur exactly once in the raw body
+    // before it is removed. Every other occurrence of "session" — a real provider-session
+    // identifier, a nested or duplicated instance of this same property, an unexpected value for
+    // it, or any other field — remains fully subject to the blanket scan below, on every route,
+    // exactly as before.
+    private static string RemoveOnlyTheRootLevelConfiguredSessionPersistenceFact(string body, bool routePermitsIt)
+    {
+        if (!routePermitsIt)
+        {
+            return body;
+        }
+
+        using var document = JsonDocument.Parse(body);
+        if (!document.RootElement.TryGetProperty("configuredSessionPersistence", out var property))
+        {
+            return body;
+        }
+
+        var literal = property.ValueKind switch
+        {
+            JsonValueKind.Null => "\"configuredSessionPersistence\":null",
+            JsonValueKind.String when property.GetString() == "Disabled" => "\"configuredSessionPersistence\":\"Disabled\"",
+            _ => null,
+        };
+
+        return literal is not null && CountOccurrences(body, literal) == 1
+            ? body.Replace(literal, "", StringComparison.Ordinal)
+            : body;
+    }
+
+    private static int CountOccurrences(string haystack, string needle)
+    {
+        var count = 0;
+        for (var index = haystack.IndexOf(needle, StringComparison.Ordinal); index >= 0;
+             index = haystack.IndexOf(needle, index + needle.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+        return count;
     }
 
     private static TimeSpan TimeoutFor(AgentResponseContract contract) => contract switch

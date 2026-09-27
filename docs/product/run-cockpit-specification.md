@@ -467,6 +467,32 @@ assumption. It carries no runtime-control, authorization, or claim-eligibility
 meaning of its own; the backend remains the sole authority for every claim and
 dispatch decision.
 
+### Configured Claude Implementer session persistence
+
+A second, sibling bounded fact on the same attempt status — whether the
+current `ClaudeImplementationAdapter`'s fixed `--no-session-persistence`
+argument configures the Claude CLI's own provider-session persistence as
+`Disabled`. It states what this attempt's adapter contract is configured to
+pass, never a provider-observed result, and it is populated under exactly the
+same coherence rule and the same `Unknown`/`null` fallback as the configured
+permission mode above: no attempt yet, and a valid but historical or
+mismatched assignment, both show `Unknown`/`null` here, never the current
+adapter's configuration by assumption. An invalid or otherwise unparseable
+assignment is a different case entirely — it is not a success value with
+this fact reported as `Unknown`; it remains the existing fail-closed
+`agent_attempts.invalid_assignment` error for the whole status, exactly as it
+already is for every other assignment fact on this attempt. This fact is entirely distinct from
+DevalCopilot's own durable attempt history: every attempt's status, outcome,
+checkpoints, and evidence shown elsewhere on this page remain fully durable
+and queryable regardless of this flag, which only concerns whether the
+provider's own CLI process retains a resumable session of its own. It does
+not add, change, or expose a provider-session identifier, a resume/open/fork
+control, or any other session-management capability, and it does not change
+the host-wide `ProviderRuntimePreflight.Sessions` fact shown elsewhere. It
+carries no runtime-control, authorization, or claim-eligibility meaning of its
+own; the backend remains the sole authority for every claim and dispatch
+decision.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

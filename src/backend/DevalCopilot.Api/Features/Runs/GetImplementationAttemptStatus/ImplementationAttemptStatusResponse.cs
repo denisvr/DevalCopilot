@@ -39,4 +39,12 @@ public sealed record ImplementationAttemptStatusResponse(
     /// behavior, mode availability, or invocation eligibility. <see langword="null"/> unless
     /// provider, role, permission profile, and adapter contract version all agree with the
     /// current, single supported implementation adapter.</summary>
-    string? ConfiguredPermissionMode);
+    string? ConfiguredPermissionMode,
+    /// <summary>Whether this attempt's fixed adapter contract configures the Claude CLI's
+    /// provider-session persistence as <c>"Disabled"</c> (the current adapter's own
+    /// <c>--no-session-persistence</c> argument) — a static configuration fact, never a
+    /// provider-observed result and never DevalCopilot's own durable attempt history, which this
+    /// flag does not affect either way. <see langword="null"/> unless provider, role, permission
+    /// profile, and adapter contract version all agree with the current, single supported
+    /// implementation adapter.</summary>
+    string? ConfiguredSessionPersistence);

@@ -143,6 +143,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
         Assert.Null(result.Value.Assignment.ObservedEffort);
         Assert.Null(result.Value.Assignment.AdapterContractVersion);
         Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
     }
 
     [Fact]
@@ -168,6 +169,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
 
         Assert.True(result.IsSuccess);
         Assert.Equal("acceptEdits", result.Value.ConfiguredPermissionMode);
+        Assert.Equal("Disabled", result.Value.ConfiguredSessionPersistence);
     }
 
     [Fact]
@@ -194,5 +196,28 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
 
         Assert.True(result.IsSuccess);
         Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_session_persistence_for_no_attempt()
+    {
+        var runId = Guid.NewGuid();
+        await using (var seed = _fixture.CreateContext())
+        {
+            var project = Project.Register(Guid.NewGuid(), "No implementation attempt yet", @"C:\repo", Now);
+            seed.Projects.Add(project);
+            seed.Runs.Add(Run.RecordIntent(runId, project.Id, 1, "No implementation attempt yet", Now));
+            await seed.SaveChangesAsync();
+        }
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetImplementationAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetImplementationAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.HasAttempt);
+        Assert.Null(result.Value.ConfiguredPermissionMode);
+        Assert.Null(result.Value.ConfiguredSessionPersistence);
     }
 }

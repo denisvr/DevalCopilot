@@ -107,6 +107,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal("WorkspaceEditOnly", root.GetProperty("permissionProfile").GetString());
         Assert.Equal(contractVersion, root.GetProperty("adapterContractVersion").GetString());
         Assert.Equal("acceptEdits", root.GetProperty("configuredPermissionMode").GetString());
+        Assert.Equal("Disabled", root.GetProperty("configuredSessionPersistence").GetString());
 
         Assert.DoesNotContain(forbiddenSentinel, body, StringComparison.Ordinal);
         Assert.DoesNotContain("C:\\repos\\", body, StringComparison.OrdinalIgnoreCase);
@@ -152,5 +153,34 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         var root = document.RootElement;
         Assert.Equal("claude-implementation-v2", root.GetProperty("adapterContractVersion").GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredSessionPersistence").ValueKind);
+    }
+
+    [Fact]
+    public async Task Shows_no_configured_session_persistence_when_the_run_has_no_implementation_attempt_yet()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var projectId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            dbContext.Projects.Add(Project.Register(projectId, "No implementation attempt yet", $@"C:\repos\{Guid.NewGuid():N}", now));
+            dbContext.Runs.Add(Run.RecordIntent(runId, projectId, 1, "No implementation attempt yet", now));
+            await dbContext.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ApiWebApplicationFactory.ValidSecret);
+        var response = await client.GetAsync($"/api/runs/{runId}/agent-attempts/implementation");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        Assert.False(root.GetProperty("hasAttempt").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredSessionPersistence").ValueKind);
     }
 }

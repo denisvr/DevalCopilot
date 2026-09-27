@@ -42,7 +42,16 @@ public sealed record ImplementationAttemptStatusQueryResult(
     /// eligibility. Populated only when provider, role, permission profile, and adapter contract
     /// version all agree with the current, single supported implementation adapter; otherwise
     /// <see langword="null"/>, exactly like every other assignment fact here.</summary>
-    string? ConfiguredPermissionMode = null)
+    string? ConfiguredPermissionMode = null,
+    /// <summary>Whether this attempt's fixed adapter contract configures the Claude CLI's
+    /// provider-session persistence as disabled (the current adapter's own
+    /// <c>--no-session-persistence</c> argument) — a static configuration fact, never a
+    /// provider-observed result and never DevalCopilot's own durable attempt history, which is
+    /// unaffected by this flag either way. Populated only when provider, role, permission
+    /// profile, and adapter contract version all agree with the current, single supported
+    /// implementation adapter; otherwise <see langword="null"/>, exactly like every other
+    /// assignment fact here.</summary>
+    string? ConfiguredSessionPersistence = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);
