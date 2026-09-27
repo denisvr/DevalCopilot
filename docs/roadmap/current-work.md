@@ -11,11 +11,12 @@ untracked changes before editing; do not reset work to match this page.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted delivery: the bounded, read-only configured Claude
-  Implementer session persistence fact, built on parent
-  `a114f29064befa25f95541678fa73db6da2ab331` (`main`/`origin/main` at the
-  start of this slice). Checkout clean at delivery. Codex reviewed the
-  uncommitted diff across two correction rounds and recorded **GO**; see
+- Latest accepted delivery: commit
+  `1d9f6b4876b43b0585ed8422d4de653966e8e8dc`, the bounded, read-only
+  configured Claude Implementer session persistence fact, built on parent
+  `a114f29064befa25f95541678fa73db6da2ab331`. Remote `origin/main`
+  verified at the delivered commit; checkout clean at delivery. Codex reviewed
+  the uncommitted diff across two correction rounds and recorded **GO**; see
   [planner-handoff.md](planner-handoff.md).
 - Delivered behavior: the implementation-attempt status query, API response,
   and cockpit (`ImplementationAction`) now expose a new
@@ -56,8 +57,9 @@ untracked changes before editing; do not reset work to match this page.
   neither CLI offered a proven safe account-allowance observation contract.
   Do not revive it as `Unknown`-only scaffolding or direct authenticated API
   access without a new approved decision.
-- Next action: Codex verifies this publication and selects the next bounded
-  slice per [planner-handoff.md](planner-handoff.md); none is approved yet.
+- Next action: Codex investigates remaining Increment 4 provider runtime
+  controls against code, accepted ADRs, and provider contracts before selecting
+  another bounded slice; none is selected yet.
 
 ## Open risks
 
