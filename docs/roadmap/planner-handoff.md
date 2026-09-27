@@ -7,7 +7,151 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current decision (2026-09-27): selected Codex session correlation repair
+## Current decision (2026-09-27): Codex allowance observation GO for publication
+
+- After Claude reached its credit limit, the owner asked Codex to finish this
+  correction. Codex completed the same slice and reviewed the complete
+  uncommitted diff: **GO for publication**. Before staging, `main`, `HEAD`,
+  local `origin/main`, and live `origin/main` remain
+  `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`, with 10 modified tracked
+  files, 22 untracked files, and nothing staged. The corrected parser now
+  follows the documented bucket map and Unix-seconds windows; the positive
+  fixture checks the exact three outbound protocol lines. Complete and split
+  oversized JSONL lines are discarded; timeout and cancellation tests prove
+  the fixture process and its child exit. API/UI tests cover observed buckets,
+  Unknown, and failed-refresh freshness. Infrastructure focused 30/30 and
+  full 481 passed / 1 pre-existing skip; Application 1022/1022; API 326/326;
+  Domain 529/529; Architecture 9/9; frontend 639/639; typecheck and build
+  clean, lint exit 0 with 20 pre-existing warnings. NSwag regeneration is
+  additive and repeatable, documentation links resolve, and `git diff --check`
+  is clean apart from the existing generated-client CRLF warning. Commit the
+  complete reviewed diff including this note and commit-ready
+  `current-work.md`; normal fast-forward push and verify live `origin/main`.
+  A tightly factual `current-work.md` closure may record the delivered SHA
+  after publication without another review. Stop for a material diff, failed
+  push, or remote divergence. No next slice is selected.
+
+- First uncommitted diff review: **NO-GO; keep this same slice uncommitted and
+  unpushed**. Reverified `main`, `HEAD`, local and live `origin/main` at
+  `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`; 10 modified tracked files
+  (including this planner note), 20 untracked files, nothing staged;
+  `git diff --check` clean apart from the existing generated-client CRLF
+  warning. The executor's reported suites passed, but their positive fixtures
+  use a response shape that contradicts both the official App Server example
+  and the installed CLI's generated schema. `rateLimitsByLimitId` maps each
+  limit id (for example `codex`) to a snapshot containing `primary` and
+  `secondary`; the legacy `rateLimits` is one snapshot. A window's `resetsAt`
+  is a nullable Unix-seconds integer, not an ISO string; `windowDurationMins`
+  is nullable. The current parser instead looks for windows directly under
+  the map and requires an ISO string, so a documented valid response yields
+  `Unknown`. Correct the bounded multi-bucket projection, wire-accurate
+  fixtures, and related API/UI/docs in this same slice: preserve a valid
+  `usedPercent` while representing documented null duration/reset fields as
+  unknown, and expose no invented aggregate across buckets. Also enforce the
+  scanner's per-line limit for complete and split oversized lines, prevent a
+  failed refresh from retaining an observed timestamp/status, reject invalid
+  frontend percentages rather than clamp them into plausible values, and test
+  actual child-tree termination for timeout and cancellation. Recheck strict
+  initialize-response validation and finite cleanup before resubmission.
+  Rerun affected checks and the relevant full validation after these material
+  corrections. This decision grants no commit or push authority.
+
+- Verified publication baseline before this planner edit: branch `main`,
+  `HEAD`, local `origin/main`, and live `origin/main` all
+  `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`; staged, unstaged, and
+  untracked state empty. The Codex correlation repair was delivered in
+  `c04cebf59d85483af8bcfa3f280bd440598a7d76`; this baseline is its
+  factual `current-work.md` closure.
+- Select one larger but bounded Increment 4 slice: **read-only Codex ChatGPT
+  account-allowance observation**. The earlier account-allowance candidate was
+  closed because the CLIs lacked a proven safe machine-readable observation
+  contract. New primary-source evidence changes the Codex side only: the
+  [official Codex App Server protocol](https://learn.chatgpt.com/docs/app-server)
+  documents the `account/rateLimits/read` JSON-RPC method, its
+  `rateLimitsByLimitId` multi-bucket view and legacy `rateLimits` fallback,
+  `primary`/`secondary` windows, `usedPercent`, `windowDurationMins`, and
+  `resetsAt`, via CLI-managed authentication. It also documents the required
+  `initialize`/`initialized` handshake and stdio JSONL transport. A local
+  `codex app-server --help` check showed stdio support on the planner host;
+  this is supporting evidence, not a claim about every installed version or
+  account. No equivalent safe Claude Code CLI allowance contract was found.
+- Executor stop-gate revalidation: Claude's environment lacked a `codex` CLI
+  and its documentation retrieval did not show the cited method, so it
+  correctly stopped without editing. The planner reopened both
+  `https://learn.chatgpt.com/docs/app-server` and
+  `https://learn.chatgpt.com/codex/app-server` (which redirects to the former):
+  the official page's **Rate limits (ChatGPT)** section explicitly shows
+  `{ "method": "account/rateLimits/read", "id": 6 }`, a result with
+  `rateLimitsByLimitId`, and `usedPercent`, `windowDurationMins`, and
+  `resetsAt` windows. Independently, installed `codex-cli 0.158.0-alpha.2.1`
+  on the planner host generated the stable App Server JSON schema with
+  `codex app-server generate-json-schema --out <temporary directory>` (no
+  `--experimental`): `ClientRequest.json` contains the method with required
+  `id`/`method` and optional/null `params`; `v2/GetAccountRateLimitsResponse.json`
+  defines the multi-bucket map and window fields. This verifies the wire
+  contract for that installed build, not the executor's absent CLI or an
+  authenticated account result. Continue the same selected slice using these
+  exact sources; retain every installed-target, protocol, auth, and process
+  stop gate above. Do not treat the fake-server fixture as proof of a live
+  provider result.
+- Objective: from an authenticated, protected, read-only MVC query, obtain a
+  fresh Codex allowance snapshot through the already-vetted Codex CLI launch
+  target and a narrowly bounded Infrastructure App Server adapter; render the
+  observed Codex windows, retrieval time, and explicit Unknown state in the
+  existing cockpit usage rail. Use an Application-owned provider-neutral
+  snapshot model and port; keep JSON-RPC wire types in Infrastructure. Prefer
+  `rateLimitsByLimitId` when present, otherwise use the legacy single-bucket
+  view, without double-counting. Project only bounded, validated window
+  fields needed for display; never copy credentials, account email, credits,
+  arbitrary provider payloads, or raw diagnostics into API, logs, storage,
+  or UI. Missing auth, unsupported method, absent/malformed windows, timeout,
+  and process failure must remain Unknown, never zero or a guessed allowance;
+  cancellation must clean up the child and propagate. State clearly that this is a read-only snapshot, not an
+  enforceable stop threshold or a guarantee that a specific invocation can
+  start.
+- Boundaries: one exact local CLI launch target (including the existing
+  direct-executable/Node-script distinction), an explicit stdio-only
+  `codex app-server` handshake and `account/rateLimits/read` request, finite
+  timeout/output caps and child-tree cleanup, strict response-id and shape
+  validation, Application query, one protected MVC endpoint/response,
+  generated NSwag client, existing cockpit usage rail, focused tests, product
+  specification, and commit-ready `current-work.md`. Revalidate the vetted
+  target before launch; never search PATH, open a listening socket, use a
+  shell, read CLI auth files, supply tokens, start a thread/turn, or send any
+  mutating App Server method. Do not broaden the generic one-shot process
+  contract to pretend it supports duplex JSON-RPC; a narrow Infrastructure
+  process boundary is allowed only if it preserves equivalent path, timeout,
+  environment, capture, cancellation, and kill-tree protections.
+- Exclude Claude allowance, threshold configuration, warning/stop enforcement,
+  claim/dispatch gating, persisted allowance schema, scheduled polling,
+  provider preflight capability claims based only on CLI version, model/effort
+  selection, session resume, context/compaction, direct authenticated HTTP
+  calls, and unrelated workflow policy. Do not set preflight `AccountUsage` to
+  Supported merely because a version probe succeeded. Stop and report for
+  replanning if the installed target cannot safely perform the documented
+  read-only protocol, App Server requires experimental or mutating methods,
+  auth isolation would require token access, the process cannot be bounded
+  and cleaned up, or truthful display requires a broader architecture/ADR
+  change. No Unknown-only scaffolding: a valid fixture must produce visible
+  positive allowance windows.
+- Acceptance: deterministic local fake App Server tests verify exact handshake
+  and sole read method, normal multi-bucket and legacy shapes, nullable
+  primary/secondary windows, malformed/duplicate/conflicting replies,
+  unsolicited notifications, oversized output, missing auth/unsupported
+  method, timeout/cancellation/cleanup, and no sensitive-field disclosure.
+  Application/API tests prove authorized snapshot/Unknown mapping; frontend
+  tests prove real window display, freshness and Unknown without treating
+  missing data as zero. Never call a real provider from automated tests. Run
+  affected and relevant full backend/frontend suites, typecheck, lint, build,
+  NSwag drift check, and `git diff --check`; report exact outcomes. Make
+  `current-work.md` commit-ready from the verified parent with actual checks,
+  open risks and no invented SHA. Return the full **uncommitted, unpushed**
+  diff for Codex GO/NO-GO. Selection grants no commit/push GO. Following a
+  future GO, one publication instruction covers substantive commit, normal
+  fast-forward push, live-remote verification, and tightly factual
+  documentation closure; stop for material change, failed push or divergence.
+
+## Prior decision (2026-09-27): Codex session correlation repair
 
 - Corrected uncommitted diff review: **GO for publication of this reviewed
   slice**. Reverified `main`, `HEAD`, local `origin/main`, and live

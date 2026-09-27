@@ -8,7 +8,90 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted delivery: Codex provider-session correlation repair for the
+- Current delivery, based on verified parent `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`:
+  read-only Codex ChatGPT account-allowance observation. See
+  [planner-handoff.md](planner-handoff.md) for the selection record, and the
+  ["Provider account-allowance contracts"](../architecture/agent-collaboration-protocol.md#provider-account-allowance-contracts)
+  and
+  ["Codex account-allowance observation (read-only)"](../product/run-cockpit-specification.md#codex-account-allowance-observation-read-only)
+  sections for the exact wire evidence and product contract.
+  - New Application query `GetCodexAccountAllowanceQuery` (returning a plain
+    projection, never `Result<T>` — this query has no expected failure
+    outcome) reads the same durable, already-vetted Codex launch target
+    `GetCodexLaunchTargetQueryHandler` reads (a small, deliberate duplication
+    of that five-line `HostCapabilitySnapshot` lookup — this operation owns
+    its own read rather than depending on another operation's result type),
+    and, only when one currently resolves successfully, asks the new
+    `ICodexAccountAllowanceAdapter` port for one fresh snapshot. No vetted
+    target and no adapter observation both collapse to the same explicit
+    `CodexAccountAllowanceStatus.Unknown` projection.
+  - New Infrastructure `CodexAccountAllowanceAdapter` speaks the documented
+    Codex App Server JSON-RPC protocol directly: explicit `--stdio` JSONL, the required
+    `initialize`/`initialized` handshake, then the sole `account/rateLimits/read`
+    read method — confirmed from the installed `codex-cli 0.158.0-alpha.2.1`
+    build's own generated App Server schema (`ClientRequest.json`,
+    `v2/GetAccountRateLimitsResponse.json`), which is protocol evidence for
+    that installed build, not a live authenticated result or a claim about
+    every installed version. This could not reuse the shared, one-shot
+    `CodexProcessInvoker` (it writes stdin once, closes it, then waits for
+    natural exit); the App Server is a long-running duplex peer this adapter
+    must itself terminate, so a second, narrow Infrastructure process
+    boundary exists for it alone — preserving the same launch-target
+    revalidation, no-shell/no-PATH-search argument passing, restricted
+    environment allowlist, finite timeout, bounded output capture (a new
+    `BoundedJsonLineScanner`, 64 KiB total / 16 KiB per line), cancellation
+    propagation, and process-tree cleanup as every other Codex process path.
+    `rateLimitsByLimitId` is read as a map of limit ids to independent
+    snapshots, each with its own `primary`/`secondary` windows; the legacy
+    `rateLimits` single snapshot is used only when the map is absent or null.
+    The adapter caps the map at 16 buckets and validates every identifier;
+    malformed, duplicate, or excessive maps fail closed. An integer
+    `usedPercent` in [0, 100] establishes a window; nullable duration and
+    Unix-seconds reset time remain independently Unknown when absent or
+    invalid. The scanner enforces 64 KiB total and 16 KiB per complete or
+    split line without trusting the suffix of an oversized line. Conflicting
+    replies already received for one id, malformed response shapes, timeout,
+    process failure, and failed process cleanup yield Unknown; caller
+    cancellation propagates after process-tree cleanup. Registered as a
+    singleton in `Program.cs` beside the other host-scoped capabilities.
+  - New protected `GET api/environment/codex-account-allowance` endpoint
+    (mirrors `GetProviderRuntimePreflightEndpoint`'s shape) and its NSwag
+    client regeneration (additive only). New
+    `useCodexAccountAllowance` hook (fetches once on mount plus an explicit
+    `refresh()` — never a recurring interval) feeds the existing
+    `UsageEvidenceRail` cockpit usage rail, which now shows a separate line
+    for every bounded Codex bucket, its known percentage/duration/reset
+    fields, and retrieval time beside the
+    still-unchanged Claude "not yet collected" placeholder, with an explicit
+    "Unknown" (never a zero) when unavailable and a manual Refresh control.
+    A failed refresh clears prior observed data and its timestamp.
+  - Excluded, per the selected slice's boundary: Claude allowance, threshold
+    configuration, warning/stop enforcement, claim/dispatch gating, persisted
+    allowance schema, scheduled polling, any provider-preflight `AccountUsage`
+    change (`ProviderRuntimePreflightProjector` still hardcodes `Unknown` for
+    every capability, untouched), model/effort selection, session resume,
+    context/compaction, and direct authenticated HTTP.
+  - Checks actually run after correction: Infrastructure.IntegrationTests
+    focused `CodexAccountAllowanceAdapterTests` 30/30, full 481 passed / 1
+    pre-existing skip; Application.Tests focused 7/7, full 1022/1022;
+    Api.IntegrationTests focused 4/4, full 326/326; Domain.Tests 529/529;
+    Architecture.Tests 9/9. Frontend focused hook, description, and rail
+    tests 24/24, full 639/639; `tsc -b` clean; `oxlint` exited 0 with the
+    same 20 pre-existing warnings (0 new); production build passed. NSwag
+    client regenerated by `dotnet build src/backend/DevalCopilot.Api` with a
+    stable hash on repeat build; local documentation links resolve.
+    `git diff --check` is clean apart from the existing generated-client
+    CRLF-normalization warning. The deterministic compiled App Server fixture
+    exercises documented multi-bucket and legacy shapes, malformed data,
+    output limits, timeout/cancellation, and parent/child process termination;
+    automated tests never call a real provider.
+  - Remaining risk: the wire shape is documented and verified from one
+    installed CLI build's generated schema, but no live authenticated
+    response was tested. An incompatible installation fails closed to
+    `Unknown`. Provider account-usage thresholds,
+    warning/stop enforcement, and Claude's own allowance observation remain
+    open under [Increment 4](mvp-delivery-plan.md).
+- Previously accepted delivery: Codex provider-session correlation repair for the
   three current read-only roles (Planner, Resolver, CodeReviewer), in
   `c04cebf59d85483af8bcfa3f280bd440598a7d76` (parent
   `c481aead3ca652cf06fffaa509bb68f411f483ff`), published to `origin/main`

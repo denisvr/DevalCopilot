@@ -389,10 +389,35 @@ state before it ever consults the usage record's shape, so a malformed or
 tampered record cannot be mistaken for genuine usage just because it looks
 complete.
 
+### Codex account-allowance observation (read-only)
+
+A bounded, read-only fact in the usage rail: each reported Codex ChatGPT
+account-allowance bucket has its own `primary`/`secondary` windows
+(`usedPercent`, optional `windowDurationMins`, optional `resetsAt`), obtained on demand through the already-
+vetted local Codex CLI launch target and the documented Codex App Server
+`account/rateLimits/read` protocol. It reports the host's own retrieval time
+alongside the snapshot. Unavailable data — no vetted Codex target, missing
+account authentication, an unsupported protocol method, a malformed or absent
+window, a timeout, or a process failure — is shown as an explicit `Unknown`,
+never a zero-valued window. A valid reported percentage remains visible when
+duration or reset time is unavailable; the missing field is labeled Unknown.
+Buckets are displayed separately, without an invented aggregate. A genuinely
+reported zero is shown once a window is known. This is a snapshot only: it carries no enforceable stop
+threshold, warning configuration, or claim/dispatch policy, and it never
+implies a specific invocation is currently eligible to start. It is not
+scheduled or polled automatically — the rail requests one fresh snapshot on
+mount and again only when the reader explicitly asks for a refresh. Claude
+account usage has no equivalent observation yet and continues to show its
+existing "not yet collected" placeholder. See the
+["Provider account-allowance contracts"](../architecture/agent-collaboration-protocol.md#provider-account-allowance-contracts)
+section of the agent-collaboration-protocol for the exact wire evidence.
+
 ### Provider account usage guardrails
 
-Account usage is a provider-reported, time-windowed allowance snapshot. Each
-provider and window records value, reset time, retrieval time, and confidence.
+This remains the target end state the observation above is one step toward;
+none of the warning/stop enforcement below is implemented yet. Account usage
+is a provider-reported, time-windowed allowance snapshot. Each provider and
+window records value, reset time, retrieval time, and confidence.
 Unavailable data is shown as `Unknown`, never as zero.
 
 The user can configure warning and stop thresholds independently for Codex and

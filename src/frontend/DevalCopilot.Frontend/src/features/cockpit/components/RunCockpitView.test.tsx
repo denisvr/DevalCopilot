@@ -49,6 +49,9 @@ vi.mock('../hooks/useRequestReviewCorrection')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   reviewCorrectionAttemptStatusClient: vi.fn(),
+  codexAccountAllowanceClient: vi.fn(() => ({
+    getCodexAccountAllowance: vi.fn().mockResolvedValue({ status: 'Unknown' }),
+  })),
 }))
 
 const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)

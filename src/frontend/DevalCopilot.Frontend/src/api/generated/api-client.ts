@@ -2073,6 +2073,51 @@ export class GetProviderRuntimePreflightEndpointClient {
     }
 }
 
+export class GetCodexAccountAllowanceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCodexAccountAllowance(): Promise<CodexAccountAllowanceResponse> {
+        let url_ = this.baseUrl + "/api/environment/codex-account-allowance";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCodexAccountAllowance(_response);
+        });
+    }
+
+    protected processGetCodexAccountAllowance(response: Response): Promise<CodexAccountAllowanceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CodexAccountAllowanceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CodexAccountAllowanceResponse>(null as any);
+    }
+}
+
 export class StartSimulatedRunResponse implements IStartSimulatedRunResponse {
     runId?: string;
     executionNumber?: number;
@@ -5847,6 +5892,146 @@ export interface IProviderRuntimePreflightResponse {
     compaction?: string;
     sessions?: string;
     accountUsage?: string;
+}
+
+export class CodexAccountAllowanceResponse implements ICodexAccountAllowanceResponse {
+    status?: string;
+    retrievedAtUtc?: Date | undefined;
+    buckets?: CodexAllowanceBucketResponse[];
+
+    constructor(data?: ICodexAccountAllowanceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.retrievedAtUtc = _data["retrievedAtUtc"] ? new Date(_data["retrievedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["buckets"])) {
+                this.buckets = [] as any;
+                for (let item of _data["buckets"])
+                    this.buckets!.push(CodexAllowanceBucketResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): CodexAccountAllowanceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexAccountAllowanceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["retrievedAtUtc"] = this.retrievedAtUtc ? this.retrievedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.buckets)) {
+            data["buckets"] = [];
+            for (let item of this.buckets)
+                data["buckets"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface ICodexAccountAllowanceResponse {
+    status?: string;
+    retrievedAtUtc?: Date | undefined;
+    buckets?: CodexAllowanceBucketResponse[];
+}
+
+export class CodexAllowanceBucketResponse implements ICodexAllowanceBucketResponse {
+    limitId?: string | undefined;
+    primary?: CodexAllowanceWindowResponse | undefined;
+    secondary?: CodexAllowanceWindowResponse | undefined;
+
+    constructor(data?: ICodexAllowanceBucketResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.limitId = _data["limitId"];
+            this.primary = _data["primary"] ? CodexAllowanceWindowResponse.fromJS(_data["primary"]) : undefined as any;
+            this.secondary = _data["secondary"] ? CodexAllowanceWindowResponse.fromJS(_data["secondary"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): CodexAllowanceBucketResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexAllowanceBucketResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["limitId"] = this.limitId;
+        data["primary"] = this.primary ? this.primary.toJSON() : undefined as any;
+        data["secondary"] = this.secondary ? this.secondary.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface ICodexAllowanceBucketResponse {
+    limitId?: string | undefined;
+    primary?: CodexAllowanceWindowResponse | undefined;
+    secondary?: CodexAllowanceWindowResponse | undefined;
+}
+
+export class CodexAllowanceWindowResponse implements ICodexAllowanceWindowResponse {
+    usedPercent?: number;
+    windowDurationMins?: number | undefined;
+    resetsAtUtc?: Date | undefined;
+
+    constructor(data?: ICodexAllowanceWindowResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.usedPercent = _data["usedPercent"];
+            this.windowDurationMins = _data["windowDurationMins"];
+            this.resetsAtUtc = _data["resetsAtUtc"] ? new Date(_data["resetsAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): CodexAllowanceWindowResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexAllowanceWindowResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["usedPercent"] = this.usedPercent;
+        data["windowDurationMins"] = this.windowDurationMins;
+        data["resetsAtUtc"] = this.resetsAtUtc ? this.resetsAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface ICodexAllowanceWindowResponse {
+    usedPercent?: number;
+    windowDurationMins?: number | undefined;
+    resetsAtUtc?: Date | undefined;
 }
 
 export interface FileResponse {

@@ -19,6 +19,17 @@ if (args[0].EndsWith(".fixture-script", StringComparison.OrdinalIgnoreCase) && F
     args = File.ReadAllText(args[0]).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
+// A second, distinct interpreter-style launch matching the Node-script launch shape exactly:
+// argument 0 is a script file path, followed by fixed "app-server --stdio" arguments the caller
+// always passes alongside it. This lets a duplex JSON-RPC adapter test drive a fully scripted,
+// per-test-unique interaction — reading N lines of whatever the adapter under test wrote, then
+// writing back an exact scripted reply — without any special-cased argument the adapter itself
+// would never actually pass in production.
+if (args.Length == 3 && args[1] == "app-server" && args[2] == "--stdio" && File.Exists(args[0]))
+{
+    return await RunAppServerScriptAsync(args[0]);
+}
+
 switch (args[0])
 {
     case "exit-code":
@@ -107,6 +118,90 @@ static async Task EchoStandardInputAsync()
     await input.CopyToAsync(output);
 }
 
+static async Task<int> RunAppServerScriptAsync(string scriptPath)
+{
+    var script = JsonSerializer.Deserialize<AppServerScript>(File.ReadAllText(scriptPath))
+        ?? throw new InvalidOperationException($"Empty or unreadable app-server script at '{scriptPath}'.");
+
+    // Written before anything else, so a test that expects this process to be killed (a
+    // timeout or cancellation) can independently confirm the real OS process actually exited,
+    // rather than only observing that the parent adapter's own call returned.
+    if (script.PidFilePath is not null)
+    {
+        File.WriteAllText(script.PidFilePath, Environment.ProcessId.ToString());
+    }
+
+    if (script.ChildPidFilePath is not null)
+    {
+        var childStart = new ProcessStartInfo
+        {
+            FileName = Environment.ProcessPath!,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        childStart.ArgumentList.Add("sleep-ms");
+        childStart.ArgumentList.Add("30000");
+        using var child = Process.Start(childStart)!;
+        File.WriteAllText(script.ChildPidFilePath, child.Id.ToString());
+    }
+
+    using var input = Console.OpenStandardInput();
+    using var reader = new StreamReader(input);
+    var output = Console.OpenStandardOutput();
+
+    foreach (var step in script.Steps)
+    {
+        for (var line = 0; line < step.ReadLines; line++)
+        {
+            var requestLine = await reader.ReadLineAsync();
+            if (script.RequestLogPath is not null && requestLine is not null)
+            {
+                File.AppendAllText(script.RequestLogPath, requestLine + "\n");
+            }
+        }
+
+        if (step.SleepMs > 0)
+        {
+            await Task.Delay(step.SleepMs);
+        }
+
+        // Combined into a single buffer and written with exactly one WriteAsync call: this
+        // fixture's redirected stdout stream performs its own underlying I/O per call rather
+        // than buffering until Flush, so writing each scripted line separately could deliver
+        // them to the parent's reader as more than one OS-level read — deterministically
+        // scripting "more than one reply arrives together" (e.g. a conflicting duplicate)
+        // requires they leave this process as one write.
+        using var buffer = new MemoryStream();
+        if (step.WriteLines is not null)
+        {
+            foreach (var line in step.WriteLines)
+            {
+                var bytes = System.Text.Encoding.UTF8.GetBytes(line + "\n");
+                buffer.Write(bytes);
+            }
+        }
+
+        if (step.WriteRaw is not null)
+        {
+            buffer.Write(System.Text.Encoding.UTF8.GetBytes(step.WriteRaw));
+        }
+
+        if (buffer.Length > 0)
+        {
+            await output.WriteAsync(buffer.ToArray());
+        }
+
+        await output.FlushAsync();
+    }
+
+    if (script.ThenHang)
+    {
+        await Task.Delay(Timeout.Infinite);
+    }
+
+    return 0;
+}
+
 static int SpawnTree(int sleepMilliseconds)
 {
     var startInfo = new ProcessStartInfo
@@ -128,3 +223,15 @@ static int SpawnTree(int sleepMilliseconds)
     child.WaitForExit();
     return 0;
 }
+
+/// <summary>One scripted App Server interaction, deserialized from a per-test JSON fixture file.
+/// <see cref="AppServerStep.ReadLines"/> lines are consumed from stdin (never validated — the
+/// calling test already controls exactly what the adapter under test writes) before
+/// <see cref="AppServerStep.WriteLines"/> (each with an appended newline) and then
+/// <see cref="AppServerStep.WriteRaw"/> (written verbatim, no appended newline — used to produce
+/// a deliberately unterminated or oversized "line") are written back.</summary>
+internal sealed record AppServerScript(
+    List<AppServerStep> Steps, bool ThenHang = false, string? PidFilePath = null,
+    string? ChildPidFilePath = null, string? RequestLogPath = null);
+
+internal sealed record AppServerStep(int ReadLines, List<string>? WriteLines = null, string? WriteRaw = null, int SleepMs = 0);

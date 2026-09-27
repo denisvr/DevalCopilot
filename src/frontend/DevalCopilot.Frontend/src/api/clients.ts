@@ -16,6 +16,7 @@ import {
   GetProjectRunSummariesEndpointClient,
   GetProjectWorkspaceEndpointClient,
   GetProviderRuntimePreflightEndpointClient,
+  GetCodexAccountAllowanceEndpointClient,
   GetRunCockpitEndpointClient,
   GetCollaborationTimelineEndpointClient,
   GetCollaborationMessageEvidenceEndpointClient,
@@ -52,6 +53,7 @@ export const collaborationMessageEvidenceClient = () => new GetCollaborationMess
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const providerRuntimePreflightClient = () => new GetProviderRuntimePreflightEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const codexAccountAllowanceClient = () => new GetCodexAccountAllowanceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const processAttemptOutputClient = () => new GetProcessAttemptOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectWorkspaceClient = () => new GetProjectWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const prepareWorkspaceClient = () => new PrepareRepositoryWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -98,6 +100,9 @@ export type {
   PrepareRepositoryWorkspaceResponse,
   ProjectRunSummaryResponse,
   ProviderRuntimePreflightResponse,
+  CodexAccountAllowanceResponse,
+  CodexAllowanceBucketResponse,
+  CodexAllowanceWindowResponse,
   RecheckProjectPhysicalIdentityResponse,
   RegisterProjectResponse,
   RequestHostCapabilityRefreshResponse,

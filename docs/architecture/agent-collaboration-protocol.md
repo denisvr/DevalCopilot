@@ -1125,6 +1125,57 @@ once at least one attempt has known usage its sum is always shown exactly as
 reported, including a genuine zero.
 budget for either provider.
 
+### Provider account-allowance contracts
+
+**Codex — read-only account observation, distinct from the Codex per-attempt
+token-usage contract above.** The Codex App Server documents a JSON-RPC
+protocol over explicit `--stdio` JSONL with a required `initialize`/`initialized`
+handshake before any other method is accepted
+(`https://learn.chatgpt.com/docs/app-server`). Its `account/rateLimits/read`
+method and `rateLimitsByLimitId`/legacy `rateLimits` response shape were
+confirmed from the installed `codex-cli 0.158.0-alpha.2.1`
+build's own generated App Server schema (`ClientRequest.json` and
+`v2/GetAccountRateLimitsResponse.json`) — protocol evidence for that installed
+build, not a live authenticated result and not a claim about every installed
+version. A dedicated Infrastructure adapter speaks this handshake and sole
+read method directly against the same already-vetted local Codex CLI launch
+target every other Codex path uses; it never opens a listening socket, reads a
+CLI auth file, supplies a token, starts a thread/turn, or sends any other App
+Server method. The shared, one-shot `CodexProcessInvoker` contract cannot
+express this: the App Server is a long-running duplex peer this adapter must
+itself terminate once its one bounded exchange completes, so a second, equally
+bounded (finite timeout, restricted environment, bounded capture, process-tree
+cleanup) Infrastructure process boundary exists for it alone.
+
+Only a complete JSON object whose `id` matches the outstanding request is
+trusted; every notification and every reply for a different id is ignored.
+More than one distinct reply observed for the same id before a decision is
+made is never resolved by picking one — the whole read-only exchange reports
+`Unknown` instead, since a single invocation has exactly one true reply per
+request. `rateLimitsByLimitId` maps each metered limit id to a separate
+snapshot with its own `primary` and `secondary` windows; legacy `rateLimits`
+is one snapshot. The map is preferred when present and never combined with the
+legacy view. At most 16 buckets with bounded, validated identifiers are
+projected; malformed, duplicate, or excessive keys fail the observation
+closed rather than silently hiding a bucket. Each window requires an integer
+`usedPercent` in [0, 100]; nullable `windowDurationMins` and `resetsAt` are
+independently optional. The latter is Unix seconds, converted to a reset
+instant only when valid. Missing or malformed optional fields remain Unknown
+without erasing a valid percentage. A response with no usable window reports
+`Unknown` rather than an `Observed` snapshot with nothing to show. A JSON-RPC `error` on
+either the handshake or the read method, a missing vetted Codex launch target,
+a timeout, cancellation, or any process failure all resolve to the same
+`Unknown` state — never zero, never an exception the caller must handle
+(cancellation propagated from the caller is the sole exception to that: it is
+rethrown, not swallowed). This is a read-only, host-clock-timestamped snapshot
+only — never resume eligibility, invocation eligibility, an enforceable
+threshold, or a claim about a specific invocation's current eligibility to
+start.
+
+**Claude — no equivalent contract yet.** No safe, machine-readable Claude Code
+account-allowance observation has been established; the cockpit continues to
+show its existing "not yet collected" placeholder for Claude.
+
 ## Token efficiency
 
 - Build a context manifest for each attempt and include only inputs required by

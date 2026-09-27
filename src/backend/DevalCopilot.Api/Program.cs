@@ -10,6 +10,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.EnsureHostCapabilityCatalogSeeded;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileInterruptedHostCapabilityProbes;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexAccountAllowance;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVerificationExecutions;
@@ -111,6 +112,12 @@ builder.Services.AddHostedService<ProcessAttemptSupervisor>();
 // a second child-process path.
 builder.Services.AddSingleton<IToolDiscoveryAdapter, ToolDiscoveryAdapter>();
 builder.Services.AddHostedService<HostCapabilityReadinessSupervisor>();
+
+// Codex account-allowance observation: a genuinely new, narrow duplex JSON-RPC process
+// boundary, never IProcessExecutionAdapter above (a deliberately one-shot contract) and never
+// the shared CodexProcessInvoker (a separate one-shot exec contract for Codex planning/review
+// roles). Reads the same durable HostCapabilitySnapshot evidence as every other Codex path.
+builder.Services.AddSingleton<ICodexAccountAllowanceAdapter, CodexAccountAllowanceAdapter>();
 
 // Repository registration: filesystem classification is pure, stateless logic; Git inspection
 // is composed on top of IProcessExecutionAdapter above, never a second child-process path.
