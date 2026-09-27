@@ -8,10 +8,12 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Current delivery, based on parent `8f52522a35419045229f27962f8523cf41a5149d`:
-  a bounded, read-only configured Claude Implementer built-in tool list fact.
-  See [planner-handoff.md](planner-handoff.md) for the selection and review
-  record.
+- Latest accepted delivery: the bounded, read-only configured Claude
+  Implementer built-in tool list fact in
+  `90c84b79917aa681c25f04182ca485defdfb3357` (parent
+  `8f52522a35419045229f27962f8523cf41a5149d`), published to `origin/main` and
+  verified against the live remote. See [planner-handoff.md](planner-handoff.md)
+  for the selection and review record.
   - The implementation-attempt status and cockpit now show a new
     `ConfiguredBuiltInTools` / `configuredBuiltInTools` fact alongside the
     existing `ConfiguredPermissionMode`, `ConfiguredSessionPersistence`,
@@ -57,13 +59,14 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     Infrastructure.IntegrationTests were not rerun in this slice beyond the
     focused adapter test above — they are untouched by this change; their
     last confirmed results remain in Git history for the prior delivered
-    slice.
+    slice. Post-publication, focused Application
+    `GetImplementationAttemptStatusQueryHandlerTests` 8/8 and focused Api
+    `GetImplementationAttemptStatusEndpointTests` 9/9 were reconfirmed against
+    the delivered commit with a clean working tree.
   - Remaining risks: none newly introduced. Provider-session resume, runtime
     controls, and the other open items below remain unchanged and open.
-  - Verification to perform after publication: confirm `main`, `HEAD`, and
-    local `origin/main` at the delivered commit; independently rerun the
-    checks above; confirm the live remote points to the delivered commit
-    before selecting the next Increment 4 slice.
+  - Next action: no next Increment 4 slice is selected yet; Codex selects and
+    dispatches the next bounded slice.
 - Previously accepted delivery: the bounded, read-only configured Claude
   Implementer resume-eligibility fact in
   `1ec9ac5f1c9eb3a25301cd37684c368db1ef24f6` (parent
