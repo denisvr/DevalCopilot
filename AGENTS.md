@@ -18,6 +18,12 @@ conversation does not by itself require a full reread or a documentation update;
 recover missing context from the relevant handoff and verify current facts
 against Git before acting.
 
+Keep one executor chat per selected slice, including its review corrections;
+start the next executor chat only after the prior slice is published and
+verified. Keep planner review and its correction rounds in the same chat when
+practical; a new chat is appropriate for a distinct outcome or a long context.
+Do not restart an active review merely because context was compacted.
+
 All source code, committed documentation, identifiers, tests, and canonical
 product copy must be written in English. Conversation with the project owner may
 use Portuguese.
@@ -88,6 +94,16 @@ updates `current-work.md` when delivering a slice; the planner/reviewer updates
 `planner-handoff.md` when selecting a slice or recording a review decision.
 Compaction alone changes neither record. Per-slice prompts should state the new
 objective and boundaries without repeating these standing instructions.
+Use [the short slice-start template](docs/roadmap/slice-start-template.md) when
+it helps; replace its placeholders with verified facts rather than copying
+roadmap, ADR, or handoff contents into the prompt.
+
+Executor reports should list changed files, check commands and outcomes,
+remaining risks or blockers, and short failure excerpts when needed; do not
+paste complete logs unless the reviewer requests them. In a correction round,
+run affected checks first, then rerun the relevant full validation before
+presenting the final reviewable diff when the change could invalidate earlier
+results. Report which checks were rerun and which earlier results still apply.
 
 When dispatching a slice, the planner/reviewer gives the executor the exact
 expected `HEAD` commit, expected branch, and expected staged/unstaged/untracked
