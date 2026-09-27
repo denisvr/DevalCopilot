@@ -8,11 +8,13 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Current delivery, based on parent `01ccd3b4639d4ded8311226bea13bca922a0717e`:
-  immutable assignment provenance for the three current Codex read-only roles
-  (Planner, Resolver, CodeReviewer) at claim time, plus two configured
-  adapter facts on each role's existing attempt status and cockpit action.
-  See [planner-handoff.md](planner-handoff.md) for the selection and review
+- Latest accepted delivery: immutable assignment provenance for the three
+  current Codex read-only roles (Planner, Resolver, CodeReviewer) at claim
+  time, plus two configured adapter facts on each role's existing attempt
+  status and cockpit action, in `1f69319614252ad4fb9e6bf1a8e93d61b33ac05d`
+  (parent `01ccd3b4639d4ded8311226bea13bca922a0717e`), published to
+  `origin/main` and verified against the live remote. See
+  [planner-handoff.md](planner-handoff.md) for the selection and review
   record.
   - `Attempt.ClaimAgent` (Planner), `Attempt.ClaimAgentChallengeResolution`
     (Resolver), and `Attempt.ClaimAgentCodeReview` (CodeReviewer) each now
@@ -89,13 +91,17 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     `dotnet build src/backend/DevalCopilot.Api`; the resulting
     `api-client.ts` diff is additive only (24 insertion lines: two new
     optional fields × three response types × 4 lines each). Automated tests
-    never call a real provider.
+    never call a real provider. Post-publication, `main`, `HEAD`, local
+    `origin/main`, and live `origin/main` were confirmed at the delivered
+    commit with a clean working tree, and focused
+    `GetAgentAttemptStatusQueryHandlerTests`,
+    `GetChallengeResolutionAttemptStatusQueryHandlerTests`, and
+    `GetCodeReviewAttemptStatusQueryHandlerTests` (25/25 combined) were
+    reconfirmed against it.
   - Remaining risks: none newly introduced. Provider-session resume, runtime
     controls, and the other open items below remain unchanged and open.
-  - Verification to perform after publication: confirm `main`, `HEAD`, and
-    local `origin/main` at the delivered commit; independently rerun the
-    checks above; confirm the live remote points to the delivered commit
-    before selecting the next Increment 4 slice.
+  - Next action: no next Increment 4 slice is selected yet; Codex selects and
+    dispatches the next bounded slice.
 - Previously accepted delivery: the bounded, read-only configured Claude
   Implementer built-in tool list fact in
   `90c84b79917aa681c25f04182ca485defdfb3357` (parent
