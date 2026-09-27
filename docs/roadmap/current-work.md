@@ -8,6 +8,16 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
+- Published delivery: `3c120b41b3366de70f221479b2545183ebb79fda`
+  (parent `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`) was committed with
+  the reviewed 32-file slice, pushed as a normal fast-forward to `origin/main`,
+  and verified against the live remote with `git fetch origin main`: local
+  `HEAD`, local `origin/main`, and fetched `main` matched the delivered SHA,
+  with a clean working tree. Focused Infrastructure 30/30, Application 7/7,
+  API 4/4, and frontend 24/24 tests were reconfirmed against that published
+  commit. This closure records the delivered SHA only; no code or product
+  contract changed after publication. The planner has not selected another
+  slice.
 - Current delivery, based on verified parent `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`:
   read-only Codex ChatGPT account-allowance observation. See
   [planner-handoff.md](planner-handoff.md) for the selection record, and the
