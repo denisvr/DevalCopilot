@@ -8,12 +8,13 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Current delivery: the bounded, read-only configured Claude Implementer
-  permission-confirmations fact, built on parent
-  `c2b0155f26f07bbe09ca67a9c5234228e274a703` (`main`/`origin/main` at the
-  start of this slice). Checkout clean at delivery. Codex reviewed the
-  uncommitted diff across two correction rounds and recorded GO; see
-  [planner-handoff.md](planner-handoff.md).
+- Latest accepted delivery: the bounded, read-only configured Claude
+  Implementer permission-confirmations fact in
+  `01f1777af877dd0374d7e3d7e461127a02f40d73` (parent
+  `c2b0155f26f07bbe09ca67a9c5234228e274a703`), published to `origin/main` and
+  verified against the live remote. Checkout clean at delivery and after
+  publication. Codex reviewed the diff across two correction rounds and
+  recorded GO before commit/push; see [planner-handoff.md](planner-handoff.md).
 - The implementation-attempt status and cockpit now show a new
   `ConfiguredPermissionPrompts` / `configuredPermissionPrompts` fact
   alongside the existing `ConfiguredPermissionMode` and
@@ -65,10 +66,9 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   session behavior, usage limit, or persistence schema changed. The
   account-allowance evidence candidate remains closed without delivery; no
   safe CLI observation contract was established.
-- Next action: after this documentation-only correction is committed and
-  pushed, Codex verifies the remote commit and either selects the next
-  bounded slice or investigates the remaining Increment 4 provider runtime
-  controls first; none is selected yet.
+- Next action: Codex investigates the remaining Increment 4 provider runtime
+  controls against code, accepted ADRs, and provider contracts before
+  selecting another bounded slice. None is selected yet.
 
 ## Open risks
 

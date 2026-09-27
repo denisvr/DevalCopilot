@@ -75,6 +75,14 @@ code before relying on it; older decision detail remains in Git.
   `origin/main`, verify the remote points to the delivered commit, and report
   the result. A material change after GO requires re-review; a failed or
   divergent push must stop without force-push or reconciliation.
+- Publication and handoff review (2026-09-27): the permission-confirmations
+  slice was published as `01f1777af877dd0374d7e3d7e461127a02f40d73`;
+  Codex independently verified live `origin/main` at that commit and a clean
+  checkout before the handoff edit. **GO** for the documentation-only
+  `current-work.md` closure recording that delivery and replacing its stale
+  next action. Local links and `git diff --check` passed. Claude may commit
+  this reviewed documentation checkpoint and push `main` normally; no next
+  product slice is selected.
 - Provider account-allowance evidence remains closed without delivery: neither
   local CLI offered a proven safe, authoritative, machine-readable observation
   contract. Do not add `Unknown`-only scaffolding or direct authenticated API
