@@ -8,7 +8,95 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted delivery: the bounded, read-only configured Claude
+- Current delivery, based on parent `01ccd3b4639d4ded8311226bea13bca922a0717e`:
+  immutable assignment provenance for the three current Codex read-only roles
+  (Planner, Resolver, CodeReviewer) at claim time, plus two configured
+  adapter facts on each role's existing attempt status and cockpit action.
+  See [planner-handoff.md](planner-handoff.md) for the selection and review
+  record.
+  - `Attempt.ClaimAgent` (Planner), `Attempt.ClaimAgentChallengeResolution`
+    (Resolver), and `Attempt.ClaimAgentCodeReview` (CodeReviewer) each now
+    persist a concrete `AgentPermissionProfile.ReadOnly` and a distinct,
+    fixed adapter contract version — `codex-planning-v1`,
+    `codex-challenge-resolution-v1`, and `codex-implementation-review-v1`
+    respectively — using the existing nullable `AgentPermissionProfile` /
+    `AgentAdapterContractVersion` columns already shared with the Claude
+    Implementer role; no migration was needed. Requested/observed model and
+    effort remain `null` for all three roles — neither adapter arguments nor
+    provider output establish those facts, so none are invented. A new
+    `AgentPermissionProfile.ReadOnly = 2` member was added (appended, never
+    renumbered); existing persisted rows with `null` permission
+    profile/adapter-contract-version columns (claimed before this slice)
+    continue to project as `AgentPermissionProfile.Unknown`/`null` via the
+    existing `Attempt.GetAssignmentSnapshot()` degrade-to-Unknown behavior —
+    they are never retroactively treated as coherent.
+  - Each role's existing attempt-status query handler
+    (`GetAgentAttemptStatusQueryHandler`, `GetChallengeResolutionAttemptStatusQueryHandler`,
+    `GetCodeReviewAttemptStatusQueryHandler`) now calls
+    `Attempt.GetAssignmentSnapshot()`, fails the whole status closed with the
+    existing `agent_attempts.invalid_assignment` error for malformed
+    assignment metadata (mirroring the Claude Implementer handler's own
+    try/catch and null-snapshot guard, added here for the first time), and
+    discloses two new facts — `configuredCommandSandbox: "read-only"` and
+    `configuredRolloutPersistence: "Disabled"` — only when that attempt's own
+    provider, role, permission profile, and role-specific adapter contract
+    version all agree with the current path. No attempt, or a valid
+    historical/mismatched assignment, yields `null`/`Unknown` for both facts.
+    These mirror the shared `CodexProcessInvoker`'s existing, unchanged
+    `--sandbox read-only` and `--ephemeral` arguments, which the
+    [Codex CLI reference](https://developers.openai.com/codex/cli/reference)
+    documents as the sandbox policy for model-generated commands and as
+    running without persisting session rollout files, respectively — stated
+    only as configured CLI arguments, never observed effective isolation, a
+    complete access-control boundary, provider-session resume eligibility, or
+    invocation eligibility. No CLI argument, invocation, claim/dispatch
+    authorization or budget, repository/worktree policy, schema, other
+    role/provider, session identifier, resume/open/fork action, model/effort
+    selection, context/compaction, account allowance, or fallback changed.
+  - The three response contracts remain role-specific (no shared assignment
+    DTO): `AgentAttemptStatusResponse`, `ChallengeResolutionAttemptStatusResponse`,
+    and `CodeReviewAttemptStatusResponse` each gained exactly the same two
+    new fields, mapped through their existing endpoints. Only these two
+    facts are disclosed — not the raw provider/role/permission-profile/
+    adapter-contract-version fields the Implementer status already exposes.
+    `CodexPlanningAction.tsx`, `ChallengeResolutionAction.tsx`, and
+    `CodeReviewAction.tsx` each render a new "Configured command sandbox: …
+    · Configured rollout persistence: …" line, whitelist-comparing the
+    single recognized literal per fact and rendering `Unknown` for anything
+    else — never a provider-supplied value verbatim. Documented in the new
+    "Configured Codex Planner, Resolver, and CodeReviewer command sandbox and
+    rollout persistence" subsection of
+    [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+  - Checks actually run: Domain.Tests 527/527 (3 new/updated
+    `AgentAssignmentTests` cases proving each role's concrete claim-time
+    assignment and a legacy-null-column case), Application.Tests 999/999
+    (new/extended `GetAgentAttemptStatusQueryHandlerTests`,
+    `GetChallengeResolutionAttemptStatusQueryHandlerTests`, and a new
+    `GetCodeReviewAttemptStatusQueryHandlerTests` covering coherent-current,
+    no-attempt, historical/mismatched, and malformed-assignment cases per
+    role), Api.IntegrationTests 318/318 (extended endpoint tests per role,
+    including 422 fail-closed and disclosure checks), Architecture.Tests 9/9,
+    Infrastructure.IntegrationTests 440/441 (one pre-existing unrelated
+    skip; the three existing exact-argument adapter tests —
+    `CodexPlanningAdapterTests`, `CodexChallengeResolutionAdapterTests`,
+    `CodexImplementationReviewAdapterTests` — remain green, confirming
+    `--sandbox read-only`/`--ephemeral` are unchanged) — all green. Frontend
+    611/611 (6 new cases across the three action components), `tsc -b`
+    clean, `oxlint` exited 0 with the same 20 pre-existing warnings (0 new),
+    `vite build` production build passed, `git diff --check` reported no new
+    errors (only the pre-existing CRLF-normalization warning on the
+    generated client file). The NSwag client was regenerated via
+    `dotnet build src/backend/DevalCopilot.Api`; the resulting
+    `api-client.ts` diff is additive only (24 insertion lines: two new
+    optional fields × three response types × 4 lines each). Automated tests
+    never call a real provider.
+  - Remaining risks: none newly introduced. Provider-session resume, runtime
+    controls, and the other open items below remain unchanged and open.
+  - Verification to perform after publication: confirm `main`, `HEAD`, and
+    local `origin/main` at the delivered commit; independently rerun the
+    checks above; confirm the live remote points to the delivered commit
+    before selecting the next Increment 4 slice.
+- Previously accepted delivery: the bounded, read-only configured Claude
   Implementer built-in tool list fact in
   `90c84b79917aa681c25f04182ca485defdfb3357` (parent
   `8f52522a35419045229f27962f8523cf41a5149d`), published to `origin/main` and
@@ -65,8 +153,8 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     the delivered commit with a clean working tree.
   - Remaining risks: none newly introduced. Provider-session resume, runtime
     controls, and the other open items below remain unchanged and open.
-  - Next action: no next Increment 4 slice is selected yet; Codex selects and
-    dispatches the next bounded slice.
+  - Next action after this slice: superseded by the Codex read-only role
+    assignment-provenance slice recorded at the top of this checkpoint.
 - Previously accepted delivery: the bounded, read-only configured Claude
   Implementer resume-eligibility fact in
   `1ec9ac5f1c9eb3a25301cd37684c368db1ef24f6` (parent

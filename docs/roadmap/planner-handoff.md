@@ -9,6 +9,104 @@ code before relying on it; older decision detail remains in Git.
 
 ## Current decision (2026-09-27)
 
+- **GO for publication of the reviewed Codex read-only-role slice**, including
+  the narrow correction. `main`, `HEAD`, local `origin/main`, and live
+  `origin/main` were reverified at
+  `01ccd3b4639d4ded8311226bea13bca922a0717e`; no staged changes, 30
+  tracked modifications and one untracked new Application test. The corrected
+  permission-profile comment no longer asserts shell absence or effective
+  isolation; `current-work.md` has no transient pre-publication claim or
+  invented delivery SHA. `git diff --check` is clean apart from the existing
+  generated-client line-ending warning, and the new CodeReviewer status
+  query tests passed independently (7/7). The executor reports the full
+  suites and correction checks recorded in `current-work.md`; the correction
+  affected only a comment and handoff prose. Authorize committing this exact
+  reviewed slice, a normal fast-forward push to `origin/main`, live-remote
+  verification, and a tightly bounded factual `current-work.md` SHA closure.
+  Stop for renewed review if the substantive diff changes materially, the
+  push fails, or the remote diverges. No next slice is selected here.
+
+- Review decision on the first uncommitted Codex read-only-role diff: **NO-GO,
+  narrow correction in the same slice**. Verified `main`, `HEAD`, local
+  `origin/main`, and live `origin/main` at
+  `01ccd3b4639d4ded8311226bea13bca922a0717e`; no staged files, 30 tracked
+  modifications (including this planner note) and one untracked new Application
+  test file. The code and test shape matches the selected slice, and
+  `git diff --check` found no errors. Correct the new
+  `AgentPermissionProfile.ReadOnly` XML comment: its claim that no shell action
+  is part of the assignment overstates the fixed Codex `--sandbox read-only`
+  flag, which governs model-generated commands. Describe read-only workspace
+  effect/configured sandbox without claiming shell absence or effective
+  isolation. Make `current-work.md` commit-ready by removing its transient
+  assertion that publication and remote verification have not happened yet;
+  retain an accurate post-publication verification instruction and do not
+  invent a future SHA. Reconcile the executor's 30-file summary with Git's
+  30 modified tracked files plus one untracked test. Keep the correction
+  bounded to these points, rerun affected checks and `git diff --check`, and
+  return the complete uncommitted, unpushed diff for review. No commit/push GO.
+
+- Verified new-slice baseline: `main`, `HEAD`, local `origin/main`, and live
+  `origin/main` all point to `01ccd3b4639d4ded8311226bea13bca922a0717e`;
+  staged, unstaged, and untracked state was empty before this planner note.
+  The preceding configured Claude Implementer built-in-tools delivery is
+  `90c84b79917aa681c25f04182ca485defdfb3357`, followed by its factual
+  delivery closure at this baseline.
+- Selected one larger, coherent Increment 4 slice: establish immutable
+  assignment provenance for all three current Codex read-only roles (Planner,
+  Resolver, CodeReviewer) at claim time, then disclose their configured command
+  sandbox and session-rollout-file persistence on their existing attempt-status
+  and cockpit actions. Each role keeps a distinct, fixed adapter contract
+  version tied to its current adapter: `codex-planning-v1`,
+  `codex-challenge-resolution-v1`, and `codex-implementation-review-v1`,
+  respectively. The assignment records provider Codex, a concrete
+  `AgentPermissionProfile.ReadOnly`, and null requested/observed model
+  and effort because neither adapter arguments nor provider output establish
+  those facts. Existing nullable columns support this without a schema change;
+  pre-existing attempts retain their historical Unknown/null assignment
+  fields. The shared `CodexProcessInvoker` already fixes `--sandbox read-only`
+  and `--ephemeral`, and the existing three adapter tests assert those exact
+  arguments. The [official Codex CLI reference](https://developers.openai.com/codex/cli/reference)
+  documents the former as the sandbox policy for model-generated commands and
+  the latter as running without persisting session rollout files to disk.
+  Disclose only configured arguments: `configuredCommandSandbox: "read-only"`
+  and `configuredRolloutPersistence: "Disabled"` for a coherent current
+  assignment of the matching role; otherwise `null`/`Unknown` for no attempt
+  or a valid historical/mismatched assignment. Invalid assignment metadata
+  fails the status closed rather than returning a success containing Unknown.
+  These facts are neither provider-observed effective isolation nor proof of
+  provider-session resume eligibility or invocation eligibility.
+- Scope: the three Domain claim factories and permission-profile enum; the
+  three role-specific status projections, MVC responses/mappings, generated
+  TypeScript client, cockpit actions, focused tests, and cockpit specification;
+  the two handoffs. Keep role-specific response contracts and query ownership.
+  Exclude CLI flags, adapters, invocation, capability preflight, claim/dispatch
+  authorization or budgets, repository/worktree policy, schema/migrations,
+  other roles/providers, session identifiers and resume/open/fork actions,
+  model/effort selection or inferred defaults, context/compaction, account
+  allowance, and fallback. Stop if a current claim cannot be distinguished
+  from a legacy claim, an exact fixed flag cannot be proved, or truthful
+  disclosure requires any excluded behavior or an unreviewed architectural
+  reversal. Do not add an Unknown-only surface.
+- Acceptance: prove the three new claims persist distinct coherent assignment
+  versions without invented model/effort; persisted legacy rows remain Unknown;
+  each role's status covers current, no attempt, valid legacy/mismatch, and
+  malformed metadata; API disclosure guards remain strict; UI renders only
+  recognized fixed values or Unknown; all three adapter argument tests remain
+  green; generated-client drift is checked. Run relevant Domain, Application,
+  Infrastructure, API, Architecture, and frontend suites, typecheck, lint,
+  production build, and `git diff --check`, reporting exact results. Make
+  `current-work.md` commit-ready before the first review: state the selected
+  slice as the current delivery based on the verified parent, record actual
+  checks and open risks, and describe post-publication verification without
+  claiming it already happened or embedding the future commit SHA. Claude
+  returns a complete uncommitted, unpushed diff for Codex GO/NO-GO. After a
+  future GO, one instruction covers the reviewed commit, normal fast-forward
+  push, live-remote verification, and only the factual SHA closure; no extra
+  review round is needed for that bounded closure. A material change, failed
+  push, or divergence stops for review/direction. No commit/push GO is granted.
+
+## Prior decision: configured Claude Implementer built-in tools
+
 - Planning baseline verified before selection: `main`, `HEAD`, local
   `origin/main`, and live `origin/main` all point to
   `8f52522a35419045229f27962f8523cf41a5149d`; staged, unstaged, and

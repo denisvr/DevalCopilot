@@ -58,6 +58,9 @@ export function CodexPlanningAction({
 }: CodexPlanningActionProps) {
   const isActive = status?.status === 'Running'
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
+  const hasAttempt = status?.hasAttempt !== false
+  const configuredCommandSandbox = status?.configuredCommandSandbox === 'read-only' ? 'read-only' : 'Unknown'
+  const configuredRolloutPersistence = status?.configuredRolloutPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
 
   return (
     <section className="dc-codex-planning-action" aria-label="Codex planning">
@@ -92,6 +95,12 @@ export function CodexPlanningAction({
       {status && !isActive && (
         <p className="dc-codex-planning-status">
           Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
+        </p>
+      )}
+      {status && hasAttempt && (
+        <p className="dc-codex-planning-assignment">
+          Configured command sandbox: {configuredCommandSandbox} · Configured rollout persistence:{' '}
+          {configuredRolloutPersistence}
         </p>
       )}
       {status && (

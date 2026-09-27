@@ -5,6 +5,7 @@ using DevalCopilot.Api.IntegrationTests.Fixtures;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -61,6 +62,8 @@ public sealed class GetChallengeResolutionAttemptStatusEndpointTests(ChallengeRe
         Assert.Equal(JsonValueKind.Null, root.GetProperty("status").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("outcome").ValueKind);
         Assert.Empty(root.GetProperty("artifacts").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredCommandSandbox").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredRolloutPersistence").ValueKind);
     }
 
     [Fact]
@@ -131,7 +134,77 @@ public sealed class GetChallengeResolutionAttemptStatusEndpointTests(ChallengeRe
 
         var artifacts = root.GetProperty("artifacts");
         Assert.Single(artifacts.EnumerateArray());
+        Assert.Equal("read-only", root.GetProperty("configuredCommandSandbox").GetString());
+        Assert.Equal("Disabled", root.GetProperty("configuredRolloutPersistence").GetString());
         AssertArtifactsNeverExposeStorageDetails(body);
+    }
+
+    [Fact]
+    public async Task Shows_no_configured_command_sandbox_for_a_mismatched_adapter_contract_version()
+    {
+        var (runId, workspaceId, checkpointId) = await SeedRunAsync();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var attempt = Attempt.ClaimAgentChallengeResolution(
+                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
+            dbContext.Attempts.Add(attempt);
+            dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), sequence: 0));
+            await dbContext.SaveChangesAsync();
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE attempts SET AgentAdapterContractVersion = 'codex-challenge-resolution-v2' WHERE Id = {attempt.Id}");
+        }
+
+        using var client = CreateAuthenticatedClient();
+        var response = await client.GetAsync($"/api/runs/{runId}/agent-attempts/challenge-resolution");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredCommandSandbox").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredRolloutPersistence").ValueKind);
+    }
+
+    [Fact]
+    public async Task Corrupt_assignment_metadata_returns_a_safe_failure_without_mutating_or_disclosing_it()
+    {
+        var (runId, workspaceId, checkpointId) = await SeedRunAsync();
+        var now = DateTimeOffset.UtcNow;
+        var corruptSentinel = "InvalidPermissionSentinel";
+        Guid attemptId;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var attempt = Attempt.ClaimAgentChallengeResolution(
+                Guid.NewGuid(), runId, 1, workspaceId, checkpointId, Fingerprint, Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
+            attemptId = attempt.Id;
+            dbContext.Attempts.Add(attempt);
+            dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, Guid.NewGuid(), sequence: 0));
+            await dbContext.SaveChangesAsync();
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE attempts SET AgentPermissionProfile = {corruptSentinel} WHERE Id = {attempt.Id}");
+        }
+
+        using var client = CreateAuthenticatedClient();
+        var response = await client.GetAsync($"/api/runs/{runId}/agent-attempts/challenge-resolution");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("agent_attempts.invalid_assignment", body, StringComparison.Ordinal);
+        Assert.DoesNotContain(corruptSentinel, body, StringComparison.Ordinal);
+
+        using var verifyScope = factory.Services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var persistedValue = await verifyContext.Database
+            .SqlQueryRaw<string>("SELECT AgentPermissionProfile AS Value FROM attempts WHERE Id = {0}", attemptId)
+            .SingleAsync();
+        Assert.Equal(corruptSentinel, persistedValue);
     }
 
     [Fact]

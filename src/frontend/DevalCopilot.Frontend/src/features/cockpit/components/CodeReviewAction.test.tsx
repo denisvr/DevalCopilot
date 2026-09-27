@@ -99,6 +99,65 @@ describe('CodeReviewAction', () => {
     expect(screen.queryByRole('button', { name: 'Request code review' })).not.toBeInTheDocument()
   })
 
+  it('shows the configured command sandbox and rollout persistence for a coherent attempt', () => {
+    render(
+      <CodeReviewAction
+        executionReportMessageId="message-1"
+        status={
+          new CodeReviewAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'ReviewApproved',
+            executionReportMessageId: 'message-1',
+            configuredCommandSandbox: 'read-only',
+            configuredRolloutPersistence: 'Disabled',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText('Configured command sandbox: read-only · Configured rollout persistence: Disabled')).toBeInTheDocument()
+  })
+
+  it('shows Unknown configured facts and never an unrecognized backend value verbatim', () => {
+    render(
+      <CodeReviewAction
+        executionReportMessageId="message-1"
+        status={
+          new CodeReviewAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'ReviewApproved',
+            executionReportMessageId: 'message-1',
+            configuredCommandSandbox: 'unrecognized-sandbox-sentinel',
+            configuredRolloutPersistence: 'unrecognized-rollout-sentinel',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText('Configured command sandbox: Unknown · Configured rollout persistence: Unknown')).toBeInTheDocument()
+    expect(screen.queryByText(/unrecognized-sandbox-sentinel|unrecognized-rollout-sentinel/)).not.toBeInTheDocument()
+  })
+
   it('allows requesting a fresh review once a newer implementation supersedes an already-reviewed one', () => {
     render(
       <CodeReviewAction

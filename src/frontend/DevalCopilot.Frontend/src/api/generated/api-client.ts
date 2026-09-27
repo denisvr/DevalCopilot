@@ -3998,6 +3998,8 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
 
     constructor(data?: ICodeReviewAttemptStatusResponse) {
         if (data) {
@@ -4026,6 +4028,8 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.configuredCommandSandbox = _data["configuredCommandSandbox"];
+            this.configuredRolloutPersistence = _data["configuredRolloutPersistence"];
         }
     }
 
@@ -4054,6 +4058,8 @@ export class CodeReviewAttemptStatusResponse implements ICodeReviewAttemptStatus
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["configuredCommandSandbox"] = this.configuredCommandSandbox;
+        data["configuredRolloutPersistence"] = this.configuredRolloutPersistence;
         return data;
     }
 }
@@ -4071,6 +4077,8 @@ export interface ICodeReviewAttemptStatusResponse {
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
 }
 
 export class ClaudeCriticalReviewAttemptStatusResponse implements IClaudeCriticalReviewAttemptStatusResponse {
@@ -4175,6 +4183,8 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
 
     constructor(data?: IChallengeResolutionAttemptStatusResponse) {
         if (data) {
@@ -4208,6 +4218,8 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.configuredCommandSandbox = _data["configuredCommandSandbox"];
+            this.configuredRolloutPersistence = _data["configuredRolloutPersistence"];
         }
     }
 
@@ -4241,6 +4253,8 @@ export class ChallengeResolutionAttemptStatusResponse implements IChallengeResol
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["configuredCommandSandbox"] = this.configuredCommandSandbox;
+        data["configuredRolloutPersistence"] = this.configuredRolloutPersistence;
         return data;
     }
 }
@@ -4259,6 +4273,8 @@ export interface IChallengeResolutionAttemptStatusResponse {
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
 }
 
 export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
@@ -4273,6 +4289,8 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
 
     constructor(data?: IAgentAttemptStatusResponse) {
         if (data) {
@@ -4300,6 +4318,8 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
             }
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.configuredCommandSandbox = _data["configuredCommandSandbox"];
+            this.configuredRolloutPersistence = _data["configuredRolloutPersistence"];
         }
     }
 
@@ -4327,6 +4347,8 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
         }
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["configuredCommandSandbox"] = this.configuredCommandSandbox;
+        data["configuredRolloutPersistence"] = this.configuredRolloutPersistence;
         return data;
     }
 }
@@ -4343,6 +4365,8 @@ export interface IAgentAttemptStatusResponse {
     artifacts?: AgentAttemptArtifactMetadataResponse[];
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
 }
 
 export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {

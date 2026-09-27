@@ -68,13 +68,13 @@ public sealed class AgentAssignmentTests
     }
 
     [Fact]
-    public void Historical_assignment_values_remain_explicitly_unknown()
+    public void ClaimAgent_persists_a_concrete_read_only_planner_assignment_without_inventing_model_or_effort()
     {
-        var historical = Attempt.ClaimAgent(
+        var attempt = Attempt.ClaimAgent(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow, 1);
 
-        var assignment = historical.GetAssignmentSnapshot();
+        var assignment = attempt.GetAssignmentSnapshot();
 
         Assert.NotNull(assignment);
         Assert.Equal(AgentProvider.Codex, assignment.Provider);
@@ -82,6 +82,55 @@ public sealed class AgentAssignmentTests
         Assert.Null(assignment.ObservedModel);
         Assert.Null(assignment.RequestedEffort);
         Assert.Null(assignment.ObservedEffort);
+        Assert.Equal(AgentPermissionProfile.ReadOnly, assignment.PermissionProfile);
+        Assert.Equal("codex-planning-v1", assignment.AdapterContractVersion);
+    }
+
+    [Fact]
+    public void ClaimAgentChallengeResolution_persists_a_concrete_read_only_resolver_assignment()
+    {
+        var attempt = Attempt.ClaimAgentChallengeResolution(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow, 1);
+
+        var assignment = attempt.GetAssignmentSnapshot();
+
+        Assert.NotNull(assignment);
+        Assert.Equal(AgentProvider.Codex, assignment.Provider);
+        Assert.Equal(AgentPermissionProfile.ReadOnly, assignment.PermissionProfile);
+        Assert.Equal("codex-challenge-resolution-v1", assignment.AdapterContractVersion);
+    }
+
+    [Fact]
+    public void ClaimAgentCodeReview_persists_a_concrete_read_only_code_reviewer_assignment()
+    {
+        var attempt = Attempt.ClaimAgentCodeReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow, 1);
+
+        var assignment = attempt.GetAssignmentSnapshot();
+
+        Assert.NotNull(assignment);
+        Assert.Equal(AgentProvider.Codex, assignment.Provider);
+        Assert.Equal(AgentPermissionProfile.ReadOnly, assignment.PermissionProfile);
+        Assert.Equal("codex-implementation-review-v1", assignment.AdapterContractVersion);
+    }
+
+    [Fact]
+    public void Legacy_persisted_null_assignment_columns_remain_explicitly_unknown()
+    {
+        // Simulates a pre-existing row claimed before these two columns were ever populated for
+        // this role — never invented by GetAssignmentSnapshot as the current adapter's own facts.
+        var legacy = Attempt.ClaimAgent(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 65536, 131072, DateTimeOffset.UtcNow, 1);
+        SetPrivateProperty<AgentPermissionProfile?>(legacy, nameof(Attempt.AgentPermissionProfile), null);
+        SetPrivateProperty<string?>(legacy, nameof(Attempt.AgentAdapterContractVersion), null);
+
+        var assignment = legacy.GetAssignmentSnapshot();
+
+        Assert.NotNull(assignment);
+        Assert.Equal(AgentProvider.Codex, assignment.Provider);
         Assert.Equal(AgentPermissionProfile.Unknown, assignment.PermissionProfile);
         Assert.Null(assignment.AdapterContractVersion);
     }

@@ -1,6 +1,7 @@
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -32,6 +33,8 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         Assert.False(result.Value.HasAttempt);
         Assert.Null(result.Value.AttemptId);
         Assert.Empty(result.Value.Artifacts);
+        Assert.Null(result.Value.ConfiguredCommandSandbox);
+        Assert.Null(result.Value.ConfiguredRolloutPersistence);
     }
 
     [Fact]
@@ -83,6 +86,89 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         Assert.Equal(128, artifact.ByteLength);
         Assert.False(artifact.Truncated);
         Assert.Equal(ArtifactCaptureOutcome.Captured, artifact.CaptureOutcome);
+        Assert.Equal("read-only", result.Value.ConfiguredCommandSandbox);
+        Assert.Equal("Disabled", result.Value.ConfiguredRolloutPersistence);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_command_sandbox_for_a_valid_historical_nullable_assignment()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Historical planner assignment", Now);
+        run.Claim(Now);
+        var attempt = ClaimAgentAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentPermissionProfile = NULL, AgentAdapterContractVersion = NULL
+            WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetAgentAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredCommandSandbox);
+        Assert.Null(result.Value.ConfiguredRolloutPersistence);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_command_sandbox_for_a_mismatched_adapter_contract_version()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Mismatched planner adapter contract", Now);
+        run.Claim(Now);
+        var attempt = ClaimAgentAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentAdapterContractVersion = 'codex-planning-v2' WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetAgentAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredCommandSandbox);
+        Assert.Null(result.Value.ConfiguredRolloutPersistence);
+    }
+
+    [Fact]
+    public async Task HandleAsync_fails_closed_for_an_unparseable_persisted_permission_profile_without_mutating_it()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Corrupt planner permission profile", Now);
+        run.Claim(Now);
+        var attempt = ClaimAgentAttempt(run.Id, 1, Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var sentinel = "InvalidPermissionSentinel";
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE attempts SET AgentPermissionProfile = {sentinel} WHERE Id = {attempt.Id}");
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetAgentAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("agent_attempts.invalid_assignment", error.Code);
+        Assert.DoesNotContain(sentinel, error.Description, StringComparison.Ordinal);
+        var persistedValue = await readContext.Database
+            .SqlQueryRaw<string>("SELECT AgentPermissionProfile AS Value FROM attempts WHERE Id = {0}", attempt.Id)
+            .SingleAsync();
+        Assert.Equal(sentinel, persistedValue);
     }
 
     [Fact]

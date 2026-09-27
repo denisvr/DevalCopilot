@@ -43,6 +43,8 @@ public sealed class GetCodeReviewAttemptStatusEndpoint(
                     artifact.Purpose.ToString(), artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome.ToString()))
                 .ToArray(),
             AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout),
-            AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage)));
+            AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage),
+            value.ConfiguredCommandSandbox,
+            value.ConfiguredRolloutPersistence));
     }
 }

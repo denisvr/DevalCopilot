@@ -75,6 +75,9 @@ export function ChallengeResolutionAction({
     resolvesCurrentReview && (status?.outcome === 'Resolved' || status?.outcome === 'InputAlreadyResolved')
   const canRequest = !isActive && !isSettledForCurrentReview
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
+  const hasAttempt = status?.hasAttempt !== false
+  const configuredCommandSandbox = status?.configuredCommandSandbox === 'read-only' ? 'read-only' : 'Unknown'
+  const configuredRolloutPersistence = status?.configuredRolloutPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
 
   return (
     <section className="dc-challenge-resolution-action" aria-label="Codex challenge resolution">
@@ -106,6 +109,12 @@ export function ChallengeResolutionAction({
       {status && !isActive && (
         <p className="dc-challenge-resolution-status">
           Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
+        </p>
+      )}
+      {status && hasAttempt && (
+        <p className="dc-challenge-resolution-assignment">
+          Configured command sandbox: {configuredCommandSandbox} · Configured rollout persistence:{' '}
+          {configuredRolloutPersistence}
         </p>
       )}
       {status && (

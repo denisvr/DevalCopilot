@@ -93,6 +93,61 @@ describe('CodexPlanningAction', () => {
     expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
   })
 
+  it('shows the configured command sandbox and rollout persistence for a coherent attempt', () => {
+    render(
+      <CodexPlanningAction
+        status={
+          new AgentAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'Proposed',
+            configuredCommandSandbox: 'read-only',
+            configuredRolloutPersistence: 'Disabled',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText('Configured command sandbox: read-only · Configured rollout persistence: Disabled')).toBeInTheDocument()
+  })
+
+  it('shows Unknown configured facts and never an unrecognized backend value verbatim', () => {
+    render(
+      <CodexPlanningAction
+        status={
+          new AgentAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'Proposed',
+            configuredCommandSandbox: 'unrecognized-sandbox-sentinel',
+            configuredRolloutPersistence: 'unrecognized-rollout-sentinel',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText('Configured command sandbox: Unknown · Configured rollout persistence: Unknown')).toBeInTheDocument()
+    expect(screen.queryByText(/unrecognized-sandbox-sentinel|unrecognized-rollout-sentinel/)).not.toBeInTheDocument()
+  })
+
   it.each([
     ['SourceChanged', 'Source changed before the plan completed'],
     ['InvalidStructuredOutput', 'Codex returned an invalid structured response'],

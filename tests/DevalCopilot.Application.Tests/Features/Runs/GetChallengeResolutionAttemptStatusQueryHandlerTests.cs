@@ -1,6 +1,7 @@
 using DevalCopilot.Application.Features.Runs.Queries.GetChallengeResolutionAttemptStatus;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -46,6 +47,8 @@ public sealed class GetChallengeResolutionAttemptStatusQueryHandlerTests(SqliteD
         Assert.Null(result.Value.OriginalProposalMessageId);
         Assert.Empty(result.Value.ChallengeMessageIds);
         Assert.Empty(result.Value.Artifacts);
+        Assert.Null(result.Value.ConfiguredCommandSandbox);
+        Assert.Null(result.Value.ConfiguredRolloutPersistence);
     }
 
     [Fact]
@@ -95,6 +98,98 @@ public sealed class GetChallengeResolutionAttemptStatusQueryHandlerTests(SqliteD
         Assert.Equal(AttemptStatus.Completed, result.Value.Status);
         Assert.Equal(AgentOutcome.Resolved, result.Value.Outcome);
         Assert.Single(result.Value.Artifacts);
+        Assert.Equal("read-only", result.Value.ConfiguredCommandSandbox);
+        Assert.Equal("Disabled", result.Value.ConfiguredRolloutPersistence);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_command_sandbox_for_a_valid_historical_nullable_assignment()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Historical resolver assignment", Now);
+        run.Claim(Now);
+        var (attempt, originalProposal, challenges) =
+            ClaimChallengeResolutionAttempt(run.Id, 1, Now, Guid.NewGuid(), [Guid.NewGuid()]);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(originalProposal);
+        dbContext.AttemptInputMessages.AddRange(challenges);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentPermissionProfile = NULL, AgentAdapterContractVersion = NULL
+            WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetChallengeResolutionAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetChallengeResolutionAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredCommandSandbox);
+        Assert.Null(result.Value.ConfiguredRolloutPersistence);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_no_configured_command_sandbox_for_a_mismatched_adapter_contract_version()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Mismatched resolver adapter contract", Now);
+        run.Claim(Now);
+        var (attempt, originalProposal, challenges) =
+            ClaimChallengeResolutionAttempt(run.Id, 1, Now, Guid.NewGuid(), [Guid.NewGuid()]);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(originalProposal);
+        dbContext.AttemptInputMessages.AddRange(challenges);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE attempts SET AgentAdapterContractVersion = 'codex-challenge-resolution-v2' WHERE Id = {attempt.Id}
+            """);
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetChallengeResolutionAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetChallengeResolutionAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ConfiguredCommandSandbox);
+        Assert.Null(result.Value.ConfiguredRolloutPersistence);
+    }
+
+    [Fact]
+    public async Task HandleAsync_fails_closed_for_an_unparseable_persisted_permission_profile_without_mutating_it()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Corrupt resolver permission profile", Now);
+        run.Claim(Now);
+        var (attempt, originalProposal, challenges) =
+            ClaimChallengeResolutionAttempt(run.Id, 1, Now, Guid.NewGuid(), [Guid.NewGuid()]);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(originalProposal);
+        dbContext.AttemptInputMessages.AddRange(challenges);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var sentinel = "InvalidPermissionSentinel";
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE attempts SET AgentPermissionProfile = {sentinel} WHERE Id = {attempt.Id}");
+
+        await using var readContext = fixture.CreateContext();
+        var result = await new GetChallengeResolutionAttemptStatusQueryHandler(readContext)
+            .HandleAsync(new GetChallengeResolutionAttemptStatusQuery(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("agent_attempts.invalid_assignment", error.Code);
+        Assert.DoesNotContain(sentinel, error.Description, StringComparison.Ordinal);
+        var persistedValue = await readContext.Database
+            .SqlQueryRaw<string>("SELECT AgentPermissionProfile AS Value FROM attempts WHERE Id = {0}", attempt.Id)
+            .SingleAsync();
+        Assert.Equal(sentinel, persistedValue);
     }
 
     [Fact]

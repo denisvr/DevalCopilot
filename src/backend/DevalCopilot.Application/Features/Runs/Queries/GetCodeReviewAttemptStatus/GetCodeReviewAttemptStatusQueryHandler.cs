@@ -10,6 +10,14 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetCodeReviewAttemptSta
 public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContext dbContext)
     : IQueryHandler<GetCodeReviewAttemptStatusQuery, Result<CodeReviewAttemptStatusQueryResult>>
 {
+    // Mirrors the adapter contract version fixed at claim time (Attempt.ClaimAgentCodeReview) and
+    // the shared CodexProcessInvoker's own fixed "--sandbox read-only" / "--ephemeral" arguments
+    // — a fixed CLI configuration fact, never a provider-observed result and never invocation
+    // eligibility.
+    private const string CodexCodeReviewerAdapterContractVersion = "codex-implementation-review-v1";
+    private const string ConfiguredCodexCommandSandbox = "read-only";
+    private const string ConfiguredCodexRolloutPersistence = "Disabled";
+
     public async Task<Result<CodeReviewAttemptStatusQueryResult>> HandleAsync(
         GetCodeReviewAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -20,16 +28,38 @@ public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContex
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
-        var attempt = await dbContext.Attempts
-            .AsNoTracking()
-            .Where(candidate =>
-                candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.CodeReviewer)
-            .OrderByDescending(candidate => candidate.AttemptNumber)
-            .FirstOrDefaultAsync(cancellationToken);
+        Attempt? attempt;
+        try
+        {
+            attempt = await dbContext.Attempts
+                .AsNoTracking()
+                .Where(candidate =>
+                    candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.CodeReviewer)
+                .OrderByDescending(candidate => candidate.AttemptNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            return InvalidAssignment();
+        }
+        catch (FormatException)
+        {
+            return InvalidAssignment();
+        }
+        catch (InvalidOperationException)
+        {
+            return InvalidAssignment();
+        }
 
         if (attempt is null)
         {
             return Result<CodeReviewAttemptStatusQueryResult>.Success(CodeReviewAttemptStatusQueryResult.NoAttempt);
+        }
+
+        var assignment = attempt.GetAssignmentSnapshot();
+        if (assignment is null)
+        {
+            return InvalidAssignment();
         }
 
         var artifacts = await dbContext.Artifacts
@@ -44,6 +74,15 @@ public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContex
             .Select(inputMessage => (Guid?)inputMessage.CollaborationMessageId)
             .SingleOrDefaultAsync(cancellationToken);
 
+        var isCoherentDefaultCodeReviewerAssignment =
+            attempt.AgentRole == AgentRole.CodeReviewer
+            && assignment.Provider == AgentProvider.Codex
+            && assignment.PermissionProfile == AgentPermissionProfile.ReadOnly
+            && assignment.AdapterContractVersion == CodexCodeReviewerAdapterContractVersion;
+
+        var configuredCommandSandbox = isCoherentDefaultCodeReviewerAssignment ? ConfiguredCodexCommandSandbox : null;
+        var configuredRolloutPersistence = isCoherentDefaultCodeReviewerAssignment ? ConfiguredCodexRolloutPersistence : null;
+
         return Result<CodeReviewAttemptStatusQueryResult>.Success(new CodeReviewAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -57,6 +96,12 @@ public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContex
             artifacts,
             attempt.GetAgentProcessExecutionEvidence(),
             attempt.AgentTimeout,
-            attempt.GetAgentTokenUsageEvidence()));
+            attempt.GetAgentTokenUsageEvidence(),
+            configuredCommandSandbox,
+            configuredRolloutPersistence));
     }
+
+    private static Result<CodeReviewAttemptStatusQueryResult> InvalidAssignment() =>
+        Result<CodeReviewAttemptStatusQueryResult>.Failure(
+            Error.Failure("agent_attempts.invalid_assignment", "Code review assignment metadata is unavailable."));
 }

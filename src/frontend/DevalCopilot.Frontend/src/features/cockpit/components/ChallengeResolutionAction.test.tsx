@@ -157,6 +157,67 @@ describe('ChallengeResolutionAction', () => {
     expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
   })
 
+  it('shows the configured command sandbox and rollout persistence for a coherent attempt', () => {
+    render(
+      <ChallengeResolutionAction
+        challengedReviewAttemptId="review-1"
+        reviewedProposalMessageId="proposal-1"
+        status={
+          new ChallengeResolutionAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 3,
+            status: 'Completed',
+            outcome: 'Resolved',
+            originalProposalMessageId: 'proposal-1',
+            configuredCommandSandbox: 'read-only',
+            configuredRolloutPersistence: 'Disabled',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText('Configured command sandbox: read-only · Configured rollout persistence: Disabled')).toBeInTheDocument()
+  })
+
+  it('shows Unknown configured facts and never an unrecognized backend value verbatim', () => {
+    render(
+      <ChallengeResolutionAction
+        challengedReviewAttemptId="review-1"
+        reviewedProposalMessageId="proposal-1"
+        status={
+          new ChallengeResolutionAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'attempt-1',
+            attemptNumber: 3,
+            status: 'Completed',
+            outcome: 'Resolved',
+            originalProposalMessageId: 'proposal-1',
+            configuredCommandSandbox: 'unrecognized-sandbox-sentinel',
+            configuredRolloutPersistence: 'unrecognized-rollout-sentinel',
+          })
+        }
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText('Configured command sandbox: Unknown · Configured rollout persistence: Unknown')).toBeInTheDocument()
+    expect(screen.queryByText(/unrecognized-sandbox-sentinel|unrecognized-rollout-sentinel/)).not.toBeInTheDocument()
+  })
+
   it('allows requesting a fresh resolution once a newer challenged review supersedes an already-resolved one', () => {
     render(
       <ChallengeResolutionAction

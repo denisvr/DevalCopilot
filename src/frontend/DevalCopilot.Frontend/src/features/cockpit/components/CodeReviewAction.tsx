@@ -82,6 +82,9 @@ export function CodeReviewAction({
       status?.outcome === 'InputAlreadyCodeReviewed')
   const canRequest = !isActive && !isSettledForCurrentExecutionReport
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
+  const hasAttempt = status?.hasAttempt !== false
+  const configuredCommandSandbox = status?.configuredCommandSandbox === 'read-only' ? 'read-only' : 'Unknown'
+  const configuredRolloutPersistence = status?.configuredRolloutPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
 
   return (
     <section className="dc-code-review-action" aria-label="Code review">
@@ -108,6 +111,12 @@ export function CodeReviewAction({
       {status && !isActive && (
         <p className="dc-code-review-status">
           Last attempt #{status.attemptNumber}: {phaseLabel(status)}.
+        </p>
+      )}
+      {status && hasAttempt && (
+        <p className="dc-code-review-assignment">
+          Configured command sandbox: {configuredCommandSandbox} · Configured rollout persistence:{' '}
+          {configuredRolloutPersistence}
         </p>
       )}
       {status && (

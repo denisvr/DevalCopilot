@@ -159,6 +159,12 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
+            // Codex Planner adapter is read-only (CodexProcessInvoker's fixed "--sandbox
+            // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
+            // contract version, never caller-supplied.
+            AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
+            AgentAdapterContractVersion = "codex-planning-v1",
             AgentBudgetSlot = agentBudgetSlot,
         };
     }
@@ -280,6 +286,12 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
+            // Codex Resolver adapter is read-only (CodexProcessInvoker's fixed "--sandbox
+            // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
+            // contract version, never caller-supplied.
+            AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
+            AgentAdapterContractVersion = "codex-challenge-resolution-v1",
             AgentBudgetSlot = agentBudgetSlot,
         };
     }
@@ -339,6 +351,12 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
+            // Codex CodeReviewer adapter is read-only (CodexProcessInvoker's fixed "--sandbox
+            // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
+            // contract version, never caller-supplied.
+            AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
+            AgentAdapterContractVersion = "codex-implementation-review-v1",
             AgentBudgetSlot = agentBudgetSlot,
         };
     }

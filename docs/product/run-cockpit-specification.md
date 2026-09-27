@@ -558,6 +558,40 @@ already is for every other assignment fact on this attempt. It carries no
 runtime-control, authorization, or claim-eligibility meaning of its own; the
 backend remains the sole authority for every claim and dispatch decision.
 
+### Configured Codex Planner, Resolver, and CodeReviewer command sandbox and rollout persistence
+
+Two bounded, read-only facts on each of the three current Codex read-only
+roles' own attempt status — Codex planning, Codex challenge resolution, and
+Codex code review — mirroring the Claude Implementer's own configured facts
+above but for the shared `CodexProcessInvoker`'s fixed arguments:
+`configuredCommandSandbox`, shown as `read-only` (the invoker's fixed
+`--sandbox read-only` argument), and `configuredRolloutPersistence`, shown as
+`Disabled` (the invoker's fixed `--ephemeral` argument). The
+[Codex CLI reference](https://developers.openai.com/codex/cli/reference)
+documents `--sandbox read-only` as the sandbox policy applied to
+model-generated commands, and `--ephemeral` as running without persisting
+session rollout files to disk. Both facts state only what this attempt's
+adapter contract is configured to pass — never the provider's actual
+effective isolation, never a complete access-control boundary, never
+provider-session resume eligibility, and never invocation eligibility of any
+kind. Each role's own attempt claims a concrete, non-Unknown
+`AgentPermissionProfile.ReadOnly` and a role-specific, fixed adapter contract
+version (`codex-planning-v1` for the Planner, `codex-challenge-resolution-v1`
+for the Resolver, `codex-implementation-review-v1` for the CodeReviewer) at
+claim time; both configured facts are populated only when that attempt's own
+provider, role, permission profile, and role-specific adapter contract
+version all agree with the current, single supported path for that role —
+no attempt yet, and a valid but historical or mismatched assignment (for
+example a legacy attempt claimed before these two columns were ever
+populated for its role), both show `Unknown`/`null` here, never the current
+adapter's configuration by assumption. An invalid or otherwise unparseable
+assignment fails the whole status closed with the existing
+`agent_attempts.invalid_assignment` error, exactly as it already does for the
+Claude Implementer role, rather than returning a success value reporting
+`Unknown`. These facts carry no runtime-control, authorization, or
+claim-eligibility meaning of their own; the backend remains the sole
+authority for every claim and dispatch decision.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:
