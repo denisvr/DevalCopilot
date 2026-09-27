@@ -89,6 +89,7 @@ export function ImplementationAction({
   const configuredPermissionMode = status?.configuredPermissionMode === 'acceptEdits' ? 'acceptEdits' : 'Unknown'
   const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
   const configuredPermissionPrompts = status?.configuredPermissionPrompts === 'None' ? 'None' : 'Unknown'
+  const configuredResumeEligibility = status?.configuredResumeEligibility === 'Ineligible' ? 'Ineligible' : 'Unknown'
   const formatFact = (value: string | undefined) => value || 'Unknown'
   return (
     <section className="dc-implementation-action" aria-label="Claude implementation">
@@ -123,7 +124,8 @@ export function ImplementationAction({
           {formatFact(status.observedModel)} · Effort requested: {formatFact(status.requestedEffort)} · Effort observed:{' '}
           {formatFact(status.observedEffort)} · {permissionProfile} · Adapter contract: {adapterContract} ·{' '}
           Configured permission mode: {configuredPermissionMode} · Configured provider-session persistence:{' '}
-          {configuredSessionPersistence} · Configured permission confirmations: {configuredPermissionPrompts}
+          {configuredSessionPersistence} · Configured permission confirmations: {configuredPermissionPrompts} ·{' '}
+          Configured resume eligibility: {configuredResumeEligibility}
         </p>
       )}
       {status && hasAttempt && (

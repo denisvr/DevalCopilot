@@ -511,6 +511,31 @@ assignment fact on this attempt. It carries no runtime-control,
 authorization, or claim-eligibility meaning of its own; the backend remains
 the sole authority for every claim and dispatch decision.
 
+### Configured Claude Implementer resume eligibility
+
+A fourth, sibling bounded fact on the same attempt status — whether the
+current `ClaudeImplementationAdapter`'s fixed `--no-session-persistence`
+argument makes this attempt's Claude CLI provider session ineligible for
+resume, shown as `Ineligible`. The
+[Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
+documents that a session started under this flag cannot be resumed; this
+fact states that documented consequence for this attempt's own fixed adapter
+configuration, never a provider-observed result, never a host-wide provider
+capability assessment, and never invocation eligibility of any kind. It is
+populated under exactly the same coherence rule and the same `Unknown`/`null`
+fallback as the three configured facts above: no attempt yet, and a valid but
+historical or mismatched assignment, both show `Unknown`/`null` here, never
+the current adapter's configuration by assumption; an invalid or otherwise
+unparseable assignment remains the existing fail-closed
+`agent_attempts.invalid_assignment` error for the whole status, exactly as it
+already is for every other assignment fact on this attempt. It does not add,
+change, or expose a provider-session identifier, a resume/open/fork control,
+or any other session-management capability, and it does not change the
+host-wide `ProviderRuntimePreflight.Sessions` fact shown elsewhere. It
+carries no runtime-control, authorization, or claim-eligibility meaning of
+its own; the backend remains the sole authority for every claim and dispatch
+decision.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

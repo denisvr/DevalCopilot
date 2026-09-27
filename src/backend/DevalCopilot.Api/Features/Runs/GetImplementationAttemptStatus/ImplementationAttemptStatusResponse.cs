@@ -54,4 +54,13 @@ public sealed record ImplementationAttemptStatusResponse(
     /// provider-observed result and never invocation eligibility. <see langword="null"/> unless
     /// provider, role, permission profile, and adapter contract version all agree with the
     /// current, single supported implementation adapter.</summary>
-    string? ConfiguredPermissionPrompts);
+    string? ConfiguredPermissionPrompts,
+    /// <summary>Whether this attempt's fixed adapter contract makes its Claude CLI provider
+    /// session ineligible for resume (the current adapter's own <c>--no-session-persistence</c>
+    /// argument, which the Claude Code CLI reference documents as preventing a session started
+    /// under it from being resumed) — a static configuration fact about this attempt's adapter
+    /// contract, never a provider-observed result, never a host-wide capability assessment, and
+    /// never invocation eligibility. <see langword="null"/> unless provider, role, permission
+    /// profile, and adapter contract version all agree with the current, single supported
+    /// implementation adapter.</summary>
+    string? ConfiguredResumeEligibility);

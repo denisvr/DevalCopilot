@@ -8,7 +8,61 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted delivery: the bounded, read-only configured Claude
+- Current delivery, based on parent `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`:
+  a bounded, read-only configured Claude Implementer resume-eligibility fact.
+  See [planner-handoff.md](planner-handoff.md) for the review decision record.
+  - The implementation-attempt status and cockpit now show a new
+    `ConfiguredResumeEligibility` / `configuredResumeEligibility` fact
+    alongside the existing `ConfiguredPermissionMode`,
+    `ConfiguredSessionPersistence`, and `ConfiguredPermissionPrompts`
+    facts — `"Ineligible"` (the current `ClaudeImplementationAdapter`'s
+    existing, unchanged `--no-session-persistence` argument, which the
+    [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
+    documents as making a session started under this flag unable to be
+    resumed) only when the attempt's own provider, role, permission profile,
+    and adapter contract version all agree with the current supported
+    implementation path; otherwise `null`/`Unknown`, with the existing
+    fail-closed `agent_attempts.invalid_assignment` error preserved for
+    invalid or absent assignment metadata (never a success value reporting
+    `Unknown`). This is a configured adapter fact about this attempt, never a
+    provider-observed result, a host-wide capability assessment, or
+    invocation eligibility of any kind. No CLI argument, invocation,
+    claim/dispatch policy, authorization, provider preflight, other role,
+    model/effort selection, context/compaction, session identifier,
+    resume/open/fork action, usage limit, or persistence schema changed.
+    Documented in the new "Configured Claude Implementer resume eligibility"
+    subsection of
+    [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+    The new fact's name/label ("resume eligibility") does not contain the
+    substring "prompt", so it needed no equivalent to the existing
+    root-level `configuredPermissionPrompts` disclosure-guard exception in
+    `GetImplementationAttemptStatusEndpointTests`; that pre-existing guard and
+    its five negative tests are unchanged.
+  - Checks actually run: Application.Tests focused
+    `GetImplementationAttemptStatusQueryHandlerTests` 8/8, full
+    Application.Tests 986/986, Api.IntegrationTests focused
+    `GetImplementationAttemptStatusEndpointTests` 9/9, full
+    Api.IntegrationTests 312/312, Architecture.Tests 9/9 — all green. Frontend
+    focused `ImplementationAction.test.tsx` 19/19, full frontend suite
+    605/605, `tsc -b` clean, `oxlint` exited 0 with the same 20 pre-existing
+    warnings (0 new), `vite build` production build passed, `git diff --check`
+    reported no new errors (only the pre-existing CRLF-normalization warning
+    on the generated client file, consistent with prior slices). The NSwag
+    client was regenerated via `dotnet build src/backend/DevalCopilot.Api`;
+    the resulting `api-client.ts` diff is additive only (one new optional
+    field, 4 insertion lines). Domain.Tests and
+    Infrastructure.IntegrationTests were not rerun in this slice — they are
+    untouched by this change; their last confirmed results remain in Git
+    history for the prior delivered slice.
+  - Remaining risks: none newly introduced. Provider-session resume,
+    runtime controls, and the other open items below remain unchanged and
+    open.
+  - Verification to perform after publication: confirm `main`, `HEAD`, and
+    local `origin/main` at the delivered commit; independently rerun the
+    checks above; confirm the live remote points to the delivered commit
+    before selecting the next Increment 4 slice. Publication and remote
+    verification have not happened yet as of this checkpoint.
+- Previously accepted delivery: the bounded, read-only configured Claude
   Implementer permission-confirmations fact in
   `01f1777af877dd0374d7e3d7e461127a02f40d73` (parent
   `c2b0155f26f07bbe09ca67a9c5234228e274a703`), published to `origin/main` and
@@ -66,9 +120,8 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   session behavior, usage limit, or persistence schema changed. The
   account-allowance evidence candidate remains closed without delivery; no
   safe CLI observation contract was established.
-- Next action: Codex investigates the remaining Increment 4 provider runtime
-  controls against code, accepted ADRs, and provider contracts before
-  selecting another bounded slice. None is selected yet.
+- Next action after this slice: superseded by the configured resume-eligibility
+  slice recorded at the top of this checkpoint.
 
 ## Open risks
 

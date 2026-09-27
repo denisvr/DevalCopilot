@@ -27,6 +27,13 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
     // result and never invocation eligibility.
     private const string ConfiguredClaudeImplementerPermissionPrompts = "None";
 
+    // Mirrors the current adapter's own hardcoded "--no-session-persistence" argument
+    // (ClaudeImplementationAdapter): the Claude Code CLI reference documents that a session
+    // started under this flag cannot be resumed. A fixed CLI configuration fact about this
+    // attempt's adapter contract, never a provider-observed result, never a host-wide capability
+    // assessment, and never invocation eligibility.
+    private const string ConfiguredClaudeImplementerResumeEligibility = "Ineligible";
+
     public async Task<Result<ImplementationAttemptStatusQueryResult>> HandleAsync(
         GetImplementationAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -124,6 +131,10 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             ? ConfiguredClaudeImplementerPermissionPrompts
             : null;
 
+        var configuredResumeEligibility = isCoherentDefaultImplementationAssignment
+            ? ConfiguredClaudeImplementerResumeEligibility
+            : null;
+
         return Result<ImplementationAttemptStatusQueryResult>.Success(new ImplementationAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -148,7 +159,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             attempt.GetAgentTokenUsageEvidence(),
             configuredPermissionMode,
             configuredSessionPersistence,
-            configuredPermissionPrompts));
+            configuredPermissionPrompts,
+            configuredResumeEligibility));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>

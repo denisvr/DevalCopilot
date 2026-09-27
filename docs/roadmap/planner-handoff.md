@@ -12,15 +12,68 @@ code before relying on it; older decision detail remains in Git.
 - Codex owns planning, architecture, slice selection, review, and acceptance;
   Claude is the bounded executor. Routine slice selection needs no owner
   approval; committing and pushing an executor diff still requires Codex GO.
+- Verified planning baseline: `main` and `HEAD` are
+  `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`; local `origin/main` and
+  live `origin/main` match, and staged, unstaged, and untracked state is empty.
+  Selected next bounded Increment 4 slice: disclose **provider-session resume
+  eligibility for the current Claude Implementer attempt** as `Ineligible`
+  only when its immutable assignment is coherent (`ClaudeCode`, `Implementer`,
+  `WorkspaceEditOnly`, `claude-implementation-v1`). The existing adapter passes
+  `--no-session-persistence`; the [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  explicitly says sessions under this flag cannot be resumed. No attempt or a
+  valid historical/mismatched assignment yields `Unknown`/`null`; invalid
+  assignment preserves the existing fail-closed error. This is a configured
+  attempt fact, not a host-wide capability or provider-observed result.
+  Restrict work to the existing implementation status/API, generated client,
+  implementation action, focused tests, and cockpit specification. Exclude
+  CLI arguments, invocation, persistence schema, session identifiers and
+  resume/open/fork actions, claim/dispatch/authorization policy, preflight,
+  other roles, models, effort, context, compaction, and usage limits. Stop if
+  assignment coherence or the fixed flag cannot be proved, or if disclosure
+  requires a policy or invocation change. Acceptance requires positive,
+  no-attempt, historical/mismatch, and invalid-assignment cases; strict API
+  disclosure checks; generated-client drift verification; relevant backend
+  and frontend tests, typecheck, lint, production build, and diff check.
+  Claude must present the complete uncommitted, unpushed diff, including
+  `current-work.md`, for Codex GO/NO-GO. No commit/push GO is granted.
+- Review decision (2026-09-27): **NO-GO**, documentation correction within
+  this same slice. The implementation and focused evidence match the selected
+  behavior; Codex independently passed focused Application 8/8, API 9/9,
+  frontend 19/19, typecheck, and `git diff --check`. However,
+  `current-work.md` still describes this slice as pending, uncommitted, and
+  awaiting GO, which would be false when committed with the substantive slice.
+  Make that handoff concise and commit-ready: describe the slice as the current
+  delivery based on parent `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`,
+  record actual checks and open risks, and name post-publication verification
+  without asserting it happened or embedding the future commit SHA. Preserve
+  code and tests. Review local links and run `git diff --check`; earlier test
+  results remain applicable to a documentation-only correction. Return the
+  whole uncommitted, unpushed diff for re-review. No commit/push GO.
+- Correction re-review (2026-09-27): **GO** for the reviewed substantive
+  resume-eligibility diff, including the corrected, commit-ready
+  `current-work.md` and this review record. Codex verified `main`, `HEAD`,
+  local `origin/main`, and live `origin/main` at
+  `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`, with no staged or
+  untracked files; inspected the complete code, test, generated-client, and
+  documentation diff; independently passed focused Application 8/8, API
+  9/9, frontend 19/19, typecheck, and `git diff --check`; and confirmed the
+  touched local documentation links resolve. The correction changed only
+  `current-work.md`, so the earlier executor-reported full suites, lint, and
+  build remain applicable. Claude may commit this reviewed slice on `main`,
+  including `current-work.md` and `planner-handoff.md` in the same commit,
+  push normally to `origin/main`, verify that the live remote points to the
+  delivered commit, and report the result. A material change after GO
+  requires re-review; a failed or divergent push must stop without force-push
+  or reconciliation. No next product slice is selected.
 - The configured Claude Implementer session-persistence slice was accepted
   after two correction rounds and published as `1d9f6b4876b43b0585ed8422d4de653966e8e8dc`.
   Codex independently passed API 307/307, focused Application 8/8, focused
   frontend 19/19, typecheck, and diff check before GO. The remote was verified;
   broader executor-reported checks are in the shared handoff. This does not
   close Increment 4.
-- Selected next bounded Increment 4 slice: disclose the Claude Implementer
-  adapter's configured permission-prompt handling on the existing implementation
-  attempt status and action. For a coherent current assignment (`ClaudeCode`,
+- Previously selected and delivered Increment 4 slice: disclose the Claude
+  Implementer adapter's configured permission-prompt handling on the existing
+  implementation attempt status and action. For a coherent current assignment (`ClaudeCode`,
   `Implementer`, `WorkspaceEditOnly`, `claude-implementation-v1`), show the fixed
   `--permission-prompts none` configuration as `None`; show `Unknown`/`null` for
   no attempt or a valid historical/mismatched assignment, and preserve the

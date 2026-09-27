@@ -59,7 +59,17 @@ public sealed record ImplementationAttemptStatusQueryResult(
     /// role, permission profile, and adapter contract version all agree with the current, single
     /// supported implementation adapter; otherwise <see langword="null"/>, exactly like every
     /// other assignment fact here.</summary>
-    string? ConfiguredPermissionPrompts = null)
+    string? ConfiguredPermissionPrompts = null,
+    /// <summary>Whether this attempt's fixed adapter contract makes its Claude CLI provider
+    /// session ineligible for resume (the current adapter's own <c>--no-session-persistence</c>
+    /// argument, which the Claude Code CLI reference documents as preventing a session started
+    /// under it from being resumed) — a static configuration fact about this attempt's adapter
+    /// contract, never a provider-observed result, never a host-wide capability assessment, and
+    /// never invocation eligibility. Populated only when provider, role, permission profile, and
+    /// adapter contract version all agree with the current, single supported implementation
+    /// adapter; otherwise <see langword="null"/>, exactly like every other assignment fact
+    /// here.</summary>
+    string? ConfiguredResumeEligibility = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

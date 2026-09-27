@@ -145,6 +145,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
         Assert.Null(result.Value.ConfiguredPermissionMode);
         Assert.Null(result.Value.ConfiguredSessionPersistence);
         Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
     }
 
     [Fact]
@@ -172,6 +173,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
         Assert.Equal("acceptEdits", result.Value.ConfiguredPermissionMode);
         Assert.Equal("Disabled", result.Value.ConfiguredSessionPersistence);
         Assert.Equal("None", result.Value.ConfiguredPermissionPrompts);
+        Assert.Equal("Ineligible", result.Value.ConfiguredResumeEligibility);
     }
 
     [Fact]
@@ -200,6 +202,7 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
         Assert.Null(result.Value.ConfiguredPermissionMode);
         Assert.Null(result.Value.ConfiguredSessionPersistence);
         Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
     }
 
     [Fact]
@@ -223,5 +226,6 @@ public sealed class GetImplementationAttemptStatusQueryHandlerTests : IAsyncLife
         Assert.Null(result.Value.ConfiguredPermissionMode);
         Assert.Null(result.Value.ConfiguredSessionPersistence);
         Assert.Null(result.Value.ConfiguredPermissionPrompts);
+        Assert.Null(result.Value.ConfiguredResumeEligibility);
     }
 }

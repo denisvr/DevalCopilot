@@ -109,6 +109,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal("acceptEdits", root.GetProperty("configuredPermissionMode").GetString());
         Assert.Equal("Disabled", root.GetProperty("configuredSessionPersistence").GetString());
         Assert.Equal("None", root.GetProperty("configuredPermissionPrompts").GetString());
+        Assert.Equal("Ineligible", root.GetProperty("configuredResumeEligibility").GetString());
 
         Assert.DoesNotContain(forbiddenSentinel, body, StringComparison.Ordinal);
         Assert.DoesNotContain("C:\\repos\\", body, StringComparison.OrdinalIgnoreCase);
@@ -156,6 +157,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredSessionPersistence").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionPrompts").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredResumeEligibility").ValueKind);
     }
 
     [Fact]
@@ -185,6 +187,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredSessionPersistence").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionPrompts").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredResumeEligibility").ValueKind);
     }
 
     [Fact]
