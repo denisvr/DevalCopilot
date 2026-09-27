@@ -314,12 +314,44 @@ public sealed class CodexImplementationReviewAdapterTests : IDisposable
     }
 
     [Fact]
-    public async Task A_session_id_reported_on_a_json_stdout_line_is_surfaced_on_a_successful_exit()
+    public async Task A_documented_thread_started_thread_id_reported_on_a_json_stdout_line_is_surfaced_on_a_successful_exit()
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
         var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
         var executablePath = CreateLaunchFile("fake-codex-session.exe");
+
+        var fake = new FakeProcessExecutionAdapter
+        {
+            OnExecute = _ => new ProcessExecutionResult
+            {
+                Outcome = ProcessExecutionOutcome.Exited,
+                ExitCode = 0,
+                StandardOutput = """{"type":"thread.started","thread_id":"thread-def-456"}""" + "\n",
+                StandardOutputTruncated = false,
+                StandardError = string.Empty,
+                StandardErrorTruncated = false,
+                Duration = TimeSpan.FromSeconds(1),
+            },
+        };
+        var adapter = new CodexImplementationReviewAdapter(fake, _artifactStore);
+        var request = new ImplementationReviewInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            executablePath, null, TimeSpan.FromSeconds(30), 65536, 131072);
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(ImplementationReviewInvocationOutcome.Exited, result.Outcome);
+        Assert.Equal("thread-def-456", result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task An_unrelated_legacy_session_id_event_is_ignored_rather_than_surfaced()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile("fake-codex-session-legacy.exe");
 
         var fake = new FakeProcessExecutionAdapter
         {
@@ -342,7 +374,7 @@ public sealed class CodexImplementationReviewAdapterTests : IDisposable
         var result = await adapter.InvokeAsync(request, CancellationToken.None);
 
         Assert.Equal(ImplementationReviewInvocationOutcome.Exited, result.Outcome);
-        Assert.Equal("session-def-456", result.ProviderSessionId);
+        Assert.Null(result.ProviderSessionId);
     }
 
     [Fact]

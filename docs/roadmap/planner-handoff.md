@@ -7,7 +7,109 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current decision (2026-09-27)
+## Current decision (2026-09-27): selected Codex session correlation repair
+
+- Corrected uncommitted diff review: **GO for publication of this reviewed
+  slice**. Reverified `main`, `HEAD`, local `origin/main`, and live
+  `origin/main` at `c481aead3ca652cf06fffaa509bb68f411f483ff`; eight
+  unstaged tracked modifications including this planner note, with nothing
+  staged or untracked. The Resolver and CodeReviewer persistence cases now
+  use their valid successful result paths and clean-exit evidence. The shared
+  adapter tests now include malformed JSONL and an event cut off mid-object
+  at the 4096-character scan prefix; the new documentation and test wording
+  correctly distinguish characters from bytes. Codex independently reran
+  focused Infrastructure tests 46/46 and Application tests 71/71;
+  `git diff --check` passed. Claude reported full Infrastructure 451/452
+  (one pre-existing unrelated skip), Application 1015/1015, and applicable
+  earlier API 322/322, Domain 529/529, and Architecture 9/9. Include this
+  planner note and the commit-ready `current-work.md` in the substantive
+  commit, then normal fast-forward push and live-remote verification. A
+  narrowly factual `current-work.md` closure may record the delivered SHA
+  and verified publication in a follow-up documentation-only commit/push
+  without another review. Stop and report if the substantive diff changes
+  materially, publication fails, remote history diverges, or closure leaves
+  those factual bounds. No next slice is selected here.
+- First uncommitted diff review: **NO-GO, bounded correction in the same
+  slice**. Verified `main`, `HEAD`, local `origin/main`, and live
+  `origin/main` at `c481aead3ca652cf06fffaa509bb68f411f483ff`; no staged
+  or untracked files, eight unstaged tracked files including this planner
+  note. The shared extractor and three adapter positive cases match the
+  documented `thread.started/thread_id` contract, and the reported suites
+  are green. The two new result-persistence tests supply a thread ID with
+  `ProviderInvocationFailed`, while `CodexProcessInvoker` only emits one on
+  successful process exit. Prove durable attachment on each role's real
+  successful result path using its valid response and clean-exit evidence;
+  keep absent/blank cases focused. The selected negative matrix explicitly
+  included malformed and partial JSONL, but the submitted tests cover
+  missing/non-string/oversized IDs and an event beyond the scan window, not
+  malformed or cut-off event lines; add representative deterministic cases.
+  Finally, the existing scan is `standardOutput.Length` over a 4096-character
+  prefix, despite the `MaxSessionIdScanBytes` name. Correct the new
+  documentation and tests' wording so they do not claim a byte-accurate
+  4 KiB limit; preserve the existing scan behavior and bounds in this slice.
+  Update the commit-ready `current-work.md` with corrected facts and actual
+  checks. Run affected tests and `git diff --check`, then return the full
+  uncommitted, unpushed diff. No commit/push GO. Stop for review if a
+  successful result cannot carry and durably record the ID without changing
+  excluded behavior.
+- Verified baseline before this planner edit: branch `main`, `HEAD`, local
+  `origin/main`, and live `origin/main` all
+  `c481aead3ca652cf06fffaa509bb68f411f483ff`; no staged, unstaged, or
+  untracked files. The preceding Claude CriticalReviewer/ReviewCorrection
+  delivery is `caf45d33396617ca640cb766fe5bc984c93b488c`; the baseline is
+  its factual `current-work.md` closure.
+- Select exactly one Increment 4 slice: repair **Codex provider-session
+  correlation for the three current read-only roles** (Planner, Resolver,
+  CodeReviewer). The shared `CodexProcessInvoker` currently scans successful
+  `codex exec --json` stdout for an arbitrary `session_id` property, and all
+  three adapter tests use an invented `session_meta` event. The
+  [current official Codex non-interactive contract](https://learn.chatgpt.com/docs/non-interactive-mode)
+  documents `thread.started` with `thread_id`. Parse that exact event and
+  field from the already-captured bounded JSONL, then pass the observed value
+  through each existing adapter and result command into the existing
+  `Attempt.AgentProviderSessionId` column. This is a provider-reported
+  correlation reference for an attempt, never resume eligibility or authority
+  to resume. The official [Codex CLI reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+  says the configured `--ephemeral` run does not persist rollout files; do not
+  infer a stronger resume claim from that flag.
+- Boundary: the shared Codex stdout extractor, focused deterministic adapter
+  tests for all three roles, focused result-persistence tests where currently
+  missing, and concise product/roadmap documentation plus a commit-ready
+  `current-work.md`. Keep the existing 4096-character scan and 256-character storage
+  bound, and the current success-only recording behavior. Accept only a
+  complete JSON object with `type: "thread.started"` and a nonblank bounded
+  string `thread_id`; ignore unrelated events and the old arbitrary
+  `session_id` shape. If distinct valid IDs appear in the bounded window,
+  fail closed to Unknown rather than choosing one. Do not add schema,
+  migrations, status/HTTP/generated-client/frontend fields, raw-ID display,
+  provider invocation flags, preflight, resume/open/fork actions, claim or
+  dispatch policy, other provider adapters, model/effort, context/compaction,
+  or account-usage controls. Do not revive the closed account-allowance
+  candidate without a newly proven observation contract.
+- Stop gates: the official event contract cannot be reconciled with the
+  captured/redacted/truncated output contract; safe correlation requires
+  broadening the capture or exposing the ID; a result path cannot persist the
+  value without changing its existing lifecycle or authorization; or the
+  change requires any excluded behavior or an ADR reversal. Report evidence
+  and return for replanning at such a gate. Do not fabricate a provider event
+  or infer a value from CLI defaults.
+- Acceptance evidence: deterministic tests for all three adapters with
+  documented `thread.started/thread_id`, and focused negative cases for
+  unrelated `session_id`, malformed/partial/oversized IDs, conflicting IDs,
+  and non-success exits. Prove the existing result handlers durably attach the
+  observed ID to the correct attempt for Resolver and CodeReviewer as well as
+  the already-covered Planner, without HTTP disclosure. Run affected tests
+  first, then relevant full backend suites and `git diff --check`; report
+  exact outcomes and any skipped checks. Keep `current-work.md` commit-ready
+  from the verified parent with actual checks, remaining risks, and no
+  invented delivery SHA or transient pre-publication wording. Return one
+  complete **uncommitted, unpushed** diff for Codex GO/NO-GO. This selection
+  grants no commit/push GO. After a future GO, one instruction will cover the
+  substantive commit, normal fast-forward push, live-remote verification,
+  and narrowly factual `current-work.md` SHA closure; stop for review if the
+  change becomes material, the push fails, or the remote diverges.
+
+## Prior decision (2026-09-27): Claude CriticalReviewer/ReviewCorrection
 
 - **GO for publication of the reviewed Claude CriticalReviewer/ReviewCorrection
   slice**, with one bounded comment-only cleanup before the substantive

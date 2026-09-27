@@ -8,7 +8,96 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted delivery: immutable assignment provenance for the two
+- Current delivery, based on verified parent `c481aead3ca652cf06fffaa509bb68f411f483ff`:
+  Codex provider-session correlation repair for the three current read-only
+  roles (Planner, Resolver, CodeReviewer). See
+  [planner-handoff.md](planner-handoff.md) for the selection record.
+  - The shared `CodexProcessInvoker.TryExtractProviderSessionId` no longer
+    reads an arbitrary `session_id` property. It now parses only a complete
+    JSON object, on its own line within the existing 4,096-character bounded
+    scan prefix (a character count, not a byte-accurate limit, despite the
+    `MaxSessionIdScanBytes` constant name that predates this slice and is
+    unchanged here), whose `type` is exactly `"thread.started"` and whose
+    `thread_id` is a nonblank string within the existing 256-character storage
+    bound — the event and field the current official
+    [Codex non-interactive contract](https://learn.chatgpt.com/docs/non-interactive-mode)
+    documents. Every other event shape, including the previous invented
+    `session_meta`/`session_id` shape and a line that is malformed or
+    truncated by the scan prefix itself, is ignored without interrupting the
+    scan of the remaining lines. If the bounded window contains more than one
+    distinct valid `thread_id`, extraction now fails closed to `null`
+    (`Unknown`) rather than selecting one, since a single invocation has
+    exactly one provider thread and disagreement means the value cannot be
+    trusted; the same valid id repeated on multiple lines is still surfaced.
+    This is unchanged as a provider-reported correlation reference recorded on
+    `Attempt.AgentProviderSessionId` through the existing adapter result flow
+    and result commands — never resume capability, an observation of
+    effective access, or an inferred capability from CLI defaults. No CLI
+    argument, invocation, capture bound, redaction, success-only recording,
+    lifecycle, or authorization changed; no schema, migration,
+    API/generated-client/frontend field, raw-ID disclosure, resume/open/fork
+    action, or other provider adapter changed.
+  - `CodexPlanningAdapterTests`, `CodexChallengeResolutionAdapterTests`, and
+    `CodexImplementationReviewAdapterTests` each replace their previous
+    invented-event test with the documented `thread.started`/`thread_id`
+    positive case, and each adds a case proving an unrelated legacy
+    `session_id` event is ignored. `CodexPlanningAdapterTests` — chosen as the
+    single representative adapter for the shared extractor's full negative
+    matrix, since `CodexProcessInvoker` is exercised identically regardless of
+    which adapter invokes it — additionally covers a `thread.started` event
+    missing `thread_id`, a non-string `thread_id`, a `thread_id` exceeding the
+    256-character storage bound, a `thread.started` event pushed entirely past
+    the 4,096-character scan prefix by a preceding filler line, a
+    `thread.started` event whose own line is cut off mid-object by that same
+    scan prefix (an incomplete JSON fragment that must fail to parse safely
+    even though it already contains a valid-looking `thread_id` before the
+    cut), a malformed (non-JSON) line that does not prevent a later valid
+    event on its own line from being surfaced, two distinct valid
+    `thread_id`s failing closed to `Unknown`, and the same valid `thread_id`
+    repeated on two lines still being surfaced. The pre-existing non-success
+    exit case (`Assert.Null(result.ProviderSessionId)` on a non-zero exit) is
+    unchanged in all three files.
+  - `RecordChallengeResolutionResultCommandHandlerTests` and
+    `RecordImplementationReviewResultCommandHandlerTests` each gained the same
+    two focused durable-persistence cases already covering
+    `RecordAgentAttemptResultCommandHandlerTests` (Planner), corrected to
+    exercise each role's actual successful result path — `Resolved` with a
+    valid resolution for Resolver, `ReviewApproved` with a valid review for
+    CodeReviewer — since `CodexProcessInvoker` only ever emits a thread id on
+    a clean process exit, never on `ProviderInvocationFailed`: a `null`/empty/
+    whitespace `ProviderSessionId` is not durably recorded, and a present one
+    is durably recorded on `Attempt.AgentProviderSessionId`, reloaded from a
+    fresh `DbContext` after `SaveChangesAsync`. Both use the existing
+    `TestProcessEvidence.ReportedCleanExit` fixture already used by each
+    file's own pre-existing successful-outcome test, so no new seeding helper
+    was needed.
+  - Checks actually run: Infrastructure.IntegrationTests focused
+    `CodexPlanningAdapterTests` + `CodexChallengeResolutionAdapterTests` +
+    `CodexImplementationReviewAdapterTests` 46/46, full
+    Infrastructure.IntegrationTests 451/452 (the same one pre-existing
+    unrelated skip); Application.Tests focused
+    `RecordAgentAttemptResultCommandHandlerTests` +
+    `RecordChallengeResolutionResultCommandHandlerTests` +
+    `RecordImplementationReviewResultCommandHandlerTests` 71/71, full
+    Application.Tests 1015/1015; full Api.IntegrationTests 322/322 (unchanged,
+    confirming no API-visible change); Domain.Tests 529/529 and
+    Architecture.Tests 9/9 (unchanged; no Domain/API-shape change in this
+    slice); `git diff --check` reported no errors. The full Api.IntegrationTests,
+    Domain.Tests, and Architecture.Tests results are carried over unchanged
+    from the immediately preceding round of this same slice — this correction
+    touched only the Infrastructure adapter tests and the two Application
+    persistence tests, neither of which those three suites cover. Frontend,
+    typecheck, lint, production build, and NSwag regeneration were not run —
+    no API response DTO, generated client, or frontend file changed in this
+    slice. Automated tests never call a real provider.
+  - Remaining risks: none newly introduced. Provider-session resume, runtime
+    controls, and the other open items below remain unchanged and open. This
+    correlation reference still grants no resume eligibility or capability.
+  - Post-publication verification will confirm `main`, `HEAD`, local
+    `origin/main`, and live `origin/main` at the delivered commit with a clean
+    checkout, and reconfirm the focused adapter and command-handler tests
+    above against it.
+- Previously accepted delivery: immutable assignment provenance for the two
   remaining current Claude Code paths (CriticalReviewer and Implementer
   ReviewCorrection) at claim time, plus five configured adapter facts on
   each path's existing attempt status and cockpit action, in

@@ -398,6 +398,66 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         Assert.Equal(TimeSpan.FromSeconds(12), persisted.AgentProcessDuration);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task HandleAsync_does_not_durably_record_a_provider_session_id_when_absent_or_blank_on_a_resolved_outcome(
+        string? providerSessionId)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt, originalProposal, challenges) = CreateClaimedChallengeResolutionAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(originalProposal);
+        dbContext.AttemptInputMessages.AddRange(challenges);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var resolution = Resolution(challenges.Select(c => c.CollaborationMessageId).ToList());
+        var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordChallengeResolutionResultCommand(
+                run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, resolution, providerSessionId,
+                ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AgentOutcome.Resolved, attempt.AgentOutcome);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Null(persisted.AgentProviderSessionId);
+    }
+
+    [Fact]
+    public async Task HandleAsync_durably_records_the_provider_session_id_reported_on_a_resolved_outcome()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var (project, run, attempt, originalProposal, challenges) = CreateClaimedChallengeResolutionAttempt();
+        attempt.MarkAgentDispatched(Now);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(attempt);
+        dbContext.AttemptInputMessages.Add(originalProposal);
+        dbContext.AttemptInputMessages.AddRange(challenges);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var resolution = Resolution(challenges.Select(c => c.CollaborationMessageId).ToList());
+        var handler = new RecordChallengeResolutionResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordChallengeResolutionResultCommand(
+                run.Id, attempt.Id, AgentOutcome.Resolved, Fingerprint, NoArtifacts, resolution, "thread-abc-123",
+                ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AgentOutcome.Resolved, attempt.AgentOutcome);
+        await using var verification = fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal("thread-abc-123", persisted.AgentProviderSessionId);
+    }
+
     [Fact]
     public async Task HandleAsync_rejects_a_resolution_without_process_evidence()
     {

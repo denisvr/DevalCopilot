@@ -589,12 +589,123 @@ public sealed class CodexPlanningAdapterTests : IDisposable
     }
 
     [Fact]
-    public async Task A_session_id_reported_on_a_json_stdout_line_is_surfaced_on_a_successful_exit()
+    public async Task A_documented_thread_started_thread_id_reported_on_a_json_stdout_line_is_surfaced_on_a_successful_exit()
+    {
+        var result = await InvokeWithStandardOutputAsync(
+            """{"type":"thread.started","thread_id":"thread-abc-123"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Equal("thread-abc-123", result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task An_unrelated_legacy_session_id_event_is_ignored_rather_than_surfaced()
+    {
+        var result = await InvokeWithStandardOutputAsync(
+            """{"type":"session_meta","session_id":"session-abc-123"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Null(result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task A_thread_started_event_missing_its_thread_id_is_ignored_rather_than_surfaced()
+    {
+        var result = await InvokeWithStandardOutputAsync(
+            """{"type":"thread.started"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Null(result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task A_thread_started_event_with_a_non_string_thread_id_is_ignored_rather_than_surfaced()
+    {
+        var result = await InvokeWithStandardOutputAsync(
+            """{"type":"thread.started","thread_id":12345}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Null(result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task A_thread_id_exceeding_the_256_character_storage_bound_is_ignored_rather_than_surfaced()
+    {
+        var oversizedThreadId = new string('a', 257);
+        var result = await InvokeWithStandardOutputAsync(
+            $$"""{"type":"thread.started","thread_id":"{{oversizedThreadId}}"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Null(result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task A_thread_started_event_entirely_past_the_4096_character_scan_prefix_is_ignored_rather_than_surfaced()
+    {
+        // The scan reads only the first 4,096 characters of the captured stdout (a character
+        // count, never a byte-accurate boundary), so a filler line at least that long pushes the
+        // real event out of the window entirely — it is never even partially seen.
+        var filler = "{\"type\":\"item.completed\",\"padding\":\"" + new string('x', 4096) + "\"}\n";
+        var result = await InvokeWithStandardOutputAsync(
+            filler + """{"type":"thread.started","thread_id":"thread-past-the-bound"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Null(result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task A_thread_started_event_cut_off_at_the_4096_character_scan_prefix_is_ignored_rather_than_surfaced()
+    {
+        // Unlike the filler case above, this event's own line starts within the 4,096-character
+        // prefix but is long enough to be truncated mid-object by it — an incomplete JSON
+        // fragment that must fail to parse safely rather than partially trusting the thread_id it
+        // already contains.
+        var cutOffLine = $$"""{"type":"thread.started","thread_id":"thread-cut-off","padding":"{{new string('y', 5000)}}"}""" + "\n";
+        var result = await InvokeWithStandardOutputAsync(cutOffLine);
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Null(result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task A_malformed_json_line_is_ignored_without_preventing_a_later_valid_thread_started_event_from_being_surfaced()
+    {
+        var malformedLine = "{not valid json at all\n";
+        var result = await InvokeWithStandardOutputAsync(
+            malformedLine + """{"type":"thread.started","thread_id":"thread-after-malformed"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Equal("thread-after-malformed", result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task Two_distinct_valid_thread_ids_in_the_bounded_window_fail_closed_to_unknown_rather_than_selecting_one()
+    {
+        var result = await InvokeWithStandardOutputAsync(
+            """{"type":"thread.started","thread_id":"thread-one"}""" + "\n"
+            + """{"type":"thread.started","thread_id":"thread-two"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Null(result.ProviderSessionId);
+    }
+
+    [Fact]
+    public async Task The_same_valid_thread_id_repeated_on_two_lines_is_still_surfaced()
+    {
+        var result = await InvokeWithStandardOutputAsync(
+            """{"type":"thread.started","thread_id":"thread-repeated"}""" + "\n"
+            + """{"type":"thread.started","thread_id":"thread-repeated"}""" + "\n");
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        Assert.Equal("thread-repeated", result.ProviderSessionId);
+    }
+
+    private async Task<CodexPlanningInvocationResult> InvokeWithStandardOutputAsync(string standardOutput)
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
         var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
-        var executablePath = CreateLaunchFile("fake-codex-session.exe");
+        var executablePath = CreateLaunchFile($"fake-codex-session-{Guid.NewGuid():N}.exe");
 
         var fake = new FakeProcessExecutionAdapter
         {
@@ -602,7 +713,7 @@ public sealed class CodexPlanningAdapterTests : IDisposable
             {
                 Outcome = ProcessExecutionOutcome.Exited,
                 ExitCode = 0,
-                StandardOutput = """{"type":"session_meta","session_id":"session-abc-123"}""" + "\n",
+                StandardOutput = standardOutput,
                 StandardOutputTruncated = false,
                 StandardError = string.Empty,
                 StandardErrorTruncated = false,
@@ -614,10 +725,7 @@ public sealed class CodexPlanningAdapterTests : IDisposable
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
             executablePath, null, TimeSpan.FromSeconds(30), 65536, 131072);
 
-        var result = await adapter.InvokeAsync(request, CancellationToken.None);
-
-        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
-        Assert.Equal("session-abc-123", result.ProviderSessionId);
+        return await adapter.InvokeAsync(request, CancellationToken.None);
     }
 
     [Fact]

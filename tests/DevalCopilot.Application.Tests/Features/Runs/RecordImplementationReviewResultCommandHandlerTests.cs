@@ -241,4 +241,50 @@ public sealed class RecordImplementationReviewResultCommandHandlerTests : IAsync
         Assert.Equal(1, persisted.AgentProcessExitCode);
         Assert.Equal(TimeSpan.FromSeconds(8), persisted.AgentProcessDuration);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task HandleAsync_does_not_durably_record_a_provider_session_id_when_absent_or_blank_on_an_approved_outcome(
+        string? providerSessionId)
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (run, attempt, _, _) = await SeedClaimedCodeReviewAttemptAsync(dbContext);
+
+        var review = ValidatedImplementationReview.CreateApproved("All good.", "Follows the plan.", "None material.");
+        var handler = new RecordImplementationReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordImplementationReviewResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ReviewApproved, Fingerprint, NoArtifacts, review, providerSessionId,
+                ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AgentOutcome.ReviewApproved, attempt.AgentOutcome);
+        await using var verification = _fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Null(persisted.AgentProviderSessionId);
+    }
+
+    [Fact]
+    public async Task HandleAsync_durably_records_the_provider_session_id_reported_on_an_approved_outcome()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (run, attempt, _, _) = await SeedClaimedCodeReviewAttemptAsync(dbContext);
+
+        var review = ValidatedImplementationReview.CreateApproved("All good.", "Follows the plan.", "None material.");
+        var handler = new RecordImplementationReviewResultCommandHandler(dbContext, new FixedTimeProvider(Now.AddMinutes(1)));
+        var result = await handler.HandleAsync(
+            new RecordImplementationReviewResultCommand(
+                run.Id, attempt.Id, AgentOutcome.ReviewApproved, Fingerprint, NoArtifacts, review, "thread-def-456",
+                ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AgentOutcome.ReviewApproved, attempt.AgentOutcome);
+        await using var verification = _fixture.CreateContext();
+        var persisted = await verification.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attempt.Id);
+        Assert.Equal("thread-def-456", persisted.AgentProviderSessionId);
+    }
 }

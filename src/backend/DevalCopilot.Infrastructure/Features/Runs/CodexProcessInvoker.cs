@@ -222,14 +222,25 @@ internal static class CodexProcessInvoker
     }
 
     /// <summary>
-    /// Best-effort, bounded scan of the already-captured (redacted, capped) stdout for a
-    /// provider-reported session identifier on one of Codex's JSONL event lines. Never required;
-    /// never trusted for anything beyond this closed, cosmetic field.
+    /// Best-effort scan of the already-captured (redacted, capped) stdout, bounded to its first
+    /// <see cref="MaxSessionIdScanBytes"/> characters (a character-count prefix, not a
+    /// byte-accurate limit), for the documented Codex non-interactive
+    /// <c>{"type":"thread.started","thread_id":"..."}</c> event. This is the provider's own
+    /// reported correlation reference for the invoked thread — never a resume capability or an
+    /// observation of effective access. Only a complete JSON object on its own line with
+    /// <c>type == "thread.started"</c> and a nonblank, bounded string <c>thread_id</c> is
+    /// accepted; every other event shape — including the legacy arbitrary <c>session_id</c>
+    /// property this method previously read, and a line that is malformed or truncated by the
+    /// scan prefix itself — is ignored. If the bounded window contains more than one distinct
+    /// valid <c>thread_id</c>, this fails closed to <c>null</c> (Unknown) rather than selecting
+    /// one, since a single attempt invocation has exactly one provider thread and disagreement
+    /// means the value cannot be trusted.
     /// </summary>
     private static string? TryExtractProviderSessionId(string standardOutput)
     {
         var bounded = standardOutput.Length > MaxSessionIdScanBytes ? standardOutput[..MaxSessionIdScanBytes] : standardOutput;
 
+        string? threadId = null;
         foreach (var line in bounded.Split('\n'))
         {
             var trimmed = line.Trim();
@@ -238,6 +249,7 @@ internal static class CodexProcessInvoker
                 continue;
             }
 
+            string? candidate;
             try
             {
                 using var document = JsonDocument.Parse(trimmed);
@@ -246,21 +258,41 @@ internal static class CodexProcessInvoker
                     continue;
                 }
 
-                if (document.RootElement.TryGetProperty("session_id", out var sessionIdElement)
-                    && sessionIdElement.ValueKind == JsonValueKind.String)
+                if (!document.RootElement.TryGetProperty("type", out var typeElement)
+                    || typeElement.ValueKind != JsonValueKind.String
+                    || typeElement.GetString() != "thread.started")
                 {
-                    var value = sessionIdElement.GetString();
-                    if (!string.IsNullOrWhiteSpace(value) && value.Length <= MaxSessionIdLength)
-                    {
-                        return value;
-                    }
+                    continue;
                 }
+
+                if (!document.RootElement.TryGetProperty("thread_id", out var threadIdElement)
+                    || threadIdElement.ValueKind != JsonValueKind.String)
+                {
+                    continue;
+                }
+
+                candidate = threadIdElement.GetString();
             }
             catch (JsonException)
             {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(candidate) || candidate.Length > MaxSessionIdLength)
+            {
+                continue;
+            }
+
+            if (threadId is null)
+            {
+                threadId = candidate;
+            }
+            else if (threadId != candidate)
+            {
+                return null;
             }
         }
 
-        return null;
+        return threadId;
     }
 }
