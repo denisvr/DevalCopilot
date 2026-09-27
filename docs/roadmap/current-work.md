@@ -8,9 +8,15 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Current delivery, based on parent `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`:
-  a bounded, read-only configured Claude Implementer resume-eligibility fact.
-  See [planner-handoff.md](planner-handoff.md) for the review decision record.
+- Latest accepted delivery: the bounded, read-only configured Claude
+  Implementer resume-eligibility fact in
+  `1ec9ac5f1c9eb3a25301cd37684c368db1ef24f6` (parent
+  `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`), published to `origin/main` and
+  verified against the live remote. Checkout clean at delivery and after
+  publication. Codex reviewed the diff across two correction rounds and
+  recorded GO before commit/push, then independently verified publication;
+  see [planner-handoff.md](planner-handoff.md) for the review decision
+  record.
   - The implementation-attempt status and cockpit now show a new
     `ConfiguredResumeEligibility` / `configuredResumeEligibility` fact
     alongside the existing `ConfiguredPermissionMode`,
@@ -53,15 +59,17 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     field, 4 insertion lines). Domain.Tests and
     Infrastructure.IntegrationTests were not rerun in this slice — they are
     untouched by this change; their last confirmed results remain in Git
-    history for the prior delivered slice.
+    history for the prior delivered slice. Codex independently verified
+    `main`, `HEAD`, local `origin/main`, and live `origin/main` at the
+    delivered commit, a clean checkout, and the exact reviewed 12-file list,
+    then independently passed post-publication Application 986/986, API
+    312/312, Architecture 9/9, frontend 605/605, typecheck, production build,
+    lint (20 pre-existing warnings, 0 new), and `git diff --check`.
   - Remaining risks: none newly introduced. Provider-session resume,
     runtime controls, and the other open items below remain unchanged and
     open.
-  - Verification to perform after publication: confirm `main`, `HEAD`, and
-    local `origin/main` at the delivered commit; independently rerun the
-    checks above; confirm the live remote points to the delivered commit
-    before selecting the next Increment 4 slice. Publication and remote
-    verification have not happened yet as of this checkpoint.
+  - Next action: no next Increment 4 slice is selected yet; Codex selects and
+    dispatches the next bounded slice.
 - Previously accepted delivery: the bounded, read-only configured Claude
   Implementer permission-confirmations fact in
   `01f1777af877dd0374d7e3d7e461127a02f40d73` (parent

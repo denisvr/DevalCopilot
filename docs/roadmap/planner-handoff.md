@@ -65,6 +65,25 @@ code before relying on it; older decision detail remains in Git.
   delivered commit, and report the result. A material change after GO
   requires re-review; a failed or divergent push must stop without force-push
   or reconciliation. No next product slice is selected.
+- Publication verification (2026-09-27): Claude delivered the reviewed 12-file
+  slice as `1ec9ac5f1c9eb3a25301cd37684c368db1ef24f6` (parent
+  `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`). Codex independently
+  verified `main`, `HEAD`, local `origin/main`, and live `origin/main` at the
+  delivered commit, a clean checkout, and the exact reviewed file list.
+  Post-publication Application 986/986, API 312/312, Architecture 9/9,
+  frontend 605/605, typecheck/production build, lint (20 pre-existing
+  warnings), and `git diff --check` passed; initial parallel .NET build-file
+  collisions were resolved by rerunning those suites sequentially. The
+  substantive slice is published. The remaining action is a documentation-only
+  `current-work.md` closure recording the delivered SHA and completed remote
+  verification. The project owner directed one-step completion of this narrow
+  closure rather than another review round. Codex inspected the completed
+  two-file documentation diff and passed `git diff --check`. **GO** for Claude
+  to commit `current-work.md` alongside this planner-owned note on `main`,
+  push normally to `origin/main`, and
+  verify the live remote. Any additional or material change must stop for
+  review; a failed or divergent push must stop without force-push or history
+  reconciliation. No next product slice is selected.
 - The configured Claude Implementer session-persistence slice was accepted
   after two correction rounds and published as `1d9f6b4876b43b0585ed8422d4de653966e8e8dc`.
   Codex independently passed API 307/307, focused Application 8/8, focused
