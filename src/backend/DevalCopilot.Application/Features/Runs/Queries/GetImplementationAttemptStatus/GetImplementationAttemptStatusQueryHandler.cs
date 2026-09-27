@@ -34,6 +34,12 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
     // assessment, and never invocation eligibility.
     private const string ConfiguredClaudeImplementerResumeEligibility = "Ineligible";
 
+    // Mirrors the current adapter's own hardcoded "--tools Read,Edit,Write,Glob,Grep" argument
+    // (ClaudeImplementationAdapter) — a fixed CLI configuration fact about which built-in tools
+    // this attempt's adapter contract allowlists, never an observation of effective access, a
+    // complete security boundary, MCP tool restriction, or invocation eligibility.
+    private const string ConfiguredClaudeImplementerBuiltInTools = "Read,Edit,Write,Glob,Grep";
+
     public async Task<Result<ImplementationAttemptStatusQueryResult>> HandleAsync(
         GetImplementationAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -135,6 +141,10 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             ? ConfiguredClaudeImplementerResumeEligibility
             : null;
 
+        var configuredBuiltInTools = isCoherentDefaultImplementationAssignment
+            ? ConfiguredClaudeImplementerBuiltInTools
+            : null;
+
         return Result<ImplementationAttemptStatusQueryResult>.Success(new ImplementationAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -160,7 +170,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             configuredPermissionMode,
             configuredSessionPersistence,
             configuredPermissionPrompts,
-            configuredResumeEligibility));
+            configuredResumeEligibility,
+            configuredBuiltInTools));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>

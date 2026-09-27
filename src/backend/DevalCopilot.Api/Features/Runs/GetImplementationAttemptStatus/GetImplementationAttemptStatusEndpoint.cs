@@ -61,6 +61,7 @@ public sealed class GetImplementationAttemptStatusEndpoint(
             value.ConfiguredPermissionMode,
             value.ConfiguredSessionPersistence,
             value.ConfiguredPermissionPrompts,
-            value.ConfiguredResumeEligibility));
+            value.ConfiguredResumeEligibility,
+            value.ConfiguredBuiltInTools));
     }
 }

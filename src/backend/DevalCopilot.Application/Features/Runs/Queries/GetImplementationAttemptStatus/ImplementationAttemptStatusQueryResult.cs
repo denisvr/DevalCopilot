@@ -69,7 +69,15 @@ public sealed record ImplementationAttemptStatusQueryResult(
     /// adapter contract version all agree with the current, single supported implementation
     /// adapter; otherwise <see langword="null"/>, exactly like every other assignment fact
     /// here.</summary>
-    string? ConfiguredResumeEligibility = null)
+    string? ConfiguredResumeEligibility = null,
+    /// <summary>The Claude Implementer CLI built-in tool allowlist this attempt's fixed adapter
+    /// contract configures (the current adapter's own <c>--tools</c> argument) — a static
+    /// configuration fact, never an observation of effective access, a complete security boundary,
+    /// MCP tool restriction, or invocation eligibility. Populated only when provider, role,
+    /// permission profile, and adapter contract version all agree with the current, single
+    /// supported implementation adapter; otherwise <see langword="null"/>, exactly like every
+    /// other assignment fact here.</summary>
+    string? ConfiguredBuiltInTools = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

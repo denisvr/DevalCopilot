@@ -3564,6 +3564,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
     configuredSessionPersistence?: string | undefined;
     configuredPermissionPrompts?: string | undefined;
     configuredResumeEligibility?: string | undefined;
+    configuredBuiltInTools?: string | undefined;
 
     constructor(data?: IImplementationAttemptStatusResponse) {
         if (data) {
@@ -3614,6 +3615,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
             this.configuredSessionPersistence = _data["configuredSessionPersistence"];
             this.configuredPermissionPrompts = _data["configuredPermissionPrompts"];
             this.configuredResumeEligibility = _data["configuredResumeEligibility"];
+            this.configuredBuiltInTools = _data["configuredBuiltInTools"];
         }
     }
 
@@ -3664,6 +3666,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
         data["configuredSessionPersistence"] = this.configuredSessionPersistence;
         data["configuredPermissionPrompts"] = this.configuredPermissionPrompts;
         data["configuredResumeEligibility"] = this.configuredResumeEligibility;
+        data["configuredBuiltInTools"] = this.configuredBuiltInTools;
         return data;
     }
 }
@@ -3699,6 +3702,7 @@ export interface IImplementationAttemptStatusResponse {
     configuredSessionPersistence?: string | undefined;
     configuredPermissionPrompts?: string | undefined;
     configuredResumeEligibility?: string | undefined;
+    configuredBuiltInTools?: string | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {

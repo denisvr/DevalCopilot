@@ -8,7 +8,63 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted delivery: the bounded, read-only configured Claude
+- Current delivery, based on parent `8f52522a35419045229f27962f8523cf41a5149d`:
+  a bounded, read-only configured Claude Implementer built-in tool list fact.
+  See [planner-handoff.md](planner-handoff.md) for the selection and review
+  record.
+  - The implementation-attempt status and cockpit now show a new
+    `ConfiguredBuiltInTools` / `configuredBuiltInTools` fact alongside the
+    existing `ConfiguredPermissionMode`, `ConfiguredSessionPersistence`,
+    `ConfiguredPermissionPrompts`, and `ConfiguredResumeEligibility` facts —
+    `"Read,Edit,Write,Glob,Grep"` (the current `ClaudeImplementationAdapter`'s
+    existing, unchanged `--tools` argument, which the
+    [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
+    documents as restricting built-in tools and explicitly states does not
+    affect MCP tools) only when the attempt's own provider, role, permission
+    profile, and adapter contract version all agree with the current
+    supported implementation path; otherwise `null`/`Unknown`, with the
+    existing fail-closed `agent_attempts.invalid_assignment` error preserved
+    for invalid or absent assignment metadata (never a success value
+    reporting `Unknown`). This is a configured adapter argument fact about
+    this attempt, never an observation of effective access, a complete
+    security boundary, an MCP tool restriction, or invocation eligibility.
+    No CLI argument, invocation or tool policy, preflight, claim/dispatch,
+    authorization, other role, model/effort selection, session behavior,
+    context/compaction, account usage, or persistence schema changed.
+    Labeled "Configured built-in tools" in the UI. Documented in the new
+    "Configured Claude Implementer built-in tools" subsection of
+    [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+    The new fact's value/label do not contain the substring "prompt", so no
+    equivalent to the existing root-level `configuredPermissionPrompts`
+    disclosure-guard exception in `GetImplementationAttemptStatusEndpointTests`
+    was needed; that pre-existing guard and its five negative tests are
+    unchanged.
+  - Checks actually run: Application.Tests focused
+    `GetImplementationAttemptStatusQueryHandlerTests` 8/8, full
+    Application.Tests 986/986, Api.IntegrationTests focused
+    `GetImplementationAttemptStatusEndpointTests` 9/9, full
+    Api.IntegrationTests 312/312, Architecture.Tests 9/9, Infrastructure
+    focused `ClaudeImplementationAdapterTests` 6/6 (confirms the adapter's
+    `--tools` argument is unchanged) — all green. Frontend focused
+    `ImplementationAction.test.tsx` 19/19, full frontend suite 605/605,
+    `tsc -b` clean, `oxlint` exited 0 with the same 20 pre-existing warnings
+    (0 new), `vite build` production build passed, `git diff --check`
+    reported no new errors (only the pre-existing CRLF-normalization warning
+    on the generated client file, consistent with prior slices). The NSwag
+    client was regenerated via `dotnet build src/backend/DevalCopilot.Api`;
+    the resulting `api-client.ts` diff is additive only (one new optional
+    field, 4 insertion lines). Domain.Tests and full
+    Infrastructure.IntegrationTests were not rerun in this slice beyond the
+    focused adapter test above — they are untouched by this change; their
+    last confirmed results remain in Git history for the prior delivered
+    slice.
+  - Remaining risks: none newly introduced. Provider-session resume, runtime
+    controls, and the other open items below remain unchanged and open.
+  - Verification to perform after publication: confirm `main`, `HEAD`, and
+    local `origin/main` at the delivered commit; independently rerun the
+    checks above; confirm the live remote points to the delivered commit
+    before selecting the next Increment 4 slice.
+- Previously accepted delivery: the bounded, read-only configured Claude
   Implementer resume-eligibility fact in
   `1ec9ac5f1c9eb3a25301cd37684c368db1ef24f6` (parent
   `94b2cc3b6128df7d4bac22ae7f47c40a5532d2cc`), published to `origin/main` and
@@ -68,8 +124,8 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   - Remaining risks: none newly introduced. Provider-session resume,
     runtime controls, and the other open items below remain unchanged and
     open.
-  - Next action: no next Increment 4 slice is selected yet; Codex selects and
-    dispatches the next bounded slice.
+  - Next action after this slice: superseded by the configured built-in
+    tools slice recorded at the top of this checkpoint.
 - Previously accepted delivery: the bounded, read-only configured Claude
   Implementer permission-confirmations fact in
   `01f1777af877dd0374d7e3d7e461127a02f40d73` (parent

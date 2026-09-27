@@ -63,4 +63,11 @@ public sealed record ImplementationAttemptStatusResponse(
     /// never invocation eligibility. <see langword="null"/> unless provider, role, permission
     /// profile, and adapter contract version all agree with the current, single supported
     /// implementation adapter.</summary>
-    string? ConfiguredResumeEligibility);
+    string? ConfiguredResumeEligibility,
+    /// <summary>The Claude Implementer CLI built-in tool allowlist this attempt's fixed adapter
+    /// contract configures (the current adapter's own <c>--tools</c> argument) — a static
+    /// configuration fact, never an observation of effective access, a complete security boundary,
+    /// MCP tool restriction, or invocation eligibility. <see langword="null"/> unless provider,
+    /// role, permission profile, and adapter contract version all agree with the current, single
+    /// supported implementation adapter.</summary>
+    string? ConfiguredBuiltInTools);

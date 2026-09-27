@@ -9,6 +9,87 @@ code before relying on it; older decision detail remains in Git.
 
 ## Current decision (2026-09-27)
 
+- Planning baseline verified before selection: `main`, `HEAD`, local
+  `origin/main`, and live `origin/main` all point to
+  `8f52522a35419045229f27962f8523cf41a5149d`; staged, unstaged, and
+  untracked state was empty. The substantive resume-eligibility delivery is
+  `1ec9ac5f1c9eb3a25301cd37684c368db1ef24f6`, followed by the factual
+  handoff closure at this planning baseline.
+- Selected one bounded Increment 4 slice: disclose the **configured Claude
+  Implementer built-in tool list** on the existing implementation-attempt
+  status and action. For an attempt whose immutable assignment coherently
+  identifies `ClaudeCode`, `Implementer`, `WorkspaceEditOnly`, and
+  `claude-implementation-v1`, report the current adapter's fixed `--tools`
+  value `Read,Edit,Write,Glob,Grep`; otherwise report `null`/`Unknown` for no
+  attempt or a valid historical/mismatched assignment. Preserve the existing
+  fail-closed `agent_attempts.invalid_assignment` result for malformed
+  assignment metadata. This is a configured argument fact, not an observation
+  of effective access, a complete security boundary, or invocation eligibility.
+  The [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  defines `--tools` as restricting built-in tools and explicitly says it does
+  not affect MCP tools. The existing adapter and focused adapter test both fix
+  the exact list; the local `claude` command is unavailable for an installed
+  version check at this selection.
+- Boundaries: use only the existing implementation status projection, MVC
+  response, generated TypeScript client, implementation action, focused tests,
+  and cockpit specification. Label the UI fact "Configured built-in tools";
+  render only the single fixed list or `Unknown`, not a provider-supplied list.
+  Exclude CLI arguments, invocation and tool policy, preflight, claim/dispatch
+  and authorization, other roles, model/effort selection, session behavior,
+  context/compaction, account usage, and persistence schema. Stop if the fixed
+  argument or assignment coherence cannot be proved, or if the disclosure
+  requires a policy/invocation change or a claim about effective MCP or host
+  access. Acceptance requires current, no-attempt, historical/mismatched, and
+  malformed-assignment cases; preserved API disclosure guards; generated-client
+  drift verification; relevant backend and frontend tests, typecheck, lint,
+  production build, and `git diff --check`.
+- Claude first returns the complete **uncommitted, unpushed** diff, including a
+  commit-ready `current-work.md` and this planner-owned selection, for Codex
+  GO/NO-GO. No commit/push GO is granted. After a future GO, one publication
+  instruction may cover the reviewed substantive commit, normal fast-forward
+  push to `origin/main`, live-remote verification, and tightly bounded factual
+  documentation closure recording the delivered SHA. A material change after
+  GO, failed push, or remote divergence stops for review or direction; no
+  force-push or history reconciliation is authorized.
+- Review decision (2026-09-27): **NO-GO, documentation-only correction of this
+  same slice.** Codex verified `main`, `HEAD`, local `origin/main`, and live
+  `origin/main` at `8f52522a35419045229f27962f8523cf41a5149d`, with no
+  staged or untracked files; inspected the complete 12-file diff; and
+  independently passed focused Application 8/8, API 9/9, frontend 19/19,
+  and `git diff --check` (only the existing generated-client line-ending
+  warning). The code and focused tests match the selected behavior. However,
+  `current-work.md` still calls the slice proposed, uncommitted, unpublished,
+  and unauthorized for commit/push. Those statements would be false in the
+  substantive delivery. Make only that handoff commit-ready: describe the
+  selected slice as the current delivery based on parent `8f52522a`, retain
+  actual checks and open risks, and name post-publication verification without
+  claiming it happened or embedding the future commit SHA. Preserve code,
+  tests, and other documentation. Check local links and run `git diff --check`;
+  the earlier test results remain applicable to this documentation-only
+  correction. Return the complete uncommitted, unpushed diff for re-review.
+  No commit/push GO is granted.
+- Correction re-review (2026-09-27): **GO** for the reviewed configured
+  built-in-tools slice, including the corrected, commit-ready `current-work.md`
+  and this planner-owned review record. Codex verified `main`, `HEAD`, local
+  `origin/main`, and live `origin/main` at
+  `8f52522a35419045229f27962f8523cf41a5149d`, with the same 12 modified
+  files and no staged or untracked files; reviewed the corrected handoff and
+  previously reviewed implementation diff; and passed `git diff --check`
+  (only the existing generated-client line-ending warning). The correction
+  changed only `current-work.md`, so the independently passed focused
+  Application 8/8, API 9/9, and frontend 19/19 checks from the preceding
+  review remain applicable, alongside the executor-reported full suites,
+  adapter test, lint, typecheck, and build. Claude may publish this reviewed
+  slice under one bounded instruction: commit the reviewed substantive diff,
+  push `main` normally to `origin/main`, verify the live remote, then make only
+  the factual `current-work.md` closure needed to record the delivered SHA and
+  verified publication, commit and push that closure normally, and verify the
+  live remote again. No extra review is required for that factual closure;
+  any material or out-of-scope change, failed push, or remote divergence must
+  stop for Codex review or direction. No next product slice is selected.
+
+## Prior decisions and review record
+
 - Codex owns planning, architecture, slice selection, review, and acceptance;
   Claude is the bounded executor. Routine slice selection needs no owner
   approval; committing and pushing an executor diff still requires Codex GO.

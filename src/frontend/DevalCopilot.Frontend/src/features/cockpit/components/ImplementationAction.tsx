@@ -90,6 +90,8 @@ export function ImplementationAction({
   const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
   const configuredPermissionPrompts = status?.configuredPermissionPrompts === 'None' ? 'None' : 'Unknown'
   const configuredResumeEligibility = status?.configuredResumeEligibility === 'Ineligible' ? 'Ineligible' : 'Unknown'
+  const configuredBuiltInTools =
+    status?.configuredBuiltInTools === 'Read,Edit,Write,Glob,Grep' ? 'Read,Edit,Write,Glob,Grep' : 'Unknown'
   const formatFact = (value: string | undefined) => value || 'Unknown'
   return (
     <section className="dc-implementation-action" aria-label="Claude implementation">
@@ -125,7 +127,8 @@ export function ImplementationAction({
           {formatFact(status.observedEffort)} · {permissionProfile} · Adapter contract: {adapterContract} ·{' '}
           Configured permission mode: {configuredPermissionMode} · Configured provider-session persistence:{' '}
           {configuredSessionPersistence} · Configured permission confirmations: {configuredPermissionPrompts} ·{' '}
-          Configured resume eligibility: {configuredResumeEligibility}
+          Configured resume eligibility: {configuredResumeEligibility} · Configured built-in tools:{' '}
+          {configuredBuiltInTools}
         </p>
       )}
       {status && hasAttempt && (

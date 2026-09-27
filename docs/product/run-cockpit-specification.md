@@ -536,6 +536,28 @@ carries no runtime-control, authorization, or claim-eligibility meaning of
 its own; the backend remains the sole authority for every claim and dispatch
 decision.
 
+### Configured Claude Implementer built-in tools
+
+A fifth, sibling bounded fact on the same attempt status — the current
+`ClaudeImplementationAdapter`'s fixed `--tools` allowlist, shown as
+`Read,Edit,Write,Glob,Grep`. The
+[Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
+defines `--tools` as restricting which built-in tools the CLI process may
+use, and explicitly states it does not affect MCP tools. This fact states
+only that this attempt's adapter contract is configured to pass that
+allowlist argument — never an observation of the provider's actual effective
+tool access, never a complete security or sandbox boundary, never an MCP
+tool restriction, and never invocation eligibility of any kind. It is
+populated under exactly the same coherence rule and the same `Unknown`/`null`
+fallback as the four configured facts above: no attempt yet, and a valid but
+historical or mismatched assignment, both show `Unknown`/`null` here, never
+the current adapter's configuration by assumption; an invalid or otherwise
+unparseable assignment remains the existing fail-closed
+`agent_attempts.invalid_assignment` error for the whole status, exactly as it
+already is for every other assignment fact on this attempt. It carries no
+runtime-control, authorization, or claim-eligibility meaning of its own; the
+backend remains the sole authority for every claim and dispatch decision.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:
