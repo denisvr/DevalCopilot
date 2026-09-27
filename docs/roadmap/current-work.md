@@ -8,12 +8,15 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Current delivery, based on parent `6312438046e9da0a43e2231ecc76f3e8eee62ac6`:
-  immutable assignment provenance for the two remaining current Claude Code
-  paths (CriticalReviewer and Implementer ReviewCorrection) at claim time,
-  plus five configured adapter facts on each path's existing attempt status
-  and cockpit action. See [planner-handoff.md](planner-handoff.md) for the
-  selection and review record.
+- Latest accepted delivery: immutable assignment provenance for the two
+  remaining current Claude Code paths (CriticalReviewer and Implementer
+  ReviewCorrection) at claim time, plus five configured adapter facts on
+  each path's existing attempt status and cockpit action, in
+  `caf45d33396617ca640cb766fe5bc984c93b488c` (parent
+  `6312438046e9da0a43e2231ecc76f3e8eee62ac6`), published to `origin/main`
+  and verified against the live remote. See
+  [planner-handoff.md](planner-handoff.md) for the selection and review
+  record.
   - `Attempt.ClaimAgentCriticalReview` now persists a concrete
     `AgentPermissionProfile.ReadOnly` and the fixed adapter contract version
     `claude-critical-review-v1`; `Attempt.ClaimAgentReviewCorrection` now
@@ -114,6 +117,13 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     itself. The cockpit specification already described the coherence rule
     as covering "provider, role, response contract, permission profile, and
     adapter contract version," so no documentation change was needed there.
+  - Before the substantive commit, a stale sentence in
+    `GetReviewCorrectionAttemptStatusQueryHandler`'s later per-attempt
+    `GetAssignmentSnapshot()` check comment (claiming an unrelated corrupt
+    attempt on the run could never fail this status) was corrected —
+    comment-only, no behavior change — to state that this case is instead
+    caught earlier, at the `LoadSnapshotAsync` call, exactly as the
+    surrounding correction round already described.
   - Checks actually run: Application.Tests focused
     `GetClaudeCriticalReviewAttemptStatusQueryHandlerTests` 9/9 (1 new
     mismatched-response-contract case) and
@@ -130,13 +140,16 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     preceding round remain applicable. The NSwag client was not regenerated
     in this round — no response DTO changed; its prior additive-only diff
     (40 insertion lines) is unchanged. Automated tests never call a real
-    provider.
+    provider. Post-publication, `main`, `HEAD`, local `origin/main`, and
+    live `origin/main` were confirmed at the delivered commit with a clean
+    working tree, and focused
+    `GetClaudeCriticalReviewAttemptStatusQueryHandlerTests` +
+    `GetReviewCorrectionAttemptStatusQueryHandlerTests` (15/15 combined)
+    were reconfirmed against it.
   - Remaining risks: none newly introduced. Provider-session resume, runtime
     controls, and the other open items below remain unchanged and open.
-  - Verification to perform after publication: confirm `main`, `HEAD`, and
-    local `origin/main` at the delivered commit; independently rerun the
-    checks above; confirm the live remote points to the delivered commit
-    before selecting the next Increment 4 slice.
+  - Next action: no next Increment 4 slice is selected yet; Codex selects and
+    dispatches the next bounded slice.
 - Previously accepted delivery: immutable assignment provenance for the three
   current Codex read-only roles (Planner, Resolver, CodeReviewer) at claim
   time, plus two configured adapter facts on each role's existing attempt
