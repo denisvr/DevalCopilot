@@ -8,10 +8,13 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Current delivery, based on verified parent `c481aead3ca652cf06fffaa509bb68f411f483ff`:
-  Codex provider-session correlation repair for the three current read-only
-  roles (Planner, Resolver, CodeReviewer). See
-  [planner-handoff.md](planner-handoff.md) for the selection record.
+- Latest accepted delivery: Codex provider-session correlation repair for the
+  three current read-only roles (Planner, Resolver, CodeReviewer), in
+  `c04cebf59d85483af8bcfa3f280bd440598a7d76` (parent
+  `c481aead3ca652cf06fffaa509bb68f411f483ff`), published to `origin/main`
+  and verified against the live remote. See
+  [planner-handoff.md](planner-handoff.md) for the selection and review
+  record.
   - The shared `CodexProcessInvoker.TryExtractProviderSessionId` no longer
     reads an arbitrary `session_id` property. It now parses only a complete
     JSON object, on its own line within the existing 4,096-character bounded
@@ -93,10 +96,17 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   - Remaining risks: none newly introduced. Provider-session resume, runtime
     controls, and the other open items below remain unchanged and open. This
     correlation reference still grants no resume eligibility or capability.
-  - Post-publication verification will confirm `main`, `HEAD`, local
-    `origin/main`, and live `origin/main` at the delivered commit with a clean
-    checkout, and reconfirm the focused adapter and command-handler tests
-    above against it.
+  - Post-publication, `main`, `HEAD`, local `origin/main`, and live
+    `origin/main` were confirmed at the delivered commit with a clean working
+    tree, and focused Infrastructure.IntegrationTests
+    `CodexPlanningAdapterTests` + `CodexChallengeResolutionAdapterTests` +
+    `CodexImplementationReviewAdapterTests` (46/46) and Application.Tests
+    `RecordAgentAttemptResultCommandHandlerTests` +
+    `RecordChallengeResolutionResultCommandHandlerTests` +
+    `RecordImplementationReviewResultCommandHandlerTests` (71/71) were
+    reconfirmed against it.
+  - Next action: no next Increment 4 slice is selected yet; Codex selects and
+    dispatches the next bounded slice.
 - Previously accepted delivery: immutable assignment provenance for the two
   remaining current Claude Code paths (CriticalReviewer and Implementer
   ReviewCorrection) at claim time, plus five configured adapter facts on
