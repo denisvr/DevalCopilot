@@ -125,6 +125,7 @@ describe('ImplementationAction', () => {
             adapterContractVersion: 'claude-implementation-v1',
             configuredPermissionMode: 'acceptEdits',
             configuredSessionPersistence: 'Disabled',
+            configuredPermissionPrompts: 'None',
             changedRelativePaths: [],
           })
         }
@@ -141,7 +142,7 @@ describe('ImplementationAction', () => {
     expect(screen.getByText(/Claude Code · Implementer · Model requested: claude-model-requested/)).toBeInTheDocument()
     expect(screen.getByText(/Model observed: claude-model-observed · Effort requested: high-requested · Effort observed: medium-observed/)).toBeInTheDocument()
     expect(screen.getByText(
-      /Workspace edit only · Adapter contract: claude-implementation-v1 · Configured permission mode: acceptEdits · Configured provider-session persistence: Disabled/,
+      /Workspace edit only · Adapter contract: claude-implementation-v1 · Configured permission mode: acceptEdits · Configured provider-session persistence: Disabled · Configured permission confirmations: None/,
     )).toBeInTheDocument()
     expect(screen.queryByText(/C:\\|credential|environment|prompt|transcript|raw output/i)).not.toBeInTheDocument()
   })
@@ -174,7 +175,7 @@ describe('ImplementationAction', () => {
 
     expect(screen.getByText(/Model requested: Unknown · Model observed: Unknown · Effort requested: Unknown · Effort observed: Unknown/)).toBeInTheDocument()
     expect(screen.getByText(
-      /Unknown · Adapter contract: Unknown · Configured permission mode: Unknown · Configured provider-session persistence: Unknown/,
+      /Unknown · Adapter contract: Unknown · Configured permission mode: Unknown · Configured provider-session persistence: Unknown · Configured permission confirmations: Unknown/,
     )).toBeInTheDocument()
   })
 
@@ -214,6 +215,7 @@ describe('ImplementationAction', () => {
           adapterContractVersion: 'unrecognized-contract-sentinel',
           configuredPermissionMode: 'unrecognized-permission-mode-sentinel',
           configuredSessionPersistence: 'unrecognized-session-persistence-sentinel',
+          configuredPermissionPrompts: 'unrecognized-permission-prompts-sentinel',
           changedRelativePaths: [],
         })}
         statusLoading={false}
@@ -227,9 +229,11 @@ describe('ImplementationAction', () => {
     )
 
     expect(screen.getByText(/Unknown · Unknown · Model requested: Unknown/)).toBeInTheDocument()
-    expect(screen.getByText(/Configured permission mode: Unknown · Configured provider-session persistence: Unknown/)).toBeInTheDocument()
+    expect(screen.getByText(
+      /Configured permission mode: Unknown · Configured provider-session persistence: Unknown · Configured permission confirmations: Unknown/,
+    )).toBeInTheDocument()
     expect(screen.queryByText(
-      /UnrecognizedProviderSentinel|UnrecognizedRoleSentinel|UnrecognizedProfileSentinel|unrecognized-contract-sentinel|unrecognized-permission-mode-sentinel|unrecognized-session-persistence-sentinel/,
+      /UnrecognizedProviderSentinel|UnrecognizedRoleSentinel|UnrecognizedProfileSentinel|unrecognized-contract-sentinel|unrecognized-permission-mode-sentinel|unrecognized-session-persistence-sentinel|unrecognized-permission-prompts-sentinel/,
     )).not.toBeInTheDocument()
   })
 

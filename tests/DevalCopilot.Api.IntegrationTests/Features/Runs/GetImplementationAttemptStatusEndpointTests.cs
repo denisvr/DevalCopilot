@@ -108,11 +108,12 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal(contractVersion, root.GetProperty("adapterContractVersion").GetString());
         Assert.Equal("acceptEdits", root.GetProperty("configuredPermissionMode").GetString());
         Assert.Equal("Disabled", root.GetProperty("configuredSessionPersistence").GetString());
+        Assert.Equal("None", root.GetProperty("configuredPermissionPrompts").GetString());
 
         Assert.DoesNotContain(forbiddenSentinel, body, StringComparison.Ordinal);
         Assert.DoesNotContain("C:\\repos\\", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("credential", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("prompt", body, StringComparison.OrdinalIgnoreCase);
+        AssertNoPromptDisclosure(body);
         Assert.DoesNotContain("environment", body, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("transcript", body, StringComparison.OrdinalIgnoreCase);
     }
@@ -154,6 +155,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal("claude-implementation-v2", root.GetProperty("adapterContractVersion").GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredSessionPersistence").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionPrompts").ValueKind);
     }
 
     [Fact]
@@ -182,5 +184,91 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.False(root.GetProperty("hasAttempt").GetBoolean());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredSessionPersistence").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionPrompts").ValueKind);
+    }
+
+    [Fact]
+    public void AssertNoPromptDisclosure_permits_only_the_two_coherent_root_level_values()
+    {
+        AssertNoPromptDisclosure("""{"configuredPermissionMode":"acceptEdits","configuredPermissionPrompts":"None"}""");
+        AssertNoPromptDisclosure("""{"configuredPermissionMode":null,"configuredPermissionPrompts":null}""");
+    }
+
+    [Fact]
+    public void AssertNoPromptDisclosure_rejects_the_safe_literal_nested_under_another_object()
+    {
+        // Same literal text and value, but not a root-level property — TryGetProperty on the root
+        // element cannot see it, so the exception never applies here.
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoPromptDisclosure(
+            """{"assignment":{"configuredPermissionPrompts":"None"}}"""));
+    }
+
+    [Fact]
+    public void AssertNoPromptDisclosure_rejects_a_duplicate_occurrence_of_the_safe_literal()
+    {
+        // A second, duplicated occurrence of the exact same root-level property/value pair means
+        // the literal text appears twice in the raw body — the single-occurrence check refuses to
+        // strip anything in that case, so the blanket scan still catches it.
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoPromptDisclosure(
+            """{"configuredPermissionPrompts":"None","configuredPermissionPrompts":"None"}"""));
+    }
+
+    [Fact]
+    public void AssertNoPromptDisclosure_rejects_an_unexpected_value_for_the_same_property()
+    {
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoPromptDisclosure(
+            """{"configuredPermissionPrompts":"Some"}"""));
+    }
+
+    [Fact]
+    public void AssertNoPromptDisclosure_still_rejects_an_actual_leaked_prompt_alongside_the_safe_fact()
+    {
+        Assert.ThrowsAny<Xunit.Sdk.XunitException>(() => AssertNoPromptDisclosure(
+            """{"configuredPermissionPrompts":"None","systemPrompt":"do not disclose this prompt"}"""));
+    }
+
+    // The coherent-assignment test above legitimately serializes one root-level
+    // "configuredPermissionPrompts" property (a static, non-secret configuration fact — see
+    // ImplementationAttemptStatusResponse.ConfiguredPermissionPrompts) whose own property name
+    // contains the substring "prompt", which would otherwise trip this file's blanket
+    // case-insensitive "prompt" disclosure check (guarding against a real leaked prompt/manifest
+    // value). This file only ever exercises the implementation-status route, so no route
+    // restriction is needed; JSON parsing still confirms the property sits directly on the root
+    // object with its one coherent value before stripping only that exact, single occurrence — a
+    // nested occurrence, a duplicated occurrence, an unexpected value, or any other field remains
+    // fully subject to the blanket scan.
+    private static void AssertNoPromptDisclosure(string body) =>
+        Assert.DoesNotContain(
+            "prompt", RemoveOnlyTheRootLevelConfiguredPermissionPromptsFact(body), StringComparison.OrdinalIgnoreCase);
+
+    private static string RemoveOnlyTheRootLevelConfiguredPermissionPromptsFact(string body)
+    {
+        using var document = JsonDocument.Parse(body);
+        if (!document.RootElement.TryGetProperty("configuredPermissionPrompts", out var property))
+        {
+            return body;
+        }
+
+        var literal = property.ValueKind switch
+        {
+            JsonValueKind.Null => "\"configuredPermissionPrompts\":null",
+            JsonValueKind.String when property.GetString() == "None" => "\"configuredPermissionPrompts\":\"None\"",
+            _ => null,
+        };
+
+        return literal is not null && CountOccurrences(body, literal) == 1
+            ? body.Replace(literal, "", StringComparison.Ordinal)
+            : body;
+    }
+
+    private static int CountOccurrences(string haystack, string needle)
+    {
+        var count = 0;
+        for (var index = haystack.IndexOf(needle, StringComparison.Ordinal); index >= 0;
+             index = haystack.IndexOf(needle, index + needle.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+        return count;
     }
 }

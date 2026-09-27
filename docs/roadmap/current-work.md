@@ -8,35 +8,67 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-27)
 
-- Latest accepted substantive delivery: `1d9f6b4876b43b0585ed8422d4de653966e8e8dc`
-  (parent `a114f29064befa25f95541678fa73db6da2ab331`), published to
-  `origin/main` and accepted by Codex after two correction rounds. No
-  uncommitted slice work remained at delivery. Later documentation-only
-  checkpoint commits do not change this product delivery.
-- The implementation-attempt status and cockpit now show
-  `ConfiguredSessionPersistence: Disabled` only for a coherent current Claude
-  Implementer assignment matching the unchanged `--no-session-persistence`
-  adapter argument. Valid historical/mismatched assignments show `Unknown`;
-  invalid or absent assignment metadata retains the existing fail-closed
-  error. This is configured evidence, not a provider-observed session outcome
-  or DevalCopilot's durable attempt history. The two shared API disclosure
-  guards permit only this root-level fact on the implementation-status route;
-  negative tests still reject nested, other-route, unexpected-value, and
-  actual session disclosures. See the
-  [cockpit specification](../product/run-cockpit-specification.md).
-- Executor-reported checks: Domain 524/524, Application 986/986,
-  Infrastructure 440/441 (one pre-existing skip), API 307/307,
-  Architecture 9/9, frontend 605/605; TypeScript typecheck, lint, production
-  build, and `git diff --check` passed. NSwag regeneration was additive-only.
-  Codex independently passed API 307/307, focused Application 8/8, focused
-  frontend 19/19, typecheck, and diff check before GO.
-- No adapter behavior, provider-account-usage threshold, persistence schema,
-  authorization, claim/dispatch policy, or provider-session resume behavior
-  changed. The account-allowance evidence candidate remains closed without
-  delivery; no safe CLI observation contract was established.
-- Next action: Codex investigates the remaining Increment 4 provider runtime
-  controls against code, accepted ADRs, and provider contracts before
-  selecting another bounded slice. None is selected yet.
+- Current delivery: the bounded, read-only configured Claude Implementer
+  permission-confirmations fact, built on parent
+  `c2b0155f26f07bbe09ca67a9c5234228e274a703` (`main`/`origin/main` at the
+  start of this slice). Checkout clean at delivery. Codex reviewed the
+  uncommitted diff across two correction rounds and recorded GO; see
+  [planner-handoff.md](planner-handoff.md).
+- The implementation-attempt status and cockpit now show a new
+  `ConfiguredPermissionPrompts` / `configuredPermissionPrompts` fact
+  alongside the existing `ConfiguredPermissionMode` and
+  `ConfiguredSessionPersistence` facts — `"None"` (the current
+  `ClaudeImplementationAdapter`'s existing, unchanged `--permission-prompts
+  none` argument, which the
+  [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
+  documents as denying interactive permission-confirmation prompts in print
+  mode) only when the attempt's own provider, role, permission profile, and
+  adapter contract version all agree with the current supported
+  implementation path; otherwise `null`/`Unknown`, with the existing
+  fail-closed `agent_attempts.invalid_assignment` error preserved for invalid
+  or absent assignment metadata (never a success value reporting `Unknown`).
+  No CLI argument, invocation, claim/dispatch policy, authorization, provider
+  preflight, other role, model/effort selection, context/compaction, session
+  behavior, usage limit, or persistence schema changed. Documented in the new
+  "Configured Claude Implementer permission confirmations" subsection of
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md).
+  The UI label reads "Configured permission confirmations" (not "…prompts")
+  to avoid colliding with `ImplementationAction.test.tsx`'s existing blanket
+  `/prompt/i` disclosure check on rendered text; the API field name itself
+  does use `PermissionPrompts`, matching the CLI flag name.
+- One pre-existing, single-file API disclosure guard
+  (`GetImplementationAttemptStatusEndpointTests`'s own coherent-assignment
+  test, which asserts the response body contains no `"prompt"` substring)
+  needed the same narrow, JSON-root-verified, single-occurrence exception
+  already applied twice to the two shared cross-role guards for
+  `configuredSessionPersistence` — scoped to exactly this one root-level
+  property with one of its two coherent values. Five focused tests prove the
+  exception still rejects a nested occurrence, a duplicate occurrence, an
+  unexpected value, and a genuine leaked prompt alongside the safe fact, and
+  permits only the two coherent values. Every other disclosure check in this
+  file and the two shared guard files is unchanged.
+- Checks actually run: Domain.Tests 524/524, Application.Tests 986/986,
+  Infrastructure.IntegrationTests 440/441 (one pre-existing unrelated skip),
+  Api.IntegrationTests 312/312 (307 existing + 5 new guard-negative/positive
+  cases), Architecture.Tests 9/9 — all green. Frontend 605/605 tests
+  (existing `ImplementationAction` assertions extended for the valid,
+  absent, and mismatched-sentinel cases), `tsc -b` clean, `oxlint` exited 0
+  with the same 20 pre-existing warnings (0 new), `vite build` production
+  build passed, `git diff --check` reported no whitespace errors. The NSwag
+  client was regenerated via `dotnet build src/backend/DevalCopilot.Api`;
+  the resulting `api-client.ts` diff is additive only (one new optional
+  field). Codex independently passed the full API suite (312/312), focused
+  Application (8/8), focused frontend (19/19), typecheck, and diff check
+  across its review rounds.
+- No adapter argument, invocation, claim/dispatch policy, authorization,
+  provider preflight, other role, model/effort selection, context/compaction,
+  session behavior, usage limit, or persistence schema changed. The
+  account-allowance evidence candidate remains closed without delivery; no
+  safe CLI observation contract was established.
+- Next action: after this documentation-only correction is committed and
+  pushed, Codex verifies the remote commit and either selects the next
+  bounded slice or investigates the remaining Increment 4 provider runtime
+  controls first; none is selected yet.
 
 ## Open risks
 

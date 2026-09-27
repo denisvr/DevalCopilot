@@ -47,4 +47,11 @@ public sealed record ImplementationAttemptStatusResponse(
     /// flag does not affect either way. <see langword="null"/> unless provider, role, permission
     /// profile, and adapter contract version all agree with the current, single supported
     /// implementation adapter.</summary>
-    string? ConfiguredSessionPersistence);
+    string? ConfiguredSessionPersistence,
+    /// <summary>Whether this attempt's fixed adapter contract configures the Claude CLI's
+    /// interactive permission-confirmation prompts as denied in print mode (the current adapter's
+    /// own <c>--permission-prompts none</c> argument) — a static configuration fact, never a
+    /// provider-observed result and never invocation eligibility. <see langword="null"/> unless
+    /// provider, role, permission profile, and adapter contract version all agree with the
+    /// current, single supported implementation adapter.</summary>
+    string? ConfiguredPermissionPrompts);

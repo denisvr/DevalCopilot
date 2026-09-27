@@ -493,6 +493,24 @@ carries no runtime-control, authorization, or claim-eligibility meaning of its
 own; the backend remains the sole authority for every claim and dispatch
 decision.
 
+### Configured Claude Implementer permission confirmations
+
+A third, sibling bounded fact on the same attempt status — whether the
+current `ClaudeImplementationAdapter`'s fixed `--permission-prompts none`
+argument configures the Claude CLI's interactive permission-confirmation
+prompts as denied in print mode, shown as `None`. It states what this
+attempt's adapter contract is configured to pass, never a provider-observed
+result and never invocation eligibility, and it is populated under exactly
+the same coherence rule and the same `Unknown`/`null` fallback as the two
+configured facts above: no attempt yet, and a valid but historical or
+mismatched assignment, both show `Unknown`/`null` here, never the current
+adapter's configuration by assumption; an invalid or otherwise unparseable
+assignment remains the existing fail-closed `agent_attempts.invalid_assignment`
+error for the whole status, exactly as it already is for every other
+assignment fact on this attempt. It carries no runtime-control,
+authorization, or claim-eligibility meaning of its own; the backend remains
+the sole authority for every claim and dispatch decision.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

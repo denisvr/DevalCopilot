@@ -51,7 +51,15 @@ public sealed record ImplementationAttemptStatusQueryResult(
     /// profile, and adapter contract version all agree with the current, single supported
     /// implementation adapter; otherwise <see langword="null"/>, exactly like every other
     /// assignment fact here.</summary>
-    string? ConfiguredSessionPersistence = null)
+    string? ConfiguredSessionPersistence = null,
+    /// <summary>Whether this attempt's fixed adapter contract configures the Claude CLI's
+    /// interactive permission-confirmation prompts as denied in print mode (the current adapter's
+    /// own <c>--permission-prompts none</c> argument) — a static configuration fact, never a
+    /// provider-observed result and never invocation eligibility. Populated only when provider,
+    /// role, permission profile, and adapter contract version all agree with the current, single
+    /// supported implementation adapter; otherwise <see langword="null"/>, exactly like every
+    /// other assignment fact here.</summary>
+    string? ConfiguredPermissionPrompts = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

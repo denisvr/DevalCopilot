@@ -88,6 +88,7 @@ export function ImplementationAction({
     : 'Unknown'
   const configuredPermissionMode = status?.configuredPermissionMode === 'acceptEdits' ? 'acceptEdits' : 'Unknown'
   const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
+  const configuredPermissionPrompts = status?.configuredPermissionPrompts === 'None' ? 'None' : 'Unknown'
   const formatFact = (value: string | undefined) => value || 'Unknown'
   return (
     <section className="dc-implementation-action" aria-label="Claude implementation">
@@ -122,7 +123,7 @@ export function ImplementationAction({
           {formatFact(status.observedModel)} · Effort requested: {formatFact(status.requestedEffort)} · Effort observed:{' '}
           {formatFact(status.observedEffort)} · {permissionProfile} · Adapter contract: {adapterContract} ·{' '}
           Configured permission mode: {configuredPermissionMode} · Configured provider-session persistence:{' '}
-          {configuredSessionPersistence}
+          {configuredSessionPersistence} · Configured permission confirmations: {configuredPermissionPrompts}
         </p>
       )}
       {status && hasAttempt && (

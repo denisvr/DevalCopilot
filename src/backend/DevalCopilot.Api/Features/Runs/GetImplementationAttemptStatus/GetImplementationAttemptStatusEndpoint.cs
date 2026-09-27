@@ -59,6 +59,7 @@ public sealed class GetImplementationAttemptStatusEndpoint(
             AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout),
             AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage),
             value.ConfiguredPermissionMode,
-            value.ConfiguredSessionPersistence));
+            value.ConfiguredSessionPersistence,
+            value.ConfiguredPermissionPrompts));
     }
 }

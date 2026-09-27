@@ -22,6 +22,11 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
     // result and never DevalCopilot's own durable attempt history.
     private const string ConfiguredClaudeImplementerSessionPersistence = "Disabled";
 
+    // Mirrors the current adapter's own hardcoded "--permission-prompts none" argument
+    // (ClaudeImplementationAdapter) — a fixed CLI configuration fact, never a provider-observed
+    // result and never invocation eligibility.
+    private const string ConfiguredClaudeImplementerPermissionPrompts = "None";
+
     public async Task<Result<ImplementationAttemptStatusQueryResult>> HandleAsync(
         GetImplementationAttemptStatusQuery query, CancellationToken cancellationToken)
     {
@@ -115,6 +120,10 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             ? ConfiguredClaudeImplementerSessionPersistence
             : null;
 
+        var configuredPermissionPrompts = isCoherentDefaultImplementationAssignment
+            ? ConfiguredClaudeImplementerPermissionPrompts
+            : null;
+
         return Result<ImplementationAttemptStatusQueryResult>.Success(new ImplementationAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -138,7 +147,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             attempt.AgentTimeout,
             attempt.GetAgentTokenUsageEvidence(),
             configuredPermissionMode,
-            configuredSessionPersistence));
+            configuredSessionPersistence,
+            configuredPermissionPrompts));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>
