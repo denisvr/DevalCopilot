@@ -143,9 +143,14 @@ asserted to be outside the API's bounded window — only that it is not present
 in what is currently loaded. The active card is visually tied to the
 participant marked `Working`.
 
-Expanded cards are intended to later expose linked evidence and raw artifacts;
-the cockpit does not yet implement that expand interaction, only the bounded
-legacy-details disclosure described above.
+A `ProviderObserved` card whose message links to a real Agent attempt offers an
+"Attempt evidence" drill-down exposing that attempt's own bounded historical
+metadata (status, timing, checkpoints, recorded process/token-usage facts, and
+an artifact-metadata inventory) — never the attempt's raw output. From that
+same drill-down, the owner may additionally open a bounded, integrity-verified
+text window of one of that attempt's own sealed artifacts (see "Sealed
+Agent-artifact window inspection" below); every other card type retains only
+the bounded legacy-details disclosure described above.
 
 The timeline is reconstructed from durable events. It does not rely on the
 continued availability of either provider's native conversation history.
@@ -712,6 +717,43 @@ five facts are attached only after that resolution, never in place of it.
 These facts carry no runtime-control, authorization, or claim-eligibility
 meaning of their own; the backend remains the sole authority for every claim
 and dispatch decision.
+
+### Sealed Agent-artifact window inspection
+
+From within the collaboration-message evidence drill-down (see "Collaboration
+timeline" above), an owner may select one of the four evidence purposes
+actually present in that exact attempt's own bounded artifact-metadata list —
+context manifest, standard output, standard error, or final response — and
+load a bounded, integrity-verified text window of that sealed artifact, with a
+manual "load next window" action for further windows rather than automatic or
+continuous paging. Selection is offered only for a purpose this attempt's own
+metadata actually names; no other artifact purpose, other attempt, or other
+run is ever reachable from this control. Selecting a different purpose,
+switching to a different run or collaboration message, or closing and
+reopening the drill-down each discard any previously loaded text before the
+next window is fetched — no stale text from a prior selection is ever shown
+alongside a new one.
+
+Every window is rendered as plain text, never interpreted as HTML or Markdown,
+so content shaped like markup is shown exactly as captured rather than
+executed or formatted. Each view carries an explicit caveat matched to how
+that exact purpose is actually produced, never one blanket claim asserted for
+all four: the context manifest is composed entirely by DevalCopilot's own
+application code from already-curated durable fields, never raw, unexamined
+provider output, while standard output, standard error, and final response
+are raw provider text passed through a fixed, best-effort redaction pattern
+list before capture. Neither caveat is a guarantee that no sensitive content
+remains — an unusual identifier in a host-constructed field, or an
+unrecognized secret format in redacted provider text, may still appear — and
+neither purpose's text is ever a live tail of a running attempt or evidence
+about the run's current source state. An artifact with no
+recorded row for the selected purpose, a recorded artifact whose sealed file
+cannot be verified (missing or failed integrity check), and a genuinely
+unavailable evidence link (mirroring the drill-down's own existing
+`NoAgentEvidence`/`AttemptLinkBroken` states) each show their own distinct,
+non-alarming message — never a generic error, and never partial or
+unverified text. Fetched text is never written to browser storage, a URL, or
+any log.
 
 ## Evidence surface
 

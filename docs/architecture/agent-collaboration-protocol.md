@@ -978,6 +978,86 @@ already-displayed summary; a reference the currently loaded timeline window
 does not contain is described as such — "not present in the currently loaded
 timeline" — never rendered as if it were visible there.
 
+### Sealed Agent-artifact window inspection
+
+The collaboration-message evidence drill-down's bounded artifact list (see
+above) is a metadata-only inventory — purpose, byte length, truncation, and
+capture outcome, never content. A separate, additive operation
+(`GetSealedAgentArtifactWindowQuery`/`GetSealedAgentArtifactWindowEndpoint`)
+lets the owner open a bounded, integrity-verified text window of the sealed
+bytes one of those metadata rows describes, restricted to a closed four-purpose
+allowlist: `AgentContextManifest`, `AgentStandardOutput`, `AgentStandardError`,
+and `AgentFinalResponse` — never the two Process-attempt purposes
+`GetProcessAttemptOutputEndpoint` already serves, and never a live, still-being
+-written partial capture (only a sealed row is ever served here). Resolution
+repeats the identical message-to-attempt coherence rule the evidence
+drill-down itself already enforces — the same `ProviderObserved` provenance
+check, the same `AttemptId` foreign-key-only resolution, and the same
+role/provider coherence check between the message's actor and the resolved
+`Attempt` row — rather than sharing an extracted helper, since each operation
+independently owns its own request shape and failure projection. An
+`Artifact` row is then resolved by matching **all three** of `AttemptId`,
+`RunId`, and the requested `Purpose` together; a purpose outside the closed
+allowlist is rejected at both the API route (an unrecognized route segment is
+a safe 404, mirroring `GetProcessAttemptOutputEndpoint`'s own `stream` mapping)
+and, independently, inside the query handler itself (defense in depth for any
+future non-HTTP caller).
+
+Every requested window is served through the existing
+`IArtifactStore.VerifyAndReadSealedAsync` boundary unchanged: the entire
+sealed file's actual length and SHA-256 are verified against the `Artifact`
+row's own durable metadata before any byte of the requested window is
+returned, and the same path resolution that boundary already enforces rejects
+a stored relative path that is absolute or that resolves, through `..`
+segments, outside the artifact root. This is a purely lexical/textual check
+(`Path.GetFullPath` followed by a string-prefix comparison against the root);
+it establishes only that the resolved path's *textual form* stays under the
+root, never that no path segment along the way is a reparse point (a
+filesystem symlink or junction) that the operating system would actually
+follow to a location outside it. No new sealed-store hardening was added for
+this slice to close that gap: the existing boundary already fails a missing
+file, a syntactically path-escaping stored path, and a tampered/mismatched
+length or hash to the same safe, explicit statuses (`Missing`,
+`IntegrityMismatch`) this operation projects outward, with no storage path,
+hash, or other raw diagnostic ever crossing the API boundary in any case,
+verified failed or not — this newly reachable window does not change that
+existing threat model, since it reads through the identical store, the
+identical application-owned artifact root, and the identical
+database-recorded relative paths every other sealed-read caller
+(`GetProcessAttemptOutputEndpoint`, `GetVerificationExecutionOutputQueryHandler`)
+already reads through unchanged. A reparse point planted under the artifact
+root remains an open risk of the shared sealed-store boundary itself, not one
+this slice introduces or resolves; see the current delivery's remaining risk
+in `docs/roadmap/current-work.md`. The response also never resolves the
+attempt's other artifacts, other attempts, or any other run — only the one
+sealed row this exact `(AttemptId, RunId, Purpose)` triple names. The
+bounded-window UTF-8 cursor semantics (a byte offset, a byte cap, and a
+never-split multi-byte codepoint boundary deferred whole to the next window)
+are the same ones `GetProcessAttemptOutputEndpoint` already established; this
+operation adds no new windowing behavior, only a new closed set of purposes
+and a new resolution path to reach it.
+
+The frontend renders every returned window as literal text (React's default
+text-node rendering; never `dangerouslySetInnerHTML` or any other HTML
+interpretation) inside the existing evidence drill-down, offering purpose
+selection only for a purpose actually present in that attempt's own already-
+loaded, bounded artifact list — never every allowlisted purpose
+unconditionally — and a manual "load next window" action rather than
+automatic paging. Selecting a different purpose, or a different run/message,
+or closing and reopening the drill-down drawer, all discard any previously
+fetched text and cursor state before the next fetch begins. Every window is
+labeled as historical, with a caveat matched to how that exact purpose is
+actually produced — never one blanket claim asserted for all four: the
+context manifest is host-constructed from already-curated durable fields,
+never raw provider output, while standard output, standard error, and final
+response are provider output passed through a fixed, best-effort redaction
+pattern list before capture. Neither classification is a live tail, and
+neither guarantees the complete absence of sensitive content — an unusual
+identifier in a host-constructed field, or an unrecognized secret format in
+redacted provider output, may still remain. No window is ever rendered or
+persisted anywhere but this one on-demand view (no browser storage, no URL,
+no log).
+
 ### Provider token-usage contracts
 
 **Claude Code — proven.** The token-usage contract was verified from the

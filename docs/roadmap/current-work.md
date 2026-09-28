@@ -14,8 +14,168 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   and verified against the live remote with `git fetch origin main`: local
   `HEAD`, local `origin/main`, and fetched `origin/main` matched the delivered
   SHA, with a clean working tree. This closure records the delivered SHA only;
-  no code or product contract changed after publication. No next slice is
-  selected.
+  no code or product contract changed after publication. (Historical: at this
+  closure's own time, no next slice was selected; the planner has since
+  selected the sealed Agent-artifact inspection slice recorded at the top of
+  this checkpoint.)
+- Current delivery, based on verified parent
+  `b0aa8e4fdad09850e155c2c13d1f8cc4636306d6`: bounded, integrity-verified
+  inspection of a sealed Agent-attempt artifact's own text, extending the
+  existing collaboration evidence drill-down. See
+  [planner-handoff.md](planner-handoff.md) for the selection record, and the
+  ["Sealed Agent-artifact window inspection"](../architecture/agent-collaboration-protocol.md#sealed-agent-artifact-window-inspection)
+  and
+  ["Sealed Agent-artifact window inspection"](../product/run-cockpit-specification.md#sealed-agent-artifact-window-inspection)
+  sections for the exact contract and product semantics.
+  - New Application query `GetSealedAgentArtifactWindowQuery`/
+    `GetSealedAgentArtifactWindowQueryHandler` resolves the requested
+    `(RunId, MessageId)` collaboration message exactly like
+    `GetCollaborationMessageEvidenceQueryHandler` (same `ProviderObserved`
+    provenance check, same `AttemptId`-foreign-key-only resolution, same
+    role/provider coherence check — repeated as this operation's own rule,
+    not an extracted shared helper), then resolves an `Artifact` row by
+    matching `AttemptId`, `RunId`, and the requested `Purpose` together,
+    restricted server-side to a closed four-value allowlist
+    (`AgentContextManifest`, `AgentStandardOutput`, `AgentStandardError`,
+    `AgentFinalResponse` — never the two Process-attempt purposes). Reuses
+    the existing `IArtifactStore.VerifyAndReadSealedAsync` boundary
+    unchanged: the entire sealed file's length/hash is verified before any
+    byte of the requested window is returned, and its existing path
+    resolution already rejects a missing file and a stored path that is
+    absolute or that lexically resolves, through `..` segments, outside the
+    artifact root — no sealed-store hardening was needed for this slice, and
+    this newly reachable window carries no new threat this shared boundary
+    did not already face from its existing callers. Every non-content
+    outcome (no agent evidence, a broken attempt
+    link, a disallowed purpose, no recorded artifact, a missing sealed file,
+    a failed integrity check) is its own explicit, distinct status; a
+    genuinely unknown run/message pair fails with the existing
+    `collaboration_messages.not_found` error. No storage path, content hash,
+    or other raw diagnostic ever crosses the API boundary.
+  - New protected `GET
+    api/runs/{runId}/collaboration-messages/{messageId}/evidence/artifact-window/{purpose}`
+    endpoint (`GetSealedAgentArtifactWindowEndpoint`), restricting `purpose`
+    to the same four route segments (`context-manifest`, `stdout`, `stderr`,
+    `final-response`) with an unrecognized segment as a safe 404, and reusing
+    `GetProcessAttemptOutputEndpoint`'s exact `fromOffset`/`maxBytes`
+    clamping (16 KiB default, 64 KiB hard cap, 64-byte floor). Additive-only
+    NSwag client regeneration (`GetSealedAgentArtifactWindowEndpointClient`,
+    `SealedAgentArtifactWindowResponse`).
+  - New `useSealedAgentArtifactWindow` hook (on-demand fetch, accumulates
+    text across manually requested windows, resets whenever
+    `(runId, messageId, purpose)` changes — mirroring
+    `useCollaborationMessageEvidence`'s own render-time reset pattern) and a
+    new `AttemptArtifactWindowViewer` component added to the existing
+    `CollaborationEvidenceDrilldown`: a purpose selector populated only from
+    that attempt's own already-loaded, bounded artifact-metadata list, a
+    manual "Load"/"Load next window" action, and every fetched window
+    rendered as literal React text content (never HTML/Markdown
+    interpretation). `CollaborationEvidenceDrilldown`'s own `<details>`
+    element is now a controlled component (`isOpen` state) so the viewer can
+    be keyed on the open/closed transition — closing and reopening the
+    drawer remounts it, discarding any prior purpose selection and fetched
+    text, alongside the existing run/message reset. Never written to
+    `localStorage`/`sessionStorage`/the URL/logs.
+  - **Corrected in review**: `useSealedAgentArtifactWindow`'s retry action
+    for a failed later window (one requested after at least one window had
+    already loaded) previously always retried at offset 0, which would have
+    re-fetched and re-appended the already-accumulated earlier text on top
+    of itself rather than actually retrying the window that failed. A new
+    `lastRequestedOffsetRef` records the offset most recently requested,
+    independent of `state`, and retry now re-requests that exact offset; a
+    failure never touches the accumulated text in the first place. A new
+    deterministic test loads a first window, fails the second, retries, and
+    asserts the exact sequence of requested offsets (`0`, then the failed
+    offset again on retry — never `0` again) and the exact reconstructed
+    text (no duplication, no omission).
+  - **Corrected in review**: the viewer's single sensitivity caveat
+    previously described every one of the four purposes as "best-effort
+    redacted provider text," which is false for `AgentContextManifest` — it
+    is composed entirely by DevalCopilot's own application code from
+    already-curated durable fields (`Artifact.Sensitivity.HostConstructedContent`,
+    set at the point `CreateCodexPlanningAttemptCommandHandler` and its
+    sibling claim handlers record it), never raw provider output. The
+    viewer, and both new specification sections, now state two distinct,
+    purpose-matched caveats — a host-constructed caveat for the context
+    manifest and a best-effort-redacted-provider-text caveat for the other
+    three (`Artifact.Sensitivity.RedactedBestEffort`, set in
+    `RecordAgentAttemptResultCommandHandler`) — chosen from the already-known,
+    closed-allowlist purpose string the component already holds; no new
+    sensitivity API, wire field, or schema was added. Both caveats
+    explicitly warn that sensitive content may still remain, never that
+    either purpose is proven safe.
+  - **Corrected in review**: the architecture and this checkpoint previously
+    described the sealed-store path resolution as "containment-checked"
+    without qualification. `FilesystemArtifactStore`'s path check is a
+    purely lexical/textual operation (`Path.GetFullPath` plus a string-prefix
+    comparison) — proven, by existing tests, to reject an absolute or
+    `..`-escaping stored relative path, but never proven, and not capable
+    without a filesystem probe, to detect a reparse point (a symlink or
+    junction) along the resolved path that the operating system would
+    actually follow outside the artifact root. The architecture doc now
+    states precisely what is proven and records the reparse-point gap as an
+    open risk below, rather than an implied guarantee. This is an existing
+    limitation of the shared sealed-store boundary every other sealed-read
+    caller already depends on unchanged; this slice reads through that same
+    boundary and introduces no new write path or new artifact-root threat,
+    so no store hardening was added — broadening this correction into a
+    sealed-store fix was judged out of this slice's bounded scope rather
+    than reported as unsafe to proceed without.
+  - Checks actually run: Application.Tests focused
+    `GetSealedAgentArtifactWindowQueryHandlerTests` 9/9, full 1078/1078;
+    Api.IntegrationTests focused `GetSealedAgentArtifactWindowEndpointTests`
+    16/16 (all four purposes; a genuine multi-window UTF-8 split boundary
+    with a monotonic cursor reconstructing the exact original text; an
+    unrecognized purpose segment; a negative offset; an unknown message; a
+    message on a different run; a non-`ProviderObserved` message; an
+    incoherent role link; no recorded artifact for the requested purpose; a
+    recorded artifact whose sealed file was never written; a path-escaping
+    stored relative path; a tampered recorded byte length; and that no
+    response ever discloses a storage path, content hash, or exception
+    detail), full 355/355; Domain.Tests 547/547 (unchanged; no Domain
+    change in this slice); Infrastructure.IntegrationTests 520/521 (1
+    pre-existing, unrelated skip; unchanged — no Infrastructure change in
+    this slice, `IArtifactStore` was reused as-is); Architecture.Tests 9/9.
+    Frontend focused viewer and drill-down tests (11 new
+    `AttemptArtifactWindowViewer` cases, including the retry regression
+    added in review, plus 2 new `CollaborationEvidenceDrilldown` cases),
+    full suite 679/679; `tsc -b` clean; `oxlint` exited 0 with the same 20
+    pre-existing warnings (0 new); production build (`vite build`) passed.
+    NSwag client regenerated by `dotnet build src/backend/DevalCopilot.Api`
+    with an identical SHA-256 hash on a repeat build (no drift). `git diff
+    --check` is clean apart from the existing generated-client
+    CRLF-normalization warning. Local documentation links/anchors
+    (`#sealed-agent-artifact-window-inspection` in both new specification
+    sections) resolve. Automated tests never call a real provider. Only the
+    frontend hook, its test, the viewer, and documentation changed in the
+    review-correction round; the backend query/handler/endpoint were
+    unchanged, so the full backend suites above are carried over from the
+    same round that produced them and were not rerun again for this
+    correction.
+  - Remaining risk: the sealed-store path check
+    `FilesystemArtifactStore.ResolveWithinRoot` performs is purely
+    lexical/textual (`Path.GetFullPath` plus a string-prefix comparison
+    against the artifact root) and is proven only to reject an absolute or
+    `..`-escaping stored relative path — it does not detect, and cannot
+    detect without an explicit filesystem probe, a reparse point (a symlink
+    or junction) along the resolved path that the operating system would
+    actually follow to a location outside the artifact root. This is a
+    pre-existing limitation of the shared sealed-store boundary every
+    other sealed-read caller (`GetProcessAttemptOutputEndpoint`,
+    `GetVerificationExecutionOutputQueryHandler`) already depends on
+    unchanged, not one this slice introduces; this slice's own review
+    judged the newly reachable window carries no new threat against that
+    same, unchanged artifact-root threat model, so no store hardening was
+    added here. Closing the reparse-point gap itself remains open under
+    [Increment 4](mvp-delivery-plan.md), alongside every other open item
+    there.
+  - Post-publication verification action: after this delivery is committed
+    and pushed, confirm branch `main`, local `origin/main`, and the live
+    remote (`git fetch origin main`) all point to the delivered commit with
+    a clean working tree, then reconfirm the focused
+    `GetSealedAgentArtifactWindowQueryHandlerTests` (9/9) and
+    `GetSealedAgentArtifactWindowEndpointTests` (16/16) suites against that
+    published commit.
 - Current delivery, based on verified parent `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`:
   explicit, run-scoped Codex model and reasoning-effort requests for future
   Codex Planner, Challenge Resolver, and Code Reviewer attempts. See

@@ -22,6 +22,7 @@ import {
   GetRunCockpitEndpointClient,
   GetCollaborationTimelineEndpointClient,
   GetCollaborationMessageEvidenceEndpointClient,
+  GetSealedAgentArtifactWindowEndpointClient,
   GetRunEventsEndpointClient,
   PrepareRepositoryWorkspaceEndpointClient,
   RecheckProjectPhysicalIdentityEndpointClient,
@@ -52,6 +53,7 @@ export const startSimulatedRunClient = () => new StartSimulatedRunEndpointClient
 export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const collaborationTimelineClient = () => new GetCollaborationTimelineEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const collaborationMessageEvidenceClient = () => new GetCollaborationMessageEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const sealedAgentArtifactWindowClient = () => new GetSealedAgentArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const providerRuntimePreflightClient = () => new GetProviderRuntimePreflightEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -116,6 +118,7 @@ export type {
   RunEventResponse,
   CollaborationMessageTimelineResponse,
   CollaborationMessageEvidenceResponse,
+  SealedAgentArtifactWindowResponse,
   StageMapEntryResponse,
   UpdateVerificationCommandRequest,
   VerificationCommandResponse,

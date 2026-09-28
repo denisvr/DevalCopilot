@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { hasTrustedProcessEvidence } from '../describeProcessEvidence'
 import { useCollaborationMessageEvidence } from '../hooks/useCollaborationMessageEvidence'
 import type { CollaborationTimelineCard } from '../types'
+import { AttemptArtifactWindowViewer } from './AttemptArtifactWindowViewer'
 import { AttemptInputMessages } from './AttemptInputMessages'
 
 interface CollaborationEvidenceDrilldownProps {
@@ -37,6 +39,10 @@ function formatField(label: string, value: string | number | boolean | null | un
  */
 export function CollaborationEvidenceDrilldown({ runId, messageId, cardsById }: CollaborationEvidenceDrilldownProps) {
   const { state, fetchEvidence } = useCollaborationMessageEvidence(runId, messageId)
+  // Controlled (not merely read from the toggle event) so the artifact viewer below can key off
+  // it — every open/close transition remounts that viewer, resetting its own purpose selection
+  // and accumulated text, matching this drill-down's own run/message reset behavior.
+  const [isOpen, setIsOpen] = useState(false)
   // The endpoint's own resolution already fails closed to `AttemptLinkBroken`/`NoAgentEvidence`
   // before this component ever sees a `success` state, but this drill-down renders `outcome`/
   // `durationMilliseconds` directly (not through `ProcessEvidenceLine`), so it reuses the exact
@@ -54,8 +60,11 @@ export function CollaborationEvidenceDrilldown({ runId, messageId, cardsById }: 
   return (
     <details
       className="dc-card-evidence"
+      open={isOpen}
       onToggle={(event) => {
-        if (event.currentTarget.open && state.status === 'idle') {
+        const open = event.currentTarget.open
+        setIsOpen(open)
+        if (open && state.status === 'idle') {
           fetchEvidence()
         }
       }}
@@ -146,6 +155,12 @@ export function CollaborationEvidenceDrilldown({ runId, messageId, cardsById }: 
             </>
           )}
           <AttemptInputMessages evidence={state.evidence} cardsById={cardsById} />
+          <AttemptArtifactWindowViewer
+            key={`${runId}:${messageId}:${isOpen}`}
+            runId={runId}
+            messageId={messageId}
+            artifacts={state.evidence.artifacts ?? []}
+          />
         </div>
       )}
     </details>

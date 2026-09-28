@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CollaborationMessageEvidenceResponse } from '../../../api/generated/api-client'
-import { collaborationMessageEvidenceClient } from '../../../api/clients'
+import { AgentAttemptArtifactMetadataResponse, CollaborationMessageEvidenceResponse } from '../../../api/generated/api-client'
+import { collaborationMessageEvidenceClient, sealedAgentArtifactWindowClient } from '../../../api/clients'
 import { CollaborationEvidenceDrilldown } from './CollaborationEvidenceDrilldown'
 
 vi.mock('../../../api/clients', () => ({
   collaborationMessageEvidenceClient: vi.fn(),
+  sealedAgentArtifactWindowClient: vi.fn(),
 }))
 
 // None of these tests exercise the recorded-collaboration-input timeline cross-reference —
@@ -234,5 +235,81 @@ describe('CollaborationEvidenceDrilldown', () => {
     expect(Object.keys(sessionStorage)).toHaveLength(0)
     expect(document.cookie).not.toContain(sentinel)
     expect(window.location.href).not.toContain(sentinel)
+  })
+
+  it('offers the sealed artifact viewer only when this attempts own artifact metadata is present', async () => {
+    vi.mocked(sealedAgentArtifactWindowClient).mockReturnValue({
+      getSealedAgentArtifactWindow: vi.fn(),
+    } as unknown as ReturnType<typeof sealedAgentArtifactWindowClient>)
+    mockClient(
+      vi.fn().mockResolvedValue(
+        evidence({
+          artifacts: [
+            new AgentAttemptArtifactMetadataResponse({
+              purpose: 'AgentFinalResponse',
+              byteLength: 10,
+              truncated: false,
+              captureOutcome: 'Captured',
+            }),
+          ],
+        }),
+      ),
+    )
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
+
+    fireEvent.click(screen.getByText('Attempt evidence'))
+    await waitFor(() => expect(screen.getByText(/Historical attempt evidence/)).toBeInTheDocument())
+
+    expect(screen.getByLabelText('Artifact:')).toBeInTheDocument()
+  })
+
+  it('resets the artifact viewers own selection when the drawer is closed and reopened', async () => {
+    vi.mocked(sealedAgentArtifactWindowClient).mockReturnValue({
+      getSealedAgentArtifactWindow: vi.fn().mockResolvedValue({ status: 'Ok', text: 'final text', nextOffset: 10, totalLengthSoFar: 10, truncated: false }),
+    } as unknown as ReturnType<typeof sealedAgentArtifactWindowClient>)
+    mockClient(
+      vi.fn().mockResolvedValue(
+        evidence({
+          artifacts: [
+            new AgentAttemptArtifactMetadataResponse({
+              purpose: 'AgentFinalResponse',
+              byteLength: 10,
+              truncated: false,
+              captureOutcome: 'Captured',
+            }),
+          ],
+        }),
+      ),
+    )
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
+
+    const summary = screen.getByText('Attempt evidence')
+    const detailsElement = summary.closest('details')!
+
+    // jsdom does not implement the native <details>/<summary> disclosure activation behavior a
+    // real browser click would trigger, so the open/close transition is driven directly the way
+    // React's own controlled-<details> pattern expects: flip the DOM property, then dispatch the
+    // "toggle" event this component's onToggle handler listens for.
+    function toggle(open: boolean) {
+      detailsElement.open = open
+      fireEvent(detailsElement, new Event('toggle'))
+    }
+
+    toggle(true)
+    await waitFor(() => expect(screen.getByLabelText('Artifact:')).toBeInTheDocument())
+
+    fireEvent.change(screen.getByLabelText('Artifact:'), { target: { value: 'AgentFinalResponse' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Load' }))
+    await waitFor(() => expect(screen.getByText('final text')).toBeInTheDocument())
+
+    // Closing then reopening the drawer remounts the viewer (keyed on the open/closed
+    // transition), so a stale purpose selection or fetched text can never leak into the next
+    // expansion.
+    toggle(false)
+    toggle(true)
+    await waitFor(() => expect(screen.getByLabelText('Artifact:')).toBeInTheDocument())
+
+    expect(screen.queryByText('final text')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Artifact:')).toHaveValue('')
   })
 })

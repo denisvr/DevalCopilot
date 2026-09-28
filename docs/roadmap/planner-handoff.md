@@ -7,7 +7,196 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current decision (2026-09-28): GO for explicit Codex model and effort requests
+## Current selection (2026-09-28): inspect sealed Agent attempt artifacts
+
+- Final correction re-review (2026-09-28): **GO for the reviewed substantive
+  sealed Agent-artifact inspection diff.** Independently reverified `main`,
+  `HEAD`, local and live `origin/main` at
+  `b0aa8e4fdad09850e155c2c13d1f8cc4636306d6`, with nothing staged,
+  eight modified tracked files and ten untracked files (18 total). The final
+  documentation correction changes only the last paragraph of the new
+  architecture subsection: it now distinguishes host-constructed context
+  manifests from best-effort-redacted provider output and retains the
+  sensitive-content warning. Both linked section headings/anchors remain
+  present, `current-work.md` is commit-ready, and `git diff --check` passes
+  with only the known generated-client line-ending warning. The independent
+  focused Application 9/9 and API 16/16 from the first review, and focused
+  frontend 25/25 plus typecheck from the correction review, remain applicable
+  because this last change is documentation-only. Executor-reported full
+  suites and frontend build/lint are recorded in `current-work.md`. The
+  existing lexical-only sealed-path containment limitation is explicitly
+  recorded as an open risk; this GO does not claim it is fixed.
+- One bounded publication instruction for this GO: commit the reviewed
+  substantive diff on `main`, including `current-work.md` and this
+  planner-owned review record; push normally as a fast-forward to
+  `origin/main`; fetch or otherwise independently verify the live remote
+  points to the delivered commit and report the exact SHA and working-tree
+  state. Then make only the factual `current-work.md` closure needed to
+  record the delivered SHA and verified publication, commit/push it normally,
+  and verify the live remote and clean state again. No extra review is needed
+  for that narrowly factual closure. A material or out-of-scope change after
+  GO must return for review; a failed push or remote divergence must stop
+  without force-push or history reconciliation. This GO selects no next
+  product slice.
+
+- Correction re-review (2026-09-28): **NO-GO, one documentation-only correction
+  in this same slice.** Reverified `main`, `HEAD`, local and live
+  `origin/main` at `b0aa8e4fdad09850e155c2c13d1f8cc4636306d6`, with
+  nothing staged, the same eight modified tracked files and ten untracked
+  files, and nothing pushed. The later-window retry now preserves the failed
+  offset, its deterministic `0, 9, 9` regression test passes, the viewer's
+  purpose-specific caveats match the persisted sensitivity classifications,
+  the path-containment limitation is stated, and `current-work.md` is
+  commit-ready. Independently passed focused frontend 25/25, typecheck, and
+  `git diff --check` (only the known generated-client line-ending warning);
+  the independently passed Application 9/9 and API 16/16 from the preceding
+  review remain applicable because the backend did not change.
+- One stale sentence remains at the end of the new "Sealed Agent-artifact
+  window inspection" subsection in `docs/architecture/agent-collaboration-protocol.md`:
+  "Every window is labeled as historical, best-effort-redacted sealed
+  provider text." That still misclassifies `AgentContextManifest`, despite
+  the earlier paragraph and viewer correctly distinguishing host-constructed
+  context from redacted provider output. Correct only that sentence to describe
+  the purpose-specific caveats accurately. Preserve code, tests, the
+  commit-ready delivery handoff, and all other documentation. Recheck the
+  local link/anchor and `git diff --check`; prior test results still apply to
+  this documentation-only change. Return the complete uncommitted, unpushed
+  diff for re-review. No commit/push GO is granted.
+
+- First uncommitted diff review (2026-09-28): **NO-GO; correct the viewer's
+  later-window retry and make the evidence wording commit-ready and accurate.**
+  Reverified `main`, `HEAD`, local `origin/main`, and live `origin/main` at
+  `b0aa8e4fdad09850e155c2c13d1f8cc4636306d6`; nothing staged, eight
+  tracked files modified (including this record), ten untracked files, and
+  nothing pushed. The new query and endpoint follow the selected message,
+  attempt, purpose, and artifact-row ownership boundaries. Independently
+  passed focused Application 9/9, API 16/16, frontend viewer/drill-down 24/24,
+  and `git diff --check` (only the known generated-client line-ending warning).
+- In `useSealedAgentArtifactWindow`, after a successful first window, a failed
+  later-window request leaves earlier text in `accumulatedTextRef` but changes
+  state to `error`. `loadNextWindow` then retries from byte offset zero and
+  appends that first window to the retained text. Correct the retry so it
+  either resumes at the failed offset with its earlier text or clears the
+  accumulation before restarting at zero. Add a deterministic second-window
+  failure/retry test asserting exact text and offsets, including no duplicate
+  or omitted bytes. Keep purpose/run/message/drawer reset behavior intact.
+- The viewer and both new specification sections describe every artifact as
+  "best-effort redacted before capture." `AgentContextManifest` is recorded as
+  `HostConstructedContent`; the other provider-output artifacts are recorded
+  as `RedactedBestEffort`. Use a caveat truthful for all four purposes (and
+  still warn that sensitive content may remain). Do not expose a false
+  per-artifact redaction claim or add schema merely for this label.
+- `FilesystemArtifactStore.ResolveWithinRoot` uses `Path.GetFullPath` and
+  lexical containment. It rejects absolute and `..`-escaping stored paths,
+  which the new API test proves; it does not itself establish containment
+  against a reparse-point redirection. Narrow the new documentation's
+  categorical "path-escaping"/"safe containment" claims to the protection
+  actually tested, and record that existing limitation among open risks unless
+  a narrow, independently verified hardening is necessary under the current
+  app-owned artifact-root threat model. Do not broaden into a generic file
+  access redesign in this correction.
+- `current-work.md` still calls this slice uncommitted, unpushed, and awaiting
+  GO. Make it concise and commit-ready as the current delivery based on parent
+  `b0aa8e4fdad09850e155c2c13d1f8cc4636306d6`, with actual checks,
+  limitations, and the post-publication verification action, without claiming
+  publication or embedding its future SHA. Preserve the selected slice and
+  return the complete corrected diff uncommitted and unpushed. Run affected
+  checks first, then relevant full validation for code changes; recheck local
+  links and `git diff --check`. No commit/push GO is granted.
+
+- Verified selection baseline before editing this record: branch `main`, `HEAD`,
+  local `origin/main`, and live `origin/main` all equal
+  `b0aa8e4fdad09850e155c2c13d1f8cc4636306d6`; staged, unstaged, and
+  untracked state was empty. The preceding explicit Codex assignment slice and
+  its factual closure are published; `current-work.md` selects no subsequent
+  slice. This planner-owned selection itself is the only expected local edit
+  when the executor starts. It grants no commit or push GO.
+- Select exactly one Increment 4 slice: **on-demand, read-only inspection of
+  sealed artifacts belonging to the exact Agent attempt behind a
+  ProviderObserved collaboration card**. The existing evidence drill-down
+  resolves that attempt by the message's durable link and displays bounded
+  artifact metadata; `ArtifactPurpose` already identifies its context manifest,
+  stdout, stderr, and final response. `IArtifactStore.VerifyAndReadSealedAsync`
+  already verifies length and SHA-256 before returning a bounded UTF-8 window.
+  The [cockpit specification](../product/run-cockpit-specification.md) calls
+  for linked raw-artifact inspection, and the [architecture contract](../architecture/agent-collaboration-protocol.md)
+  keeps raw provider output in sealed artifacts rather than the database. This
+  gives the owner useful failure and provenance evidence without a provider
+  call, a new parser, or an inferred capability. The current [Codex CLI
+  reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+  documents JSONL stdout and a final-response file; the current [Claude CLI
+  reference](https://code.claude.com/docs/en/cli-reference) documents JSON
+  print output. Neither contract grants session resume, account enforcement,
+  or invocation eligibility through this viewer.
+- Boundary: add one protected MVC read operation and Application query for a
+  closed allowlist of the four Agent artifact purposes. Resolve the requested
+  run, ProviderObserved message, and its coherent Agent attempt by the same
+  durable-link rules as the existing evidence drill-down; require the Artifact
+  row to match **both** run and attempt plus requested purpose. Return only a
+  bounded, integrity-verified sealed-text window and safe metadata (status,
+  byte offset, total length, captured/truncation state). Never return a storage
+  path, hash, raw diagnostic, or content on a missing/incoherent link or failed
+  integrity check. Reuse the existing artifact-store boundary and UTF-8 cursor
+  semantics; retain a finite per-request byte cap. Add an on-demand text-only
+  viewer within the existing collaboration evidence drill-down, with explicit
+  purpose choice and manual next-window loading, clear historical/sensitivity
+  labeling, and state reset when run, message, purpose, or drawer changes.
+  Serve only sealed rows; no speculative live partial file read. If the existing
+  sealed-store containment is insufficient for this newly reachable content,
+  include a narrowly scoped hardening and regression test or stop for review.
+- Exclude CLI arguments and execution, provider protocol parsing, model/effort
+  or permission policy, claim/dispatch/authorization policy beyond this read,
+  session identifiers/resume, context compaction, account allowance and
+  thresholds, token budgets, artifact persistence schema/retention/deletion,
+  arbitrary file browsing/export/download, unsealed streams, Process attempts,
+  verification outputs, and generic artifact APIs. Do not turn the UI into a
+  shell, render provider text as HTML, persist fetched text in browser storage,
+  URLs, analytics, or logs, or treat redaction as proof that it contains no
+  secret. Existing metadata-only status responses remain metadata-only.
+- Stop if exact message-to-attempt and artifact ownership cannot be enforced,
+  if the sealed store cannot return an integrity-verified bounded window safely,
+  if revealing a purpose requires a broader authority or retention change, or
+  if a test would require a real provider. Report the blocker without widening
+  the slice. Acceptance evidence must cover all four purposes; valid multi-
+  window UTF-8 progress; missing artifact; wrong run/message/attempt/purpose,
+  simulated or incoherent provenance; malformed offsets and byte caps;
+  missing/tampered/path-escaping sealed files; safe status and no-content
+  failures; authentication; no raw path/hash/diagnostic disclosure; and
+  frontend on-demand, switching, reset, loading, error, and text-only rendering
+  including markup-shaped untrusted content. Run affected tests, relevant full
+  backend/frontend suites, NSwag regeneration and drift check, typecheck, lint,
+  production build, local documentation links, and `git diff --check`; report
+  exact commands and outcomes. Update architecture and cockpit prose only for
+  delivered behavior, and make `current-work.md` commit-ready without a future
+  SHA or a false claim of publication.
+
+### English execution prompt for the designated Claude executor
+
+```text
+Implement the bounded sealed Agent-artifact inspection slice selected by Codex.
+
+Preflight: expected branch main and HEAD b0aa8e4fdad09850e155c2c13d1f8cc4636306d6. Local origin/main and the live remote matched that SHA at selection. Expected staged: empty; unstaged: only docs/roadmap/planner-handoff.md (this planner-owned selection); untracked: empty. Verify once before editing and report a material discrepancy. Preserve the planner-owned selection.
+
+Objective: let the owner open bounded, integrity-verified text windows of the sealed context manifest, stdout, stderr, and final response belonging to the exact Agent attempt linked from a ProviderObserved collaboration card.
+
+Scope: extend the existing collaboration evidence drill-down with a protected, read-only MVC endpoint, one Application query/handler, an additive API response and regenerated NSwag client, a lazy frontend viewer/hook, focused tests, and the two affected architecture/product specifications. Resolve run and message ownership, ProviderObserved provenance, coherent Agent attempt identity, and Artifact.RunId plus Artifact.AttemptId plus allowlisted purpose at the server. Reuse IArtifactStore.VerifyAndReadSealedAsync and its UTF-8 byte cursor; cap every response, verify the entire sealed artifact before revealing a window, and return explicit safe statuses for unavailable or corrupted evidence. Offer purpose selection and manual next-window loading only for artifact metadata actually linked to that attempt. Render untrusted content as plain React text, with historical and best-effort-redaction caveats. Reset content when run/message/purpose/drawer changes. Keep existing metadata-only status contracts metadata-only. Narrowly harden the sealed-store read boundary if needed to enforce safe containment, with a regression test; stop if that cannot be done within this slice.
+
+Exclusions: no provider calls, CLI or adapter argument changes, new parser, claim/dispatch policy, model/effort or permissions, session resume, context compaction, account or token thresholds, schema or retention changes, partial/live Agent file reads, Process or verification artifacts, generic file browsing, download/export, HTML rendering, browser storage, or logging of artifact text. Do not add Unknown-only scaffolding or infer capability from CLI defaults.
+
+Stop gates: report without broadening scope if message-to-attempt coherence, cross-run artifact ownership, bounded sealed integrity, or safe path containment cannot be proven; if a purpose needs new authority or retention policy; or if testing requires a real provider.
+
+Acceptance evidence: all four purposes; multiple windows with a UTF-8 split boundary and monotonic cursor; empty/missing/tampered/path-escaping files; wrong run, message, attempt, purpose, non-ProviderObserved and incoherent links; negative offset and byte bounds; safe 401 and non-disclosing failures; no path/hash/diagnostic leakage; frontend lazy fetch, purpose switching, drawer/run/message reset, loading/error, and markup-shaped content rendered as text. Use deterministic local fixtures. Run affected and relevant full backend/frontend checks, NSwag generation and drift verification, typecheck, lint, production build, local link check, and git diff --check. Report every command and outcome, with short failure excerpts if needed.
+
+Update docs/roadmap/current-work.md as a concise, commit-ready delivery entry based on the verified parent, with actual checks, remaining risks, and post-publication verification, without embedding the future commit SHA or claiming publication already happened. Return the complete uncommitted, unpushed diff, changed-file summary, check outcomes, and blockers to Codex for GO/NO-GO. Keep corrections in this executor chat. Do not select another slice or commit/push before explicit GO.
+```
+
+After a future GO, issue one bounded publication instruction covering the
+reviewed substantive commit (including `current-work.md`), a normal fast-
+forward push of `main` to `origin/main`, live-remote verification, and only a
+tightly bounded factual handoff closure for the delivered SHA if needed.
+Re-review any material post-GO change; stop on push failure or divergence.
+
+## Prior decision (2026-09-28): GO for explicit Codex model and effort requests
 
 - **GO for the reviewed uncommitted diff.** Independently verified branch
   `main`, `HEAD`, local and live `origin/main` all at
