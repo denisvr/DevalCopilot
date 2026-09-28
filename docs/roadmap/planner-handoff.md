@@ -7,7 +7,187 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-28): inspect sealed Agent attempt artifacts
+## Current selection (2026-09-28): harden verified sealed-artifact reads
+
+- Correction re-review (2026-09-28): **GO for the reviewed substantive diff.**
+  Independently reverified `main`, `HEAD`, local and live `origin/main` at
+  `26ae6bcb8df98d3d589b0ab5264a0be135353da6`, nothing staged, six
+  modified tracked files and two untracked files, with nothing committed or
+  pushed. Both lexical and opened-handle root comparisons now use `Ordinal`;
+  the real case-distinct-sibling junction regression and the `..` spelling
+  regression passed, and the executor confirmed each failed with the old
+  comparison. The architecture now describes the present Windows and
+  non-Windows behavior, and `current-work.md` distinguishes code-path
+  reasoning from executed tests and is commit-ready. Codex independently
+  passed focused Infrastructure 26/26 with one host-capability skip, focused
+  Agent-window API 16/16, and `git diff --check`; executor-reported full
+  backend suites and build are in `current-work.md`. The file-leaf symlink
+  test remains conditional and did not execute on this host; the running
+  intermediate-junction and case-sensitive-sibling tests plus the reviewed
+  Win32 final-path contract support this bounded Windows read design. This
+  GO does not claim non-Windows physical containment, write-path hardening,
+  or resistance to privileged in-place file mutation.
+- One bounded publication instruction: commit the reviewed substantive diff
+  on `main`, including `current-work.md` and this planner-owned review record;
+  push normally as a fast-forward to `origin/main`; independently verify the
+  live remote points to the delivered commit and report exact SHA and
+  worktree state. Then make only the factual `current-work.md` closure needed
+  to record the delivered SHA and verified publication, commit/push it
+  normally, and independently verify the live remote and clean state again.
+  No extra review is needed for that narrowly factual closure. A material or
+  out-of-scope change after GO returns for review; a failed push or remote
+  divergence stops without force-push or history reconciliation. No next
+  product slice is selected by this GO.
+
+- First uncommitted diff review (2026-09-28): **NO-GO; correct one containment
+  edge and the evidence/documentation claims in this same slice.** Independently
+  reverified `main`, `HEAD`, local and live `origin/main` at
+  `26ae6bcb8df98d3d589b0ab5264a0be135353da6`, nothing staged, five
+  modified tracked files (including this planner record), and one untracked
+  Infrastructure file; nothing committed or pushed. The one-handle read and
+  Windows final-path check are directionally sound. Focused
+  `FilesystemArtifactStoreTests` independently passed 24/24 with the file-leaf
+  symlink case skipped on this host; `git diff --check` passed. The executor's
+  broader checks are recorded in `current-work.md`.
+- `ResolveWithinRoot` and `IsPhysicallyContainedInRoot` both use
+  `OrdinalIgnoreCase` for their root-prefix checks. Windows supports NTFS
+  directories that distinguish names only by case, so an outside sibling whose
+  name differs from the root only by case can satisfy both checks. Make both
+  containment comparisons fail closed for that case (for example, compare
+  normalized path components ordinally), and add a focused regression for a
+  case-distinct sibling path. Do not assert universal physical containment
+  until this edge is closed. See Microsoft's
+  [case-sensitivity documentation](https://learn.microsoft.com/en-us/windows/wsl/case-sensitivity).
+- The current architecture subsection still says the sealed read uses only a
+  lexical check and leaves every planted reparse point open. Update the
+  present-tense contract to describe the new Windows opened-handle check, the
+  unchanged non-Windows lexical limitation, and remaining root/write-path
+  boundaries. Keep the earlier slice's historical delivery facts truthful.
+  The new `current-work.md` entry is too long for a delivery checkpoint and
+  overstates evidence: an ordinary multi-window read cannot prove the
+  absence of a second open because no path substitution occurs; the proof is
+  the reviewed single-handle code path unless a deterministic path-swap test
+  is added. A junctioned root is intentionally accepted when the file lies
+  within its resolved target, so do not claim all root redirects are rejected.
+  Condense the entry to actual checks, behavior, platform limits, and residual
+  risk. The file-leaf symlink test is present but skipped here; report it as
+  unexecuted on this host, not as observed proof. The running intermediate
+  junction test and official Win32 final-path contract support the general
+  design, but keep the conditional leaf test for a capable Windows host.
+- Keep the correction uncommitted and unpushed. Run the affected focused
+  filesystem tests and relevant full validation if code changes could affect
+  callers; recheck the architecture link and `git diff --check`. Return the
+  complete corrected diff for GO/NO-GO. No commit/push GO is granted.
+
+- Publication baseline verified before this selection: branch `main`, `HEAD`,
+  local `origin/main`, and live `origin/main` all equal
+  `26ae6bcb8df98d3d589b0ab5264a0be135353da6`; staged, unstaged, and
+  untracked state is empty. The reviewed sealed Agent-artifact inspection was
+  published in substantive commit `77cae0a4bbdb811f65625c7552f18f88dc7ee96e`
+  and factual handoff closure `26ae6bcb8df98d3d589b0ab5264a0be135353da6`.
+  Git and code, not the executor's publication report, established this
+  baseline. The previous handoff's post-publication focused reconfirmation
+  passed on this HEAD: Application 9/9 and API 16/16. This planner-only edit
+  will be the expected unstaged change when
+  the executor begins; no commit/push GO is granted.
+- Select one bounded Increment 4 slice: **make the shared sealed-artifact read
+  boundary verify and return bytes from one opened file identity, and reject a
+  filesystem redirect outside the application-owned artifact root before any
+  sealed content is returned.** `FilesystemArtifactStore.VerifyAndReadSealedAsync`
+  now checks only lexical containment, hashes one `FileStream`, and opens the
+  path again to read the window. A planted reparse point can redirect the
+  textual path; a path replacement between the two opens can detach the
+  returned window from the bytes whose hash was verified. The newly delivered
+  Agent-artifact viewer, existing Process output reader, verification-output
+  reader, and provider manifest reads share this boundary. This slice improves
+  their existing protection without making a provider call. The accepted
+  [ADR-0003](../decisions/0003-use-a-durable-sqlite-event-journal.md) assigns
+  large content to a hashed filesystem artifact store; no accepted decision is
+  reversed. Current official [Codex non-interactive](https://learn.chatgpt.com/docs/non-interactive-mode),
+  [Codex App Server](https://learn.chatgpt.com/docs/app-server), and
+  [Claude CLI](https://code.claude.com/docs/en/cli-reference) contracts were
+  checked; this host-owned file-boundary slice infers no new provider
+  capability, account allowance, threshold, invocation eligibility, or
+  provider-session resume. Microsoft's [reparse-point](https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-operations)
+  and [file-handle](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.openhandle?view=net-10.0)
+  documentation is relevant to the implementation proof.
+- Boundaries: change the Infrastructure `FilesystemArtifactStore` sealed-read
+  path and its narrow internal collaborators, focused filesystem integration
+  tests, and the factual architecture/security and delivery documentation.
+  Preserve the `IArtifactStore` method/result contract, byte cap, UTF-8 cursor
+  behavior, `Missing` versus `IntegrityMismatch` semantics, cancellation, and
+  safe API projections. Validate the database-supplied relative path and the
+  physical location of the **opened** sealed file against the artifact root;
+  reject root/descendant reparse redirects rather than trusting
+  `Path.GetFullPath` or a pre-open check alone. Hash, check length, seek, and
+  return the bounded window through the same read handle. Fail closed on
+  unreadable or ambiguous paths without exposing a path, hash, or raw
+  diagnostic. Do not alter capture, seal, cleanup, partial reads, artifact
+  schema, MVC routes, UI, adapters, provider arguments, claim/dispatch policy,
+  model/effort selection, context/compaction, account usage, or session actions.
+  Do not claim this fixes every artifact-root write/cleanup path or arbitrary
+  hostile filesystem races beyond the read guarantee actually proven.
+- Stop gates: if the opened file's physical containment cannot be proven with
+  a reviewed, supportable Windows-first mechanism and an honest behavior for
+  other supported platforms, or if avoiding the second open changes the
+  existing read contract, stop and report evidence rather than substituting a
+  lexical or check-then-open claim. Stop if tests cannot exercise a planted
+  junction/symlink that points to an outside sentinel with **matching**
+  recorded length/hash, if a failure leaks content or diagnostics, or if the
+  fix requires broad artifact-store write redesign or an ADR reversal.
+- Acceptance evidence: ordinary Agent and verification artifacts still serve
+  exact text and monotonic UTF-8 windows; absolute and `..`-escaping stored
+  paths remain unavailable; a planted intermediate directory junction and a
+  sealed-file redirect to an outside sentinel return no text even when the
+  supplied length/hash match that sentinel; a tampered ordinary sealed file
+  remains `IntegrityMismatch`; missing files remain `Missing`; cancellation
+  propagates. Show that the bytes hashed and the returned window use one
+  opened identity, not two path opens. Recheck a real API caller's safe
+  response and no path/hash/diagnostic leakage. Run focused store and API
+  integration checks, relevant full backend validation, build/analyzers, and
+  `git diff --check`; report exact commands and outcomes. Update the
+  architecture's lexical-containment/open-risk wording only as far as the
+  evidence proves, including any residual race or write-path limitation.
+
+### English execution prompt for the designated Claude executor
+
+Implement the selected Increment 4 sealed-artifact read hardening on `main`.
+Before editing, verify exact `HEAD` `26ae6bcb8df98d3d589b0ab5264a0be135353da6`,
+branch `main`, local and live `origin/main` at that SHA, nothing staged, only
+`docs/roadmap/planner-handoff.md` modified but unstaged, and nothing untracked.
+Report any material discrepancy and stop. Read the selected boundary and stop
+gates above, the shared engineering contract and routed security, C#, adapter,
+and integration-test standards, the current implementation and tests, and the
+accepted ADRs before changing code.
+
+Harden only `FilesystemArtifactStore.VerifyAndReadSealedAsync` and its narrow
+Infrastructure helpers. Prove the opened file remains physically under the
+application-owned artifact root and cannot be reached through a planted
+root/descendant reparse redirect; use the same opened file identity for the
+whole-file length/hash check and bounded UTF-8 window. Keep its public port,
+result statuses, safe caller behavior, and existing window semantics intact.
+Add deterministic isolated-filesystem tests for normal reads, mismatch,
+missing and lexical-escape paths, intermediate and leaf redirects to an
+outside sentinel whose bytes deliberately match the supplied hash/length,
+and the one-handle guarantee. Recheck an API caller's failure projection.
+Do not broaden into artifact writes, provider/runtime behavior, policy,
+schema, routes, or UI. If a stop gate is reached, return the evidence and
+leave the slice uncommitted instead of claiming containment from lexical
+checks or CLI defaults.
+
+Update `docs/roadmap/current-work.md` with a concise, commit-ready delivery
+entry based on the verified parent, actual checks, limitations, and a
+post-publication verification action. Update the relevant architecture/security
+text to match the proven guarantee. Return the complete uncommitted, unpushed
+diff, changed files, exact test/build/analyzer commands and results, and open
+risks for Codex GO/NO-GO. Keep corrections in this executor chat. Do not
+select another slice or commit/push without explicit GO. After a future GO,
+one bounded publication instruction will cover the reviewed substantive
+commit, normal fast-forward push, live-remote verification, and only a
+tightly bounded factual documentation closure. Any material change after GO
+returns for re-review.
+
+## Previous selection (2026-09-28): inspect sealed Agent attempt artifacts
 
 - Final correction re-review (2026-09-28): **GO for the reviewed substantive
   sealed Agent-artifact inspection diff.** Independently reverified `main`,

@@ -1003,39 +1003,41 @@ a safe 404, mirroring `GetProcessAttemptOutputEndpoint`'s own `stream` mapping)
 and, independently, inside the query handler itself (defense in depth for any
 future non-HTTP caller).
 
-Every requested window is served through the existing
-`IArtifactStore.VerifyAndReadSealedAsync` boundary unchanged: the entire
-sealed file's actual length and SHA-256 are verified against the `Artifact`
-row's own durable metadata before any byte of the requested window is
-returned, and the same path resolution that boundary already enforces rejects
-a stored relative path that is absolute or that resolves, through `..`
-segments, outside the artifact root. This is a purely lexical/textual check
-(`Path.GetFullPath` followed by a string-prefix comparison against the root);
-it establishes only that the resolved path's *textual form* stays under the
-root, never that no path segment along the way is a reparse point (a
-filesystem symlink or junction) that the operating system would actually
-follow to a location outside it. No new sealed-store hardening was added for
-this slice to close that gap: the existing boundary already fails a missing
-file, a syntactically path-escaping stored path, and a tampered/mismatched
-length or hash to the same safe, explicit statuses (`Missing`,
-`IntegrityMismatch`) this operation projects outward, with no storage path,
-hash, or other raw diagnostic ever crossing the API boundary in any case,
-verified failed or not — this newly reachable window does not change that
-existing threat model, since it reads through the identical store, the
-identical application-owned artifact root, and the identical
-database-recorded relative paths every other sealed-read caller
-(`GetProcessAttemptOutputEndpoint`, `GetVerificationExecutionOutputQueryHandler`)
-already reads through unchanged. A reparse point planted under the artifact
-root remains an open risk of the shared sealed-store boundary itself, not one
-this slice introduces or resolves; see the current delivery's remaining risk
-in `docs/roadmap/current-work.md`. The response also never resolves the
-attempt's other artifacts, other attempts, or any other run — only the one
-sealed row this exact `(AttemptId, RunId, Purpose)` triple names. The
-bounded-window UTF-8 cursor semantics (a byte offset, a byte cap, and a
-never-split multi-byte codepoint boundary deferred whole to the next window)
-are the same ones `GetProcessAttemptOutputEndpoint` already established; this
-operation adds no new windowing behavior, only a new closed set of purposes
-and a new resolution path to reach it.
+Every requested window is served through
+`IArtifactStore.VerifyAndReadSealedAsync`, which enforces two containment
+proofs and one integrity proof, all case-sensitive and all failing closed to
+`Missing` or `IntegrityMismatch`:
+
+- **Lexical containment.** A stored relative path that is empty, absolute, or
+  that resolves through `..` segments to anything not strictly under the
+  artifact root — including a case-distinct sibling spelling of the root — is
+  rejected before any file is opened.
+- **Physical containment (Windows).** The candidate file is opened exactly
+  once. On Windows, that open handle's own real, fully reparse-point-resolved
+  path (`GetFinalPathNameByHandleW`) must lie under the artifact root's
+  freshly resolved real path, again compared case-sensitively. A junction or
+  symbolic link on the root's descendants, or on the sealed file itself, that
+  redirects outside the root is therefore rejected even when the target's
+  length and hash match. A root that is itself redirected is accepted only
+  while the opened file remains within that root's resolved target. On other
+  platforms only the lexical proof runs; physical containment is not proven
+  there.
+- **Integrity.** The whole file's length and SHA-256 are verified against the
+  `Artifact` row through that same open handle before any byte is returned,
+  and the bounded window is read from that same handle — nothing is reopened
+  by path in between.
+
+None of these outcomes discloses a storage path, hash, or raw diagnostic
+across the API boundary. The response never resolves the attempt's other
+artifacts, other attempts, or any other run — only the one sealed row this
+exact `(AttemptId, RunId, Purpose)` triple names. Residual limits: the proofs
+describe the file at open time and do not defend against a privileged actor
+mutating the store's files in place after the open; sealing, capture, partial
+reads, and cleanup are outside this contract. The bounded-window UTF-8 cursor
+semantics (a byte offset, a byte cap, and a never-split multi-byte codepoint
+boundary deferred whole to the next window) are the same ones
+`GetProcessAttemptOutputEndpoint` established; this operation adds only a
+closed set of purposes and a new resolution path to reach it.
 
 The frontend renders every returned window as literal text (React's default
 text-node rendering; never `dangerouslySetInnerHTML` or any other HTML

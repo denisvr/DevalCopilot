@@ -74,11 +74,16 @@ public interface IArtifactStore
 
     /// <summary>
     /// Resolves <paramref name="relativeStoragePath"/> under the artifact root with a canonical
-    /// containment check — the database value is never trusted blindly — then verifies the
+    /// lexical containment check — the database value is never trusted blindly — then, on
+    /// Windows, additionally proves the opened file's own real, fully reparse-point-resolved
+    /// identity is physically inside the artifact root's own real identity before verifying the
     /// file's actual length and SHA-256 against <paramref name="expectedByteLength"/> and
-    /// <paramref name="expectedContentHash"/> before returning any bytes. A mismatch or missing
-    /// file returns an explicit non-<see cref="SealedReadStatus.Ok"/> status; it never serves
-    /// content that failed verification.
+    /// <paramref name="expectedContentHash"/> and returning any bytes; the whole-file verification
+    /// and the returned window are both read from that same opened file, never a path reopened
+    /// afterward. A mismatch, a missing file, or a failed physical-containment proof returns an
+    /// explicit non-<see cref="SealedReadStatus.Ok"/> status; it never serves content that failed
+    /// verification. On a non-Windows platform only the lexical containment check runs; see the
+    /// implementing type's own documentation for that limitation.
     /// </summary>
     Task<SealedReadWindow> VerifyAndReadSealedAsync(
         string relativeStoragePath,

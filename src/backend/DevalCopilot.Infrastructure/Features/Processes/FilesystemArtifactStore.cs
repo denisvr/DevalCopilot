@@ -15,6 +15,27 @@ namespace DevalCopilot.Infrastructure.Features.Processes;
 /// rest of its life. Every persisted relative path is resolved back under the root with an
 /// explicit containment check; nothing read from the database is ever combined with the root
 /// blindly.
+///
+/// <para>
+/// <see cref="VerifyAndReadSealedAsync"/> additionally proves PHYSICAL containment on Windows: it
+/// opens the candidate sealed file exactly once and, using that same open handle's own real,
+/// fully reparse-point-resolved identity (<see cref="WindowsFinalPathResolver"/>), confirms it
+/// actually sits inside the artifact root's own real identity — never trusting the lexical path
+/// string alone, which a junction or symbolic link anywhere on the chain (the root itself, an
+/// intermediate directory, or the sealed file's own final component) could make the OS physically
+/// resolve to a completely different, uncontrolled location. The identical open handle is then
+/// used for the whole-file hash/length verification and the bounded UTF-8 window read — nothing is
+/// ever reopened by path in between, so there is no gap for a swap to exploit between the
+/// containment proof and the bytes actually served.
+/// </para>
+///
+/// <para>
+/// <b>Known limitation</b>: on any platform other than Windows, only the lexical containment check
+/// runs; this class has no equivalent physical-identity proof there (<c>GetFinalPathNameByHandleW</c>
+/// is a Windows-only mechanism). This is a documented, pre-existing gap of this shared boundary,
+/// not one narrowed by this hardening — see the current delivery's remaining risk in
+/// <c>docs/roadmap/current-work.md</c>.
+/// </para>
 /// </summary>
 public sealed class FilesystemArtifactStore : IArtifactStore, IVerificationOutputArtifactStore
 {
@@ -217,26 +238,110 @@ public sealed class FilesystemArtifactStore : IArtifactStore, IVerificationOutpu
         CancellationToken cancellationToken)
     {
         var resolvedPath = ResolveWithinRoot(relativeStoragePath);
-        if (resolvedPath is null || !File.Exists(resolvedPath))
+        if (resolvedPath is null)
         {
             return new SealedReadWindow(SealedReadStatus.Missing, string.Empty, fromOffset, 0);
         }
 
-        var (actualLength, actualHash) = await ComputeLengthAndHashAsync(resolvedPath, cancellationToken).ConfigureAwait(false);
-        if (actualLength != expectedByteLength || !string.Equals(actualHash, expectedContentHash, StringComparison.Ordinal))
+        // Opened exactly once. Every following step — physical containment, whole-file hash, and
+        // the bounded window — reads through this SAME handle; nothing is ever reopened by path
+        // in between, which is what makes the containment proof below trustworthy: it describes
+        // the exact bytes this call goes on to verify and return, not a path string that could
+        // have been swapped for something else between a separate check and a separate open.
+        var stream = TryOpenForVerifiedRead(resolvedPath);
+        if (stream is null)
         {
-            return new SealedReadWindow(SealedReadStatus.IntegrityMismatch, string.Empty, fromOffset, actualLength);
+            return new SealedReadWindow(SealedReadStatus.Missing, string.Empty, fromOffset, 0);
         }
 
-        await using var stream = new FileStream(resolvedPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        await using (stream.ConfigureAwait(false))
+        {
+            // Proves this handle's own real, fully reparse-resolved identity is physically inside
+            // the artifact root's own real identity — never a lexical guess about where the path
+            // string that opened it "should" point. Catches a root or intermediate directory that
+            // is itself a reparse point, and a sealed file replaced by one, neither of which
+            // ResolveWithinRoot's lexical check above can see.
+            if (!IsPhysicallyContainedInRoot(stream))
+            {
+                return new SealedReadWindow(SealedReadStatus.Missing, string.Empty, fromOffset, 0);
+            }
 
-        // A sealed file is immutable and will never grow again: an incomplete trailing
-        // codepoint only at the file's true end is genuinely malformed input, not a boundary
-        // artifact, and is decoded leniently as such (mayGrowFurther: false). One still short
-        // of the true end — because maxBytes cut this particular window early — is still held
-        // back and deferred to the next read, same as the partial-file case.
-        var window = await ReadWindowAsync(stream, fromOffset, maxBytes, mayGrowFurther: false, cancellationToken).ConfigureAwait(false);
-        return new SealedReadWindow(SealedReadStatus.Ok, window.Text, window.NextOffset, window.TotalLengthSoFar);
+            var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
+            var actualLength = stream.Length;
+            var actualHash = "sha256:" + Convert.ToHexStringLower(hashBytes);
+
+            if (actualLength != expectedByteLength || !string.Equals(actualHash, expectedContentHash, StringComparison.Ordinal))
+            {
+                return new SealedReadWindow(SealedReadStatus.IntegrityMismatch, string.Empty, fromOffset, actualLength);
+            }
+
+            // A sealed file is immutable and will never grow again: an incomplete trailing
+            // codepoint only at the file's true end is genuinely malformed input, not a boundary
+            // artifact, and is decoded leniently as such (mayGrowFurther: false). One still short
+            // of the true end — because maxBytes cut this particular window early — is still held
+            // back and deferred to the next read, same as the partial-file case. ReadWindowAsync
+            // seeks to fromOffset itself; the stream's position after hashing (at end-of-file) is
+            // never relied upon here.
+            var window = await ReadWindowAsync(stream, fromOffset, maxBytes, mayGrowFurther: false, cancellationToken).ConfigureAwait(false);
+            return new SealedReadWindow(SealedReadStatus.Ok, window.Text, window.NextOffset, window.TotalLengthSoFar);
+        }
+    }
+
+    private static FileStream? TryOpenForVerifiedRead(string path)
+    {
+        try
+        {
+            return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // Covers a missing file/directory (FileNotFoundException, DirectoryNotFoundException —
+            // both derive from IOException) and a path that names a directory instead of a file
+            // (UnauthorizedAccessException on Windows) with the same safe outcome as any other
+            // unusable stored path.
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Proves the already-open <paramref name="sealedFileStream"/>'s real, fully
+    /// reparse-point-resolved identity is physically inside the artifact root's own real
+    /// identity — catching a root or intermediate directory that is itself a reparse point
+    /// (junction or symbolic link) redirecting elsewhere, and a sealed file itself replaced by a
+    /// symlink to a location outside the root, neither of which a lexical path comparison can
+    /// detect. Windows-only: <see cref="WindowsFinalPathResolver"/> requires
+    /// <c>GetFinalPathNameByHandleW</c>, which has no equivalent this method uses on another
+    /// platform. On any other platform this always returns <see langword="true"/> — the lexical
+    /// containment check in <see cref="ResolveWithinRoot"/> remains the only containment proof
+    /// there; see this type's own remaining-risk documentation.
+    /// </summary>
+    private bool IsPhysicallyContainedInRoot(FileStream sealedFileStream)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        var resolvedRealFile = WindowsFinalPathResolver.TryResolveFinalPath(sealedFileStream.SafeFileHandle);
+        if (resolvedRealFile is null)
+        {
+            return false;
+        }
+
+        var resolvedRealRoot = WindowsFinalPathResolver.TryResolveDirectoryFinalPath(_root);
+        if (resolvedRealRoot is null)
+        {
+            return false;
+        }
+
+        var rootWithSeparator = resolvedRealRoot.EndsWith(Path.DirectorySeparatorChar)
+            ? resolvedRealRoot
+            : resolvedRealRoot + Path.DirectorySeparatorChar;
+
+        // Case-sensitive on purpose: both sides are the OS's own on-disk spelling from the same
+        // call, so a genuine descendant matches exactly, while a case-distinct sibling of the root
+        // (a real, separate directory on a case-sensitive directory or volume) must not match.
+        return resolvedRealFile.StartsWith(rootWithSeparator, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -263,7 +368,10 @@ public sealed class FilesystemArtifactStore : IArtifactStore, IVerificationOutpu
         }
 
         var rootWithSeparator = canonicalRoot.EndsWith(Path.DirectorySeparatorChar) ? canonicalRoot : canonicalRoot + Path.DirectorySeparatorChar;
-        return canonicalCandidate.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase) ? canonicalCandidate : null;
+        // Case-sensitive on purpose: the candidate is built from this same root string, so a
+        // legitimate path always matches exactly; a `..` route into a case-distinct sibling of the
+        // root does not, and fails closed rather than relying on this host's case-folding.
+        return canonicalCandidate.StartsWith(rootWithSeparator, StringComparison.Ordinal) ? canonicalCandidate : null;
     }
 
     private static async Task<(long Length, string Hash)> ComputeLengthAndHashAsync(string path, CancellationToken cancellationToken)

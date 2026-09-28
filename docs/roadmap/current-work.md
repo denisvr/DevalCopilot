@@ -8,13 +8,61 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Current delivery, based on verified parent
+  `26ae6bcb8df98d3d589b0ab5264a0be135353da6`: physical, case-sensitive
+  containment hardening of `FilesystemArtifactStore.VerifyAndReadSealedAsync`,
+  the sealed-store read boundary the sealed Agent-artifact inspection below
+  exercises. See [planner-handoff.md](planner-handoff.md) for the selection and
+  the [architecture contract](../architecture/agent-collaboration-protocol.md#sealed-agent-artifact-window-inspection).
+  - Code path: the candidate file is opened once and that one handle is used for
+    the containment proof, the whole-file length/SHA-256, and the bounded
+    window; nothing is reopened by path. On Windows the handle's real path
+    (`GetFinalPathNameByHandleW`, via the new internal `WindowsFinalPathResolver`)
+    must lie under the root's freshly resolved real path. Both this comparison
+    and the lexical `ResolveWithinRoot` comparison are now ordinal
+    (case-sensitive), so a case-distinct sibling of the root fails closed. A
+    legitimately redirected root is accepted when the opened file remains within
+    its resolved target. The `IArtifactStore` contract, `Missing`/
+    `IntegrityMismatch` meanings, cancellation, byte cap, and cursor behavior
+    are unchanged; capture, sealing, cleanup, partial reads, schema, routes, UI
+    and provider behavior are untouched.
+  - Tests executed here: `FilesystemArtifactStoreTests` 26 passed, 1 skipped.
+    New and passing: ordinary Agent artifact read; multi-window read
+    reconstructing the exact hashed content; intermediate-directory junction to
+    an outside sentinel with matching length/hash returns `Missing`; legitimately
+    junctioned root still reads; `..` route into an upper-cased spelling of the
+    root returns `Missing`; and a junction to a real case-distinct sibling
+    directory (host supports per-directory case sensitivity) returns `Missing`.
+    Both case tests were confirmed to fail when the comparisons are temporarily
+    reverted to case-insensitive, then restored. **Skipped here:** the sealed-
+    file-leaf symlink test (this host cannot create a file symlink without
+    elevation/Developer Mode), so that path is covered by code-path reasoning
+    only, not by an executed test.
+  - Full validation: solution build 0 warnings/0 errors; Domain 547/547;
+    Application 1078/1078; Infrastructure 526 passed/2 skipped (the symlink test
+    above and the pre-existing `PackageEntrypointResolverTests` skip); Api
+    355/355 (includes the two API callers of this boundary, safe statuses, no
+    path/hash leakage); Architecture 9/9; generated client unchanged;
+    `git diff --check` clean. No frontend change, so frontend suites were not
+    rerun. Tests never call a real provider.
+  - Remaining risk: physical containment is proven only on Windows; other
+    platforms rely on the lexical proof. The proofs describe the file at open
+    time and do not defend against a privileged actor altering files in place
+    afterward. Other Increment 4 items in [the roadmap](mvp-delivery-plan.md)
+    are unchanged.
+  - Post-publication verification: confirm `main`, local `origin/main`, and the
+    live remote match the delivered commit with a clean tree, then rerun
+    `FilesystemArtifactStoreTests` against it.
 - Published delivery: `77cae0a4bbdb811f65625c7552f18f88dc7ee96e`
   (parent `b0aa8e4fdad09850e155c2c13d1f8cc4636306d6`) was committed with
   the reviewed 18-file slice, pushed as a normal fast-forward to `origin/main`,
   and verified against the live remote with `git fetch origin main`: local
   `HEAD`, local `origin/main`, and fetched `origin/main` matched the delivered
   SHA, with a clean working tree. This closure records the delivered SHA only;
-  no code or product contract changed after publication.
+  no code or product contract changed after publication. (Historical: at this
+  closure's own time, the planner had not yet selected another slice; it has
+  since selected the sealed-store physical-containment hardening slice
+  recorded at the top of this checkpoint.)
 - Published delivery: `fc06b348ff6824a72fc06ade9d45e09a59c00501`
   (parent `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`) was committed with
   the reviewed 78-file slice, pushed as a normal fast-forward to `origin/main`,
