@@ -8,6 +8,16 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Published delivery: `46c33900089eb4ad4d29f6fc440fe96a9158fe7c` (parent
+  `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`) was committed with the reviewed 48-file
+  per-provider token-activity warnings slice (22 modified, 26 new), pushed as a normal fast-forward to
+  `origin/main`, and verified with `git fetch origin main` and `git ls-remote`: local `HEAD`, local
+  `origin/main`, and the live remote all matched the delivered SHA, with a clean working tree. Focused
+  checks rerun against that commit, all passing: Domain 11, Application 42 (threshold set/clear and
+  concurrency, warning projection, persisted-evidence cockpit, and claim-unaffected tests), Infrastructure
+  1 (migration), Api 13 (endpoint), and frontend 84 across the warning panel, threshold hook, cockpit
+  refresh, and cockpit view. This closure records the delivered SHA and those checks only; no code or
+  product contract changed after publication.
 - Current delivery, based on verified parent
   `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`: per-provider, run-scoped advisory
   token-activity warnings. See [planner-handoff.md](planner-handoff.md) for the selection and the
@@ -48,9 +58,7 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     `Indeterminate` (deliberately conservative). A concurrent Claude model-request change can make a
     threshold save return a retryable 409. Provider usage accuracy rests on the existing versioned
     parsers.
-  - Post-publication verification: confirm `main`, local `origin/main`, and the live remote match the
-    delivered commit with a clean tree, then rerun the focused threshold, projection, endpoint,
-    migration, and claim-unaffected tests against it.
+  - Post-publication verification (done): see the published-delivery entry above.
 - Published delivery: `8ddc34284c3c5461510090c06a895cce9871966d` (parent
   `7cc091dcaa032740def1cca214c3ad83c09a5cd2`) was committed with the reviewed
   73-file Claude model-alias request slice (51 modified, 22 new), pushed as a
