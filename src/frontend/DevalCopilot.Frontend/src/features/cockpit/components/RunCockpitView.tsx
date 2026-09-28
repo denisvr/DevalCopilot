@@ -21,6 +21,7 @@ import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionRe
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 import { CodexAssignmentPreferenceControl } from './CodexAssignmentPreferenceControl'
 import { ClaudeModelPreferenceControl } from './ClaudeModelPreferenceControl'
+import { TokenWarningPanel } from './TokenWarningPanel'
 import { AgentInvocationTimeBudgetBanner } from './AgentInvocationTimeBudgetBanner'
 import { AgentProcessDurationSummaryBanner } from './AgentProcessDurationSummaryBanner'
 import { AgentCollaboration } from './AgentCollaboration'
@@ -45,7 +46,7 @@ interface RunCockpitViewProps {
 }
 
 export function RunCockpitView({ runId }: RunCockpitViewProps) {
-  const { cockpit, cards, connection, loading, error, syncError } = useRunCockpit(runId)
+  const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
   const collaborationTimeline = useCollaborationTimeline(runId, cockpit?.latestSequence)
   const agentAttemptStatus = useAgentAttemptStatus(runId, cockpit?.latestSequence)
   const requestCodexPlanningAttempt = useRequestCodexPlanningAttempt(agentAttemptStatus.refresh)
@@ -169,6 +170,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           requestedClaudeModel={cockpit.requestedClaudeModel ?? null}
         />
       )}
+      {cockpit.runId === runId && <TokenWarningPanel key={runId} runId={runId} tokenWarnings={cockpit.tokenWarnings} onSaved={refresh} />}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />
       <RunTokenUsageSummary summary={cockpit.runId === runId ? cockpit.tokenUsageSummary : null} />
       <ProviderTokenUsageSummaries entries={cockpit.runId === runId ? cockpit.providerTokenUsageSummaries : null} />

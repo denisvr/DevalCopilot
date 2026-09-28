@@ -8,6 +8,49 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Current delivery, based on verified parent
+  `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`: per-provider, run-scoped advisory
+  token-activity warnings. See [planner-handoff.md](planner-handoff.md) for the selection and the
+  ["Per-provider run token-activity warnings"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-warnings)
+  and
+  ["Per-provider token-activity warnings"](../product/run-cockpit-specification.md#per-provider-token-activity-warnings)
+  sections for the contract.
+  - Behavior: nullable, independent `Run.CodexTokenWarningThreshold` and
+    `Run.ClaudeTokenWarningThreshold` (additive migration `AddProviderTokenWarningThresholds`,
+    no default or backfill); protected `POST /api/runs/{runId}/token-warning-threshold` sets or
+    clears one provider (positive, at most 10^12; bad provider/value 400; terminal run 422) with an
+    atomic `run.token_warning_threshold_changed` event, guarded by the existing `Run.Lifecycle`
+    concurrency token (the threshold columns are deliberately not tokens, so a threshold write cannot
+    fail an Agent claim). The cockpit adds `tokenWarnings` (two entries) from the existing dispatched-
+    attempt evidence: Codex counts input + output (cache not re-added); Claude Code counts input +
+    cache-creation + cache-read + output and treats a row missing either cache count as insufficient
+    (the raw usage view is unchanged). At or above the threshold warns (equality included, as a lower
+    bound with gaps); below with pending, insufficient, or unattributed attempts is `Indeterminate`
+    ("not an all-clear"); a known zero and `NoEvidence` are distinct; undispatched attempts are
+    excluded and unattributed ones are a gap for both providers. Cockpit shows a per-provider control
+    and prominent warning states; because the endpoint emits no run event, a successful save or clear
+    explicitly refreshes the cockpit through a new generation-safe `useRunCockpit().refresh` (stale-run
+    responses discarded; a failed refresh shows a fixed safe message), and the local input check mirrors
+    the backend's inclusive 1..10^12 range. No claim path, dispatch, adapter, budget, model setting, or
+    permission argument was touched (none of those files changed).
+  - Checks run: solution build 0 errors/0 warnings; Domain 579/579; Application 1152/1152;
+    Infrastructure 552 passed, 2 skipped (the file-leaf symlink test and the reparse-point entrypoint
+    test, host-capability skips that pre-date this slice); Api 388/388; Architecture 9/9; frontend
+    `vitest` 724/724, `tsc -b`, and `npm run build` clean, and `oxlint` with no warnings in new files (the
+    one warning in a touched file is the `set-state-in-effect` in `useRunCockpit.ts` that the pre-change
+    file also has); two consecutive API builds left `api-client.ts` byte-identical (SHA-256 `b268965e…2f8e`);
+    local documentation links resolve; `git diff --check` clean apart from the known generated-file
+    line-ending notices. Mutation check: forcing the handler's Run UPDATE off failed the
+    lifecycle-race, other-provider, and same-provider concurrency tests; restored. Tests use
+    deterministic doubles and never call a real provider.
+  - Remaining risks: advisory only, over locally recorded usage; it does not see sessions or usage the
+    host never recorded. Any dispatched attempt without a known provider keeps both providers
+    `Indeterminate` (deliberately conservative). A concurrent Claude model-request change can make a
+    threshold save return a retryable 409. Provider usage accuracy rests on the existing versioned
+    parsers.
+  - Post-publication verification: confirm `main`, local `origin/main`, and the live remote match the
+    delivered commit with a clean tree, then rerun the focused threshold, projection, endpoint,
+    migration, and claim-unaffected tests against it.
 - Published delivery: `8ddc34284c3c5461510090c06a895cce9871966d` (parent
   `7cc091dcaa032740def1cca214c3ad83c09a5cd2`) was committed with the reviewed
   73-file Claude model-alias request slice (51 modified, 22 new), pushed as a

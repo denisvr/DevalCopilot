@@ -496,6 +496,31 @@ from a null. No observed-model value is shown. See the
 section of the agent-collaboration-protocol for the durable request, claim-snapshot,
 and invocation-argument semantics.
 
+### Per-provider token-activity warnings
+
+A "Token-activity warnings (advisory)" panel gives Codex and Claude Code each their own optional threshold
+control (a positive whole number of tokens, Save and Clear; Clear only when one is set) and their own status.
+It says plainly that the warning concerns locally recorded, provider-reported token activity only: it does not
+limit or block any attempt and is not an account allowance or a cost, and the two providers' counts (whose exact
+formulas are printed beside each control) are never combined. Non-numeric, zero, negative, fractional, or
+oversized input is rejected locally with a generic message; a save failure shows a safe generic message and
+keeps the prior state.
+
+Each provider is in exactly one visibly distinct state. **Neutral** when no threshold is set (no warning and no
+all-clear). A **prominent alert** (`role="alert"`) when the known count is at or above the threshold, stating the
+count is a lower bound when other evidence is missing. **Below threshold, complete evidence**, or a **known zero**
+(stated as such, with the number of concluded attempts) when every dispatched attempt contributed usable
+evidence. **"Not an all-clear"** when the count is below the threshold but attempts are still running, lack
+usable usage evidence (for Claude Code, all four counts are required), or cannot be attributed to a provider —
+naming each gap and that the real count may be higher. And **no evidence** when a threshold is set but no attempt
+has been dispatched, which is never shown as zero. Changing a threshold re-evaluates already-recorded evidence
+immediately: after a successful save or clear the panel re-queries the authoritative cockpit (the change emits no
+run event), and if that refresh fails it says so plainly ("Saved, but the cockpit could not be refreshed; the
+displayed warning may be out of date.") instead of leaving a stale state unexplained. The local range check is
+the backend's inclusive 1 to 1,000,000,000,000. See the
+["Per-provider run token-activity warnings"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-warnings)
+section of the agent-collaboration-protocol for the exact counting and concurrency rules.
+
 ### Provider account usage guardrails
 
 This remains the target end state the observation above is one step toward;

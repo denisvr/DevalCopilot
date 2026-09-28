@@ -409,6 +409,28 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     }
 
     [Fact]
+    public async Task HandleAsync_claim_is_unaffected_by_a_token_warning_threshold_committed_in_its_commit_window()
+    {
+        var (runId, proposalId) = await SeedClaudeModelScenarioAsync(initialAlias: null);
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(async () =>
+            {
+                await using var competing = _fixture.CreateContext();
+                var competingRun = await competing.Runs.SingleAsync(r => r.Id == runId);
+                competingRun.SetTokenWarningThreshold(AgentProvider.Codex, 1);
+                competingRun.SetTokenWarningThreshold(AgentProvider.ClaudeCode, 1);
+                await competing.SaveChangesAsync();
+            }));
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(1, (await verify.Runs.AsNoTracking().SingleAsync(r => r.Id == runId)).ClaudeTokenWarningThreshold);
+    }
+
+    [Fact]
     public async Task HandleAsync_persists_no_attempt_when_the_request_changes_between_snapshot_and_commit()
     {
         var (runId, proposalId) = await SeedClaudeModelScenarioAsync(initialAlias: "sonnet");

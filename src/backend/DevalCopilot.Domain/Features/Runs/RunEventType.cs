@@ -52,4 +52,8 @@ public static class RunEventType
     /// CriticalReviewer, Implementer, and ReviewCorrection claims. The payload carries only the new
     /// requested alias (or null when cleared).</summary>
     public const string ClaudeModelPreferenceChanged = "run.claude_model_preference_changed";
+
+    /// <summary>The owner set or cleared one provider's advisory token-activity warning threshold.
+    /// The payload carries only the provider name and the new threshold (null when cleared).</summary>
+    public const string TokenWarningThresholdChanged = "run.token_warning_threshold_changed";
 }

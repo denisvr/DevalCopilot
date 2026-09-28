@@ -27,4 +27,5 @@ public sealed record GetRunCockpitQueryResult(
     string? RequestedCodexModel,
     string? RequestedCodexEffort,
     RunCockpitAgentAttemptEntry? LatestAgentAttempt = null,
-    string? RequestedClaudeModel = null);
+    string? RequestedClaudeModel = null,
+    IReadOnlyList<RunCockpitTokenWarningEntry>? TokenWarnings = null);

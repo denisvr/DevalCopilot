@@ -53,6 +53,12 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         // clause (see CurrentClaudeModelPreference).
         builder.Property(run => run.RequestedClaudeModel).HasMaxLength(32).IsConcurrencyToken();
 
+        // Advisory token-warning thresholds: no default, no backfill (a historical run has none),
+        // and deliberately NOT concurrency tokens, so writing one can never make a claim's own Run
+        // UPDATE fail (see SetTokenWarningThresholdCommandHandler).
+        builder.Property(run => run.CodexTokenWarningThreshold);
+        builder.Property(run => run.ClaudeTokenWarningThreshold);
+
         builder.HasOne<Project>().WithMany().HasForeignKey(run => run.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(run => new { run.ProjectId, run.ExecutionNumber }).IsUnique();
     }

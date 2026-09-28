@@ -62,6 +62,7 @@ public sealed class GetRunCockpitEndpoint(
                 value.AgentClaimPathTimeFits.Select(AgentClaimPathTimeFitResponse.FromDomain).ToArray(),
                 value.RequestedCodexModel,
                 value.RequestedCodexEffort,
-                value.RequestedClaudeModel));
+                value.RequestedClaudeModel,
+                (value.TokenWarnings ?? []).Select(RunCockpitTokenWarningResponse.FromDomain).ToArray()));
     }
 }

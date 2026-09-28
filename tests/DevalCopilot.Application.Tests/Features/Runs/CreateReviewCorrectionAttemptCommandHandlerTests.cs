@@ -503,6 +503,29 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         Assert.Empty(await verify.Artifacts.Where(item => item.RunId == seed.Run.Id).ToListAsync());
     }
 
+    [Fact]
+    public async Task Claim_is_unaffected_by_a_token_warning_threshold_committed_in_its_commit_window()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(async () =>
+            {
+                await using var competing = _fixture.CreateContext();
+                var competingRun = await competing.Runs.SingleAsync(r => r.Id == seed.Run.Id);
+                competingRun.SetTokenWarningThreshold(AgentProvider.Codex, 1);
+                competingRun.SetTokenWarningThreshold(AgentProvider.ClaudeCode, 1);
+                await competing.SaveChangesAsync();
+            }));
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext, new RecordingEvidenceReader(seed.Evidence), new TestArtifactStore(), new FixedTimeProvider(Now))
+            .HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(1, (await verify.Runs.AsNoTracking().SingleAsync(r => r.Id == seed.Run.Id)).ClaudeTokenWarningThreshold);
+    }
+
     private CreateReviewCorrectionAttemptCommandHandler Handler(DevalCopilotDbContext context) =>
         new(context, new RecordingEvidenceReader(new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null)), new TestArtifactStore(), new FixedTimeProvider(Now));
 

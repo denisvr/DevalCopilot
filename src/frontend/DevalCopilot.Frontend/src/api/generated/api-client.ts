@@ -56,6 +56,58 @@ export class StartSimulatedRunEndpointClient {
     }
 }
 
+export class SetTokenWarningThresholdEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    setTokenWarningThreshold(runId: string, request: SetTokenWarningThresholdRequest): Promise<SetTokenWarningThresholdResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/token-warning-threshold";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSetTokenWarningThreshold(_response);
+        });
+    }
+
+    protected processSetTokenWarningThreshold(response: Response): Promise<SetTokenWarningThresholdResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SetTokenWarningThresholdResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetTokenWarningThresholdResponse>(null as any);
+    }
+}
+
 export class SetCodexAssignmentPreferenceEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2407,6 +2459,86 @@ export interface IStartSimulatedRunRequest {
     objective?: string;
 }
 
+export class SetTokenWarningThresholdResponse implements ISetTokenWarningThresholdResponse {
+    provider?: string;
+    thresholdTokens?: number | undefined;
+
+    constructor(data?: ISetTokenWarningThresholdResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.provider = _data["provider"];
+            this.thresholdTokens = _data["thresholdTokens"];
+        }
+    }
+
+    static fromJS(data: any): SetTokenWarningThresholdResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetTokenWarningThresholdResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["provider"] = this.provider;
+        data["thresholdTokens"] = this.thresholdTokens;
+        return data;
+    }
+}
+
+export interface ISetTokenWarningThresholdResponse {
+    provider?: string;
+    thresholdTokens?: number | undefined;
+}
+
+export class SetTokenWarningThresholdRequest implements ISetTokenWarningThresholdRequest {
+    provider?: string;
+    thresholdTokens?: number | undefined;
+
+    constructor(data?: ISetTokenWarningThresholdRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.provider = _data["provider"];
+            this.thresholdTokens = _data["thresholdTokens"];
+        }
+    }
+
+    static fromJS(data: any): SetTokenWarningThresholdRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetTokenWarningThresholdRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["provider"] = this.provider;
+        data["thresholdTokens"] = this.thresholdTokens;
+        return data;
+    }
+}
+
+export interface ISetTokenWarningThresholdRequest {
+    provider?: string;
+    thresholdTokens?: number | undefined;
+}
+
 export class SetCodexAssignmentPreferenceResponse implements ISetCodexAssignmentPreferenceResponse {
     requestedModel?: string | undefined;
     requestedEffort?: string | undefined;
@@ -3177,6 +3309,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     requestedCodexModel?: string | undefined;
     requestedCodexEffort?: string | undefined;
     requestedClaudeModel?: string | undefined;
+    tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -3226,6 +3359,11 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.requestedCodexModel = _data["requestedCodexModel"];
             this.requestedCodexEffort = _data["requestedCodexEffort"];
             this.requestedClaudeModel = _data["requestedClaudeModel"];
+            if (Array.isArray(_data["tokenWarnings"])) {
+                this.tokenWarnings = [] as any;
+                for (let item of _data["tokenWarnings"])
+                    this.tokenWarnings!.push(RunCockpitTokenWarningResponse.fromJS(item));
+            }
         }
     }
 
@@ -3275,6 +3413,11 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["requestedCodexModel"] = this.requestedCodexModel;
         data["requestedCodexEffort"] = this.requestedCodexEffort;
         data["requestedClaudeModel"] = this.requestedClaudeModel;
+        if (Array.isArray(this.tokenWarnings)) {
+            data["tokenWarnings"] = [];
+            for (let item of this.tokenWarnings)
+                data["tokenWarnings"].push(item ? item.toJSON() : undefined as any);
+        }
         return data;
     }
 }
@@ -3305,6 +3448,7 @@ export interface IGetRunCockpitResponse {
     requestedCodexModel?: string | undefined;
     requestedCodexEffort?: string | undefined;
     requestedClaudeModel?: string | undefined;
+    tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -3773,6 +3917,70 @@ export class AgentClaimPathTimeFitResponse implements IAgentClaimPathTimeFitResp
 export interface IAgentClaimPathTimeFitResponse {
     claimPath?: string;
     fit?: string;
+}
+
+export class RunCockpitTokenWarningResponse implements IRunCockpitTokenWarningResponse {
+    provider?: string;
+    thresholdTokens?: number | undefined;
+    state?: string;
+    knownTokenCount?: number;
+    countedAttempts?: number;
+    pendingAttempts?: number;
+    insufficientEvidenceAttempts?: number;
+    unattributedAttempts?: number;
+
+    constructor(data?: IRunCockpitTokenWarningResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.provider = _data["provider"];
+            this.thresholdTokens = _data["thresholdTokens"];
+            this.state = _data["state"];
+            this.knownTokenCount = _data["knownTokenCount"];
+            this.countedAttempts = _data["countedAttempts"];
+            this.pendingAttempts = _data["pendingAttempts"];
+            this.insufficientEvidenceAttempts = _data["insufficientEvidenceAttempts"];
+            this.unattributedAttempts = _data["unattributedAttempts"];
+        }
+    }
+
+    static fromJS(data: any): RunCockpitTokenWarningResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RunCockpitTokenWarningResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["provider"] = this.provider;
+        data["thresholdTokens"] = this.thresholdTokens;
+        data["state"] = this.state;
+        data["knownTokenCount"] = this.knownTokenCount;
+        data["countedAttempts"] = this.countedAttempts;
+        data["pendingAttempts"] = this.pendingAttempts;
+        data["insufficientEvidenceAttempts"] = this.insufficientEvidenceAttempts;
+        data["unattributedAttempts"] = this.unattributedAttempts;
+        return data;
+    }
+}
+
+export interface IRunCockpitTokenWarningResponse {
+    provider?: string;
+    thresholdTokens?: number | undefined;
+    state?: string;
+    knownTokenCount?: number;
+    countedAttempts?: number;
+    pendingAttempts?: number;
+    insufficientEvidenceAttempts?: number;
+    unattributedAttempts?: number;
 }
 
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {

@@ -7,7 +7,158 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-28): explicit Claude model request across three roles
+## Current selection (2026-09-28): per-provider run token-activity warnings
+
+- Correction re-review (2026-09-29): **GO for the reviewed substantive diff.**
+  Independently verified `main`, `HEAD`, local and live `origin/main` at
+  `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`; nothing staged, 22
+  modified tracked files (including this planner record) and 26 untracked
+  files. The added `useRunCockpit().refresh` queues a post-change read behind
+  any in-flight pass, rejects a stale run generation, and reports a fixed safe
+  failure; the panel refreshes after successful Save/Clear and mirrors the
+  inclusive 1..10^12 server limit. The architecture text now distinguishes
+  persisted usage validation from the accumulator's running-attempt exclusion.
+  Independently passed focused frontend hook/panel/refresh tests 36/36 and
+  `git diff --check` (only the two known generated-file line-ending notices).
+  The executor reports full frontend 724/724, TypeScript, build, lint, doc
+  links, and the earlier unchanged-backend suites and migration/NSwag/mutation
+  evidence in `current-work.md`. The remaining risks there are accepted within
+  this advisory, local-evidence scope. This GO covers only this exact diff;
+  no next product slice is selected.
+- Publication instruction: commit exactly the reviewed substantive slice on
+  `main`, including `current-work.md` and this planner review record; push it
+  normally as a fast-forward to `origin/main`; independently fetch/verify the
+  live remote points to the delivered commit and report its exact SHA and
+  worktree state. Run the focused threshold, projection, endpoint, migration,
+  and claim-unaffected checks against that commit as `current-work.md` states.
+  Then make only a factual `current-work.md` closure recording the substantive
+  SHA, verified publication, and checks actually run, commit/push that closure
+  normally, and independently verify the live remote and clean tree again.
+  A material post-GO change, unexpected staged/worktree change, failing check,
+  failed push, or remote divergence stops for Codex review/direction; do not
+  force-push or reconcile remote history. The narrowly factual closure needs
+  no second GO.
+
+- First uncommitted diff review (2026-09-29): **NO-GO; correct the cockpit's
+  immediate post-save state and two accuracy edges in this same slice.**
+  Independently verified `main`, `HEAD`, local and live `origin/main` at
+  `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`; nothing staged, 20 modified
+  tracked files (including this planner record) and 25 untracked files. Focused
+  Application 39/39, API 13/13, and frontend warning/hook 20/20 passed; the
+  executor reports the full suites and builds in `current-work.md`. The backend
+  projection, provider-specific formulas, migration, and advisory-only scope
+  are directionally sound. Three corrections remain:
+  1. `TokenWarningPanel` updates its local `saved` value after Save/Clear but
+     derives its visible status only from the unchanged `warning` prop. The
+     new endpoint sends no `runAdvanced` notification, and `useRunCockpit`
+     exposes no explicit refresh. A changed threshold therefore does not
+     immediately re-evaluate already-recorded evidence in the displayed
+     cockpit. Make a successful set/clear cause a generation-safe authoritative
+     cockpit refresh, with focused tests proving an existing count crosses
+     into/out of `ThresholdReached` without an unrelated run event. Preserve
+     stale-run protection and show a safe synchronization failure.
+  2. The frontend accepts a positive safe integer above the server's 10^12
+     cap and submits it, while the product spec says oversized input is
+     rejected locally. Enforce the same cap locally and test 10^12 + 1.
+  3. The new architecture section says `AgentTokenUsageEvidence.FromPersisted`
+     enforces terminal status. It validates provider/schema and usage shape;
+     the cockpit accumulator independently checks the attempt status. State
+     those two responsibilities accurately, and keep `current-work.md`
+     commit-ready without claiming publication.
+  Keep the correction uncommitted and unpushed. Rerun affected frontend tests,
+  the relevant full validation if the changed hook/cockpit path affects it,
+  documentation links, and `git diff --check`; report exactly what ran and
+  return the complete corrected diff for GO/NO-GO. No commit/push GO is granted.
+
+- Verified publication baseline: branch `main`; `HEAD`, local `origin/main`, and
+  live `origin/main` all equal `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`.
+  Staged, unstaged, and untracked state was empty before this planner-only edit.
+  The preceding Claude model-request delivery is substantive commit
+  `8ddc34284c3c5461510090c06a895cce9871966d` followed by factual closure
+  `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`; its reported focused
+  post-publication checks passed and the live remote was independently verified.
+- Select one larger, coherent Increment 4 slice: let the owner set or clear an
+  optional positive **run-scoped warning threshold in reported token-activity
+  units for each of Codex and Claude Code**, persist both independently, and
+  show a prominent provider-specific warning when trusted, concluded-attempt
+  evidence reaches that provider's threshold. This is an advisory warning on
+  local attempt evidence, never a hard token budget, account allowance,
+  provider cost, or invocation/claim eligibility rule. No threshold is assumed
+  for historical or new runs until the owner configures one.
+- The warning count for a known Codex attempt is its validated `inputTokens +
+  outputTokens`; its `cached_input_tokens` is already within Codex's reported
+  input and must not be added again. For a known Claude attempt it is validated
+  `inputTokens + cacheCreationInputTokens + cacheReadInputTokens + outputTokens`;
+  the current Claude CLI parser requires all four fields. A persisted Claude
+  usage row missing either cache field is insufficient for this warning even
+  if the existing raw usage projection can still display its input/output
+  values; do not change that raw projection's contract. These formulas are
+  intentionally provider-specific, never added into a cross-provider budget.
+  Reuse the existing `AgentTokenUsageEvidence` provider/schema validation,
+  terminal/dispatched check, and the cockpit's same loaded attempt evidence
+  and provider attribution; add only the warning derivation needed to detect
+  a Claude row whose cache breakdown is absent. A
+  missing, malformed, or still-running usage must never be counted as zero;
+  an undispatched attempt is excluded because no provider was invoked, and an
+  unattributed attempt is never silently assigned to either provider. The
+  provider's known count may be a lower bound when its evidence is incomplete;
+  reaching the threshold is a valid warning, but being below it with gaps is
+  explicitly indeterminate, not an all-clear.
+- Current provider-contract basis: the official [Codex non-interactive JSONL
+  contract](https://learn.chatgpt.com/docs/non-interactive-mode) documents the
+  terminal `turn.completed` usage fields, and the [official Codex usage
+  mapping](https://github.com/openai/codex/blob/main/codex-rs/codex-api/src/sse/responses.rs)
+  maps cached input as a breakdown of input; the official [Claude Code CLI
+  reference](https://code.claude.com/docs/en/cli-reference) documents print-mode
+  JSON output, while the existing versioned local Claude parser owns the exact
+  four-field envelope proof. The official [Claude cache-token
+  contract](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+  distinguishes ordinary input from cache creation/read input. No new provider
+  adapter, authenticated provider invocation, model inference, allowance read,
+  or session-resume contract is part of this slice.
+- Boundaries: nullable independent Run thresholds with an additive migration
+  and no backfill; a protected, validated MVC set/clear operation with safe
+  lifecycle and concurrent-update handling plus a durable configuration-change
+  event; an Application-owned warning projection using existing per-provider
+  evidence and explicit completeness/known-count states; additive cockpit API
+  response, regenerated NSwag client, and a cockpit control and warning display
+  for each provider. Keep the existing run-wide and provider-separated raw
+  evidence displays intact. Update the architecture/product specifications and
+  `current-work.md` with truthful semantics. Do not create a general budget or
+  provider-settings framework, and do not alter the six Agent claim paths,
+  dispatch, adapters, provider assignment, or provider permission arguments.
+- Stop gates: report to Codex before broadening scope if the current versioned
+  usage evidence cannot support either formula without inventing a missing
+  value; a provider/schema or attribution mismatch could yield a false warning;
+  a setting race could persist threshold and event inconsistently; or the UI
+  cannot distinguish below-threshold partial evidence from a complete below-
+  threshold result. Never substitute account-allowance percentages or CLI
+  defaults for this evidence. Avoid real provider calls in automated tests.
+- Acceptance evidence: unset/clear states are neutral; positive thresholds
+  persist independently for Codex and Claude, while zero/negative/overflow
+  values and terminal-run updates fail safely; concurrent changes preserve
+  threshold/event atomicity; a known zero is distinct from no evidence; exact
+  equality warns; Codex cache is not double-counted and Claude cache counts
+  exactly once; partial/pending/unknown/malformed/undispatched/unattributed
+  evidence cannot produce a false all-clear or false attribution; an
+  undispatched attempt is excluded; threshold
+  changes immediately re-evaluate already recorded evidence; the warning never
+  affects claim or dispatch eligibility. Require focused Domain/Application/
+  Infrastructure/API/frontend and migration tests, relevant full backend and
+  frontend validation, TypeScript check, lint, production build, deterministic
+  NSwag regeneration, documentation links, and `git diff --check`, reporting
+  actual outcomes and skips.
+- Claude's first delivery must be a complete **uncommitted, unpushed** diff,
+  including a concise, commit-ready `current-work.md` entry with actual checks
+  and remaining risks, for Codex GO/NO-GO. Expected executor preflight: `main`
+  at the full HEAD above, nothing staged, only
+  `docs/roadmap/planner-handoff.md` modified/unstaged by this selection, and
+  nothing untracked. Selection grants no commit/push GO. After a future GO,
+  one publication instruction will cover the reviewed substantive commit,
+  normal fast-forward push, live-remote verification, and only tightly bounded
+  factual documentation closure. A material post-GO change returns for review.
+
+## Prior selection (2026-09-28): explicit Claude model request across three roles
 
 - Correction re-review (2026-09-28): **GO for the reviewed substantive diff.**
   Independently reverified `main`, `HEAD`, local and live `origin/main` at

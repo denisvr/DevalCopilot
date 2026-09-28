@@ -220,6 +220,56 @@ public sealed class Run
         RequestedClaudeModel = requestedModel;
     }
 
+    /// <summary>The largest warning threshold this Run accepts (10^12 reported token-activity
+    /// units). A bound, not a policy: it keeps every threshold comparable with the bounded sums
+    /// the cockpit projects and safely representable everywhere.</summary>
+    public const long MaxTokenWarningThreshold = 1_000_000_000_000L;
+
+    /// <summary>
+    /// The owner's optional advisory warning threshold, in Codex-reported token-activity units
+    /// (validated <c>inputTokens + outputTokens</c> of concluded, dispatched Codex attempts), for
+    /// this Run. <see langword="null"/> means none is configured (the default for every historical
+    /// and newly created Run). Advisory only: never a budget or an eligibility rule, and never read
+    /// by any claim, dispatch, or adapter path.
+    /// </summary>
+    public long? CodexTokenWarningThreshold { get; private set; }
+
+    /// <summary>The same advisory threshold for Claude Code (validated <c>inputTokens +
+    /// cacheCreationInputTokens + cacheReadInputTokens + outputTokens</c>). Independent of
+    /// <see cref="CodexTokenWarningThreshold"/>: the two are never combined.</summary>
+    public long? ClaudeTokenWarningThreshold { get; private set; }
+
+    /// <summary>Sets or clears one provider's advisory token-activity warning threshold, leaving
+    /// the other provider's untouched. A non-null value must be positive and at most
+    /// <see cref="MaxTokenWarningThreshold"/>; permitted while <see cref="Lifecycle"/> is Created
+    /// or Running.</summary>
+    public void SetTokenWarningThreshold(AgentProvider provider, long? threshold)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot change a token warning threshold for a run whose lifecycle is {Lifecycle}.");
+        }
+
+        if (provider is not (AgentProvider.Codex or AgentProvider.ClaudeCode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(provider), provider, "A token warning threshold applies only to Codex or Claude Code.");
+        }
+
+        if (threshold is { } value && (value < 1 || value > MaxTokenWarningThreshold))
+        {
+            throw new ArgumentOutOfRangeException(nameof(threshold), threshold, "A token warning threshold must be between 1 and the supported maximum.");
+        }
+
+        if (provider == AgentProvider.Codex)
+        {
+            CodexTokenWarningThreshold = threshold;
+        }
+        else
+        {
+            ClaudeTokenWarningThreshold = threshold;
+        }
+    }
+
     private static bool IsValidRequestedAssignmentIdentifier(string? value) =>
         value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= MaxRequestedAssignmentIdentifierLength);
 

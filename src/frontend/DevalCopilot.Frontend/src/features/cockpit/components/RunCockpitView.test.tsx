@@ -12,6 +12,7 @@ import {
   GetRunCockpitResponse,
   ParticipantIdentityResponse,
   RunCockpitAgentAttemptResponse,
+  RunCockpitTokenWarningResponse,
   RunCockpitProviderTokenUsageEntryResponse,
   RunTokenUsageSummaryResponse,
 } from '../../../api/generated/api-client'
@@ -242,6 +243,7 @@ describe('RunCockpitView', () => {
       loading: true,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -271,6 +273,7 @@ describe('RunCockpitView', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -301,6 +304,7 @@ describe('RunCockpitView', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -331,6 +335,7 @@ describe('RunCockpitView', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -361,6 +366,7 @@ describe('RunCockpitView', () => {
       loading: false,
       error: null,
       syncError: 'cockpit query unavailable',
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -399,6 +405,7 @@ describe('RunCockpitView', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     const { rerender } = render(<RunCockpitView runId="run-1" />)
@@ -428,6 +435,7 @@ describe('RunCockpitView', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
     rerender(<RunCockpitView runId="run-2" />)
     expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
@@ -442,6 +450,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       render(<RunCockpitView runId="run-1" />)
@@ -463,6 +472,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       render(<RunCockpitView runId="run-1" />)
@@ -495,6 +505,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       render(<RunCockpitView runId="run-1" />)
@@ -530,6 +541,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       render(<RunCockpitView runId="run-1" />)
@@ -557,6 +569,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       const request = vi.fn()
       useRequestCodexPlanningAttemptMock.mockReturnValue({ requesting: false, error: null, request })
@@ -575,6 +588,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useAgentAttemptStatusMock.mockReturnValue({
         status: new AgentAttemptStatusResponse({ attemptId: 'attempt-1', attemptNumber: 1, status: 'Running' }),
@@ -597,6 +611,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       const request = vi.fn().mockResolvedValue(false)
       useRequestCodexPlanningAttemptMock.mockReturnValue({
@@ -619,6 +634,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       const { rerender } = render(<RunCockpitView runId="run-1" />)
@@ -637,6 +653,7 @@ describe('RunCockpitView', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
     useCollaborationTimelineMock.mockReturnValue({
       cards: [
@@ -677,6 +694,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useCollaborationTimelineMock.mockReturnValue({
         cards: [],
@@ -698,6 +716,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useCollaborationTimelineMock.mockReturnValue({
         cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
@@ -722,6 +741,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useCollaborationTimelineMock.mockReturnValue({
         cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
@@ -755,6 +775,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useCollaborationTimelineMock.mockReturnValue({
         cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
@@ -782,6 +803,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       const { rerender } = render(<RunCockpitView runId="run-1" />)
@@ -801,6 +823,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
         status: new ClaudeCriticalReviewAttemptStatusResponse({
@@ -828,6 +851,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
         status: new ClaudeCriticalReviewAttemptStatusResponse({
@@ -858,6 +882,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
         status: new ClaudeCriticalReviewAttemptStatusResponse({
@@ -897,6 +922,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
         status: new ClaudeCriticalReviewAttemptStatusResponse({
@@ -937,6 +963,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       const { rerender } = render(<RunCockpitView runId="run-1" />)
@@ -970,6 +997,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       render(<RunCockpitView runId="run-1" />)
@@ -987,6 +1015,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
         status: new ClaudeCriticalReviewAttemptStatusResponse({
@@ -1020,6 +1049,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
         status: new ClaudeCriticalReviewAttemptStatusResponse({
@@ -1052,6 +1082,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
 
       const { rerender } = render(<RunCockpitView runId="run-1" />)
@@ -1073,6 +1104,7 @@ describe('RunCockpitView', () => {
         loading: false,
         error: null,
         syncError: null,
+        refresh: async () => true,
       })
       rerender(<RunCockpitView runId="run-2" />)
       expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
@@ -1107,6 +1139,7 @@ describe('RunCockpitView process evidence', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -1126,6 +1159,7 @@ describe('RunCockpitView process evidence', () => {
       loading: true,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     const { rerender } = render(<RunCockpitView runId="run-1" />)
@@ -1145,6 +1179,7 @@ describe('RunCockpitView process evidence', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -1184,7 +1219,7 @@ describe('RunCockpitView token usage', () => {
   })
 
   function renderWith(cockpit: GetRunCockpitResponse, loading = false) {
-    useRunCockpitMock.mockReturnValue({ cockpit, cards: [], connection: 'live', loading, error: null, syncError: null })
+    useRunCockpitMock.mockReturnValue({ cockpit, cards: [], connection: 'live', loading, error: null, syncError: null, refresh: async () => true })
   }
 
   it('renders the latest attempt usage beside its process evidence and the run summary as partial', () => {
@@ -1321,7 +1356,7 @@ describe('RunCockpitView token usage', () => {
 
 describe('RunCockpitView one Agent claim slot remaining warning', () => {
   function renderWith(cockpit: GetRunCockpitResponse, loading = false) {
-    useRunCockpitMock.mockReturnValue({ cockpit, cards: [], connection: 'live', loading, error: null, syncError: null })
+    useRunCockpitMock.mockReturnValue({ cockpit, cards: [], connection: 'live', loading, error: null, syncError: null, refresh: async () => true })
   }
 
   it('renders alongside the exhausted banner\'s own healthy (non-exhausted) state without it, and shows nothing when the budget is not down to its last slot', () => {
@@ -1409,6 +1444,7 @@ describe('RunCockpitView Claude model request', () => {
       loading: false,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     render(<RunCockpitView runId="run-1" />)
@@ -1429,6 +1465,7 @@ describe('RunCockpitView Claude model request', () => {
       loading: true,
       error: null,
       syncError: null,
+      refresh: async () => true,
     })
 
     const { rerender } = render(<RunCockpitView runId="run-1" />)
@@ -1437,5 +1474,41 @@ describe('RunCockpitView Claude model request', () => {
     rerender(<RunCockpitView runId="run-2" />)
 
     expect(screen.queryByLabelText('Claude model request')).not.toBeInTheDocument()
+  })
+})
+
+describe('RunCockpitView token-activity warnings', () => {
+  it('renders each provider warning from the cockpit projection and hides it for a newly selected run', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({
+        ...runningCockpit,
+        tokenWarnings: [
+          new RunCockpitTokenWarningResponse({
+            provider: 'Codex', state: 'ThresholdReached', thresholdTokens: 1200, knownTokenCount: 1200, countedAttempts: 1,
+            pendingAttempts: 0, insufficientEvidenceAttempts: 0, unattributedAttempts: 0,
+          }),
+          new RunCockpitTokenWarningResponse({
+            provider: 'ClaudeCode', state: 'Indeterminate', thresholdTokens: 900, knownTokenCount: 4, countedAttempts: 1,
+            pendingAttempts: 1, insufficientEvidenceAttempts: 0, unattributedAttempts: 0,
+          }),
+        ],
+      }),
+      cards: [],
+      connection: 'live',
+      loading: true,
+      error: null,
+      syncError: null,
+      refresh: async () => true,
+    })
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Codex token-activity warning')
+    expect(screen.getByLabelText('Claude Code token-activity warning')).toHaveTextContent('not an all-clear')
+
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByLabelText('Codex token-activity warning')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

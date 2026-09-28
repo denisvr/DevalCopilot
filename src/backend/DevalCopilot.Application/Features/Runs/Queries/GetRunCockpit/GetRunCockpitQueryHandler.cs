@@ -95,6 +95,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
 
         var tokenUsageAccumulator = new RunCockpitTokenUsageAccumulator();
         var providerTokenUsageAccumulator = new RunCockpitProviderTokenUsageAccumulator();
+        var tokenWarningAccumulator = new RunCockpitTokenWarningAccumulator();
         var processDurationAccumulator = new RunCockpitAgentProcessDurationAccumulator();
         await foreach (var attempt in dispatchedAttemptEvidence.WithCancellation(cancellationToken))
         {
@@ -108,6 +109,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
 
             tokenUsageAccumulator.Add(attempt.Status, tokenUsageEvidence);
             providerTokenUsageAccumulator.Add(attempt.Status, attempt.AgentProvider, tokenUsageEvidence);
+            tokenWarningAccumulator.Add(attempt.Status, attempt.AgentProvider, tokenUsageEvidence);
 
             AgentProcessExecutionEvidence? processEvidence = null;
             if (attempt.AgentProcessOutcome is { } processOutcome
@@ -185,6 +187,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                         latestAgentAttempt.AgentTimeout,
                         latestAgentAttempt.GetAgentTokenUsageEvidence(),
                         latestAgentAttempt.AgentRequestedModel),
-                run.RequestedClaudeModel));
+                run.RequestedClaudeModel,
+                tokenWarningAccumulator.ToEntries(run.CodexTokenWarningThreshold, run.ClaudeTokenWarningThreshold)));
     }
 }

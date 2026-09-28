@@ -1575,6 +1575,65 @@ inferred to be an observed or effective model. `null` means no override.
   attempt's own immutable snapshot). Both are requests; no observed or effective
   model is exposed.
 
+### Per-provider run token-activity warnings
+
+An owner may set or clear an optional, positive, advisory **token-activity warning threshold** for
+each of Codex and Claude Code on an active Run (`Run.CodexTokenWarningThreshold`,
+`Run.ClaudeTokenWarningThreshold`), through one protected MVC operation
+(`POST /api/runs/{runId}/token-warning-threshold`, body `{ provider, thresholdTokens }`). It is a
+warning about locally recorded, provider-reported usage. It is never a hard token budget, an account
+allowance, a cost, or an eligibility rule: nothing in the six Agent claim paths, dispatch, provider
+adapters, budgets, model settings, or permission arguments reads it, and no provider is contacted to set
+or evaluate it. No threshold exists for a historical or new run until the owner configures one.
+
+- **Persistence.** The additive `AddProviderTokenWarningThresholds` migration adds two nullable
+  `runs` integer columns with no default and no backfill. A non-null value is between 1 and
+  `Run.MaxTokenWarningThreshold` (10^12); zero, negative, over-cap, or beyond-`long` values are rejected
+  (HTTP 400) and `provider` is exactly `Codex` or `ClaudeCode`. Setting one provider never touches the other.
+- **Lifecycle and concurrency.** `SetTokenWarningThresholdCommand` is a manual-transaction command whose
+  single `SaveChangesAsync` commits the Run change and its `run.token_warning_threshold_changed` event
+  (payload: provider and new threshold, or null) together. It forces the Run UPDATE even for an unchanged
+  value so that the existing `Run.Lifecycle` concurrency token always guards it: a transition to a terminal
+  lifecycle committed after the read rolls back both the value and the event and is reported as
+  `token_warning.run_not_editable` (HTTP 422); a terminal run is rejected up front the same way. Other
+  concurrency conflicts (e.g. the Claude model-request token) are a retryable `token_warning.concurrent_change`
+  (HTTP 409). The threshold columns are deliberately **not** concurrency tokens: a threshold write must never
+  make an Agent claim's own Run UPDATE fail. SQLite serializes write transactions, EF updates only the modified
+  column, and each write commits its value and event atomically, so concurrent writes to different providers both
+  persist and concurrent writes to the same provider leave a final value matching the last committed event.
+- **Evidence and formulas.** The projection (`RunCockpitTokenWarningProjection`, Application-owned) consumes
+  the same dispatched-Agent-attempt evidence as the other cockpit token projections, in the cockpit query's
+  existing single pass. Each persisted row is reconstructed through `AgentTokenUsageEvidence.FromPersisted`,
+  which validates the persisted usage shape and the proven provider/schema pair (anything else is unknown
+  evidence). Separately, the warning accumulator excludes a still-running attempt: it is only ever pending,
+  even if its row already carries valid-looking usage. A concluded attempt contributes exactly once:
+  Codex counts `inputTokens + outputTokens` (its `cached_input_tokens` is already inside input and is not
+  added; the Codex schema cannot carry a cache breakdown); Claude Code counts `inputTokens +
+  cacheCreationInputTokens + cacheReadInputTokens + outputTokens`. A persisted Claude row missing either cache
+  count is **insufficient** for this warning (never treated as zero) even though the unchanged raw usage view
+  still shows its input/output. Sums are 64-bit. Undispatched attempts never invoked a provider and are
+  excluded; a still-running attempt is pending and never counted; a concluded attempt with missing, malformed,
+  or unsupported-schema/provider usage is insufficient; a dispatched attempt with no known provider is
+  unattributed, never assigned to either provider, and counts as an evidence gap for both.
+- **States.** Per provider: `NotConfigured` (neutral; counts still reported), `ThresholdReached` (known count
+  >= threshold, including exact equality, valid even as a lower bound with gaps), `NoEvidence` (configured, no
+  dispatched attempt: not a known zero), `BelowThresholdComplete` (below, and no pending, insufficient, or
+  unattributed attempts; a known zero has `countedAttempts > 0`), and `Indeterminate` (below, but a gap exists:
+  explicitly not an all-clear). Changing a threshold changes only an input to this pure derivation, so existing
+  evidence is re-evaluated on the next cockpit read with no provider invocation. Because the threshold
+  endpoint emits no run event (so no SignalR `runAdvanced` notification), the cockpit UI explicitly refreshes
+  after a successful save or clear through `useRunCockpit().refresh`, which reuses the hook's existing
+  generation-guarded, coalescing catch-up loop: a response for a run that is no longer current is discarded,
+  a pass queued behind an already-in-flight one guarantees a fetch that starts after the change, and a failed
+  refresh yields a fixed safe synchronization message rather than a stale-looking success. The cockpit response carries
+  `tokenWarnings`, always two entries (Codex, then ClaudeCode) with the threshold, state, known count, and the
+  counted/pending/insufficient/unattributed attempt counts; the existing run-wide and provider-separated raw
+  usage fields are unchanged.
+- **Basis.** The formulas rest on the existing locally versioned usage parsers (`codex-cli-usage-v1`,
+  `claude-cli-usage-v1`) and the documented Codex cached-input breakdown and Claude cache-token semantics; this
+  slice adds no adapter, provider invocation, allowance read, or provider-session resume. The two providers'
+  counts are provider-specific and are never summed into a cross-provider figure.
+
 ## Token efficiency
 
 - Build a context manifest for each attempt and include only inputs required by

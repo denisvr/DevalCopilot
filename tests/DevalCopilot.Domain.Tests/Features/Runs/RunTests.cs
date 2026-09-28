@@ -307,4 +307,76 @@ public sealed class RunTests
         Assert.Throws<InvalidOperationException>(() => run.SetRequestedClaudeModel(null));
         Assert.Equal("sonnet", run.RequestedClaudeModel);
     }
+
+    [Fact]
+    public void Token_warning_thresholds_default_to_null_for_a_new_run()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token warnings", BaseTime);
+
+        Assert.Null(run.CodexTokenWarningThreshold);
+        Assert.Null(run.ClaudeTokenWarningThreshold);
+    }
+
+    [Fact]
+    public void SetTokenWarningThreshold_sets_each_provider_independently_and_clears_one_without_the_other()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token warnings", BaseTime);
+        run.Claim(BaseTime);
+
+        run.SetTokenWarningThreshold(AgentProvider.Codex, 1_000);
+        run.SetTokenWarningThreshold(AgentProvider.ClaudeCode, 50_000);
+        Assert.Equal(1_000, run.CodexTokenWarningThreshold);
+        Assert.Equal(50_000, run.ClaudeTokenWarningThreshold);
+
+        run.SetTokenWarningThreshold(AgentProvider.Codex, null);
+        Assert.Null(run.CodexTokenWarningThreshold);
+        Assert.Equal(50_000, run.ClaudeTokenWarningThreshold);
+    }
+
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(Run.MaxTokenWarningThreshold)]
+    public void SetTokenWarningThreshold_accepts_the_inclusive_bounds(long threshold)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token warnings", BaseTime);
+
+        run.SetTokenWarningThreshold(AgentProvider.ClaudeCode, threshold);
+
+        Assert.Equal(threshold, run.ClaudeTokenWarningThreshold);
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-1L)]
+    [InlineData(long.MinValue)]
+    [InlineData(Run.MaxTokenWarningThreshold + 1)]
+    [InlineData(long.MaxValue)]
+    public void SetTokenWarningThreshold_rejects_zero_negative_and_overflowing_values_keeping_the_prior_value(long threshold)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token warnings", BaseTime);
+        run.SetTokenWarningThreshold(AgentProvider.Codex, 7);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => run.SetTokenWarningThreshold(AgentProvider.Codex, threshold));
+        Assert.Equal(7, run.CodexTokenWarningThreshold);
+    }
+
+    [Fact]
+    public void SetTokenWarningThreshold_rejects_an_undefined_provider()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token warnings", BaseTime);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => run.SetTokenWarningThreshold((AgentProvider)99, 5));
+    }
+
+    [Fact]
+    public void SetTokenWarningThreshold_rejects_a_terminal_run_and_keeps_the_prior_value()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token warnings", BaseTime);
+        run.Claim(BaseTime);
+        run.SetTokenWarningThreshold(AgentProvider.Codex, 9);
+        run.Complete(BaseTime.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() => run.SetTokenWarningThreshold(AgentProvider.Codex, null));
+        Assert.Equal(9, run.CodexTokenWarningThreshold);
+    }
 }

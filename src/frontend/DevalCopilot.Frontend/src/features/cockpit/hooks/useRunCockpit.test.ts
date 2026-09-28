@@ -445,4 +445,111 @@ describe('useRunCockpit', () => {
     expect(result.current.cockpit).toBe(before.cockpit)
     expect(result.current.cards).toBe(before.cards)
   })
+
+  describe('refresh', () => {
+    function arrange() {
+      const getRunCockpit = vi.fn()
+      const getRunEvents = vi.fn().mockResolvedValue([])
+      vi.mocked(runCockpitClient).mockReturnValue({ getRunCockpit } as unknown as ReturnType<typeof runCockpitClient>)
+      vi.mocked(runEventsClient).mockReturnValue({ getRunEvents } as unknown as ReturnType<typeof runEventsClient>)
+      vi.mocked(createRunNotificationConnection).mockImplementation(
+        () => createFakeHub() as unknown as ReturnType<typeof createRunNotificationConnection>,
+      )
+      return { getRunCockpit, getRunEvents }
+    }
+
+    it('re-queries the authoritative cockpit without any notification and resolves true', async () => {
+      const { getRunCockpit } = arrange()
+      getRunCockpit.mockResolvedValueOnce(cockpitFixture('run-a'))
+      const { result } = renderHook(() => useRunCockpit('run-a'))
+      await waitFor(() => expect(result.current.cockpit?.objective).toBe('Prove the walking skeleton'))
+
+      getRunCockpit.mockResolvedValueOnce(new GetRunCockpitResponse({ ...cockpitFixture('run-a'), objective: 'Changed on the server' }))
+      let ok = false
+      await act(async () => {
+        ok = await result.current.refresh()
+      })
+
+      expect(ok).toBe(true)
+      expect(result.current.cockpit?.objective).toBe('Changed on the server')
+      expect(result.current.syncError).toBeNull()
+      // A refresh never claims the live transport is up: the hub in this test never started.
+      expect(result.current.connection).toBe('connecting')
+    })
+
+    it('queues behind an in-flight pass so a fetch that began before the change cannot be the last word', async () => {
+      const { getRunCockpit } = arrange()
+      const first = deferred<GetRunCockpitResponse>()
+      getRunCockpit.mockReturnValueOnce(first.promise)
+      const { result } = renderHook(() => useRunCockpit('run-a'))
+      expect(getRunCockpit).toHaveBeenCalledTimes(1)
+
+      const stale = cockpitFixture('run-a')
+      const fresh = new GetRunCockpitResponse({ ...cockpitFixture('run-a'), objective: 'After the change' })
+      getRunCockpit.mockResolvedValueOnce(fresh)
+      let refreshed: Promise<boolean> = Promise.resolve(false)
+      act(() => {
+        refreshed = result.current.refresh()
+      })
+      // Coalesced: no overlapping second call while the first is still in flight.
+      expect(getRunCockpit).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        first.resolve(stale)
+      })
+      await expect(refreshed).resolves.toBe(true)
+      expect(getRunCockpit).toHaveBeenCalledTimes(2)
+      expect(result.current.cockpit?.objective).toBe('After the change')
+    })
+
+    it('never applies a refresh response to a different run and resolves false', async () => {
+      const { getRunCockpit } = arrange()
+      getRunCockpit.mockResolvedValueOnce(cockpitFixture('run-a'))
+      const { result, rerender } = renderHook(({ runId }) => useRunCockpit(runId), { initialProps: { runId: 'run-a' as string | null } })
+      await waitFor(() => expect(result.current.cockpit?.runId).toBe('run-a'))
+
+      const inFlight = deferred<GetRunCockpitResponse>()
+      getRunCockpit.mockReturnValueOnce(inFlight.promise)
+      let refreshed: Promise<boolean> = Promise.resolve(true)
+      act(() => {
+        refreshed = result.current.refresh()
+      })
+      getRunCockpit.mockResolvedValue(cockpitFixture('run-b'))
+      rerender({ runId: 'run-b' })
+
+      await act(async () => {
+        inFlight.resolve(new GetRunCockpitResponse({ ...cockpitFixture('run-a'), objective: 'STALE run-a response' }))
+      })
+
+      await expect(refreshed).resolves.toBe(false)
+      await waitFor(() => expect(result.current.cockpit?.runId).toBe('run-b'))
+      expect(result.current.cockpit?.objective).not.toBe('STALE run-a response')
+    })
+
+    it('resolves false with a fixed safe sync error, leaving the loaded cockpit and connection alone, when the pass fails', async () => {
+      const { getRunCockpit } = arrange()
+      getRunCockpit.mockResolvedValueOnce(cockpitFixture('run-a'))
+      const { result } = renderHook(() => useRunCockpit('run-a'))
+      await waitFor(() => expect(result.current.cockpit?.runId).toBe('run-a'))
+
+      getRunCockpit.mockRejectedValueOnce(new Error('internal detail'))
+      let ok = true
+      await act(async () => {
+        ok = await result.current.refresh()
+      })
+
+      expect(ok).toBe(false)
+      expect(result.current.syncError).toBe('The cockpit could not be refreshed after your change.')
+      expect(result.current.error).toBeNull()
+      expect(result.current.cockpit?.runId).toBe('run-a')
+      expect(result.current.connection).toBe('connecting')
+    })
+
+    it('resolves false when there is no active run', async () => {
+      arrange()
+      const { result } = renderHook(() => useRunCockpit(null))
+
+      await expect(result.current.refresh()).resolves.toBe(false)
+    })
+  })
 })

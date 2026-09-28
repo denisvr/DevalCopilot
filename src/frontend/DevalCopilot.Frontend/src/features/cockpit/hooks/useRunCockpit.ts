@@ -18,6 +18,11 @@ interface UseRunCockpitResult {
   // transport is up but the cockpit may be showing stale data until the next successful
   // catch-up clears it.
   syncError: string | null
+  // Re-queries the authoritative cockpit and event timeline for the current run right now,
+  // without waiting for a notification (e.g. after a configuration change that emits no run
+  // event). Resolves true only when a pass started at or after this call completed for the still-
+  // current run; false on failure or if the run changed meanwhile. Never rejects.
+  refresh: () => Promise<boolean>
 }
 
 // One instance is created fresh for each effect run (initial mount, a React Strict Mode
@@ -36,7 +41,21 @@ interface CatchUpState {
   // marksLive=true request is never dropped by coalescing with an earlier marksLive=false
   // one still in flight (e.g. the pre-connect initial fetch).
   pendingMarksLive: boolean
+  // Same idea for an explicit refresh pass: judged per pass actually executed, and always weaker
+  // than marksLive (a refresh never claims the live transport is up or down).
+  pendingRefresh: boolean
+  // Callers of refresh() awaiting the end of the whole coalesced loop (including any pass queued
+  // behind an already-in-flight one, which is what guarantees a post-call fetch).
+  waiters: Array<(ok: boolean) => void>
 }
+
+interface ActiveCatchUp {
+  runId: string
+  generation: number
+  state: CatchUpState
+}
+
+const REFRESH_FAILURE_MESSAGE = 'The cockpit could not be refreshed after your change.'
 
 function toCard(event: RunEventResponse): CollaborationCard {
   return {
@@ -80,6 +99,7 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
   // ever created — still invalidates the generation immediately, rather than leaving it
   // matching forever.
   const generationRef = useRef(0)
+  const activeRef = useRef<ActiveCatchUp | null>(null)
 
   // A single run of this loop can serve several coalesced requests (the pre-connect load,
   // then a post-connect/reconnect/notification refresh queued while it was still in
@@ -89,19 +109,34 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
   // start the loop. All classification and state updates happen inside this function; it
   // never rejects, so no caller needs its own `.catch()`.
   const fetchCatchUp = useCallback(
-    async (currentRunId: string, generation: number, state: CatchUpState, marksLive: boolean) => {
+    async (
+      currentRunId: string,
+      generation: number,
+      state: CatchUpState,
+      marksLive: boolean,
+      refresh = false,
+      waiter?: (ok: boolean) => void,
+    ) => {
+      if (waiter) {
+        state.waiters.push(waiter)
+      }
+
       if (state.inFlight) {
         state.pending = true
         state.pendingMarksLive = state.pendingMarksLive || marksLive
+        state.pendingRefresh = state.pendingRefresh || refresh
         return
       }
 
       state.inFlight = true
       let currentMarksLive = marksLive
+      let currentRefresh = refresh
+      let succeeded = false
       try {
         do {
           state.pending = false
           state.pendingMarksLive = false
+          state.pendingRefresh = false
 
           const [nextCockpit, nextEvents] = await Promise.all([
             runCockpitClient().getRunCockpit(currentRunId),
@@ -122,24 +157,32 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
           if (currentMarksLive) {
             setConnection('live')
             setSyncError(null)
+          } else if (currentRefresh) {
+            setSyncError(null)
           } else {
             setError(null)
           }
 
           currentMarksLive = state.pendingMarksLive
+          currentRefresh = state.pendingRefresh
         } while (state.pending && generationRef.current === generation)
+        succeeded = generationRef.current === generation
       } catch (caught) {
         if (generationRef.current === generation) {
           setLoading(false)
           if (currentMarksLive) {
             setConnection('disconnected')
             setSyncError(toMessage(caught))
+          } else if (currentRefresh) {
+            setSyncError(REFRESH_FAILURE_MESSAGE)
           } else {
             setError(toMessage(caught))
           }
         }
       } finally {
         state.inFlight = false
+        const waiters = state.waiters.splice(0)
+        waiters.forEach((resolve) => resolve(succeeded))
       }
     },
     [],
@@ -151,7 +194,15 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
     }
 
     const generation = ++generationRef.current
-    const catchUpState: CatchUpState = { cursor: 0, inFlight: false, pending: false, pendingMarksLive: false }
+    const catchUpState: CatchUpState = {
+      cursor: 0,
+      inFlight: false,
+      pending: false,
+      pendingMarksLive: false,
+      pendingRefresh: false,
+      waiters: [],
+    }
+    activeRef.current = { runId, generation, state: catchUpState }
     setLoading(true)
     setError(null)
     setSyncError(null)
@@ -213,9 +264,25 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
       // flight, a queued coalesced pass) can no longer change state for a run that is no
       // longer current.
       generationRef.current += 1
+      if (activeRef.current?.generation === generation) {
+        activeRef.current = null
+      }
+      // Anyone still awaiting a refresh for this now-invalid generation is released with false.
+      catchUpState.waiters.splice(0).forEach((resolve) => resolve(false))
       void hubConnection.stop()
     }
   }, [runId, fetchCatchUp])
 
-  return { cockpit, cards, connection, loading, error, syncError }
+  const refresh = useCallback(() => {
+    const active = activeRef.current
+    if (!active || generationRef.current !== active.generation) {
+      return Promise.resolve(false)
+    }
+
+    return new Promise<boolean>((resolve) => {
+      void fetchCatchUp(active.runId, active.generation, active.state, false, true, resolve)
+    })
+  }, [fetchCatchUp])
+
+  return { cockpit, cards, connection, loading, error, syncError, refresh }
 }
