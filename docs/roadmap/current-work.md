@@ -8,6 +8,13 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Published delivery: `447a650636eb2d0e26e34a356b379045a1181e52`
+  (parent `26ae6bcb8df98d3d589b0ab5264a0be135353da6`) was committed with the
+  reviewed 8-file slice, pushed as a normal fast-forward to `origin/main`, and
+  verified against the live remote with `git fetch origin main`: local `HEAD`,
+  local `origin/main`, and fetched `origin/main` matched the delivered SHA, with
+  a clean working tree. This closure records the delivered SHA only; no code or
+  product contract changed after publication.
 - Current delivery, based on verified parent
   `26ae6bcb8df98d3d589b0ab5264a0be135353da6`: physical, case-sensitive
   containment hardening of `FilesystemArtifactStore.VerifyAndReadSealedAsync`,
