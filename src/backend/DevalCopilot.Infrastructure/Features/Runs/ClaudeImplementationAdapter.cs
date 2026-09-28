@@ -45,7 +45,7 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// <c>--disable-slash-commands</c>, <c>--no-chrome</c>, <c>--permission-prompts none</c>,
 /// <c>--prompt-suggestions false</c>, <c>--strict-mcp-config</c>, <c>--no-session-persistence</c>,
 /// never <c>--bare</c>/<c>--continue</c>/<c>--resume</c>/<c>--fork-session</c>/
-/// <c>--dangerously-skip-permissions</c>/<c>--mcp-config</c>/<c>--add-dir</c>/a model flag/
+/// <c>--dangerously-skip-permissions</c>/<c>--mcp-config</c>/<c>--add-dir</c>/an unrequested model flag/
 /// <c>--settings</c>/<c>--plugin-dir</c>/<c>--plugin-url</c>/<c>--agents</c>/a system prompt
 /// override — is identical to <see cref="ClaudeCriticalReviewAdapter"/> and justified there. This
 /// adapter never runs Git, a verification command, a commit, a push, a package install, or any
@@ -99,6 +99,11 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             "--no-session-persistence",
             "--session-id", Guid.NewGuid().ToString(),
         };
+
+        if (!ClaudeModelRequestArguments.TryAppend(arguments, request.RequestedClaudeModel))
+        {
+            return Failed();
+        }
 
         var executionRequest = new ProcessExecutionRequest
         {

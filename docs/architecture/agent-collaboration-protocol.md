@@ -1494,8 +1494,86 @@ starts, never trusting that the claimed attempt it was given already enforced
 this upstream. This is invocation-argument
 policy only: it never infers, claims, or records an *observed* model or
 effort — `AgentObservedModel`/`AgentObservedEffort` remain null unless
-authoritative provider output itself reports them, exactly as before. Claude
-paths and their own fixed arguments are entirely unaffected.
+authoritative provider output itself reports them, exactly as before. In that
+Codex-only delivery, Claude paths and their own fixed arguments were entirely
+unaffected; the later Claude model-alias request slice is described in
+["Explicit Claude model-alias requests"](#explicit-claude-model-alias-requests).
+
+### Explicit Claude model-alias requests
+
+A run-scoped, durable, explicit owner preference (`Run.RequestedClaudeModel`) may
+be set or cleared through one protected MVC operation
+(`POST /api/runs/{runId}/claude-model-preference`) and a cockpit control. It
+applies to the three current Claude roles only: CriticalReviewer, Implementer
+(initial implementation), and ReviewCorrection. The selectable values are the
+closed, case-sensitive set `sonnet`, `opus`, and `haiku` (`ClaudeModelAlias`),
+which the official
+[Claude CLI reference](https://code.claude.com/docs/en/cli-reference) documents
+for `--model`; the installed `claude` 2.1.276 `--help` independently lists
+`--model <model>` and alias examples (it names `fable`, `opus`, and `sonnet`, not
+`haiku`, as examples; the reference is the authority for the closed set). This is
+request syntax, not live model discovery: nothing here proves an alias is
+available to the signed-in account, no catalog is read, and a CLI default is never
+inferred to be an observed or effective model. `null` means no override.
+
+- **Persistence.** The additive `AddClaudeModelPreference` migration adds one
+  nullable `runs.RequestedClaudeModel` column with no default and no backfill, so
+  every historical Run stays `NULL` (no request recorded). Historical Attempts
+  are not backfilled: their `AgentRequestedModel` stays as recorded.
+- **Set/clear.** `SetClaudeModelPreferenceCommand` is a manual-transaction command
+  (its one `SaveChangesAsync` owns the implicit transaction that commits the Run
+  change and its `run.claude_model_preference_changed` event together; under the
+  mediator's ambient transaction a failed concurrency-checked UPDATE could leave
+  the event INSERT behind). The validator and `Run.SetRequestedClaudeModel` both
+  reject anything outside the closed set before any write (HTTP 400), and a
+  terminal Run is rejected (HTTP 422, `claude_model.run_not_editable`). The
+  handler forces the Run UPDATE even when the alias is unchanged, so the
+  concurrency tokens below always guard the lifecycle.
+- **Concurrency.** `Run.Lifecycle` and `Run.RequestedClaudeModel` are EF
+  concurrency tokens. A lifecycle transition committed between the handler's read
+  and its save makes the UPDATE match zero rows: the failed save rolls back both
+  the Run change and the event, and the handler reports a terminal run as not
+  editable, or another preference change as a retryable conflict
+  (`claude_model.concurrent_change`, HTTP 409).
+- **Claim-time snapshot.** Each of the three claim handlers calls
+  `CurrentClaudeModelPreference.ReadAndGuardAsync` as late as possible — after its
+  external Git evidence capture and manifest sealing, immediately before the
+  Attempt is constructed. It reads the column afresh (untracked), snapshots that
+  value into the new Attempt's existing immutable `AgentRequestedModel` (via
+  `ClaimAgentCriticalReviewWithModelRequest`, `ClaimAgentReviewCorrectionWithModelRequest`,
+  and the existing `ClaimAgentImplementationWithAssignment`), and marks the tracked
+  Run's `RequestedClaudeModel` modified with that value as its original value. The
+  claim's single `SaveChangesAsync` therefore includes
+  `UPDATE runs ... WHERE Id, Lifecycle, RequestedClaudeModel = <snapshot>` in the same
+  transaction as the Attempt insert, so an Attempt can never commit a snapshot that
+  was no longer current at commit. A change committed after the read rolls the whole
+  batch back; the handler removes the sealed manifest it wrote and returns
+  `agent_attempts.run_changed_during_claim` (HTTP 409, retry re-reads). A change
+  committed during external work is simply reflected in the snapshot. Requested
+  effort is always `null` for Claude attempts. The claim paths' assignment
+  validation, permission profiles, budgets, one-running-attempt rule, Git/workspace
+  checks, and authorization rules are unchanged.
+- **Dispatch.** The eligible-attempt queries project the Attempt's own
+  `AgentRequestedModel` into `CriticalReviewInvocationRequest`,
+  `ImplementationInvocationRequest`, and `ReviewCorrectionInvocationRequest`
+  (`RequestedClaudeModel`), which the three supervisors pass unchanged. The mutable
+  Run value is never read at dispatch, so a later preference change cannot alter a
+  claimed attempt's invocation, including after a restart.
+- **Adapters.** `ClaudeModelRequestArguments` is the one place the three adapters
+  translate the snapshot: a `null` request appends nothing, leaving each role's
+  argument list byte-for-byte unchanged (proven by the existing exact-argument-list
+  tests); a member of the closed set appends exactly `--model <alias>` as two
+  discrete arguments after the fixed list; anything else fails the invocation closed
+  before any process starts. Each role passes exactly its own snapshot. No
+  `--effort`, permission, tool, session, settings, or schema argument changes.
+- **Provider rejection.** If the provider rejects the alias, the invocation ends as
+  the ordinary recorded failure (`ProviderInvocationFailed`); there is no retry,
+  fallback model, or automatic clear. Attempt-level `AgentObservedModel` stays
+  `null` unless authoritative provider output reports one.
+- **Read model.** The cockpit projection adds `requestedClaudeModel` (the Run's
+  current request for future attempts) and `latestAgentAttempt.requestedModel` (that
+  attempt's own immutable snapshot). Both are requests; no observed or effective
+  model is exposed.
 
 ## Token efficiency
 

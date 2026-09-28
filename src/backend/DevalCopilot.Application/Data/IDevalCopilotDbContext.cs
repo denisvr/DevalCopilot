@@ -2,6 +2,7 @@ using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DevalCopilot.Application.Data;
@@ -49,6 +50,12 @@ public interface IDevalCopilotDbContext
     DbSet<ReviewCorrectionEscalation> ReviewCorrectionEscalations { get; }
 
     DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations { get; }
+
+    /// <summary>
+    /// Change-tracker access for the one claim-time guard that must mark an already-tracked Run's
+    /// concurrency-token column as modified (see <c>CurrentClaudeModelPreference</c>).
+    /// </summary>
+    EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
 
     /// <summary>
     /// Used only by manual-transaction commands that must read back a database-assigned

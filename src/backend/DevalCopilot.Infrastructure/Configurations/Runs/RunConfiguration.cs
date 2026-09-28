@@ -47,6 +47,12 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         builder.Property(run => run.RequestedCodexModel).HasMaxLength(128);
         builder.Property(run => run.RequestedCodexEffort).HasMaxLength(128);
 
+        // No default value and no backfill: a historical Run truthfully has no Claude model
+        // request. A concurrency token, not merely a column: the claim handlers' late snapshot
+        // guard and the set operation both depend on the token appearing in the UPDATE's WHERE
+        // clause (see CurrentClaudeModelPreference).
+        builder.Property(run => run.RequestedClaudeModel).HasMaxLength(32).IsConcurrencyToken();
+
         builder.HasOne<Project>().WithMany().HasForeignKey(run => run.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(run => new { run.ProjectId, run.ExecutionNumber }).IsUnique();
     }

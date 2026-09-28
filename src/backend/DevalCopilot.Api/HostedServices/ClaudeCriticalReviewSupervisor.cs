@@ -168,7 +168,8 @@ public sealed class ClaudeCriticalReviewSupervisor(
                     launchTarget.ExecutablePath,
                     attempt.Timeout,
                     attempt.MaxBytesPerStream,
-                    attempt.MaxTotalCapturedBytes),
+                    attempt.MaxTotalCapturedBytes,
+                    attempt.RequestedClaudeModel),
                 stoppingToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

@@ -24,4 +24,5 @@ public sealed record GetRunCockpitResponse(
     AgentProcessDurationSummaryResponse AgentProcessDurationSummary,
     IReadOnlyList<AgentClaimPathTimeFitResponse> AgentClaimPathTimeFits,
     string? RequestedCodexModel,
-    string? RequestedCodexEffort);
+    string? RequestedCodexEffort,
+    string? RequestedClaudeModel = null);

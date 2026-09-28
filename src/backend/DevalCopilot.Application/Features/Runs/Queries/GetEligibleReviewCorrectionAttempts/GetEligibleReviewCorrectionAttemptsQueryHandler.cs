@@ -42,6 +42,7 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandler(IDevalCopilo
                     Timeout = combined.attempt.AgentTimeout!.Value,
                     MaxBytesPerStream = combined.attempt.AgentMaxBytesPerStream!.Value,
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
+                    RequestedClaudeModel = combined.attempt.AgentRequestedModel,
                 })
             .ToListAsync(cancellationToken);
 
@@ -65,7 +66,7 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandler(IDevalCopilo
                 candidate.GitCheckpointId, candidate.CheckpointFingerprintSha256,
                 candidate.ContextManifestRelativeStoragePath, candidate.ContextManifestByteLength,
                 candidate.ContextManifestContentHash, candidate.Timeout, candidate.MaxBytesPerStream,
-                candidate.MaxTotalCapturedBytes, []))
+                candidate.MaxTotalCapturedBytes, [], candidate.RequestedClaudeModel))
             .ToArray();
 
         var attemptIds = eligible.Select(candidate => candidate.AttemptId).ToArray();

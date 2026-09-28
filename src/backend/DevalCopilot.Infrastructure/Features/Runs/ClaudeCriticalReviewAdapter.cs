@@ -45,8 +45,10 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// silently break this slice's reliance on existing local CLI authentication — isolation is
 /// achieved entirely through the flags above instead. This adapter also never passes
 /// <c>--continue</c>, <c>--resume</c>, <c>--fork-session</c>, <c>--dangerously-skip-permissions</c>,
-/// <c>--allow-dangerously-skip-permissions</c>, <c>--mcp-config</c>, <c>--add-dir</c>, a model
-/// flag, <c>--settings</c>, <c>--plugin-dir</c>/<c>--plugin-url</c>, <c>--agents</c>, a system
+/// <c>--allow-dangerously-skip-permissions</c>, <c>--mcp-config</c>, <c>--add-dir</c>, an unrequested model
+/// flag (<c>--model &lt;alias&gt;</c> is passed only when the claimed attempt's immutable snapshot carries one
+/// of the closed <see cref="ClaudeModelAlias"/> values; see <see cref="ClaudeModelRequestArguments"/>), <c>--effort</c>,
+/// <c>--settings</c>, <c>--plugin-dir</c>/<c>--plugin-url</c>, <c>--agents</c>, a system
 /// prompt override, or any other user- or repository-supplied argument. Never searches PATH or a
 /// private desktop application layout — the launch target arrives already resolved and is only
 /// revalidated here.
@@ -105,6 +107,11 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             "--session-id", Guid.NewGuid().ToString(),
             "--max-turns", "1",
         };
+
+        if (!ClaudeModelRequestArguments.TryAppend(arguments, request.RequestedClaudeModel))
+        {
+            return Failed();
+        }
 
         var executionRequest = new ProcessExecutionRequest
         {

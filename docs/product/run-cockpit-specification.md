@@ -472,6 +472,30 @@ running never affects that attempt. See the
 section of the agent-collaboration-protocol for the durable request/claim/
 invocation-argument semantics.
 
+### Explicit Claude model-alias requests
+
+A second cockpit control lets the owner request one Claude model alias — `sonnet`,
+`opus`, or `haiku` — for this run's *later* Critical reviewer, Implementer, and
+review-correction attempts. The select starts on an explicit "No preference"
+choice and never auto-selects an alias; Save and Clear are always available (Clear
+only when a request exists). The control states plainly that the value is a
+**request only** and that the model actually used is not observed: an alias is
+request syntax, not proof that it is enabled for the signed-in account, so the
+provider may reject it. A rejection is recorded as an ordinary failed invocation;
+no other model is substituted. A change never affects an attempt that has already
+been claimed and takes effect only at a later claim. A terminal run or a save
+failure shows a safe, generic message and keeps the previously displayed request.
+
+The latest Claude agent attempt also shows its own claim-time request separately
+from the run's current one: "Model requested at claim: <alias>", or "No model
+request recorded for this attempt" when its snapshot is null. The null case covers
+both an attempt claimed with no request and one that predates this feature; the
+cockpit does not distinguish them and never infers a default or effective model
+from a null. No observed-model value is shown. See the
+["Explicit Claude model-alias requests"](../architecture/agent-collaboration-protocol.md#explicit-claude-model-alias-requests)
+section of the agent-collaboration-protocol for the durable request, claim-snapshot,
+and invocation-argument semantics.
+
 ### Provider account usage guardrails
 
 This remains the target end state the observation above is one step toward;

@@ -438,6 +438,71 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         AssertCode(result, "attempts.persistence_failed");
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("sonnet")]
+    [InlineData("opus")]
+    [InlineData("haiku")]
+    public async Task Claim_snapshots_the_runs_claude_model_request_immutably_into_the_attempt(string? alias)
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        if (alias is not null)
+        {
+            await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, alias);
+        }
+
+        await using var handlerContext = _fixture.CreateContext();
+        var result = await Handler(handlerContext).HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
+        Assert.Equal(alias, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, created.AttemptId));
+
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, alias == "opus" ? "haiku" : "opus");
+        Assert.Equal(alias, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, created.AttemptId));
+        await using var verify = _fixture.CreateContext();
+        var attempt = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == created.AttemptId);
+        Assert.Null(attempt.AgentRequestedEffort);
+        Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, attempt.AgentPermissionProfile);
+    }
+
+    [Fact]
+    public async Task Claim_snapshots_a_request_committed_during_external_evidence_capture()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        var evidence = new RecordingEvidenceReader(
+            seed.Evidence, _ => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, "haiku"));
+        await using var handlerContext = _fixture.CreateContext();
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext, evidence, new TestArtifactStore(), new FixedTimeProvider(Now)).HandleAsync(Command(seed), CancellationToken.None);
+
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
+        Assert.Equal("haiku", await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, created.AttemptId));
+    }
+
+    [Fact]
+    public async Task Claim_persists_no_attempt_when_the_request_changes_between_snapshot_and_commit()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, "sonnet");
+        var store = new TestArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, "opus")));
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext, new RecordingEvidenceReader(seed.Evidence), store, new FixedTimeProvider(Now)).HandleAsync(Command(seed), CancellationToken.None);
+
+        AssertCode(result, "agent_attempts.run_changed_during_claim");
+        Assert.Single(store.DeletedSealedFiles);
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(await verify.Attempts.Where(item => item.RunId == seed.Run.Id && item.AgentResponseContract == AgentResponseContract.ReviewCorrection).ToListAsync());
+        Assert.Empty(await verify.Artifacts.Where(item => item.RunId == seed.Run.Id).ToListAsync());
+    }
+
     private CreateReviewCorrectionAttemptCommandHandler Handler(DevalCopilotDbContext context) =>
         new(context, new RecordingEvidenceReader(new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null)), new TestArtifactStore(), new FixedTimeProvider(Now));
 

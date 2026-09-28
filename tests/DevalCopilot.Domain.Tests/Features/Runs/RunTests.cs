@@ -243,4 +243,68 @@ public sealed class RunTests
 
         Assert.Throws<InvalidOperationException>(() => run.SetRequestedCodexAssignment("gpt-6-sol", null));
     }
+
+    [Fact]
+    public void RequestedClaudeModel_defaults_to_null_for_a_new_run()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        Assert.Null(run.RequestedClaudeModel);
+    }
+
+    [Theory]
+    [InlineData("sonnet")]
+    [InlineData("opus")]
+    [InlineData("haiku")]
+    public void SetRequestedClaudeModel_accepts_each_closed_alias_while_created_or_running(string alias)
+    {
+        var created = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        created.SetRequestedClaudeModel(alias);
+        Assert.Equal(alias, created.RequestedClaudeModel);
+
+        var running = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        running.Claim(BaseTime);
+        running.SetRequestedClaudeModel(alias);
+        Assert.Equal(alias, running.RequestedClaudeModel);
+    }
+
+    [Fact]
+    public void SetRequestedClaudeModel_changes_and_clears_a_previous_request()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.SetRequestedClaudeModel("opus");
+        run.SetRequestedClaudeModel("haiku");
+        Assert.Equal("haiku", run.RequestedClaudeModel);
+
+        run.SetRequestedClaudeModel(null);
+        Assert.Null(run.RequestedClaudeModel);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("Opus")]
+    [InlineData("opus ")]
+    [InlineData("fable")]
+    [InlineData("claude-opus-5-5")]
+    public void SetRequestedClaudeModel_rejects_anything_outside_the_closed_alias_set_and_keeps_the_prior_value(string value)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.SetRequestedClaudeModel("sonnet");
+
+        Assert.Throws<ArgumentException>(() => run.SetRequestedClaudeModel(value));
+        Assert.Equal("sonnet", run.RequestedClaudeModel);
+    }
+
+    [Fact]
+    public void SetRequestedClaudeModel_rejects_a_terminal_run_and_keeps_the_prior_value()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.Claim(BaseTime);
+        run.SetRequestedClaudeModel("sonnet");
+        run.Complete(BaseTime.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() => run.SetRequestedClaudeModel(null));
+        Assert.Equal("sonnet", run.RequestedClaudeModel);
+    }
 }

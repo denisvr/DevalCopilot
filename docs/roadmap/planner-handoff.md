@@ -7,7 +7,136 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-28): harden verified sealed-artifact reads
+## Current selection (2026-09-28): explicit Claude model request across three roles
+
+- Correction re-review (2026-09-28): **GO for the reviewed substantive diff.**
+  Independently reverified `main`, `HEAD`, local and live `origin/main` at
+  `7cc091dcaa032740def1cca214c3ad83c09a5cd2`, nothing staged, the same 51
+  modified tracked files and 22 untracked files, and no commit or push. The
+  `current-work.md` delivery entry no longer asserts an unreviewed/unpublished
+  state, and the preceding architecture sentence now explicitly refers to the
+  earlier Codex-only delivery with a working link to the new Claude section.
+  `git diff --check` passed with only the two known generated-file line-ending
+  notices. This documentation-only correction leaves the prior focused
+  Application 96/96 and API 47/47 results, and the executor-reported full
+  build/test/frontend/NSwag evidence, applicable. The reviewed request,
+  snapshot, invocation, and cockpit behavior stays inside the selected scope.
+- One bounded publication instruction: commit exactly the reviewed substantive
+  slice on `main`, including `current-work.md` and this planner-owned review
+  record; push normally as a fast-forward to `origin/main`; independently
+  fetch/verify that the live remote points to the delivered commit and report
+  its exact SHA and worktree state. Reconfirm the focused Claude claim, adapter,
+  and supervisor tests against the delivered commit as `current-work.md`
+  specifies. Then make only the factual `current-work.md` closure needed to
+  record the delivered SHA and verified publication (and those actual focused
+  results), commit/push that closure normally, and independently verify the
+  live remote and clean state again. No extra review is needed for that
+  narrowly factual closure. A material or out-of-scope post-GO change, failed
+  push, test failure, or remote divergence stops for Codex review/direction;
+  no force-push or history reconciliation is authorized. No next product slice
+  is selected by this GO.
+
+- First uncommitted diff review (2026-09-28): **NO-GO; documentation-only
+  correction in this same slice.** Independently verified `main`, `HEAD`, local
+  and live `origin/main` at
+  `7cc091dcaa032740def1cca214c3ad83c09a5cd2`; nothing staged, 51 modified
+  tracked files (including this planner record), and 22 untracked files. The
+  Claude request, claim snapshot, dispatch, adapter, API, migration, and cockpit
+  paths match the selected boundaries on review. Independently passed focused
+  Application 96/96, focused API 47/47, and `git diff --check` (only existing
+  generated-file line-ending notices); the executor's broader checks remain
+  reported in `current-work.md`. Two documentation statements must be fixed:
+  `current-work.md` says this delivery is “Not yet reviewed or published,”
+  which is not commit-ready; describe it as the current delivery based on the
+  verified parent, without preclaiming publication or a future SHA. The prior
+  Codex model-request subsection in `agent-collaboration-protocol.md` still
+  ends “Claude paths and their own fixed arguments are entirely unaffected,”
+  which is false next to the new Claude `--model` behavior; scope that sentence
+  explicitly to the historical Codex-only delivery or update it to describe
+  the present contract. Keep code, tests, and all other scope unchanged; recheck
+  links and `git diff --check`, then return the complete uncommitted, unpushed
+  diff for re-review. No commit/push GO is granted.
+
+- Verified publication baseline: branch `main`; `HEAD`, local `origin/main`,
+  and live `origin/main` all equal
+  `7cc091dcaa032740def1cca214c3ad83c09a5cd2`. Staged, unstaged, and
+  untracked state was empty before this planner-only edit. The preceding
+  sealed-read delivery is `447a650636eb2d0e26e34a356b379045a1181e52`,
+  followed by factual closure `7cc091dcaa032740def1cca214c3ad83c09a5cd2`.
+  Its post-publication focused `FilesystemArtifactStoreTests` reconfirmation
+  passed on this HEAD: 26 passed, one host-capability skip.
+- Select one larger, coherent Increment 4 slice: an owner can explicitly set or
+  clear a **run-scoped Claude model-alias request** for future CriticalReviewer,
+  Implementer, and ReviewCorrection Agent attempts. Persist that preference on
+  the Run, snapshot the request immutably on each new Claude Attempt, carry the
+  snapshot through each role's invocation request, and pass `--model <alias>`
+  only when that attempt's snapshot is non-null. Expose the current preference
+  and each attempt's requested value in the cockpit with accurate “requested”
+  language. The existing adapter argument lists, permission/tool isolation,
+  response contracts, and provider-assignment provenance otherwise remain
+  intact. The requested alias is never an observed/effective model or proof of
+  account access. A provider rejection remains an ordinary safely recorded
+  failed invocation, not a reason to silently switch models.
+- The closed selectable aliases for this slice are `sonnet`, `opus`, and
+  `haiku`, which the current official
+  [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  explicitly accepts for `--model`. This is a documented request syntax, not
+  live model discovery or proof that any alias is enabled on this account.
+  Default `null` means no override: preserve the exact old CLI arguments and
+  do not infer a model from a CLI default. The same reference documents
+  `--effort` but says available levels depend on the model; effort selection
+  needs a separate safe validation contract and is excluded here. The current
+  official [Codex non-interactive](https://learn.chatgpt.com/docs/non-interactive-mode)
+  and [App Server](https://learn.chatgpt.com/docs/app-server) contracts do not
+  change this Claude-only decision. Accepted [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
+  requires requested and observed assignment facts to remain distinct; this
+  slice extends its existing immutable Attempt fields without reversing it.
+- Boundaries: add a nullable Run preference and truthful additive migration
+  (`NULL` for historical runs); a validated, authenticated MVC set/clear
+  operation with durable event and concurrency/lifecycle handling analogous to
+  the existing Codex preference; read projection and cockpit control; snapshot
+  in the three Claude claim paths; propagate through the existing Application
+  invocation ports and supervisors; narrowly update the three Claude adapters
+  and focused tests; regenerate the API client; update the architecture,
+  cockpit, and delivery documentation. Keep one role's existing assignment
+  validation and attempt ownership rules in force. No new generic provider
+  settings framework is authorized.
+- Exclude live Claude catalog discovery, model-specific effort support,
+  `--effort`, observed-model fabrication, account allowance or threshold
+  enforcement, provider-session resume, context compaction, provider fallback,
+  permission/tool changes, historical Attempt backfill, Codex behavior, and
+  any commit or push. Do not treat this request preference as invocation
+  eligibility. Preserve the one-running-attempt, budget, Git/workspace, and
+  authorization checks on every existing path.
+- Stop gates: report a blocker before broadening scope if the installed vetted
+  Claude launch target contradicts the documented `--model` contract; the
+  requested alias cannot be safely captured at claim and replayed unchanged at
+  dispatch; a selected alias requires inferring account availability or
+  model/effort compatibility; the migration would invent historical requests;
+  or preserving the existing role isolation would require a new capability
+  policy. No provider invocation is required for automated tests.
+- Acceptance evidence: default/clear adds no flag; each of the three roles
+  snapshots and passes exactly its own explicit alias; changing the Run after
+  claim cannot change that Attempt's invocation; invalid aliases and terminal
+  Run changes fail safely without a write; current versus historical/unknown
+  requested facts are distinguished; concurrent lifecycle transitions cannot
+  partially persist preference/event; provider rejection does not trigger
+  fallback; current Codex preference and Claude permission/tool flags remain
+  unchanged. Require focused Domain/Application/Infrastructure/API/frontend
+  tests, the relevant full backend and frontend suites, TypeScript check,
+  lint, production build, deterministic NSwag regeneration, documentation
+  links, and `git diff --check`, reporting actual results and any skips.
+- Claude's first delivery is a complete **uncommitted, unpushed** diff,
+  including a concise, commit-ready `current-work.md` entry with checks and
+  remaining risks, for Codex GO/NO-GO in this planner chat. The expected
+  executor preflight is `main` at the full HEAD above, nothing staged, only
+  `docs/roadmap/planner-handoff.md` modified/unstaged by this selection, and
+  nothing untracked. Selection grants no commit/push GO. After a future GO,
+  one publication instruction will cover the reviewed substantive commit,
+  normal fast-forward push, live-remote verification, and only tightly bounded
+  factual documentation closure. Material post-GO change returns for review.
+
+## Prior selection (2026-09-28): harden verified sealed-artifact reads
 
 - Correction re-review (2026-09-28): **GO for the reviewed substantive diff.**
   Independently reverified `main`, `HEAD`, local and live `origin/main` at

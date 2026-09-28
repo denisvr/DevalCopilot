@@ -284,6 +284,71 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
         Assert.Equal(FinalResponseJson, await File.ReadAllTextAsync(resultPath));
     }
 
+    private async Task<IReadOnlyList<string>> CaptureArgumentsAsync(string? requestedClaudeModel)
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var fake = new FakeProcessExecutionAdapter();
+        var request = new ImplementationInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            CreateLaunchFile($"fake-claude-impl-model-{Guid.NewGuid():N}.exe"), TimeSpan.FromMinutes(20), 65536, 131072,
+            requestedClaudeModel);
+
+        var result = await new ClaudeImplementationAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(ImplementationInvocationOutcome.Exited, result.Outcome);
+        return fake.CapturedRequest!.Arguments.ToArray();
+    }
+
+    [Theory]
+    [InlineData("sonnet")]
+    [InlineData("opus")]
+    [InlineData("haiku")]
+    public async Task A_requested_alias_adds_only_the_model_argument_and_leaves_every_other_argument_unchanged(string alias)
+    {
+        var baseline = await CaptureArgumentsAsync(null);
+        var requested = await CaptureArgumentsAsync(alias);
+
+        Assert.DoesNotContain("--model", baseline);
+        Assert.Equal(baseline.Count + 2, requested.Count);
+        Assert.Equal(["--model", alias], requested.Skip(baseline.Count));
+        var sessionIdValue = Array.IndexOf(baseline.ToArray(), "--session-id") + 1;
+        for (var index = 0; index < baseline.Count; index++)
+        {
+            if (index != sessionIdValue)
+            {
+                Assert.Equal(baseline[index], requested[index]);
+            }
+        }
+
+        Assert.DoesNotContain("--effort", requested);
+        Assert.Contains("Read,Edit,Write,Glob,Grep", requested);
+        Assert.Contains("acceptEdits", requested);
+    }
+
+    [Theory]
+    [InlineData("Opus")]
+    [InlineData("fable")]
+    [InlineData("claude-opus-5-5")]
+    [InlineData("opus --dangerously-skip-permissions")]
+    [InlineData("")]
+    public async Task A_model_request_outside_the_closed_alias_set_fails_closed_without_starting_a_process(string malformed)
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var fake = new FakeProcessExecutionAdapter();
+        var request = new ImplementationInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            CreateLaunchFile("fake-claude-impl-bad-model.exe"), TimeSpan.FromMinutes(20), 65536, 131072, malformed);
+
+        var result = await new ClaudeImplementationAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(ImplementationInvocationOutcome.Failed, result.Outcome);
+        Assert.Null(fake.CapturedRequest);
+    }
+
     private string CreateLaunchFile(string fileName)
     {
         var path = Path.Combine(_workspacePath, fileName);

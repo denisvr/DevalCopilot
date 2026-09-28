@@ -90,6 +90,8 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations => inner.ReviewCorrectionAuthorizations;
 
+    public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class => inner.Entry(entity);
+
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken) => inner.SaveChangesAsync(cancellationToken);
 
     public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)

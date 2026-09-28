@@ -101,7 +101,7 @@ public sealed class ReviewCorrectionSupervisor(
                 attempt.RunId, attempt.AttemptId, attempt.WorkspacePath,
                 attempt.ContextManifestRelativeStoragePath, attempt.ContextManifestByteLength,
                 attempt.ContextManifestContentHash, launchTarget.ExecutablePath, attempt.Timeout,
-                attempt.MaxBytesPerStream, attempt.MaxTotalCapturedBytes), stoppingToken);
+                attempt.MaxBytesPerStream, attempt.MaxTotalCapturedBytes, attempt.RequestedClaudeModel), stoppingToken);
         }
         catch (OperationCanceledException)
         {

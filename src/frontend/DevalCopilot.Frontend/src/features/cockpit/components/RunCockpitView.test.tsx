@@ -1388,3 +1388,54 @@ describe('RunCockpitView one Agent claim slot remaining warning', () => {
     expect(screen.queryByText(/Only one Agent claim slot remains/)).not.toBeInTheDocument()
   })
 })
+
+describe('RunCockpitView Claude model request', () => {
+  it('shows the run request and the latest attempt\'s own snapshot as separate request-only facts', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({
+        ...runningCockpit,
+        requestedClaudeModel: 'haiku',
+        latestAgentAttempt: new RunCockpitAgentAttemptResponse({
+          attemptId: 'attempt-2',
+          attemptNumber: 2,
+          role: 'CriticalReviewer',
+          provider: 'ClaudeCode',
+          status: 'Running',
+          requestedModel: 'sonnet',
+        }),
+      }),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+    })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByLabelText('Claude model request')).toHaveTextContent(
+      'Requested Claude model for future attempts: haiku.',
+    )
+    expect(screen.getByRole('region', { name: 'Latest agent attempt' })).toHaveTextContent(
+      'Model requested at claim: sonnet',
+    )
+  })
+
+  it('does not render the previously selected run\'s request for the newly selected run', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, requestedClaudeModel: 'opus' }),
+      cards: [],
+      connection: 'live',
+      loading: true,
+      error: null,
+      syncError: null,
+    })
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.getByLabelText('Claude model request')).toBeInTheDocument()
+
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByLabelText('Claude model request')).not.toBeInTheDocument()
+  })
+})

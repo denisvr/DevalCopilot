@@ -1154,6 +1154,11 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RequestedClaudeModel")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("RequestedCodexEffort")
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");

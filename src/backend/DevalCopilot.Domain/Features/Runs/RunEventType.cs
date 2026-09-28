@@ -47,4 +47,9 @@ public static class RunEventType
     /// claims. The payload carries only the new requested model and effort (or both null when
     /// cleared) — never a catalog payload, credential, or diagnostic.</summary>
     public const string CodexAssignmentPreferenceChanged = "run.codex_assignment_preference_changed";
+
+    /// <summary>The owner set or cleared the run-scoped Claude model-alias request for future
+    /// CriticalReviewer, Implementer, and ReviewCorrection claims. The payload carries only the new
+    /// requested alias (or null when cleared).</summary>
+    public const string ClaudeModelPreferenceChanged = "run.claude_model_preference_changed";
 }

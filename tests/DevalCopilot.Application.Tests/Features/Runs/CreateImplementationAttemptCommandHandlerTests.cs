@@ -353,6 +353,81 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     // AgentBudgetSlot this handler independently computes, injected strictly between this
     // handler's own pre-check and its own final SaveChangesAsync. Below the maximum, losing this
     // race is a safe, retryable conflict — never misreported as budget exhaustion.
+    private async Task<(Guid RunId, Guid ProposalId)> SeedClaudeModelScenarioAsync(string? initialAlias)
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext);
+        var proposal = SeedAcceptedOriginalProposal(seedContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        if (initialAlias is not null)
+        {
+            run.SetRequestedClaudeModel(initialAlias);
+        }
+
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        return (run.Id, proposal.Id);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("sonnet")]
+    [InlineData("opus")]
+    [InlineData("haiku")]
+    public async Task HandleAsync_snapshots_the_runs_claude_model_request_immutably_into_the_attempt(string? alias)
+    {
+        var (runId, proposalId) = await SeedClaudeModelScenarioAsync(alias);
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(alias, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, result.Value.AttemptId));
+
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, alias == "opus" ? "haiku" : "opus");
+        Assert.Equal(alias, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, result.Value.AttemptId));
+        await using var verify = _fixture.CreateContext();
+        var attempt = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == result.Value.AttemptId);
+        Assert.Null(attempt.AgentRequestedEffort);
+        Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, attempt.AgentPermissionProfile);
+    }
+
+    [Fact]
+    public async Task HandleAsync_snapshots_a_request_committed_during_external_evidence_capture()
+    {
+        var (runId, proposalId) = await SeedClaudeModelScenarioAsync(initialAlias: null);
+        await using var handlerContext = _fixture.CreateContext();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            _ => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "haiku"));
+        var handler = new CreateImplementationAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("haiku", await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, result.Value.AttemptId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_no_attempt_when_the_request_changes_between_snapshot_and_commit()
+    {
+        var (runId, proposalId) = await SeedClaudeModelScenarioAsync(initialAlias: "sonnet");
+        var artifactStore = new FakeArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus")));
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.run_changed_during_claim", Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == runId && a.AgentRole == AgentRole.Implementer));
+        Assert.Empty(verify.AttemptInputMessages.Where(m => verify.Attempts.All(a => a.Id != m.AttemptId)));
+    }
+
     [Fact]
     public async Task HandleAsync_classifies_a_persisted_competing_slot_below_the_maximum_as_a_safe_conflict()
     {

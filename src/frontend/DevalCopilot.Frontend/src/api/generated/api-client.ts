@@ -108,6 +108,58 @@ export class SetCodexAssignmentPreferenceEndpointClient {
     }
 }
 
+export class SetClaudeModelPreferenceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    setClaudeModelPreference(runId: string, request: SetClaudeModelPreferenceRequest): Promise<SetClaudeModelPreferenceResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/claude-model-preference";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSetClaudeModelPreference(_response);
+        });
+    }
+
+    protected processSetClaudeModelPreference(response: Response): Promise<SetClaudeModelPreferenceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SetClaudeModelPreferenceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetClaudeModelPreferenceResponse>(null as any);
+    }
+}
+
 export class RequestReviewCorrectionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2435,6 +2487,78 @@ export interface ISetCodexAssignmentPreferenceRequest {
     requestedEffort?: string | undefined;
 }
 
+export class SetClaudeModelPreferenceResponse implements ISetClaudeModelPreferenceResponse {
+    requestedModel?: string | undefined;
+
+    constructor(data?: ISetClaudeModelPreferenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.requestedModel = _data["requestedModel"];
+        }
+    }
+
+    static fromJS(data: any): SetClaudeModelPreferenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetClaudeModelPreferenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["requestedModel"] = this.requestedModel;
+        return data;
+    }
+}
+
+export interface ISetClaudeModelPreferenceResponse {
+    requestedModel?: string | undefined;
+}
+
+export class SetClaudeModelPreferenceRequest implements ISetClaudeModelPreferenceRequest {
+    requestedModel?: string | undefined;
+
+    constructor(data?: ISetClaudeModelPreferenceRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.requestedModel = _data["requestedModel"];
+        }
+    }
+
+    static fromJS(data: any): SetClaudeModelPreferenceRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetClaudeModelPreferenceRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["requestedModel"] = this.requestedModel;
+        return data;
+    }
+}
+
+export interface ISetClaudeModelPreferenceRequest {
+    requestedModel?: string | undefined;
+}
+
 export class RequestReviewCorrectionResponse implements IRequestReviewCorrectionResponse {
     status?: string;
     attemptId?: string | undefined;
@@ -3052,6 +3176,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     agentClaimPathTimeFits?: AgentClaimPathTimeFitResponse[];
     requestedCodexModel?: string | undefined;
     requestedCodexEffort?: string | undefined;
+    requestedClaudeModel?: string | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -3100,6 +3225,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             }
             this.requestedCodexModel = _data["requestedCodexModel"];
             this.requestedCodexEffort = _data["requestedCodexEffort"];
+            this.requestedClaudeModel = _data["requestedClaudeModel"];
         }
     }
 
@@ -3148,6 +3274,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         }
         data["requestedCodexModel"] = this.requestedCodexModel;
         data["requestedCodexEffort"] = this.requestedCodexEffort;
+        data["requestedClaudeModel"] = this.requestedClaudeModel;
         return data;
     }
 }
@@ -3177,6 +3304,7 @@ export interface IGetRunCockpitResponse {
     agentClaimPathTimeFits?: AgentClaimPathTimeFitResponse[];
     requestedCodexModel?: string | undefined;
     requestedCodexEffort?: string | undefined;
+    requestedClaudeModel?: string | undefined;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -3233,6 +3361,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
     dispatchedAtUtc?: Date | undefined;
     processExecution?: AgentProcessExecutionResponse;
     tokenUsage?: AgentTokenUsageResponse;
+    requestedModel?: string | undefined;
 
     constructor(data?: IRunCockpitAgentAttemptResponse) {
         if (data) {
@@ -3254,6 +3383,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
             this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.requestedModel = _data["requestedModel"];
         }
     }
 
@@ -3275,6 +3405,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
         data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["requestedModel"] = this.requestedModel;
         return data;
     }
 }
@@ -3289,6 +3420,7 @@ export interface IRunCockpitAgentAttemptResponse {
     dispatchedAtUtc?: Date | undefined;
     processExecution?: AgentProcessExecutionResponse;
     tokenUsage?: AgentTokenUsageResponse;
+    requestedModel?: string | undefined;
 }
 
 export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {

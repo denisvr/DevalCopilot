@@ -47,6 +47,11 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
             "--session-id", Guid.NewGuid().ToString(),
         };
 
+        if (!ClaudeModelRequestArguments.TryAppend(arguments, request.RequestedClaudeModel))
+        {
+            return Failed();
+        }
+
         ProcessExecutionResult result;
         try
         {

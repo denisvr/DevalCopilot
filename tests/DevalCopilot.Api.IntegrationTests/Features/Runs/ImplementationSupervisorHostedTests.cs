@@ -103,6 +103,73 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
     });
 
     [Fact]
+    public async Task The_dispatched_invocation_replays_the_claimed_attempts_alias_not_a_later_run_preference()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
+            call <= 4
+                ? Matching(Fingerprint)
+                : MatchingWithChangedPaths(ChangedFingerprint, [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")]));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore)
+        {
+            FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (runId, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, "haiku");
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            run.SetRequestedClaudeModel("opus");
+            await dbContext.SaveChangesAsync();
+        }
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Completed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal("haiku", adapter.LastRequest!.RequestedClaudeModel);
+    }
+
+    [Fact]
+    public async Task A_run_without_a_request_dispatches_no_model_override()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
+            call <= 4
+                ? Matching(Fingerprint)
+                : MatchingWithChangedPaths(ChangedFingerprint, [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")]));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore)
+        {
+            FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Completed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        Assert.Null(adapter.LastRequest!.RequestedClaudeModel);
+    }
+
+    [Fact]
     public async Task A_successful_invocation_atomically_records_Implemented_one_checkpoint_changed_files_artifacts_and_one_execution_report()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
@@ -476,7 +543,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
     /// implementation attempt itself through <see cref="CreateImplementationAttemptCommand"/>.
     /// </summary>
     private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid ProposalId)> SeedEligibleImplementationAttemptAsync(
-        ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader)
+        ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -511,6 +578,13 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         Assert.True((await mediator.SendAsync(
             new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Accepted, Fingerprint, [], review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
+
+        if (requestedClaudeModel is not null)
+        {
+            var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            run.SetRequestedClaudeModel(requestedClaudeModel);
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+        }
 
         var createImplementationResult = await mediator.SendAsync(
             new CreateImplementationAttemptCommand(runId, proposalMessage.Id), CancellationToken.None);
@@ -611,6 +685,8 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
 
         public int InvocationCount => Volatile.Read(ref _invocationCount);
 
+        public ImplementationInvocationRequest? LastRequest { get; private set; }
+
         public string? FinalResponseJsonToWrite { get; set; }
 
         public string? StandardOutputToWrite { get; set; }
@@ -624,6 +700,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
             ImplementationInvocationRequest request, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _invocationCount);
+            LastRequest = request;
 
             await WritePartialAsync(request, ArtifactPurpose.AgentFinalResponse, FinalResponseJsonToWrite, cancellationToken);
             await WritePartialAsync(request, ArtifactPurpose.AgentStandardOutput, StandardOutputToWrite, cancellationToken);

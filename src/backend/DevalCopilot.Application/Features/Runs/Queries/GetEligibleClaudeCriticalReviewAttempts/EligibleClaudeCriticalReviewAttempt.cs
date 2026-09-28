@@ -17,4 +17,5 @@ public sealed record EligibleClaudeCriticalReviewAttempt(
     TimeSpan Timeout,
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
-    Guid InputCollaborationMessageId);
+    Guid InputCollaborationMessageId,
+    string? RequestedClaudeModel = null);

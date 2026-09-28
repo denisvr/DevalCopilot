@@ -20,6 +20,7 @@ import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 import { CodexAssignmentPreferenceControl } from './CodexAssignmentPreferenceControl'
+import { ClaudeModelPreferenceControl } from './ClaudeModelPreferenceControl'
 import { AgentInvocationTimeBudgetBanner } from './AgentInvocationTimeBudgetBanner'
 import { AgentProcessDurationSummaryBanner } from './AgentProcessDurationSummaryBanner'
 import { AgentCollaboration } from './AgentCollaboration'
@@ -159,6 +160,13 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           runId={runId}
           requestedCodexModel={cockpit.requestedCodexModel ?? null}
           requestedCodexEffort={cockpit.requestedCodexEffort ?? null}
+        />
+      )}
+      {cockpit.runId === runId && (
+        <ClaudeModelPreferenceControl
+          key={`${runId}:${cockpit.requestedClaudeModel ?? ''}`}
+          runId={runId}
+          requestedClaudeModel={cockpit.requestedClaudeModel ?? null}
         />
       )}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />

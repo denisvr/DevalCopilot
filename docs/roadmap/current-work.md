@@ -8,6 +8,56 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Current delivery, based on verified parent
+  `7cc091dcaa032740def1cca214c3ad83c09a5cd2`: explicit, run-scoped Claude
+  model-alias requests (`sonnet`, `opus`, `haiku`) for the CriticalReviewer,
+  Implementer, and ReviewCorrection roles. See [planner-handoff.md](planner-handoff.md)
+  for the selection and the
+  ["Explicit Claude model-alias requests"](../architecture/agent-collaboration-protocol.md#explicit-claude-model-alias-requests)
+  and
+  ["Explicit Claude model-alias requests"](../product/run-cockpit-specification.md#explicit-claude-model-alias-requests)
+  sections for the contract.
+  - Behavior: nullable `runs.RequestedClaudeModel` (additive migration, no default
+    or backfill; historical runs stay `NULL`); protected
+    `POST /api/runs/{runId}/claude-model-preference` sets or clears it (closed-set
+    validation, terminal runs rejected, durable `run.claude_model_preference_changed`
+    event); each of the three claim handlers snapshots the value into the Attempt's
+    existing immutable `AgentRequestedModel` as its last step before its single
+    commit, guarded by the Run's `RequestedClaudeModel`/`Lifecycle` concurrency
+    tokens so a change after the read rolls the claim back
+    (`agent_attempts.run_changed_during_claim`, sealed manifest removed); the
+    eligible-attempt queries, invocation requests, and supervisors carry the
+    Attempt's snapshot, never the Run's current value; each adapter appends
+    `--model <alias>` only for a non-null, closed-set snapshot (anything else fails
+    closed before any process starts). Cockpit shows the run's request and the
+    latest Claude attempt's own snapshot, labeled as requests, never observed.
+    Provider rejection stays an ordinary recorded failure (no fallback). Codex
+    behavior, Claude permission/tool/schema arguments, budgets, and authorization
+    are unchanged; no `--effort`, catalog, or historical backfill.
+  - Checks run: solution build 0 errors/0 warnings; Domain 568/568; Application
+    1110/1110; Infrastructure 551 passed, 2 skipped (the file-leaf symlink test and
+    the reparse-point entrypoint test, both host-capability skips that pre-date
+    this slice); Api 375/375; Architecture 9/9; frontend `vitest` 693/693,
+    `tsc -b`, `oxlint` (no warnings in touched files), and `npm run build` clean;
+    two consecutive API builds left `api-client.ts` byte-identical
+    (SHA-256 `92d40878…4929`); local documentation links (65) resolve;
+    `git diff --check` clean apart from the known generated-client line-ending
+    notice. Mutation check: removing the guard's `IsModified` line failed the three
+    commit-window race tests and the set-handler tests; restored. In one full-solution
+    run a `ChildProcessExecutionAdapterTests` process-tree test failed while the
+    frontend suite ran concurrently; it passed 3/3 in isolation and in a clean full
+    Infrastructure rerun (unrelated, timing-sensitive). Tests use deterministic
+    doubles and never call a real provider.
+  - Observations and risks: the installed `claude` 2.1.276 `--help` documents
+    `--model <model>` with alias examples `fable`, `opus`, `sonnet` (not `haiku`);
+    the closed set follows the official CLI reference and no alias is proven
+    available to this account, so a provider rejection is an expected, recorded
+    failure. A null attempt snapshot means "no request recorded" for both a
+    request-free claim and a pre-feature attempt; the cockpit cannot and does not
+    distinguish them. No real provider invocation was made.
+  - Post-publication verification: confirm `main`, local `origin/main`, and the
+    live remote match the delivered commit with a clean tree, then rerun the
+    Claude claim, adapter, and supervisor focused tests against it.
 - Published delivery: `447a650636eb2d0e26e34a356b379045a1181e52`
   (parent `26ae6bcb8df98d3d589b0ab5264a0be135353da6`) was committed with the
   reviewed 8-file slice, pushed as a normal fast-forward to `origin/main`, and

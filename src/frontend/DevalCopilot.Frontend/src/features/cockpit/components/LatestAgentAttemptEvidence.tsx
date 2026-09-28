@@ -39,6 +39,13 @@ export function LatestAgentAttemptEvidence({ attempt }: LatestAgentAttemptEviden
       <p className="dc-latest-agent-attempt-summary">
         Latest agent attempt #{attempt.attemptNumber} · {role} · {provider} · Result: {semanticResult}
       </p>
+      {attempt.provider === 'ClaudeCode' && (
+        <p className="dc-latest-agent-attempt-model-request">
+          {attempt.requestedModel
+            ? `Model requested at claim: ${attempt.requestedModel} (a request only; the model actually used is not observed).`
+            : 'No model request recorded for this attempt (the model actually used is not observed).'}
+        </p>
+      )}
       <ProcessEvidenceLine
         processExecution={attempt.processExecution}
         dispatchedAtUtc={attempt.dispatchedAtUtc}

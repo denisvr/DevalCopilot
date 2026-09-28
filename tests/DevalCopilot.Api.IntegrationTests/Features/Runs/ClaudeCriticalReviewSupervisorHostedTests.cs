@@ -332,6 +332,98 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task The_dispatched_invocation_replays_the_claimed_attempts_alias_not_a_later_run_preference()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (runId, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader, "sonnet");
+
+        // The owner changes the run preference after the claim and before dispatch.
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            run.SetRequestedClaudeModel("opus");
+            await dbContext.SaveChangesAsync();
+        }
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Completed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal("sonnet", adapter.LastRequest!.RequestedClaudeModel);
+    }
+
+    [Fact]
+    public async Task A_run_without_a_request_dispatches_no_model_override()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Completed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        Assert.Null(adapter.LastRequest!.RequestedClaudeModel);
+    }
+
+    [Fact]
+    public async Task A_provider_rejection_of_the_requested_alias_is_recorded_as_a_failure_with_no_fallback_attempt()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore)
+        {
+            ResultToReturn = new CriticalReviewInvocationResult(CriticalReviewInvocationOutcome.Failed, false, false, null),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (runId, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader, "haiku");
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Failed, await PollForTerminalStatusAsync(provider, attemptId));
+            await Task.Delay(TimeSpan.FromMilliseconds(1600));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        // Exactly one invocation, with exactly the requested alias: no retry, no different model,
+        // and no additional attempt created on the run.
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal("haiku", adapter.LastRequest!.RequestedClaudeModel);
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var failed = await dbContext.Attempts.SingleAsync(candidate => candidate.Id == attemptId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, failed.AgentOutcome);
+        Assert.Equal("haiku", failed.AgentRequestedModel);
+        Assert.Equal(2, await dbContext.Attempts.CountAsync(candidate => candidate.RunId == runId));
+    }
+
+    [Fact]
     public async Task A_non_zero_provider_exit_records_its_exit_code_with_the_provider_failure()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
@@ -690,7 +782,8 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
     /// hand-built <see cref="Attempt"/> shortcut.
     /// </summary>
     private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid LeaseId, Guid ProposalMessageId)>
-        SeedEligibleClaudeCriticalReviewAttemptAsync(ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader)
+        SeedEligibleClaudeCriticalReviewAttemptAsync(
+            ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -718,6 +811,13 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
 
         var proposalMessage = await dbContext.CollaborationMessages.SingleAsync(
             message => message.AttemptId == codexAttemptId && message.Type == CollaborationMessageType.Proposal);
+
+        if (requestedClaudeModel is not null)
+        {
+            var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            run.SetRequestedClaudeModel(requestedClaudeModel);
+            await dbContext.SaveChangesAsync(CancellationToken.None);
+        }
 
         var createReviewResult = await mediator.SendAsync(
             new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessage.Id), CancellationToken.None);
@@ -898,6 +998,8 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
 
         public int InvocationCount => Volatile.Read(ref _invocationCount);
 
+        public CriticalReviewInvocationRequest? LastRequest { get; private set; }
+
         public string? StandardOutputToWrite { get; set; }
 
         public string? StandardErrorToWrite { get; set; }
@@ -910,6 +1012,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         public async Task<CriticalReviewInvocationResult> InvokeAsync(CriticalReviewInvocationRequest request, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _invocationCount);
+            LastRequest = request;
 
             await WriteIfPresentAsync(
                 artifactStore.GetPartialPath(request.RunId, request.AttemptId, ArtifactPurpose.AgentStandardOutput),

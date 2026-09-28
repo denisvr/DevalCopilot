@@ -197,6 +197,11 @@ public sealed class CreateImplementationAttemptCommandHandler(
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
         var agentBudgetSlot = agentAttemptsUsed + 1;
 
+        // Read as late as possible (after every external step) and guarded by the Run's
+        // concurrency token, so this Attempt snapshots exactly the alias that is still current
+        // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
+        var requestedClaudeModel = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
+
         var attempt = Attempt.ClaimAgentImplementationWithAssignment(
             attemptId,
             run.Id,
@@ -209,7 +214,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
             nowUtc,
-            requestedModel: null,
+            requestedModel: requestedClaudeModel,
             requestedEffort: null,
             AgentPermissionProfile.WorkspaceEditOnly,
             AdapterContractVersion,
@@ -244,7 +249,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException exception)
         {
             // The exception means this DbContext's change tracker no longer reliably reflects
             // what actually committed — the cause is never inferred from what this request
@@ -267,6 +272,15 @@ public sealed class CreateImplementationAttemptCommandHandler(
             }
 
             dbContext.Artifacts.Remove(manifestArtifact);
+
+            if (exception is DbUpdateConcurrencyException)
+            {
+                // The Run's lifecycle or Claude model request changed between this claim's late
+                // read and its commit (see CurrentClaudeModelPreference); the whole batch rolled
+                // back, so nothing persisted and a retry re-reads the current state.
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    CurrentClaudeModelPreference.RunChangedDuringClaim());
+            }
 
             var competingRunningAttemptExists = await dbContext.Attempts
                 .AsNoTracking()

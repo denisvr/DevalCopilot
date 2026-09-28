@@ -20,4 +20,5 @@ public sealed record EligibleImplementationAttempt(
     string ContextManifestContentHash,
     TimeSpan Timeout,
     int MaxBytesPerStream,
-    int MaxTotalCapturedBytes);
+    int MaxTotalCapturedBytes,
+    string? RequestedClaudeModel = null);

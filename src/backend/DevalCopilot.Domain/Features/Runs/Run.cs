@@ -192,6 +192,34 @@ public sealed class Run
         RequestedCodexEffort = requestedEffort;
     }
 
+    /// <summary>
+    /// The owner's current, explicit, run-scoped request for a Claude CLI model alias
+    /// (<see cref="ClaudeModelAlias"/>) for future CriticalReviewer, Implementer, and
+    /// ReviewCorrection attempts — never an observed, effective, or account-eligible model.
+    /// <see langword="null"/> means no override (the default for every historical and newly created
+    /// Run): future Claude claims snapshot no request and the adapters pass no <c>--model</c>
+    /// argument. Changing this never affects an already-claimed attempt's own immutable snapshot.
+    /// </summary>
+    public string? RequestedClaudeModel { get; private set; }
+
+    /// <summary>Sets or clears the run-scoped Claude model-alias request. Only a member of the
+    /// closed <see cref="ClaudeModelAlias"/> set (or <see langword="null"/>) is accepted; permitted
+    /// while <see cref="Lifecycle"/> is Created or Running.</summary>
+    public void SetRequestedClaudeModel(string? requestedModel)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot change the requested Claude model for a run whose lifecycle is {Lifecycle}.");
+        }
+
+        if (requestedModel is not null && !ClaudeModelAlias.IsSupported(requestedModel))
+        {
+            throw new ArgumentException("A requested Claude model must be one of the supported aliases.", nameof(requestedModel));
+        }
+
+        RequestedClaudeModel = requestedModel;
+    }
+
     private static bool IsValidRequestedAssignmentIdentifier(string? value) =>
         value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= MaxRequestedAssignmentIdentifierLength);
 

@@ -13,4 +13,5 @@ public sealed record EligibleReviewCorrectionAttempt(
     TimeSpan Timeout,
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
-    IReadOnlyList<Guid> OrderedInputMessageIds);
+    IReadOnlyList<Guid> OrderedInputMessageIds,
+    string? RequestedClaudeModel = null);

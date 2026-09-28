@@ -213,7 +213,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
         var agentBudgetSlot = agentAttemptsUsed + 1;
 
-        var attempt = Attempt.ClaimAgentCriticalReview(
+        // Read as late as possible (after every external step) and guarded by the Run's
+        // concurrency token, so this Attempt snapshots exactly the alias that is still current
+        // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
+        var requestedClaudeModel = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
+
+        var attempt = Attempt.ClaimAgentCriticalReviewWithModelRequest(
             attemptId,
             run.Id,
             attemptNumber,
@@ -225,6 +230,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
             nowUtc,
+            requestedClaudeModel,
             agentBudgetSlot);
         dbContext.Attempts.Add(attempt);
 
@@ -258,7 +264,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException exception)
         {
             // The exception means this DbContext's change tracker no longer reliably reflects
             // what actually committed — the cause is never inferred from what this request
@@ -286,6 +292,15 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             dbContext.Attempts.Remove(attempt);
             dbContext.AttemptInputMessages.Remove(inputMessage);
             dbContext.Artifacts.Remove(manifestArtifact);
+
+            if (exception is DbUpdateConcurrencyException)
+            {
+                // The Run's lifecycle or Claude model request changed between this claim's late
+                // read and its commit (see CurrentClaudeModelPreference); the whole batch rolled
+                // back, so nothing persisted and a retry re-reads the current state.
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                    CurrentClaudeModelPreference.RunChangedDuringClaim());
+            }
 
             var competingRunningAttemptExists = await dbContext.Attempts
                 .AsNoTracking()

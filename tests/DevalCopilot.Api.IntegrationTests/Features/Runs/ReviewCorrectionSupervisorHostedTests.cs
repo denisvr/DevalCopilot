@@ -73,6 +73,62 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task Dispatch_replays_the_claimed_attempts_alias_not_a_later_run_preference()
+    {
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var adapter = new GatedAdapter(_artifactStore);
+        await using var provider = BuildProvider(evidence, adapter, new TestNotifier());
+        var seed = await SeedAsync(provider, claimedClaudeModel: "sonnet");
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var run = await db.Runs.SingleAsync(item => item.Id == seed.RunId);
+            run.SetRequestedClaudeModel("opus");
+            await db.SaveChangesAsync();
+        }
+
+        adapter.FindingId = seed.FindingId;
+        var supervisor = CreateSupervisor(provider, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await adapter.Invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            adapter.Release();
+            await WaitForStatusAsync(provider, seed.CorrectionId, AttemptStatus.Completed);
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        Assert.Equal("sonnet", adapter.LastRequest!.RequestedClaudeModel);
+    }
+
+    [Fact]
+    public async Task A_correction_claimed_without_a_request_dispatches_no_model_override()
+    {
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var adapter = new GatedAdapter(_artifactStore);
+        await using var provider = BuildProvider(evidence, adapter, new TestNotifier());
+        var seed = await SeedAsync(provider);
+        adapter.FindingId = seed.FindingId;
+        var supervisor = CreateSupervisor(provider, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await adapter.Invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            adapter.Release();
+            await WaitForStatusAsync(provider, seed.CorrectionId, AttemptStatus.Completed);
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        Assert.Null(adapter.LastRequest!.RequestedClaudeModel);
+    }
+
+    [Fact]
     public async Task Pre_dispatch_drift_never_invokes_the_provider()
     {
         var evidence = new SequencedEvidence(_ => Drifted());
@@ -283,7 +339,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
     private static ReviewCorrectionSupervisor CreateSupervisor(ServiceProvider provider, GatedAdapter adapter, IGitWorkspaceEvidenceReader evidence) =>
         new(provider.GetRequiredService<IServiceScopeFactory>(), adapter, evidence, provider.GetRequiredService<IArtifactStore>(), NullLogger<ReviewCorrectionSupervisor>.Instance);
 
-    private async Task<Seed> SeedAsync(ServiceProvider provider)
+    private async Task<Seed> SeedAsync(ServiceProvider provider, string? claimedClaudeModel = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -304,7 +360,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now, 4); review.MarkAgentDispatched(now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.Record(Guid.NewGuid(), run.Id, review.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.ReviewFinding, report.Id, "The branch needs correction.", JsonSerializer.Serialize(new { severity = "high", category = "correctness", evidence = "The branch is incomplete.", requiredChange = "Complete the branch." }), CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(1));
         var manifestId = Guid.NewGuid();
-        var correction = Attempt.ClaimAgentReviewCorrection(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now, 5);
+        var correction = Attempt.ClaimAgentReviewCorrectionWithModelRequest(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now, claimedClaudeModel, 5);
         var manifestPath = _artifactStore.GetPartialPath(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest); Directory.CreateDirectory(Path.GetDirectoryName(manifestPath)!); await File.WriteAllTextAsync(manifestPath, "manifest");
         var sealedManifest = await _artifactStore.SealAsync(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest, CancellationToken.None);
         db.Projects.Add(project); db.Runs.Add(run); db.GitWorkspaces.Add(workspace); db.GitCheckpoints.Add(checkpoint); db.RepositoryMutationLeases.Add(lease); db.HostCapabilitySnapshots.Add(capability); db.Attempts.AddRange(planning, acceptanceAttempt, implementation, review, correction); db.CollaborationMessages.AddRange(proposal, acceptance, report, finding);
@@ -347,13 +403,14 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Invoked { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int InvocationCount => Volatile.Read(ref _invocations);
+        public ReviewCorrectionInvocationRequest? LastRequest { get; private set; }
         public ReviewCorrectionInvocationResult Result { get; set; } = new(ImplementationInvocationOutcome.Exited, false, false, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit);
         public Guid FindingId { get; set; }
         public bool ThrowCancellation { get; set; }
         public void Release() => _release.TrySetResult();
         public async Task<ReviewCorrectionInvocationResult> InvokeAsync(ReviewCorrectionInvocationRequest request, CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref _invocations); Invoked.TrySetResult();
+            Interlocked.Increment(ref _invocations); LastRequest = request; Invoked.TrySetResult();
             if (ThrowCancellation) throw new OperationCanceledException(cancellationToken);
             await WriteAsync(request, ArtifactPurpose.AgentFinalResponse, JsonSerializer.Serialize(new { revisionResponses = new[] { new { findingMessageId = FindingId, disposition = "Fixed", evidence = "The incomplete branch was corrected.", resultingSourceChanges = "Completed the branch." } }, executionReport = new { summary = "Correction complete.", changedRelativePaths = new[] { "src/Foo.cs" }, implementationNotes = "Applied the requested correction.", unexpectedDiscoveries = "None.", remainingRisks = "None.", recommendedVerification = "Run tests." } }), cancellationToken);
             await _release.Task.WaitAsync(cancellationToken);
