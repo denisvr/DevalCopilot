@@ -8,6 +8,14 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Published delivery: `cf5b8d64b7d41fe1b258ad919f75051e8425a408`
+  (parent `c2e5023e3c4a653856b5691d52c1d27e07844826`) was committed with
+  the reviewed 31-file slice, pushed as a normal fast-forward to `origin/main`,
+  and verified against the live remote with `git fetch origin main`: local
+  `HEAD`, local `origin/main`, and fetched `origin/main` matched the delivered
+  SHA, with a clean working tree. This closure records the delivered SHA only;
+  no code or product contract changed after publication. The planner has not
+  selected another slice.
 - Current delivery, based on verified parent `c2e5023e3c4a653856b5691d52c1d27e07844826`:
   read-only Codex model and reasoning-effort catalog observation. See
   [planner-handoff.md](planner-handoff.md) for the selection record, and the
