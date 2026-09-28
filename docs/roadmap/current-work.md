@@ -6,8 +6,142 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
-## Current checkpoint (2026-09-27)
+## Current checkpoint (2026-09-28)
 
+- Current delivery, based on verified parent `c2e5023e3c4a653856b5691d52c1d27e07844826`:
+  read-only Codex model and reasoning-effort catalog observation. See
+  [planner-handoff.md](planner-handoff.md) for the selection record, and the
+  ["Codex model and reasoning-effort catalog contract"](../architecture/agent-collaboration-protocol.md#codex-model-and-reasoning-effort-catalog-contract)
+  and
+  ["Codex model and reasoning-effort catalog observation (read-only)"](../product/run-cockpit-specification.md#codex-model-and-reasoning-effort-catalog-observation-read-only)
+  sections for the exact wire evidence and product contract.
+  - New Application query `GetCodexModelCatalogQuery` (returning a plain
+    projection, never `Result<T>` — no expected failure outcome) reads the
+    same durable, already-vetted Codex launch target
+    `GetCodexLaunchTargetQueryHandler` and `GetCodexAccountAllowanceQueryHandler`
+    each read (the same small, deliberate duplication of that five-line
+    `HostCapabilitySnapshot` lookup) and, only when one currently resolves
+    successfully, asks the new `ICodexModelCatalogAdapter` port for one fresh
+    catalog observation. No vetted target and no adapter observation both
+    collapse to the same explicit `CodexModelCatalogStatus.Unknown` projection.
+  - New Infrastructure `CodexModelCatalogAdapter` speaks the documented Codex
+    App Server `model/list` method — confirmed against the official
+    `https://learn.chatgpt.com/docs/app-server#list-models-modellist` page
+    (fetched directly in this slice; the executor's environment has no local
+    `codex` CLI, so the installed-build generated-schema citation
+    (`ClientRequest.json`, `v2/ModelListParams.json`,
+    `v2/ModelListResponse.json` for `codex-cli 0.158.0-alpha.2.1`) is carried
+    over from the planner's own selection record in planner-handoff.md, exactly
+    as the prior account-allowance slice's precedent for an absent local CLI).
+    Always requests `includeHidden: false`; any entry the provider still marks
+    `hidden: true` is discarded defensively. Bounded cursor paging follows
+    `nextCursor` for at most 8 pages of at most 50 entries each, capped at 200
+    total processed entries across every page; a provider that still claims
+    more pages past that bound fails the whole observation closed rather than
+    presenting a silently truncated catalog as complete. A model's own `id` is
+    treated like the allowance adapter's limit id: bounded, restricted to a
+    safe identifier character set, and required to be unique across every
+    page — a missing, oversized, malformed, or duplicate id fails the whole
+    catalog closed. `displayName` falls back to the model's own (already-
+    validated) id whenever it is missing, oversized, blank, or carries a
+    control or bidirectional-formatting character (for example a Unicode
+    right-to-left override) — rejecting those characters rather than
+    rendering a name that could visually misrepresent itself. This is
+    descriptive data, not an identifier, so it never fails the whole catalog.
+    `supportedReasoningEfforts` is read as a whole: a malformed or duplicate
+    individual effort makes the entire field for that entry `null` (Unknown)
+    rather than presenting a partial list with the bad element silently
+    dropped, and a genuinely excessive list still fails the whole catalog
+    closed; an absent or explicitly empty list projects as an empty (non-null)
+    list. `defaultReasoningEffort` is projected only when it is itself a
+    bounded, valid identifier *and* a member of that same entry's own known
+    (non-Unknown) `supportedReasoningEfforts` — an internally inconsistent or
+    unverifiable default is `null` (Unknown) rather than an unchecked claim.
+  - The launch/handshake/correlated-read/process-tree-cleanup mechanics the
+    account-allowance adapter established were narrowly extracted into a new
+    shared internal `CodexAppServerSession`, reused by both
+    `CodexAccountAllowanceAdapter` (refactored to call it, with no wire-level
+    behavior change) and the new `CodexModelCatalogAdapter`. The exchange
+    handle used after the handshake, `CodexAppServerChannel`, is its own file
+    and is a closed, method-specific surface — not a general-purpose JSON-RPC
+    escape hatch and not an arbitrary raw-JSON write path: it exposes exactly
+    the two reviewed read-only methods this application ever sends,
+    `SendAccountRateLimitsReadAsync` and `SendModelListAsync`, each building
+    its own fixed request JSON internally from validated primitive parameters
+    (a request id, and, for `model/list`, a bounded page size and an
+    already-validated cursor) and returning the correlated reply directly; no
+    caller can write an arbitrary JSON payload through it. The existing
+    `CodexProcessInvoker` one-shot contract remains unsuitable for the same
+    reason documented for the allowance adapter: the App Server is a
+    long-running duplex peer neither one-shot contract can express.
+  - New protected `GET api/environment/codex-model-catalog` endpoint (mirrors
+    `GetCodexAccountAllowanceEndpoint`'s shape) and its NSwag client
+    regeneration (additive only). New `useCodexModelCatalog` hook (fetches
+    once on mount plus an explicit `refresh()` — never a recurring interval)
+    and a new `describeCodexModelCatalog` view-model/formatter feed a second
+    section added to the existing `UsageEvidenceRail` cockpit panel, beside the
+    Codex account-allowance line, with its own retrieval time and manual
+    Refresh control (the two Refresh buttons are now distinguished by
+    `aria-label` — "Refresh Codex account usage" / "Refresh Codex model
+    catalog" — since both render the same visible "Refresh" text). An explicit
+    "Unknown" (never an empty-looking success) is shown when unavailable, and a
+    failed refresh clears prior observed data and its timestamp, exactly like
+    the allowance line.
+  - Excluded, per the selected slice's boundary: model/effort selection, run
+    intent, persistence/migrations, attempt assignment or invocation
+    arguments, claim/dispatch gating, provider-preflight capability claims,
+    account-allowance threshold/stop policy, a Claude model catalog,
+    context/compaction, provider-session resume, thread/turn calls, direct
+    provider HTTP, auth-file reads, and any generic RPC escape hatch. No CLI
+    default is inferred and no account authentication or invocation
+    eligibility is guaranteed from this catalog response.
+  - Checks actually run: Infrastructure.IntegrationTests focused
+    `CodexModelCatalogAdapterTests` 25/25 (18 original + 7 added across review
+    corrections: exact outbound `model/list` request JSON including `limit`, a
+    malformed/duplicate individual effort projecting the whole
+    `supportedReasoningEfforts` field as Unknown, a default effort absent from
+    the known supported set projecting as Unknown, and a displayName carrying
+    a control or bidirectional-formatting character — including U+061C ARABIC
+    LETTER MARK alongside LRM/RLM/embedding/override/isolate characters —
+    falling back to the model's id) and `CodexAccountAllowanceAdapterTests`
+    30/30 (confirms the channel extraction and its closed method-specific
+    surface preserve the allowance adapter's exact wire behavior), full 506
+    passed / 1 pre-existing skip. The bidi/control characters under test are
+    now expressed as literal `\uXXXX` escapes in both the adapter's own
+    character table and the test file, not the actual invisible characters, so
+    the source remains reviewable. Application.Tests focused
+    `GetCodexModelCatalogQueryHandlerTests`
+    6/6, full 1028/1028; Api.IntegrationTests focused
+    `GetCodexModelCatalogEndpointTests` 4/4, full 330/330; Domain.Tests
+    529/529; Architecture.Tests 9/9. Frontend focused hook, describe, and rail
+    tests (4 + 11 + 3 new, including the `None`-vs-Unknown effort-list
+    distinction added in review correction) 657/657 full suite (frontend types
+    were unaffected by the backend nullability correction —
+    `supportedReasoningEfforts` was already an optional generated-client
+    field); `tsc -b` clean; `oxlint`
+    exited 0 with the same 20 pre-existing warnings (0 new); production build
+    (`vite build`) passed. NSwag client regenerated by
+    `dotnet build src/backend/DevalCopilot.Api`; the resulting `api-client.ts`
+    diff is additive-only new client/DTO types, with a stable hash on repeat
+    build. `git diff --check` is clean apart from the existing generated-client
+    CRLF-normalization warning. The deterministic compiled App Server fixture
+    (reused unmodified from the allowance slice) exercises multi-page combined
+    models with effort/default mapping, hidden filtering, an empty catalog,
+    oversized/malformed/duplicate/conflicting responses (including the
+    corrected whole-field-Unknown effort-list behavior), unsolicited
+    notifications, a bounded-page-count overflow, timeout/cancellation, and
+    parent/child process termination; automated tests never call a real
+    provider.
+  - Remaining risk: the `model/list` request/response shape is verified from
+    the official documentation page (fetched directly) and, for cursor-based
+    paging specifically, from the planner's own installed-build generated
+    schema citation carried over into this slice — the executor's own
+    environment has no local `codex` CLI to independently reproduce that
+    schema generation. An incompatible installation, or an account/client for
+    which the documented shape differs, fails closed to `Unknown`. Provider
+    account-usage thresholds, warning/stop enforcement, model/effort
+    selection, and Claude's own catalog observation remain open under
+    [Increment 4](mvp-delivery-plan.md).
 - Published delivery: `3c120b41b3366de70f221479b2545183ebb79fda`
   (parent `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`) was committed with
   the reviewed 32-file slice, pushed as a normal fast-forward to `origin/main`,
@@ -16,8 +150,10 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   with a clean working tree. Focused Infrastructure 30/30, Application 7/7,
   API 4/4, and frontend 24/24 tests were reconfirmed against that published
   commit. This closure records the delivered SHA only; no code or product
-  contract changed after publication. The planner has not selected another
-  slice.
+  contract changed after publication. (Historical: at this checkpoint's own
+  closure, the planner had not yet selected another slice; it has since
+  selected the Codex model-catalog slice recorded at the top of this
+  checkpoint.)
 - Current delivery, based on verified parent `ba6fdd096b217dfe1e46d6eb5541853325fce6c6`:
   read-only Codex ChatGPT account-allowance observation. See
   [planner-handoff.md](planner-handoff.md) for the selection record, and the

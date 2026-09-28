@@ -7,7 +7,186 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current decision (2026-09-27): Codex allowance observation GO for publication
+## Current decision (2026-09-28): selected Codex model and effort catalog observation
+
+- Third uncommitted diff review: **GO for publication of this reviewed slice.**
+  Verified branch `main`, `HEAD`, local `origin/main`, and live `origin/main`
+  all at `c2e5023e3c4a653856b5691d52c1d27e07844826`; nothing staged, 11
+  modified tracked files (including this planner note), and 20 untracked
+  files. The bounded correction now rejects U+061C ARABIC LETTER MARK,
+  includes a deterministic fallback case, and expresses bidi characters as
+  reviewable `\uXXXX` escapes; an independent read found no raw bidi code
+  points in the adapter or its test. `current-work.md` now records the
+  executor's actual frontend result, 657/657. Independently reran the focused
+  catalog and allowance Infrastructure tests: 55/55 passed. The executor
+  reports full Infrastructure 506 passed / 1 pre-existing skip, clean
+  Infrastructure and API builds with stable NSwag output, `git diff --check`
+  apart from the pre-existing generated-client line-ending warning, and the
+  earlier unaffected full backend/frontend checks recorded in
+  `current-work.md`. The documented absent-local-CLI and no-live-authenticated-
+  call limits remain explicit. The reviewed diff stays within the selected
+  read-only observation boundary.
+- Publication instruction for this GO: commit the reviewed substantive diff,
+  including `current-work.md` and this planner decision, on `main`; push
+  `main` to `origin/main` with a normal fast-forward push; verify the live
+  remote branch points to the delivered commit and report its SHA, Git state,
+  and checks actually run. Then make only any tightly bounded factual
+  documentation closure needed to record the delivered SHA and verified
+  publication, publish that closure normally, and verify the live remote
+  again. If the diff becomes material or leaves the approved scope, return it
+  for re-review before committing. If the push fails or the remote diverges,
+  stop and report it; do not force-push or reconcile remote history.
+- Second uncommitted diff review: **NO-GO; make a narrow correction in this
+  same slice without committing or pushing.** Verified `main`, `HEAD`, local
+  `origin/main`, and live `origin/main` at
+  `c2e5023e3c4a653856b5691d52c1d27e07844826`; nothing staged, 11
+  modified tracked files (including this note), and 20 untracked files.
+  Independently reran the focused catalog and allowance Infrastructure tests:
+  54/54 passed; `git diff --check` has only the pre-existing generated-client
+  line-ending warning. The closed method-specific channel, one-type-per-file
+  extraction, whole-field Unknown effort semantics, default membership check,
+  exact outbound request assertions, and historical handoff wording address
+  the first review. One unsafe display-name case remains: U+061C ARABIC LETTER
+  MARK is a Unicode bidirectional mark but is absent from
+  `BidiFormattingCharacters`, so it passes the current control-character and
+  explicit-list checks. Reject U+061C as well, use escaped Unicode code points
+  for the bidi set and test inputs so the source is reviewable, and add a
+  deterministic U+061C fallback test. Also correct the frontend full-suite
+  count in `current-work.md` from 655/655 to the executor's reported 657/657;
+  retain only checks actually run. Run the affected tests, then relevant full
+  validation for any code behavior that changed, and return the complete
+  uncommitted, unpushed diff. No commit/push GO is granted.
+- First uncommitted diff review: **NO-GO; correct this same slice without
+  committing or pushing.** Verified `main`, `HEAD`, local `origin/main`, and
+  live `origin/main` at `c2e5023e3c4a653856b5691d52c1d27e07844826`;
+  nothing staged, 11 modified tracked files (including this note), and 19
+  untracked files. Inspected the shared App Server extraction, catalog parser,
+  Application/API/UI mapping, tests, and handoff; independently passed focused
+  `CodexModelCatalogAdapterTests` 18/18 and `git diff --check` (only the
+  existing generated-client line-ending warning). Three bounded corrections
+  are required. First, `CodexAppServerSession.cs` contains both
+  `CodexAppServerSession` and the top-level `CodexAppServerChannel`; the
+  engineering contract requires one top-level C# type per file. Move the
+  channel to its own file and replace its arbitrary `WriteLineAsync(string)`
+  surface with a closed, read-only request path limited to the two reviewed
+  methods; an internal raw-JSON writer is still a generic RPC escape hatch.
+  Second, the parser
+  silently skips malformed `supportedReasoningEfforts` entries and still
+  presents the remainder as the model's supported set. Treat an invalid or
+  duplicate effort entry as an Unknown effort list or fail the observation
+  closed; never show a partial set as complete. A syntactically valid default
+  absent from a known supported set must become Unknown or fail closed, never
+  appear as a supported suggestion. Third, `displayName` currently accepts
+  bounded but unsafe text, including control and bidirectional-formatting
+  characters; reject those and fall back to the already validated id (or fail
+  closed). Add deterministic negative cases for those conditions and update
+  architecture/product/handoff descriptions to match the corrected semantics.
+  In `current-work.md`, make the previous checkpoint's "has not selected
+  another slice" sentence explicitly historical so it remains true when this
+  delivery is committed.
+  Also make the model-list outbound request test assert the exact request JSON
+  lines, including `limit`, so the sole permitted method and parameters are
+  reviewable. Run affected checks first, then relevant full validation because
+  the shared session and parser are changing. Return the complete uncommitted,
+  unpushed diff for re-review; no commit/push GO is granted. The executor's
+  absence of a local Codex CLI is a disclosed evidence limit, not a reason to
+  assert an authenticated provider result; the planner's installed-build
+  schema evidence remains the narrow protocol basis for this slice.
+- Verified selection baseline: branch `main`; `HEAD`, local `origin/main`, and
+  live `origin/main` all `c2e5023e3c4a653856b5691d52c1d27e07844826`;
+  staged, unstaged, and untracked state empty before this planner-only edit.
+  The read-only Codex allowance slice was published in
+  `3c120b41b3366de70f221479b2545183ebb79fda` and factually closed by
+  this baseline. The GO below is historical, not authority for this slice.
+- Select exactly one Increment 4 slice: **read-only Codex model and reasoning-
+  effort catalog observation** in the existing cockpit. The official
+  [Codex App Server `model/list` contract](https://learn.chatgpt.com/docs/app-server#list-models-modellist)
+  returns client/account-specific picker-visible models and each model's
+  `supportedReasoningEfforts` and `defaultReasoningEffort`; its examples are
+  illustrative, never a permanent catalog. The installed
+  `codex-cli 0.158.0-alpha.2.1` generated stable App Server schemas without
+  `--experimental`: `ClientRequest.json` requires `id`, `method`, and `params`
+  for `model/list`; `v2/ModelListParams.json` permits bounded cursor paging and
+  `includeHidden`; `v2/ModelListResponse.json` defines the model/effort fields.
+  This is protocol evidence for that build, not an authenticated live result
+  or proof that a model can start a specific invocation. The existing
+  `CodexAccountAllowanceAdapter` proves a bounded local stdio App Server
+  handshake and cleanup pattern, but its allowance data grants no model or
+  invocation authority. The reviewed [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  documents model/effort input flags; it does not establish an equivalent
+  safe account-specific model-list read for this slice.
+- Objective and boundary: through the same durable, vetted Codex launch target,
+  make one fresh, protected, read-only `model/list` observation using explicit
+  stdio JSONL, `initialize`/`initialized`, bounded cursor paging, finite time
+  and output caps, strict correlated replies, and process-tree cleanup. Expose
+  only bounded model ID, display name, supported effort identifiers, suggested
+  default effort, and retrieval time through a project-owned Application query,
+  one authorized MVC endpoint, generated NSwag client, and a manual-refresh
+  cockpit panel. Show explicit Unknown on no vetted target, unsupported method,
+  missing auth, malformed/duplicate/conflicting pages, unsafe strings, timeout,
+  failed process cleanup, or absent usable entries; caller cancellation must
+  propagate after cleanup. Never reuse a stale observed timestamp after a
+  failed refresh. Reuse or narrowly extract the
+  allowance adapter's vetted process/protocol mechanics, preserving its wire
+  behavior and bounds; no general-purpose arbitrary App Server RPC interface.
+- Exclude selection, run intent, persistence/migrations, attempt assignment,
+  claim/dispatch gating, provider invocation arguments, CLI defaults, account
+  allowance thresholds, Claude observation, context/compaction, provider-
+  session resume, direct HTTP/auth-file access, and any thread/turn method.
+  The UI must label this as a catalog observation, not selected/effective
+  configuration, authentication readiness, invocation eligibility, or an
+  assurance that a listed model is still available at dispatch.
+- Stop gates: if the executor cannot verify the exact non-experimental
+  `model/list` wire shape against the official page and installed-build schema
+  evidence; if the already-vetted target or bounded process cleanup cannot be
+  preserved; if implementation or tests require a live authenticated provider
+  call, model turn, arbitrary config/command execution, a security-policy change, or model
+  selection; or if the existing allowance contract would regress. Report the
+  blocker without widening scope. No automated test may contact a real
+  provider.
+- Acceptance: deterministic local fake App Server tests prove the exact
+  handshake and `model/list` requests, picker-visible entries, effort/default
+  mapping, finite paging, empty/partial/malformed/duplicate/conflicting
+  replies, notifications, output limits, timeout/cancellation/child cleanup,
+  and no sensitive-field disclosure. Application and API tests prove vetted-
+  target/Unknown mapping, authorization, and bounded response; frontend tests
+  prove observed options, retrieval freshness, Unknown, and failed refresh.
+  Regress the unchanged account-allowance adapter if transport is extracted.
+  Run affected and relevant full backend/frontend suites, typecheck, lint,
+  production build, NSwag drift verification, local link check, and
+  `git diff --check`; report exact results. Make `current-work.md` commit-ready
+  from the verified parent, with actual checks and remaining risks, but no
+  invented delivery SHA. Return the complete **uncommitted, unpushed** diff
+  for planner GO/NO-GO. Selection grants no commit/push authority.
+
+### Executor prompt for this selected slice
+
+```text
+Implement the selected read-only Codex model and reasoning-effort catalog observation slice.
+
+Preflight: expect branch main and HEAD c2e5023e3c4a653856b5691d52c1d27e07844826. Expect nothing staged, exactly docs/roadmap/planner-handoff.md modified but unstaged by the planner selection, and nothing untracked. Verify branch, HEAD, local and live origin/main, and staged/unstaged/untracked state once before editing; stop and report a material discrepancy.
+
+Objective: show a fresh, bounded, picker-visible Codex model catalog and each model's supported and suggested-default reasoning effort in the existing cockpit, with retrieval time, manual refresh, and explicit Unknown. Treat this as read-only catalog evidence, not selected or effective configuration or invocation eligibility.
+
+Scope: use the same durable vetted Codex CLI launch target and the documented App Server stdio JSONL initialize/initialized handshake, then only model/list with includeHidden false and bounded cursor paging. Validate correlated response IDs and strict response shapes; cap page count, entries, strings, line and total output, and time; preserve cancellation and child-tree cleanup. Reuse or narrowly extract the current allowance adapter's safe process/protocol mechanics without changing its allowance contract. Add a project-owned Application query/port/projection, one protected MVC endpoint and response, regenerated NSwag client, cockpit catalog panel/hook and focused tests. Update the architecture and cockpit specifications for exactly the delivered observation.
+
+Exclusions: do not add model/effort selection, run intent, schema migration, attempt assignment or invocation flags, claim/dispatch policy, provider-preflight capability claims, account threshold/stop policy, Claude catalog, context/compaction, session resume, thread/turn calls, direct provider HTTP, auth-file reads, or a generic RPC escape hatch. Do not infer any CLI default or guarantee account authentication or invocation eligibility from a catalog response.
+
+Stop gates: verify the non-experimental model/list request/response against the official Codex App Server documentation and the installed-build generated schema before implementing the parser. Stop and report if that shape, a vetted local launch target, strict bounded paging, or safe cleanup cannot be established; if implementation or tests require a live authenticated provider call, a model turn, or a policy/invocation change; or if the existing allowance behavior cannot be preserved. Use local fake App Server tests only.
+
+Acceptance evidence: cover exact outbound handshake/read lines; valid multi-page visible models with supported/default effort; hidden, empty, malformed, duplicate, conflicting, unsolicited, oversized, timeout, cancellation, and process-tree cases; no raw provider payload, account, credential, or diagnostic disclosure. Cover Application Unknown and target mapping, API authorization and response bounds, and frontend observed/Unknown/freshness/failed-refresh behavior. Regress allowance tests if shared transport changes. Run the relevant focused and full backend/frontend checks, typecheck, lint, production build, NSwag regeneration/drift check, local documentation link check, and git diff --check, and report the exact commands and outcomes.
+
+Update docs/roadmap/current-work.md as a concise commit-ready delivery entry based on the verified parent, naming actual checks, remaining risks, and post-publication verification without claiming publication or embedding the future commit SHA. Present the complete uncommitted, unpushed diff, changed files, checks, and blockers to Codex for GO/NO-GO. Keep review corrections in this executor chat. Do not choose another slice or commit/push before explicit GO.
+```
+
+After a future GO, give one publication instruction covering the reviewed
+substantive commit (including `current-work.md`), a normal fast-forward push of
+`main` to `origin/main`, live-remote verification at the delivered SHA, and
+only any tightly factual documentation closure needed to record that SHA and
+verified publication. Re-review material or out-of-scope changes; stop for a
+failed push or remote divergence without force-push or history reconciliation.
+
+## Prior decision (2026-09-27): Codex allowance observation GO for publication
 
 - After Claude reached its credit limit, the owner asked Codex to finish this
   correction. Codex completed the same slice and reviewed the complete

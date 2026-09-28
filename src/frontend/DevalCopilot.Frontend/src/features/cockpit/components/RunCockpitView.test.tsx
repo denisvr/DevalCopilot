@@ -52,6 +52,9 @@ vi.mock('../../../api/clients', () => ({
   codexAccountAllowanceClient: vi.fn(() => ({
     getCodexAccountAllowance: vi.fn().mockResolvedValue({ status: 'Unknown' }),
   })),
+  codexModelCatalogClient: vi.fn(() => ({
+    getCodexModelCatalog: vi.fn().mockResolvedValue({ status: 'Unknown' }),
+  })),
 }))
 
 const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)

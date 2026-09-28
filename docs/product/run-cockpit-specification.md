@@ -412,6 +412,38 @@ existing "not yet collected" placeholder. See the
 ["Provider account-allowance contracts"](../architecture/agent-collaboration-protocol.md#provider-account-allowance-contracts)
 section of the agent-collaboration-protocol for the exact wire evidence.
 
+### Codex model and reasoning-effort catalog observation (read-only)
+
+A second bounded, read-only fact in the usage rail, beside the Codex
+account-allowance line: a fresh, picker-visible catalog of Codex models, each
+with its display name, the reasoning-effort identifiers it supports, and the
+provider's own suggested default effort, obtained on demand through the same
+already-vetted local Codex CLI launch target and the documented Codex App
+Server `model/list` protocol. It reports the host's own retrieval time
+alongside the catalog. Unavailable data — no vetted Codex target, an
+unsupported protocol method, a malformed or excessive response, a timeout, or a
+process failure — is shown as an explicit `Unknown`, never an empty-looking
+success. Models are listed individually, without an invented aggregate; a
+model missing, or reporting an unsafe (control-character or bidirectional-
+formatting-character), display name falls back to showing its own id rather
+than hiding the entry or rendering text that could visually misrepresent
+itself. A model's supported reasoning-effort identifiers are shown only as a
+whole trustworthy list: if any individual reported effort was malformed or
+duplicated, the whole field is shown as an explicit Unknown rather than a
+partial list with the bad entry silently dropped; a model that genuinely
+reports no supported efforts shows that field as empty, not Unknown. A
+model's suggested default effort is shown only when it is itself one of that
+model's own known supported efforts; otherwise it is shown as Unknown rather
+than an unverified claim. This is catalog evidence only: it carries no model or reasoning-effort
+selection, no run intent, no attempt-assignment or invocation argument, no
+account-authentication claim, and it never implies a listed model remains
+available, authenticated, or eligible to invoke at dispatch time. It is not
+scheduled or polled automatically — the rail requests one fresh catalog on
+mount and again only when the reader explicitly asks for a refresh, exactly
+like the account-allowance line beside it. See the
+["Codex model and reasoning-effort catalog contract"](../architecture/agent-collaboration-protocol.md#codex-model-and-reasoning-effort-catalog-contract)
+section of the agent-collaboration-protocol for the exact wire evidence.
+
 ### Provider account usage guardrails
 
 This remains the target end state the observation above is one step toward;

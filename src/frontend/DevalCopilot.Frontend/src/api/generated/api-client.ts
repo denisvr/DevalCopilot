@@ -2073,6 +2073,51 @@ export class GetProviderRuntimePreflightEndpointClient {
     }
 }
 
+export class GetCodexModelCatalogEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCodexModelCatalog(): Promise<CodexModelCatalogResponse> {
+        let url_ = this.baseUrl + "/api/environment/codex-model-catalog";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCodexModelCatalog(_response);
+        });
+    }
+
+    protected processGetCodexModelCatalog(response: Response): Promise<CodexModelCatalogResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CodexModelCatalogResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CodexModelCatalogResponse>(null as any);
+    }
+}
+
 export class GetCodexAccountAllowanceEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5892,6 +5937,114 @@ export interface IProviderRuntimePreflightResponse {
     compaction?: string;
     sessions?: string;
     accountUsage?: string;
+}
+
+export class CodexModelCatalogResponse implements ICodexModelCatalogResponse {
+    status?: string;
+    retrievedAtUtc?: Date | undefined;
+    models?: CodexModelCatalogEntryResponse[];
+
+    constructor(data?: ICodexModelCatalogResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.retrievedAtUtc = _data["retrievedAtUtc"] ? new Date(_data["retrievedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["models"])) {
+                this.models = [] as any;
+                for (let item of _data["models"])
+                    this.models!.push(CodexModelCatalogEntryResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): CodexModelCatalogResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexModelCatalogResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["retrievedAtUtc"] = this.retrievedAtUtc ? this.retrievedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.models)) {
+            data["models"] = [];
+            for (let item of this.models)
+                data["models"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface ICodexModelCatalogResponse {
+    status?: string;
+    retrievedAtUtc?: Date | undefined;
+    models?: CodexModelCatalogEntryResponse[];
+}
+
+export class CodexModelCatalogEntryResponse implements ICodexModelCatalogEntryResponse {
+    id?: string;
+    displayName?: string;
+    supportedReasoningEfforts?: string[] | undefined;
+    defaultReasoningEffort?: string | undefined;
+
+    constructor(data?: ICodexModelCatalogEntryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.displayName = _data["displayName"];
+            if (Array.isArray(_data["supportedReasoningEfforts"])) {
+                this.supportedReasoningEfforts = [] as any;
+                for (let item of _data["supportedReasoningEfforts"])
+                    this.supportedReasoningEfforts!.push(item);
+            }
+            this.defaultReasoningEffort = _data["defaultReasoningEffort"];
+        }
+    }
+
+    static fromJS(data: any): CodexModelCatalogEntryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexModelCatalogEntryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["displayName"] = this.displayName;
+        if (Array.isArray(this.supportedReasoningEfforts)) {
+            data["supportedReasoningEfforts"] = [];
+            for (let item of this.supportedReasoningEfforts)
+                data["supportedReasoningEfforts"].push(item);
+        }
+        data["defaultReasoningEffort"] = this.defaultReasoningEffort;
+        return data;
+    }
+}
+
+export interface ICodexModelCatalogEntryResponse {
+    id?: string;
+    displayName?: string;
+    supportedReasoningEfforts?: string[] | undefined;
+    defaultReasoningEffort?: string | undefined;
 }
 
 export class CodexAccountAllowanceResponse implements ICodexAccountAllowanceResponse {

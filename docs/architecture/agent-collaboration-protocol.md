@@ -1176,6 +1176,67 @@ start.
 account-allowance observation has been established; the cockpit continues to
 show its existing "not yet collected" placeholder for Claude.
 
+### Codex model and reasoning-effort catalog contract
+
+**Codex — read-only, picker-visible model catalog observation, distinct from
+both contracts above.** The official Codex App Server `model/list` method
+(`https://learn.chatgpt.com/docs/app-server#list-models-modellist`) returns a
+`data` array of client/account-specific models, each with `id`, `displayName`,
+an optional `hidden` flag, `supportedReasoningEfforts` (an array of
+`{reasoningEffort, description}` objects), and an optional
+`defaultReasoningEffort`, plus an opaque `nextCursor` for bounded pagination.
+The documented request accepts `includeHidden` and a page-size `limit`; the
+installed `codex-cli 0.158.0-alpha.2.1` build's own generated App Server schema
+(`ClientRequest.json` for the request envelope, `v2/ModelListParams.json` for
+bounded cursor paging and `includeHidden`, and `v2/ModelListResponse.json` for
+the model/effort fields) confirms cursor-based paging for that installed build.
+The documentation explicitly states that "available models, reasoning efforts,
+and defaults depend on the client and account" — its examples are illustrative,
+never a permanent or exhaustive catalog, and a listed model is never inferred
+to remain available, authenticated, or eligible to invoke at dispatch time.
+
+This reuses the exact same launch-target revalidation, `--stdio` handshake, and
+process-tree-cleanup mechanics the account-allowance contract above
+established, factored into one shared session so neither contract's wire
+behavior changed when the second was added. The read/write handle used after
+the handshake is a closed, method-specific surface — never a general-purpose
+JSON-RPC escape hatch or an arbitrary raw-JSON write path: it exposes exactly
+the two reviewed read-only methods this application ever sends
+(`account/rateLimits/read` and `model/list`), each building its own fixed
+request JSON internally from validated primitive parameters. `includeHidden:
+false` is always requested; any entry the provider still marks `hidden: true`
+is discarded defensively rather than trusted into the picker-visible
+projection. Pages are followed only through a bounded number of `nextCursor`
+continuations, each itself bounded to a small page size and a bounded total
+entry count across every page — a provider that still claims more pages exist
+once that bound is reached is never presented as a silently truncated but
+otherwise "complete" catalog: the whole observation reports `Unknown` instead.
+
+A model's own `id` is treated like the allowance contract's limit id: bounded,
+restricted to a safe identifier character set, and required to be unique
+across every page — a missing, oversized, malformed, or duplicate id fails the
+whole catalog closed, never just that one entry. `displayName` is descriptive
+data, not an identifier: it falls back to the model's own already-validated id
+whenever it is missing, oversized, blank, or carries a control or
+bidirectional-formatting character (for example a Unicode right-to-left
+override, which could otherwise make a rendered name visually misrepresent
+itself) — never failing the entry over display text. `supportedReasoningEfforts`
+is read as a whole: a malformed or duplicate individual effort makes the
+entire field Unknown rather than presenting a partial list with the bad
+element silently dropped, since a partial list would misrepresent what the
+provider actually reported; a genuinely excessive list still fails the whole
+catalog closed, and an absent or explicitly empty list is a valid, non-Unknown
+empty result. `defaultReasoningEffort` is projected only when it is itself a
+bounded, valid identifier *and* a member of that same entry's own known
+(non-Unknown) `supportedReasoningEfforts` — an internally inconsistent or
+unverifiable default is Unknown rather than an unchecked claim. A JSON-RPC
+`error` on the handshake or the `model/list` method, a missing vetted Codex
+launch target, a timeout, cancellation, or any process failure all resolve to
+the same `Unknown` state, exactly like the allowance contract. This is catalog
+evidence only — never model or effort selection, invocation arguments, attempt
+assignment, account authentication, or a guarantee that a listed model remains
+available at dispatch.
+
 ## Token efficiency
 
 - Build a context manifest for each attempt and include only inputs required by

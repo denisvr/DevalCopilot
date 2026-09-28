@@ -1,13 +1,28 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CodexAccountAllowanceResponse, CodexAllowanceBucketResponse, CodexAllowanceWindowResponse } from '../../../api/generated/api-client'
-import { codexAccountAllowanceClient } from '../../../api/clients'
+import {
+  CodexAccountAllowanceResponse,
+  CodexAllowanceBucketResponse,
+  CodexAllowanceWindowResponse,
+  CodexModelCatalogResponse,
+  CodexModelCatalogEntryResponse,
+} from '../../../api/generated/api-client'
+import { codexAccountAllowanceClient, codexModelCatalogClient } from '../../../api/clients'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
 
 vi.mock('../../../api/clients', () => ({
   codexAccountAllowanceClient: vi.fn(),
+  codexModelCatalogClient: vi.fn(),
 }))
+
+function stubUnknownCatalog() {
+  const getCodexModelCatalog = vi.fn().mockResolvedValue(
+    new CodexModelCatalogResponse({ status: 'Unknown', retrievedAtUtc: undefined, models: [] }),
+  )
+  vi.mocked(codexModelCatalogClient).mockReturnValue({ getCodexModelCatalog } as never)
+  return getCodexModelCatalog
+}
 
 describe('UsageEvidenceRail', () => {
   it('shows a real, positive Codex account-allowance snapshot with its retrieval time', async () => {
@@ -25,6 +40,7 @@ describe('UsageEvidenceRail', () => {
       }),
     )
     vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    stubUnknownCatalog()
 
     render(<UsageEvidenceRail />)
 
@@ -51,6 +67,7 @@ describe('UsageEvidenceRail', () => {
       }),
     )
     vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    stubUnknownCatalog()
 
     render(<UsageEvidenceRail />)
 
@@ -63,6 +80,7 @@ describe('UsageEvidenceRail', () => {
       new CodexAccountAllowanceResponse({ status: 'Unknown', retrievedAtUtc: undefined, buckets: [] }),
     )
     vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    stubUnknownCatalog()
 
     render(<UsageEvidenceRail />)
 
@@ -75,11 +93,12 @@ describe('UsageEvidenceRail', () => {
       new CodexAccountAllowanceResponse({ status: 'Unknown', retrievedAtUtc: undefined, buckets: [] }),
     )
     vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    stubUnknownCatalog()
 
     render(<UsageEvidenceRail />)
     await waitFor(() => expect(getCodexAccountAllowance).toHaveBeenCalledTimes(1))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh Codex account usage' }))
 
     await waitFor(() => expect(getCodexAccountAllowance).toHaveBeenCalledTimes(2))
   })
@@ -95,15 +114,72 @@ describe('UsageEvidenceRail', () => {
     })
     const getCodexAccountAllowance = vi.fn().mockResolvedValueOnce(observed).mockRejectedValueOnce(new Error('private detail'))
     vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    stubUnknownCatalog()
 
     render(<UsageEvidenceRail />)
     await waitFor(() => expect(screen.getByText(/Primary: 42%/)).toBeTruthy())
     expect(screen.getByText(/^Retrieved /)).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh Codex account usage' }))
     await waitFor(() => expect(screen.getByText('Codex account usage: Unknown')).toBeTruthy())
     expect(screen.queryByText(/^Retrieved /)).toBeNull()
     expect(screen.getByLabelText('Usage and evidence').querySelector('[data-status="Observed"]')).toBeNull()
+  })
+
+  it('shows a real, positive Codex model catalog with supported and default reasoning effort', async () => {
+    const getCodexAccountAllowance = vi.fn().mockResolvedValue(
+      new CodexAccountAllowanceResponse({ status: 'Unknown', retrievedAtUtc: undefined, buckets: [] }),
+    )
+    vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+
+    const getCodexModelCatalog = vi.fn().mockResolvedValue(
+      new CodexModelCatalogResponse({
+        status: 'Observed',
+        retrievedAtUtc: new Date('2026-09-28T12:00:00Z') as never,
+        models: [
+          new CodexModelCatalogEntryResponse({
+            id: 'gpt-6-sol',
+            displayName: 'GPT-6 Sol',
+            supportedReasoningEfforts: ['medium', 'high'],
+            defaultReasoningEffort: 'medium',
+          }),
+        ],
+      }),
+    )
+    vi.mocked(codexModelCatalogClient).mockReturnValue({ getCodexModelCatalog } as never)
+
+    render(<UsageEvidenceRail />)
+
+    await waitFor(() => expect(screen.getByText(/GPT-6 Sol/)).toBeTruthy())
+    expect(screen.getByText(/medium, high/)).toBeTruthy()
+    expect(screen.getByText(/default: medium/)).toBeTruthy()
+  })
+
+  it('shows an explicit Unknown for the model catalog, never an empty-looking success', async () => {
+    const getCodexAccountAllowance = vi.fn().mockResolvedValue(
+      new CodexAccountAllowanceResponse({ status: 'Unknown', retrievedAtUtc: undefined, buckets: [] }),
+    )
+    vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    stubUnknownCatalog()
+
+    render(<UsageEvidenceRail />)
+
+    await waitFor(() => expect(screen.getByText('Codex model catalog: Unknown')).toBeTruthy())
+  })
+
+  it('the model catalog refresh control requests a fresh catalog', async () => {
+    const getCodexAccountAllowance = vi.fn().mockResolvedValue(
+      new CodexAccountAllowanceResponse({ status: 'Unknown', retrievedAtUtc: undefined, buckets: [] }),
+    )
+    vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    const getCodexModelCatalog = stubUnknownCatalog()
+
+    render(<UsageEvidenceRail />)
+    await waitFor(() => expect(getCodexModelCatalog).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh Codex model catalog' }))
+
+    await waitFor(() => expect(getCodexModelCatalog).toHaveBeenCalledTimes(2))
   })
 
   it('still shows the Claude account-usage placeholder unchanged', async () => {
@@ -111,6 +187,7 @@ describe('UsageEvidenceRail', () => {
       new CodexAccountAllowanceResponse({ status: 'Unknown', retrievedAtUtc: undefined, buckets: [] }),
     )
     vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+    stubUnknownCatalog()
 
     render(<UsageEvidenceRail />)
 
