@@ -8,6 +8,17 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Published delivery: `8ddc34284c3c5461510090c06a895cce9871966d` (parent
+  `7cc091dcaa032740def1cca214c3ad83c09a5cd2`) was committed with the reviewed
+  73-file Claude model-alias request slice (51 modified, 22 new), pushed as a
+  normal fast-forward to `origin/main`, and verified with `git fetch origin main`
+  and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all
+  matched the delivered SHA, with a clean working tree. Focused checks rerun
+  against that commit, all passing: Domain 22, Application 32, Infrastructure 25,
+  Api 20 (Claude claim-snapshot and commit-window race, adapter argument, set/clear
+  endpoint, migration, and supervisor replay/no-fallback tests). This closure
+  records the delivered SHA and those checks only; no code or product contract
+  changed after publication.
 - Current delivery, based on verified parent
   `7cc091dcaa032740def1cca214c3ad83c09a5cd2`: explicit, run-scoped Claude
   model-alias requests (`sonnet`, `opus`, `haiku`) for the CriticalReviewer,
@@ -55,9 +66,7 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     failure. A null attempt snapshot means "no request recorded" for both a
     request-free claim and a pre-feature attempt; the cockpit cannot and does not
     distinguish them. No real provider invocation was made.
-  - Post-publication verification: confirm `main`, local `origin/main`, and the
-    live remote match the delivered commit with a clean tree, then rerun the
-    Claude claim, adapter, and supervisor focused tests against it.
+  - Post-publication verification (done): see the published-delivery entry above.
 - Published delivery: `447a650636eb2d0e26e34a356b379045a1181e52`
   (parent `26ae6bcb8df98d3d589b0ab5264a0be135353da6`) was committed with the
   reviewed 8-file slice, pushed as a normal fast-forward to `origin/main`, and
