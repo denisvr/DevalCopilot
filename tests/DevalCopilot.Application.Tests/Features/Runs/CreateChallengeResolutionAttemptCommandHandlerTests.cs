@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
+using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.CreateChallengeResolutionAttempt;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -24,6 +26,11 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
     public Task InitializeAsync() => _fixture.InitializeAsync();
 
     public Task DisposeAsync() => _fixture.DisposeAsync();
+
+    /// <summary>A real <see cref="AttemptDurabilityProbe"/> against this fixture's own database
+    /// file — a genuinely independent connection, not a fake — so every fault-injection test below
+    /// exercises the actual probe a claim handler depends on.</summary>
+    private IAttemptDurabilityProbe DurabilityProbe => new AttemptDurabilityProbe(_fixture.Options);
 
     private sealed class FakeGitWorkspaceEvidenceReader(GitWorkspaceEvidenceResult result) : IGitWorkspaceEvidenceReader
     {
@@ -248,7 +255,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -278,6 +285,327 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         Assert.Equal(attempt.AgentContextManifestArtifactId, manifestArtifact.Id);
     }
 
+    // The claim-time assignment-freshness fix: this run's preference at initial load is one pair,
+    // but a wholly separate transaction commits a different pair while this handler is still doing
+    // its external Git evidence capture — strictly between its own pre-check and its final
+    // SaveChangesAsync, exactly like every other race this file already reproduces via
+    // RaceInjectingEvidenceReader. The claimed attempt must embed the pair current at the claim
+    // boundary (after that external work), never the stale pair read at the top of the method.
+    [Fact]
+    public async Task HandleAsync_claims_the_preference_current_at_the_claim_boundary_when_it_changes_during_external_work()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext);
+        run.SetRequestedCodexAssignment("gpt-5-legacy", "low");
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(seedContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        var runId = run.Id;
+        var reviewAttemptId = reviewAttempt.Id;
+
+        await using var raceContext = _fixture.CreateContext();
+        await using var handlerContext = _fixture.CreateContext();
+
+        var artifactStore = new FakeArtifactStore();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            async cancellationToken =>
+            {
+                var racingRun = await raceContext.Runs.SingleAsync(candidate => candidate.Id == runId, cancellationToken);
+                racingRun.SetRequestedCodexAssignment("gpt-6-sol", "high");
+                await raceContext.SaveChangesAsync(cancellationToken);
+            });
+
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(runId, reviewAttemptId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+
+        await using var verifyContext = _fixture.CreateContext();
+        var claimedAttempt = await verifyContext.Attempts.SingleAsync(a => a.Id == result.Value.AttemptId);
+        Assert.Equal("gpt-6-sol", claimedAttempt.AgentRequestedModel);
+        Assert.Equal("high", claimedAttempt.AgentRequestedEffort);
+
+        // A later preference change must never reach back into an already-claimed attempt: the
+        // durable snapshot a reload (and, in production, a restart-surviving dispatch) would read
+        // is this claim's own immutable pair, never the Run's own further-changed current value.
+        var runAfterClaim = await verifyContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+        runAfterClaim.SetRequestedCodexAssignment("gpt-7-nova", "medium");
+        await verifyContext.SaveChangesAsync(CancellationToken.None);
+
+        await using var dispatchContext = _fixture.CreateContext();
+        var reloadedAttempt = await dispatchContext.Attempts.SingleAsync(a => a.Id == result.Value.AttemptId);
+        Assert.Equal("gpt-6-sol", reloadedAttempt.AgentRequestedModel);
+        Assert.Equal("high", reloadedAttempt.AgentRequestedEffort);
+    }
+
+    // The post-read interleaving a plain read alone cannot guard: a preference-only change
+    // committed by a wholly separate transaction strictly between an earlier ReadAsync and this
+    // claim's own confirmation guard. Neither real concurrency nor Run.Lifecycle (not a guard for
+    // this field) is needed to prove this deterministically — the guard is a single atomic
+    // database statement, so driving it directly with a value that no longer matches the row's
+    // current, already-committed state reproduces the exact failure case by construction.
+    [Fact]
+    public async Task A_preference_change_between_the_authoritative_read_and_the_claim_commit_is_excluded_by_the_confirmation_guard()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, _, _) = await SeedEligibleRunAsync(seedContext);
+        run.SetRequestedCodexAssignment("gpt-5-legacy", "low");
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        var runId = run.Id;
+
+        await using (var racingContext = _fixture.CreateContext())
+        {
+            var racingRun = await racingContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            racingRun.SetRequestedCodexAssignment("gpt-6-sol", "high");
+            await racingContext.SaveChangesAsync(CancellationToken.None);
+        }
+
+        await using var guardContext = _fixture.CreateContext();
+        var confirmed = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
+            guardContext, runId, "gpt-5-legacy", "low", CancellationToken.None);
+
+        Assert.False(confirmed);
+
+        await using var verify = _fixture.CreateContext();
+        var finalRun = await verify.Runs.SingleAsync(candidate => candidate.Id == runId);
+        Assert.Equal("gpt-6-sol", finalRun.RequestedCodexModel);
+        Assert.Equal("high", finalRun.RequestedCodexEffort);
+    }
+
+    // Fault-injection: acquiring the claim's own guard transaction itself fails — a raw provider
+    // failure, never a confirmed preference change. The already-sealed manifest file must not
+    // become a permanent orphan, and no Attempt of any kind is ever persisted.
+    [Fact]
+    public async Task HandleAsync_fails_closed_and_cleans_up_the_sealed_artifact_when_transaction_acquisition_fails()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext) { ThrowOnBeginTransaction = true };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("attempts.persistence_failed", Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver));
+    }
+
+    // Fault-injection: the commit itself fails, and nothing actually persisted before the
+    // failure. Must clean up exactly like the existing SaveChangesAsync-failure path, never
+    // leaving an orphaned sealed artifact or a stale-pair Attempt.
+    [Fact]
+    public async Task HandleAsync_fails_closed_and_cleans_up_the_sealed_artifact_when_the_commit_fails_without_persisting()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext)
+        {
+            CommitFailure = FaultInjectingDbContext.CommitFailureMode.BeforeCommit,
+        };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("attempts.persistence_failed", Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver));
+    }
+
+    // Fault-injection: the commit's outcome is uncertain — the database actually completed it
+    // before the exception reached this connection. The handler must trust only a fresh,
+    // untracked read here, never the exception alone, and must report success without deleting
+    // the now-durably-referenced sealed artifact.
+    [Fact]
+    public async Task HandleAsync_reports_success_when_the_commit_actually_persisted_despite_throwing()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext)
+        {
+            CommitFailure = FaultInjectingDbContext.CommitFailureMode.AfterCommit,
+        };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(artifactStore.DeletedSealedFiles);
+
+        await using var verify = _fixture.CreateContext();
+        var attempt = Assert.Single(verify.Attempts, a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver);
+        Assert.Equal(result.Value.AttemptId, attempt.Id);
+    }
+
+    // Fault-injection: the commit fails without persisting, and the handler's own best-effort
+    // rollback of that same transaction also throws. The independent durability probe — never the
+    // claim's own DbContext or this failed rollback — must still be the sole authority: it uses its
+    // own connection, so it reports NotPersisted regardless of what happened to the rollback call.
+    [Fact]
+    public async Task HandleAsync_fails_closed_when_the_commit_fails_and_the_rollback_also_throws()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext)
+        {
+            CommitFailure = FaultInjectingDbContext.CommitFailureMode.BeforeCommitRollbackAlsoThrows,
+        };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("attempts.persistence_failed", Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver));
+    }
+
+    // Fault-injection: the commit actually persisted despite throwing, and the handler's own
+    // best-effort rollback of that same (already-committed) transaction also throws. The
+    // independent durability probe must still report Persisted through its own connection, and the
+    // sealed artifact must never be deleted.
+    [Fact]
+    public async Task HandleAsync_reports_success_when_the_commit_persisted_and_the_rollback_also_throws()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext)
+        {
+            CommitFailure = FaultInjectingDbContext.CommitFailureMode.AfterCommitRollbackAlsoThrows,
+        };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(
+            new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Empty(artifactStore.DeletedSealedFiles);
+
+        await using var verify = _fixture.CreateContext();
+        var attempt = Assert.Single(verify.Attempts, a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver);
+        Assert.Equal(result.Value.AttemptId, attempt.Id);
+    }
+
+    // Fault-injection: cancellation during transaction acquisition itself. Must propagate as
+    // OperationCanceledException — never converted into a Result, never misreported as a
+    // preference conflict or an ordinary persistence failure — while still cleaning up the
+    // already-sealed manifest file, since nothing was ever begun.
+    [Fact]
+    public async Task HandleAsync_propagates_cancellation_and_cleans_up_the_sealed_artifact_when_transaction_acquisition_is_cancelled()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext) { ThrowCancellationOnBeginTransaction = true };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => handler.HandleAsync(new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None));
+
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver));
+    }
+
+    // Fault-injection: cancellation during the commit, with nothing actually persisted. Must
+    // propagate as OperationCanceledException while cleaning up exactly like the DbException
+    // commit-failure path.
+    [Fact]
+    public async Task HandleAsync_propagates_cancellation_and_cleans_up_the_sealed_artifact_when_the_commit_is_cancelled_without_persisting()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext)
+        {
+            CommitFailure = FaultInjectingDbContext.CommitFailureMode.CancellationBeforeCommit,
+        };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => handler.HandleAsync(new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None));
+
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver));
+    }
+
+    // Fault-injection: cancellation during the commit, but the database actually completed it
+    // first. Must still propagate as OperationCanceledException while never deleting the now-
+    // durably-referenced sealed artifact.
+    [Fact]
+    public async Task HandleAsync_propagates_cancellation_without_deleting_the_artifact_when_the_commit_actually_persisted_despite_cancellation()
+    {
+        await using var innerContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(innerContext);
+        var (_, _, reviewAttempt, _) = SeedChallengedReview(innerContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        await innerContext.SaveChangesAsync(CancellationToken.None);
+
+        var faultingContext = new FaultInjectingDbContext(innerContext)
+        {
+            CommitFailure = FaultInjectingDbContext.CommitFailureMode.CancellationAfterCommit,
+        };
+        var artifactStore = new FakeArtifactStore();
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(
+            faultingContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => handler.HandleAsync(new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None));
+
+        Assert.Empty(artifactStore.DeletedSealedFiles);
+
+        await using var verify = _fixture.CreateContext();
+        Assert.Single(verify.Attempts, a => a.RunId == run.Id && a.Kind == AttemptKind.Agent && a.AgentRole == AgentRole.Resolver);
+    }
+
     [Fact]
     public async Task HandleAsync_fails_when_the_run_wide_agent_claim_budget_is_exhausted()
     {
@@ -289,7 +617,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -314,7 +642,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -356,7 +684,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
                 await raceContext.SaveChangesAsync(cancellationToken);
             });
 
-        var handler = new CreateChallengeResolutionAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateChallengeResolutionAttemptCommand(runId, reviewAttemptId), CancellationToken.None);
 
@@ -396,7 +724,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
                 await raceContext.SaveChangesAsync(cancellationToken);
             });
 
-        var handler = new CreateChallengeResolutionAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+        var handler = new CreateChallengeResolutionAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateChallengeResolutionAttemptCommand(runId, reviewAttemptId), CancellationToken.None);
 
@@ -467,7 +795,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -481,7 +809,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await using var dbContext = _fixture.CreateContext();
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
@@ -501,7 +829,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -521,7 +849,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -537,7 +865,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext, workspaceReady: false);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -553,7 +881,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext, codexObserved: false);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -569,7 +897,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(new string('b', 64)), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(new string('b', 64)), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -585,7 +913,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -608,7 +936,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, acceptedReview.Id), CancellationToken.None);
@@ -645,7 +973,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, challengedReview.Id), CancellationToken.None);
@@ -669,7 +997,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(currentFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(currentFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -717,7 +1045,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -744,7 +1072,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -763,7 +1091,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
             dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint),
-            new FakeArtifactStore { SealShouldFail = true }, new FixedTimeProvider(Now));
+            new FakeArtifactStore { SealShouldFail = true }, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);

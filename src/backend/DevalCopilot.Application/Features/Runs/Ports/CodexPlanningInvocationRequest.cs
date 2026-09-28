@@ -5,7 +5,10 @@ namespace DevalCopilot.Application.Features.Runs.Ports;
 /// already-dispatched Codex planning attempt. <see cref="LaunchExecutablePath"/> and
 /// <see cref="LaunchScriptPath"/> are already resolved and revalidated by the caller from the
 /// durable Codex capability snapshot — this request never causes a new search through PATH or a
-/// private provider install location.
+/// private provider install location. <see cref="RequestedModel"/> and
+/// <see cref="RequestedEffort"/> are this claimed attempt's own immutable requested assignment
+/// (never a later, possibly different, mutable Run value) and are already bounded, validated
+/// identifiers by the time they reach here — never a raw catalog payload.
 /// </summary>
 public sealed record CodexPlanningInvocationRequest(
     Guid RunId,
@@ -18,4 +21,6 @@ public sealed record CodexPlanningInvocationRequest(
     string? LaunchScriptPath,
     TimeSpan Timeout,
     int MaxBytesPerStream,
-    int MaxTotalCapturedBytes);
+    int MaxTotalCapturedBytes,
+    string? RequestedModel = null,
+    string? RequestedEffort = null);

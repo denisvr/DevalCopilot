@@ -19,6 +19,7 @@ import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
+import { CodexAssignmentPreferenceControl } from './CodexAssignmentPreferenceControl'
 import { AgentInvocationTimeBudgetBanner } from './AgentInvocationTimeBudgetBanner'
 import { AgentProcessDurationSummaryBanner } from './AgentProcessDurationSummaryBanner'
 import { AgentCollaboration } from './AgentCollaboration'
@@ -151,6 +152,13 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           pendingAttemptCount={cockpit.agentProcessDurationSummary?.pendingAttemptCount}
           validEvidenceCount={cockpit.agentProcessDurationSummary?.validEvidenceCount}
           malformedEvidenceCount={cockpit.agentProcessDurationSummary?.malformedEvidenceCount}
+        />
+      )}
+      {cockpit.runId === runId && (
+        <CodexAssignmentPreferenceControl
+          runId={runId}
+          requestedCodexModel={cockpit.requestedCodexModel ?? null}
+          requestedCodexEffort={cockpit.requestedCodexEffort ?? null}
         />
       )}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />

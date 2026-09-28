@@ -366,6 +366,80 @@ public sealed class AttemptTests
         Assert.Null(attempt.AgentProviderSessionId);
         // A Process-shaped field is never populated by an Agent claim.
         Assert.Null(attempt.ProcessExecutablePath);
+        Assert.Null(attempt.AgentRequestedModel);
+        Assert.Null(attempt.AgentRequestedEffort);
+    }
+
+    [Fact]
+    public void ClaimAgentWithAssignment_persists_a_requested_model_and_effort_pair()
+    {
+        var attempt = Attempt.ClaimAgentWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime,
+            requestedModel: "gpt-6-sol", requestedEffort: "high", agentBudgetSlot: 1);
+
+        Assert.Equal("gpt-6-sol", attempt.AgentRequestedModel);
+        Assert.Equal("high", attempt.AgentRequestedEffort);
+    }
+
+    [Fact]
+    public void ClaimAgentWithAssignment_throws_for_an_over_length_requested_model()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime,
+            requestedModel: new string('a', 129), requestedEffort: null, agentBudgetSlot: 1));
+    }
+
+    [Fact]
+    public void ClaimAgentWithAssignment_throws_for_a_requested_effort_without_a_requested_model()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime,
+            requestedModel: null, requestedEffort: "high", agentBudgetSlot: 1));
+    }
+
+    [Fact]
+    public void ClaimAgentChallengeResolutionWithAssignment_persists_a_requested_model_and_effort_pair()
+    {
+        var attempt = Attempt.ClaimAgentChallengeResolutionWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime,
+            requestedModel: "gpt-6-sol", requestedEffort: "medium", agentBudgetSlot: 1);
+
+        Assert.Equal("gpt-6-sol", attempt.AgentRequestedModel);
+        Assert.Equal("medium", attempt.AgentRequestedEffort);
+    }
+
+    [Fact]
+    public void ClaimAgentChallengeResolutionWithAssignment_throws_for_a_requested_effort_without_a_requested_model()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentChallengeResolutionWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime,
+            requestedModel: null, requestedEffort: "high", agentBudgetSlot: 1));
+    }
+
+    [Fact]
+    public void ClaimAgentCodeReviewWithAssignment_persists_a_requested_model_and_effort_pair()
+    {
+        var attempt = Attempt.ClaimAgentCodeReviewWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime,
+            requestedModel: "gpt-6-mini", requestedEffort: "low", agentBudgetSlot: 1);
+
+        Assert.Equal("gpt-6-mini", attempt.AgentRequestedModel);
+        Assert.Equal("low", attempt.AgentRequestedEffort);
+    }
+
+    [Fact]
+    public void ClaimAgentCodeReviewWithAssignment_throws_for_a_requested_effort_without_a_requested_model()
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCodeReviewWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), attemptNumber: 1, Guid.NewGuid(), Guid.NewGuid(),
+            "fingerprint-1", Guid.NewGuid(), TimeSpan.FromMinutes(10), 262144, 524288, BaseTime,
+            requestedModel: null, requestedEffort: "high", agentBudgetSlot: 1));
     }
 
     [Fact]

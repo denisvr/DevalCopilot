@@ -608,6 +608,8 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
         services.AddSingleton<IArtifactStore>(_artifactStore);
         services.AddDevalenteMediator(typeof(CreateCodeReviewAttemptCommand).Assembly);
         services.AddDevalenteRequestValidation(typeof(CreateCodeReviewAttemptCommand).Assembly);
+        services.AddScoped<IAttemptDurabilityProbe>(sp =>
+            new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
 
         if (faultInjector is not null)

@@ -132,6 +132,69 @@ public sealed class Run
     /// </summary>
     public TimeSpan? MaximumAgentInvocationTime { get; private set; }
 
+    /// <summary>The most limit-id-style bounded length this Run trusts for a requested Codex
+    /// model or reasoning-effort identifier — mirrors <c>Attempt</c>'s own assignment-identifier
+    /// bound so a value that later flows into a claimed <c>Attempt</c>'s immutable assignment
+    /// fields can never itself be rejected there.</summary>
+    private const int MaxRequestedAssignmentIdentifierLength = 128;
+
+    /// <summary>
+    /// The owner's current, explicit, run-scoped request for future Codex Planner, Challenge
+    /// Resolver, and Code Reviewer attempts — never an effective, observed, or guaranteed value.
+    /// <see langword="null"/> means no explicit request is set (the default for every historical
+    /// and newly created Run): future Codex claims pass no override and the shared Codex invoker
+    /// preserves its exact existing argument list. Changing this while an attempt is already
+    /// claimed never affects that already-claimed attempt's own immutable assignment — only a
+    /// later claim reads the new value.
+    /// </summary>
+    public string? RequestedCodexModel { get; private set; }
+
+    /// <summary>The owner's current, explicit, run-scoped requested reasoning effort, paired with
+    /// <see cref="RequestedCodexModel"/>. Always <see langword="null"/> when
+    /// <see cref="RequestedCodexModel"/> is <see langword="null"/> — an effort is never requested
+    /// without a requested model.</summary>
+    public string? RequestedCodexEffort { get; private set; }
+
+    /// <summary>
+    /// Sets or clears the owner's explicit, run-scoped Codex model/effort request for future
+    /// Planner, Challenge Resolver, and Code Reviewer claims. This method only enforces the
+    /// structural invariants an <c>Attempt</c>'s own assignment fields already require (bounded
+    /// length, an effort never present without a model) — the business rule that a non-null model
+    /// must be one visible, freshly observed catalog id (and a non-null effort one of that
+    /// model's own known supported efforts) is validated by the calling Application handler
+    /// against a fresh catalog observation, before this method is ever called, because Domain
+    /// never performs I/O. Permitted while <see cref="Lifecycle"/> is <see cref="RunLifecycle.Created"/>
+    /// or <see cref="RunLifecycle.Running"/> — a terminal Run accepts no further preference change.
+    /// </summary>
+    public void SetRequestedCodexAssignment(string? requestedModel, string? requestedEffort)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot change the requested Codex assignment for a run whose lifecycle is {Lifecycle}.");
+        }
+
+        if (!IsValidRequestedAssignmentIdentifier(requestedModel))
+        {
+            throw new ArgumentException("A requested Codex model must be blank or at most 128 characters.", nameof(requestedModel));
+        }
+
+        if (!IsValidRequestedAssignmentIdentifier(requestedEffort))
+        {
+            throw new ArgumentException("A requested Codex effort must be blank or at most 128 characters.", nameof(requestedEffort));
+        }
+
+        if (requestedModel is null && requestedEffort is not null)
+        {
+            throw new ArgumentException("A requested Codex effort requires a requested model.", nameof(requestedEffort));
+        }
+
+        RequestedCodexModel = requestedModel;
+        RequestedCodexEffort = requestedEffort;
+    }
+
+    private static bool IsValidRequestedAssignmentIdentifier(string? value) =>
+        value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= MaxRequestedAssignmentIdentifierLength);
+
     /// <summary>
     /// The hosted supervisor claims recorded intent and starts the simulated attempt.
     /// This is the transition that must happen outside the command that recorded intent.

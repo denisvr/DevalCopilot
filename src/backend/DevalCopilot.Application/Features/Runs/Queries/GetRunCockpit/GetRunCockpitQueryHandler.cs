@@ -169,6 +169,8 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 agentInvocationTimeBudget,
                 agentProcessDurationSummary,
                 agentClaimPathTimeFits,
+                run.RequestedCodexModel,
+                run.RequestedCodexEffort,
                 latestAgentAttempt is null
                     ? null
                     : new RunCockpitAgentAttemptEntry(

@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
@@ -8,6 +9,7 @@ using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
 
@@ -15,7 +17,8 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
     IDevalCopilotDbContext dbContext,
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IAttemptDurabilityProbe attemptDurabilityProbe)
     : ICommandHandler<CreateCodexPlanningAttemptCommand, Result<CreateCodexPlanningAttemptCommandResult>>
 {
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
@@ -171,7 +174,12 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
         var agentBudgetSlot = agentAttemptsUsed + 1;
 
-        var attempt = Attempt.ClaimAgent(
+        // The final durable claim boundary: a genuinely fresh, untracked read of the Run's own
+        // current preference, taken only now — after the external Git evidence capture and
+        // artifact-sealing work above have both already completed. See CurrentCodexAssignmentPreference.
+        var (requestedModel, requestedEffort) = await CurrentCodexAssignmentPreference.ReadAsync(dbContext, run.Id, cancellationToken);
+
+        var attempt = Attempt.ClaimAgentWithAssignment(
             attemptId,
             run.Id,
             attemptNumber,
@@ -183,8 +191,9 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
             nowUtc,
+            requestedModel,
+            requestedEffort,
             agentBudgetSlot);
-        dbContext.Attempts.Add(attempt);
 
         var manifestArtifact = Artifact.Record(
             manifestArtifactId,
@@ -200,114 +209,318 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             ArtifactSensitivity.HostConstructedContent,
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
             nowUtc);
-        dbContext.Artifacts.Add(manifestArtifact);
 
-        if (run.Lifecycle == RunLifecycle.Created)
-        {
-            run.Claim(nowUtc);
-        }
-
+        // The final durable claim boundary: one short, explicit transaction — opened only now,
+        // after all external work above has completed — makes the guard check and the Attempt's
+        // own commit a single atomic database operation, so no other transaction can commit a
+        // conflicting preference change in between. Its connection's own SQLite lock-wait is
+        // bounded by Microsoft.Data.Sqlite's own default (30 seconds), confirmed by direct
+        // measurement to be a genuine bound rather than an indefinite wait, so a genuine conflict
+        // fails within that bound instead of waiting forever. Every step of this boundary —
+        // acquiring the transaction, the guard, the save, and the commit — is covered below, and
+        // every failure path cleans up the already-sealed manifest file unless a fresh, untracked
+        // read confirms the Attempt is durably persisted despite the failure.
+        IDbContextTransaction claimTransaction;
         try
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            claimTransaction = await dbContext.BeginTransactionAsync(cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (OperationCanceledException)
         {
-            // The exception means this DbContext's change tracker no longer reliably reflects
-            // what actually committed — the cause is never inferred from what this request
-            // attempted, only from a fresh, untracked read of what the database actually holds
-            // now.
-            var thisAttemptPersisted = await dbContext.Attempts
-                .AsNoTracking()
-                .AnyAsync(candidate => candidate.Id == attemptId, cancellationToken);
-            if (thisAttemptPersisted)
-            {
-                // Committed despite the thrown exception (e.g. the failure came from an
-                // unrelated statement later in the same batch) — nothing to clean up, and
-                // reporting a conflict or deleting this request's own artifact here would both
-                // be false.
-                return Result<CreateCodexPlanningAttemptCommandResult>.Success(
-                    new CreateCodexPlanningAttemptCommandResult(attemptId, attemptNumber));
-            }
-
-            // Never persisted: the sealed manifest artifact this request already wrote is
-            // certain to never be referenced by any Artifact row, so it is cleaned up
-            // regardless of what actually caused the failure. The two entities this call added
-            // are also removed from tracking so this DbContext instance can never later
-            // accidentally re-attempt to persist a known-failed insert if its scope continues.
+            // Nothing was ever begun — no tracked entity has been added and no statement could
+            // have executed, so the sealed manifest is unconditionally orphaned. Cancellation is
+            // never converted into a Result; it propagates exactly as cancellation.
             artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
-            dbContext.Attempts.Remove(attempt);
-            dbContext.Artifacts.Remove(manifestArtifact);
-
-            var competingRunningAttemptExists = await dbContext.Attempts
-                .AsNoTracking()
-                .AnyAsync(candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken);
-            if (competingRunningAttemptExists)
-            {
-                // The race the filtered unique index exists to close: a concurrent request
-                // committed its own Running attempt for this run first.
-                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                    Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress."));
-            }
-
-            // The race the (RunId, AgentBudgetSlot) unique index exists to close: a concurrent
-            // request already consumed the exact slot this request also computed. Below the
-            // maximum, this is a safe, retryable conflict — only this one slot number was lost to
-            // a faster concurrent claim, not the run's whole budget. Only when the run's real
-            // Agent-attempt count has already reached its maximum is this truthfully exhaustion.
-            var slotAlreadyClaimedByAnotherAttempt = await dbContext.Attempts.AsNoTracking().AnyAsync(
-                candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent && candidate.AgentBudgetSlot == agentBudgetSlot,
-                cancellationToken);
-            if (slotAlreadyClaimedByAnotherAttempt)
-            {
-                var agentAttemptsUsedNow = await dbContext.Attempts.AsNoTracking().CountAsync(
-                    candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent, cancellationToken);
-                if (agentAttemptsUsedNow >= run.MaximumAgentAttempts)
-                {
-                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                        Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."));
-                }
-
-                // Distinguishes a genuine time-budget rejection from a merely lost slot race: a
-                // concurrent claim that also committed real reserved time can push this run over
-                // its time ceiling even while count capacity remains, and that must never be
-                // misreported as a retryable slot conflict.
-                if (run.MaximumAgentInvocationTime is { } maximumAgentInvocationTimeOnRace)
-                {
-                    var reservedAgentInvocationTimeNow = await AgentInvocationTimeBudget.ComputeReservedAsync(dbContext, run.Id, asNoTracking: true, cancellationToken);
-                    if (reservedAgentInvocationTimeNow is null)
-                    {
-                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                            Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
-                    }
-
-                    var projectedAgentInvocationTimeOnRace = AgentInvocationTimeReservation.ComputeProjectedReservation(reservedAgentInvocationTimeNow.Value, InvocationTimeout);
-                    if (projectedAgentInvocationTimeOnRace is null)
-                    {
-                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                            Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
-                    }
-
-                    if (projectedAgentInvocationTimeOnRace.Value > maximumAgentInvocationTimeOnRace)
-                    {
-                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                            Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
-                    }
-                }
-
-                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
-                    Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));
-            }
-
-            // Not a race loss on any known invariant — no competing Running attempt and no
-            // competing budget-slot claim exist for this run at all. Some other persistence
-            // failure caused this (disk, corruption, an unrelated constraint); never report a
-            // conflict that would falsely imply a race that never happened.
+            throw;
+        }
+        catch (DbException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
                 Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
         }
 
+        await using (claimTransaction)
+        {
+            bool preferenceStillCurrent;
+            try
+            {
+                // One atomic UPDATE ... WHERE statement requiring the Run's requested model/effort
+                // to still exactly match what was just read above.
+                preferenceStillCurrent = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
+                    dbContext, run.Id, requestedModel, requestedEffort, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // No tracked entity has been added yet at this point either — same unconditional
+                // cleanup as acquisition cancellation above. Cancellation is never misclassified
+                // as a preference conflict or an ordinary persistence failure; it propagates.
+                await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                throw;
+            }
+            catch (DbException)
+            {
+                // A raw provider failure on this guard statement (a bounded lock-wait timeout, or
+                // any other unrelated database failure) — never inferred to mean the preference
+                // itself changed; that is reported only when the guard actually observes zero
+                // matching rows, below.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (!preferenceStillCurrent)
+            {
+                // A concurrent preference-only change committed in the gap between the read above
+                // and this guard — this claim fails safely, cleaning up the already-sealed
+                // manifest file, rather than durably embed a pair that is no longer current.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(Error.Conflict(
+                    "agent_attempts.assignment_preference_changed",
+                    "The run's requested Codex model or effort changed while this claim was being prepared; retry the request."));
+            }
+
+            dbContext.Attempts.Add(attempt);
+            dbContext.Artifacts.Add(manifestArtifact);
+
+            if (run.Lifecycle == RunLifecycle.Created)
+            {
+                run.Claim(nowUtc);
+            }
+
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // The database may have already applied this insert before the cancellation was
+                // observed — the same ambiguity a DbUpdateException here would carry. A fresh,
+                // untracked read (using an unconditional token: the caller's own is already
+                // cancelled) is the sole authority for the sealed manifest's fate; the caller's
+                // cancellation still propagates regardless of what it finds — never silently
+                // converted into a Result.
+                await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
+
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                if (durability == AttemptDurabilityCheckResult.NotPersisted)
+                {
+                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                    dbContext.Attempts.Remove(attempt);
+                    dbContext.Artifacts.Remove(manifestArtifact);
+                }
+                // Persisted or Unresolved: the sealed file is preserved. Unresolved means the
+                // independent probe could not establish durable state within its own bound, so
+                // this never assumes either outcome. Cancellation still propagates regardless.
+
+                throw;
+            }
+            catch (DbUpdateException)
+            {
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+
+                // The exception means this DbContext's change tracker no longer reliably reflects
+                // what actually committed — the cause is never inferred from what this request
+                // attempted, only from an independent probe of what the database actually holds
+                // now.
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                if (durability == AttemptDurabilityCheckResult.Persisted)
+                {
+                    // Committed despite the thrown exception (e.g. the failure came from an
+                    // unrelated statement later in the same batch) — nothing to clean up, and
+                    // reporting a conflict or deleting this request's own artifact here would both
+                    // be false.
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Success(
+                        new CreateCodexPlanningAttemptCommandResult(attemptId, attemptNumber));
+                }
+
+                if (durability == AttemptDurabilityCheckResult.Unresolved)
+                {
+                    // The independent probe could not establish durable state within its own
+                    // bound. The sealed file is preserved exactly as a genuinely persisted
+                    // Attempt's would be — it may still be referenced — and this is reported as
+                    // unresolved rather than asserted as either success or a definite failure.
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(Error.Failure(
+                        "attempts.persistence_unresolved",
+                        "Whether the attempt was durably recorded could not be confirmed."));
+                }
+
+                // Never persisted: the sealed manifest artifact this request already wrote is
+                // certain to never be referenced by any Artifact row, so it is cleaned up
+                // regardless of what actually caused the failure. The two entities this call added
+                // are also removed from tracking so this DbContext instance can never later
+                // accidentally re-attempt to persist a known-failed insert if its scope continues.
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                dbContext.Attempts.Remove(attempt);
+                dbContext.Artifacts.Remove(manifestArtifact);
+
+                var competingRunningAttemptExists = await dbContext.Attempts
+                    .AsNoTracking()
+                    .AnyAsync(candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken);
+                if (competingRunningAttemptExists)
+                {
+                    // The race the filtered unique index exists to close: a concurrent request
+                    // committed its own Running attempt for this run first.
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                        Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress."));
+                }
+
+                // The race the (RunId, AgentBudgetSlot) unique index exists to close: a concurrent
+                // request already consumed the exact slot this request also computed. Below the
+                // maximum, this is a safe, retryable conflict — only this one slot number was lost
+                // to a faster concurrent claim, not the run's whole budget. Only when the run's
+                // real Agent-attempt count has already reached its maximum is this truthfully
+                // exhaustion.
+                var slotAlreadyClaimedByAnotherAttempt = await dbContext.Attempts.AsNoTracking().AnyAsync(
+                    candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent && candidate.AgentBudgetSlot == agentBudgetSlot,
+                    cancellationToken);
+                if (slotAlreadyClaimedByAnotherAttempt)
+                {
+                    var agentAttemptsUsedNow = await dbContext.Attempts.AsNoTracking().CountAsync(
+                        candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent, cancellationToken);
+                    if (agentAttemptsUsedNow >= run.MaximumAgentAttempts)
+                    {
+                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                            Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."));
+                    }
+
+                    // Distinguishes a genuine time-budget rejection from a merely lost slot race: a
+                    // concurrent claim that also committed real reserved time can push this run over
+                    // its time ceiling even while count capacity remains, and that must never be
+                    // misreported as a retryable slot conflict.
+                    if (run.MaximumAgentInvocationTime is { } maximumAgentInvocationTimeOnRace)
+                    {
+                        var reservedAgentInvocationTimeNow = await AgentInvocationTimeBudget.ComputeReservedAsync(dbContext, run.Id, asNoTracking: true, cancellationToken);
+                        if (reservedAgentInvocationTimeNow is null)
+                        {
+                            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                                Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
+                        }
+
+                        var projectedAgentInvocationTimeOnRace = AgentInvocationTimeReservation.ComputeProjectedReservation(reservedAgentInvocationTimeNow.Value, InvocationTimeout);
+                        if (projectedAgentInvocationTimeOnRace is null)
+                        {
+                            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                                Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
+                        }
+
+                        if (projectedAgentInvocationTimeOnRace.Value > maximumAgentInvocationTimeOnRace)
+                        {
+                            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                                Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
+                        }
+                    }
+
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                        Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));
+                }
+
+                // Not a race loss on any known invariant — no competing Running attempt and no
+                // competing budget-slot claim exist for this run at all. Some other persistence
+                // failure caused this (disk, corruption, an unrelated constraint); never report a
+                // conflict that would falsely imply a race that never happened.
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            try
+            {
+                await claimTransaction.CommitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // The same ambiguity as a commit-time DbException below, resolved the same way —
+                // a fresh, untracked read is the sole authority — but cancellation still
+                // propagates regardless of what it finds, never converted into a Result.
+                await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
+
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                if (durability == AttemptDurabilityCheckResult.NotPersisted)
+                {
+                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                    dbContext.Attempts.Remove(attempt);
+                    dbContext.Artifacts.Remove(manifestArtifact);
+                }
+                // Persisted or Unresolved: the sealed file is preserved. Cancellation still
+                // propagates regardless.
+
+                throw;
+            }
+            catch (DbException)
+            {
+                // The commit's own outcome is uncertain from this exception alone — the database
+                // may have actually completed it before the failure became visible to this
+                // connection. Never inferred either way: an independent probe is the sole
+                // authority for whether the sealed manifest file is an orphan or a durably
+                // referenced artifact.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                if (durability == AttemptDurabilityCheckResult.Persisted)
+                {
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Success(
+                        new CreateCodexPlanningAttemptCommandResult(attemptId, attemptNumber));
+                }
+
+                if (durability == AttemptDurabilityCheckResult.Unresolved)
+                {
+                    // Preserve the sealed file exactly as a genuinely persisted Attempt's would
+                    // be; the independent probe could not establish durable state within its own
+                    // bound, so this is never asserted as success or failure.
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(Error.Failure(
+                        "attempts.persistence_unresolved",
+                        "Whether the attempt was durably recorded could not be confirmed."));
+                }
+
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                dbContext.Attempts.Remove(attempt);
+                dbContext.Artifacts.Remove(manifestArtifact);
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+        }
+
         return Result<CreateCodexPlanningAttemptCommandResult>.Success(
             new CreateCodexPlanningAttemptCommandResult(attempt.Id, attempt.AttemptNumber));
+    }
+
+    /// <summary>
+    /// Rolls back the claim's own guard transaction and releases it, swallowing a failure from
+    /// either step: whatever caused the caller's own primary failure already leaves this
+    /// transaction's fate uncertain, and a secondary exception here would only mask that primary
+    /// failure without changing how this request concludes. The subsequent
+    /// <see cref="IAttemptDurabilityProbe"/> check each caller performs is the actual authority on
+    /// durable state — through an independent connection, not this transaction's own — so this
+    /// method's only job is to give up this transaction's connection and locks as promptly as it
+    /// can, best-effort, before that check runs.
+    /// </summary>
+    private static async Task RollbackBestEffortAsync(IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await transaction.RollbackAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Deliberately broad: a rollback attempted after an ambiguous or already-completed
+            // commit can throw a provider exception or an InvalidOperationException depending on
+            // the transaction's own actual fate, which this method never tries to distinguish.
+        }
+        finally
+        {
+            try
+            {
+                await transaction.DisposeAsync();
+            }
+            catch (Exception)
+            {
+                // Best-effort release, same reasoning as above — the enclosing `await using` will
+                // also dispose this transaction again once its block exits, which is a safe no-op
+                // on an already-disposed transaction.
+            }
+        }
     }
 }

@@ -14,6 +14,19 @@ public sealed class SqliteDatabaseFixture : IAsyncLifetime
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-app-tests-{Guid.NewGuid():N}.db");
 
+    /// <summary>The same connection string every <see cref="CreateContext"/> call uses, exposed so a
+    /// test can build its own independent, genuinely separate <c>DevalCopilotDbContext</c> against
+    /// this fixture's own database file — e.g. a real <c>AttemptDurabilityProbe</c>, which must use a
+    /// connection distinct from the one a claim handler's own transaction holds.</summary>
+    public DbContextOptions<DevalCopilotDbContext> Options { get; }
+
+    public SqliteDatabaseFixture()
+    {
+        Options = new DbContextOptionsBuilder<DevalCopilotDbContext>()
+            .UseSqlite($"Data Source={_databasePath}")
+            .Options;
+    }
+
     /// <summary>The optional <paramref name="interceptors"/> overload exists solely so a test can
     /// attach a deterministic command-counting interceptor (e.g. to prove a query path issues a
     /// fixed number of database round trips regardless of data volume) — never for anything

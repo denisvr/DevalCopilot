@@ -770,6 +770,8 @@ public sealed class AgentAttemptSupervisorHostedTests : IDisposable
         services.AddSingleton<IArtifactStore>(_artifactStore);
         services.AddDevalenteMediator(typeof(CreateCodexPlanningAttemptCommand).Assembly);
         services.AddDevalenteRequestValidation(typeof(CreateCodexPlanningAttemptCommand).Assembly);
+        services.AddScoped<IAttemptDurabilityProbe>(sp =>
+            new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
 
         // Applied last so a test can replace a specific handler the assembly scan above already

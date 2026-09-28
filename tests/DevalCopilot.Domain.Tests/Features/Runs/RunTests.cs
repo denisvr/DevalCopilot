@@ -139,4 +139,108 @@ public sealed class RunTests
 
         Assert.Throws<InvalidOperationException>(() => run.MarkInterrupted(BaseTime.AddSeconds(1)));
     }
+
+    [Fact]
+    public void A_new_run_has_no_requested_codex_assignment()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        Assert.Null(run.RequestedCodexModel);
+        Assert.Null(run.RequestedCodexEffort);
+    }
+
+    [Fact]
+    public void SetRequestedCodexAssignment_sets_a_model_and_effort_pair_while_created()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        run.SetRequestedCodexAssignment("gpt-6-sol", "high");
+
+        Assert.Equal("gpt-6-sol", run.RequestedCodexModel);
+        Assert.Equal("high", run.RequestedCodexEffort);
+    }
+
+    [Fact]
+    public void SetRequestedCodexAssignment_sets_a_model_only_while_running()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.Claim(BaseTime);
+
+        run.SetRequestedCodexAssignment("gpt-6-sol", requestedEffort: null);
+
+        Assert.Equal("gpt-6-sol", run.RequestedCodexModel);
+        Assert.Null(run.RequestedCodexEffort);
+    }
+
+    [Fact]
+    public void SetRequestedCodexAssignment_changes_a_previously_set_pair()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.SetRequestedCodexAssignment("gpt-6-sol", "high");
+
+        run.SetRequestedCodexAssignment("gpt-6-mini", "low");
+
+        Assert.Equal("gpt-6-mini", run.RequestedCodexModel);
+        Assert.Equal("low", run.RequestedCodexEffort);
+    }
+
+    [Fact]
+    public void SetRequestedCodexAssignment_clears_a_previously_set_pair()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.SetRequestedCodexAssignment("gpt-6-sol", "high");
+
+        run.SetRequestedCodexAssignment(null, null);
+
+        Assert.Null(run.RequestedCodexModel);
+        Assert.Null(run.RequestedCodexEffort);
+    }
+
+    [Fact]
+    public void SetRequestedCodexAssignment_rejects_an_effort_without_a_model()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        Assert.Throws<ArgumentException>(() => run.SetRequestedCodexAssignment(null, "high"));
+    }
+
+    [Fact]
+    public void SetRequestedCodexAssignment_rejects_a_model_exceeding_the_bounded_length()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        Assert.Throws<ArgumentException>(() => run.SetRequestedCodexAssignment(new string('a', 129), null));
+    }
+
+    [Fact]
+    public void SetRequestedCodexAssignment_rejects_a_blank_model()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        Assert.Throws<ArgumentException>(() => run.SetRequestedCodexAssignment("   ", null));
+    }
+
+    [Theory]
+    [InlineData(RunLifecycle.Completed)]
+    [InlineData(RunLifecycle.Failed)]
+    [InlineData(RunLifecycle.Interrupted)]
+    public void SetRequestedCodexAssignment_throws_once_the_run_reaches_a_terminal_lifecycle(RunLifecycle terminalLifecycle)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.Claim(BaseTime);
+        switch (terminalLifecycle)
+        {
+            case RunLifecycle.Completed:
+                run.Complete(BaseTime.AddSeconds(1));
+                break;
+            case RunLifecycle.Failed:
+                run.Fail(BaseTime.AddSeconds(1));
+                break;
+            case RunLifecycle.Interrupted:
+                run.MarkInterrupted(BaseTime.AddSeconds(1));
+                break;
+        }
+
+        Assert.Throws<InvalidOperationException>(() => run.SetRequestedCodexAssignment("gpt-6-sol", null));
+    }
 }

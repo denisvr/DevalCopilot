@@ -33,7 +33,9 @@ public sealed class CodexImplementationReviewAdapter(IProcessExecutionAdapter pr
                 request.Timeout,
                 request.MaxBytesPerStream,
                 request.MaxTotalCapturedBytes,
-                ImplementationReviewOutputSchema.BuildSchemaDocument()),
+                ImplementationReviewOutputSchema.BuildSchemaDocument(),
+                request.RequestedModel,
+                request.RequestedEffort),
             cancellationToken).ConfigureAwait(false);
 
         return new ImplementationReviewInvocationResult(

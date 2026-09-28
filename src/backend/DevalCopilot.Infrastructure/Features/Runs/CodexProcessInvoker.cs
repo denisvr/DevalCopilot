@@ -10,20 +10,33 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// <summary>
 /// The one shared, bounded Codex CLI invocation contract every Codex adapter in this application
 /// reuses: <c>exec --json --output-schema &lt;file&gt; --output-last-message &lt;file&gt; --sandbox
-/// read-only --cd &lt;workspace&gt; --ephemeral --ignore-user-config -</c>, with the caller's context
-/// manifest written to stdin and stdin then closed. Never passes
+/// read-only --cd &lt;workspace&gt; --ephemeral --ignore-user-config [--model &lt;id&gt;] [--config
+/// model_reasoning_effort=&lt;effort&gt;] -</c>, with the caller's context manifest written to stdin
+/// and stdin then closed. The bracketed <c>--model</c>/<c>--config</c> pair is the sole, narrow
+/// exception to this contract's otherwise-fixed argument list: each is added only when the
+/// caller's already-claimed, already-validated <see cref="Request.RequestedModel"/>/
+/// <see cref="Request.RequestedEffort"/> is non-null, and each value is independently revalidated
+/// against the same bounded, safe identifier character set as every other assignment identifier
+/// in this application immediately before it is ever placed on the command line — never a raw,
+/// unchecked pass-through. Still never passes
 /// <c>--dangerously-bypass-approvals-and-sandbox</c>, workspace-write/full-access, hooks, worktree
-/// creation, <c>add-dir</c>, a model flag, arbitrary config overrides, or any user-supplied
-/// argument. Never searches PATH or a private desktop application layout — the launch target
-/// arrives already resolved and is only revalidated here. Extracted out of the original
+/// creation, <c>add-dir</c>, an arbitrary config override, or any other user-supplied argument.
+/// Never searches PATH or a private desktop application layout — the launch target arrives
+/// already resolved and is only revalidated here. Extracted out of the original
 /// <c>CodexPlanningAdapter</c> so a second Codex role never has to copy this contract; only the
-/// output-schema document and the artifact-purpose-scoped sink paths vary by caller.
+/// output-schema document, the artifact-purpose-scoped sink paths, and the optional requested
+/// model/effort vary by caller.
 /// </summary>
 internal static class CodexProcessInvoker
 {
     internal const int MaxContextManifestReadBytes = 32 * 1024;
     private const int MaxSessionIdScanBytes = 4 * 1024;
     private const int MaxSessionIdLength = 256;
+
+    /// <summary>Mirrors the bounded assignment-identifier length every other Codex/Claude
+    /// assignment field in this application already trusts (see <c>Attempt</c>'s own
+    /// <c>ValidateAssignmentIdentifier</c>).</summary>
+    private const int MaxAssignmentIdentifierLength = 128;
 
     internal sealed record Request(
         Guid RunId,
@@ -37,7 +50,9 @@ internal static class CodexProcessInvoker
         TimeSpan Timeout,
         int MaxBytesPerStream,
         int MaxTotalCapturedBytes,
-        object OutputSchemaDocument);
+        object OutputSchemaDocument,
+        string? RequestedModel = null,
+        string? RequestedEffort = null);
 
     /// <summary>The invocation result. <paramref name="ProcessEvidence"/> is set whenever the
     /// process adapter returned a real result — including a timeout, cancellation, or non-zero
@@ -63,6 +78,26 @@ internal static class CodexProcessInvoker
             // Revalidation only — never a new search through PATH or a private install
             // location. A component that no longer exists or no longer has its accepted shape
             // fails this invocation closed before any process starts.
+            return Outcome.Failed;
+        }
+
+        if (!IsAcceptableAssignmentValue(request.RequestedModel) || !IsAcceptableAssignmentValue(request.RequestedEffort))
+        {
+            // Revalidation only, mirroring the launch-target check above: every requested model
+            // and effort was already validated at claim time (and, before that, against a live
+            // catalog observation), but this invocation never trusts that chain alone — a value
+            // that somehow no longer has its accepted shape fails the whole invocation closed
+            // rather than silently falling back to the CLI's own default.
+            return Outcome.Failed;
+        }
+
+        if (request.RequestedModel is null && request.RequestedEffort is not null)
+        {
+            // Mirrors Attempt's own claim-time invariant (an effort is never accepted without a
+            // model) as a second, independent boundary: this invocation never trusts that the
+            // claimed attempt it was given actually enforced it. An effort-only request would
+            // silently apply the CLI's own default model with an overridden effort — never
+            // launched.
             return Outcome.Failed;
         }
 
@@ -127,8 +162,21 @@ internal static class CodexProcessInvoker
                 "--cd", request.WorkspacePath,
                 "--ephemeral",
                 "--ignore-user-config",
-                "-",
             };
+
+            if (request.RequestedModel is { } requestedModel)
+            {
+                arguments.Add("--model");
+                arguments.Add(requestedModel);
+            }
+
+            if (request.RequestedEffort is { } requestedEffort)
+            {
+                arguments.Add("--config");
+                arguments.Add("model_reasoning_effort=" + requestedEffort);
+            }
+
+            arguments.Add("-");
 
             var executionRequest = new ProcessExecutionRequest
             {
@@ -194,6 +242,16 @@ internal static class CodexProcessInvoker
         Path.IsPathFullyQualified(path)
         && File.Exists(path)
         && !AgentInvocationScratchDirectory.PathOrAnyAncestorHasReparsePoint(path);
+
+    /// <summary>A requested model or effort is untrusted text at this boundary regardless of
+    /// where it was previously validated: bounded in length and restricted to the same safe
+    /// identifier character set the Codex model-catalog adapter already enforces, so a value can
+    /// never carry an injected argument, shell metacharacter, or adversarial byte onto the command
+    /// line. <see langword="null"/> (no override requested) is always acceptable.</summary>
+    private static bool IsAcceptableAssignmentValue(string? value) =>
+        value is null
+        || (value.Length is > 0 and <= MaxAssignmentIdentifierLength
+            && value.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_' or '.'));
 
     /// <summary>
     /// Only non-secret OS/profile-location values required to locate existing local Codex

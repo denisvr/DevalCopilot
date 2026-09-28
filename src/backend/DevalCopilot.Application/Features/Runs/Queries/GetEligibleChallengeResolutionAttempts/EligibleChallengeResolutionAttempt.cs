@@ -18,4 +18,6 @@ public sealed record EligibleChallengeResolutionAttempt(
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
     Guid OriginalProposalMessageId,
-    IReadOnlyList<Guid> ChallengeMessageIds);
+    IReadOnlyList<Guid> ChallengeMessageIds,
+    string? RequestedModel,
+    string? RequestedEffort);

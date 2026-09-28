@@ -29,7 +29,9 @@ public sealed class CodexPlanningAdapter(IProcessExecutionAdapter processExecuti
                 request.Timeout,
                 request.MaxBytesPerStream,
                 request.MaxTotalCapturedBytes,
-                CodexProposalOutputSchema.BuildSchemaDocument()),
+                CodexProposalOutputSchema.BuildSchemaDocument(),
+                request.RequestedModel,
+                request.RequestedEffort),
             cancellationToken).ConfigureAwait(false);
 
         return new CodexPlanningInvocationResult(

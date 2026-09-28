@@ -444,6 +444,29 @@ like the account-allowance line beside it. See the
 ["Codex model and reasoning-effort catalog contract"](../architecture/agent-collaboration-protocol.md#codex-model-and-reasoning-effort-catalog-contract)
 section of the agent-collaboration-protocol for the exact wire evidence.
 
+### Explicit Codex model and reasoning-effort requests
+
+A cockpit control, using the catalog above, lets the owner explicitly request
+a Codex model and optional reasoning effort for this run's *later* Planner,
+Challenge Resolver, and Code Reviewer claims. Nothing is auto-selected,
+including the catalog's own suggested default: the control starts on an
+explicit "No preference" choice. Saving a chosen model requires the catalog to
+be currently loaded and the model to be one of its visible entries; the effort
+select is populated only from that model's own supported efforts and is
+disabled until a model is chosen. Saving is rejected — with a safe, generic
+message, never the underlying failure detail — when the catalog is loading,
+unavailable, or the chosen pair is invalid; clearing the preference back to
+"No preference" is always available and needs no catalog read. The control
+shows its own three states plainly: the currently *requested* preference (or
+its explicit absence), a loading state while the catalog is being read, and a
+save-failure message that never discards what was already saved. This is a
+future-claim request only — it is never labeled as effective, observed, or an
+invocation-eligibility guarantee, and changing it while an attempt is already
+running never affects that attempt. See the
+["Explicit Codex model and reasoning-effort requests"](../architecture/agent-collaboration-protocol.md#explicit-codex-model-and-reasoning-effort-requests)
+section of the agent-collaboration-protocol for the durable request/claim/
+invocation-argument semantics.
+
 ### Provider account usage guardrails
 
 This remains the target end state the observation above is one step toward;

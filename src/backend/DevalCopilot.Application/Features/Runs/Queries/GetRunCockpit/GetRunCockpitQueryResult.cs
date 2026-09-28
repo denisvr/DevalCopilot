@@ -24,4 +24,6 @@ public sealed record GetRunCockpitQueryResult(
     RunCockpitAgentInvocationTimeBudgetSummary AgentInvocationTimeBudget,
     RunCockpitAgentProcessDurationSummary AgentProcessDurationSummary,
     IReadOnlyList<RunCockpitAgentClaimPathTimeFitEntry> AgentClaimPathTimeFits,
+    string? RequestedCodexModel,
+    string? RequestedCodexEffort,
     RunCockpitAgentAttemptEntry? LatestAgentAttempt = null);

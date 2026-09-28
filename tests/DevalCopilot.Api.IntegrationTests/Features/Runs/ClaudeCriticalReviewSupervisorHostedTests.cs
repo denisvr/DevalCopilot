@@ -674,6 +674,8 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         services.AddSingleton<IArtifactStore>(_artifactStore);
         services.AddDevalenteMediator(typeof(CreateClaudeCriticalReviewAttemptCommand).Assembly);
         services.AddDevalenteRequestValidation(typeof(CreateClaudeCriticalReviewAttemptCommand).Assembly);
+        services.AddScoped<IAttemptDurabilityProbe>(sp =>
+            new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
 
         return services.BuildServiceProvider();

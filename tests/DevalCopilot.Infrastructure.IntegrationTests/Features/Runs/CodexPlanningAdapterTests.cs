@@ -89,6 +89,129 @@ public sealed class CodexPlanningAdapterTests : IDisposable
     }
 
     [Fact]
+    public async Task A_requested_model_appends_the_fixed_model_flag_before_the_trailing_dash()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile("fake-codex-with-model.exe");
+        var scratchDirectory = AgentInvocationScratchDirectory.EnsureExists(runId, attemptId);
+
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new CodexPlanningAdapter(fake, _artifactStore);
+        var request = new CodexPlanningInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            executablePath, LaunchScriptPath: null, TimeSpan.FromSeconds(30), 65536, 131072,
+            RequestedModel: "gpt-6-sol", RequestedEffort: null);
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        var expectedSchemaPath = Path.Combine(scratchDirectory, "schema.json");
+        var expectedResultPath = _artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentFinalResponse);
+        string[] expectedArguments =
+        [
+            "exec",
+            "--json",
+            "--output-schema", expectedSchemaPath,
+            "--output-last-message", expectedResultPath,
+            "--sandbox", "read-only",
+            "--cd", _workspacePath,
+            "--ephemeral",
+            "--ignore-user-config",
+            "--model", "gpt-6-sol",
+            "-",
+        ];
+        Assert.Equal(expectedArguments, fake.CapturedRequest!.Arguments.ToArray());
+    }
+
+    [Fact]
+    public async Task A_requested_model_and_effort_append_both_fixed_flags_in_a_deterministic_order()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile("fake-codex-with-model-effort.exe");
+        var scratchDirectory = AgentInvocationScratchDirectory.EnsureExists(runId, attemptId);
+
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new CodexPlanningAdapter(fake, _artifactStore);
+        var request = new CodexPlanningInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            executablePath, LaunchScriptPath: null, TimeSpan.FromSeconds(30), 65536, 131072,
+            RequestedModel: "gpt-6-sol", RequestedEffort: "high");
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Exited, result.Outcome);
+        var expectedSchemaPath = Path.Combine(scratchDirectory, "schema.json");
+        var expectedResultPath = _artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentFinalResponse);
+        string[] expectedArguments =
+        [
+            "exec",
+            "--json",
+            "--output-schema", expectedSchemaPath,
+            "--output-last-message", expectedResultPath,
+            "--sandbox", "read-only",
+            "--cd", _workspacePath,
+            "--ephemeral",
+            "--ignore-user-config",
+            "--model", "gpt-6-sol",
+            "--config", "model_reasoning_effort=high",
+            "-",
+        ];
+        Assert.Equal(expectedArguments, fake.CapturedRequest!.Arguments.ToArray());
+    }
+
+    [Fact]
+    public async Task An_effort_requested_without_a_model_fails_the_invocation_closed_without_starting_a_process()
+    {
+        // Never produced by the durable Attempt/Run chain — Run.SetRequestedCodexAssignment and
+        // all three ClaimAgent*WithAssignment factories already reject this pair — but the
+        // invoker imposes the same rule again as an independent second boundary rather than
+        // trusting that the claimed attempt it was given actually enforced it.
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile("fake-codex-effort-only.exe");
+
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new CodexPlanningAdapter(fake, _artifactStore);
+        var request = new CodexPlanningInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            executablePath, LaunchScriptPath: null, TimeSpan.FromSeconds(30), 65536, 131072,
+            RequestedModel: null, RequestedEffort: "high");
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Failed, result.Outcome);
+        Assert.Null(fake.CapturedRequest);
+    }
+
+    [Theory]
+    [InlineData("bad model")]
+    [InlineData("model;rm -rf /")]
+    public async Task A_malformed_requested_model_fails_the_invocation_closed_without_starting_a_process(string malformedModel)
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile($"fake-codex-malformed-model-{Guid.NewGuid():N}.exe");
+
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new CodexPlanningAdapter(fake, _artifactStore);
+        var request = new CodexPlanningInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            executablePath, LaunchScriptPath: null, TimeSpan.FromSeconds(30), 65536, 131072,
+            RequestedModel: malformedModel, RequestedEffort: null);
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(CodexPlanningInvocationOutcome.Failed, result.Outcome);
+        Assert.Null(fake.CapturedRequest);
+    }
+
+    [Fact]
     public async Task A_node_script_launch_target_prepends_the_script_path_and_keeps_the_same_flag_contract()
     {
         var runId = Guid.NewGuid();

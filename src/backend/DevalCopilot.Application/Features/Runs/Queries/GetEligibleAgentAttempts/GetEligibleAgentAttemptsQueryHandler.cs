@@ -70,6 +70,8 @@ public sealed class GetEligibleAgentAttemptsQueryHandler(IDevalCopilotDbContext 
                     Timeout = combined.attempt.AgentTimeout!.Value,
                     MaxBytesPerStream = combined.attempt.AgentMaxBytesPerStream!.Value,
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
+                    combined.attempt.AgentRequestedModel,
+                    combined.attempt.AgentRequestedEffort,
                 })
             .ToListAsync(cancellationToken);
 
@@ -98,7 +100,9 @@ public sealed class GetEligibleAgentAttemptsQueryHandler(IDevalCopilotDbContext 
                 candidate.ContextManifestContentHash,
                 candidate.Timeout,
                 candidate.MaxBytesPerStream,
-                candidate.MaxTotalCapturedBytes))
+                candidate.MaxTotalCapturedBytes,
+                candidate.AgentRequestedModel,
+                candidate.AgentRequestedEffort))
             .ToArray();
     }
 

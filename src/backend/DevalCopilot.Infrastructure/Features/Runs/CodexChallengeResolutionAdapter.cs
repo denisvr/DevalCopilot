@@ -31,7 +31,9 @@ public sealed class CodexChallengeResolutionAdapter(IProcessExecutionAdapter pro
                 request.Timeout,
                 request.MaxBytesPerStream,
                 request.MaxTotalCapturedBytes,
-                ChallengeResolutionOutputSchema.BuildSchemaDocument()),
+                ChallengeResolutionOutputSchema.BuildSchemaDocument(),
+                request.RequestedModel,
+                request.RequestedEffort),
             cancellationToken).ConfigureAwait(false);
 
         return new ChallengeResolutionInvocationResult(

@@ -95,6 +95,8 @@ builder.Services.AddDbContext<DevalCopilotDbContext>((provider, options) =>
     options.UseSqlite(connectionString);
 });
 builder.Services.AddScoped<IDevalCopilotDbContext>(provider => provider.GetRequiredService<DevalCopilotDbContext>());
+builder.Services.AddScoped<IAttemptDurabilityProbe>(
+    provider => new AttemptDurabilityProbe(provider.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ILaunchSessionAccessor, LaunchSessionAccessor>();

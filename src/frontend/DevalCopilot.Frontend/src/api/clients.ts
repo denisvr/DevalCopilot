@@ -18,6 +18,7 @@ import {
   GetProviderRuntimePreflightEndpointClient,
   GetCodexAccountAllowanceEndpointClient,
   GetCodexModelCatalogEndpointClient,
+  SetCodexAssignmentPreferenceEndpointClient,
   GetRunCockpitEndpointClient,
   GetCollaborationTimelineEndpointClient,
   GetCollaborationMessageEvidenceEndpointClient,
@@ -56,6 +57,7 @@ export const environmentClient = () => new RequestHostCapabilityRefreshEndpointC
 export const providerRuntimePreflightClient = () => new GetProviderRuntimePreflightEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const codexAccountAllowanceClient = () => new GetCodexAccountAllowanceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const codexModelCatalogClient = () => new GetCodexModelCatalogEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const setCodexAssignmentPreferenceClient = () => new SetCodexAssignmentPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const processAttemptOutputClient = () => new GetProcessAttemptOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectWorkspaceClient = () => new GetProjectWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const prepareWorkspaceClient = () => new PrepareRepositoryWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -107,6 +109,7 @@ export type {
   CodexAllowanceWindowResponse,
   CodexModelCatalogResponse,
   CodexModelCatalogEntryResponse,
+  SetCodexAssignmentPreferenceResponse,
   RecheckProjectPhysicalIdentityResponse,
   RegisterProjectResponse,
   RequestHostCapabilityRefreshResponse,
@@ -147,4 +150,5 @@ export {
   RequestImplementationRequest,
   RequestCodeReviewRequest,
   RequestReviewCorrectionRequest,
+  SetCodexAssignmentPreferenceRequest,
 } from './generated/api-client'

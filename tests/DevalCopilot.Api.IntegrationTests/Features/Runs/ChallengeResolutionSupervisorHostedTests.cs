@@ -474,6 +474,8 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
         services.AddSingleton<IArtifactStore>(_artifactStore);
         services.AddDevalenteMediator(typeof(CreateChallengeResolutionAttemptCommand).Assembly);
         services.AddDevalenteRequestValidation(typeof(CreateChallengeResolutionAttemptCommand).Assembly);
+        services.AddScoped<IAttemptDurabilityProbe>(sp =>
+            new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
 
         return services.BuildServiceProvider();

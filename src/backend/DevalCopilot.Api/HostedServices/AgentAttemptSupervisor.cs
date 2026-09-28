@@ -147,7 +147,9 @@ public sealed class AgentAttemptSupervisor(
                     launchTarget.ScriptPath,
                     attempt.Timeout,
                     attempt.MaxBytesPerStream,
-                    attempt.MaxTotalCapturedBytes),
+                    attempt.MaxTotalCapturedBytes,
+                    attempt.RequestedModel,
+                    attempt.RequestedEffort),
                 stoppingToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

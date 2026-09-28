@@ -94,6 +94,31 @@ public sealed class Attempt
         int maxTotalCapturedBytes,
         DateTimeOffset claimedAtUtc,
         int agentBudgetSlot)
+        => ClaimAgentWithAssignment(
+            id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
+            contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
+            requestedModel: null, requestedEffort: null, agentBudgetSlot);
+
+    /// <summary>Claims a Codex planning Agent attempt with an owner-requested model/effort pair
+    /// already validated by the caller against a fresh catalog observation — never validated here,
+    /// since Domain performs no I/O. Bounded exactly like every other assignment identifier on
+    /// this entity. <see cref="ClaimAgent"/> is the fixed-null convenience overload every existing
+    /// caller keeps using unchanged.</summary>
+    public static Attempt ClaimAgentWithAssignment(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedModel,
+        string? requestedEffort,
+        int agentBudgetSlot)
     {
         if (attemptNumber < 1)
         {
@@ -137,6 +162,10 @@ public sealed class Attempt
             throw new ArgumentOutOfRangeException(nameof(agentBudgetSlot), agentBudgetSlot, "A claimed Agent attempt requires a positive budget slot.");
         }
 
+        ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
+        ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
+        ValidateRequestedAssignmentPair(requestedModel, requestedEffort);
+
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.Proposal);
 
         return new Attempt
@@ -159,6 +188,8 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentRequestedModel = requestedModel,
+            AgentRequestedEffort = requestedEffort,
             // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
             // Codex Planner adapter is read-only (CodexProcessInvoker's fixed "--sandbox
             // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
@@ -262,10 +293,37 @@ public sealed class Attempt
         int maxTotalCapturedBytes,
         DateTimeOffset claimedAtUtc,
         int agentBudgetSlot)
+        => ClaimAgentChallengeResolutionWithAssignment(
+            id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
+            contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
+            requestedModel: null, requestedEffort: null, agentBudgetSlot);
+
+    /// <summary>Claims a Codex challenge-resolution Agent attempt with an owner-requested
+    /// model/effort pair already validated by the caller against a fresh catalog observation —
+    /// never validated here, since Domain performs no I/O. <see cref="ClaimAgentChallengeResolution"/>
+    /// is the fixed-null convenience overload every existing caller keeps using unchanged.</summary>
+    public static Attempt ClaimAgentChallengeResolutionWithAssignment(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedModel,
+        string? requestedEffort,
+        int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
+        ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
+        ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
+        ValidateRequestedAssignmentPair(requestedModel, requestedEffort);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ChallengeResolution);
 
@@ -292,6 +350,8 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentRequestedModel = requestedModel,
+            AgentRequestedEffort = requestedEffort,
             // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
             // Codex Resolver adapter is read-only (CodexProcessInvoker's fixed "--sandbox
             // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
@@ -327,10 +387,37 @@ public sealed class Attempt
         int maxTotalCapturedBytes,
         DateTimeOffset claimedAtUtc,
         int agentBudgetSlot)
+        => ClaimAgentCodeReviewWithAssignment(
+            id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
+            contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
+            requestedModel: null, requestedEffort: null, agentBudgetSlot);
+
+    /// <summary>Claims a Codex implementation-review Agent attempt with an owner-requested
+    /// model/effort pair already validated by the caller against a fresh catalog observation —
+    /// never validated here, since Domain performs no I/O. <see cref="ClaimAgentCodeReview"/> is
+    /// the fixed-null convenience overload every existing caller keeps using unchanged.</summary>
+    public static Attempt ClaimAgentCodeReviewWithAssignment(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedModel,
+        string? requestedEffort,
+        int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
+        ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
+        ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
+        ValidateRequestedAssignmentPair(requestedModel, requestedEffort);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReview);
 
@@ -357,6 +444,8 @@ public sealed class Attempt
             AgentTimeout = timeout,
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentRequestedModel = requestedModel,
+            AgentRequestedEffort = requestedEffort,
             // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
             // Codex CodeReviewer adapter is read-only (CodexProcessInvoker's fixed "--sandbox
             // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
@@ -479,6 +568,19 @@ public sealed class Attempt
 
     private static bool IsValidAssignmentIdentifier(string? value) =>
         value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= 128);
+
+    /// <summary>Shared cross-field guard for the three current Codex claim factories that accept
+    /// an owner-requested model/effort pair: a requested effort is never accepted without a
+    /// requested model, mirroring <c>Run.SetRequestedCodexAssignment</c>'s own identical
+    /// invariant. <see cref="ClaimAgentImplementationWithAssignment"/> is deliberately unaffected —
+    /// it is a distinct, already-reviewed contract outside this slice's boundary.</summary>
+    private static void ValidateRequestedAssignmentPair(string? requestedModel, string? requestedEffort)
+    {
+        if (requestedModel is null && requestedEffort is not null)
+        {
+            throw new ArgumentException("A requested effort requires a requested model.", nameof(requestedEffort));
+        }
+    }
 
     /// <summary>
     /// Claims an Implementer review-correction Agent attempt — a durable, real, workspace-mutating

@@ -7,7 +7,400 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current decision (2026-09-28): selected Codex model and effort catalog observation
+## Current decision (2026-09-28): GO for explicit Codex model and effort requests
+
+- **GO for the reviewed uncommitted diff.** Independently verified branch
+  `main`, `HEAD`, local and live `origin/main` all at
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged, 53
+  tracked files modified and 25 new untracked files (78 files total), nothing
+  committed or pushed. The independent `IAttemptDurabilityProbe` releases the
+  claim transaction before checking through a new context and distinguishes
+  persisted, absent, and unresolved outcomes. The six new commit-and-rollback
+  fault tests exercise both durable outcomes across the three handlers; the
+  two-connection test now proves its signal identifies the competing `UPDATE`
+  and includes a no-lock negative control. Independently reran those focused
+  tests: 6/6 Application and 2/2 Infrastructure. Executor-reported relevant
+  full suites: Domain 547/547, Application 1069/1069, Infrastructure 520/521
+  (one pre-existing skip), API 339/339, Architecture 9/9; generated client
+  unchanged on repeat build. `git diff --check` found no whitespace errors;
+  Git reported only the two known line-ending normalization warnings. Earlier
+  frontend 666/666, typecheck, lint, and build remain applicable because this
+  correction did not change frontend or API contracts. The commit-ready
+  `current-work.md` records the delivered mechanism and actual checks.
+- Publication instruction for this GO: commit the reviewed substantive slice,
+  including `current-work.md` and this planner-owned review record, on `main`;
+  push normally to `origin/main` as a fast-forward; independently fetch and
+  verify the live remote points to the delivered commit and report the exact
+  SHA and remaining working-tree state. Then make only the tightly bounded
+  factual documentation closure needed to record the delivered SHA and
+  verified publication, commit/push it normally, and verify live remote and
+  clean state again. If the substantive diff changes materially, leaves the
+  approved scope, the push fails, or remote history diverges, stop and return
+  for review. This GO does not select another slice.
+
+## Historical correction reviews (2026-09-28)
+
+- Eighth uncommitted diff review: **NO-GO; make durable-outcome reads
+  independent and signal the actual competing UPDATE.** Reverified `main`,
+  `HEAD`, local and live `origin/main` at
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged; 46 tracked
+  files modified (including this record) and 23 untracked files.
+  Independently reran the real-SQLite two-connection test: 1/1 passed. The
+  four cancellation catch paths now propagate and handle their tested cases,
+  and the transaction still protects the guard plus Attempt commit.
+- On ambiguous save/commit failure, each handler calls
+  `RollbackBestEffortAsync`, which explicitly swallows a rollback failure,
+  then checks `dbContext.Attempts.AsNoTracking()` on the *same context* while
+  the transaction object is still in scope. If rollback failed before
+  releasing an uncommitted transaction, that connection can see its own
+  uncommitted Attempt and report success/retain the sealed file. Disposing
+  the transaction afterward can roll it back, leaving no durable Attempt.
+  `AsNoTracking` bypasses EF identity tracking, not the connection's active
+  transaction. Resolve ambiguous outcomes only after releasing that
+  transaction, through an independent database connection/context; if an
+  independent durable check is unavailable, preserve the file and surface
+  unresolved state rather than assert success or delete it. Add a fault test
+  where commit and rollback both throw before commit, and the same check for
+  an actually completed commit whose rollback throws.
+- `WriteAttemptSignalInterceptor` signals on every Reader/NonQuery/Scalar
+  command, including the competing context's initial `Runs.SingleAsync`
+  SELECT. Its signal therefore does not prove the UPDATE was attempted, even
+  with the 200 ms confirmation window. Filter for the actual preference
+  UPDATE (or another precise write-command identity) and assert that a
+  SELECT cannot fire the signal; retain bounded waits, the no-lock negative
+  control, and the final ordering assertions. Correct the test/docs claim
+  accordingly. Return the uncommitted, unpushed diff after affected and
+  relevant full checks. No commit/push GO is granted.
+- Seventh uncommitted diff review: **NO-GO; close cancellation cleanup and
+  make the two-connection assertion observe the database write.** Reverified
+  `main`, `HEAD`, local and live `origin/main` at
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged; 46 tracked
+  files modified (including this record) and 23 untracked files. Independently
+  ran the nine new transaction-acquisition/commit fault-injection tests:
+  9/9 passed. The new `DbException` paths correctly classify provider failure
+  and resolve simulated commit-before/after ambiguity; the transaction now
+  protects the guard and Attempt commit.
+- All three handlers seal their manifest before the final transaction, but
+  acquisition/guard/commit catch only `DbException`, and the save catch only
+  `DbUpdateException`. Cancellation during a bounded lock wait throws
+  `OperationCanceledException`, bypassing cleanup of that sealed file; this
+  is a realistic path for a canceled request, not a confirmed database
+  failure. Preserve cancellation propagation while resolving sealed-file
+  ownership in a `finally` or equivalent for every exit after seal; if commit
+  outcome is ambiguous, use an independent durable read with a fresh bounded
+  token before deleting a potentially referenced file. Add focused
+  cancellation fault-injection evidence for the new final boundary.
+- In `ClaimTimeAssignmentPreferenceGuardTests`, the `TaskCompletionSource`
+  fires immediately *before* `racingContext.SaveChangesAsync`; the test then
+  checks `racingWriteTask.IsCompleted` as soon as it wakes. The competing task
+  may not yet have entered EF or issued SQL, so a scheduler switch can make
+  that assertion pass without any database lock. Signal from a command
+  interceptor or equivalent point at the actual attempted SQL write, and
+  use bounded synchronization to distinguish blocking from an unscheduled
+  task. Keep the two-connection ordering check and avoid awaiting the writer
+  to completion while the claim holds the lock. Update the test/docs to
+  describe the proven boundary accurately. Run affected then relevant full
+  checks and return the complete uncommitted, unpushed diff. No commit/push
+  GO is granted.
+- Sixth uncommitted diff review: **NO-GO; preserve sealed-artifact ownership
+  across the new transaction's failure paths.** Reverified `main`, `HEAD`,
+  local and live `origin/main` at
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged; 46 tracked
+  files modified (including this record) and 22 untracked files. Independently
+  reran the new two-connection guard test: 1/1 passed. The guard and Attempt
+  save now share an explicit short transaction after external work, and the
+  Code Review manual-command correction remains in place.
+- All three handlers seal the manifest before calling
+  `dbContext.BeginTransactionAsync`, but that call is outside their error
+  handling. Acquiring a transaction can fail or time out under the very
+  write contention this change addresses; then the request exits with the
+  sealed file orphaned. `CommitAsync` is likewise inside a catch limited to
+  `DbUpdateException`; a raw provider/connection failure at commit bypasses
+  both existing cleanup and the required persisted-attempt check, where the
+  outcome may be ambiguous. Cover begin, guard, save, and commit failures
+  with one bounded cleanup/outcome discipline: remove the sealed file only
+  when a fresh read confirms the Attempt did not commit; retain it on a
+  confirmed commit; never label an unrelated database failure as a proven
+  preference change. Preserve cancellation and rollback exceptions without
+  accidentally skipping ownership resolution. Add focused fault-injection
+  evidence for begin and commit paths, alongside the real-SQLite test.
+- The new test uses a 300 ms sleep and checks that the competing task is not
+  complete, but never first proves that task has reached its database write;
+  on a slow scheduler the assertion passes even without a lock. Add a
+  synchronization signal or command interceptor confirming the competitor
+  reached the attempted write, then assert serialization with bounded waits
+  and no synchronous wait for completion while the claim owns the lock.
+  Keep the external work outside the transaction. Shorten `current-work.md`
+  to delivered facts and actual checks; remove the abandoned implementation
+  transcript and correct claims that cleanup was unchanged. Return the full
+  uncommitted, unpushed diff after affected and relevant full validation.
+  No commit/push GO is granted.
+- Fifth uncommitted diff review: **NO-GO; the new guard still ends before the
+  Attempt commit.** Reverified `main`, `HEAD`, local and live `origin/main` at
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged; 44 tracked
+  files modified (including this record) and 21 untracked files. Independently
+  ran the new Code Review mediator transaction-boundary test: 1/1 passed.
+  Converting Code Review to `IManualTransactionCommand` resolves that prior
+  finding.
+- `CurrentCodexAssignmentPreference.ConfirmUnchangedAsync` now executes one
+  conditional no-op `ExecuteUpdateAsync`, then returns; each claim handler
+  subsequently adds its Attempt and calls a separate `SaveChangesAsync`.
+  [EF Core's ExecuteUpdate transaction contract](https://learn.microsoft.com/en-us/ef/core/saving/execute-insert-update-delete#transactions)
+  says the call does not implicitly open a transaction covering later work.
+  A preference change can therefore commit after a successful guard and
+  before the Attempt insert. The three new tests only change the preference
+  *before* calling the guard and show that it returns false; none exercise
+  the post-guard window. The claim's `Run.Lifecycle` token still does not
+  guard preference-only changes. The asserted atomicity and commit-time
+  freshness remain unproven and false under that interleaving.
+- Make the final preference read/guard and Attempt commit one real, short
+  atomic or serializable unit after external work, or use an equivalent
+  single-statement/database-enforced snapshot. Prove with deterministic
+  two-connection testing that a preference-only write attempted after the
+  guard/read cannot commit before an Attempt with the old pair; assert the
+  winner and safe loser/cleanup, without timing-dependent hangs. A blocked
+  second writer while the claim holds a write lock is expected serialization,
+  not by itself evidence that a short transaction is impossible. SQLite's
+  [BEGIN IMMEDIATE contract](https://www.sqlite.org/lang_transaction.html)
+  and the provider's
+  [nondeferred transaction API](https://learn.microsoft.com/en-us/dotnet/standard/data/sqlite/transactions)
+  are candidate mechanisms, not mandated implementation. Keep the transaction
+  outside Git/artifact/provider work and bound lock waits. Correct stale
+  "atomic guard" prose in source/docs, rerun affected and relevant full
+  checks, and return the complete uncommitted, unpushed diff. No commit/push
+  GO is granted.
+- Fourth uncommitted diff review: **NO-GO; the late read is not an atomic
+  claim boundary.** Reverified `main`, `HEAD`, local and live `origin/main` at
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged; 43 tracked
+  files modified (including this record) and 20 untracked files (14 grouped
+  `git status --short` entries). The new tests correctly show that a
+  preference committed during external Git capture reaches all three claims
+  and remains immutable after a later Run change. They do not cover a
+  preference committed after `CurrentCodexAssignmentPreference.ReadAsync`
+  but before the Attempt insert commits. That helper performs a separate
+  untracked SELECT, followed by ordinary entity construction and a later
+  `SaveChangesAsync`; no transaction or preference-version guard couples the
+  SELECT to the insert. `Run.Lifecycle` is the only new concurrency token,
+  and a preference-only change leaves it unchanged. A stale pair can still
+  commit across precisely this narrower race. The docs' claim of a "short
+  atomic read-and-claim" is therefore inaccurate.
+- `CreateCodeReviewAttemptCommand` is still an ordinary `ICommand`, so the
+  registered `EfTransactionBehavior` opens an EF transaction before its
+  handler's external Git evidence capture and artifact work. The executor's
+  new Code Review test constructs the handler directly, bypassing that
+  behavior; it does not verify the claimed transaction boundary. Planning and
+  Challenge Resolution already use `IManualTransactionCommand`. Move Code
+  Review to the same manual boundary, retaining explicit persistence and
+  cleanup, and prove via the real mediator that no EF transaction is open
+  during its external evidence call.
+- For all three roles, make the final authoritative preference read and
+  durable Attempt claim one short atomic or guarded operation after external
+  work; a concurrent preference-only update between read and commit must
+  either be reflected in the claimed Attempt or cause a safe conflict/retry
+  without persisting a stale Attempt or leaving an orphan artifact. Add a
+  deterministic real-DB interleaving test for that *post-read* window, not
+  only a change during evidence capture. Do not rely on the Lifecycle token
+  or absence of further external I/O as an atomicity argument. Update
+  `current-work.md` and architecture prose, run affected then relevant full
+  checks, and return the complete uncommitted, unpushed diff. No commit/push
+  GO is granted; the same slice remains selected.
+- Third uncommitted diff review: **NO-GO; correct claim-time assignment freshness
+  in this same slice.** Reverified `main`, `HEAD`, local and live `origin/main`
+  at `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged; 41
+  tracked files modified (including this record) and 19 untracked files (13
+  grouped `git status --short` entries). Independently reran the four focused
+  real-SQLite transaction/concurrency tests: 4/4 passed. The catalog
+  transaction boundary, effort-without-model guards, and lifecycle
+  concurrency-token correction now satisfy their respective review findings.
+- Full-flow review found a remaining violation of the selected claim-time
+  snapshot rule: the Codex Planning, Challenge Resolution, and Code Review
+  claim handlers each load a tracked `Run` near handler entry, await external
+  Git evidence capture and manifest sealing, then copy that same entity's
+  `RequestedCodexModel`/`RequestedCodexEffort` into the new `Attempt`. If the
+  owner commits a new preference during that external work, the attempt can
+  be durably claimed afterward with the old pair. The new `Run.Lifecycle`
+  concurrency token does not detect a preference-only change; Challenge
+  Resolution and Code Review do not update the Run at claim at all. Refresh
+  the requested pair from authoritative Run state at the final durable claim
+  boundary, with a short atomic read/claim or an equivalent guarded write that
+  cannot persist a stale pair after a preference change. No EF transaction may
+  span external Git/artifact work. Cover a preference change during external
+  work for all three roles, plus durable reload/dispatch from the resulting
+  Attempt snapshot, preserving each handler's existing failure cleanup and
+  null-override path. Update `current-work.md` and affected contract prose;
+  run affected checks then relevant full validation. Return an uncommitted,
+  unpushed diff for re-review. No commit/push GO is granted.
+- Second uncommitted diff review: **NO-GO; one remaining concurrency correction
+  in the same selected slice.** Reverified `main`, `HEAD`, local and live
+  `origin/main` at `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`, nothing
+  staged, 41 tracked files modified (including this planner record), and 17
+  untracked files. Independently reran the two new real-SQLite transaction
+  boundary tests: 2/2 passed. The external catalog read now correctly runs
+  without an ambient EF transaction, and the three Codex claim factories and
+  final invoker boundary now reject effort without model.
+- The handler's post-catalog `Runs.SingleOrDefaultAsync` read and lifecycle
+  check still occur **before** its sole `SaveChangesAsync`. There is no explicit
+  write transaction spanning the fresh read and update, and `Run` has no EF
+  concurrency token. A concurrent completion/interruption can commit after
+  that read but before `SaveChangesAsync`; EF then updates only the preference
+  columns by key and appends the event to an already-terminal Run. The
+  current tests prove absence of a transaction during observation and atomic
+  preference/event saving, but do not close this read-to-write race. Move the
+  authoritative fresh read, lifecycle check, preference change, event insert,
+  and save into one short write transaction begun only after catalog
+  observation, or provide an equally atomic lifecycle-guarded write with the
+  event. Add deterministic real-SQLite coverage for a lifecycle transition
+  between catalog observation and write, and for the read-to-write race; a
+  terminal Run must receive neither a new preference nor a change event.
+  Keep the catalog-free clear path and the corrected pair invariant. Update
+  `current-work.md` and affected contract prose so they describe the actual
+  write boundary. Run affected checks, then relevant full validation; return
+  the complete uncommitted, unpushed diff. No commit/push GO is granted.
+- First uncommitted diff review: **NO-GO; correct this same selected slice and return
+  the complete uncommitted, unpushed diff.** Reverified `main`; `HEAD`, local
+  `origin/main`, and live `origin/main` remain
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; nothing staged; 41 tracked
+  files modified (including this planner record) and 16 untracked files. Git
+  and code, rather than the executor's file-count summary, define the review
+  surface. Independently reran the new API endpoint tests: 9/9 passed.
+- The new ordinary `ICommand` runs under `AddDevalenteEfCoreTransactions`:
+  `EfTransactionScope` begins an EF transaction before the handler. The handler
+  then awaits the external, bounded Codex catalog observation inside that
+  transaction. This violates the short-transaction boundary in
+  [engineering-context](../engineering-context.md) and
+  [ADR-0003](../decisions/0003-use-a-durable-sqlite-event-journal.md).
+  Use the established manual-command boundary so provider observation occurs
+  with no EF transaction open. Recheck the Run after that observation, then
+  persist its preference and event atomically in a short write transaction;
+  preserve the catalog-free clear path and handle a terminal or changed Run
+  without persisting stale state. Test at mediator/real-DB level that no
+  transaction is open during observation and that the Run plus event commit
+  together. The current API persistence test is green but cannot prove the
+  transaction boundary.
+- The new Codex `Attempt` factories validate model and effort independently,
+  and `CodexProcessInvoker` accepts an effort with no model. Its new test even
+  expects `--config model_reasoning_effort=high` without `--model`. That applies
+  effort to an unspecified CLI default, contrary to this slice's explicit-pair
+  and no-default-inference boundary. Enforce effort-requires-model in all three
+  new Codex claim factories and at the invoker's final trust boundary; fail
+  closed without launching a process for malformed or legacy data. Replace
+  the effort-only success test with deterministic rejection coverage, and
+  cover the factory invariant. Preserve null/null argv and the valid model-only
+  and model-plus-effort paths.
+- Update the commit-ready `current-work.md` and any affected contract text to
+  describe the corrected transaction and pair invariants accurately. Run
+  affected checks first, then relevant full validation; report exact commands,
+  results, file state, and remaining risk. No commit/push GO is granted. The
+  selected objective and exclusions below remain in force; no new slice is
+  selected.
+
+### Original selection and executor prompt
+
+- Verified publication and selection baseline: branch `main`; `HEAD`, local
+  `origin/main`, and live `origin/main` all
+  `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`; staged, unstaged, and
+  untracked state empty. The reviewed read-only Codex catalog slice was
+  published as `cf5b8d64b7d41fe1b258ad919f75051e8425a408` (parent
+  `c2e5023e3c4a653856b5691d52c1d27e07844826`) and factually closed by
+  the baseline. The GO in the prior decision below is historical.
+- Select exactly one Increment 4 slice: **explicit Codex model and reasoning-
+  effort requests at the next safe Agent attempt boundary**, covering the
+  existing Codex Planner, Challenge Resolver, and Code Reviewer paths. The
+  existing protected `model/list` observation supplies client/account-specific
+  picker-visible suggestions, not an eligibility guarantee. The official
+  [Codex developer commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+  document `codex exec --model/-m` and a repeatable `--config/-c` override;
+  the official [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+  documents `model_reasoning_effort` and says its levels depend on model and
+  client. The installed `codex-cli 0.158.0-alpha.2.1` local `codex exec --help`
+  independently lists `--model`, `--config`, `--ignore-user-config`, and
+  `--ephemeral`. These are invocation-argument contracts, not proof that any
+  catalog entry can start a turn or that the provider honored a requested
+  setting. [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
+  already gives `Attempt` immutable requested-model/effort fields separate
+  from provider-observed fields; the current Codex claim paths leave them null
+  and the shared `CodexProcessInvoker` passes neither override.
+- Objective and boundary: a run-scoped, durable, explicit Codex preference
+  (`modelId`, optional `reasoningEffort`) may be set or cleared through one
+  protected command/API and cockpit control. Saving a non-null choice requires
+  one fresh bounded observation through the already-vetted catalog adapter:
+  the model must be one visible observed id, and a non-null effort must be in
+  that entry's own known supported set. An Unknown/unavailable catalog never
+  validates a new choice; clearing remains possible. No value is auto-selected,
+  including the catalog's suggested default. A change while an attempt is
+  active affects only later claims. At each of the three Codex claim paths,
+  snapshot the run's current requested pair into the existing immutable
+  `Attempt` assignment facts and make dispatch use that attempt snapshot,
+  including after restart. The shared Codex invoker adds only fixed `--model`
+  and `--config model_reasoning_effort=<validated effort>` arguments when
+  requested; null values preserve the existing argument list. Existing
+  sandbox, ephemeral, ignore-user-config, schema, stdin, limits, and cleanup
+  controls remain fixed. The cockpit distinguishes the run's *requested for
+  future attempts* setting from each attempt's requested assignment and any
+  genuinely provider-observed value; it never labels a request effective.
+- Exclude Claude selection, permission-mode changes, arbitrary CLI config,
+  profile/user-config loading, CLI-default inference, automatic choice of the
+  catalog's suggested default, provider capability/preflight claims, account-
+  allowance thresholds, invocation-eligibility guarantees, retry/fallback,
+  provider-session resume, context/compaction, and new provider calls or model
+  turns for testing. Do not derive an observed model or effort from the
+  requested pair, catalog, process exit, or CLI default. Do not broaden the
+  run policy or workflow authority through model selection.
+- Stop gates: first verify the fixed `--model` and
+  `--config model_reasoning_effort` invocation shape against the current
+  official documents and the installed-build help evidence. If the executor
+  lacks a local CLI, cite the planner's verified installed-build observation
+  explicitly as a carried-over limit rather than claiming a local check.
+  Stop if a safe bounded catalog recheck cannot validate a new choice; if a
+  requested pair cannot be durably captured before dispatch and reused after
+  recovery; if current Codex argv/security behavior cannot be preserved for
+  null preferences; or if a live authenticated provider invocation becomes
+  necessary. Report an evidence or design gap rather than weakening these
+  gates. No automated test may contact a real provider.
+- Acceptance evidence: cover setting, changing, and clearing a run preference;
+  invalid/stale/hidden model, Unknown or duplicate effort list, mismatched
+  effort, absent target, and concurrent active-attempt behavior; historical
+  runs defaulting to no explicit override; durable event and state consistency;
+  claim-time snapshots for all three Codex roles, including a later preference
+  change and restart; exact safe argv with and without overrides for every
+  Codex adapter; no changes to Claude arguments; API authentication,
+  authorization, CSRF, and result mapping; cockpit loading, Unknown, save
+  failure, and clear behavior. Run affected and relevant full backend/frontend
+  tests, typecheck, lint, build, migration/NSwag drift checks, local links,
+  and `git diff --check`; report exact commands and outcomes. Update
+  `current-work.md` as a commit-ready delivery entry, making its earlier
+  "has not selected another slice" statement historical, with actual checks
+  and residual risks, but without claiming publication. Return a complete
+  **uncommitted, unpushed** diff for GO/NO-GO. Selection is not commit/push GO.
+
+### Executor prompt for this selected slice
+
+```text
+Implement the selected Increment 4 slice: explicit, run-scoped Codex model and reasoning-effort requests for future Codex Agent attempts.
+
+Preflight: expect branch main, HEAD 8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4, local and live origin/main at the same SHA, nothing staged, exactly docs/roadmap/planner-handoff.md modified but unstaged by this planner selection, and nothing untracked. Verify these facts once before editing; stop and report a material discrepancy.
+
+Objective: let the owner explicitly request a Codex model and optional reasoning effort for this run's later Planner, Challenge Resolver, and Code Reviewer attempts. Keep current preference separate from each attempt's immutable requested assignment and from provider-observed facts. Never infer an effective model, effort, capability, account eligibility, or CLI default.
+
+Implement one protected Application command, MVC endpoint, generated NSwag client, durable Run preference and event, and a cockpit control using the existing read-only Codex model catalog. A new non-null preference must be validated server-side against one fresh, bounded observation from the already-vetted launch target: the chosen model is a visible observed id; an optional effort belongs to that model's own known supported set. Do not auto-select the catalog's suggested default. Reject non-null selection when observation is Unknown or the pair is invalid; permit clearing without a provider read. Bound and validate all persisted strings independently of the UI. Changes during an active attempt take effect only at a later claim, with truthful UI wording.
+
+At all three Codex claim paths, copy the Run's requested pair into the existing immutable Attempt assignment fields in the same durable claim. Every supervisor and adapter must use the claimed Attempt's pair, including after restart, never a later mutable Run value. Extend the shared CodexProcessInvoker only with fixed --model <validated id> and --config model_reasoning_effort=<validated effort> arguments when explicitly requested. Preserve the exact existing argv, sandbox, --ephemeral, --ignore-user-config, schema, stdin, output/time bounds, and process cleanup when no override is set. Keep observed assignment null unless an authoritative provider output actually reports it. Preserve Claude paths and permissions.
+
+Before changing the invoker, verify the fixed override shape against the current official Codex developer commands/config reference and the installed codex exec --help evidence cited in planner-handoff.md. If your environment lacks a local CLI, explicitly carry forward the planner's installed-build observation and flag that limit; do not claim local or authenticated verification. Stop and report if catalog validation, claim-time durability/recovery, or the existing safety contract cannot be maintained without a live model turn, generic config escape hatch, or wider policy change.
+
+Test durable set/change/clear and historical null behavior, valid and invalid catalog pairs, no target/Unknown, active-attempt boundary, claim snapshots across all three Codex roles, change-after-claim and restart dispatch, exact argv with and without requested values, unchanged Claude invocations, protected endpoint and CSRF behavior, and cockpit observed/Unknown/save-failure/clear states. Use deterministic local fakes only; never invoke a real provider in automated tests. Run relevant focused and full backend/frontend checks, typecheck, lint, production build, EF migration and NSwag regeneration/drift checks, local documentation links, and git diff --check. Report actual commands and results.
+
+Update architecture/product documentation only for the delivered request semantics. Make docs/roadmap/current-work.md commit-ready from the verified parent with checks and remaining risks, and mark its earlier no-next-slice statement as historical. Present the complete uncommitted, unpushed diff, changed files, test evidence, and blockers to the planner for GO/NO-GO. Keep corrections in this executor chat. Do not select another slice, commit, or push before explicit GO.
+```
+
+After a future GO, give one publication instruction covering the reviewed
+substantive commit (including `current-work.md`), a normal fast-forward push of
+`main` to `origin/main`, live-remote verification at the delivered SHA, and
+only any tightly factual documentation closure needed to record that SHA and
+verified publication. Re-review material or out-of-scope changes; stop for a
+failed push or remote divergence without force-push or history reconciliation.
+
+## Prior decision (2026-09-28): selected Codex model and effort catalog observation
 
 - Third uncommitted diff review: **GO for publication of this reviewed slice.**
   Verified branch `main`, `HEAD`, local `origin/main`, and live `origin/main`

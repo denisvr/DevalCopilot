@@ -56,6 +56,58 @@ export class StartSimulatedRunEndpointClient {
     }
 }
 
+export class SetCodexAssignmentPreferenceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    setCodexAssignmentPreference(runId: string, request: SetCodexAssignmentPreferenceRequest): Promise<SetCodexAssignmentPreferenceResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/codex-assignment-preference";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSetCodexAssignmentPreference(_response);
+        });
+    }
+
+    protected processSetCodexAssignmentPreference(response: Response): Promise<SetCodexAssignmentPreferenceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SetCodexAssignmentPreferenceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetCodexAssignmentPreferenceResponse>(null as any);
+    }
+}
+
 export class RequestReviewCorrectionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2243,6 +2295,86 @@ export interface IStartSimulatedRunRequest {
     objective?: string;
 }
 
+export class SetCodexAssignmentPreferenceResponse implements ISetCodexAssignmentPreferenceResponse {
+    requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
+
+    constructor(data?: ISetCodexAssignmentPreferenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.requestedModel = _data["requestedModel"];
+            this.requestedEffort = _data["requestedEffort"];
+        }
+    }
+
+    static fromJS(data: any): SetCodexAssignmentPreferenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetCodexAssignmentPreferenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["requestedModel"] = this.requestedModel;
+        data["requestedEffort"] = this.requestedEffort;
+        return data;
+    }
+}
+
+export interface ISetCodexAssignmentPreferenceResponse {
+    requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
+}
+
+export class SetCodexAssignmentPreferenceRequest implements ISetCodexAssignmentPreferenceRequest {
+    requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
+
+    constructor(data?: ISetCodexAssignmentPreferenceRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.requestedModel = _data["requestedModel"];
+            this.requestedEffort = _data["requestedEffort"];
+        }
+    }
+
+    static fromJS(data: any): SetCodexAssignmentPreferenceRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetCodexAssignmentPreferenceRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["requestedModel"] = this.requestedModel;
+        data["requestedEffort"] = this.requestedEffort;
+        return data;
+    }
+}
+
+export interface ISetCodexAssignmentPreferenceRequest {
+    requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
+}
+
 export class RequestReviewCorrectionResponse implements IRequestReviewCorrectionResponse {
     status?: string;
     attemptId?: string | undefined;
@@ -2806,6 +2938,8 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
     agentProcessDurationSummary?: AgentProcessDurationSummaryResponse;
     agentClaimPathTimeFits?: AgentClaimPathTimeFitResponse[];
+    requestedCodexModel?: string | undefined;
+    requestedCodexEffort?: string | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -2852,6 +2986,8 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
                 for (let item of _data["agentClaimPathTimeFits"])
                     this.agentClaimPathTimeFits!.push(AgentClaimPathTimeFitResponse.fromJS(item));
             }
+            this.requestedCodexModel = _data["requestedCodexModel"];
+            this.requestedCodexEffort = _data["requestedCodexEffort"];
         }
     }
 
@@ -2898,6 +3034,8 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             for (let item of this.agentClaimPathTimeFits)
                 data["agentClaimPathTimeFits"].push(item ? item.toJSON() : undefined as any);
         }
+        data["requestedCodexModel"] = this.requestedCodexModel;
+        data["requestedCodexEffort"] = this.requestedCodexEffort;
         return data;
     }
 }
@@ -2925,6 +3063,8 @@ export interface IGetRunCockpitResponse {
     agentInvocationTimeBudget?: AgentInvocationTimeBudgetResponse;
     agentProcessDurationSummary?: AgentProcessDurationSummaryResponse;
     agentClaimPathTimeFits?: AgentClaimPathTimeFitResponse[];
+    requestedCodexModel?: string | undefined;
+    requestedCodexEffort?: string | undefined;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {

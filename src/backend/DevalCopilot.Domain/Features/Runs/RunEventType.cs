@@ -41,4 +41,10 @@ public static class RunEventType
     /// <see cref="AgentAttemptCompleted"/> — the owning attempt is still <c>Running</c> when this
     /// is recorded, and recovering one artifact is never itself a terminal result.</summary>
     public const string AgentOutputRecovered = "agent.output_recovered";
+
+    /// <summary>Metadata-only fact: the owner explicitly set or cleared the run-scoped requested
+    /// Codex model/reasoning-effort for future Planner, Challenge Resolver, and Code Reviewer
+    /// claims. The payload carries only the new requested model and effort (or both null when
+    /// cleared) — never a catalog payload, credential, or diagnostic.</summary>
+    public const string CodexAssignmentPreferenceChanged = "run.codex_assignment_preference_changed";
 }

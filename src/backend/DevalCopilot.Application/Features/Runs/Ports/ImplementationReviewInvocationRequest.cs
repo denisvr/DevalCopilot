@@ -9,7 +9,8 @@ namespace DevalCopilot.Application.Features.Runs.Ports;
 /// This is a read-only review: <see cref="WorkspacePath"/> is provided only so the adapter can
 /// pass it as the process working directory for the already-bounded, already-read-only Codex
 /// launch contract — never so the adapter can grant itself broader tool access than that contract
-/// already allows.
+/// already allows. <see cref="RequestedModel"/>/<see cref="RequestedEffort"/> are this claimed
+/// attempt's own immutable requested assignment, never a later mutable Run value.
 /// </summary>
 public sealed record ImplementationReviewInvocationRequest(
     Guid RunId,
@@ -22,4 +23,6 @@ public sealed record ImplementationReviewInvocationRequest(
     string? LaunchScriptPath,
     TimeSpan Timeout,
     int MaxBytesPerStream,
-    int MaxTotalCapturedBytes);
+    int MaxTotalCapturedBytes,
+    string? RequestedModel = null,
+    string? RequestedEffort = null);

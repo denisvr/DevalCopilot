@@ -1237,6 +1237,184 @@ evidence only — never model or effort selection, invocation arguments, attempt
 assignment, account authentication, or a guarantee that a listed model remains
 available at dispatch.
 
+### Explicit Codex model and reasoning-effort requests
+
+A run-scoped, durable, explicit owner preference (`RequestedCodexModel`,
+optional `RequestedCodexEffort`) may be set or cleared through one protected
+command and cockpit control, populated from the catalog above. Saving a
+non-null preference requires one fresh bounded catalog observation: the model
+must be a currently visible observed id, and a non-null effort must belong to
+that entry's own known (non-Unknown) supported-effort set. The catalog's own
+suggested default effort is never auto-selected. An `Unknown` or unavailable
+catalog observation never validates a new selection; clearing the preference
+(a `null` requested model) never reads the catalog at all. An effort is never
+accepted without a model, enforced identically in three places: `Run.SetRequestedCodexAssignment`,
+each of the three Codex `ClaimAgent*WithAssignment` factories below, and the
+shared invoker's own boundary further below — never only at the outermost
+layer. The command that sets or clears this preference is a manual-transaction
+command (mirroring the existing `CreateCodexPlanningAttemptCommand` shape):
+its bounded external catalog observation runs with no EF transaction open and
+no tracked entity pending a write, and only after that call completes does it
+read the Run afresh, inside one short, tightly scoped write that re-validates
+the run's lifecycle and commits the preference and its change event together.
+That short write is itself guarded against a lifecycle transition landing in
+the narrow gap between this fresh read and its own single `SaveChangesAsync`
+call, with no further I/O of the handler's own in between to re-check
+against: `Run.Lifecycle` is configured as an EF concurrency token, so the
+`UPDATE` this save produces requires the exact `Lifecycle` value the fresh
+read observed, and a concurrent transition committed in that gap makes the
+`UPDATE` match zero rows and throws `DbUpdateConcurrencyException` — caught
+and reported identically to the ordinary in-memory lifecycle rejection, with
+neither the preference nor its event persisted, rather than closed with an
+explicit multi-statement transaction. This preference is
+provider-neutral policy stored on `Run`, never on `Attempt` — it is completely
+separate from each attempt's own immutable requested assignment
+(`AgentRequestedModel`/`AgentRequestedEffort`, already defined by
+[ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md))
+and from any provider-observed fact. Changing the Run's preference while an
+attempt is already claimed never mutates that claimed attempt; only a later
+claim reads the Run's then-current value. At each of the three current Codex
+claim paths (Planner, Challenge Resolver, Code Reviewer), the Run's requested
+pair is copied once, at claim time, into the new attempt's own immutable
+assignment fields — the same fields ADR-0009 already reserved. Every
+supervisor and adapter dispatches from that claimed attempt's own snapshot,
+including after a host restart; none of them ever reads the Run's own
+(possibly since-changed) mutable preference at dispatch time.
+
+Each of the three `Create*Attempt` claim handlers loads its own tracked `Run`
+once, at the very start of the request, long before the external Git evidence
+capture and artifact-sealing
+work that follows — potentially the longest external round trip in the whole
+claim. The pair copied into the new attempt's assignment fields is never read
+from that early-loaded instance: a shared
+`CurrentCodexAssignmentPreference.ReadAsync` helper issues a genuinely fresh,
+untracked query for only the two preference columns, called in all three
+handlers as late as possible — after both the external Git evidence capture
+and the artifact-sealing work have already completed.
+
+That read alone does not guard the narrower gap between itself and the
+claim's own durable commit, and `Run.Lifecycle`'s own concurrency token (see
+above) guards nothing here either, since these two columns are never part of
+that unrelated check. A companion
+`CurrentCodexAssignmentPreference.ConfirmUnchangedAsync` guard — one
+`ExecuteUpdateAsync` statement whose `WHERE` clause requires the Run's two
+preference columns to still exactly match the pair `ReadAsync` returned, with
+a deliberate no-op `SET` (writing a column back to its own current value)
+whose only purpose is the database-enforced compare — is *atomic only for its
+own single statement*. An earlier version of this fix relied on that guard
+alone, immediately before `SaveChangesAsync`; a review round correctly
+identified that nothing then prevented a preference-only change from
+committing in the still-open gap between the guard and the Attempt's own
+insert moments later, since these remained two independently-atomic
+statements rather than one operation.
+
+The gap is closed by making the guard and the claim's own durable commit one
+genuinely atomic database operation: each handler opens an explicit
+`IDevalCopilotDbContext.BeginTransactionAsync` only after all external work
+has completed, performs the guard and the Attempt/artifact/input-message/
+verification-evidence inserts and `SaveChangesAsync` inside that same
+transaction, then commits. Each of these four steps — acquiring the
+transaction, the guard, the save, and the commit — has its own bounded
+failure path, and every one deletes the already-sealed manifest artifact
+unless an `IAttemptDurabilityProbe` check confirms the Attempt durably
+persisted despite the failure. The guard's own zero-affected-rows outcome is
+the only case reported as `agent_attempts.assignment_preference_changed`; a
+raw provider failure at any of the four steps
+(`System.Data.Common.DbException`, covering a bounded lock-wait timeout) is
+never described as a confirmed preference change — it is reported as
+`attempts.persistence_failed`, the same code the existing
+`DbUpdateException` recovery already falls back to for an unclassified
+cause. The connection's own SQLite lock-wait is bounded by
+Microsoft.Data.Sqlite's own unconfigured default (30 seconds) — confirmed by
+direct, out-of-process measurement to be a genuine bound, not an indefinite
+wait as an earlier, too-short-patience test run had wrongly concluded — so a
+genuine conflict fails within that bound rather than waiting forever. An
+explicit shorter timeout configured globally in `Program.cs`'s connection
+string was tried and reverted: several existing integration test fixtures
+compute their own literal connection string for pool cleanup, and the
+rewritten string not matching it byte-for-byte left database files locked
+across roughly 238 unrelated tests.
+
+The commit- and save-time failure paths do not resolve that ambiguity with a
+query against the claim's own `IDevalCopilotDbContext` — a review round
+found that a query against the same connection whose own transaction a
+best-effort rollback had just failed to close cleanly is not a reliable
+answer, since that connection's transaction state is exactly what is
+uncertain. `RollbackBestEffortAsync` now both attempts the rollback and
+releases (disposes) the transaction, swallowing either step's own failure,
+before an `IAttemptDurabilityProbe` is asked — a small, dedicated
+`Application.Data` port implemented in Infrastructure as
+`AttemptDurabilityProbe`, which opens a brand-new `DevalCopilotDbContext`
+(its own independent connection to the same database) and reads whether the
+Attempt row exists, bounded by its own 5-second timeout distinct from the
+claim connection's own 30-second lock-wait bound. The probe returns one of
+three outcomes: `Persisted` (the commit actually succeeded — report
+success, delete nothing), `NotPersisted` (the commit genuinely never landed
+— clean up and report `attempts.persistence_failed`, continuing into the
+existing race-classification checks for a `DbUpdateException`), or
+`Unresolved` — the independent probe's own bounded read itself failed or
+timed out, most often because the same lock contention that made the
+original outcome ambiguous is also blocking the probe's own read. On
+`Unresolved`, the handler asserts neither success nor failure: it preserves
+the sealed manifest exactly as it would for a confirmed `Persisted` outcome,
+since the Attempt may still be durably referenced, and reports
+`attempts.persistence_unresolved` rather than guessing.
+
+Each of the same four steps also has its own
+`catch (OperationCanceledException)`, separate from its `DbException`/
+`DbUpdateException` catch: cancellation of the caller's own token is never
+converted into a `Result` — it always propagates as cancellation — but the
+sealed manifest artifact's ownership is still resolved first, using the same
+`IAttemptDurabilityProbe` check and an unconditional token (the caller's own
+is already cancelled), so a cancellation that raced with an already-completed
+commit never deletes a file the database still references; `Unresolved`
+here too means the file is preserved, never deleted, before the
+cancellation is rethrown.
+
+All three `Create*Attempt` claim commands are manual-transaction commands, so
+none of their external Git evidence capture or artifact-sealing work ever
+runs inside the mediator's automatic per-command EF transaction.
+`CreateCodeReviewAttemptCommand` was found to be the exception — a plain
+`ICommand`, meaning that work had been running inside that automatic
+transaction the whole time, a pre-existing defect unrelated to this
+increment's own preference-request work. Corrected to
+`IManualTransactionCommand`, matching its two siblings exactly; its handler's
+existing explicit `SaveChangesAsync` call and `DbUpdateException` cleanup
+needed no change.
+
+The shared `CodexProcessInvoker` extends its otherwise fixed argument list
+with exactly two conditional flags, added only when the claimed attempt's own
+requested value is non-null: `--model <id>` and `--config
+model_reasoning_effort=<effort>`. The official
+[Codex developer commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+document `codex exec --model/-m <value>` as overriding the configured model for
+the run, and a repeatable `-c/--config <key=value>` inline configuration
+override; the official
+[configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+documents `model_reasoning_effort` as a string key whose available levels
+"depend on the model and client." Both were independently confirmed against
+the live documentation for this slice; the installed `codex-cli
+0.158.0-alpha.2.1` build's own local `codex exec --help` (cited in the
+planner's own selection record) independently lists `--model`, `--config`,
+`--ignore-user-config`, and `--ephemeral` as accepted flags on that build, a
+carried-over observation this executor's environment has no local CLI to
+reproduce directly. With no requested override, the exact existing argument
+list, sandbox, `--ephemeral`, `--ignore-user-config`, output schema, stdin
+delivery, and output/time bounds are unchanged byte-for-byte — proven by the
+unmodified passing exact-argument-list regression tests already covering the
+override-free path. Each requested value is independently revalidated against
+the same bounded, safe identifier character set immediately before it is ever
+placed on the command line, regardless of where it was validated earlier in
+the chain — never a raw, unchecked pass-through. The invoker also independently
+re-enforces effort-requires-model as its own boundary-level guard: an
+effort-only request fails the whole invocation closed before any process
+starts, never trusting that the claimed attempt it was given already enforced
+this upstream. This is invocation-argument
+policy only: it never infers, claims, or records an *observed* model or
+effort — `AgentObservedModel`/`AgentObservedEffort` remain null unless
+authoritative provider output itself reports them, exactly as before. Claude
+paths and their own fixed arguments are entirely unaffected.
+
 ## Token efficiency
 
 - Build a context manifest for each attempt and include only inputs required by

@@ -15,4 +15,6 @@ public sealed record EligibleCodeReviewAttempt(
     string ContextManifestContentHash,
     TimeSpan Timeout,
     int MaxBytesPerStream,
-    int MaxTotalCapturedBytes);
+    int MaxTotalCapturedBytes,
+    string? RequestedModel,
+    string? RequestedEffort);

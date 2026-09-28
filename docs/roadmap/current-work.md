@@ -8,14 +8,373 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-28)
 
+- Current delivery, based on verified parent `8f5c2a992e0fa4f3ff47b8bb5919529cbb5f5bd4`:
+  explicit, run-scoped Codex model and reasoning-effort requests for future
+  Codex Planner, Challenge Resolver, and Code Reviewer attempts. See
+  [planner-handoff.md](planner-handoff.md) for the selection record, and the
+  ["Explicit Codex model and reasoning-effort requests"](../architecture/agent-collaboration-protocol.md#explicit-codex-model-and-reasoning-effort-requests)
+  sections of the agent-collaboration-protocol and
+  [run-cockpit-specification.md](../product/run-cockpit-specification.md#explicit-codex-model-and-reasoning-effort-requests)
+  for the exact durable/invocation and product semantics.
+  - New `Run.RequestedCodexModel`/`RequestedCodexEffort` (nullable strings,
+    bounded at 128 characters, no default, no backfill — a historical Run
+    truthfully has no explicit preference) with a new `Run.SetRequestedCodexAssignment`
+    method (the first-ever post-construction mutation of a non-lifecycle Run
+    field): permitted only while `Lifecycle` is `Created` or `Running`,
+    rejects an effort without a model, and performs no I/O or catalog
+    validation itself — that business rule is the calling command handler's
+    responsibility, since Domain never performs I/O. New EF Core migration
+    `AddCodexAssignmentPreference` adds the two nullable, bounded columns
+    additively.
+  - New protected `SetCodexAssignmentPreferenceCommand`/Handler/Validator
+    validate a non-null pair against one fresh, bounded observation from the
+    existing `ICodexModelCatalogAdapter` (the same vetted launch target and
+    catalog contract the read-only catalog slice established): the model must
+    be a currently visible observed id, and a non-null effort must belong to
+    that entry's own known supported set. The catalog's suggested default is
+    never auto-selected. An `Unknown`/unavailable catalog, an invisible model,
+    or an unsupported effort each fail closed with their own stable error
+    code; clearing (`null` model) never reads the catalog. A durable
+    `run.codex_assignment_preference_changed` event (new `RunEventType`
+    constant) records only the new requested pair, actor `ParticipantIdentity.ForHuman()`.
+    New `POST api/runs/{runId}/codex-assignment-preference` endpoint and
+    additive NSwag client regeneration.
+  - **Corrected in review**: the command is `IManualTransactionCommand`
+    (mirroring the existing `CreateCodexPlanningAttemptCommand` precedent),
+    never a plain `ICommand` — the mediator's automatic EF transaction
+    behavior must never wrap a bounded external Codex App Server process
+    round trip. The handler now performs an untracked pre-check read (advisory
+    only: avoids a wasted catalog round trip for an already-missing or
+    already-terminal run), then the catalog observation with no tracked
+    entity and no pending database write, then reads the Run afresh (a
+    genuinely new tracked query, never the untracked pre-check row) inside
+    one short, tightly scoped write that re-validates the same terminal-
+    lifecycle race the pre-check cannot close by itself, applies the
+    preference, appends its event, and commits both together with a single
+    explicit `SaveChangesAsync` call — the handler owns this call itself,
+    exactly like every other `IManualTransactionCommand` handler in this
+    codebase. Proven by a new mediator-level, real-file-backed-SQLite
+    `SetCodexAssignmentPreferenceTransactionBoundaryTests` (mirroring the
+    established `CreateReviewCorrectionAttemptTransactionBoundaryTests`
+    pattern): a fake catalog adapter observes the actual handler `DbContext`
+    and records whether `Database.CurrentTransaction` was null at the moment
+    of its own invocation, and a fresh, separate read afterward confirms the
+    Run's preference and its event both persisted together.
+  - **Corrected in review again**: the fresh read and the single
+    `SaveChangesAsync` above still left one narrower gap open — a lifecycle
+    transition committed by a wholly different transaction in the interval
+    between that read and this handler's own save, with no further I/O of the
+    handler's own in between to re-observe it. Rather than wrapping that short
+    gap in an explicit multi-statement transaction, `Run.Lifecycle` is now
+    configured as an EF concurrency token (`RunConfiguration`, migration
+    `MarkRunLifecycleAsConcurrencyToken`, an empty-body migration since a
+    concurrency token is metadata-only and changes no column): the `UPDATE`
+    this handler's save produces now requires the exact `Lifecycle` value its
+    own fresh read observed, so a concurrent transition committed in that gap
+    makes the `UPDATE` match zero rows and throws
+    `DbUpdateConcurrencyException`, caught and reported identically to the
+    ordinary in-memory lifecycle rejection — the failed save rolls back the
+    whole batch, so neither the preference nor its event persists. Proven by
+    two new `SetCodexAssignmentPreferenceTransactionBoundaryTests` cases: one
+    drives the real mediator with a fake catalog adapter that, from inside its
+    own `ObserveAsync`, opens a second `DevalCopilotDbContext` against the
+    same file-backed database and commits a real `Run.Fail` transition before
+    returning — modeling a transition landing during the catalog round trip,
+    which the handler's own post-observation fresh read already correctly
+    rejects; the other drives two separate `DevalCopilotDbContext` instances
+    directly (no catalog-adapter hook exists inside the narrower gap itself)
+    to prove the concurrency token, not an explicit transaction, is what makes
+    a transition landing between the authoritative read and the save throw
+    `DbUpdateConcurrencyException` instead of silently overwriting the newer
+    state. Both assert neither the preference nor its event persisted.
+  - `GetRunCockpitQueryResult`/`GetRunCockpitResponse` gained
+    `RequestedCodexModel`/`RequestedCodexEffort` (the Run's own current
+    preference — never an effective or observed value) alongside the existing
+    projection fields.
+  - `Attempt` gained three new `...WithAssignment` factory overloads
+    (`ClaimAgentWithAssignment`, `ClaimAgentChallengeResolutionWithAssignment`,
+    `ClaimAgentCodeReviewWithAssignment`), mirroring the existing
+    `ClaimAgentImplementationWithAssignment` precedent exactly: each validates
+    the requested model/effort with the existing shared
+    `ValidateAssignmentIdentifier`, and — **corrected in review** — each also
+    now enforces the same effort-requires-model invariant
+    `Run.SetRequestedCodexAssignment` already enforces, via a new shared
+    private `ValidateRequestedAssignmentPair` helper (deliberately not applied
+    to the existing, out-of-scope `ClaimAgentImplementationWithAssignment`),
+    before setting `AgentRequestedModel`/`AgentRequestedEffort` on the new
+    immutable attempt. The original three factories
+    (`ClaimAgent`, `ClaimAgentChallengeResolution`, `ClaimAgentCodeReview`) are
+    now thin convenience overloads delegating to the new ones with
+    `requestedModel: null, requestedEffort: null` — every existing call site
+    and test is unchanged. The three `Create*Attempt` command handlers pass
+    the Run's requested model/effort into the new claim overloads; the
+    existing generic `RecordAgentObservedAssignment` method already covers
+    recording a genuinely provider-observed model/effort later and needed no
+    change.
+  - Claim-time assignment freshness and its atomic claim boundary, delivered
+    facts as they stand now: each of the three `Create*Attempt` handlers
+    (`CreateCodexPlanningAttemptCommandHandler`,
+    `CreateChallengeResolutionAttemptCommandHandler`,
+    `CreateCodeReviewAttemptCommandHandler`) reads the Run's requested Codex
+    model/effort pair via a shared `CurrentCodexAssignmentPreference.ReadAsync`
+    helper (a fresh, untracked query) only after all external work — Git
+    evidence capture and artifact sealing — has completed, immediately before
+    building the claimed `Attempt`, never from the stale `Run` instance each
+    handler loaded at the top of the method. From that point, one short,
+    explicit `IDevalCopilotDbContext.BeginTransactionAsync` transaction —
+    opened only after the external work, so it never spans it — covers the
+    rest of the claim boundary as a single atomic operation: a
+    `CurrentCodexAssignmentPreference.ConfirmUnchangedAsync` guard (one
+    `ExecuteUpdateAsync` statement whose `WHERE` clause re-checks the pair
+    against the Run's current row), the Attempt/artifact/input-message/
+    verification-evidence inserts, `SaveChangesAsync`, and the transaction's
+    own commit. A concurrent preference-only change can therefore no longer
+    land between the guard and the Attempt's own durable commit.
+  - Every step of that boundary — acquiring the transaction, the guard
+    statement, `SaveChangesAsync`, and the commit — has its own bounded
+    failure path, and every one of them deletes the already-sealed manifest
+    artifact unless an `IAttemptDurabilityProbe` check confirms the Attempt
+    durably persisted despite the failure: a transaction-acquisition failure
+    or a raw guard-statement failure (both `System.Data.Common.DbException`)
+    reports `attempts.persistence_failed` — a raw, unrelated database failure
+    is never described as a confirmed preference change, which is reported
+    only when the guard actually observes zero matching rows
+    (`agent_attempts.assignment_preference_changed`). A `SaveChangesAsync`
+    failure (`DbUpdateException`) keeps the existing race-classification
+    logic (a competing Running attempt, a lost budget-slot race, or an
+    unclassified `attempts.persistence_failed`) unchanged. A commit failure
+    is resolved the same way a `SaveChangesAsync` failure already was, via
+    the same probe. **Corrected in review**: that probe never queries the
+    claim's own `IDevalCopilotDbContext` — the same connection whose
+    transaction a best-effort rollback may have just failed to close cleanly
+    is not a reliable read. `RollbackBestEffortAsync` now also releases
+    (disposes) the transaction, swallowing either step's own failure, and the
+    ambiguous-outcome question is instead answered by
+    `AttemptDurabilityProbe` (`Application.Data.IAttemptDurabilityProbe`,
+    implemented in Infrastructure): a brand-new `DevalCopilotDbContext` on its
+    own independent connection, reading whether the Attempt row exists,
+    bounded by its own 5-second timeout. The probe reports `Persisted`
+    (success, delete nothing), `NotPersisted` (clean up, report
+    `attempts.persistence_failed`), or `Unresolved` — its own bounded read
+    itself failed or timed out, most often the same contention that made the
+    original outcome ambiguous also blocking the probe. `Unresolved` asserts
+    neither outcome: the sealed manifest is preserved exactly as for a
+    confirmed `Persisted` result, and `attempts.persistence_unresolved` is
+    reported rather than guessed. Rollback itself is attempted best-effort
+    and never lets a secondary failure mask the primary one.
+  - The connection's own SQLite lock-wait is bounded by Microsoft.Data.Sqlite's
+    own unconfigured default (30 seconds, confirmed by direct out-of-process
+    measurement) rather than an app-wide connection-string change, which was
+    tried and reverted after it broke unrelated `Api.IntegrationTests` pool
+    cleanup.
+  - `CreateCodeReviewAttemptCommand` is `IManualTransactionCommand` (a
+    pre-existing defect found and fixed this slice: it had been a plain
+    `ICommand`, running its external Git evidence capture and artifact-sealing
+    work inside the mediator's automatic per-command EF transaction), matching
+    its two sibling claim commands exactly.
+  - Each of the four boundary steps (transaction acquisition, guard,
+    `SaveChangesAsync`, commit) also has its own `catch (OperationCanceledException)`,
+    distinct from its `DbException`/`DbUpdateException` catch: cancellation is
+    never converted into a `Result` (a business failure) and is always
+    rethrown, but the already-sealed manifest artifact's ownership is still
+    resolved first via the same `IAttemptDurabilityProbe` check and an
+    unconditional token (the caller's own is already cancelled) — deleted
+    only on a definite `NotPersisted`, retained on `Persisted` or
+    `Unresolved` — before the cancellation is rethrown.
+  - Tests: a claim-time-freshness test in all three handlers' test files
+    (a race injected during external Git evidence capture, reusing the
+    existing `RaceInjectingEvidenceReader` precedent, proves the claimed
+    Attempt embeds the pair current at the claim boundary, and that a further
+    preference change after the claim never reaches the already-claimed
+    Attempt's own immutable snapshot); a post-read-interleaving test in all
+    three files (drives `ConfirmUnchangedAsync` directly against an
+    already-committed differing pair, asserting it returns `false` with no
+    side effect); eight fault-injection tests in all three files
+    (`FaultInjectingDbContext`, a decorator over the real `DevalCopilotDbContext`
+    that can simulate, at transaction acquisition or at commit, a raw
+    provider failure, a cancellation, or — for commit specifically — either
+    before or after the underlying commit actually completes, each
+    independently combinable with the handler's own best-effort rollback of
+    that same transaction also throwing) proving the correct
+    artifact-cleanup-or-retain decision through the real, independent
+    `AttemptDurabilityProbe` — reading against the fixture's own database file
+    via a genuinely separate `DevalCopilotDbContext`, never a fake — even when
+    the rollback that precedes it fails, and, for the cancellation cases,
+    that the exception genuinely propagates rather than being converted into
+    a `Result`; and one mediator-independent
+    `ClaimTimeAssignmentPreferenceGuardTests` proving the guard-and-commit
+    transaction genuinely excludes a competing write. That test starts the
+    competing write on a background `Task` — never synchronously awaited
+    while the claim-side transaction holds its own lock — with a
+    `DbCommandInterceptor` attached only to that competing connection. The
+    interceptor signals one of two `TaskCompletionSource`s filtered by the
+    intercepted command's own text: one for the competing connection's
+    initial `SELECT` (its `SingleAsync` read), one for its later `UPDATE`
+    (the actual preference write) — **corrected in review**: an earlier
+    version signaled unconditionally on every intercepted command, so it
+    could not prove the `SELECT` itself never triggered the write-attempt
+    wait. The test now gates the racing task between its `SELECT` and its
+    `UPDATE`, asserts the write-attempt signal is not yet completed once the
+    `SELECT` alone has run, then releases the gate — so the filtering is
+    itself an asserted behavior, not merely an inspected implementation
+    detail. Because the `UPDATE` signal still fires immediately before that
+    command runs, the test also waits a short, generously-margined
+    confirmation window (200 ms, against a normal unblocked write's low
+    single-digit milliseconds) before asserting the write is still
+    incomplete — confirmed to fail without that confirmation window in a
+    scenario with no real lock held, and confirmed to fail without the
+    transaction fix itself in a scenario with one. Only after its own commit
+    does the test await the competing write and assert it applied strictly
+    afterward. A second test,
+    `A_preference_only_write_with_no_competing_claim_transaction_completes_promptly`,
+    is this methodology's own negative control: the identical interceptor,
+    signal, and 200 ms confirmation window, but with no competing claim
+    transaction ever opened, asserting the write *does* complete within the
+    window — proving the positive test's own blocked-assertion is a genuine,
+    two-sided discriminator rather than one that would trivially pass no
+    matter what. `CreateCodeReviewAttemptTransactionBoundaryTests` proves the
+    manual-transaction fix: a fake evidence reader observes
+    `Database.CurrentTransaction` at its own invocation and asserts it null.
+  - The three `Eligible*Attempt` read-model projections
+    (`EligibleAgentAttempt`, `EligibleChallengeResolutionAttempt`,
+    `EligibleCodeReviewAttempt`) and the three `*InvocationRequest` port
+    records (`CodexPlanningInvocationRequest`, `ChallengeResolutionInvocationRequest`,
+    `ImplementationReviewInvocationRequest`) gained `RequestedModel`/`RequestedEffort`
+    (optional, defaulting to `null`, so no existing positional test call site
+    needed updating). The three supervisors
+    (`AgentAttemptSupervisor`, `ChallengeResolutionSupervisor`,
+    `ImplementationReviewSupervisor`) now pass the claimed attempt's own
+    snapshot fields into the invocation request — never the Run's own
+    (possibly since-changed) mutable preference, including after a host
+    restart, since the supervisors always dispatch from the durably claimed
+    `Attempt` row.
+  - `CodexProcessInvoker.Request` gained optional `RequestedModel`/`RequestedEffort`
+    (defaulting to `null`, preserving every existing positional test call
+    site). Each non-null value is independently revalidated against the same
+    bounded, safe identifier character set the model-catalog adapter already
+    enforces immediately before being placed on the command line — a
+    defense-in-depth revalidation, never a raw pass-through, mirroring the
+    existing launch-target revalidation. **Corrected in review**: the invoker
+    now also independently re-enforces effort-requires-model as a second,
+    boundary-level guard — an effort-only request (`RequestedModel: null`,
+    `RequestedEffort` non-null) fails the whole invocation closed before any
+    process starts, never trusting that the claimed attempt it was given
+    already enforced this upstream; the previous positive "effort-only still
+    appends only the config flag" test was replaced with this rejection
+    coverage. With both null, the exact existing
+    argument list, `--sandbox read-only`, `--ephemeral`, `--ignore-user-config`,
+    schema, stdin delivery, and output/time bounds are byte-for-byte
+    unchanged — proven by the existing exact-argument-list regression tests,
+    all still green unmodified. With a non-null model and/or effort, exactly
+    `--model <id>` and/or `--config model_reasoning_effort=<effort>` are
+    appended before the trailing `-`, verified against the official
+    [Codex developer commands](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+    (fetched directly in this slice: `--model/-m` and repeatable `-c/--config
+    key=value`) and [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+    (`model_reasoning_effort`, levels depend on model/client) — the installed-
+    build `codex exec --help` citation for `--model`/`--config`/`--ignore-user-config`/
+    `--ephemeral` is carried over from the planner's own selection record
+    (this executor's environment has no local `codex` CLI to reproduce that
+    check independently). Claude paths and arguments are entirely untouched.
+  - New `useSetCodexAssignmentPreference` hook and `CodexAssignmentPreferenceControl`
+    cockpit component (using the existing `useCodexModelCatalog` hook) added
+    to `RunCockpitView`: a model select (starting on an explicit "No
+    preference," never auto-selecting the catalog's suggested default), an
+    effort select populated only from the selected model's own supported
+    efforts, Save and Clear controls, and explicit loading/Unknown/save-
+    failure states that never discard the last successfully saved preference.
+  - Excluded, per the selected slice's boundary: Claude model/effort
+    selection, permission-mode changes, arbitrary CLI config, profile/user-
+    config loading, CLI-default inference, automatic choice of the catalog's
+    suggested default, provider capability/preflight claims, account-
+    allowance thresholds, invocation-eligibility guarantees, retry/fallback,
+    provider-session resume, and context/compaction. No observed model or
+    effort is ever inferred from the requested pair, the catalog, or a
+    process exit.
+  - Checks actually run (full suites, current totals): Domain.Tests 547/547;
+    Infrastructure.IntegrationTests 520/521 (1 pre-existing, unrelated skip) —
+    including `SetCodexAssignmentPreferenceTransactionBoundaryTests` (no
+    ambient transaction wraps the catalog observation; the preference and its
+    event persist together; a lifecycle transition during the catalog
+    observation or between the authoritative read and the save is rejected
+    via the `Lifecycle` concurrency token with nothing persisted),
+    `CreateCodeReviewAttemptTransactionBoundaryTests` (no ambient transaction
+    wraps its external Git evidence capture; its own DI container now also
+    registers `IAttemptDurabilityProbe`, alongside every other hand-built
+    `ServiceCollection` in `Api.IntegrationTests` that seeds through one of
+    the three `Create*Attempt` handlers), and two
+    `ClaimTimeAssignmentPreferenceGuardTests` (the guard-and-commit
+    transaction excludes a background competing write, and its own no-lock
+    negative control); Application.Tests 1069/1069 — including
+    `SetCodexAssignmentPreferenceCommandHandlerTests`
+    (not-found, clear-without-catalog-read, set-valid, model-not-visible,
+    effort-not-supported, catalog-Unknown, no-vetted-target, terminal-
+    lifecycle rejection), and, across the three `Create*Attempt` handlers'
+    test files: preference-copied-into-claimed-attempt and null-preference
+    cases; a claim-time-assignment-freshness case per handler (a preference
+    change injected during external Git evidence capture is what the claimed
+    attempt embeds; a further change after the claim never reaches the
+    already-claimed attempt's own snapshot); a post-read-interleaving case per
+    handler (`ConfirmUnchangedAsync` returns `false` with no side effect
+    against an already-committed differing pair); eight fault-injection cases
+    per handler through the real, independent `AttemptDurabilityProbe`
+    (transaction-acquisition failure; commit failure without persisting;
+    commit failure that did persist; the same two commit outcomes again with
+    the handler's own best-effort rollback of that same transaction also
+    throwing; and the three `OperationCanceledException` equivalents —
+    cancellation during transaction acquisition, cancellation during commit
+    without persisting, cancellation during commit that did persist) —
+    together proving the correct artifact-cleanup-or-retain and
+    error-classification outcome even when the preceding rollback itself
+    fails, and, for the cancellation cases, that the exception genuinely
+    propagates from `HandleAsync` rather than being converted into a
+    `Result`; Api.IntegrationTests 339/339 — including
+    `SetCodexAssignmentPreferenceEndpointTests`
+    (401, 404, structural validation, catalog-unavailable-closed, clear,
+    set-and-reflected-in-cockpit, model-not-visible, effort-not-supported,
+    no-leak); Architecture.Tests 9/9. Frontend focused hook and component
+    tests full suite 666/666; `tsc -b` clean; `oxlint` exited 0 with the same
+    20 pre-existing warnings (0 new); production build (`vite build`) passed
+    — none of this slice's review corrections touched a frontend file or an
+    API-visible
+    contract, so the frontend suite, `tsc`, `oxlint`, and the production build
+    were not rerun again in this round; their results above remain
+    applicable, confirmed by the NSwag repeat-build hash below staying byte-
+    identical throughout. Two migrations exist: `AddCodexAssignmentPreference`
+    (additive, the two nullable bounded preference columns) and
+    `MarkRunLifecycleAsConcurrencyToken` (empty-body — required only to keep
+    the EF model snapshot in sync with `Run.Lifecycle`'s concurrency-token
+    metadata, since a concurrency token changes no column); nothing in this
+    slice's guard-transaction or `CreateCodeReviewAttemptCommand` fixes needed
+    a further migration (both schema-free). NSwag client regenerated via
+    `dotnet build src/backend/DevalCopilot.Api` with an identical SHA-256 hash
+    on every repeat build (no drift). `git diff --check` is clean apart from
+    the pre-existing
+    generated-client CRLF-normalization warning and the same warning now also
+    on the additively-updated EF model snapshot file (0 actual CRLF bytes in
+    either). Local documentation links resolve. Automated tests never call a
+    real provider.
+  - Remaining risk: the `--model`/`--config model_reasoning_effort` invocation
+    shape is verified from the official documentation (fetched directly) and,
+    for the installed-build `codex exec --help` confirmation specifically,
+    from the planner's own carried-over observation — this executor's
+    environment has no local `codex` CLI to reproduce that specific check.
+    An incompatible installed CLI version, or one that rejects these flags in
+    combination with the existing fixed arguments, fails the whole invocation
+    closed (the shared invoker's existing non-zero-exit handling), never
+    silently ignores the request. Provider account-usage thresholds,
+    warning/stop enforcement, Gemini/manual-fallback provider selection, and
+    context/compaction remain open under [Increment 4](mvp-delivery-plan.md).
 - Published delivery: `cf5b8d64b7d41fe1b258ad919f75051e8425a408`
   (parent `c2e5023e3c4a653856b5691d52c1d27e07844826`) was committed with
   the reviewed 31-file slice, pushed as a normal fast-forward to `origin/main`,
   and verified against the live remote with `git fetch origin main`: local
   `HEAD`, local `origin/main`, and fetched `origin/main` matched the delivered
   SHA, with a clean working tree. This closure records the delivered SHA only;
-  no code or product contract changed after publication. The planner has not
-  selected another slice.
+  no code or product contract changed after publication. (Historical: at this
+  closure's own time, the planner had not yet selected another slice; it has
+  since selected the explicit Codex model/effort request slice recorded at
+  the top of this checkpoint.)
 - Current delivery, based on verified parent `c2e5023e3c4a653856b5691d52c1d27e07844826`:
   read-only Codex model and reasoning-effort catalog observation. See
   [planner-handoff.md](planner-handoff.md) for the selection record, and the

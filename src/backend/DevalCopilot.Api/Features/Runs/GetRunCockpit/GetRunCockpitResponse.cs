@@ -22,4 +22,6 @@ public sealed record GetRunCockpitResponse(
     bool AgentBudgetExhausted,
     AgentInvocationTimeBudgetResponse AgentInvocationTimeBudget,
     AgentProcessDurationSummaryResponse AgentProcessDurationSummary,
-    IReadOnlyList<AgentClaimPathTimeFitResponse> AgentClaimPathTimeFits);
+    IReadOnlyList<AgentClaimPathTimeFitResponse> AgentClaimPathTimeFits,
+    string? RequestedCodexModel,
+    string? RequestedCodexEffort);

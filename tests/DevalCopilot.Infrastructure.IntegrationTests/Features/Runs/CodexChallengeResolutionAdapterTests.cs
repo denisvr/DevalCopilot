@@ -116,6 +116,44 @@ public sealed class CodexChallengeResolutionAdapterTests : IDisposable
     }
 
     [Fact]
+    public async Task A_requested_model_and_effort_append_both_fixed_flags()
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var executablePath = CreateLaunchFile("fake-codex-resolution-with-assignment.exe");
+        var scratchDirectory = AgentInvocationScratchDirectory.EnsureExists(runId, attemptId);
+
+        var fake = new FakeProcessExecutionAdapter();
+        var adapter = new CodexChallengeResolutionAdapter(fake, _artifactStore);
+        var request = new ChallengeResolutionInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            executablePath, LaunchScriptPath: null, TimeSpan.FromSeconds(30), 65536, 131072,
+            RequestedModel: "gpt-6-sol", RequestedEffort: "high");
+
+        var result = await adapter.InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(ChallengeResolutionInvocationOutcome.Exited, result.Outcome);
+        var expectedSchemaPath = Path.Combine(scratchDirectory, "schema.json");
+        var expectedResultPath = _artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentFinalResponse);
+        string[] expectedArguments =
+        [
+            "exec",
+            "--json",
+            "--output-schema", expectedSchemaPath,
+            "--output-last-message", expectedResultPath,
+            "--sandbox", "read-only",
+            "--cd", _workspacePath,
+            "--ephemeral",
+            "--ignore-user-config",
+            "--model", "gpt-6-sol",
+            "--config", "model_reasoning_effort=high",
+            "-",
+        ];
+        Assert.Equal(expectedArguments, fake.CapturedRequest!.Arguments.ToArray());
+    }
+
+    [Fact]
     public async Task A_node_script_launch_target_prepends_the_script_path_and_keeps_the_same_flag_contract()
     {
         var runId = Guid.NewGuid();

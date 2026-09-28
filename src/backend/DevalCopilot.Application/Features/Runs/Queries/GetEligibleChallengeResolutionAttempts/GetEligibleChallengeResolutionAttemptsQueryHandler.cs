@@ -61,6 +61,8 @@ public sealed class GetEligibleChallengeResolutionAttemptsQueryHandler(IDevalCop
                     Timeout = combined.attempt.AgentTimeout!.Value,
                     MaxBytesPerStream = combined.attempt.AgentMaxBytesPerStream!.Value,
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
+                    combined.attempt.AgentRequestedModel,
+                    combined.attempt.AgentRequestedEffort,
                 })
             .ToListAsync(cancellationToken);
 
@@ -109,7 +111,9 @@ public sealed class GetEligibleChallengeResolutionAttemptsQueryHandler(IDevalCop
                     orderedInputMessages
                         .Where(inputMessage => inputMessage.Sequence > 0)
                         .Select(inputMessage => inputMessage.CollaborationMessageId)
-                        .ToArray());
+                        .ToArray(),
+                    candidate.AgentRequestedModel,
+                    candidate.AgentRequestedEffort);
             })
             .ToArray();
     }

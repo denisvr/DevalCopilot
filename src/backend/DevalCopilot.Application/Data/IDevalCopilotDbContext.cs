@@ -2,6 +2,7 @@ using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DevalCopilot.Application.Data;
 
@@ -54,4 +55,16 @@ public interface IDevalCopilotDbContext
     /// value, such as the monotonic event sequence, before returning their result.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Opens an explicit database transaction. Reserved for a manual-transaction command that must
+    /// make a short sequence of its own — after all external I/O has already completed — into one
+    /// genuinely atomic database operation: a read (or a conditional guard) whose result feeds a
+    /// write that must durably commit together with it, with no other transaction able to commit a
+    /// conflicting change to the same row in between. Never used to wrap external I/O. The
+    /// underlying connection's lock-wait is bounded (see <c>DevalCopilotDbContext</c>'s own
+    /// implementation) so a genuine conflict fails within a bounded time instead of waiting
+    /// indefinitely.
+    /// </summary>
+    Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken);
 }
