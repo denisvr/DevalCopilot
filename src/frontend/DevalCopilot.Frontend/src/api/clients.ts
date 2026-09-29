@@ -25,6 +25,9 @@ import {
   GetCollaborationTimelineEndpointClient,
   GetCollaborationMessageEvidenceEndpointClient,
   GetSealedAgentArtifactWindowEndpointClient,
+  GetAgentAttemptHistoryEndpointClient,
+  GetAgentAttemptEvidenceEndpointClient,
+  GetAgentAttemptArtifactWindowEndpointClient,
   GetRunEventsEndpointClient,
   PrepareRepositoryWorkspaceEndpointClient,
   RecheckProjectPhysicalIdentityEndpointClient,
@@ -56,6 +59,9 @@ export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBase
 export const collaborationTimelineClient = () => new GetCollaborationTimelineEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const collaborationMessageEvidenceClient = () => new GetCollaborationMessageEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const sealedAgentArtifactWindowClient = () => new GetSealedAgentArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const agentAttemptHistoryClient = () => new GetAgentAttemptHistoryEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const agentAttemptEvidenceClient = () => new GetAgentAttemptEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const agentAttemptArtifactWindowClient = () => new GetAgentAttemptArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const providerRuntimePreflightClient = () => new GetProviderRuntimePreflightEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -126,6 +132,9 @@ export type {
   CollaborationMessageTimelineResponse,
   CollaborationMessageEvidenceResponse,
   SealedAgentArtifactWindowResponse,
+  AgentAttemptHistoryResponse,
+  AgentAttemptHistoryEntryResponse,
+  AgentAttemptEvidenceResponse,
   StageMapEntryResponse,
   UpdateVerificationCommandRequest,
   VerificationCommandResponse,

@@ -193,4 +193,20 @@ describe('UsageEvidenceRail', () => {
 
     expect(await screen.findByText('Claude account usage: not yet collected in this increment.')).toBeTruthy()
   })
+
+  it('offers the Agent attempt history only for a run, collapsed by default, and drops it when the rail collapses', async () => {
+    const getCodexModelCatalog = stubUnknownCatalog()
+    vi.mocked(codexAccountAllowanceClient).mockReturnValue({
+      getCodexAccountAllowance: vi.fn().mockResolvedValue(new CodexAccountAllowanceResponse({ status: 'Unknown', buckets: [] })),
+    } as never)
+    const { rerender } = render(<UsageEvidenceRail />)
+    await waitFor(() => expect(getCodexModelCatalog).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: 'Show Agent attempt history' })).toBeNull()
+
+    rerender(<UsageEvidenceRail runId="run-1" />)
+    expect(screen.getByRole('button', { name: 'Show Agent attempt history' }).getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse usage and evidence rail' }))
+    expect(screen.queryByRole('button', { name: 'Show Agent attempt history' })).toBeNull()
+  })
 })

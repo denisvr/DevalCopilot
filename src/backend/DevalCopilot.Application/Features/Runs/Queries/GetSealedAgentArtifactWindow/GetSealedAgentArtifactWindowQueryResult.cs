@@ -16,6 +16,11 @@ public enum SealedAgentArtifactWindowStatus
     /// role/provider does not match the message's own actor.</summary>
     AttemptLinkBroken,
 
+    /// <summary>The attempt was selected directly from the run history (not through a message) and its
+    /// persisted role, provider, response contract, or assignment could not be proven coherent, so no
+    /// evidence is disclosed. Never produced by the message-linked route.</summary>
+    AttemptIdentityInvalid,
+
     /// <summary>The requested purpose is outside the closed four-purpose Agent-artifact allowlist
     /// (context manifest, stdout, stderr, final response) — defense in depth; the API boundary
     /// already restricts the route to these four values.</summary>
@@ -46,6 +51,9 @@ public sealed record GetSealedAgentArtifactWindowQueryResult(
 
     public static GetSealedAgentArtifactWindowQueryResult AttemptLinkBroken(long fromOffset) =>
         new(SealedAgentArtifactWindowStatus.AttemptLinkBroken, string.Empty, fromOffset, 0, null);
+
+    public static GetSealedAgentArtifactWindowQueryResult AttemptIdentityInvalid(long fromOffset) =>
+        new(SealedAgentArtifactWindowStatus.AttemptIdentityInvalid, string.Empty, fromOffset, 0, null);
 
     public static GetSealedAgentArtifactWindowQueryResult PurposeNotAllowlisted(long fromOffset) =>
         new(SealedAgentArtifactWindowStatus.PurposeNotAllowlisted, string.Empty, fromOffset, 0, null);

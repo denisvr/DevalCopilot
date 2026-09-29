@@ -10,22 +10,11 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetSealedAgentArtifactW
 public sealed class GetSealedAgentArtifactWindowQueryHandler(IDevalCopilotDbContext dbContext, IArtifactStore artifactStore)
     : IQueryHandler<GetSealedAgentArtifactWindowQuery, Result<GetSealedAgentArtifactWindowQueryResult>>
 {
-    /// <summary>The closed set of Agent-attempt artifact purposes this operation ever serves —
-    /// never the two Process-attempt purposes, which belong to a different attempt kind and a
-    /// different existing endpoint (<c>GetProcessAttemptOutput</c>). Defense in depth: the API
-    /// boundary already restricts its route to these same four values.</summary>
-    private static readonly IReadOnlySet<ArtifactPurpose> AllowlistedPurposes = new HashSet<ArtifactPurpose>
-    {
-        ArtifactPurpose.AgentContextManifest,
-        ArtifactPurpose.AgentStandardOutput,
-        ArtifactPurpose.AgentStandardError,
-        ArtifactPurpose.AgentFinalResponse,
-    };
 
     public async Task<Result<GetSealedAgentArtifactWindowQueryResult>> HandleAsync(
         GetSealedAgentArtifactWindowQuery query, CancellationToken cancellationToken)
     {
-        if (!AllowlistedPurposes.Contains(query.Purpose))
+        if (!SealedAgentArtifactWindowReader.AllowlistedPurposes.Contains(query.Purpose))
         {
             return Result<GetSealedAgentArtifactWindowQueryResult>.Success(
                 GetSealedAgentArtifactWindowQueryResult.PurposeNotAllowlisted(query.FromOffset));
@@ -77,43 +66,8 @@ public sealed class GetSealedAgentArtifactWindowQueryHandler(IDevalCopilotDbCont
                 GetSealedAgentArtifactWindowQueryResult.AttemptLinkBroken(query.FromOffset));
         }
 
-        // Filtered by AttemptId, RunId, AND Purpose — Artifact.RunId is persisted independently of
-        // its AttemptId and the database enforces no composite run/attempt ownership constraint
-        // between them, so an inconsistent cross-run row must never leak into this window.
-        var artifact = await dbContext.Artifacts
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                candidate => candidate.AttemptId == attempt.Id
-                    && candidate.RunId == query.RunId
-                    && candidate.Purpose == query.Purpose,
-                cancellationToken);
-
-        if (artifact is null)
-        {
-            return Result<GetSealedAgentArtifactWindowQueryResult>.Success(
-                GetSealedAgentArtifactWindowQueryResult.ArtifactNotFound(query.FromOffset));
-        }
-
-        var sealedRead = await artifactStore.VerifyAndReadSealedAsync(
-            artifact.RelativeStoragePath, artifact.ByteLength, artifact.ContentHash, query.FromOffset, query.MaxBytes, cancellationToken);
-
-        var status = sealedRead.Status switch
-        {
-            SealedReadStatus.Ok => SealedAgentArtifactWindowStatus.Ok,
-            SealedReadStatus.Missing => SealedAgentArtifactWindowStatus.Missing,
-            SealedReadStatus.IntegrityMismatch => SealedAgentArtifactWindowStatus.IntegrityMismatch,
-            _ => throw new ArgumentOutOfRangeException(),
-        };
-
-        // Truncated is preserved as-is (including a genuinely unknown null for an artifact
-        // recovered from a host interruption) only for a verified Ok read; every other status
-        // never carries content, so it never carries a truncation fact about content it isn't
-        // returning.
-        return Result<GetSealedAgentArtifactWindowQueryResult>.Success(new GetSealedAgentArtifactWindowQueryResult(
-            status,
-            sealedRead.Text,
-            sealedRead.NextOffset,
-            sealedRead.TotalLengthSoFar,
-            status == SealedAgentArtifactWindowStatus.Ok ? artifact.Truncated : null));
+        var window = await SealedAgentArtifactWindowReader.ReadAsync(
+            dbContext, artifactStore, query.RunId, attempt.Id, query.Purpose, query.FromOffset, query.MaxBytes, cancellationToken);
+        return Result<GetSealedAgentArtifactWindowQueryResult>.Success(window);
     }
 }

@@ -994,8 +994,8 @@ repeats the identical message-to-attempt coherence rule the evidence
 drill-down itself already enforces — the same `ProviderObserved` provenance
 check, the same `AttemptId` foreign-key-only resolution, and the same
 role/provider coherence check between the message's actor and the resolved
-`Attempt` row — rather than sharing an extracted helper, since each operation
-independently owns its own request shape and failure projection. An
+`Attempt` row. Each operation still owns its own request shape, identity proof, and failure projection; only the artifact-row filter and sealed read are shared, through
+`SealedAgentArtifactWindowReader` (see [Agent-attempt history and evidence inspection](#agent-attempt-history-and-evidence-inspection)). An
 `Artifact` row is then resolved by matching **all three** of `AttemptId`,
 `RunId`, and the requested `Purpose` together; a purpose outside the closed
 allowlist is rejected at both the API route (an unrecognized route segment is
@@ -1059,6 +1059,89 @@ identifier in a host-constructed field, or an unrecognized secret format in
 redacted provider output, may still remain. No window is ever rendered or
 persisted anywhere but this one on-demand view (no browser storage, no URL,
 no log).
+
+### Agent-attempt history and evidence inspection
+
+The message-linked evidence and artifact-window routes require a collaboration
+message's `AttemptId`, and the six role status routes select only their own
+role's latest attempt, so a failed or interrupted historical Agent attempt that
+emitted no `ProviderObserved` message had no navigation path to its sealed
+output. Three additive, protected, read-only MVC operations close that gap
+without changing any provider, workflow, schema, or the message-linked routes:
+
+- **History.** `GET /api/runs/{runId}/agent-attempts` (`GetAgentAttemptHistoryQuery`)
+  returns one page of the run's `Kind == Agent` attempts (never Process attempts,
+  never another run's) in strictly descending `AttemptNumber`, which the unique
+  `(RunId, AttemptNumber)` index makes a total order. `beforeAttemptNumber` is an
+  exclusive cursor, so a page boundary is stable while newer attempts are appended,
+  and a run may hold more than the current 16-claim default (verified with 45
+  attempts). `limit` defaults to 10 and is hard-capped at 20; a non-positive
+  `limit` or cursor is a 400 and an unknown run a 404. The handler reads one extra
+  row to compute `hasMore` and returns `nextBeforeAttemptNumber` (the last returned
+  number) only when `hasMore` is true. Rows carry identity and lifecycle facts only.
+- **Evidence metadata.** `GET …/agent-attempts/{attemptId}/evidence`
+  (`GetAgentAttemptEvidenceQuery`) resolves by the exact `(RunId, AttemptId)` pair and
+  `Kind == Agent`; an unknown, foreign-run, or non-Agent attempt is a safe 404
+  (`agent_attempts.not_found`). It returns identity, lifecycle, host-measured process
+  evidence, provider-reported token evidence, and metadata (purpose, byte length,
+  truncation, capture outcome) for only the four allowlisted purposes, filtered by
+  the artifact row's independently stored `RunId`, `AttemptId`, and purpose, so a
+  cross-run row or a Process-purpose row never appears.
+- **Sealed text window.** `GET …/agent-attempts/{attemptId}/evidence/artifact-window/{purpose}`
+  (`GetAgentAttemptArtifactWindowQuery`) serves the same closed four-purpose
+  allowlist (`context-manifest`, `stdout`, `stderr`, `final-response`; anything else
+  is a 404) with the same byte cap and UTF-8 cursor. It delegates to the shared
+  `SealedAgentArtifactWindowReader`, which the message-linked handler now also calls
+  for its artifact-row filter and `IArtifactStore.VerifyAndReadSealedAsync` read, so
+  both routes return identical bytes and statuses (`Ok`, `ArtifactNotFound`,
+  `Missing`, `IntegrityMismatch`) and inherit the store's containment and integrity
+  guarantees unchanged. Text is never returned unless the whole sealed file first
+  verified. Each route still owns how it proves the attempt's identity: the message
+  route keeps its `ProviderObserved` and message-actor checks untouched.
+
+**Identity rule.** `AgentAttemptIdentity.IsCoherent` is the single read-side
+provenance check for history and evidence: Agent kind; defined status, role,
+provider, and response contract; a role/provider pair the product actually launches
+(Codex Planner, Resolver, CodeReviewer; Claude Code CriticalReviewer, Implementer);
+a response contract that belongs to that role; and a well-formed immutable
+assignment snapshot. A history row that fails is still listed by number and times
+(with its status when readable), but its role, provider, contract, and outcome are
+withheld and it is not offered for evidence (`identityValid: false`); the evidence
+route then returns 200 with `identityValid: false` and only the non-enum facts, and
+the window route returns the new `AttemptIdentityInvalid` status (only ever produced
+by this route) with no text. This is provenance validation only — it is not a claim
+about provider capability, account allowance, session resumability, or current
+workflow authority.
+
+**Unreadable persisted strings.** Status, role, provider, and response contract are
+stored as strings and converted by EF while an `Attempt` is materialized, so a
+corrupted or legacy value would throw before the identity rule could run.
+`AgentAttemptRead` therefore reads only non-enum columns first (id, number, claim,
+completion, and dispatch times) to establish existence, run ownership, ordering, and
+the page, then materializes each full row inside a guard that catches any
+`InvalidOperationException` raised during full-row materialization (database and
+cancellation failures are not caught). The guard cannot prove the exception came
+specifically from enum conversion, so it treats the row as unreadable whatever the
+cause of that exception type. An unreadable row is handled exactly like an
+incoherent one: listed in place with `identityValid: false` and a null status,
+evidence `identityValid: false` with a null `attemptStatus`, and the window
+`AttemptIdentityInvalid` with no text — never the exception, the stored string, or
+artifact content. The other rows of the same page are unaffected. The existing EF
+model is unchanged; no raw SQL or schema change is involved, and the guard does not
+repair or rewrite the stored value.
+
+**Disclosure.** The metadata routes (history and evidence) and the envelope of a window
+response carry no storage path, content hash, provider session identifier, prompt,
+adapter contract version, executable path, argument, or working directory, and the tests
+assert that none is added as a field. A verified window's `text` is different: it is the
+captured sealed content, returned exactly as recorded, so it can contain whatever the
+provider or host wrote — including text that resembles a prompt, session identifier, path,
+or hash — after only the best-effort redaction applied at capture. The context manifest
+is host-constructed content and the other three purposes are best-effort-redacted provider
+output that may still contain sensitive text, exactly as for the message-linked route. No route
+makes a provider call, opens
+a session, replays or retries an attempt, mutates workflow state, or reads a live
+partial capture.
 
 ### Provider token-usage contracts
 

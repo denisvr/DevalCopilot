@@ -7,7 +7,273 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-29): explicit Claude effort requests at safe attempt boundaries
+## Current selection (2026-09-29): inspect historical Agent attempts without a collaboration message
+
+- Final correction re-review (2026-09-29): **GO for the reviewed substantive
+  slice, with one exact factual handoff edit described below.** Independently
+  verified `main`, `HEAD`, local and live `origin/main` at
+  `391317193575d111a5e27afd76140010ce3bd21b`, nothing staged, 14
+  modified tracked files (including this planner record and `current-work.md`)
+  and 30 untracked files. `AgentAttemptScalars` is now the only top-level type
+  in its own file; `AgentAttemptRead` remains alone in its file. The API test
+  summary now distinguishes metadata/envelope fields from returned sealed
+  text, and the helper/architecture/handoff wording accurately names the
+  `InvalidOperationException` catch boundary. Independently built the whole
+  solution with shared compilation disabled (0 warnings, 0 errors), then ran
+  focused API history/message-window tests 35/35 and Application
+  identity/sealed-window tests 20/20 against that build. `git diff --check`
+  reports only the known generated-client CRLF notice. The executor reports
+  Architecture 9/9 and the prior complete backend/frontend suites and stable
+  generated client; those results remain applicable to this round's unchanged
+  behavior and type move.
+- Single publication instruction after this GO: before staging, make only a
+  factual correction to the `current-work.md` checks bullet: close its open
+  parenthesis and record all three observed build-lock incidents accurately
+  (two Api locks in earlier initial builds and one VBCSCompiler/Application
+  lock in this final correction round), each cleared on rebuild, with the
+  final solution build at 0 warnings/0 errors. Change no code, tests, wire
+  contract, or other documentation beyond this planner GO record. Verify the
+  exact staged set is the reviewed 14 modified plus 30 new files, including
+  `current-work.md` and this planner record, and run `git diff --check` and
+  local handoff-link checks. Commit the reviewed substantive slice on `main`,
+  push normally as a fast-forward to `origin/main`, and independently fetch
+  and verify that the live remote points to its exact SHA. Run the focused
+  history/evidence/window API tests, identity/sealed-window Application tests,
+  and frontend history-panel tests against that substantive commit as the
+  handoff specifies, and report exact results and tree state. Then make only
+  the tightly bounded factual `current-work.md` closure recording the
+  substantive SHA, verified publication, and post-publication checks actually
+  run; commit and push that documentation-only closure normally and verify the
+  live remote and clean tree again. No SHA of a commit belongs in that same
+  commit's documentation. Any material post-GO change, unexpected staged or
+  worktree file, recurring build/test failure, failed push, or remote
+  divergence stops for Codex review/direction; do not force-push or reconcile
+  history. The narrow factual edits named here need no separate GO. This GO
+  authorizes only publication of this reviewed slice; no next slice is selected.
+
+- Second uncommitted diff review (2026-09-29): **NO-GO; final bounded
+  contract/documentation correction in this same slice.** Independently
+  verified `main`, `HEAD`, local and live `origin/main` at
+  `391317193575d111a5e27afd76140010ce3bd21b`, nothing staged, the same
+  14 modified tracked files and 29 untracked files (one new
+  `AgentAttemptRead.cs`). Focused API history/message-window tests passed
+  35/35 independently; `git diff --check` reports only the known generated
+  client CRLF notice. The two prior behavioral findings are addressed: the
+  raw text/envelope test now distinguishes content from metadata, and real
+  malformed persisted enum strings exercise all three routes and fail closed.
+  Three small corrections remain:
+  1. `AgentAttemptRead.cs` declares two public top-level types,
+     `AgentAttemptScalars` and `AgentAttemptRead`. The engineering contract's
+     non-negotiable C# rule is one top-level type per file. Move the scalar
+     record unchanged into `AgentAttemptScalars.cs`; preserve the read behavior.
+  2. The XML summary atop `AgentAttemptHistoryEndpointTests` still says no
+     response discloses a path, hash, session identifier, or prompt. That is
+     false for a successful window's verified `text`, as the new regression
+     test proves. Limit the summary to metadata and window-envelope fields.
+  3. `current-work.md` says the parallel Api build file-lock error was “not
+     reproducible,” although the executor reports that it recurred once on a
+     subsequent first build. State the two observed incidents and successful
+     clean rebuild accurately. In the helper/architecture comments, describe
+     the actual catch boundary as any `InvalidOperationException` during full
+     row materialization; it is not proven specific to enum conversion, as
+     `current-work.md` already records among remaining risks.
+  Keep the diff uncommitted and unpushed. Rerun the solution build and affected
+  focused tests after the type move, documentation links, and `git diff
+  --check`; identify earlier full-suite results that still apply to this
+  file move and wording correction. Return the complete corrected diff for
+  GO/NO-GO. No commit/push GO is granted.
+
+- First uncommitted diff review (2026-09-29): **NO-GO; two bounded corrections
+  in this same slice.** Independently verified `main`, `HEAD`, local and live
+  `origin/main` at `391317193575d111a5e27afd76140010ce3bd21b`, nothing
+  staged, 14 modified tracked files (including this planner record) and 28
+  untracked files. Independently passed focused API history/message-window
+  tests 30/30, Application identity tests 11/11, and `git diff --check` (only
+  the known generated-client CRLF notice). The run-scoped routes, cursor,
+  closed-purpose reader, and lazy UI appear within the selected boundary.
+  Correct these two issues before GO:
+  1. The new API test's `ReadAsync` applies `AssertNoSensitiveDisclosure` to
+     *artifact-window text* as well as metadata. Its blanket assertions that
+     no `prompt`, session-shaped value, path, or hash appears in the body are
+     false for a successful sealed-text read: that route deliberately returns
+     verified, best-effort-redacted text, and the documented residual risk is
+     that sensitive-looking content may remain. The new architecture section's
+     “None of the three responses carries …” sentence and `current-work.md`'s
+     “No path, hash, session identifier, or prompt is returned” make the same
+     overclaim. Limit leak assertions and wording to response *metadata* and
+     non-text fields. Add a focused API case showing that sensitive-shaped,
+     clearly fictitious content inside a sealed artifact is returned exactly
+     as verified text while no storage path/hash/session field is added to the
+     response envelope. Keep the purpose-specific caveats accurate; do not
+     suppress or reinterpret verified artifact bytes.
+  2. `AgentAttemptIdentity.IsCoherent` runs only after EF materializes an
+     `Attempt`, but `AttemptConfiguration` uses string enum converters. An
+     unrecognized persisted status/role/provider/contract string can throw
+     during `ToListAsync`/`SingleOrDefaultAsync` before the identity gate and
+     thus never produce the claimed safe invalid-identity outcome. Add API
+     tests with a deliberately malformed persisted enum string for history,
+     evidence, and window routes. Handle that boundary safely without
+     disclosing exception detail or artifacts. If such a row cannot be listed
+     individually with the existing EF model, return a distinct safe
+     unavailable result for the affected read and narrow the documentation's
+     “incoherent row is listed” claim to rows that materialize; do not add a
+     broad raw-SQL or schema rewrite merely for this edge case. Also narrow
+     the existing `identityValid: false and nothing else` wording to the
+     actual number/lifecycle fields returned.
+  Keep the diff uncommitted and unpushed. Run the affected API and frontend
+  checks, full validation relevant to any code change, documentation links,
+  generated-client drift check if the wire response changes, and `git diff
+  --check`; report what was rerun and what earlier full-suite evidence still
+  applies. Return the complete corrected diff for GO/NO-GO. No commit/push GO
+  is granted.
+
+- Verified selection baseline: branch `main`; `HEAD`, local `origin/main`, and
+  live `origin/main` all equal `391317193575d111a5e27afd76140010ce3bd21b`.
+  Staged, unstaged, and untracked state was empty before this planner-only edit.
+  The reviewed Claude effort-request slice is published as
+  `f2ec6155db28777bd164a33f7646677eef4e0c49`, followed by factual
+  `current-work.md` closure `391317193575d111a5e27afd76140010ce3bd21b`.
+- Objective: make the existing sealed Agent-attempt evidence inspectable for
+  every historical Agent attempt with verifiable identity in a run, including a failed or interrupted
+  attempt that emitted no `ProviderObserved` collaboration message. The current
+  collaboration evidence and artifact-window routes require such a message's
+  `AttemptId`; all six role status routes select only their role's latest
+  attempt, and the cockpit exposes only the run's latest Agent attempt. A
+  failed earlier attempt can therefore have sealed output but no useful
+  historical navigation path. This closes a concrete part of Increment 4's
+  protocol-validation/raw-artifact visibility without changing provider or
+  workflow behavior. It follows [ADR-0004](../decisions/0004-use-a-structured-agent-collaboration-protocol.md),
+  [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md),
+  and the existing [sealed Agent-artifact contract](../architecture/agent-collaboration-protocol.md#sealed-agent-artifact-window-inspection).
+- Boundaries: add a protected, run-scoped, read-only, descending Agent-attempt
+  history query with a stable `AttemptNumber` cursor and a small hard page cap
+  (20 or less), including explicit `hasMore`/next-cursor semantics. A selected
+  attempt gets on-demand bounded evidence metadata and a separate on-demand
+  sealed text-window read for only `AgentContextManifest`,
+  `AgentStandardOutput`, `AgentStandardError`, and `AgentFinalResponse`.
+  Resolve by exact `(RunId, AttemptId)` and `Kind == Agent`; validate defined,
+  coherent role/provider/assignment before disclosing attempt evidence; filter
+  each artifact by its independently stored `RunId`, `AttemptId`, and purpose.
+  Reuse the existing artifact-store `VerifyAndReadSealedAsync` integrity,
+  containment, byte-cap, UTF-8 cursor, and safe missing/mismatch behavior.
+  Preserve the message-linked routes' independent provenance/coherence checks.
+  The cockpit's Evidence area offers a paged history and a single selected
+  attempt drill-down with manual next-window loading, plain-text rendering,
+  purpose-specific sensitivity caveats, explicit empty/error/retry states, and
+  reset on run/attempt/purpose/close changes. Do not fetch raw text for all
+  history rows or retain it in browser storage, URLs, or logs.
+- Exclusions: no provider call, session correlation/open/resume, CLI argument,
+  model/effort/permission change, account allowance, token threshold or claim
+  eligibility, new attempt or message, replay, provider retry, workflow mutation, schema or
+  migration, Process/verification artifact, generic file browser, download,
+  export, HTML/Markdown rendering, or change to existing sealed-store
+  guarantees. Do not add Unknown-only scaffolding. Provider-session resume and
+  Claude account allowance remain unproven. A future account observation must
+  never be represented as threshold enforcement or invocation eligibility.
+- Stop gates: stop and report if the exact run/attempt/assignment identity
+  cannot be validated safely, if historical paging cannot remain deterministic
+  and bounded, if serving a sealed artifact requires reopening an unverified
+  path or weakening the store/provenance boundary, or if the UI would need to
+  infer provider capability or current workflow authority from historical
+  evidence. Do not silently broaden this slice to fix any such issue.
+- Acceptance evidence: exercise ordinary and historical failed/no-message
+  attempts across the supported role/provider pairs; descending pagination,
+  legacy history beyond 16 attempts, cursor boundaries, and run-switch reset;
+  non-Agent, unknown and foreign-run attempts; missing/undefined/incoherent
+  assignment; cross-run artifact rows; disallowed purpose; absent sealed row;
+  missing file, tampered length/hash, and traversal/reparse containment through
+  the existing store; multi-window UTF-8 reconstruction and retry without
+  duplicated text; protected API access and no path/hash/session/prompt leakage;
+  frontend lazy fetch, purpose switching, close/reset, loading/error, and
+  markup-shaped text as literal text. Run affected backend/API/frontend tests,
+  solution build, frontend typecheck/lint/build, NSwag regeneration/drift,
+  documentation-link review, and `git diff --check`; report exact commands,
+  pass/fail/skip counts, and any limitation rather than claiming unrun checks.
+- The complete English executor prompt below is the dispatch contract. Return
+  the **uncommitted, unpushed** diff, including a concise, commit-ready
+  `docs/roadmap/current-work.md` entry based on the verified parent, with
+  checks actually run and remaining risks but no future SHA or publication
+  claim. Keep corrections in the same executor chat. No commit/push GO is
+  granted by this selection.
+- After a future GO, give one publication instruction for the exact reviewed
+  substantive diff, normal fast-forward push, independent live-remote
+  verification, and only a tightly bounded factual `current-work.md` closure.
+  Any material change after GO returns for review before committing; a failed
+  push or remote divergence stops without force-push or history repair.
+
+### Executor prompt
+
+You are the designated Claude execution agent for one selected Increment 4
+slice. Before editing, read `AGENTS.md`, `../EngineeringStandards/ENGINEERING.md`,
+`docs/engineering-context.md`, `docs/roadmap/current-work.md`, and this current
+selection in `docs/roadmap/planner-handoff.md`; follow the engineering
+contract's routing for the detailed standards relevant to backend read models,
+protected MVC APIs, generated clients, React, testing, and security. Verify
+branch `main`, exact `HEAD` `391317193575d111a5e27afd76140010ce3bd21b`,
+local and live `origin/main` at that SHA, nothing staged or untracked, and
+exactly one unstaged modified file:
+`docs/roadmap/planner-handoff.md` (this planner selection). If any material
+fact differs, stop and report it before editing; Git and code prevail.
+
+Implement one read-only vertical slice that lets an owner inspect sealed
+evidence from any historical Agent attempt with verifiable identity in a run, especially a failed or
+interrupted attempt with no `ProviderObserved` collaboration card. Add a
+protected, run-scoped history query ordered by descending unique
+`AttemptNumber`, with a strict before-number cursor, a hard page cap of at
+most 20, and honest `hasMore`/next-cursor fields. Include only `Kind == Agent`;
+do not assume the 16-claim default bounds historical runs. Add an on-demand
+selected-attempt evidence read and a separate on-demand sealed text-window
+read limited to the four Agent purposes: context manifest, stdout, stderr,
+and final response. Resolve every read by exact `(RunId, AttemptId)`; validate
+defined, coherent role/provider/assignment before disclosing evidence, and
+filter artifacts by their independently stored run, attempt, and purpose.
+Keep the existing collaboration-message evidence and window routes and their
+own provenance/coherence checks intact. Reuse
+`IArtifactStore.VerifyAndReadSealedAsync` and its one-handle integrity,
+containment, byte cap, UTF-8 cursor, and safe missing/mismatch semantics; do
+not reopen artifact paths or return unverified/partial text. History and
+metadata must not disclose storage paths, hashes, raw session identifiers, or
+full prompts.
+
+In the cockpit's Evidence area, provide a paged Agent-attempt history and one
+selected-attempt drill-down. Fetch metadata on demand and raw text only when
+the owner selects a purpose. Load further windows manually. Render text
+literally, include the existing purpose-specific sensitivity caveats and a
+historical-evidence caveat, and reset accumulated text on run, attempt,
+purpose, and close changes. Handle empty, missing, integrity failure,
+loading, error, and retry states explicitly. Do not store artifact text in a
+URL, browser storage, or logs.
+
+Do not change provider invocation, CLI arguments, session behavior or resume,
+model/effort/permission controls, account or token controls, claim/dispatch
+eligibility, workflow state, schema, Process or verification artifacts, or
+generic file browsing/export. Do not add Unknown-only scaffolding or infer
+provider capability. Claude account allowance and provider-session resume
+remain unproven; account observation is not threshold enforcement or
+invocation eligibility. Stop and report if exact run/attempt/assignment
+identity, stable bounded paging, or sealed read containment cannot be
+maintained without a broader change; do not silently widen scope.
+
+Prove supported role/provider pairs and a failed no-message attempt; history
+pagination including a legacy run beyond 16 Agent attempts; unknown,
+non-Agent, foreign-run, and incoherent attempts; cross-run artifact rows;
+disallowed/missing/tampered artifacts and existing containment behavior;
+multi-window UTF-8 reconstruction and safe UI retry; protected API access
+and no path/hash/session/prompt leakage; and frontend lazy fetching,
+run/attempt/purpose/close reset, error states, and literal markup-shaped
+content. Use focused tests at the narrowest meaningful boundaries. Run
+affected backend/API/frontend suites, solution build, frontend typecheck,
+lint and production build, NSwag regeneration/drift check, documentation
+links, and `git diff --check`; report exact commands and outcomes, including
+skips or limits. Update the architecture and cockpit specifications for the
+delivered behavior. Make `docs/roadmap/current-work.md` concise and
+commit-ready from the verified parent, with actual checks, remaining risks,
+and post-publication verification, without a future commit SHA or publication
+claim. Return the full uncommitted, unpushed diff, changed-file list, checks,
+and blockers to Codex for GO/NO-GO. Keep corrections in this executor chat.
+Do not select another slice, commit, or push before explicit Codex GO.
+
+## Previous selection (2026-09-29): explicit Claude effort requests at safe attempt boundaries
 
 - Correction re-review (2026-09-29): **GO for the reviewed substantive diff.**
   Independently verified `main`, `HEAD`, local and live `origin/main` at

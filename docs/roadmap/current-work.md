@@ -8,6 +8,48 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Current delivery, based on verified parent `391317193575d111a5e27afd76140010ce3bd21b`: a read-only
+  **Agent-attempt history and evidence inspector**. See [planner-handoff.md](planner-handoff.md) for the
+  selection and the
+  ["Agent-attempt history and evidence inspection"](../architecture/agent-collaboration-protocol.md#agent-attempt-history-and-evidence-inspection)
+  and
+  ["Agent attempt history and evidence"](../product/run-cockpit-specification.md#agent-attempt-history-and-evidence)
+  sections for the contract.
+  - Behavior: three protected, read-only MVC operations that need no collaboration message —
+    `GET /api/runs/{runId}/agent-attempts` (Agent attempts only, strictly descending `AttemptNumber`,
+    exclusive `beforeAttemptNumber` cursor, default 10 / hard cap 20, explicit `hasMore` and
+    `nextBeforeAttemptNumber`), `…/{attemptId}/evidence` (bounded metadata for the four allowlisted
+    artifact purposes, filtered by the artifact's own run, attempt, and purpose), and
+    `…/{attemptId}/evidence/artifact-window/{purpose}` (bounded, integrity-verified sealed text). Unknown,
+    foreign-run, and non-Agent attempts are 404; `AgentAttemptIdentity.IsCoherent` (defined status/role/
+    provider/contract, a launched role/provider pair, contract belongs to role, well-formed assignment)
+    gates disclosure: an incoherent or unreadable row (a persisted status/role/provider/contract string EF cannot convert is read through non-enum columns first, then guarded) is listed in place without identity, evidence returns `identityValid: false`,
+    and the window returns a new `AttemptIdentityInvalid` status with no text. The window route shares one
+    `SealedAgentArtifactWindowReader` (artifact-row filter plus `IArtifactStore.VerifyAndReadSealedAsync`) with
+    the unchanged message-linked route, so bytes, statuses, containment, and integrity behavior are identical.
+    Metadata and the window envelope carry no path, hash, session identifier, or prompt (tests assert no such field); a verified window's `text` is the captured content returned exactly, so it may itself contain such-looking text. The cockpit's Usage & Evidence rail adds a
+    collapsed-by-default history (paged, retry-safe), a single selected-attempt drill-down fetched on demand,
+    and a purpose-gated viewer with manual next-window loading, literal text rendering, purpose-specific
+    caveats, and full reset on close, run, attempt, or purpose change. No provider call, CLI argument,
+    session/resume, control, claim/dispatch, workflow, schema/migration, or Process artifact changed.
+  - Checks run: final solution build 0 errors/0 warnings (three build file-locks were observed and each cleared on
+    rebuild: two Api-project locks on earlier initial builds and one `VBCSCompiler`/Application lock in the final correction round); Domain 612/612; Application 1197/1197; Infrastructure 583
+    passed, 2 skipped (existing host-capability skips); Api 419/419; Architecture 9/9; frontend `vitest`
+    757/757, `tsc -b`, `npm run build` clean, `oxlint` with no warnings in new or touched files (the
+    pre-existing `useAgentAttemptStatus` warning is unchanged); repeated Api builds left `api-client.ts`
+    byte-identical (SHA-256 `ac34b466…`, regenerated because status fields became nullable); local documentation links resolve; `git diff --check` clean apart from
+    the known generated-file line-ending notices. Mutation checks (each failed the targeted tests, then
+    restored): cursor `<` to `<=`, coherence check bypass in the window handler, dropped `RunId` in the shared
+    artifact filter, dropped `RunId` in the evidence artifact filter; the malformed-enum tests (unrecognized persisted status, role, provider, or contract string on all three routes) failed before the read guard existed and pass after. Tests use deterministic doubles and the
+    real artifact store; no real provider is called.
+  - Remaining risks: history and evidence describe locally recorded past attempts only and infer no
+    provider capability, account allowance, or resumability; sealed text may still contain secrets the
+    best-effort redaction missed; the artifact store's documented containment limits (non-Windows lexical
+    containment, no write-path hardening) are unchanged; an `AgentAttemptIdentity` rule stricter than a
+    future role/provider pair would hide that attempt until the rule is updated; the read guard catches any `InvalidOperationException` raised during full-row materialization and cannot prove it came specifically from enum conversion, so it cannot distinguish a corrupt value from another materialization fault of the same type.
+  - Post-publication verification: after a GO and publication, rerun the focused history, evidence, and
+    window endpoint tests, the identity tests, the message-linked sealed-window tests, and the frontend
+    history panel tests against the delivered commit.
 - Published delivery: `f2ec6155db28777bd164a33f7646677eef4e0c49` (parent
   `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`) was committed with the reviewed 73-file Claude effort-request
   slice (67 modified, 6 new), pushed as a normal fast-forward to `origin/main`, and verified with

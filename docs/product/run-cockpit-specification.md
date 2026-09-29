@@ -837,6 +837,42 @@ non-alarming message — never a generic error, and never partial or
 unverified text. Fetched text is never written to browser storage, a URL, or
 any log.
 
+### Agent attempt history and evidence
+
+The cockpit's Usage &amp; Evidence rail offers a collapsed-by-default "Agent attempt history"
+for the selected run, so a failed or interrupted Agent attempt that produced sealed output but
+no collaboration message can still be inspected. Nothing is fetched until the owner opens it.
+
+- **History list.** Opening it requests one bounded page (10 attempts, server cap 20) of the
+  run's Agent attempts, newest first, showing attempt number, role, provider, status, and result.
+  "Load older attempts" follows the server's before-number cursor; rows are appended without
+  duplicates or gaps. An empty run shows an explicit empty state. A failed page shows a fixed
+  message with Retry; already-loaded rows stay visible and Retry re-requests the same cursor. An
+  attempt whose recorded identity could not be verified is listed by number and status only, says so,
+  and offers no Inspect action.
+- **Selected attempt.** "Inspect" on a row fetches that attempt's evidence metadata (status,
+  claim and end times, and the size and truncation of each recorded artifact among context manifest,
+  standard output, standard error, and final response) and shows one attempt at a time under a
+  clear "historical evidence" caveat that says nothing about the run's current state. Loading,
+  retryable error, "no longer available", and "identity could not be verified" states are explicit.
+- **Artifact text.** Only after the owner chooses one of the purposes actually present does the
+  viewer offer "Load"; further windows load only on "Load next window". Text is rendered as plain
+  text, never HTML or Markdown, with the same purpose-specific caveat as the message-linked viewer
+  (host-composed manifest versus best-effort-redacted provider output that may still contain
+  secrets). The text is shown exactly as captured, so it may itself contain prompt-, session-, path-, or
+  hash-like content; only the metadata and status fields are guaranteed free of such data. A window that is missing, fails integrity verification, or belongs to an unverifiable
+  attempt shows a fixed message and no text. A failed later window retries at the same offset
+  without duplicating text.
+- **Resets and storage.** Closing the history, closing the attempt, choosing another purpose, choosing
+  another attempt, or switching runs discards the loaded rows, the selection, and all accumulated
+  artifact text, and a late response for a previous run or attempt is never applied. Artifact text is
+  never written to browser storage or the URL and is never logged.
+
+This surface neither invokes nor resumes a provider and grants no eligibility: it does not change
+claims, dispatch, controls, or workflow state. See
+["Agent-attempt history and evidence inspection"](../architecture/agent-collaboration-protocol.md#agent-attempt-history-and-evidence-inspection)
+for the routes, paging, and identity rules.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

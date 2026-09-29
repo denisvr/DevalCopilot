@@ -1141,6 +1141,169 @@ export class GetCollaborationMessageEvidenceEndpointClient {
     }
 }
 
+export class GetAgentAttemptHistoryEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentAttemptHistory(runId: string, beforeAttemptNumber: number | null | undefined, limit: number | null | undefined): Promise<AgentAttemptHistoryResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts?";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (beforeAttemptNumber !== undefined && beforeAttemptNumber !== null)
+            url_ += "beforeAttemptNumber=" + encodeURIComponent("" + beforeAttemptNumber) + "&";
+        if (limit !== undefined && limit !== null)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentAttemptHistory(_response);
+        });
+    }
+
+    protected processGetAgentAttemptHistory(response: Response): Promise<AgentAttemptHistoryResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = AgentAttemptHistoryResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AgentAttemptHistoryResponse>(null as any);
+    }
+}
+
+export class GetAgentAttemptEvidenceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentAttemptEvidence(runId: string, attemptId: string): Promise<AgentAttemptEvidenceResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/{attemptId}/evidence";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (attemptId === undefined || attemptId === null)
+            throw new globalThis.Error("The parameter 'attemptId' must be defined.");
+        url_ = url_.replace("{attemptId}", encodeURIComponent("" + attemptId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentAttemptEvidence(_response);
+        });
+    }
+
+    protected processGetAgentAttemptEvidence(response: Response): Promise<AgentAttemptEvidenceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = AgentAttemptEvidenceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AgentAttemptEvidenceResponse>(null as any);
+    }
+}
+
+export class GetAgentAttemptArtifactWindowEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentAttemptArtifactWindow(runId: string, attemptId: string, purpose: string, fromOffset: number | undefined, maxBytes: number | null | undefined): Promise<SealedAgentArtifactWindowResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/{attemptId}/evidence/artifact-window/{purpose}?";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (attemptId === undefined || attemptId === null)
+            throw new globalThis.Error("The parameter 'attemptId' must be defined.");
+        url_ = url_.replace("{attemptId}", encodeURIComponent("" + attemptId));
+        if (purpose === undefined || purpose === null)
+            throw new globalThis.Error("The parameter 'purpose' must be defined.");
+        url_ = url_.replace("{purpose}", encodeURIComponent("" + purpose));
+        if (fromOffset === null)
+            throw new globalThis.Error("The parameter 'fromOffset' cannot be null.");
+        else if (fromOffset !== undefined)
+            url_ += "fromOffset=" + encodeURIComponent("" + fromOffset) + "&";
+        if (maxBytes !== undefined && maxBytes !== null)
+            url_ += "maxBytes=" + encodeURIComponent("" + maxBytes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentAttemptArtifactWindow(_response);
+        });
+    }
+
+    protected processGetAgentAttemptArtifactWindow(response: Response): Promise<SealedAgentArtifactWindowResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SealedAgentArtifactWindowResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SealedAgentArtifactWindowResponse>(null as any);
+    }
+}
+
 export class AuthorizeReviewCorrectionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5105,6 +5268,230 @@ export interface IAgentAttemptStatusResponse {
     tokenUsage?: AgentTokenUsageResponse | undefined;
     configuredCommandSandbox?: string | undefined;
     configuredRolloutPersistence?: string | undefined;
+}
+
+export class AgentAttemptHistoryResponse implements IAgentAttemptHistoryResponse {
+    items?: AgentAttemptHistoryEntryResponse[];
+    hasMore?: boolean;
+    nextBeforeAttemptNumber?: number | undefined;
+
+    constructor(data?: IAgentAttemptHistoryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(AgentAttemptHistoryEntryResponse.fromJS(item));
+            }
+            this.hasMore = _data["hasMore"];
+            this.nextBeforeAttemptNumber = _data["nextBeforeAttemptNumber"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptHistoryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptHistoryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["hasMore"] = this.hasMore;
+        data["nextBeforeAttemptNumber"] = this.nextBeforeAttemptNumber;
+        return data;
+    }
+}
+
+export interface IAgentAttemptHistoryResponse {
+    items?: AgentAttemptHistoryEntryResponse[];
+    hasMore?: boolean;
+    nextBeforeAttemptNumber?: number | undefined;
+}
+
+export class AgentAttemptHistoryEntryResponse implements IAgentAttemptHistoryEntryResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    status?: string | undefined;
+    claimedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    identityValid?: boolean;
+    role?: string | undefined;
+    provider?: string | undefined;
+    responseContract?: string | undefined;
+    outcome?: string | undefined;
+
+    constructor(data?: IAgentAttemptHistoryEntryResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.status = _data["status"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.identityValid = _data["identityValid"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+            this.outcome = _data["outcome"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptHistoryEntryResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptHistoryEntryResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["status"] = this.status;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["identityValid"] = this.identityValid;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        data["outcome"] = this.outcome;
+        return data;
+    }
+}
+
+export interface IAgentAttemptHistoryEntryResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    status?: string | undefined;
+    claimedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    identityValid?: boolean;
+    role?: string | undefined;
+    provider?: string | undefined;
+    responseContract?: string | undefined;
+    outcome?: string | undefined;
+}
+
+export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceResponse {
+    identityValid?: boolean;
+    attemptId?: string;
+    attemptNumber?: number;
+    attemptStatus?: string | undefined;
+    claimedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+    provider?: string | undefined;
+    role?: string | undefined;
+    responseContract?: string | undefined;
+    outcome?: string | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+
+    constructor(data?: IAgentAttemptEvidenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.identityValid = _data["identityValid"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.attemptStatus = _data["attemptStatus"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            this.provider = _data["provider"];
+            this.role = _data["role"];
+            this.responseContract = _data["responseContract"];
+            this.outcome = _data["outcome"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            if (Array.isArray(_data["artifacts"])) {
+                this.artifacts = [] as any;
+                for (let item of _data["artifacts"])
+                    this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptEvidenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptEvidenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["identityValid"] = this.identityValid;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["attemptStatus"] = this.attemptStatus;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        data["provider"] = this.provider;
+        data["role"] = this.role;
+        data["responseContract"] = this.responseContract;
+        data["outcome"] = this.outcome;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        if (Array.isArray(this.artifacts)) {
+            data["artifacts"] = [];
+            for (let item of this.artifacts)
+                data["artifacts"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IAgentAttemptEvidenceResponse {
+    identityValid?: boolean;
+    attemptId?: string;
+    attemptNumber?: number;
+    attemptStatus?: string | undefined;
+    claimedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+    provider?: string | undefined;
+    role?: string | undefined;
+    responseContract?: string | undefined;
+    outcome?: string | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
 }
 
 export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {

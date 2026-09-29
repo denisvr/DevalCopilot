@@ -3,6 +3,7 @@ import { useCodexAccountAllowance } from '../hooks/useCodexAccountAllowance'
 import { describeCodexAccountAllowance, describeCodexAccountAllowanceRetrievedAt } from '../describeCodexAccountAllowance'
 import { useCodexModelCatalog } from '../hooks/useCodexModelCatalog'
 import { describeCodexModelCatalog, describeCodexModelCatalogRetrievedAt } from '../describeCodexModelCatalog'
+import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 
 const EVIDENCE_TABS = ['Changes', 'Local verification', 'Review findings', 'GitHub CI', 'Artifacts', 'Approvals']
 
@@ -14,7 +15,12 @@ const EVIDENCE_TABS = ['Changes', 'Local verification', 'Review findings', 'GitH
  * `useCodexModelCatalog`), which now read real, read-only observations. Claude account usage
  * remains "not yet collected" here; that observation is a separate, not-yet-selected slice.
  */
-export function UsageEvidenceRail() {
+interface UsageEvidenceRailProps {
+  /** The run whose Agent attempt history the rail offers; the history is omitted when absent. */
+  runId?: string
+}
+
+export function UsageEvidenceRail({ runId }: UsageEvidenceRailProps = {}) {
   const [collapsed, setCollapsed] = useState(false)
   const { allowance, loading, error, refresh } = useCodexAccountAllowance(!collapsed)
   const {
@@ -94,6 +100,7 @@ export function UsageEvidenceRail() {
               {tab}: not yet collected.
             </div>
           ))}
+          {runId && <AgentAttemptHistoryPanel key={runId} runId={runId} />}
         </>
       )}
     </aside>

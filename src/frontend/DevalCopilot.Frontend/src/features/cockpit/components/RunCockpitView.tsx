@@ -265,7 +265,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           />
           <AgentCollaboration runId={runId} {...collaborationTimeline} />
         </div>
-        <UsageEvidenceRail />
+        <UsageEvidenceRail runId={runId} />
       </div>
       <LiveOutputDrawer runId={runId} attemptId={currentProcessAttemptId} />
     </>
