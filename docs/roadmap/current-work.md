@@ -8,6 +8,15 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `f2ec6155db28777bd164a33f7646677eef4e0c49` (parent
+  `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`) was committed with the reviewed 73-file Claude effort-request
+  slice (67 modified, 6 new), pushed as a normal fast-forward to `origin/main`, and verified with
+  `git fetch origin main` and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all
+  matched the delivered SHA, with a clean working tree. Solution build 0 errors/0 warnings (the earlier
+  unexplained build error did not recur). Focused checks rerun against that commit, all passing: Domain 238,
+  Application 243, Infrastructure 95, Api 108 (Claude claim snapshot and commit-window race, adapter
+  argument, supervisor replay, set/clear endpoint, and migration tests). This closure records the delivered
+  SHA and those checks only; no code or product contract changed after publication.
 - Current delivery, based on verified parent
   `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`: an optional, explicit, run-scoped Claude
   **effort request** (`low`, `medium`, `high`) paired with the existing model-alias request for the
