@@ -574,6 +574,24 @@ that offers the button is masked during a run switch by the existing status hook
 ["One manual Codex Planner format repair"](../architecture/agent-collaboration-protocol.md#one-manual-codex-planner-format-repair)
 for the eligibility, claim, manifest, and persistence contract.
 
+### Optional guidance with a review-correction authorization
+
+Where a review correction's budget is exhausted, its escalation exists, no authorization is available yet, and no
+global budget or time-fit block applies — exactly where "Authorize one additional correction" is offered — a form
+"Authorize with guidance" appears beneath that unchanged button. It has one multi-line field (with a counter of the
+normalized length out of 600) and states that the text is sent to the Implementer as advisory context, is recorded
+in the collaboration timeline, cannot change the objective, findings, permissions, tools, or budgets, and is **not
+screened for secrets**, so credentials or sensitive data must not be entered. Blank or over-long drafts get a local
+message and no request; the server remains authoritative for length, content, and eligibility. While the request is
+in flight the field and both authorize buttons are disabled ("Authorizing…"). A server refusal — including the fixed
+conflict "An authorization with different guidance already exists for this escalation." — is shown in the existing
+correction status line without echoing the draft, and the draft is kept for editing. Success refreshes the
+correction status, after which an authorization is available and the form disappears. The draft lives only in the
+form's state: it is never written to browser storage, cookies, or the URL, is discarded when the escalation or run
+changes or the form unmounts, and is cleared after an accepted submit. See
+["Bounded human guidance for one authorized review correction"](../architecture/agent-collaboration-protocol.md#bounded-human-guidance-for-one-authorized-review-correction)
+for the normalization, conflict, linkage, and manifest rules.
+
 ### Provider account usage guardrails
 
 This remains the target end state the observation above is one step toward;

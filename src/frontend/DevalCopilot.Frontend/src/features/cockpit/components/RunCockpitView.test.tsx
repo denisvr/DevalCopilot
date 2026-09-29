@@ -11,6 +11,7 @@ import {
   ChallengeResolutionAttemptStatusResponse,
   GetRunCockpitResponse,
   ParticipantIdentityResponse,
+  ReviewCorrectionAttemptStatusResponse,
   RunCockpitAgentAttemptResponse,
   RunCockpitTokenWarningResponse,
   RunCockpitProviderTokenUsageEntryResponse,
@@ -31,6 +32,7 @@ import * as useCodeReviewAttemptStatusModule from '../hooks/useCodeReviewAttempt
 import * as useRequestCodeReviewModule from '../hooks/useRequestCodeReview'
 import * as useReviewCorrectionAttemptStatusModule from '../hooks/useReviewCorrectionAttemptStatus'
 import * as useRequestReviewCorrectionModule from '../hooks/useRequestReviewCorrection'
+import * as useAuthorizeReviewCorrectionModule from '../hooks/useAuthorizeReviewCorrection'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -49,6 +51,7 @@ vi.mock('../hooks/useCodeReviewAttemptStatus')
 vi.mock('../hooks/useRequestCodeReview')
 vi.mock('../hooks/useReviewCorrectionAttemptStatus')
 vi.mock('../hooks/useRequestReviewCorrection')
+vi.mock('../hooks/useAuthorizeReviewCorrection')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   setClaudeModelPreferenceClient: vi.fn(),
@@ -84,6 +87,7 @@ const useReviewCorrectionAttemptStatusMock = vi.mocked(
   useReviewCorrectionAttemptStatusModule.useReviewCorrectionAttemptStatus,
 )
 const useRequestReviewCorrectionMock = vi.mocked(useRequestReviewCorrectionModule.useRequestReviewCorrection)
+const useAuthorizeReviewCorrectionMock = vi.mocked(useAuthorizeReviewCorrectionModule.useAuthorizeReviewCorrection)
 
 function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {
   return {
@@ -179,6 +183,11 @@ beforeEach(() => {
     requesting: false,
     error: null,
     request: vi.fn(),
+  })
+  useAuthorizeReviewCorrectionMock.mockReturnValue({
+    authorizing: false,
+    error: null,
+    authorize: vi.fn().mockResolvedValue(true),
   })
 })
 
@@ -568,6 +577,63 @@ describe('RunCockpitView', () => {
       expect(Object.keys(sessionStorage)).toHaveLength(0)
       expect(document.cookie).not.toContain(sentinel)
       expect(window.location.href).not.toContain(sentinel)
+    })
+  })
+
+  describe('Review correction guidance wiring', () => {
+    function withExhaustedEscalation() {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      })
+      useCodeReviewAttemptStatusMock.mockReturnValue({
+        status: { hasAttempt: true, attemptId: 'review-1', outcome: 'ReviewChangesRequested' } as never,
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+      useReviewCorrectionAttemptStatusMock.mockReturnValue({
+        status: new ReviewCorrectionAttemptStatusResponse({
+          hasAttempt: true,
+          attemptId: 'correction-1',
+          attemptNumber: 2,
+          implementationReviewAttemptId: 'review-1',
+          status: 'Failed',
+          budgetExhausted: true,
+          escalationId: 'escalation-1',
+          hasAvailableHumanAuthorization: false,
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+    }
+
+    it('sends the guidance with the current run and escalation, and the plain button stays bodyless', () => {
+      withExhaustedEscalation()
+      const authorize = vi.fn().mockResolvedValue(true)
+      useAuthorizeReviewCorrectionMock.mockReturnValue({ authorizing: false, error: null, authorize })
+
+      render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Authorize one additional correction' }))
+      expect(authorize).toHaveBeenLastCalledWith('run-1', 'escalation-1')
+
+      fireEvent.change(screen.getByLabelText('Optional guidance for the correction'), { target: { value: 'Keep it small.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Authorize with guidance' }))
+      expect(authorize).toHaveBeenLastCalledWith('run-1', 'escalation-1', 'Keep it small.')
+    })
+
+    it('binds the authorization hook to the selected run', () => {
+      withExhaustedEscalation()
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(useAuthorizeReviewCorrectionMock).toHaveBeenCalledWith('run-1', expect.any(Function))
     })
   })
 

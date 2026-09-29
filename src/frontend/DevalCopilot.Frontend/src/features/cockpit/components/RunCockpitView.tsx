@@ -271,6 +271,10 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               const escalationId = reviewCorrectionAttemptStatus.status?.escalationId
               if (escalationId) void authorizeReviewCorrection.authorize(runId, escalationId)
             }}
+            onAuthorizeWithGuidance={async (guidance) => {
+              const escalationId = reviewCorrectionAttemptStatus.status?.escalationId
+              return escalationId ? authorizeReviewCorrection.authorize(runId, escalationId, guidance) : false
+            }}
             onRequest={() => {
               const reviewAttemptId = codeReviewAttemptStatus.status?.attemptId
               if (reviewAttemptId) void requestReviewCorrection.request(runId, reviewAttemptId)

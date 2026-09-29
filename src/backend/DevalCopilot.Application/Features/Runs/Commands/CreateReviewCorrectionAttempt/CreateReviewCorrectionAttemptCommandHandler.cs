@@ -164,6 +164,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
                 && candidate.AgentResponseContract == AgentResponseContract.ReviewCorrection,
             cancellationToken);
         ReviewCorrectionAuthorization? authorization = null;
+        ReviewCorrectionAuthorizationInstruction.HumanGuidance? humanGuidance = null;
         if (correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts)
         {
             var escalation = await dbContext.ReviewCorrectionEscalations
@@ -179,6 +180,19 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             {
                 return await CreateOrGetEscalationAsync(run, review, executionReport, timeProvider.GetUtcNow(), cancellationToken);
             }
+
+            // Resolved before any manifest is sealed: the authorization, escalation, and HumanInstruction
+            // must be one coherent same-run, same-escalation chain, or the claim fails closed without
+            // consuming anything. The message is immutable and the authorization row is consumed under
+            // its own concurrency token in the single commit below, so this snapshot cannot drift.
+            var instruction = await ReviewCorrectionAuthorizationInstruction.ResolveAsync(
+                dbContext, run.Id, escalation!, authorization, cancellationToken);
+            if (instruction.Error is not null)
+            {
+                return Failure(instruction.Error);
+            }
+
+            humanGuidance = instruction.Guidance;
         }
 
         var claudeSnapshot = await dbContext.HostCapabilitySnapshots
@@ -215,7 +229,8 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             findings.Select(finding => new ReviewCorrectionContextManifestBuilder.Finding(
                 finding.Id, finding.Summary, finding.StructuredContentJson)).ToArray(),
             evidence.ChangedPaths,
-            evidence.CompleteDiff);
+            evidence.CompleteDiff,
+            humanGuidance is null ? null : new ReviewCorrectionContextManifestBuilder.Guidance(humanGuidance.MessageId, humanGuidance.Text));
         if (Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             return Failure(Error.Failure("agent_attempts.context_manifest_too_large", "The context manifest exceeds its bound."));

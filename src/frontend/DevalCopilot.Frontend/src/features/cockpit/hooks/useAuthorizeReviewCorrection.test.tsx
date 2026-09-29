@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { act, render, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { authorizeReviewCorrectionClient } from '../../../api/clients'
+import { ApiException } from '../../../api/generated/api-client'
+import { authorizeReviewCorrectionClient, authorizeReviewCorrectionWithGuidanceClient } from '../../../api/clients'
 import { useAuthorizeReviewCorrection } from './useAuthorizeReviewCorrection'
 
 vi.mock('../../../api/clients', () => ({
   authorizeReviewCorrectionClient: vi.fn(),
+  authorizeReviewCorrectionWithGuidanceClient: vi.fn(),
 }))
 
 function deferred<T>() {
@@ -110,5 +112,51 @@ describe('useAuthorizeReviewCorrection', () => {
     expect(sessionStorage.length).toBe(0)
     expect(document.cookie).toBe('')
     expect(window.location.search).toBe('')
+  })
+
+  it('sends guidance only through the guided operation and never the bodyless one', async () => {
+    const refresh = vi.fn()
+    const plain = vi.fn()
+    const guided = vi.fn().mockResolvedValue({ status: 'Authorized' })
+    vi.mocked(authorizeReviewCorrectionClient).mockReturnValue({ authorizeReviewCorrection: plain } as never)
+    vi.mocked(authorizeReviewCorrectionWithGuidanceClient).mockReturnValue({
+      authorizeReviewCorrectionWithGuidance: guided,
+    } as never)
+    const { result } = renderHook(() => useAuthorizeReviewCorrection('run-1', refresh))
+
+    await act(async () => expect(await result.current.authorize('run-1', 'escalation-1', 'Keep it small.')).toBe(true))
+
+    expect(guided).toHaveBeenCalledOnce()
+    expect(guided.mock.calls[0][0]).toBe('run-1')
+    expect(guided.mock.calls[0][1]).toBe('escalation-1')
+    expect(guided.mock.calls[0][2]).toMatchObject({ guidance: 'Keep it small.' })
+    expect(plain).not.toHaveBeenCalled()
+    expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  it('shows the backend fixed conflict text for a guided authorization without echoing the draft', async () => {
+    const conflict = new ApiException(
+      'Conflict',
+      409,
+      JSON.stringify({
+        errors: [{ detail: 'An authorization with different guidance already exists for this escalation.' }],
+      }),
+      {},
+      null,
+    )
+    vi.mocked(authorizeReviewCorrectionWithGuidanceClient).mockReturnValue({
+      authorizeReviewCorrectionWithGuidance: vi.fn().mockRejectedValue(conflict),
+    } as never)
+    const refresh = vi.fn()
+    const { result } = renderHook(() => useAuthorizeReviewCorrection('run-1', refresh))
+
+    await act(async () => expect(await result.current.authorize('run-1', 'escalation-1', 'SECRET-DRAFT')).toBe(false))
+
+    await waitFor(() =>
+      expect(result.current.error).toBe('An authorization with different guidance already exists for this escalation.'),
+    )
+    expect(result.current.error).not.toContain('SECRET-DRAFT')
+    expect(refresh).not.toHaveBeenCalled()
+    expect(localStorage.length).toBe(0)
   })
 })

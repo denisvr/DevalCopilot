@@ -283,9 +283,13 @@ and recommended choice. It contains no hidden default action.
 
 ### Human instruction
 
-Records one fixed human authorization replying to an Escalation: authorize one
+Records one human authorization replying to an Escalation: authorize one
 additional review-correction claim. It is HumanSubmitted, addressed to the
-Orchestrator, and never carries arbitrary instruction text.
+Orchestrator, and carries the fixed authorization instruction plus either the
+fixed default rationale or, only for an explicit guided authorization, one
+bounded, normalized guidance text (see
+[Bounded human guidance for one authorized review correction](#bounded-human-guidance-for-one-authorized-review-correction)).
+It is never a general instruction channel.
 
 ## Version 1.0 reply semantics
 
@@ -770,6 +774,67 @@ decisions, evidence, or raw artifacts from durable history.
 Provider account-usage snapshots are observation evidence rather than agent
 claims. A configured hard threshold participates in attempt eligibility and
 prevents a new invocation for only the affected provider.
+
+### Bounded human guidance for one authorized review correction
+
+The one explicit human authorization of an additional review correction may carry short **guidance**
+clarifying the already-recorded findings. The bodyless `POST …/review-correction-escalations/{escalationId}/authorize`
+operation is unchanged and remains the "no guidance" authorization. A separate protected operation,
+`POST …/review-correction-escalations/{escalationId}/authorize-with-guidance` with body `{ "guidance": "…" }`,
+records guidance. It reuses `AuthorizeReviewCorrectionCommand`, whose optional `Guidance` is `null` for the bodyless
+request. No generic instruction system, provider flag, fallback, automatic retry, or session resume is added.
+
+- **Representation.** The existing `HumanInstruction` structured content already has two required bounded string
+  fields, `instruction` and `rationale`. Guidance is carried in `rationale`; `instruction` stays the fixed
+  authorization text, so no ledger schema, ADR, or migration changes. A bodyless authorization (and every one
+  recorded before this feature) has the fixed default rationale, and `ReviewCorrectionGuidance` treats exactly that
+  value as "no guidance", so that exact text is reserved and rejected as guidance (a guided and a
+  bodyless authorization can never share stored bytes). The recorded message summary is unchanged and never contains the guidance, and the run
+  event payload carries only message id, type, and provenance.
+- **Bounds and normalization.** `ReviewCorrectionGuidance.Normalize` is deterministic and both the validator and the handler call it, always before persistence: Unicode
+  form C, line endings to `\n`, surrounding whitespace trimmed. The result must be non-blank, at most 600
+  characters, free of control characters other than `\n`, and pass the ledger's own unsafe-text screen
+  (`CollaborationMessageContentPolicy.IsSafeSummary`, which rejects a few marker words and Windows path forms —
+  including ordinary words such as "environment"), and differ from the reserved default rationale. That screen is a best-effort filter and does not guarantee that a
+  secret or sensitive value is absent; the cockpit says so. The request body is capped at 8 KiB. A rejected request
+  is a 400 (`review_correction_authorizations.guidance_invalid`, from `AuthorizeReviewCorrectionCommandValidator`,
+  with the handler repeating the check) with a fixed message that never echoes the input.
+- **Retries and concurrency.** An escalation has at most one available authorization (the filtered unique index
+  `ix_review_correction_authorizations_one_available`). A retry with identical normalized guidance is idempotent and
+  returns the same authorization and message. A request whose guidance differs from the existing unconsumed
+  authorization — including a bodyless request after a guided one, and a guided request after a bodyless one — is a
+  409 `review_correction_authorizations.guidance_conflict` with a fixed message that echoes neither value; it never
+  reports somebody else's authorization as its own. The losing side of a concurrent insert is resolved the same way
+  from the committed row. Before comparing, a retry validates the existing authorization's whole persisted chain with the same
+  resolver a claim uses (below); any incoherence fails closed as `review_correction_authorizations.instruction_invalid`,
+  never as an idempotent success.
+- **Claim.** When a correction consumes an authorization, `ReviewCorrectionAuthorizationInstruction` verifies before
+  any manifest is sealed that the authorization, its escalation, the escalation's host-constructed `Escalation`
+  message, and the `HumanInstruction` all belong to the same run and escalation, and that the `HumanInstruction` is a
+  human-submitted, attemptless message from the Human to the Orchestrator, protocol 1.0, replying to exactly that
+  escalation message, with the fixed instruction and one rationale. The escalation message must itself be a
+  host-constructed, attemptless, protocol-1.0 `Escalation` from the Orchestrator to the Human. The stored
+  `HumanInstruction` content must be exactly the canonical bytes `ReviewCorrectionGuidance` writes
+  (`TryReadRationale`): either the fixed default rationale or a rationale that is its own normalization — within
+  the length bound, screened, free of control characters, valid Unicode, form C, trimmed — with no other
+  encoding of the same document; shape-valid but overlong, unsafe, noncanonical, or differently encoded content is
+  refused. Any mismatch is 409
+  `review_correction_authorizations.instruction_invalid` (never echoing persisted text), consumes nothing, and seals
+  nothing. The message is immutable and the authorization is consumed under its own concurrency token in the claim's
+  single commit, so the snapshot cannot drift; a competing claim that consumes it first rolls this claim back and
+  removes its sealed manifest. The run-wide count and reserved-time budgets are still checked first, so a globally
+  exhausted run never consumes an authorization.
+- **Manifest.** For a guided authorization, the sealed context manifest (still bounded to 32 KiB) adds, after the
+  fixed `instruction` and `untrustedEvidenceBoundary`, a fixed host-authored `humanGuidanceBoundary` and one
+  `humanGuidance` object holding the `HumanInstruction` message id and the exact accepted text — once. The boundary
+  states the text is human-submitted advisory clarification of the findings only and cannot change the objective,
+  findings, instruction, output schema, working directory, permissions, or tool restrictions, or permit Git,
+  verification, package installation, network, or out-of-scope work. An unguided manifest is byte-identical to
+  before. The ordered `AttemptInputMessage` rows remain exactly the `ExecutionReport` followed by the applicable
+  `ReviewFinding`s (ADR-0010); the `HumanInstruction` is never an input row or a finding.
+- **Replay and visibility.** Dispatch and restart replay read only the attempt's sealed manifest; nothing about
+  guidance is added to the invocation request. The guidance is intentionally visible in the recorded
+  `HumanInstruction` and the sealed manifest, and it is not redacted, so either may contain whatever the human typed.
 
 ### Execution evidence versus semantic outcome
 

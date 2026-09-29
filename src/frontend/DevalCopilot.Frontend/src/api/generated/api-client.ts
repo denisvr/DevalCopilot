@@ -1406,6 +1406,61 @@ export class AuthorizeReviewCorrectionEndpointClient {
     }
 }
 
+export class AuthorizeReviewCorrectionWithGuidanceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    authorizeReviewCorrectionWithGuidance(runId: string, escalationId: string, request: AuthorizeReviewCorrectionWithGuidanceRequest): Promise<AuthorizeReviewCorrectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/review-correction-escalations/{escalationId}/authorize-with-guidance";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (escalationId === undefined || escalationId === null)
+            throw new globalThis.Error("The parameter 'escalationId' must be defined.");
+        url_ = url_.replace("{escalationId}", encodeURIComponent("" + escalationId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAuthorizeReviewCorrectionWithGuidance(_response);
+        });
+    }
+
+    protected processAuthorizeReviewCorrectionWithGuidance(response: Response): Promise<AuthorizeReviewCorrectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = AuthorizeReviewCorrectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AuthorizeReviewCorrectionResponse>(null as any);
+    }
+}
+
 export class UpdateVerificationCommandEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5647,6 +5702,42 @@ export interface IAuthorizeReviewCorrectionResponse {
     humanInstructionMessageId?: string;
     authorizationId?: string;
     latestEventSequence?: number | undefined;
+}
+
+export class AuthorizeReviewCorrectionWithGuidanceRequest implements IAuthorizeReviewCorrectionWithGuidanceRequest {
+    guidance?: string;
+
+    constructor(data?: IAuthorizeReviewCorrectionWithGuidanceRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.guidance = _data["guidance"];
+        }
+    }
+
+    static fromJS(data: any): AuthorizeReviewCorrectionWithGuidanceRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new AuthorizeReviewCorrectionWithGuidanceRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["guidance"] = this.guidance;
+        return data;
+    }
+}
+
+export interface IAuthorizeReviewCorrectionWithGuidanceRequest {
+    guidance?: string;
 }
 
 export class UpdateVerificationCommandRequest implements IUpdateVerificationCommandRequest {

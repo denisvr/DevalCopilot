@@ -14,7 +14,7 @@ using Xunit;
 
 namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 
-public sealed class ReviewCorrectionEndpointTests : IDisposable
+public sealed partial class ReviewCorrectionEndpointTests : IDisposable
 {
     private static readonly string Fingerprint = CodeReviewApiWebApplicationFactory.MatchingFingerprint;
     private readonly CodeReviewApiWebApplicationFactory _factory = new();

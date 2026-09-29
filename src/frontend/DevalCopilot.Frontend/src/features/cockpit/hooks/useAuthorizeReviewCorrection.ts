@@ -1,11 +1,13 @@
 import { useCallback, useRef, useState } from 'react'
-import { ApiException } from '../../../api/generated/api-client'
-import { authorizeReviewCorrectionClient } from '../../../api/clients'
+import { ApiException, AuthorizeReviewCorrectionWithGuidanceRequest } from '../../../api/generated/api-client'
+import { authorizeReviewCorrectionClient, authorizeReviewCorrectionWithGuidanceClient } from '../../../api/clients'
 
 interface UseAuthorizeReviewCorrectionResult {
   authorizing: boolean
   error: string | null
-  authorize: (runId: string, escalationId: string) => Promise<boolean>
+  /** `guidance` is undefined for the bodyless authorization; otherwise the raw draft, sent to the
+   * guided operation. The server normalizes, bounds, and decides eligibility. */
+  authorize: (runId: string, escalationId: string, guidance?: string) => Promise<boolean>
 }
 
 const GENERIC_MESSAGE = 'An additional correction could not be authorized for this run.'
@@ -31,12 +33,20 @@ export function useAuthorizeReviewCorrection(currentRunId: string, onAuthorized:
     generationRef.current += 1
   }
 
-  const authorize = useCallback(async (runId: string, escalationId: string) => {
+  const authorize = useCallback(async (runId: string, escalationId: string, guidance?: string) => {
     const generation = ++generationRef.current
     if (runId !== currentRunIdRef.current) return false
     setState({ runId, authorizing: true, error: null })
     try {
-      await authorizeReviewCorrectionClient().authorizeReviewCorrection(runId, escalationId)
+      if (guidance === undefined) {
+        await authorizeReviewCorrectionClient().authorizeReviewCorrection(runId, escalationId)
+      } else {
+        await authorizeReviewCorrectionWithGuidanceClient().authorizeReviewCorrectionWithGuidance(
+          runId,
+          escalationId,
+          new AuthorizeReviewCorrectionWithGuidanceRequest({ guidance }),
+        )
+      }
       if (generation === generationRef.current && runId === currentRunIdRef.current) onAuthorized()
       return true
     } catch (caught: unknown) {

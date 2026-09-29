@@ -8,6 +8,76 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Current delivery, based on verified parent `2b12bae263e9d9eff0c18157e8dd0c5aaa37863a`: **bounded human guidance for one
+  authorized review correction**. See [planner-handoff.md](planner-handoff.md) for the selection and the
+  ["Bounded human guidance for one authorized review correction"](../architecture/agent-collaboration-protocol.md#bounded-human-guidance-for-one-authorized-review-correction)
+  and
+  ["Optional guidance with a review-correction authorization"](../product/run-cockpit-specification.md#optional-guidance-with-a-review-correction-authorization)
+  sections for the contract.
+  - Behavior: the bodyless `POST …/review-correction-escalations/{id}/authorize` is unchanged. A new protected
+    `POST …/authorize-with-guidance` (body `{ guidance }`, request body capped at 8 KiB) sends the same
+    `AuthorizeReviewCorrectionCommand` with `Guidance`. `ReviewCorrectionGuidance.Normalize` is deterministic and is validated before persistence (Unicode form C,
+    `\n` line endings, trimmed; non-blank, at most 600 characters, no control characters other than `\n`, no unpaired
+    surrogate, not the reserved default rationale, and the ledger's existing best-effort unsafe-text screen, which also
+    rejects ordinary words such as "environment" and does not guarantee secrets are absent). Rejections are a 400 from
+    `AuthorizeReviewCorrectionCommandValidator` (handler repeats it) with a fixed message that never echoes the input. The
+    accepted text is carried in the existing `HumanInstruction`'s `rationale` (the `instruction` field stays the fixed
+    authorization; a bodyless authorization keeps the byte-identical historical default rationale, and that exact
+    text is reserved: submitting it as guidance is rejected, so a guided and a bodyless authorization can never share
+    stored bytes), so there is no ledger schema, ADR, or migration change. An identical retry (after normalization) is idempotent; different guidance against an
+    existing unconsumed authorization, including bodyless-after-guided and guided-after-bodyless, is a 409
+    `guidance_conflict` that echoes neither value, and a concurrent insert loser is resolved the same way; a retry first validates the
+    existing authorization's whole persisted chain with the same resolver a claim uses and fails closed as
+    `instruction_invalid` on any incoherence, never as an idempotent success. Bodyless-after-guided returning a conflict is a deliberate
+    consequence of "different guidance never reports somebody else's authorization" and only arises in a state that could
+    not exist before this slice. At claim time the shared `ReviewCorrectionAuthorizationInstruction` verifies, before any manifest is
+    sealed, that the authorization, escalation, escalation message, and `HumanInstruction` share one run and escalation,
+    that the escalation message is a host-constructed, attemptless, protocol-1.0 Orchestrator-to-Human `Escalation`, that
+    the `HumanInstruction` has the expected type, provenance, participants, protocol version, attemptless shape, and reply
+    linkage, and that its stored content is exactly the canonical bytes written for the default rationale or for a
+    rationale that is its own normalization (length bound, screen, control characters, Unicode, form C, trim); otherwise 409
+    `instruction_invalid` with nothing consumed or sealed. The manifest gains, only for guided authorizations, a fixed
+    `humanGuidanceBoundary` and one `humanGuidance` (message id and exact text) after the fixed instruction and evidence
+    boundary; an unguided manifest is byte-identical to before. Ordered `AttemptInputMessage` rows remain exactly the
+    ExecutionReport then ReviewFindings. Claim budgets, atomic one-time consumption (concurrency token), orphan-manifest
+    cleanup, and sealed-manifest restart replay are unchanged; the run-wide budgets are still checked first. The cockpit
+    shows "Authorize with guidance" only where "Authorize one additional correction" is offered (not when blocked by a
+    global budget or time fit), with a length counter, a not-screened-for-secrets warning, local blank/length feedback,
+    pending and safe server-refusal states, and a draft held only in component state, reset when the escalation or run
+    changes; nothing is written to storage or the URL. No provider flag, adapter, permission, session, fallback, retry, or
+    allowance-enforcement change.
+  - Checks run: solution build 0 errors/0 warnings (one build hit the known `csc` file-lock error and a rebuild
+    cleared it); Domain 657/657; Application 1269/1269; Infrastructure 589 passed, 2 skipped (the existing
+    host-capability skips); Api 440/440; Architecture 9/9; frontend `vitest` 795/795, `tsc -b`, `npm run build`
+    clean, and `oxlint` with no new warnings (the four pre-existing `useAuthorizeReviewCorrection.ts` render-ref warnings
+    only moved lines); repeated Api builds left `api-client.ts` byte-identical (SHA-256 `0cca6807…`, regenerated for
+    the new operation and request type). New tests: Domain normalization, bounds, control/unsafe/surrogate rejection, and
+    content round trip; Application bodyless unchanged (fixed message and manifest keys), exact persisted guidance and
+    non-echoing metadata, exact manifest content with input identity unchanged, bounds, identical and conflicting
+    retries, concurrent identical and conflicting submissions, corrupt persisted message, four incoherent-link cases, the reserved default rationale rejected as guidance (and never a silent
+    bodyless success), and twenty stored-content and envelope corruption kinds (overlong, unsafe, control, padded, CRLF,
+    non-NFC, reordered/spaced/default-spaced JSON, and wrong provenance, actor, recipient, protocol, attempt, or reply on
+    the instruction and wrong provenance, actor, recipient, protocol, or attempt on the escalation message), each refused on
+    both an idempotent retry and a claim without echo, consumption, or sealing,
+    global-budget refusal leaving the authorization unconsumed, one-time consumption, a claim losing the authorization
+    race with orphan cleanup, and bounded evidence with maximum guidance; Api auth, 404s, no-body, invalid and oversized
+    guidance without echo, success, idempotent and conflicting retries, and bodyless-after-guided; a hosted restart-replay
+    test through the real handlers and supervisor; frontend hook, entry component, gating, reset, error, and cockpit
+    wiring tests. Mutation checks (each failed the targeted tests, then restored): disabling the claim-time linkage
+    check failed the four incoherent-link cases, and disabling the existing-authorization guidance comparison failed the
+    conflict, corrupt-message, and concurrent-conflict tests; disabling the canonical-content and escalation-envelope checks failed
+    eleven corruption cases. Tests use deterministic doubles; no real provider is called.
+  - Remaining risks: guidance is human text sent to a provider and stored unredacted in the ledger and sealed manifest;
+    the lexical screen is best-effort, rejects some ordinary words, and cannot prove secrets are absent; a
+    prompt-injecting guidance can still only ask, since the fixed host instruction, boundary, tools, and permissions
+    govern the provider, but a provider may not honor that boundary; the guided-claim manifest could exceed its 32 KiB
+    bound only if other evidence already nearly did (the existing check then refuses the claim); the concurrent-claim
+    race is proven deterministically at the sealed-artifact seam rather than with a truly interleaved commit; a guided
+    request against an already-guided authorization with only a whitespace difference is idempotent by design; the
+    canonical-form rule means an authorization message written by any other tool or an earlier variant of this code is
+    refused rather than repaired, and text equal to the reserved default rationale cannot be submitted as guidance.
+  - Post-publication verification: after a GO and publication, rerun the focused guidance Domain, claim, endpoint,
+    hosted-replay, and frontend tests against the delivered commit.
 - Published delivery: `2872224f2271b4d8dde284c7c1fe5fc603664c47` (parent
   `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`) was committed with the reviewed 38-file Codex Planner format-repair
   slice (24 modified, 14 new), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main`

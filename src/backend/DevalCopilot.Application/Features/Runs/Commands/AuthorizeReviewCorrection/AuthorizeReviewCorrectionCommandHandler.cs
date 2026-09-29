@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -18,11 +19,25 @@ public sealed class AuthorizeReviewCorrectionCommandHandler(
     IRunEventNotifier? eventNotifier = null)
     : ICommandHandler<AuthorizeReviewCorrectionCommand, Result<AuthorizeReviewCorrectionCommandResult>>
 {
-    private const string InstructionJson = "{\"instruction\":\"Authorize one additional review-correction attempt.\",\"rationale\":\"Continue only after explicit human authorization.\"}";
-
     public async Task<Result<AuthorizeReviewCorrectionCommandResult>> HandleAsync(
         AuthorizeReviewCorrectionCommand command, CancellationToken cancellationToken)
     {
+        // Guidance is validated by the deterministic Normalize (also called by the validator), before any read or write; null is the
+        // bodyless authorization and keeps its default rationale. The rejection never echoes the input.
+        var rationale = ReviewCorrectionGuidance.DefaultRationale;
+        if (command.Guidance is not null)
+        {
+            var normalizedGuidance = ReviewCorrectionGuidance.Normalize(command.Guidance);
+            if (normalizedGuidance is null)
+            {
+                return Failure(Error.Failure(
+                    "review_correction_authorizations.guidance_invalid",
+                    $"The guidance must be non-blank text of at most {ReviewCorrectionGuidance.MaximumLength} characters without control characters or unsafe content."));
+            }
+
+            rationale = normalizedGuidance;
+        }
+
         var run = await dbContext.Runs.SingleOrDefaultAsync(candidate => candidate.Id == command.RunId, cancellationToken);
         if (run is null)
         {
@@ -117,6 +132,12 @@ public sealed class AuthorizeReviewCorrectionCommandHandler(
             .SingleOrDefaultAsync(cancellationToken);
         if (existing is not null)
         {
+            var existingMismatch = await GuidanceMismatchAsync(run.Id, escalation, existing, rationale, cancellationToken);
+            if (existingMismatch is not null)
+            {
+                return Failure(existingMismatch);
+            }
+
             var existingEventSequence = await FindCollaborationMessageEventSequenceAsync(
                 run.Id, existing.HumanInstructionMessageId, cancellationToken);
             if (existingEventSequence is not { } sequence)
@@ -136,8 +157,20 @@ public sealed class AuthorizeReviewCorrectionCommandHandler(
         }
 
         var nowUtc = timeProvider.GetUtcNow();
-        var message = CollaborationMessage.RecordHumanInstruction(
-            Guid.NewGuid(), run.Id, escalation.CollaborationMessageId, InstructionJson, nowUtc);
+        CollaborationMessage message;
+        try
+        {
+            message = CollaborationMessage.RecordHumanInstruction(
+                Guid.NewGuid(), run.Id, escalation.CollaborationMessageId,
+                ReviewCorrectionGuidance.BuildStructuredContentJson(rationale), nowUtc);
+        }
+        catch (ArgumentException)
+        {
+            return Failure(Error.Failure(
+                "review_correction_authorizations.guidance_invalid", "The guidance was not accepted by the instruction policy."));
+        }
+
+
         var authorization = ReviewCorrectionAuthorization.Create(
             Guid.NewGuid(), run.Id, escalation.Id, message.Id, nowUtc);
         dbContext.CollaborationMessages.Add(message);
@@ -166,6 +199,12 @@ public sealed class AuthorizeReviewCorrectionCommandHandler(
                 throw;
             }
 
+            var concurrentMismatch = await GuidanceMismatchAsync(run.Id, escalation, concurrent, rationale, cancellationToken);
+            if (concurrentMismatch is not null)
+            {
+                return Failure(concurrentMismatch);
+            }
+
             var concurrentEventSequence = await FindCollaborationMessageEventSequenceAsync(
                 run.Id, concurrent.HumanInstructionMessageId, cancellationToken);
             if (concurrentEventSequence is not { } sequence)
@@ -191,6 +230,32 @@ public sealed class AuthorizeReviewCorrectionCommandHandler(
 
         return Result<AuthorizeReviewCorrectionCommandResult>.Success(
             new(escalation.Id, message.Id, authorization.Id, "Authorized", authorizationEvent.Sequence));
+    }
+
+    /// <summary>Validates the existing unconsumed authorization's whole persisted chain (same run and
+    /// escalation, expected envelopes, canonical content) and then compares its rationale with the
+    /// requested one. Identical intent is idempotent; different guidance is a safe conflict that never
+    /// echoes either value; any incoherence fails closed, so a retry never reports success for a
+    /// corrupted or foreign authorization.</summary>
+    private async Task<Error?> GuidanceMismatchAsync(
+        Guid runId,
+        ReviewCorrectionEscalation escalation,
+        ReviewCorrectionAuthorization authorization,
+        string rationale,
+        CancellationToken cancellationToken)
+    {
+        var resolution = await ReviewCorrectionAuthorizationInstruction.ResolveAsync(
+            dbContext, runId, escalation, authorization, cancellationToken);
+        if (resolution.Error is not null)
+        {
+            return resolution.Error;
+        }
+
+        return string.Equals(resolution.Rationale, rationale, StringComparison.Ordinal)
+            ? null
+            : Error.Conflict(
+                "review_correction_authorizations.guidance_conflict",
+                "An authorization with different guidance already exists for this escalation.");
     }
 
     private async Task<long?> FindCollaborationMessageEventSequenceAsync(

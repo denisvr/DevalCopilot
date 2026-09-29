@@ -23,7 +23,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// <summary>Hosted integration coverage for the real ReviewCorrectionSupervisor, real mediator,
 /// and real EF transaction behavior. Only the provider adapter, evidence reader, artifact store,
 /// and post-commit notifier are deterministic test boundaries.</summary>
-public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
+public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
 {
     private static readonly string Fingerprint = new('a', 64);
     private static readonly string ChangedFingerprint = new('c', 64);
@@ -341,14 +341,18 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
     private static ReviewCorrectionSupervisor CreateSupervisor(ServiceProvider provider, GatedAdapter adapter, IGitWorkspaceEvidenceReader evidence) =>
         new(provider.GetRequiredService<IServiceScopeFactory>(), adapter, evidence, provider.GetRequiredService<IArtifactStore>(), NullLogger<ReviewCorrectionSupervisor>.Instance);
 
-    private async Task<Seed> SeedAsync(ServiceProvider provider, string? claimedClaudeModel = null, string? claimedClaudeEffort = null)
+    private async Task<Seed> SeedAsync(
+        ServiceProvider provider, string? claimedClaudeModel = null, string? claimedClaudeEffort = null,
+        TimeSpan? maximumAgentInvocationTime = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
         await db.Database.MigrateAsync();
         var now = DateTimeOffset.UtcNow;
         var project = Project.Register(Guid.NewGuid(), "Hosted correction", $@"C:\repos\{Guid.NewGuid():N}", now);
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Correct the implementation", now); run.Claim(now);
+        var run = Run.RecordIntent(
+            Guid.NewGuid(), project.Id, 1, "Correct the implementation", now, maximumAgentInvocationTime: maximumAgentInvocationTime);
+        run.Claim(now);
         var workspace = GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", Head, "main", now); workspace.MarkReady();
         var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, workspace.ReserveCheckpointNumber(), now, Head, Fingerprint, []);
         var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, project.Id.ToByteArray(), now);

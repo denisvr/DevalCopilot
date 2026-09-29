@@ -4,6 +4,7 @@ import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
+import { ReviewCorrectionGuidanceEntry } from './ReviewCorrectionGuidanceEntry'
 import { TokenUsageLine } from './TokenUsageLine'
 
 interface ReviewCorrectionActionProps {
@@ -18,6 +19,9 @@ interface ReviewCorrectionActionProps {
   authorizing?: boolean
   authorizationError?: string | null
   onAuthorize?: () => void
+  /** Sends optional human guidance with the authorization; absent hides the entry. The server stays
+   * authoritative for eligibility and for the guidance itself. */
+  onAuthorizeWithGuidance?: (guidance: string) => Promise<boolean>
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Review correction's own human-authorization budget (ADR-0010) is a SEPARATE mechanism that
    * cannot override this one: an available or granted authorization never makes a new Agent
@@ -61,6 +65,7 @@ export function ReviewCorrectionAction({
   authorizing,
   authorizationError,
   onAuthorize = () => undefined,
+  onAuthorizeWithGuidance,
   globalClaimBlock,
   timeFit,
 }: ReviewCorrectionActionProps) {
@@ -151,9 +156,19 @@ export function ReviewCorrectionAction({
             </>
           ) : (
             status?.escalationId && (
-              <button type="button" disabled={authorizing || statusLoading} onClick={onAuthorize}>
-                {authorizing ? 'Authorizing…' : 'Authorize one additional correction'}
-              </button>
+              <>
+                <button type="button" disabled={authorizing || statusLoading} onClick={onAuthorize}>
+                  {authorizing ? 'Authorizing…' : 'Authorize one additional correction'}
+                </button>
+                {onAuthorizeWithGuidance && (
+                  <ReviewCorrectionGuidanceEntry
+                    key={status.escalationId}
+                    authorizing={Boolean(authorizing)}
+                    statusLoading={statusLoading}
+                    onSubmit={onAuthorizeWithGuidance}
+                  />
+                )}
+              </>
             )
           )}
         </div>
