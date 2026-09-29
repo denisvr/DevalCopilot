@@ -8,6 +8,18 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `725476e54d9f7bcf437f3fc920bd375dae1fed67` (parent
+  `2b12bae263e9d9eff0c18157e8dd0c5aaa37863a`) was committed with the reviewed 30-file bounded human-guidance slice
+  (18 modified, 12 new), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main` and
+  `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched the delivered SHA, with a clean
+  working tree. Solution build 0 errors/0 warnings. Before the commit, only comments and documentation that claimed
+  `ReviewCorrectionGuidance.Normalize` runs "once" were reworded (it is deterministic, called by both the validator and
+  the handler, and always before persistence). Focused checks rerun against that commit, all passing: Domain 32
+  (guidance normalization, reserved value, and canonical-content tests), Application 82 (review-correction claim and
+  guidance tests), Api 32 (review-correction endpoint including guided-authorization tests, and hosted supervisor
+  tests including guided restart replay), and frontend 108 (guidance entry, review-correction action, authorization hook,
+  and cockpit wiring). This closure records the delivered SHA and those checks only; no code or product contract changed
+  after publication.
 - Current delivery, based on verified parent `2b12bae263e9d9eff0c18157e8dd0c5aaa37863a`: **bounded human guidance for one
   authorized review correction**. See [planner-handoff.md](planner-handoff.md) for the selection and the
   ["Bounded human guidance for one authorized review correction"](../architecture/agent-collaboration-protocol.md#bounded-human-guidance-for-one-authorized-review-correction)
