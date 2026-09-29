@@ -15,8 +15,9 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAt
 /// Claims one durable Claude implementation attempt with immutable assignment facts. Mirrors
 /// <c>CreateChallengeResolutionAttemptCommandHandler</c>'s workspace/lease/checkpoint eligibility
 /// chain and sealed-manifest/persistence-race handling exactly, plus the additional resolved-plan
-/// identity chain: exactly two eligible forms (an accepted original Proposal, or a resolved
-/// revised Proposal), both bound to the run, workspace, and current checkpoint, and neither
+/// identity chain: exactly two eligible forms (an accepted original Proposal, or a first revised
+/// Proposal that no later review challenged, bound to its exact Acceptance if it was re-reviewed and
+/// accepted), both bound to the run, workspace, and current checkpoint, and neither
 /// already successfully implemented.
 /// </summary>
 public sealed class CreateImplementationAttemptCommandHandler(
@@ -30,6 +31,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
     /// document, never a transcript or repository copy.</summary>
     private const int MaxContextManifestBytes = 32 * 1024;
     private const string AdapterContractVersion = "claude-implementation-v1";
+    private const string PlanChallengedCode = "agent_attempts.plan_challenged";
 
     /// <summary>Implementation is inherently multi-step (read, edit, re-read, verify its own
     /// work) — deliberately longer than the single-turn critical-review/resolution stages, but
@@ -143,6 +145,16 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required to request an implementation."));
         }
 
+        // A revised plan's lineage refusal (end of lineage, a challenging review, corrupt or unreadable
+        // evidence, an unsupported role/provider pair) is decided from durable identity here, before any
+        // provider probe, Git capture, or manifest sealing, so it does no external work. The original
+        // Planner path and every other refusal keep their position after the checks below.
+        var earlyRefusal = await EarlyRevisionRefusalAsync(run, command.PlanProposalMessageId, workspace, checkpoint, cancellationToken);
+        if (earlyRefusal is not null)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(earlyRefusal);
+        }
+
         var claudeSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.ClaudeCli, cancellationToken);
         if (claudeSnapshot is null || claudeSnapshot.ReasonCode != CapabilityProbeReason.None || string.IsNullOrWhiteSpace(claudeSnapshot.ResolvedExecutablePath))
@@ -201,6 +213,40 @@ public sealed class CreateImplementationAttemptCommandHandler(
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(
                 Error.Failure("agent_attempts.context_manifest_seal_failed", "The context manifest could not be sealed."));
+        }
+
+        // The last read before the durable commit: the resolved plan's eligibility (including a
+        // review that challenged it in the meantime), any competing implementation, and the run-wide
+        // Running slot are decided again after the external work above. A plan that stopped being
+        // eligible is refused here and its sealed manifest removed, so nothing that could mutate the
+        // workspace is ever committed for it. The filtered unique index on (RunId WHERE Status =
+        // 'Running') still backstops the commit itself.
+        var lateValidation = await ValidateResolvedPlanAsync(
+            run, command.PlanProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
+        Error? lateError = lateValidation.Error;
+        if (lateError is null && !lateValidation.OrderedInputMessageIds!.SequenceEqual(orderedInputMessageIds))
+        {
+            lateError = Error.Conflict("agent_attempts.plan_changed", "The resolved plan's evidence changed while this claim was being prepared.");
+        }
+
+        if (lateError is null
+            && await ImplementationInputIdentity.HasCompetingSuccessfulImplementationAsync(
+                dbContext, run.Id, attemptId, command.PlanProposalMessageId, checkpoint.Id, cancellationToken))
+        {
+            lateError = Error.Conflict("agent_attempts.already_implemented", "This resolved plan already has a successful implementation.");
+        }
+
+        if (lateError is null
+            && await dbContext.Attempts.AsNoTracking().AnyAsync(
+                candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken))
+        {
+            lateError = Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.");
+        }
+
+        if (lateError is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateImplementationAttemptCommandResult>.Failure(lateError);
         }
 
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
@@ -388,6 +434,30 @@ public sealed class CreateImplementationAttemptCommandHandler(
         IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
         CancellationToken cancellationToken)
     {
+        try
+        {
+            return await ValidateResolvedPlanCoreAsync(
+                run, planProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            // A persisted row of the plan's lineage could not be materialized (typically an
+            // unparseable stored enum string): fixed refusal, no exception or stored value disclosed.
+            // The guard catches InvalidOperationException, which cannot prove an enum-conversion cause and
+            // could have another origin; DbException and cancellation exceptions are not caught by it.
+            return ResolvedPlanValidation.Failed(PlanningLineage.UnreadableEvidenceError());
+        }
+    }
+
+    private async Task<ResolvedPlanValidation> ValidateResolvedPlanCoreAsync(
+        Run run,
+        Guid planProposalMessageId,
+        GitWorkspace workspace,
+        GitCheckpoint checkpoint,
+        GitWorkspaceEvidenceResult evidence,
+        IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
+        CancellationToken cancellationToken)
+    {
         var proposalMessage = await dbContext.CollaborationMessages
             .SingleOrDefaultAsync(candidate => candidate.Id == planProposalMessageId, cancellationToken);
         if (proposalMessage is null || proposalMessage.RunId != run.Id || proposalMessage.Type != CollaborationMessageType.Proposal)
@@ -408,6 +478,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         if (owningAttempt is null
             || owningAttempt.RunId != run.Id
             || owningAttempt.Kind != AttemptKind.Agent
+            || !AgentAttemptIdentity.IsCoherent(owningAttempt)
             || owningAttempt.Status != AttemptStatus.Completed
             || proposalMessage.Provenance != CollaborationMessageProvenance.ProviderObserved
             || owningAttempt.AgentProvider is not { } owningProvider
@@ -441,7 +512,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             && owningAttempt.AgentOutcome == AgentOutcome.Resolved)
         {
             return await ValidateResolvedRevisedProposalAsync(
-                run, proposalMessage, owningAttempt, evidence, configuredVerificationCommands, cancellationToken);
+                run, proposalMessage, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
         }
 
         return ResolvedPlanValidation.Failed(
@@ -473,7 +544,10 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 (candidate, _) => candidate)
             .OrderBy(candidate => candidate.AttemptNumber)
             .FirstOrDefaultAsync(cancellationToken);
-        if (reviewAttempt is null || reviewAttempt.AgentProvider is not { } reviewProvider || !Enum.IsDefined(reviewProvider))
+        if (reviewAttempt is null
+            || reviewAttempt.AgentProvider is not { } reviewProvider
+            || !Enum.IsDefined(reviewProvider)
+            || !AgentAttemptIdentity.IsCoherent(reviewAttempt))
         {
             return ResolvedPlanValidation.Failed(
                 Error.Conflict(
@@ -530,58 +604,157 @@ public sealed class CreateImplementationAttemptCommandHandler(
     private async Task<ResolvedPlanValidation> ValidateResolvedRevisedProposalAsync(
         Run run,
         CollaborationMessage revisedProposalMessage,
-        Attempt resolverAttempt,
+        GitWorkspace workspace,
+        GitCheckpoint checkpoint,
         GitWorkspaceEvidenceResult evidence,
         IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
         CancellationToken cancellationToken)
     {
-        // resolverAttempt's own role (Resolver) was already validated by the caller, but its
-        // provider is re-verified present and defined here independently rather than trusted
-        // across the method boundary — provenance integrity means each Decision's own recorded
-        // Actor must still truthfully match that SAME attempt's provider, never a fixed literal.
-        if (resolverAttempt.AgentProvider is not { } resolverProvider || !Enum.IsDefined(resolverProvider))
+        var eligibility = await EvaluateRevisionEligibilityAsync(run, revisedProposalMessage.Id, workspace, checkpoint, cancellationToken);
+        if (eligibility.Error is { } eligibilityError)
         {
-            return ResolvedPlanValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.decisions_not_valid",
-                    "The resolver's decision set is not a valid, complete, provider-observed set."));
+            return ResolvedPlanValidation.Failed(eligibilityError);
         }
 
-        var expectedDecisionActor = ParticipantIdentity.ForAgent(AgentRole.Resolver, resolverProvider);
-        var orderedDecisions = await dbContext.CollaborationMessages
-            .Where(candidate => candidate.AttemptId == resolverAttempt.Id && candidate.Type == CollaborationMessageType.Decision)
-            .OrderBy(candidate => candidate.Sequence)
-            .ToListAsync(cancellationToken);
-        if (orderedDecisions.Count == 0
-            || orderedDecisions.Any(decision => decision.Provenance != CollaborationMessageProvenance.ProviderObserved || decision.Actor != expectedDecisionActor))
-        {
-            return ResolvedPlanValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.decisions_not_valid",
-                    "The resolver's decision set is not a valid, complete, provider-observed set."));
-        }
-
+        var node = eligibility.Node!;
+        var acceptance = eligibility.Acceptance;
         var manifestJson = ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
             run.ProjectId,
-            resolverAttempt.AgentGitWorkspaceId!.Value,
-            resolverAttempt.AgentGitCheckpointId!.Value,
-            resolverAttempt.AgentCheckpointFingerprintSha256!,
+            workspace.Id,
+            checkpoint.Id,
+            checkpoint.FingerprintSha256,
             run.Objective,
             revisedProposalMessage.Id,
             revisedProposalMessage.Summary,
             revisedProposalMessage.StructuredContentJson,
-            orderedDecisions
+            node.Decisions
                 .Select(decision => new ImplementationContextManifestBuilder.DecisionEvidence(
                     decision.InReplyToMessageId!.Value, decision.Summary, decision.StructuredContentJson))
                 .ToArray(),
             evidence.ChangedPaths,
             evidence.CompleteDiff,
-            configuredVerificationCommands);
+            configuredVerificationCommands,
+            acceptance is null
+                ? null
+                : new ImplementationContextManifestBuilder.AcceptanceEvidence(acceptance.Summary, acceptance.StructuredContentJson));
 
         var orderedInputMessageIds = new List<Guid> { revisedProposalMessage.Id };
-        orderedInputMessageIds.AddRange(orderedDecisions.Select(decision => decision.Id));
+        orderedInputMessageIds.AddRange(node.Decisions.Select(decision => decision.Id));
+        if (acceptance is not null)
+        {
+            orderedInputMessageIds.Add(acceptance.Id);
+        }
 
         return ResolvedPlanValidation.Succeeded(manifestJson, orderedInputMessageIds);
+    }
+
+    /// <summary>
+    /// If <paramref name="planProposalMessageId"/> names a Proposal not owned by a Planner attempt, decides
+    /// its lineage eligibility from durable identity alone (no Git evidence, provider, or manifest
+    /// needed) so a refusal does no external work; <see langword="null"/> for any other message, which
+    /// the full validation below classifies with its own errors.
+    /// </summary>
+    private async Task<Error?> EarlyRevisionRefusalAsync(
+        Run run, Guid planProposalMessageId, GitWorkspace workspace, GitCheckpoint checkpoint, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var message = await dbContext.CollaborationMessages.AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.Id == planProposalMessageId, cancellationToken);
+            if (message is null || message.RunId != run.Id || message.Type != CollaborationMessageType.Proposal || message.AttemptId is null)
+            {
+                return null;
+            }
+
+            var ownerRole = await dbContext.Attempts.AsNoTracking()
+                .Where(candidate => candidate.Id == message.AttemptId)
+                .Select(candidate => candidate.AgentRole)
+                .SingleOrDefaultAsync(cancellationToken);
+            return ownerRole != AgentRole.Planner
+                ? (await EvaluateRevisionEligibilityAsync(run, message.Id, workspace, checkpoint, cancellationToken)).Error
+                : null;
+        }
+        catch (InvalidOperationException)
+        {
+            return PlanningLineage.UnreadableEvidenceError();
+        }
+    }
+
+    private async Task<RevisionEligibility> EvaluateRevisionEligibilityAsync(
+        Run run, Guid revisedProposalMessageId, GitWorkspace workspace, GitCheckpoint checkpoint, CancellationToken cancellationToken)
+    {
+        // The revision's whole lineage is decided from durable identity: its Resolver attempt, the
+        // exact ordered inputs, the parent Proposal, that parent's complete Challenged review, one
+        // Decision per Challenge, and the exact workspace and checkpoint. Any missing, foreign,
+        // stale, duplicated, or incoherent piece fails closed.
+        var snapshot = await PlanningLineage.TryLoadSnapshotAsync(dbContext, run.Id, cancellationToken);
+        if (snapshot is null)
+        {
+            return RevisionEligibility.Failed(PlanningLineage.UnreadableEvidenceError());
+        }
+
+        var evaluation = PlanningLineage.Evaluate(
+            snapshot, run.Id, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, revisedProposalMessageId);
+        if (evaluation.Node is not { } node)
+        {
+            return RevisionEligibility.Failed(evaluation.Failure switch
+            {
+                PlanningLineage.FailureKind.CheckpointStale => PlanningLineage.ToClaimError(PlanningLineage.FailureKind.CheckpointStale),
+                PlanningLineage.FailureKind.OwnerInvalid => PlanningLineage.ToClaimError(PlanningLineage.FailureKind.OwnerInvalid),
+                _ => Error.Conflict(
+                    "agent_attempts.decisions_not_valid",
+                    "The resolver's decision set is not a valid, complete, provider-observed set."),
+            });
+        }
+
+        // A duplicated root Proposal is corrupt evidence for a plan that will be implemented.
+        if (!PlanningLineage.OwnsExactlyOneProposal(snapshot, node.Root.Owner))
+        {
+            return RevisionEligibility.Failed(Error.Conflict(
+                "agent_attempts.decisions_not_valid",
+                "The resolver's decision set is not a valid, complete, provider-observed set."));
+        }
+
+        // A depth-two revision ended its lineage in a human escalation; it is never implementable.
+        if (node.Depth > PlanningLineage.MaximumImplementableDepth)
+        {
+            return RevisionEligibility.Failed(PlanningLineage.ExhaustedError());
+        }
+
+        // A first revision may have received one optional critical review. Challenged blocks it
+        // permanently (while its second resolution is pending or failed, and after it succeeded); an
+        // Accepted review permits it and binds the implementation to that exact Acceptance.
+        var reviews = PlanningLineage.SuccessfulReviewsOf(snapshot, run.Id, node.Proposal.Id);
+        if (reviews.Count > 1)
+        {
+            return RevisionEligibility.Failed(PlanningLineage.ToClaimError(PlanningLineage.FailureKind.LineageInvalid));
+        }
+
+        if (reviews.Count == 0)
+        {
+            return RevisionEligibility.Succeeded(node, null);
+        }
+
+        if (reviews[0].AgentOutcome == AgentOutcome.Challenged)
+        {
+            return RevisionEligibility.Failed(Error.Conflict(
+                PlanChallengedCode,
+                "This revised plan was challenged by a later critical review and cannot be implemented."));
+        }
+
+        var acceptance = PlanningLineage.FindExactAcceptance(
+            snapshot, reviews[0], run.Id, node.Proposal.Id, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256);
+        return acceptance is null
+            ? RevisionEligibility.Failed(
+                Error.Conflict("agent_attempts.acceptance_not_valid", "The acceptance evidence for this proposal is not a valid provider-observed record."))
+            : RevisionEligibility.Succeeded(node, acceptance);
+    }
+
+    private sealed record RevisionEligibility(PlanningLineage.Node? Node, CollaborationMessage? Acceptance, Error? Error)
+    {
+        public static RevisionEligibility Succeeded(PlanningLineage.Node node, CollaborationMessage? acceptance) => new(node, acceptance, null);
+
+        public static RevisionEligibility Failed(Error error) => new(null, null, error);
     }
 
     private sealed record ResolvedPlanValidation(string? ManifestJson, IReadOnlyList<Guid>? OrderedInputMessageIds, Error? Error)

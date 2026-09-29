@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -62,6 +63,20 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         return (project, run, attempt, originalProposal, challenges);
     }
 
+    /// <summary>Seeds the real durable lineage this claimed attempt's ordered inputs refer to — a
+    /// completed Planner root under the original Proposal's id and one completed Challenged review
+    /// owning exactly the input Challenges' ids — bound to the attempt's own workspace, checkpoint, and
+    /// fingerprint, so the result boundary can decide the lineage rather than trust fabricated ids.</summary>
+    private static void SeedLineageEvidence(
+        DevalCopilotDbContext dbContext, Attempt attempt, AttemptInputMessage originalProposal, List<AttemptInputMessage> challenges)
+    {
+        var seeder = new PlanningLineageSeeder(
+            dbContext, attempt.RunId, attempt.AgentGitWorkspaceId!.Value, attempt.AgentGitCheckpointId!.Value,
+            attempt.AgentCheckpointFingerprintSha256!, Now, nextAttemptNumber: 2);
+        var (_, proposal) = seeder.AddRoot(originalProposal.CollaborationMessageId);
+        seeder.AddReview(proposal, AgentOutcome.Challenged, challenges.Count, challenges.Select(c => c.CollaborationMessageId).ToList());
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(5)]
@@ -75,6 +90,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         dbContext.Attempts.Add(attempt);
         dbContext.AttemptInputMessages.Add(originalProposal);
         dbContext.AttemptInputMessages.AddRange(challenges);
+        SeedLineageEvidence(dbContext, attempt, originalProposal, challenges);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var challengeMessageIds = challenges.Select(c => c.CollaborationMessageId).ToList();
@@ -88,7 +104,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         Assert.Equal(AttemptStatus.Completed, attempt.Status);
         Assert.Equal(AgentOutcome.Resolved, attempt.AgentOutcome);
 
-        var messages = dbContext.CollaborationMessages.Where(m => m.RunId == run.Id).OrderBy(m => m.Sequence).ToList();
+        var messages = dbContext.CollaborationMessages.Where(m => m.AttemptId == attempt.Id).OrderBy(m => m.Sequence).ToList();
         Assert.Equal(challengeCount + 1, messages.Count);
 
         var decisionMessages = messages.Where(m => m.Type == CollaborationMessageType.Decision).ToList();
@@ -353,6 +369,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         dbContext.Attempts.Add(attempt);
         dbContext.AttemptInputMessages.Add(originalProposal);
         dbContext.AttemptInputMessages.AddRange(challenges);
+        SeedLineageEvidence(dbContext, attempt, originalProposal, challenges);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var resolution = Resolution(challenges.Select(c => c.CollaborationMessageId).ToList());
@@ -364,7 +381,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AgentOutcome.SourceChanged, attempt.AgentOutcome);
-        Assert.Empty(dbContext.CollaborationMessages.Where(m => m.RunId == run.Id));
+        Assert.Empty(dbContext.CollaborationMessages.Where(m => m.AttemptId == attempt.Id));
         var journalEvent = Assert.Single(dbContext.Events.Where(e => e.AttemptId == attempt.Id));
         Assert.Equal(RunEventType.AgentAttemptCompleted, journalEvent.EventType);
     }
@@ -413,6 +430,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         dbContext.Attempts.Add(attempt);
         dbContext.AttemptInputMessages.Add(originalProposal);
         dbContext.AttemptInputMessages.AddRange(challenges);
+        SeedLineageEvidence(dbContext, attempt, originalProposal, challenges);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var resolution = Resolution(challenges.Select(c => c.CollaborationMessageId).ToList());
@@ -441,6 +459,7 @@ public sealed class RecordChallengeResolutionResultCommandHandlerTests(SqliteDat
         dbContext.Attempts.Add(attempt);
         dbContext.AttemptInputMessages.Add(originalProposal);
         dbContext.AttemptInputMessages.AddRange(challenges);
+        SeedLineageEvidence(dbContext, attempt, originalProposal, challenges);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var resolution = Resolution(challenges.Select(c => c.CollaborationMessageId).ToList());

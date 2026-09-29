@@ -141,6 +141,17 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(tokenStopError);
         }
 
+        // The reviewed Proposal's lineage is decided from durable identity alone, before any provider
+        // probe, Git capture, or manifest sealing, so a lineage refusal (an exhausted or corrupt lineage,
+        // an unsupported role/provider pair, an unreadable row) does no external work. A proposal that is
+        // simply not found keeps its existing position after the provider and checkpoint checks below.
+        var earlyEligibility = await EvaluateReviewEligibilityAsync(run.Id, command.ProposalMessageId, workspace.Id, checkpoint, cancellationToken);
+        if (earlyEligibility.Error is { Code: not "agent_attempts.proposal_not_found" } earlyRefusal)
+        {
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(earlyRefusal);
+        }
+
+
         var claudeSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.ClaudeCli, cancellationToken);
         if (claudeSnapshot is null
@@ -159,31 +170,13 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_not_current", "The selected source checkpoint is no longer current for this workspace."));
         }
 
-        var proposalValidation = await ValidateReviewedProposalAsync(run.Id, command.ProposalMessageId, workspace.Id, checkpoint, cancellationToken);
-        if (proposalValidation.Error is { } error)
+        var eligibility = await EvaluateReviewEligibilityAsync(run.Id, command.ProposalMessageId, workspace.Id, checkpoint, cancellationToken);
+        if (eligibility.Error is { } error)
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(error);
         }
 
-        var proposalMessage = proposalValidation.Message!;
-
-        var alreadyReviewed = await dbContext.Attempts
-            .Join(
-                dbContext.AttemptInputMessages.Where(inputMessage => inputMessage.CollaborationMessageId == proposalMessage.Id),
-                attempt => attempt.Id,
-                inputMessage => inputMessage.AttemptId,
-                (attempt, inputMessage) => attempt)
-            .AnyAsync(
-                candidate =>
-                    candidate.Kind == AttemptKind.Agent
-                    && candidate.AgentRole == AgentRole.CriticalReviewer
-                    && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
-                cancellationToken);
-        if (alreadyReviewed)
-        {
-            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
-                Error.Conflict("agent_attempts.already_reviewed", "This proposal already has a successful critical review."));
-        }
+        var proposalMessage = eligibility.Message!;
 
         var attemptId = Guid.NewGuid();
         var manifestArtifactId = Guid.NewGuid();
@@ -217,6 +210,25 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
                 Error.Failure("agent_attempts.context_manifest_seal_failed", "The context manifest could not be sealed."));
+        }
+
+        // The last read before the durable commit: the lineage and the run-wide Running slot are
+        // decided again after the external work above, so a competing review or claim that landed
+        // in the meantime is refused here (the sealed manifest is removed) rather than committed.
+        // The filtered unique index on (RunId WHERE Status = 'Running') still backstops the commit.
+        var lateEligibility = await EvaluateReviewEligibilityAsync(run.Id, command.ProposalMessageId, workspace.Id, checkpoint, cancellationToken);
+        Error? lateError = lateEligibility.Error;
+        if (lateError is null
+            && await dbContext.Attempts.AsNoTracking().AnyAsync(
+                candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken))
+        {
+            lateError = Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.");
+        }
+
+        if (lateError is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(lateError);
         }
 
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
@@ -402,65 +414,55 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
     }
 
     /// <summary>
-    /// Validates every fact Section 3 requires about the reviewed message before this attempt is
-    /// ever claimed: it belongs to this run, is a provider-observed Codex Proposal, its owning
-    /// Codex planning attempt actually completed as Proposed, and that planning attempt is bound
-    /// to the exact same workspace/checkpoint/fingerprint this critical-review attempt is about
-    /// to claim — never a different or since-superseded checkpoint.
+    /// Decides, from durable identity alone, whether <paramref name="proposalMessageId"/> may
+    /// receive a critical review: it is a valid lineage Proposal (a provider-observed Planner root,
+    /// or a Resolver's first revision), bound to the exact workspace, checkpoint, and fingerprint
+    /// this attempt is about to claim, at a depth that still allows a review, and has no earlier
+    /// successful review. A depth-two revision is the end of the lineage and is never reviewable.
     /// </summary>
-    private async Task<ReviewedProposalValidation> ValidateReviewedProposalAsync(
+    private async Task<ReviewEligibility> EvaluateReviewEligibilityAsync(
         Guid runId, Guid proposalMessageId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken)
     {
-        var message = await dbContext.CollaborationMessages
-            .SingleOrDefaultAsync(candidate => candidate.Id == proposalMessageId, cancellationToken);
-        if (message is null || message.RunId != runId)
+        var snapshot = await PlanningLineage.TryLoadSnapshotAsync(dbContext, runId, cancellationToken);
+        if (snapshot is null)
         {
-            return ReviewedProposalValidation.Failed(
-                Error.NotFound("agent_attempts.proposal_not_found", "The requested proposal was not found for this run."));
+            return ReviewEligibility.Failed(PlanningLineage.UnreadableEvidenceError());
         }
 
-        if (message.Type != CollaborationMessageType.Proposal
-            || message.Provenance != CollaborationMessageProvenance.ProviderObserved
-            || message.AttemptId is null)
+        var evaluation = PlanningLineage.Evaluate(
+            snapshot, runId, workspaceId, checkpoint.Id, checkpoint.FingerprintSha256, proposalMessageId);
+        if (evaluation.Node is not { } node)
         {
-            return ReviewedProposalValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.not_provider_observed_planner_proposal",
-                    "Only a provider-observed Planner proposal can be requested for critical review."));
+            return ReviewEligibility.Failed(PlanningLineage.ToClaimError(evaluation.Failure ?? PlanningLineage.FailureKind.LineageInvalid));
         }
 
-
-        // Role-first, per ADR-0009: the owning attempt's AgentRole is the sole authority for
-        // whether this message is a real Planner proposal. AgentProvider participates only as
-        // provenance-integrity evidence inside this helper — never compared to a fixed provider to
-        // authorize the role.
-        var owningAttempt = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
-            dbContext, message, runId, AgentRole.Planner, cancellationToken);
-        if (owningAttempt is null || owningAttempt.Status != AttemptStatus.Completed || owningAttempt.AgentOutcome != AgentOutcome.Proposed)
+        if (node.Depth > PlanningLineage.MaximumReviewableDepth)
         {
-            return ReviewedProposalValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.proposal_attempt_not_valid",
-                    "The proposal's owning planning attempt did not complete as a valid proposal."));
+            return ReviewEligibility.Failed(PlanningLineage.ExhaustedError());
         }
 
-        if (owningAttempt.AgentGitWorkspaceId != workspaceId
-            || owningAttempt.AgentGitCheckpointId != checkpoint.Id
-            || !string.Equals(owningAttempt.AgentCheckpointFingerprintSha256, checkpoint.FingerprintSha256, StringComparison.Ordinal))
-        {
-            return ReviewedProposalValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.proposal_checkpoint_stale",
-                    "The proposal was made against a different checkpoint than the one currently current for this workspace."));
-        }
-
-        return ReviewedProposalValidation.Succeeded(message);
+        var alreadyReviewed = await dbContext.Attempts
+            .AsNoTracking()
+            .Join(
+                dbContext.AttemptInputMessages.AsNoTracking().Where(inputMessage => inputMessage.CollaborationMessageId == node.Proposal.Id),
+                attempt => attempt.Id,
+                inputMessage => inputMessage.AttemptId,
+                (attempt, inputMessage) => attempt)
+            .AnyAsync(
+                candidate =>
+                    candidate.Kind == AttemptKind.Agent
+                    && candidate.AgentRole == AgentRole.CriticalReviewer
+                    && (candidate.AgentOutcome == AgentOutcome.Accepted || candidate.AgentOutcome == AgentOutcome.Challenged),
+                cancellationToken);
+        return alreadyReviewed
+            ? ReviewEligibility.Failed(Error.Conflict("agent_attempts.already_reviewed", "This proposal already has a successful critical review."))
+            : ReviewEligibility.Succeeded(node.Proposal);
     }
 
-    private sealed record ReviewedProposalValidation(CollaborationMessage? Message, Error? Error)
+    private sealed record ReviewEligibility(CollaborationMessage? Message, Error? Error)
     {
-        public static ReviewedProposalValidation Succeeded(CollaborationMessage message) => new(message, null);
+        public static ReviewEligibility Succeeded(CollaborationMessage message) => new(message, null);
 
-        public static ReviewedProposalValidation Failed(Error error) => new(null, error);
+        public static ReviewEligibility Failed(Error error) => new(null, error);
     }
 }

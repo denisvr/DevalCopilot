@@ -17,7 +17,11 @@ import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrect
 import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
-import { selectLatestCodexProposalMessageId } from '../selectLatestCodexProposal'
+import {
+  derivePlanningLineage,
+  selectImplementablePlanMessageId,
+  selectReviewableProposalMessageId,
+} from '../derivePlanningLineage'
 import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionReport'
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 import { CodexAssignmentPreferenceControl } from './CodexAssignmentPreferenceControl'
@@ -30,6 +34,7 @@ import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
 import { CodexPlanningRepairAction } from './CodexPlanningRepairAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
+import { PlanningLineageSummary } from './PlanningLineageSummary'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ImplementationAction } from './ImplementationAction'
 import { CodeReviewAction } from './CodeReviewAction'
@@ -65,7 +70,16 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
   const requestReviewCorrection = useRequestReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
   const authorizeReviewCorrection = useAuthorizeReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
-  const latestCodexProposalMessageId = selectLatestCodexProposalMessageId(collaborationTimeline.cards)
+  // The newest Planner root and its Resolver revisions, read from the loaded timeline. Display hints
+  // only: the backend re-decides review, resolution, and implementation eligibility from durable
+  // identity, so an unverifiable chain here withholds an action and never grants one.
+  const planningLineage = derivePlanningLineage(collaborationTimeline.cards)
+  const reviewableProposalMessageId = selectReviewableProposalMessageId(planningLineage)
+  const reviewStatusHint = {
+    status: claudeCriticalReviewAttemptStatus.status,
+    loading: claudeCriticalReviewAttemptStatus.loading,
+    error: claudeCriticalReviewAttemptStatus.error,
+  }
   // The backend independently re-verifies this eligibility in full before ever acting on it;
   // this is only a display hint. A failed or active correction must never resurrect the stale
   // initial report, while a durable correction (including a competing InputAlreadyCorrected
@@ -84,20 +98,13 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
     claudeCriticalReviewAttemptStatus.status?.outcome === 'Challenged'
       ? claudeCriticalReviewAttemptStatus.status.reviewedProposalMessageId ?? null
       : null
-  // The one authoritative resolved plan eligible for implementation, identified only by its
-  // Proposal message id — never reconstructed from display text. `latestCodexProposalMessageId`
-  // already tracks the highest-sequence real Codex Proposal, which becomes the resolver's
-  // revised Proposal once a resolution completes, so the same selector serves both eligible
-  // forms: an accepted original Proposal (no resolution has happened yet), or a resolved
-  // revised Proposal (the latest Proposal now belongs to the completed resolution attempt).
-  // The backend independently re-verifies this eligibility in full before ever acting on it —
-  // this is only a display hint for when to offer the action.
-  const isAcceptedOriginalProposal =
-    claudeCriticalReviewAttemptStatus.status?.outcome === 'Accepted'
-    && claudeCriticalReviewAttemptStatus.status.reviewedProposalMessageId === latestCodexProposalMessageId
-  const isResolvedRevisedProposal = challengeResolutionAttemptStatus.status?.outcome === 'Resolved'
-  const eligiblePlanProposalMessageId =
-    isAcceptedOriginalProposal || isResolvedRevisedProposal ? latestCodexProposalMessageId : null
+  // The one plan offered for implementation, identified only by its Proposal message id — never
+  // reconstructed from display text. An Accepted original root, or a first revision that its own
+  // optional second review did not challenge; never a second revision (its lineage ended in a human
+  // escalation) and never while the second-review status is unknown. The backend independently
+  // re-verifies this eligibility in full before acting on it — this only withholds a certainly
+  // blocked action.
+  const eligiblePlanProposalMessageId = selectImplementablePlanMessageId(planningLineage, reviewStatusHint)
 
   if (loading && !cockpit) {
     return <p className="dc-empty-state">Loading run…</p>
@@ -205,18 +212,20 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             timeFit={codexPlanningTimeFit}
           />
           <ClaudeCriticalReviewAction
-            proposalMessageId={latestCodexProposalMessageId}
+            proposalMessageId={reviewableProposalMessageId}
+            proposalKind={planningLineage.firstRevision ? 'revision' : 'original'}
             status={claudeCriticalReviewAttemptStatus.status}
             statusLoading={claudeCriticalReviewAttemptStatus.loading}
             statusError={claudeCriticalReviewAttemptStatus.error}
             requesting={requestClaudeCriticalReview.requesting}
             requestError={requestClaudeCriticalReview.error}
             onRequest={() =>
-              latestCodexProposalMessageId && void requestClaudeCriticalReview.request(runId, latestCodexProposalMessageId)
+              reviewableProposalMessageId && void requestClaudeCriticalReview.request(runId, reviewableProposalMessageId)
             }
             globalClaimBlock={globalClaimBlock}
             timeFit={claudeCriticalReviewTimeFit}
           />
+          <PlanningLineageSummary lineage={planningLineage} review={reviewStatusHint} />
           <ChallengeResolutionAction
             challengedReviewAttemptId={latestChallengedReviewAttemptId}
             reviewedProposalMessageId={latestChallengedReviewProposalId}

@@ -80,7 +80,11 @@ the Codex code-review attempt consuming an Implementer Execution report —
 resolves the message's owning attempt and checks its role, response-contract
 coherence, and outcome/checkpoint facts; `AgentProvider` participates only as
 provenance-integrity evidence against the message's own recorded `Actor`,
-never as a fixed value compared to authorize the role. The same correction
+never as a fixed value compared to authorize the role. A Proposal that is a
+Planner root or a Resolver revision is validated through one shared lineage
+rule (`PlanningLineage`, see
+[Optional second challenge round and escalation](#optional-second-challenge-round-and-escalation)).
+The same correction
 applies to every "already reviewed/resolved/implemented/code-reviewed"
 deduplication query and its shared identity helper
 (`ChallengeResolutionInputIdentity`, `CodeReviewInputIdentity`,
@@ -334,7 +338,10 @@ return either:
 This stage is real today, bound to one durable attempt per requested review. A
 Challenged outcome leaves the plan awaiting an explicit resolution request
 rather than looping automatically; resolution itself is a separate, real,
-requested attempt described next.
+requested attempt described next. A Planner Proposal, or a Resolver's first
+revised Proposal, may be reviewed once; the second review and its resolution
+are the lineage's only additional round (see
+[Optional second challenge round and escalation](#optional-second-challenge-round-and-escalation)).
 
 ### Resolution
 
@@ -345,7 +352,10 @@ challenge explicitly as `accepted`, `partiallyAccepted`, or `rejected`; a
 partially accepted or rejected challenge must include reasoning. Resolving
 never edits the repository. Changes become a new plan revision — one revised
 Proposal replying to the original — rather than silently editing history, and
-that revision can re-enter Critical review above like any other Proposal.
+that revision can re-enter Critical review above once (the first revision
+only). Resolving a challenged review of a first revision produces the final,
+depth-two revision and records one human escalation atomically with it; that
+revision is not reviewable or implementable and no further round exists.
 Never a duplicated resolution of the exact same review: a resolution already
 recorded for the identical ordered Proposal-plus-Challenge-set supersedes any
 further attempt at claim or dispatch time.
@@ -357,7 +367,9 @@ resolved plan, recording unexpected discoveries as challenges or questions.
 Gemini is deferred until its administrator-provisioned policy prerequisite is
 met. This stage is real today, bound to one durable
 attempt per requested implementation of one specific resolved plan (an
-accepted original Proposal, or a resolved revised Proposal); execution never
+accepted original Proposal, or a first revised Proposal that no later review
+challenged, bound to its exact Acceptance when it was re-reviewed and
+accepted — never a second revision); execution never
 edits anything outside the run's owned worktree, and it never runs Git, a
 verification command, or any network operation itself. It records only the
 implementation's own Execution report and the new Git checkpoint its
@@ -2037,6 +2049,117 @@ account-allowance, session, or invocation eligibility.
   response of either operation carries the source's response, a path, a hash, or a diagnostic.
 - **Limits.** The retry consumes a real Agent budget slot and reserved invocation time and can fail like any
   claim. It is not an automatic retry, provider-session resume, schema relaxation, or a way to bypass a budget.
+
+### Optional second challenge round and escalation
+
+The existing Proposal → Challenge → Decision → revised Proposal chain supports **one optional second
+review-and-resolution round** for a proposal lineage. It is explicit and manual end to end — every review and
+every resolution is a separately requested attempt — and it adds no provider capability, CLI argument, session
+resume, automatic loop, human override, or account-usage input. ADR-0004's bounded challenge rounds and
+ADR-0009's role-first authority are applied unchanged; nothing in an accepted ADR is reversed.
+
+- **Lineage, from durable identity only.** `PlanningLineage` derives the chain from same-run,
+  provider-observed messages, their exact owning Agent attempts (role, response contract, and provider
+  coherent with the message's recorded `Actor`, per the role-first rule above), the ordered attempt inputs,
+  reply links, completed outcomes, and the exact workspace, checkpoint, and fingerprint. It never compares
+  natural-language text or guesses that two challenges describe the same issue.
+  - **Root (depth 0)**: a completed Planner Proposal (`Proposed`), provider-observed.
+  - **First revision (depth 1)**: a completed `Resolved` Resolver attempt's one revised Proposal whose ordered
+    inputs are a valid parent Proposal followed by that parent's *complete* Challenged review's Challenges
+    (exactly one such review, whose sole input is the parent, bound to the same workspace and checkpoint), with
+    one provider-observed Decision per Challenge replying to that Challenge in order, and the revised Proposal
+    replying to the parent and recorded after the last Decision.
+  - **Second revision (depth 2)**: the same rule applied to a depth-1 parent. Evaluation is bounded, cycle-safe
+    (a message is visited once), and a depth beyond two is not a valid lineage level. Missing, foreign-run,
+    stale, cyclic, duplicated, malformed, or incoherent evidence fails closed with a fixed message that echoes no
+    stored text.
+  - **Supported identity and unreadable evidence.** Role still decides which lineage role a message may hold, but
+    every attempt the lineage trusts (Planner, Resolver, CriticalReviewer, the accepted-original path's Planner
+    and review, and the resolving attempt itself) must also pass `AgentAttemptIdentity.IsCoherent`: defined
+    role, provider, and response contract, a role/provider pair DevalCopilot actually launches (Planner,
+    Resolver, CodeReviewer with Codex; CriticalReviewer, Implementer with Claude Code), a contract that belongs
+    to the role, and a well-formed assignment. A forged pair with a matching message actor, or an undefined role
+    or contract, is refused. The lineage reads load the run's attempts and messages through EF string-enum
+    converters, so one unparseable stored enum string would otherwise throw; each lineage read catches only the
+    materialization failure (`InvalidOperationException`) and refuses with the same fixed error, whether the
+    unreadable row participates in the lineage or merely sits beside a healthy one. The exception and the stored
+    value are never surfaced. The guard catches `InvalidOperationException`, which cannot prove an enum-conversion
+    cause and could have another origin; `DbException` and cancellation exceptions are not caught by it. Other
+    consumers of the shared snapshot are unchanged.
+- **Bound.** Depth one may receive one explicitly requested critical review. A Challenged review may be resolved
+  by one explicitly requested Resolver attempt that decides every challenge of that review and produces the
+  depth-two revision. This is the second and final round for the lineage: a depth-two Proposal is neither
+  reviewable nor implementable through it, and there is no third review, silent reset, automatic claim, or
+  override. A genuinely new Planner root is a separate explicit planning request and starts its own lineage.
+  The cap counts validated reply/attempt identity across the whole lineage, so it is deliberately more
+  conservative than the roadmap's "two challenge rounds per material issue" wording
+  ([workflow model](workflow-model.md#bounded-loops)): the system does not decide whether two natural-language
+  challenges are the same issue. Failed or invalid attempts add no revision but still consume the existing
+  run-wide claim-count, reserved-time, and token-stop budgets.
+- **Review claim.** `CreateClaudeCriticalReviewAttempt` accepts a root or a depth-one revision. A depth-two
+  Proposal is refused 409 `agent_attempts.proposal_lineage_exhausted` **before** the provider-availability
+  probe, Git capture, or manifest sealing, as is every other lineage refusal except an unknown proposal (which
+  keeps its position after those checks); the codes are `agent_attempts.proposal_not_found` (404), `not_provider_observed_planner_proposal`,
+  `proposal_attempt_not_valid`, `proposal_checkpoint_stale`, or `proposal_lineage_not_valid` (409). A proposal
+  with an earlier successful review is `already_reviewed`. The reviewed Proposal remains the attempt's sole
+  input at sequence 0.
+- **Resolution claim and result.** `CreateChallengeResolutionAttempt` evaluates the reviewed Proposal with the
+  same rule and refuses a depth-two Proposal (`proposal_lineage_exhausted`); the attempt's inputs are the
+  reviewed Proposal then its complete ordered Challenge set. `RecordChallengeResolutionResult` decides the
+  lineage **again** before mutating anything: the reviewed Proposal must still be a valid depth-≤1 Proposal, its
+  Challenged review must still be the sole review whose complete challenge set equals the attempt's inputs, and
+  no other attempt may already have resolved that exact ordered set (`already_resolved`); otherwise the result is
+  refused with nothing recorded and the attempt unchanged. The existing rule that every Challenge is decided
+  exactly once is unchanged.
+- **Escalation.** When the result is the *second* resolution (the reviewed Proposal is depth one) and the
+  attempt truly completed `Resolved`, the same single save records the Decisions, the depth-two revised
+  Proposal, and exactly one `Escalation` collaboration message: `HostConstructed`, authored by the Orchestrator
+  and addressed to the Human, attemptless, replying to the depth-two Proposal, with its own
+  `collaboration.message_recorded` event (linked to the resolving attempt) as the newest event of that result.
+  Its content is fixed text plus bounded identifiers and a count: the root, first-revision, and second-revision
+  Proposal ids, and the ids of the second-round challenges each decided once. It never copies provider, artifact,
+  path, or credential text. It records that a human decision is needed; it does not approve, authorize, or
+  select anything, and it is never consulted by the review-correction authorization (which is keyed by its own
+  escalation table). A source-drift downgrade or any refusal records none of the set. Because a result can be
+  recorded only for a `Running` attempt, and that state is what the save transitions, a second recording of the
+  same attempt is refused and the escalation stays single.
+- **Implementation eligibility.** The accepted original Planner Proposal path is unchanged (an `Accepted`
+  review of exactly that Proposal, the Proposal plus that Acceptance as inputs). A depth-one revision that was
+  never re-reviewed remains implementable with its complete Decision evidence (inputs: the revision, then its
+  Decisions). If its optional second review is `Accepted`, implementation binds to that exact acceptance too: a
+  completed `CriticalReview` attempt bound to the workspace and checkpoint, whose single output is a
+  provider-observed Acceptance replying to the revision (inputs: the revision, its Decisions, then the
+  Acceptance, and the sealed manifest carries it as `acceptedSecondReview`); a broken acceptance link is
+  `acceptance_not_valid`. If that review is `Challenged`, the revision is refused 409
+  `agent_attempts.plan_challenged` — while its second resolution is pending or failed, and after it succeeded —
+  so implementation never falls back to an earlier Proposal. A depth-two Proposal, with or without its
+  escalation, is refused `proposal_lineage_exhausted`. For a Proposal not owned by a Planner attempt, every lineage
+  refusal (exhausted, challenged, corrupt, unsupported pair, unreadable) is decided before Git capture or sealing;
+  the original Planner path and every other refusal keep their existing position.
+  The downstream review and correction workflows re-validate the implementation attempt's recorded input chain
+  with the same lineage rule (`ImplementerExecutionReportEligibility`), so what may be implemented and what a
+  later chain accepts cannot drift apart.
+- **Races and replay.** Each of the three claims decides its lineage again as its last read before the durable
+  commit, after the external work (Git capture and manifest sealing): the review and implementation claims
+  re-evaluate eligibility, any competing review/implementation, and whether another attempt is `Running`, and on
+  refusal delete the already-sealed manifest and commit nothing; the resolution claim re-checks inside its
+  existing claim transaction, after its two guard writes have taken the write lock, so the check is atomic with
+  the insert. The filtered unique index on `(RunId WHERE Status = 'Running')` and the `(RunId, AgentBudgetSlot)`
+  index remain the database backstop for concurrent claims, and the existing budget, reserved-time, token-stop,
+  single-Running-attempt, dispatch-marker, and sealed-manifest rules are unchanged. A supervisor dispatches a
+  claimed attempt from its own sealed manifest only. A host restart interrupts a still-`Running` read-only
+  attempt and its run and never re-invokes it, so a restart cannot revive, advance, or re-escalate an exhausted
+  lineage: a completed lineage stays exhausted across a restart, and every review, resolution, and
+  implementation request against it is refused by the rules above.
+- **Read model.** No response contract changed. The existing review, resolution, and implementation status
+  endpoints report the latest attempt of each kind (each already carries its exact input Proposal or Challenge
+  identities), and the timeline carries the revised Proposals and the escalation with their reply links; the
+  cockpit derives the lineage from those (see the
+  [run cockpit specification](../product/run-cockpit-specification.md#optional-second-challenge-round)).
+- **Not included.** A third round, automatic claims, a generic workflow engine, a new human override or
+  authorization, provider-session resume, Claude account allowance, account-usage eligibility or thresholds,
+  model or effort inference, and new provider flags. Implementing an escalated plan needs a new explicit
+  planning request.
 
 ## Token efficiency
 

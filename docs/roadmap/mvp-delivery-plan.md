@@ -221,6 +221,17 @@ is distinct from the advisory token-activity warning. See the
 The provider account-usage stop-threshold exit criterion above, and the
 remaining Increment 4 loop, token, and account-usage controls, remain open.
 
+The plan-challenge loop is bounded and its exhaustion escalates: a proposal
+lineage may have one optional second critical review of the first Resolver
+revision and, if challenged, one explicit second resolution. That successful
+second resolution records one orchestrator-authored human escalation in the
+same atomic save, and the resulting depth-two revision is neither reviewable
+nor implementable. The cap is per lineage — more conservative than the
+per-material-issue wording in the [workflow model](../architecture/workflow-model.md#bounded-loops), because the system does not decide whether
+two challenges are the same issue. Other loop-exhaustion escalations (for
+example CI correction rounds) remain part of later increments. See the
+[architecture description](../architecture/agent-collaboration-protocol.md#optional-second-challenge-round-and-escalation).
+
 ## Increment 5: Local supervised delivery loop
 
 ### Outcome

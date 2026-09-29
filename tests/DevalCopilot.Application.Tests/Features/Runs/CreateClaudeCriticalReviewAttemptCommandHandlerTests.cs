@@ -562,14 +562,11 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         Assert.Equal(2, await verifyContext.Attempts.CountAsync(a => a.RunId == runId));
     }
 
-    // Discriminating regression for Slice B.1: production's ClaimAgent factory always fixes the
-    // Planner role to Codex, so this substitutes the owning attempt's provider via reflection
-    // (AttemptProviderSubstitution — a test-only helper, never a production path) purely to prove
-    // this handler's eligibility gate is authorized by AgentRole alone. Before this correction, the
-    // gate compared the owning attempt's AgentProvider (and the message's Actor) to fixed Codex
-    // literals, which would have rejected this exact scenario.
+    // Slice B.1 proved the gate is role-first by substituting the owning attempt's provider. The lineage
+    // rule now additionally requires the persisted role/provider pair to be one DevalCopilot launches, so a
+    // Planner/ClaudeCode attempt with a matching forged Proposal actor is refused with a fixed error.
     [Fact]
-    public async Task HandleAsync_accepts_a_planner_proposal_from_the_alternate_provider()
+    public async Task HandleAsync_refuses_a_planner_proposal_from_an_unsupported_role_provider_pair()
     {
         await using var dbContext = _fixture.CreateContext();
         var (project, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext, claimRun: false);
@@ -589,7 +586,8 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, alternateProviderProposal.Id), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.proposal_attempt_not_valid", Assert.Single(result.Errors).Code);
     }
 
     // The inverse: the normal provider assigned to the WRONG role must still be rejected — proves

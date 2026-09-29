@@ -8,6 +8,9 @@ import { TokenUsageLine } from './TokenUsageLine'
 
 interface ClaudeCriticalReviewActionProps {
   proposalMessageId: string | null
+  /** Whether the proposal to review is the original Planner proposal or its Resolver revision;
+   * only the button wording differs, never the eligibility. */
+  proposalKind?: 'original' | 'revision'
   status: ClaudeCriticalReviewAttemptStatusResponse | null
   statusLoading: boolean
   statusError: string | null
@@ -54,6 +57,7 @@ function phaseLabel(status: ClaudeCriticalReviewAttemptStatusResponse): string {
  */
 export function ClaudeCriticalReviewAction({
   proposalMessageId,
+  proposalKind = 'original',
   status,
   statusLoading,
   statusError,
@@ -105,7 +109,11 @@ export function ClaudeCriticalReviewAction({
           disabled={requesting || statusLoading}
           onClick={onRequest}
         >
-          {requesting ? 'Requesting…' : 'Request Claude review'}
+          {requesting
+            ? 'Requesting…'
+            : proposalKind === 'revision'
+              ? 'Request Claude review of the revised proposal'
+              : 'Request Claude review'}
         </button>
       )}
       {status && !isActive && (

@@ -587,6 +587,50 @@ inclusive 1 to 1,000,000,000,000. See the
 ["Per-provider run token-activity stop at Agent claim"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim)
 section of the agent-collaboration-protocol for the exact counting, enforcement, and concurrency rules.
 
+### Optional second challenge round
+
+The cockpit follows one proposal lineage — the run's newest provider-observed Planner Proposal and its Resolver
+revisions — and offers the optional second review and resolution of the
+[second challenge round](../architecture/agent-collaboration-protocol.md#optional-second-challenge-round-and-escalation).
+It is derived entirely in the browser from data already loaded (the collaboration timeline cards' type, actor
+role, provenance, sequence, and reply link, and the latest review and resolution attempt statuses); no new
+endpoint, projection, or generated-client change exists. Everything here is a display hint: the backend
+re-decides every review, resolution, and implementation request from durable identity, so an unverifiable or
+ambiguous chain only ever **withholds** an action and never grants one.
+
+- **Selection.** The chain is read by reply links: a Resolver-authored, provider-observed Proposal replying to the
+  root (recorded after it) is the first revision, and one replying to the first revision is the second revision;
+  a host-constructed, Orchestrator-authored Escalation replying to the second revision is the escalation. A
+  self-reply, a foreign parent, a Simulated card, a non-Resolver author, a revision that precedes its parent, or
+  more than one candidate for the same parent is not followed (two candidates are an *ambiguous* chain, which
+  withholds review and implementation). A newer independent Planner root replaces the whole lineage.
+- **Review action.** It targets the root before any revision, then the first revision — labelled "Request
+  Claude review of the revised proposal" — and nothing once a second revision exists. It is withheld while a
+  review of that exact Proposal is running or already Accepted/Challenged, or under a known global or path time
+  block, exactly like the original-proposal review.
+- **Resolution action.** Unchanged: it is offered when the latest review is Challenged and that exact review has
+  no resolution yet, so it serves the second review's challenges too, and it disappears once they are Resolved.
+- **Implementation action.** The original root is offered only after an Accepted review of exactly that root. The
+  first revision is offered when its own review did not Challenge and is not running — with no second review it
+  is the direct path; with an Accepted one it is the acceptance-bound path — and is withheld while the review
+  status is loading or failed, so a hidden Challenged review is never overlooked. It is never offered for a
+  second revision or an ambiguous chain.
+- **Lineage summary.** A short "Proposal lineage" region appears once a revision exists and states the stage in
+  fixed text: an optional second review is available (and the revision may be implemented directly); the second
+  review is running, accepted, or challenged (implementation blocked, one last resolution available), did not
+  conclude, or its status is unavailable; and, at the end of the lineage, that the second challenge round is
+  resolved, there is no further review or automatic resolution, the final revised proposal cannot be
+  implemented through the lineage, and a human decision is required. The escalation's own summary is shown as
+  "Human decision required: …" with the statement that the record is not an approval; if the escalation is not
+  in the loaded timeline the region says so instead of implying it exists. It never shows raw artifact text,
+  and it never states that any plan was approved or implemented.
+- **Loading, errors, run switches, and late responses.** The review status's own loading and error states are
+  shown by the review control and withhold the first-revision implementation; the status hooks already mask a
+  previous run's status, error, and loading state synchronously and drop a late response for a run that is no
+  longer selected, and the lineage is recomputed during render from the currently selected run's own timeline,
+  so a previous run's lineage, escalation, or blocked state is never shown for the new run, even for one render
+  frame.
+
 ### One manual Codex plan format repair
 
 Beside the Codex planning action, a separate "Codex plan repair" panel appears only when the latest Planner

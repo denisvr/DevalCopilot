@@ -348,109 +348,46 @@ internal static class ImplementerExecutionReportEligibility
                 && acceptance.Sequence > proposal.Sequence;
         }
 
-        if (proposalOwner.AgentRole != AgentRole.Resolver
-            || proposalOwner.AgentResponseContract != AgentResponseContract.ChallengeResolution
-            || proposalOwner.AgentOutcome != AgentOutcome.Resolved
-            || proposal.InReplyToMessageId is not { } originalProposalId
-            || !snapshot.MessagesById.TryGetValue(originalProposalId, out var originalProposal)
-            || originalProposal.Type != CollaborationMessageType.Proposal
-            || proposal.Sequence <= originalProposal.Sequence)
+        // A Resolver-owned plan is a lineage revision. Its whole chain (Resolver attempt, parent
+        // Proposal, the parent's complete Challenged review, one Decision per Challenge, workspace and
+        // checkpoint) is validated by the shared lineage rule. Only a first revision is ever an
+        // implemented plan: a depth-two revision ended its lineage in a human escalation.
+        var lineage = PlanningLineage.Evaluate(
+            snapshot, runId, workspaceId, implementationAttempt.AgentGitCheckpointId!.Value, null, proposal.Id);
+        if (lineage.Node is not { Depth: PlanningLineage.MaximumImplementableDepth } node
+            || !PlanningLineage.OwnsExactlyOneProposal(snapshot, node.Root.Owner))
         {
             return false;
         }
 
-        var plannerOwner = ResolveSnapshotOwningAttempt(snapshot, originalProposal, runId, AgentRole.Planner);
-        if (plannerOwner is null
-            || plannerOwner.Status != AttemptStatus.Completed
-            || plannerOwner.AgentGitWorkspaceId != workspaceId
-            || plannerOwner.AgentGitCheckpointId != implementationAttempt.AgentGitCheckpointId
-            || plannerOwner.AgentResponseContract != AgentResponseContract.Proposal
-            || plannerOwner.AgentOutcome != AgentOutcome.Proposed
-            || snapshot.Messages.Count(message => message.AttemptId == plannerOwner.Id
-                && message.Type == CollaborationMessageType.Proposal
-                && message.Provenance == CollaborationMessageProvenance.ProviderObserved) != 1)
+        var expectedDecisionIds = node.Decisions.Select(decision => decision.Id).ToArray();
+        var remainingIds = remainingMessages.Select(message => message.Id).ToArray();
+        if (remainingMessages.Any(message => message.RunId != runId))
         {
             return false;
         }
 
-        var reviewAttempts = snapshot.AttemptsById.Values
-            .Where(attempt => attempt.RunId == runId
-                && attempt.Kind == AttemptKind.Agent
-                && attempt.AgentRole == AgentRole.CriticalReviewer
-                && attempt.AgentResponseContract == AgentResponseContract.CriticalReview
-                && attempt.Status == AttemptStatus.Completed
-                && attempt.AgentOutcome == AgentOutcome.Challenged
-                && attempt.AgentGitWorkspaceId == workspaceId
-                && attempt.AgentGitCheckpointId == implementationAttempt.AgentGitCheckpointId)
-            .ToArray();
-        var resolverInputs = snapshot.InputsFor(proposalOwner.Id);
-        if (resolverInputs.Count < 2
-            || !HasExactContiguousInputSequence(resolverInputs)
-            || resolverInputs[0].CollaborationMessageId != originalProposal.Id)
+        // Either the revision's Decisions alone, or the Decisions followed by the one exact
+        // Acceptance of an Accepted second review of that revision.
+        if (remainingIds.SequenceEqual(expectedDecisionIds))
+        {
+            return true;
+        }
+
+        if (remainingIds.Length != expectedDecisionIds.Length + 1
+            || !remainingIds.Take(expectedDecisionIds.Length).SequenceEqual(expectedDecisionIds))
         {
             return false;
         }
 
-        var challengeIds = resolverInputs.Skip(1).Select(input => input.CollaborationMessageId).ToArray();
-        if (challengeIds.Distinct().Count() != challengeIds.Length)
-        {
-            return false;
-        }
-
-        var reviewMatches = reviewAttempts.Where(reviewAttempt =>
-        {
-            var reviewInputs = snapshot.InputsFor(reviewAttempt.Id);
-            var challenges = snapshot.Messages
-                .Where(message => message.AttemptId == reviewAttempt.Id)
-                .OrderBy(message => message.Sequence)
-                .ToArray();
-            return reviewInputs.Count == 1
-                && reviewInputs[0].Sequence == 0
-                && reviewInputs[0].CollaborationMessageId == originalProposal.Id
-                && challenges.Length == challengeIds.Length
-                && challenges.All(challenge => challenge.Type == CollaborationMessageType.Challenge
-                    && challenge.Provenance == CollaborationMessageProvenance.ProviderObserved
-                    && challenge.RunId == runId
-                    && challenge.InReplyToMessageId == originalProposal.Id
-                    && challenge.Sequence > originalProposal.Sequence
-                    && ResolveSnapshotOwningAttempt(snapshot, challenge, runId, AgentRole.CriticalReviewer)?.Id == reviewAttempt.Id)
-                && challenges.Select(challenge => challenge.Id).SequenceEqual(challengeIds);
-        }).ToArray();
-        if (reviewMatches.Length != 1)
-        {
-            return false;
-        }
-
-        var resolverDecisions = snapshot.Messages
-            .Where(message => message.AttemptId == proposalOwner.Id && message.Type == CollaborationMessageType.Decision)
-            .OrderBy(message => message.Sequence)
-            .ToArray();
-        if (resolverDecisions.Length != challengeIds.Length
-            || remainingMessages.Any(message => message.RunId != runId || message.Type != CollaborationMessageType.Decision)
-            || !remainingMessages.Select(message => message.Id).SequenceEqual(resolverDecisions.Select(decision => decision.Id))
-            || resolverDecisions.Any(decision => decision.Provenance != CollaborationMessageProvenance.ProviderObserved
-                || ResolveSnapshotOwningAttempt(snapshot, decision, runId, AgentRole.Resolver)?.Id != proposalOwner.Id
-                || decision.InReplyToMessageId is not { } challengeId
-                || !snapshot.MessagesById.TryGetValue(challengeId, out var challenge)
-                || challenge.Type != CollaborationMessageType.Challenge
-                || decision.Sequence <= challenge.Sequence)
-            || !resolverDecisions.Select(decision => decision.InReplyToMessageId).SequenceEqual(challengeIds.Select(id => (Guid?)id)))
-        {
-            return false;
-        }
-
-        var resolverProposals = snapshot.Messages
-            .Where(message => message.AttemptId == proposalOwner.Id
-                && message.Type == CollaborationMessageType.Proposal
-                && message.Provenance == CollaborationMessageProvenance.ProviderObserved)
-            .ToArray();
-        return resolverProposals.Length == 1
-            && resolverProposals[0].Id == proposal.Id
-            && resolverProposals[0].InReplyToMessageId == originalProposal.Id
-            && resolverProposals[0].Sequence > resolverDecisions[^1].Sequence;
+        var acceptedReviews = PlanningLineage.SuccessfulReviewsOf(snapshot, runId, proposal.Id);
+        return acceptedReviews.Count == 1
+            && PlanningLineage.FindExactAcceptance(
+                snapshot, acceptedReviews[0], runId, proposal.Id, workspaceId,
+                implementationAttempt.AgentGitCheckpointId!.Value, null)?.Id == remainingIds[^1];
     }
 
-    private static Attempt? ResolveSnapshotOwningAttempt(
+    internal static Attempt? ResolveSnapshotOwningAttempt(
         Snapshot snapshot, CollaborationMessage message, Guid runId, AgentRole expectedRole)
     {
         if (message.RunId != runId
@@ -472,7 +409,7 @@ internal static class ImplementerExecutionReportEligibility
         return attempt;
     }
 
-    private static bool HasExactContiguousInputSequence(IReadOnlyList<AttemptInputMessage> orderedInputs) =>
+    internal static bool HasExactContiguousInputSequence(IReadOnlyList<AttemptInputMessage> orderedInputs) =>
         orderedInputs.Count > 0
         && orderedInputs[0].Sequence == 0
         && orderedInputs.Select((input, index) => input.Sequence == index).All(isContiguous => isContiguous)

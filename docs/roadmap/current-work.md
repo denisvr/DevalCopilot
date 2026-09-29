@@ -8,6 +8,130 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `f22325000682caf1d3bd8c6b6384807e03199e79` (parent
+  `210f4e8699dad670aadf0816ea99f9b85ff8627f`) is the factual closure of the token-activity stop slice (its delivered
+  SHA and checks; no code or product contract change). At the start of the next slice, `main`, local `origin/main`,
+  and the live remote all matched it, nothing was staged or untracked, and only `docs/roadmap/planner-handoff.md`
+  (the planner's slice selection) was modified.
+- Current delivery, based on verified parent `f22325000682caf1d3bd8c6b6384807e03199e79`: **optional second planning
+  challenge round and escalation**. See [planner-handoff.md](planner-handoff.md) for the selection and the
+  ["Optional second challenge round and escalation"](../architecture/agent-collaboration-protocol.md#optional-second-challenge-round-and-escalation)
+  and ["Optional second challenge round"](../product/run-cockpit-specification.md#optional-second-challenge-round)
+  sections for the contract. No ADR is added or reversed; no migration, API contract, generated-client, provider
+  argument, permission, budget, or token-stop change.
+  - Behavior: one shared, snapshot-based `PlanningLineage` rule derives the Proposal → Challenge → Decision →
+    revised Proposal chain from durable identity only (same-run provider-observed messages, exact owning attempts
+    with coherent role, contract, and provider, ordered inputs, reply links, completed outcomes, exact
+    workspace/checkpoint/fingerprint; bounded, cycle-safe, fixed non-echoing refusals). A Planner root is depth 0;
+    a Resolver revision whose inputs are a valid parent plus that parent's complete, sole Challenged review, with
+    one Decision per Challenge, is one level deeper (depth 1, then 2; deeper is invalid). Review claims accept a
+    root or a depth-one revision and refuse a depth-two Proposal (`proposal_lineage_exhausted`) before the provider
+    probe, Git capture, or sealing; resolution claims evaluate the reviewed Proposal the same way. A successful
+    *second* resolution (reviewed Proposal at depth one) records, in the same single save as its Decisions and
+    depth-two Proposal, exactly one bounded `Escalation` message (`HostConstructed`, Orchestrator to Human,
+    attemptless, replying to the depth-two Proposal, fixed text plus the root, first-revision, second-revision, and
+    resolved-challenge ids and a count; no provider or artifact text) with its own run event as the result's newest
+    event. The result boundary re-decides the lineage first (reviewed Proposal valid at depth <= 1, the sole
+    Challenged review's complete challenge set equals the attempt's inputs, no competing exact resolution) and
+    refuses with nothing recorded otherwise. Implementation keeps the accepted-original path, keeps the direct
+    first-revision path with its complete Decision evidence, binds a first revision whose own review was Accepted
+    to that exact Acceptance (inputs: revision, Decisions, Acceptance; manifest `acceptedSecondReview`), refuses a
+    first revision whose own review Challenged (`plan_challenged`, also while the second resolution is pending,
+    failed, or succeeded, never falling back to an earlier Proposal), and refuses a depth-two Proposal even with
+    its escalation. Lineage refusals are decided before Git capture or sealing (see the correction round). The review and
+    implementation claims re-evaluate eligibility, competing attempts, and the Running slot as their last read
+    before the commit (deleting the sealed manifest on refusal), and the resolution claim re-checks inside its
+    existing write-locked claim transaction; the unique Running-attempt and budget-slot indexes and every existing
+    budget, reserved-time, token-stop, dispatch, and sealed-manifest rule are unchanged. The downstream
+    review/correction input-chain validator (`ImplementerExecutionReportEligibility`) now uses the same lineage
+    rule, accepts a first revision with or without its trailing Acceptance, and rejects a depth-two plan. The
+    lineage-wide cap (two review-and-resolution rounds per lineage, counted by validated identity) is deliberately
+    more conservative than the roadmap's per-material-issue wording, which is now documented in the workflow
+    model and delivery plan.
+  - Correction round (review NO-GO on two integrity gaps): (1) the lineage trusted `ResolveSnapshotOwningAttempt`,
+    which accepts any defined provider that matches the message actor, so a persisted Planner/Claude Code,
+    Resolver/Claude Code, or CriticalReviewer/Codex attempt with a forged matching actor was accepted, and an
+    undefined response contract could throw. `PlanningLineage` now resolves every owner through its own strict
+    rule that requires `AgentAttemptIdentity.IsCoherent` (defined role, provider, and contract, a supported
+    role/provider pair, a contract belonging to the role, a well-formed assignment) before the existing
+    role/actor checks; the same coherence is required of the matched Challenged review, the resolving attempt at
+    the result boundary, the challenged review at the resolution claim, and the Planner and review attempts of the
+    accepted-original implementation path. (2) `LoadSnapshotAsync` materializes every Attempt of the run, so one
+    unparseable stored enum string threw before a refusal could be returned. Each lineage read now catches only
+    the `InvalidOperationException` materialization failure and returns one fixed refusal
+    (`proposal_lineage_not_valid`), for an unreadable participating row and for an unrelated unreadable row beside
+    a healthy lineage: the review claim, resolution claim (including its in-transaction re-check), implementation
+    claim and its early check, and the result boundary. Neither the stored string nor the exception is surfaced. The
+    `InvalidOperationException` guard cannot prove an enum-conversion cause and could have another origin;
+    `DbException` and cancellation exceptions are not caught by it. Other consumers of the shared snapshot are unchanged. The
+    early no-external-work refusal now covers every lineage refusal for a Proposal not owned by a Planner attempt
+    (implementation) and every lineage refusal except an unknown proposal (review), so a corrupt lineage does no
+    Git capture or sealing on those paths. Three earlier tests that proved role-first authority by substituting
+    an unsupported provider (Planner/Claude Code, Resolver/Claude Code, CriticalReviewer/Codex) were reversed to
+    assert the fixed refusal. New `PlanningLineageIntegrityTests` (17 SQLite-persisted cases: forged planner,
+    resolver, and reviewer pairs with matching forged actors, undefined role and contract, unreadable
+    participating and unrelated rows) prove review, implementation (including the accepted-original path),
+    resolution-claim, and result-boundary refusals with a fixed code, no stored string or exception text, zero Git
+    captures and zero sealed manifests where the path refuses early, no created attempt, and nothing recorded.
+    Mutations: removing the coherence requirement failed 4 of them; letting the materialization exception escape
+    failed the 4 unreadable review/implementation/result cases. Inventory reconciliation: the earlier "17
+    modified/13 new" was a counting slip; `git status --short -uall` is 18 modified (including
+    `current-work.md`, added after that count, and the planner's `planner-handoff.md`) and 12 untracked, now 20
+    modified (two more test files reversed for the unsupported-pair cases) and 13 untracked (the new integrity test file).
+  - Cockpit: `derivePlanningLineage` reads the newest Planner root, its first and second Resolver revisions, and
+    the escalation from the loaded timeline by reply links (ambiguous, foreign, simulated, self-referential, or
+    out-of-order links are not followed). The review action targets the root, then the first revision ("Request
+    Claude review of the revised proposal"), and nothing after a second revision; implementation is offered for
+    the Accepted root or a first revision whose own review did not Challenge and is not running, and withheld
+    while that review status is loading or failed and for a second revision. A "Proposal lineage" region states
+    the stage in fixed text, ends with "human decision required, not an approval", and says so when the
+    escalation is not in the loaded timeline. No new endpoint or generated-client change.
+  - Test fixtures: the implementation-claim and result-recording tests previously seeded revised plans with
+    unrealistic evidence (challenges owned by the planning attempt, random input ids, no review attempt); they now
+    use a shared `PlanningLineageSeeder` that builds real lineage evidence, because the claim and result
+    boundaries now decide the lineage instead of trusting it.
+  - Checks run: `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false` 0 errors/0 warnings;
+    Domain 670/670; Application 1504/1504 (was 1438; new `PlanningLineageTests` 19 including the corruption
+    theory and the downstream implementation-chain shapes, `SecondChallengeRoundClaimTests` 22,
+    `SecondChallengeRoundResultTests` 8, and the correction's `PlanningLineageIntegrityTests` 17); Infrastructure 591 passed, 2 skipped (the existing host-capability
+    skips); Api 462/462 (was 459; three hosted-supervisor tests through the real production command chain: a
+    claimed second resolution runs from its sealed manifest and records one escalation, a restart interrupts a
+    claimed second resolution without invoking the provider and the interrupted run accepts no further claim, and a
+    completed lineage stays exhausted across a restart with review, resolution, and implementation all refused);
+    Architecture 9/9; frontend `vitest` 856/856 (was 825; `derivePlanningLineage` 18, `PlanningLineageSummary` 6,
+    and seven cockpit wiring tests for selection, blocking, exhaustion, loading and error withholding, and run
+    switch), `tsc -b` and `npm run build` clean, and `oxlint` with no warning from a changed file (only the
+    pre-existing hook warnings); the regenerated `api-client.ts` is byte-identical across repeated Api builds
+    (SHA-256 `b3e1c836…`, unchanged from the previous delivery); `git diff --check` clean; local links in the
+    changed and handoff documents (136) resolve, including the two new anchors. Focused suites were run first.
+    After the correction these were rerun in full against the final tree: the solution build (0 errors/0 warnings),
+    Domain 670, Application 1504, Infrastructure 591 passed/2 skipped, Api 462, Architecture 9, frontend `vitest`
+    856/856, `tsc -b`, `oxlint` (no warning from a changed file), `npm run build`, the generated-client hash
+    (unchanged), local links (all resolved), and `git diff --check`. The correction changed no frontend or API
+    contract code, so the earlier frontend and hosted-supervisor results were unchanged by it; the earlier
+    mutation results for the claim races still describe the unchanged race code.
+  - Added limit from the correction: the unreadable-row guard catches `InvalidOperationException`, which cannot prove
+    the cause was enum conversion (the same documented limit as `AgentAttemptRead`), and one unreadable row of
+    a run refuses the run's revision lineage paths (not the original Planner path) until repaired.
+  - Red-before/green-after evidence (mutations of the delivered code, restored afterward): reinstating the old
+    "Planner root only" review rule failed 5 of 22 claim tests (first-revision review, second review of the same
+    revision, depth-two refusal, the seal-time race); removing the challenged-revision implementation gate failed
+    6 (Challenged in each second-resolution state, the accepted-review binding and its broken link, and the race);
+    removing the depth-two implementation refusal failed 1; disabling the last-read re-checks failed the three
+    seal-time race tests (the Running-slot race is still refused by the unique index).
+  - Open risks and limits: the review and implementation claims decide their last re-check as a read immediately
+    before one `SaveChangesAsync` rather than inside an explicit transaction, so the residual window would need a
+    competing attempt to be claimed, dispatched, run, and recorded inside it — the unique Running-attempt index
+    refuses any such claim that has not finished, and the resolution claim is atomic in its own transaction.
+    `MarkAgentAttemptDispatched` gained no new lineage re-check: lineage evidence is append-only and only one
+    attempt can be Running per run, so a claimed attempt's lineage cannot change before dispatch except by direct
+    store corruption, which only the resolution result boundary would still catch; a new dispatch-time terminal
+    outcome was out of scope. Startup reconciliation interrupts every Running read-only attempt, dispatched or
+    not (verified by the new restart test), which is looser than the "replay after a restart" wording of the older
+    planning-repair section; that wording was not changed. HTTP-level endpoint tests were not added for the new
+    codes (they map through the shared Result convention); the mediator-level hosted tests cover them. The
+    cockpit lineage is a hint read from the loaded timeline window and cannot see a message outside it. A
+    duplicated root Proposal is refused only on the implementation paths, as before.
 - Published delivery: `210f4e8699dad670aadf0816ea99f9b85ff8627f` (parent
   `bc78068cf0f7d7cf2c6e3f5a931f0cd1ea7064c0`) was committed with the reviewed 67-file token-activity stop slice
   (33 modified, 34 new, including this file and `planner-handoff.md`), pushed as a normal fast-forward to

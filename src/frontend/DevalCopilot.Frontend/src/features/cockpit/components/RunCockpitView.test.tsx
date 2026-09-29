@@ -959,6 +959,173 @@ describe('RunCockpitView', () => {
     })
   })
 
+  describe('Second challenge round wiring', () => {
+    const resolver = { kind: 'Agent', role: 'Resolver', provider: 'Codex' }
+    const rootCard = providerObservedCodexProposal({ sequence: 1, id: 'root' })
+    const firstRevision = providerObservedCodexProposal({
+      sequence: 10,
+      id: 'first',
+      actor: resolver,
+      inReplyToMessageId: 'root',
+    })
+    const secondRevision = providerObservedCodexProposal({
+      sequence: 20,
+      id: 'second',
+      actor: resolver,
+      inReplyToMessageId: 'first',
+    })
+    const escalationCard = providerObservedCodexProposal({
+      sequence: 21,
+      id: 'escalation',
+      type: 'Escalation',
+      actor: { kind: 'Orchestrator', role: null, provider: null },
+      provenance: 'HostConstructed',
+      inReplyToMessageId: 'second',
+      summary: 'The second challenge-resolution round is complete and needs a human decision.',
+    })
+
+    function arrange(
+      cards: CollaborationTimelineCard[],
+      review: { outcome?: string; status?: string; reviewed?: string; loading?: boolean; error?: string } | null = null,
+      resolution: { outcome: string; original: string } | null = null,
+    ) {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      })
+      useCollaborationTimelineMock.mockReturnValue({ cards, loading: false, error: null, hasSuccessfulResponse: true })
+      useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+        status: review?.reviewed
+          ? new ClaudeCriticalReviewAttemptStatusResponse({
+              attemptId: 'review-x',
+              attemptNumber: 2,
+              status: review.status ?? 'Completed',
+              outcome: review.outcome,
+              reviewedProposalMessageId: review.reviewed,
+            })
+          : null,
+        loading: review?.loading ?? false,
+        error: review?.error ?? null,
+        refresh: vi.fn(),
+      })
+      useChallengeResolutionAttemptStatusMock.mockReturnValue({
+        status: resolution
+          ? new ChallengeResolutionAttemptStatusResponse({
+              attemptId: 'resolution-x',
+              attemptNumber: 3,
+              status: 'Completed',
+              outcome: resolution.outcome,
+              originalProposalMessageId: resolution.original,
+            })
+          : null,
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+    }
+
+    it('selects the first valid revised proposal for the optional second review', () => {
+      arrange([rootCard, firstRevision], { reviewed: 'root', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'root' })
+      const request = vi.fn()
+      useRequestClaudeCriticalReviewMock.mockReturnValue({ requesting: false, error: null, request })
+
+      render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Request Claude review of the revised proposal' }))
+
+      expect(request).toHaveBeenCalledWith('run-1', 'first')
+      expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
+    })
+
+    it('offers the direct implementation of a first revision that has no second review', () => {
+      arrange([rootCard, firstRevision], { reviewed: 'root', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'root' })
+      const request = vi.fn()
+      useRequestImplementationMock.mockReturnValue({ requesting: false, error: null, request })
+
+      render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Implement the resolved plan with Claude' }))
+
+      expect(request).toHaveBeenCalledWith('run-1', 'first')
+    })
+
+    it('offers the implementation of a first revision after its own second review was Accepted', () => {
+      arrange([rootCard, firstRevision], { reviewed: 'first', outcome: 'Accepted' }, { outcome: 'Resolved', original: 'root' })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByRole('button', { name: 'Implement the resolved plan with Claude' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Proposal lineage')).toHaveTextContent(/accepted the revised proposal/)
+    })
+
+    it('withholds the implementation of a first revision whose second review Challenged and offers the last resolution', () => {
+      arrange([rootCard, firstRevision], { reviewed: 'first', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'root' })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Request Claude review of the revised proposal' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Resolve challenges with Codex' })).toBeInTheDocument()
+      expect(screen.getByLabelText('Proposal lineage')).toHaveTextContent(/implementing it is blocked/)
+    })
+
+    it('withholds review, resolution, and implementation once the lineage is exhausted and shows the escalation truthfully', () => {
+      arrange(
+        [rootCard, firstRevision, secondRevision, escalationCard],
+        { reviewed: 'first', outcome: 'Challenged' },
+        { outcome: 'Resolved', original: 'first' },
+      )
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: /Request Claude review/ })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Proposal lineage')).toHaveTextContent(/cannot be implemented through this lineage/)
+      expect(screen.getByText(/Human decision required: The second challenge-resolution round is complete/)).toBeInTheDocument()
+    })
+
+    it('withholds a first revision implementation while its review status is loading or failed, showing the error', () => {
+      arrange([rootCard, firstRevision], { loading: true })
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+
+      arrange([rootCard, firstRevision], { error: 'Claude critical review attempt status is unavailable.' })
+      rerender(<RunCockpitView runId="run-1" />)
+
+      expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+      expect(screen.getByText('Claude critical review attempt status is unavailable.')).toBeInTheDocument()
+    })
+
+    it("never carries the previous run's lineage into a newly selected run without a revision", () => {
+      arrange([rootCard, firstRevision, secondRevision, escalationCard], { reviewed: 'first', outcome: 'Challenged' })
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      expect(screen.getByLabelText('Proposal lineage')).toBeInTheDocument()
+
+      // The newly selected run's hooks report only its own data: one unreviewed root proposal.
+      arrange([providerObservedCodexProposal({ sequence: 1, id: 'other-root' })])
+      useRunCockpitMock.mockReturnValue({
+        cockpit: new GetRunCockpitResponse({ ...runningCockpit, runId: 'run-2' } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      })
+      const request = vi.fn()
+      useRequestClaudeCriticalReviewMock.mockReturnValue({ requesting: false, error: null, request })
+      rerender(<RunCockpitView runId="run-2" />)
+
+      expect(screen.queryByLabelText('Proposal lineage')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Request Claude review' }))
+      expect(request).toHaveBeenCalledWith('run-2', 'other-root')
+    })
+  })
+
   describe('Challenge resolution wiring', () => {
     it('withholds the request action until the latest Claude critical review is Challenged', () => {
       useRunCockpitMock.mockReturnValue({

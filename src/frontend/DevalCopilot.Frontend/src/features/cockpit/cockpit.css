@@ -883,3 +883,24 @@
   font-size: 0.8rem;
   color: var(--dc-text-muted);
 }
+
+.dc-planning-lineage {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--dc-border);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dc-planning-lineage-status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-planning-lineage-escalation {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dc-warning-text);
+}

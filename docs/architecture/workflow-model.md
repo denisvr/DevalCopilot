@@ -267,7 +267,11 @@ Pause, stop, or exhaustion for one run does not transition an unrelated run.
 
 MVP defaults are policy values, not hard-coded domain constants:
 
-- no more than two plan challenge rounds per material issue;
+- no more than two plan challenge rounds per material issue (implemented
+  conservatively as two review-and-resolution rounds per proposal lineage,
+  counted by validated reply and attempt identity because the system does not
+  decide whether two challenges are the same issue; see the
+  [second challenge round](agent-collaboration-protocol.md#optional-second-challenge-round-and-escalation));
 - review-correction permits two claimed attempts by default, then requires an
   explicit one-attempt human authorization;
 - no more than two CI code-correction rounds;

@@ -165,21 +165,9 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         var (originalProposalMessage, orderedChallenges) = (challengeValidation.OriginalProposal!, challengeValidation.OrderedChallenges!);
         var challengeMessageIds = orderedChallenges.Select(challenge => challenge.Id).ToList();
 
-        var alreadyResolved = await dbContext.Attempts
-            .Where(candidate =>
-                candidate.Kind == AttemptKind.Agent
-                && candidate.AgentRole == AgentRole.Resolver
-                && candidate.AgentOutcome == AgentOutcome.Resolved)
-            .Join(
-                dbContext.AttemptInputMessages.Where(inputMessage => challengeMessageIds.Contains(inputMessage.CollaborationMessageId)),
-                candidate => candidate.Id,
-                inputMessage => inputMessage.AttemptId,
-                (candidate, inputMessage) => candidate)
-            .AnyAsync(cancellationToken);
-        if (alreadyResolved)
+        if (await HasSuccessfulResolutionAsync(challengeMessageIds, cancellationToken))
         {
-            return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(
-                Error.Conflict("agent_attempts.already_resolved", "This challenged review already has a successful resolution."));
+            return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(AlreadyResolvedError());
         }
 
         var attemptId = Guid.NewGuid();
@@ -306,6 +294,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         {
             bool preferenceStillCurrent;
             bool stopPolicyStillCurrent;
+            Error? lateEligibilityError;
             try
             {
                 // One atomic UPDATE ... WHERE statement requiring the Run's requested model/effort
@@ -316,6 +305,12 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 // The token stop policy the claim decided against must be unchanged too: one more
                 // atomic UPDATE ... WHERE compare inside this same transaction (see CurrentTokenStopPolicy).
                 stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
+
+                // The two guard writes above already hold the database write lock, so this final
+                // read of the reviewed lineage and of any competing resolution is atomic with the
+                // Attempt insert below: a result committed after the earlier checks is seen here.
+                lateEligibilityError = await RecheckEligibilityAsync(
+                    run.Id, command.ChallengedReviewAttemptId, workspace.Id, checkpoint, challengeMessageIds, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -358,6 +353,15 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(CurrentTokenStopPolicy.PolicyChangedDuringClaim());
+            }
+
+            if (lateEligibilityError is not null)
+            {
+                // The reviewed lineage or its resolution state changed after the earlier checks. The
+                // transaction is rolled back before any insert and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(lateEligibilityError);
             }
 
             dbContext.Attempts.Add(attempt);
@@ -622,6 +626,24 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
     private async Task<ChallengedReviewValidation> ValidateChallengedReviewAsync(
         Guid runId, Guid challengedReviewAttemptId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken)
     {
+        try
+        {
+            return await ValidateChallengedReviewCoreAsync(runId, challengedReviewAttemptId, workspaceId, checkpoint, cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            // A persisted row of this review, its lineage, or the run could not be materialized
+            // (typically an unparseable stored enum string). Fails closed with a fixed refusal that
+            // echoes neither the exception nor the stored value. The guard catches InvalidOperationException,
+            // which cannot prove an enum-conversion cause and could have another origin; DbException and
+            // cancellation exceptions are not caught by it.
+            return ChallengedReviewValidation.Failed(PlanningLineage.UnreadableEvidenceError());
+        }
+    }
+
+    private async Task<ChallengedReviewValidation> ValidateChallengedReviewCoreAsync(
+        Guid runId, Guid challengedReviewAttemptId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken)
+    {
         var challengedReviewAttempt = await dbContext.Attempts
             .SingleOrDefaultAsync(candidate => candidate.Id == challengedReviewAttemptId, cancellationToken);
         if (challengedReviewAttempt is null || challengedReviewAttempt.RunId != runId)
@@ -635,6 +657,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
             || challengedReviewAttempt.AgentResponseContract != AgentResponseContract.CriticalReview
             || challengedReviewAttempt.AgentProvider is not { } challengedReviewProvider
             || !Enum.IsDefined(challengedReviewProvider)
+            || !AgentAttemptIdentity.IsCoherent(challengedReviewAttempt)
             || challengedReviewAttempt.Status != AttemptStatus.Completed
             || challengedReviewAttempt.AgentOutcome != AgentOutcome.Challenged)
         {
@@ -656,42 +679,36 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
 
         var originalProposalMessageId = await dbContext.AttemptInputMessages
             .Where(inputMessage => inputMessage.AttemptId == challengedReviewAttempt.Id && inputMessage.Sequence == 0)
-            .Select(inputMessage => inputMessage.CollaborationMessageId)
-            .SingleAsync(cancellationToken);
-
-        var originalProposalMessage = await dbContext.CollaborationMessages
-            .SingleOrDefaultAsync(candidate => candidate.Id == originalProposalMessageId, cancellationToken);
-        if (originalProposalMessage is null || originalProposalMessage.Type != CollaborationMessageType.Proposal)
+            .Select(inputMessage => (Guid?)inputMessage.CollaborationMessageId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (originalProposalMessageId is not { } reviewedProposalId)
         {
-            return ChallengedReviewValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.not_provider_observed_planner_proposal",
-                    "The challenged review's original proposal is not a provider-observed Planner proposal."));
+            return ChallengedReviewValidation.Failed(PlanningLineage.ToClaimError(PlanningLineage.FailureKind.LineageInvalid));
         }
 
-        // Role-first, per ADR-0009: the owning attempt's AgentRole is the sole authority for
-        // whether this message is a real Planner proposal. AgentProvider participates only as
-        // provenance-integrity evidence inside this helper — never compared to a fixed provider to
-        // authorize the role.
-        var owningProposalAttempt = await AgentAuthoredMessageEligibility.ResolveOwningAttemptAsync(
-            dbContext, originalProposalMessage, runId, AgentRole.Planner, cancellationToken);
-        if (owningProposalAttempt is null || owningProposalAttempt.Status != AttemptStatus.Completed || owningProposalAttempt.AgentOutcome != AgentOutcome.Proposed)
+        // The reviewed Proposal is either a Planner root or a Resolver's first revision; both are
+        // decided from the same durable lineage rule the review claim uses. A depth-two revision was
+        // never reviewable, so a review of one cannot exist as valid evidence here.
+        var snapshot = await PlanningLineage.TryLoadSnapshotAsync(dbContext, runId, cancellationToken);
+        if (snapshot is null)
         {
-            return ChallengedReviewValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.proposal_attempt_not_valid",
-                    "The original proposal's owning planning attempt did not complete as a valid proposal."));
+            return ChallengedReviewValidation.Failed(PlanningLineage.UnreadableEvidenceError());
         }
 
-        if (owningProposalAttempt.AgentGitWorkspaceId != workspaceId
-            || owningProposalAttempt.AgentGitCheckpointId != checkpoint.Id
-            || !string.Equals(owningProposalAttempt.AgentCheckpointFingerprintSha256, checkpoint.FingerprintSha256, StringComparison.Ordinal))
+        var lineage = PlanningLineage.Evaluate(
+            snapshot, runId, workspaceId, checkpoint.Id, checkpoint.FingerprintSha256, reviewedProposalId);
+        if (lineage.Node is not { } lineageNode)
         {
             return ChallengedReviewValidation.Failed(
-                Error.Conflict(
-                    "agent_attempts.proposal_checkpoint_stale",
-                    "The original proposal was made against a different checkpoint than the one currently current for this workspace."));
+                PlanningLineage.ToClaimError(lineage.Failure ?? PlanningLineage.FailureKind.LineageInvalid));
         }
+
+        if (lineageNode.Depth > PlanningLineage.MaximumReviewableDepth)
+        {
+            return ChallengedReviewValidation.Failed(PlanningLineage.ExhaustedError());
+        }
+
+        var originalProposalMessage = lineageNode.Proposal;
 
         // Every Challenge already belongs to challengedReviewAttempt by construction of the query
         // below, whose own role (CriticalReviewer) and provider were already validated (present
@@ -716,6 +733,49 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         }
 
         return ChallengedReviewValidation.Succeeded(originalProposalMessage, orderedChallenges);
+    }
+
+    private async Task<bool> HasSuccessfulResolutionAsync(IReadOnlyList<Guid> challengeMessageIds, CancellationToken cancellationToken) =>
+        await dbContext.Attempts
+            .AsNoTracking()
+            .Where(candidate =>
+                candidate.Kind == AttemptKind.Agent
+                && candidate.AgentRole == AgentRole.Resolver
+                && candidate.AgentOutcome == AgentOutcome.Resolved)
+            .Join(
+                dbContext.AttemptInputMessages.AsNoTracking().Where(inputMessage => challengeMessageIds.Contains(inputMessage.CollaborationMessageId)),
+                candidate => candidate.Id,
+                inputMessage => inputMessage.AttemptId,
+                (candidate, inputMessage) => candidate)
+            .AnyAsync(cancellationToken);
+
+    private static Error AlreadyResolvedError() =>
+        Error.Conflict("agent_attempts.already_resolved", "This challenged review already has a successful resolution.");
+
+    /// <summary>The final, in-transaction read: the same reviewed-lineage validation and
+    /// competing-resolution check the claim already passed, decided again against the state the
+    /// write lock now protects. Returns the refusal, or <see langword="null"/> when still eligible.</summary>
+    private async Task<Error?> RecheckEligibilityAsync(
+        Guid runId,
+        Guid challengedReviewAttemptId,
+        Guid workspaceId,
+        GitCheckpoint checkpoint,
+        IReadOnlyList<Guid> challengeMessageIds,
+        CancellationToken cancellationToken)
+    {
+        var validation = await ValidateChallengedReviewAsync(runId, challengedReviewAttemptId, workspaceId, checkpoint, cancellationToken);
+        if (validation.Error is { } validationError)
+        {
+            return validationError;
+        }
+
+        var currentChallengeIds = validation.OrderedChallenges!.Select(challenge => challenge.Id).ToList();
+        if (!currentChallengeIds.SequenceEqual(challengeMessageIds))
+        {
+            return PlanningLineage.ToClaimError(PlanningLineage.FailureKind.LineageInvalid);
+        }
+
+        return await HasSuccessfulResolutionAsync(challengeMessageIds, cancellationToken) ? AlreadyResolvedError() : null;
     }
 
     private sealed record ChallengedReviewValidation(

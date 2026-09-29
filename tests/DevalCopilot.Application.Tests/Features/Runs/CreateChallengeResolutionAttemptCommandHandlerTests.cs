@@ -735,15 +735,11 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         Assert.Equal(3, await verifyContext.Attempts.CountAsync(a => a.RunId == runId));
     }
 
-    // Discriminating regression for Slice B.1: production's ClaimAgent* factories always fix
-    // CriticalReviewer to ClaudeCode, so this substitutes the review attempt's provider via
-    // reflection (AttemptProviderSubstitution — a test-only helper, never a production path) and
-    // constructs its Challenge messages with the matching alternate Actor, purely to prove this
-    // handler's eligibility gate is authorized by AgentRole alone. Before this correction, the gate
-    // compared the review attempt's AgentProvider (and each Challenge's Actor) to fixed ClaudeCode
-    // literals, which would have rejected this exact scenario.
+    // Slice B.1 proved the gate is role-first by substituting the review attempt's provider. The lineage
+    // rule now additionally requires the persisted role/provider pair to be one DevalCopilot launches, so a
+    // CriticalReviewer/Codex attempt with matching forged Challenge actors is refused with a fixed error.
     [Fact]
-    public async Task HandleAsync_accepts_a_challenged_review_from_the_alternate_provider()
+    public async Task HandleAsync_refuses_a_challenged_review_from_an_unsupported_role_provider_pair()
     {
         await using var dbContext = _fixture.CreateContext();
         var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);
@@ -800,7 +796,8 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.challenged_review_not_valid", Assert.Single(result.Errors).Code);
     }
 
     [Fact]

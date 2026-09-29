@@ -212,67 +212,10 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
     private static CollaborationMessage SeedResolvedRevisedProposal(
         DevalCopilotDbContext dbContext, Guid runId, Guid workspaceId, Guid checkpointId, string fingerprint, DateTimeOffset occurredAtUtc)
     {
-        var originalPlanningAttempt = Attempt.ClaimAgent(
-            Guid.NewGuid(), runId, 1, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc, 1);
-        originalPlanningAttempt.MarkAgentDispatched(occurredAtUtc);
-        originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
-        dbContext.Attempts.Add(originalPlanningAttempt);
-        var originalProposal = RecordProposal(dbContext, runId, originalPlanningAttempt.Id, occurredAtUtc);
-
-        var challenge = CollaborationMessage.Record(
-            Guid.NewGuid(), runId, originalPlanningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge, originalProposal.Id,
-            "The risk section is too thin.",
-            JsonSerializer.Serialize(new
-            {
-                disputedItem = "Risks",
-                materialImpact = "Could hide a real regression",
-                reasoning = "No mitigation listed",
-                alternativeOrQuestion = "Add a mitigation",
-            }),
-            CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
-        dbContext.CollaborationMessages.Add(challenge);
-
-        var resolverAttempt = Attempt.ClaimAgentChallengeResolution(
-            Guid.NewGuid(), runId, 2, workspaceId, checkpointId, fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, occurredAtUtc, 2);
-        resolverAttempt.MarkAgentDispatched(occurredAtUtc);
-        resolverAttempt.CompleteAgent(AgentOutcome.Resolved, fingerprint, occurredAtUtc, processEvidence: TestProcessEvidence.CleanExit);
-        dbContext.Attempts.Add(resolverAttempt);
-        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), resolverAttempt.Id, originalProposal.Id, sequence: 0));
-        dbContext.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), resolverAttempt.Id, challenge.Id, sequence: 1));
-
-        var decision = CollaborationMessage.Record(
-            Guid.NewGuid(), runId, resolverAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Decision, challenge.Id,
-            "Accepted; added a mitigation.",
-            JsonSerializer.Serialize(new
-            {
-                resolution = "accepted",
-                rationale = "Valid concern",
-                resultingPlanChanges = "Added rollback step",
-                nextAction = "None",
-            }),
-            CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
-        dbContext.CollaborationMessages.Add(decision);
-
-        var revisedProposal = CollaborationMessage.Record(
-            Guid.NewGuid(), runId, resolverAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantIdentity.ForAgent(AgentRole.Resolver, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, originalProposal.Id,
-            "Add the ledger table, its query, and a rollback step.",
-            JsonSerializer.Serialize(new
-            {
-                scope = "Ledger",
-                implementationSteps = "Add the table, the query, and a rollback step",
-                risks = "Unbounded content, mitigated by rollback",
-                verificationPlan = "Tests",
-                escalationPoints = "None expected",
-            }),
-            CollaborationMessageProvenance.ProviderObserved, occurredAtUtc);
-        dbContext.CollaborationMessages.Add(revisedProposal);
-
-        return revisedProposal;
+        var seeder = new PlanningLineageSeeder(dbContext, runId, workspaceId, checkpointId, fingerprint, occurredAtUtc);
+        var (_, root) = seeder.AddRoot();
+        var (_, resolution) = seeder.AddChallengedRound(root);
+        return resolution.RevisedProposal;
     }
 
     [Fact]
@@ -612,44 +555,22 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         Assert.Equal(revisedProposal.Id, orderedInputMessages[0].CollaborationMessageId);
     }
 
-    // Discriminating regression for Slice B.1: production's ClaimAgent* factories always fix
-    // Resolver to Codex, so this substitutes the resolver attempt's provider via reflection
-    // (AttemptProviderSubstitution — a test-only helper, never a production path) and constructs
-    // its Decision/revised-Proposal messages with the matching alternate Actor, purely to prove
-    // this handler's eligibility gate is authorized by AgentRole alone. Before this correction, the
-    // gate compared the resolver attempt's AgentProvider (and each Decision's Actor) to fixed Codex
-    // literals, which would have rejected this exact scenario.
+    // Slice B.1 proved the gate is role-first by substituting the resolver attempt's provider. The lineage
+    // rule now additionally requires the persisted role/provider pair to be one DevalCopilot launches, so a
+    // Resolver/ClaudeCode attempt with matching forged Decision actors is refused with a fixed error.
     [Fact]
-    public async Task HandleAsync_creates_an_implementation_attempt_for_a_resolved_revised_proposal_from_a_Claude_resolver()
+    public async Task HandleAsync_refuses_a_resolved_revised_proposal_from_an_unsupported_resolver_pair()
     {
         await using var dbContext = _fixture.CreateContext();
         var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(dbContext);
 
-        var originalPlanningAttempt = Attempt.ClaimAgent(
-            Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now, 1);
-        originalPlanningAttempt.MarkAgentDispatched(Now);
-        originalPlanningAttempt.CompleteAgent(AgentOutcome.Proposed, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
-        dbContext.Attempts.Add(originalPlanningAttempt);
-        var originalProposal = RecordProposal(dbContext, run.Id, originalPlanningAttempt.Id, Now);
-
-        var challenge = CollaborationMessage.Record(
-            Guid.NewGuid(), run.Id, originalPlanningAttempt.Id, CollaborationMessage.ProtocolVersionOne,
-            ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, AgentProvider.ClaudeCode), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.Codex), CollaborationMessageType.Challenge, originalProposal.Id,
-            "The risk section is too thin.",
-            JsonSerializer.Serialize(new
-            {
-                disputedItem = "Risks",
-                materialImpact = "Could hide a real regression",
-                reasoning = "No mitigation listed",
-                alternativeOrQuestion = "Add a mitigation",
-            }),
-            CollaborationMessageProvenance.ProviderObserved, Now);
-        dbContext.CollaborationMessages.Add(challenge);
+        var seeder = new PlanningLineageSeeder(dbContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        var (_, originalProposal) = seeder.AddRoot();
+        var challenge = seeder.AddReview(originalProposal, AgentOutcome.Challenged, 1).Outputs[0];
 
         var resolverAttempt = Attempt.ClaimAgentChallengeResolution(
-            Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, Now, 2);
+            Guid.NewGuid(), run.Id, seeder.NextAttemptNumber, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now, seeder.NextAttemptNumber);
         resolverAttempt.MarkAgentDispatched(Now);
         resolverAttempt.CompleteAgent(AgentOutcome.Resolved, Fingerprint, Now, processEvidence: TestProcessEvidence.CleanExit);
         AttemptProviderSubstitution.SetProvider(resolverAttempt, AgentProvider.ClaudeCode);
@@ -693,7 +614,8 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
 
         var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(run.Id, revisedProposal.Id), CancellationToken.None);
 
-        Assert.True(result.IsSuccess);
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.proposal_attempt_not_valid", Assert.Single(result.Errors).Code);
     }
 
     [Fact]

@@ -69,23 +69,38 @@ internal static class ImplementationContextManifestBuilder
         IReadOnlyList<DecisionEvidence> orderedDecisions,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands) =>
-        Build(
-            projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
-            revisedProposalMessageId, revisedProposalSummary, revisedProposalStructuredContentJson,
-            resolutionEvidence: new
+        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
+        AcceptanceEvidence? acceptedSecondReview = null)
+    {
+        var decisions = orderedDecisions
+            .Select(decision => new
+            {
+                challengeMessageId = decision.ChallengeMessageId,
+                summary = decision.Summary,
+                structuredContent = Deserialize(decision.StructuredContentJson),
+            })
+            .ToArray();
+
+        // The optional second-review Acceptance is part of the evidence only when it exists, so a
+        // revision that was never re-reviewed keeps exactly its decision-only manifest.
+        object resolutionEvidence = acceptedSecondReview is null
+            ? new { form = "resolvedRevisedProposal", decisions }
+            : new
             {
                 form = "resolvedRevisedProposal",
-                decisions = orderedDecisions
-                    .Select(decision => new
-                    {
-                        challengeMessageId = decision.ChallengeMessageId,
-                        summary = decision.Summary,
-                        structuredContent = Deserialize(decision.StructuredContentJson),
-                    })
-                    .ToArray(),
-            },
-            changedPaths, completeDiff, configuredVerificationCommands);
+                decisions,
+                acceptedSecondReview = new
+                {
+                    summary = acceptedSecondReview.Summary,
+                    structuredContent = Deserialize(acceptedSecondReview.StructuredContentJson),
+                },
+            };
+
+        return Build(
+            projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
+            revisedProposalMessageId, revisedProposalSummary, revisedProposalStructuredContentJson,
+            resolutionEvidence, changedPaths, completeDiff, configuredVerificationCommands);
+    }
 
     private static string Build(
         Guid projectId,

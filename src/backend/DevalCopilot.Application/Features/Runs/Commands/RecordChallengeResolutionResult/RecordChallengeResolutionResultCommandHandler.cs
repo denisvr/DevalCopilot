@@ -104,6 +104,7 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             .Select(inputMessage => inputMessage.CollaborationMessageId)
             .ToHashSet();
 
+        ClaimedLineage? claimedLineage = null;
         if (command.Outcome == AgentOutcome.Resolved)
         {
             if (string.IsNullOrWhiteSpace(command.CompletionFingerprintSha256))
@@ -119,6 +120,20 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             {
                 return Result<RecordChallengeResolutionResultCommandResult>.Failure(resolutionValidationError);
             }
+
+            // The durable lineage this attempt claimed against is decided again at the result
+            // boundary, before anything is mutated: the reviewed Proposal must still be a valid
+            // lineage Proposal at a reviewable depth, its challenged review must still be the sole
+            // review whose complete challenge set is exactly this attempt's ordered inputs, and no
+            // other attempt may already have resolved that set.
+            var lineageResult = await EvaluateClaimedLineageAsync(
+                attempt, orderedInputMessages.Select(input => input.CollaborationMessageId).ToArray(), cancellationToken);
+            if (lineageResult.Error is { } lineageError)
+            {
+                return Result<RecordChallengeResolutionResultCommandResult>.Failure(lineageError);
+            }
+
+            claimedLineage = lineageResult.Lineage;
         }
         else if (command.Resolution is not null)
         {
@@ -202,14 +217,23 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             latestEvent = null!;
             foreach (var decision in resolution.Decisions)
             {
-                latestEvent = RecordCollaborationMessage(
+                (latestEvent, _) = RecordCollaborationMessage(
                     attempt, decision.ChallengeMessageId, CollaborationMessageType.Decision,
                     decision.Summary, decision.StructuredContentJson, nowUtc);
             }
 
-            latestEvent = RecordCollaborationMessage(
+            var (proposalEvent, revisedProposal) = RecordCollaborationMessage(
                 attempt, originalProposalMessageId, CollaborationMessageType.Proposal,
                 resolution.RevisedProposal.Summary, resolution.RevisedProposal.StructuredContentJson, nowUtc);
+            latestEvent = proposalEvent;
+
+            // The second and final resolution of a lineage records its one human escalation in the
+            // same save as the Decisions and revised Proposal: all of them or none. The escalation
+            // is recorded from the lineage this attempt just validated, never from a caller claim.
+            if (claimedLineage is { ReviewedProposal.Depth: PlanningLineage.MaximumReviewableDepth } lineage)
+            {
+                latestEvent = RecordSecondRoundEscalation(attempt, lineage, revisedProposal, nowUtc);
+            }
         }
         else
         {
@@ -303,7 +327,7 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
         }
     }
 
-    private RunEvent RecordCollaborationMessage(
+    private (RunEvent Event, CollaborationMessage Message) RecordCollaborationMessage(
         Attempt attempt,
         Guid inReplyToMessageId,
         CollaborationMessageType type,
@@ -337,8 +361,102 @@ public sealed class RecordChallengeResolutionResultCommandHandler(IDevalCopilotD
             nowUtc);
         dbContext.Events.Add(runEvent);
 
+        return (runEvent, message);
+    }
+
+    private RunEvent RecordSecondRoundEscalation(
+        Attempt attempt, ClaimedLineage lineage, CollaborationMessage revisedProposal, DateTimeOffset nowUtc)
+    {
+        var escalation = PlanningEscalation.Record(
+            attempt.RunId,
+            lineage.ReviewedProposal.Root.Proposal.Id,
+            lineage.ReviewedProposal.Proposal.Id,
+            revisedProposal.Id,
+            lineage.Challenges.Select(challenge => challenge.Id).ToArray(),
+            nowUtc);
+        dbContext.CollaborationMessages.Add(escalation);
+
+        var runEvent = RunEvent.Record(
+            Guid.NewGuid(),
+            attempt.RunId,
+            attempt.Id,
+            RunEventType.CollaborationMessageRecorded,
+            escalation.Actor,
+            JsonSerializer.Serialize(new
+            {
+                messageId = escalation.Id,
+                type = escalation.Type.ToString(),
+                provenance = escalation.Provenance.ToString(),
+            }),
+            nowUtc);
+        dbContext.Events.Add(runEvent);
+
         return runEvent;
     }
+
+    /// <summary>
+    /// Decides the attempt's claimed lineage again at the result boundary. Returns the reviewed
+    /// Proposal's node (its depth decides whether this resolution is the lineage's last) or a fixed
+    /// refusal; nothing is mutated either way.
+    /// </summary>
+    private async Task<(ClaimedLineage? Lineage, Error? Error)> EvaluateClaimedLineageAsync(
+        Attempt attempt, IReadOnlyList<Guid> orderedInputMessageIds, CancellationToken cancellationToken)
+    {
+        if (orderedInputMessageIds.Count < 2
+            || !AgentAttemptIdentity.IsCoherent(attempt)
+            || attempt.AgentGitWorkspaceId is not { } workspaceId
+            || attempt.AgentGitCheckpointId is not { } checkpointId)
+        {
+            return (null, PlanningLineage.ToClaimError(PlanningLineage.FailureKind.LineageInvalid));
+        }
+
+        var snapshot = await PlanningLineage.TryLoadSnapshotAsync(dbContext, attempt.RunId, cancellationToken);
+        if (snapshot is null)
+        {
+            return (null, PlanningLineage.UnreadableEvidenceError());
+        }
+
+        var evaluation = PlanningLineage.Evaluate(
+            snapshot, attempt.RunId, workspaceId, checkpointId, attempt.AgentCheckpointFingerprintSha256, orderedInputMessageIds[0]);
+        if (evaluation.Node is not { } node)
+        {
+            return (null, PlanningLineage.ToClaimError(evaluation.Failure ?? PlanningLineage.FailureKind.LineageInvalid));
+        }
+
+        if (node.Depth > PlanningLineage.MaximumReviewableDepth)
+        {
+            return (null, PlanningLineage.ExhaustedError());
+        }
+
+        var reviews = PlanningLineage.SuccessfulReviewsOf(snapshot, attempt.RunId, node.Proposal.Id);
+        if (reviews.Count != 1
+            || reviews[0].AgentOutcome != AgentOutcome.Challenged
+            || !AgentAttemptIdentity.IsCoherent(reviews[0]))
+        {
+            return (null, PlanningLineage.ToClaimError(PlanningLineage.FailureKind.LineageInvalid));
+        }
+
+        var challenges = snapshot.Messages
+            .Where(message => message.AttemptId == reviews[0].Id && message.Type == CollaborationMessageType.Challenge)
+            .OrderBy(message => message.Sequence)
+            .ToArray();
+        if (!challenges.Select(challenge => challenge.Id).SequenceEqual(orderedInputMessageIds.Skip(1)))
+        {
+            return (null, PlanningLineage.ToClaimError(PlanningLineage.FailureKind.LineageInvalid));
+        }
+
+        if (await ChallengeResolutionInputIdentity.HasCompetingExactResolutionAsync(
+                dbContext, attempt.RunId, attempt.Id, orderedInputMessageIds, cancellationToken))
+        {
+            return (null, Error.Conflict("agent_attempts.already_resolved", "This challenged review already has a successful resolution."));
+        }
+
+        return (new ClaimedLineage(node, challenges), null);
+    }
+
+    /// <summary>The validated reviewed Proposal and the exact ordered challenge set of its sole
+    /// Challenged review that this attempt claimed to resolve.</summary>
+    private sealed record ClaimedLineage(PlanningLineage.Node ReviewedProposal, IReadOnlyList<CollaborationMessage> Challenges);
 
     private void RecordArtifact(Guid runId, Guid attemptId, SealedChallengeResolutionArtifact sealedArtifact, DateTimeOffset nowUtc)
     {
