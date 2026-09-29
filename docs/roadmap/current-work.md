@@ -8,6 +8,17 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `2872224f2271b4d8dde284c7c1fe5fc603664c47` (parent
+  `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`) was committed with the reviewed 38-file Codex Planner format-repair
+  slice (24 modified, 14 new), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main`
+  and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched the delivered SHA, with a clean
+  working tree. Solution build 0 errors/0 warnings. Focused checks rerun against that commit, all passing: Application 80
+  (repair claim and Planner status lineage tests), Domain 13 (repair factory and eligibility), Infrastructure 6
+  (migration, unique index, foreign key, and cascade tests), Api 22 (repair endpoint plus hosted-supervisor restart
+  replay tests), and frontend 72 (repair panel, repair hook, ordinary request hook, and cockpit wiring). Before the
+  commit, only the `repairSourceAttemptNumber` XML comment and the entry below were corrected: the source id stays
+  present, and the number is null when no source of the same run is found. This closure records the delivered SHA and
+  those checks only; no code or product contract changed after publication.
 - Current delivery, based on verified parent `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`: **one manual Codex Planner
   format-repair attempt** (ADR-0004's optional bounded repair, Planner/Proposal only). See
   [planner-handoff.md](planner-handoff.md) for the selection and the
