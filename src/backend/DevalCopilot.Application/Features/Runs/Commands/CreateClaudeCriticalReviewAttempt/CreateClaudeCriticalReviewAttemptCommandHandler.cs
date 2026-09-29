@@ -163,7 +163,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 Error.Conflict("agent_attempts.provider_not_observed", "The Claude Code runtime is not currently observed as available."));
         }
 
-        var evidence = await evidenceReader.CaptureAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureWithUntrackedPreviewsAsync(workspace.WorkspacePath, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 != checkpoint.FingerprintSha256)
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
@@ -192,7 +192,8 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             proposalMessage.Summary,
             proposalMessage.StructuredContentJson,
             evidence.ChangedPaths,
-            evidence.CompleteDiff);
+            evidence.CompleteDiff,
+            evidence.UntrackedFiles);
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             // Genuinely unreachable with today's bounded manifest fields and the evidence

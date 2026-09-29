@@ -38,7 +38,28 @@ internal static class ReviewCorrectionContextManifestBuilder
         IReadOnlyList<Finding> orderedFindings,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        Guidance? humanGuidance = null)
+        Guidance? humanGuidance = null,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+            projectId, runId, workspaceId, startingCheckpointId, startingFingerprint, objective,
+            executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,
+            orderedFindings, changedPaths, completeDiff, humanGuidance, section));
+
+    private static string Serialize(
+        Guid projectId,
+        Guid runId,
+        Guid workspaceId,
+        Guid startingCheckpointId,
+        string startingFingerprint,
+        string objective,
+        Guid executionReportMessageId,
+        string executionReportSummary,
+        string executionReportStructuredContentJson,
+        IReadOnlyList<Finding> orderedFindings,
+        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
+        string? completeDiff,
+        Guidance? humanGuidance,
+        object? untrackedSection)
     {
         // Insertion order is the serialized order: an unguided document is byte-identical to the former
         // anonymous-type form, and the guidance fields are added once, only for an authorization that
@@ -82,20 +103,8 @@ internal static class ReviewCorrectionContextManifestBuilder
             summary = f.Summary,
             structuredContent = JsonSerializer.Deserialize<JsonElement>(f.StructuredContentJson),
         }).ToArray();
-        document["changeEvidence"] = new
-        {
-            changedPaths = changedPaths.Select(path => new
-            {
-                path.Path,
-                path.PreviousPath,
-                path.IndexStatus,
-                path.WorkTreeStatus,
-            }).ToArray(),
-            diff = completeDiff is null
-                ? null
-                : completeDiff.Length > MaxInlinedDiffCharacters ? completeDiff[..MaxInlinedDiffCharacters] : completeDiff,
-            diffTruncated = completeDiff is not null && completeDiff.Length > MaxInlinedDiffCharacters,
-        };
+        document["changeEvidence"] = UntrackedFileManifestSection.BuildChangeEvidence(
+            changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection);
 
         return JsonSerializer.Serialize(document);
     }

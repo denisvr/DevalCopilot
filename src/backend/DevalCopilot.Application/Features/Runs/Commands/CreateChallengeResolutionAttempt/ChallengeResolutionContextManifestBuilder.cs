@@ -38,7 +38,26 @@ internal static class ChallengeResolutionContextManifestBuilder
         string originalProposalStructuredContentJson,
         IReadOnlyList<ChallengeEvidence> orderedChallenges,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff)
+        string? completeDiff,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+            projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
+            originalProposalMessageId, originalProposalSummary, originalProposalStructuredContentJson,
+            orderedChallenges, changedPaths, completeDiff, section));
+
+    private static string Serialize(
+        Guid projectId,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        string runObjective,
+        Guid originalProposalMessageId,
+        string originalProposalSummary,
+        string originalProposalStructuredContentJson,
+        IReadOnlyList<ChallengeEvidence> orderedChallenges,
+        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
+        string? completeDiff,
+        object? untrackedSection)
     {
         var document = new
         {
@@ -77,16 +96,8 @@ internal static class ChallengeResolutionContextManifestBuilder
                     structuredContent = JsonSerializer.Deserialize<JsonElement>(challenge.StructuredContentJson),
                 })
                 .ToArray(),
-            changeEvidence = new
-            {
-                changedPaths = changedPaths
-                    .Select(path => new { path.Path, path.PreviousPath, path.IndexStatus, path.WorkTreeStatus })
-                    .ToArray(),
-                diff = completeDiff is null
-                    ? null
-                    : completeDiff.Length > MaxInlinedDiffCharacters ? completeDiff[..MaxInlinedDiffCharacters] : completeDiff,
-                diffTruncated = completeDiff is not null && completeDiff.Length > MaxInlinedDiffCharacters,
-            },
+            changeEvidence = UntrackedFileManifestSection.BuildChangeEvidence(
+                changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection),
         };
 
         return JsonSerializer.Serialize(document);

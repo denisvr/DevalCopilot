@@ -123,7 +123,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             return Failure(Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required."));
         }
 
-        var evidence = await evidenceReader.CaptureAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureWithUntrackedPreviewsAsync(workspace.WorkspacePath, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success
             || !string.Equals(evidence.FingerprintSha256, checkpoint.FingerprintSha256, StringComparison.Ordinal))
         {
@@ -240,7 +240,8 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
                 finding.Id, finding.Summary, finding.StructuredContentJson)).ToArray(),
             evidence.ChangedPaths,
             evidence.CompleteDiff,
-            humanGuidance is null ? null : new ReviewCorrectionContextManifestBuilder.Guidance(humanGuidance.MessageId, humanGuidance.Text));
+            humanGuidance is null ? null : new ReviewCorrectionContextManifestBuilder.Guidance(humanGuidance.MessageId, humanGuidance.Text),
+            evidence.UntrackedFiles);
         if (Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             return Failure(Error.Failure("agent_attempts.context_manifest_too_large", "The context manifest exceeds its bound."));

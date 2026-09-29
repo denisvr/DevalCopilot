@@ -390,6 +390,57 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task The_sealed_manifest_carries_bounded_untracked_previews_and_the_invocation_replays_the_same_verified_bytes()
+    {
+        var evidence = new GitWorkspaceEvidenceResult(
+            GitWorkspaceEvidenceOutcome.Success,
+            new string('a', 40),
+            Fingerprint,
+            [new GitWorkspaceChangedPath("notes/new.txt", null, "?", "?"), new GitWorkspaceChangedPath("big.bin", null, "?", "?")],
+            null,
+            [
+                new GitWorkspaceUntrackedFile("notes/new.txt", null, 18, "sealed replay text", true),
+                new GitWorkspaceUntrackedFile("big.bin", GitWorkspaceUntrackedOmission.Binary, 12, null, false),
+            ]);
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => evidence);
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader);
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Completed, await PollForTerminalStatusAsync(provider, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        var request = adapter.LastRequest!;
+        var first = await _artifactStore.VerifyAndReadSealedAsync(
+            request.ContextManifestRelativeStoragePath, request.ContextManifestByteLength, request.ContextManifestContentHash,
+            0, 32 * 1024, CancellationToken.None);
+        var second = await _artifactStore.VerifyAndReadSealedAsync(
+            request.ContextManifestRelativeStoragePath, request.ContextManifestByteLength, request.ContextManifestContentHash,
+            0, 32 * 1024, CancellationToken.None);
+
+        Assert.Equal(SealedReadStatus.Ok, first.Status);
+        Assert.Equal(first.Text, second.Text);
+        Assert.Equal(request.ContextManifestByteLength, first.TotalLengthSoFar);
+        using var manifest = JsonDocument.Parse(first.Text);
+        var files = manifest.RootElement.GetProperty("changeEvidence").GetProperty("untrackedFiles").GetProperty("files")
+            .EnumerateArray().ToArray();
+        Assert.Equal(["big.bin", "notes/new.txt"], files.Select(file => file.GetProperty("path").GetString()));
+        Assert.Equal("binary", files[0].GetProperty("omissionReason").GetString());
+        Assert.Equal("sealed replay text", files[1].GetProperty("text").GetString());
+        Assert.True(files[1].GetProperty("contentComplete").GetBoolean());
+        Assert.Contains("changeEvidence", manifest.RootElement.GetProperty("untrustedEvidenceBoundary").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_provider_rejection_of_the_requested_alias_is_recorded_as_a_failure_with_no_fallback_attempt()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));

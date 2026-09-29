@@ -5,7 +5,7 @@ using Microsoft.Win32.SafeHandles;
 namespace DevalCopilot.Infrastructure.Features.Processes;
 
 /// <summary>
-/// Narrow Windows-only interop helper used exclusively by <see cref="FilesystemArtifactStore"/> to
+/// Narrow Windows-only interop helper used by <see cref="FilesystemArtifactStore"/> and the untracked-file preview reader to
 /// prove the real, fully reparse-point-resolved identity an ALREADY-OPEN file or directory handle
 /// refers to — the same canonicalization Windows itself performs when following a symlink or
 /// junction chain (<c>GetFinalPathNameByHandleW</c>). This exists because lexical path comparison

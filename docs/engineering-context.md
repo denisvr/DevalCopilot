@@ -68,6 +68,11 @@
 - Agent context is assembled progressively from the smallest sufficient set of
   durable records and evidence. Complete transcripts and unchanged repository
   content are not replayed by default.
+- Agent stages that receive bounded Git change evidence also receive bounded, identity-verified text previews of
+  eligible untracked files, each explicitly marked complete, shortened, or omitted. A preview is admitted only
+  from a handle proven physically inside the approved worktree (Windows) whose bytes match the fingerprint's
+  raw-content identity; other hosts omit it. Its text exists only in the sealed manifest and provider input (see
+  [the protocol](architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no
   account-usage threshold is enforced anywhere in the system. The one

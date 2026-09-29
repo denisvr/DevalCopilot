@@ -8,6 +8,101 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `87e42a06f2f82f5cfde05939d8e923730bcbe8a1` (parent `38df8aba5837bb168d43c2f4db0f3474134210f1`) is
+  the factual closure of the second-planning-challenge-round slice (its delivered SHA and checks; no code or product
+  contract change). At the start of the next slice, `main`, local `origin/main`, and the live remote matched it,
+  nothing was staged or untracked, and only `docs/roadmap/planner-handoff.md` (the planner's slice selection) was
+  modified.
+- Current delivery, based on verified parent `87e42a06f2f82f5cfde05939d8e923730bcbe8a1`: **bounded untracked-file
+  context in Agent manifests**. See [planner-handoff.md](planner-handoff.md) for the selection and
+  ["Bounded untracked-file previews in Agent manifests"](../architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)
+  for the contract. No ADR is added or reversed; no migration, API route or contract, generated-client, provider
+  argument, permission, budget, token-stop, fingerprint, or frontend change.
+  - Behavior: the checkpoint fingerprint already covered every `??` path and its raw-content hash, but the tracked
+    diff never printed a new file's text. `IGitWorkspaceEvidenceReader` gains `CaptureWithUntrackedPreviewsAsync` (a
+    default interface method that falls back to `CaptureAsync`; only the five Agent claim handlers call it) and
+    `GitWorkspaceEvidenceResult.UntrackedFiles` (`GitWorkspaceUntrackedFile`: path, omission reason, size, text,
+    `ContentComplete`). `GitWorkspaceEvidenceReader` reads previews inside its existing status/diff observation
+    bracket, only for the `??` paths and hashes of the same capture, through the new Windows-only
+    `UntrackedFilePreviewReader`: a file is admitted only when it is opened as a regular file, the open handle's final
+    path (`GetFinalPathNameByHandle`, the existing `WindowsFinalPathResolver`) equals the resolved worktree root plus the
+    Git-reported relative path exactly and case-sensitively (so a link, junction, swapped component, case-distinct spelling, or
+    junction into a case-distinct sibling directory of the root on a case-sensitive parent is refused without reading), its length is at most 64 KiB, its bytes hash to the fingerprint's git blob identity, and it is
+    NUL-free valid UTF-8. A junctioned worktree root is accepted against its resolved identity; a host other than
+    Windows omits every file as `containment_unproven` (an internal constructor seam tests it) and never uses lexical
+    containment. Limits: 4 KiB per file and 16 KiB in total at the reader, deterministic ordinal path order, character-safe
+    cuts. One shared `UntrackedFileManifestSection` builds `changeEvidence.untrackedFiles` for all five builders
+    (critical review, challenge resolution, implementation accepted and revised, implementation review and its
+    correction variant, review correction): every `??` path appears once, with `included`/`omitted`, a fixed
+    `omissionReason`, `sizeBytes`, `contentComplete` (true only for the entire file), `allFilesComplete`, and a fixed
+    notice; the whole manifest is measured as serialized and the preview budget is halved (16 to 0 KiB) until it fits
+    32 KiB, then a small summary states that everything was omitted. A capture with no untracked path serializes
+    byte-identically to before (`untrackedFiles` is absent), and the section sits under each manifest's untrusted
+    boundary. Fingerprint, tracked diff, status, 8 KiB tracked-diff preview, claim and dispatch checks, the 32 KiB
+    handler refusal, and sealed-manifest replay are unchanged; the text exists only in the sealed manifest and provider
+    input.
+  - Checks run (final tree): `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false` 0 errors/0
+    warnings (one earlier build hit the known `csc` file-lock error; a rebuild cleared it); Domain 670/670; Application
+    1543/1543 (was 1504); Infrastructure 625 passed, 3 skipped (was 591 passed and 2 skipped; the three skips are the two
+    existing host-capability symlink skips and the new file-symbolic-link case, because this host cannot create a file
+    symlink without elevation or Developer Mode); Api 463/463 (was 462); Architecture 9/9; frontend not touched, so no
+    frontend check was run; `api-client.ts` byte-identical after the build (SHA-256 `b3e1c836…`, unchanged);
+    `git diff --check` clean; local links in the changed and handoff documents resolve (script, including the new
+    anchor). Focused tests were run first.
+  - New tests: Infrastructure, real Git and the real Windows filesystem in disposable workspaces (35; 34 ran):
+    the pre-change omission (plain capture: tracked diff lacks the text and `UntrackedFiles` is null) versus the exact
+    bounded text after, with the same fingerprint, tracked diff, head, and paths; one and several files; ordinal
+    ordering (upper case first, nested paths) and repeat determinism; clean and tracked-only captures; exactly 4096
+    versus 4097 bytes; a two-byte and a four-byte character cut at the boundary; a byte-order mark and CRLF preserved;
+    exactly 64 KiB versus 64 KiB + 1 (`too_large` with its size); the 16 KiB aggregate limit; binary (NUL), invalid
+    UTF-8, and an ignored file that never appears; a file rewritten after its identity was captured (omitted, the
+    fingerprint keeps the captured identity, the new text never appears); a tracked change during capture
+    (`RepositoryChangedDuringCapture`, no previews); a legitimate junctioned root; a junction to an outside directory
+    inside the worktree (real Git and direct); the no-containment-proof host; and, on a case-sensitive parent, a junction from `Artifacts/link` into the case-distinct sibling `ARTIFACTS/link` (refused although its blob hash is correct), with an ordinary contained file and a junctioned root still previewed. Direct reader cases give a correct
+    identity for outside or aliased content so only containment can refuse it: junction to an outside directory,
+    junction to another place inside the worktree, case-distinct spelling, nine path-form escapes (`..`, `.`, rooted,
+    drive, stream, backslash, empty segment, empty), directory, trailing-slash, directory junction, missing,
+    replaced-by-different-content, same-size replacement, replaced-by-directory, and an unresolvable root. Application:
+    39 builder tests over all seven entry points (valid JSON, exact and shortened previews, omission reasons, ordinal
+    order, `not_captured`, untrusted framing with repository text found only under `changeEvidence`,
+    byte-identical tracked-only output, determinism, ceiling fitting, character-safe cuts, the summary form, an
+    empty file); the seven handler success tests now use previews and assert the sealed partial manifest. Api: one
+    hosted test through the real production command chain and the real artifact store reads the sealed manifest
+    with integrity verification twice and finds the previews byte-stable.
+  - Mutation checks (each failed the targeted tests, then restored): removing the final-path containment comparison
+    failed 4 (three direct cases and the real-Git junction test); removing the identity comparison failed 3 (the replaced or swapped
+    case, the same-size replacement, and the mid-capture race); passing `null` instead of `evidence.UntrackedFiles` in the five
+    handlers failed all 7 handler tests.
+  - Open risks and limits: the file-symbolic-link refusal is exercised only where the host can create one (skipped
+    here), although it rests on the same final-path rule whose removal the junction tests catch; a hard link inside
+    the worktree is a regular file and is previewed as the bytes at that path; an untracked file whose content
+    changes after its hash and before the final status is not seen by status or diff (the existing fingerprint
+    behavior), and its preview is omitted as `content_identity_mismatch` so a preview is never attributed to content
+    it does not match; directory entries that reach the reader (for example a nested repository shown as `dir/`) are
+    omitted as `not_regular_file`, but whether Git's `hash-object` step accepts such an entry first was not exercised
+    and that step is unchanged; the summary form can add roughly 100 bytes, so a claim whose manifest without the
+    section already sat within about 100 bytes of 32 KiB would now get the existing `context_manifest_too_large`
+    refusal; up to 128 files of at most 64 KiB are read synchronously inside a capture; long (over 260 character)
+    paths were not exercised; a reader that does not implement previews leaves
+    every untracked path marked `not_captured`; the Codex planning manifest is unchanged and does not carry the
+    section; behavior on a non-Windows host is proven only through the internal seam on Windows.
+  - Correction round (review NO-GO on one containment gap): the resolved-root prefix comparison in
+    `UntrackedFilePreviewReader.ReadOne` used `OrdinalIgnoreCase`, so on a case-sensitive parent a junction from
+    `Artifacts/link` to a distinct `ARTIFACTS/link` produced a final path whose root prefix matched only ignoring case
+    and whose suffix matched, and the outside file was accepted when given its correct blob hash. New regression
+    (`UntrackedFilePreviewReaderTests`, the repository's `RequiresCaseSensitiveDirectorySupportFact`, which ran here):
+    case-distinct `Artifacts` and `ARTIFACTS` siblings, that junction, the outside file's correct git blob hash. It failed
+    before the fix (the file was accepted, `Omission` null) and passes after the comparison became `Ordinal`; the
+    outside text and size are never returned. The same fixture confirms an ordinary contained file and a junctioned
+    worktree root still preview. The root and the handle are resolved by the same call, so the same directory always
+    spells identically and the stricter comparison rejects nothing legitimate. ADR-0004, ADR-0009, and the routed
+    standards (adapters, testing, integration tests, security, secure coding, verification, AI-assisted development,
+    C# style, foundations) were read after the first review: the secure-coding rule to verify the final canonical path
+    stays inside the root is what this fix completes, and no further correction is required by them. Reruns on the
+    final tree: solution build 0 errors/0 warnings; Domain 670; Application 1543; Infrastructure 625 passed, 3 skipped
+    (the same three symlink skips); Api 463; Architecture 9; `api-client.ts` unchanged; `git diff --check` clean.
+  - Post-publication verification: after a GO and publication, rerun the focused untracked-preview reader,
+    builder, handler, and hosted sealed-manifest tests against the delivered commit.
 - Published delivery: `38df8aba5837bb168d43c2f4db0f3474134210f1` (parent
   `f22325000682caf1d3bd8c6b6384807e03199e79`) was committed with the reviewed second-planning-challenge-round slice
   (20 modified, 13 new files, including this file and `planner-handoff.md`), pushed as a normal fast-forward to

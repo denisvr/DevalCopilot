@@ -151,7 +151,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 Error.Conflict("agent_attempts.provider_not_observed", "The Codex runtime is not currently observed as available."));
         }
 
-        var evidence = await evidenceReader.CaptureAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureWithUntrackedPreviewsAsync(workspace.WorkspacePath, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 != checkpoint.FingerprintSha256)
         {
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(
@@ -212,7 +212,8 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 executionReportMessage.StructuredContentJson,
                 orderedVerificationEvidence,
                 evidence.ChangedPaths,
-                evidence.CompleteDiff)
+                evidence.CompleteDiff,
+                evidence.UntrackedFiles)
             : CodeReviewContextManifestBuilder.BuildForCorrection(
                 run.ProjectId,
                 workspace.Id,
@@ -242,7 +243,8 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                             response.InReplyToMessageId!.Value,
                             response.Summary,
                             response.StructuredContentJson))
-                        .ToArray()));
+                        .ToArray()),
+                evidence.UntrackedFiles);
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(

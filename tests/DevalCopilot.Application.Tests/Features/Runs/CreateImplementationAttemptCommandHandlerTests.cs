@@ -227,7 +227,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateImplementationAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(Fingerprint)), new FakeArtifactStore(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(run.Id, proposal.Id), CancellationToken.None);
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -247,6 +247,9 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         var orderedInputMessages = dbContext.AttemptInputMessages.Where(m => m.AttemptId == attempt.Id).OrderBy(m => m.Sequence).ToList();
         Assert.Equal(2, orderedInputMessages.Count);
         Assert.Equal(proposal.Id, orderedInputMessages[0].CollaborationMessageId);
+        UntrackedManifestTestSupport.AssertManifestCarriesPreviews(File.ReadAllText(Path.Combine(
+            Path.GetTempPath(), "devalcopilot-app-tests-implementation-partials", run.Id.ToString("N"), attempt.Id.ToString("N"),
+            "AgentContextManifest.partial")));
     }
 
     [Fact]
@@ -542,7 +545,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateImplementationAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(Fingerprint)), new FakeArtifactStore(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(run.Id, revisedProposal.Id), CancellationToken.None);
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -553,6 +556,9 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         var orderedInputMessages = dbContext.AttemptInputMessages.Where(m => m.AttemptId == attempt.Id).OrderBy(m => m.Sequence).ToList();
         Assert.Equal(2, orderedInputMessages.Count);
         Assert.Equal(revisedProposal.Id, orderedInputMessages[0].CollaborationMessageId);
+        UntrackedManifestTestSupport.AssertManifestCarriesPreviews(File.ReadAllText(Path.Combine(
+            Path.GetTempPath(), "devalcopilot-app-tests-implementation-partials", run.Id.ToString("N"), attempt.Id.ToString("N"),
+            "AgentContextManifest.partial")));
     }
 
     // Slice B.1 proved the gate is role-first by substituting the resolver attempt's provider. The lineage

@@ -14,8 +14,23 @@ namespace DevalCopilot.Infrastructure.Features.Projects;
 /// no pager, external diff, text conversion, protocol, prompt, optional lock, fsmonitor, or
 /// untracked-cache behavior is available to repository configuration.
 /// </summary>
-public sealed class GitWorkspaceEvidenceReader(IProcessExecutionAdapter processExecutionAdapter) : IGitWorkspaceEvidenceReader
+public sealed class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
 {
+    private readonly IProcessExecutionAdapter processExecutionAdapter;
+    private readonly bool physicalContainmentAvailable;
+
+    public GitWorkspaceEvidenceReader(IProcessExecutionAdapter processExecutionAdapter)
+        : this(processExecutionAdapter, OperatingSystem.IsWindows())
+    {
+    }
+
+    /// <summary>Test seam: a host without a physical-containment proof must omit every preview.</summary>
+    internal GitWorkspaceEvidenceReader(IProcessExecutionAdapter processExecutionAdapter, bool physicalContainmentAvailable)
+    {
+        this.processExecutionAdapter = processExecutionAdapter;
+        this.physicalContainmentAvailable = physicalContainmentAvailable;
+    }
+
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(10);
     private const int MaxCapturedBytes = 512 * 1024;
     private const int MaxChangedPaths = 128;
@@ -34,7 +49,15 @@ public sealed class GitWorkspaceEvidenceReader(IProcessExecutionAdapter processE
             ["GIT_CONFIG_NOSYSTEM"] = "1",
         };
 
-    public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
+    public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: false, cancellationToken);
+
+    public Task<GitWorkspaceEvidenceResult> CaptureWithUntrackedPreviewsAsync(
+        string workspacePath, CancellationToken cancellationToken) =>
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: true, cancellationToken);
+
+    private async Task<GitWorkspaceEvidenceResult> CaptureCoreAsync(
+        string workspacePath, bool includeUntrackedPreviews, CancellationToken cancellationToken)
     {
         var descriptor = HostCapabilityCatalog.Get(Capability.Git);
         var gitPath = HostExecutableResolver.TryResolve(descriptor.CandidateExecutableNames, descriptor.FallbackDirectories);
@@ -86,6 +109,10 @@ public sealed class GitWorkspaceEvidenceReader(IProcessExecutionAdapter processE
                 untrackedHashes.Add((changedPath.Path, trimmedHash));
             }
 
+            // Read inside the observation bracket so a status or diff change around the read discards
+            // the capture, and only against the hashes the fingerprint itself is computed from.
+            var untrackedFiles = includeUntrackedPreviews ? ReadUntrackedPreviews(workspacePath, untrackedHashes) : null;
+
             var afterStatus = await RunAsync(gitPath, workspacePath, ["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"], cancellationToken);
             var afterHead = await RunAsync(gitPath, workspacePath, ["rev-parse", "HEAD"], cancellationToken);
             var secondDiff = await RunAsync(gitPath, workspacePath, DiffArguments, cancellationToken);
@@ -110,11 +137,33 @@ public sealed class GitWorkspaceEvidenceReader(IProcessExecutionAdapter processE
                     beforeHeadSha,
                     fingerprint,
                     changedPaths,
-                    secondDiff.Output);
+                    secondDiff.Output,
+                    untrackedFiles);
             }
         }
 
         return Failure(GitWorkspaceEvidenceOutcome.RepositoryChangedDuringCapture);
+    }
+
+    private IReadOnlyList<GitWorkspaceUntrackedFile> ReadUntrackedPreviews(
+        string workspacePath, IReadOnlyList<(string Path, string Hash)> untrackedHashes)
+    {
+        if (untrackedHashes.Count == 0)
+        {
+            return [];
+        }
+
+        if (physicalContainmentAvailable && OperatingSystem.IsWindows())
+        {
+            return UntrackedFilePreviewReader.ReadAll(workspacePath, untrackedHashes);
+        }
+
+        // No physical-containment proof on this host: never fall back to lexical containment.
+        return untrackedHashes
+            .OrderBy(file => file.Path, StringComparer.Ordinal)
+            .Select(file => new GitWorkspaceUntrackedFile(
+                file.Path, GitWorkspaceUntrackedOmission.ContainmentUnproven, null, null, false))
+            .ToArray();
     }
 
     private static readonly IReadOnlyList<string> DiffArguments =

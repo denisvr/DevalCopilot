@@ -211,7 +211,7 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests : I
     {
         await using var context = _fixture.CreateContext();
         var seed = await SeedAsync(context);
-        var evidenceReader = new RecordingEvidenceReader(seed.Evidence);
+        var evidenceReader = new RecordingEvidenceReader(seed.Evidence with { UntrackedFiles = UntrackedManifestTestSupport.Evidence(seed.Evidence.FingerprintSha256!).UntrackedFiles, ChangedPaths = [.. seed.Evidence.ChangedPaths, .. UntrackedManifestTestSupport.Evidence(seed.Evidence.FingerprintSha256!).ChangedPaths] });
         var handler = new CreateReviewCorrectionAttemptCommandHandler(context, evidenceReader, new TestArtifactStore(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(Command(seed), CancellationToken.None);
@@ -227,6 +227,9 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests : I
         var manifest = await context.Artifacts.SingleAsync(item => item.AttemptId == attempt.Id && item.Purpose == ArtifactPurpose.AgentContextManifest);
         Assert.Equal(ArtifactCaptureOutcome.Captured, manifest.CaptureOutcome);
         Assert.Equal(AttemptStatus.Running, attempt.Status);
+        UntrackedManifestTestSupport.AssertManifestCarriesPreviews(File.ReadAllText(Path.Combine(
+            Path.GetTempPath(), "devalcopilot-review-correction-tests", context.Attempts.Local.Single(item => item.Id == attempt.Id).RunId.ToString("N"),
+            attempt.Id.ToString("N"), "AgentContextManifest.partial")));
     }
 
     [Fact]

@@ -46,7 +46,8 @@ internal static class ImplementationContextManifestBuilder
         AcceptanceEvidence acceptance,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands) =>
+        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
         Build(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             proposalMessageId, proposalSummary, proposalStructuredContentJson,
@@ -55,7 +56,7 @@ internal static class ImplementationContextManifestBuilder
                 form = "acceptedOriginalProposal",
                 acceptance = new { summary = acceptance.Summary, structuredContent = Deserialize(acceptance.StructuredContentJson) },
             },
-            changedPaths, completeDiff, configuredVerificationCommands);
+            changedPaths, completeDiff, configuredVerificationCommands, untrackedFiles);
 
     public static string BuildForResolvedRevisedProposal(
         Guid projectId,
@@ -70,7 +71,8 @@ internal static class ImplementationContextManifestBuilder
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
-        AcceptanceEvidence? acceptedSecondReview = null)
+        AcceptanceEvidence? acceptedSecondReview = null,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null)
     {
         var decisions = orderedDecisions
             .Select(decision => new
@@ -99,7 +101,7 @@ internal static class ImplementationContextManifestBuilder
         return Build(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             revisedProposalMessageId, revisedProposalSummary, revisedProposalStructuredContentJson,
-            resolutionEvidence, changedPaths, completeDiff, configuredVerificationCommands);
+            resolutionEvidence, changedPaths, completeDiff, configuredVerificationCommands, untrackedFiles);
     }
 
     private static string Build(
@@ -114,7 +116,27 @@ internal static class ImplementationContextManifestBuilder
         object resolutionEvidence,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands)
+        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles) =>
+        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+            projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
+            proposalMessageId, proposalSummary, proposalStructuredContentJson, resolutionEvidence,
+            changedPaths, completeDiff, configuredVerificationCommands, section));
+
+    private static string Serialize(
+        Guid projectId,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        string runObjective,
+        Guid proposalMessageId,
+        string proposalSummary,
+        string proposalStructuredContentJson,
+        object resolutionEvidence,
+        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
+        string? completeDiff,
+        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
+        object? untrackedSection)
     {
         var document = new
         {
@@ -153,16 +175,8 @@ internal static class ImplementationContextManifestBuilder
                 structuredContent = Deserialize(proposalStructuredContentJson),
                 resolutionEvidence,
             },
-            changeEvidence = new
-            {
-                changedPaths = changedPaths
-                    .Select(path => new { path.Path, path.PreviousPath, path.IndexStatus, path.WorkTreeStatus })
-                    .ToArray(),
-                diff = completeDiff is null
-                    ? null
-                    : completeDiff.Length > MaxInlinedDiffCharacters ? completeDiff[..MaxInlinedDiffCharacters] : completeDiff,
-                diffTruncated = completeDiff is not null && completeDiff.Length > MaxInlinedDiffCharacters,
-            },
+            changeEvidence = UntrackedFileManifestSection.BuildChangeEvidence(
+                changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection),
         };
 
         return JsonSerializer.Serialize(document);

@@ -255,7 +255,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateChallengeResolutionAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
+            dbContext, new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(Fingerprint)), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateChallengeResolutionAttemptCommand(run.Id, reviewAttempt.Id), CancellationToken.None);
@@ -283,6 +283,9 @@ public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsync
         var manifestArtifact = Assert.Single(
             dbContext.Artifacts, a => a.AttemptId == attempt.Id && a.Purpose == ArtifactPurpose.AgentContextManifest);
         Assert.Equal(attempt.AgentContextManifestArtifactId, manifestArtifact.Id);
+        UntrackedManifestTestSupport.AssertManifestCarriesPreviews(File.ReadAllText(Path.Combine(
+            Path.GetTempPath(), "devalcopilot-app-tests-resolution-partials", run.Id.ToString("N"), attempt.Id.ToString("N"),
+            "AgentContextManifest.partial")));
     }
 
     // The claim-time assignment-freshness fix: this run's preference at initial load is one pair,

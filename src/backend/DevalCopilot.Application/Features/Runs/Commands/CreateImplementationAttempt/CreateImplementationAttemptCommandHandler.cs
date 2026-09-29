@@ -163,7 +163,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.Conflict("agent_attempts.provider_not_observed", "The Claude runtime is not currently observed as available."));
         }
 
-        var evidence = await evidenceReader.CaptureAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureWithUntrackedPreviewsAsync(workspace.WorkspacePath, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 != checkpoint.FingerprintSha256)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(
@@ -596,7 +596,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
             new ImplementationContextManifestBuilder.AcceptanceEvidence(acceptanceMessage.Summary, acceptanceMessage.StructuredContentJson),
             evidence.ChangedPaths,
             evidence.CompleteDiff,
-            configuredVerificationCommands);
+            configuredVerificationCommands,
+            evidence.UntrackedFiles);
 
         return ResolvedPlanValidation.Succeeded(manifestJson, [proposalMessage.Id, acceptanceMessage.Id]);
     }
@@ -636,7 +637,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
             configuredVerificationCommands,
             acceptance is null
                 ? null
-                : new ImplementationContextManifestBuilder.AcceptanceEvidence(acceptance.Summary, acceptance.StructuredContentJson));
+                : new ImplementationContextManifestBuilder.AcceptanceEvidence(acceptance.Summary, acceptance.StructuredContentJson),
+            untrackedFiles: evidence.UntrackedFiles);
 
         var orderedInputMessageIds = new List<Guid> { revisedProposalMessage.Id };
         orderedInputMessageIds.AddRange(node.Decisions.Select(decision => decision.Id));

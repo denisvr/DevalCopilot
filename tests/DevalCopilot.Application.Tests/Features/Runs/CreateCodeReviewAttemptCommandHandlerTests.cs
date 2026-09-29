@@ -295,7 +295,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateCodeReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(resultFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
+            dbContext, new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(resultFingerprint)), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateCodeReviewAttemptCommand(run.Id, executionReport.Id), CancellationToken.None);
         await dbContext.SaveChangesAsync(CancellationToken.None);
@@ -320,6 +320,9 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
         Assert.Equal(2, orderedEvidence.Count);
         Assert.Equal(executionOne.Id, orderedEvidence[0].VerificationExecutionId);
         Assert.Equal(executionTwo.Id, orderedEvidence[1].VerificationExecutionId);
+        UntrackedManifestTestSupport.AssertManifestCarriesPreviews(File.ReadAllText(Path.Combine(
+            Path.GetTempPath(), "devalcopilot-app-tests-code-review-partials", run.Id.ToString("N"), attempt.Id.ToString("N"),
+            "AgentContextManifest.partial")));
     }
 
     // The claim-time assignment-freshness fix: this run's preference at initial load is one pair,
@@ -908,7 +911,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
 
         var handler = new CreateCodeReviewAttemptCommandHandler(
             dbContext,
-            FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(correctedCheckpoint.FingerprintSha256),
+            new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(correctedCheckpoint.FingerprintSha256)),
             new FakeArtifactStore(),
             new FixedTimeProvider(Now), DurabilityProbe);
 
@@ -926,6 +929,7 @@ public sealed class CreateCodeReviewAttemptCommandHandlerTests : IAsyncLifetime
         Assert.Equal(initialReport.Id, correctionEvidence.GetProperty("previousExecutionReport").GetProperty("messageId").GetGuid());
         Assert.Equal(finding.Id, correctionEvidence.GetProperty("orderedFindings")[0].GetProperty("messageId").GetGuid());
         Assert.Equal(revisionResponse.Id, correctionEvidence.GetProperty("orderedRevisionResponses")[0].GetProperty("messageId").GetGuid());
+        UntrackedManifestTestSupport.AssertManifestCarriesPreviews(manifestJson.RootElement);
         Assert.Equal(correctedCheckpoint.Id, reviewAttempt.AgentGitCheckpointId);
         Assert.True(new FileInfo(Path.Combine(Path.GetTempPath(), "devalcopilot-app-tests-code-review-partials",
             run.Id.ToString("N"), reviewAttempt.Id.ToString("N"), "AgentContextManifest.partial")).Length > 0);

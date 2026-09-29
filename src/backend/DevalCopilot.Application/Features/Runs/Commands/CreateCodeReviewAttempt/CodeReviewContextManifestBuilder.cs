@@ -55,7 +55,30 @@ internal static class CodeReviewContextManifestBuilder
         string executionReportStructuredContentJson,
         IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff)
+        string? completeDiff,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+            projectId, gitWorkspaceId, resultGitCheckpointId, resultCheckpointFingerprintSha256, runObjective,
+            resolvedPlanMessageId, resolvedPlanSummary, resolvedPlanStructuredContentJson,
+            executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,
+            orderedVerificationEvidence, changedPaths, completeDiff, section));
+
+    private static string Serialize(
+        Guid projectId,
+        Guid gitWorkspaceId,
+        Guid resultGitCheckpointId,
+        string resultCheckpointFingerprintSha256,
+        string runObjective,
+        Guid resolvedPlanMessageId,
+        string resolvedPlanSummary,
+        string resolvedPlanStructuredContentJson,
+        Guid executionReportMessageId,
+        string executionReportSummary,
+        string executionReportStructuredContentJson,
+        IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
+        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
+        string? completeDiff,
+        object? untrackedSection)
     {
         var document = new
         {
@@ -103,16 +126,8 @@ internal static class CodeReviewContextManifestBuilder
                     evidence.ExitCode,
                 })
                 .ToArray(),
-            changeEvidence = new
-            {
-                changedPaths = changedPaths
-                    .Select(path => new { path.Path, path.PreviousPath, path.IndexStatus, path.WorkTreeStatus })
-                    .ToArray(),
-                diff = completeDiff is null
-                    ? null
-                    : completeDiff.Length > MaxInlinedDiffCharacters ? completeDiff[..MaxInlinedDiffCharacters] : completeDiff,
-                diffTruncated = completeDiff is not null && completeDiff.Length > MaxInlinedDiffCharacters,
-            },
+            changeEvidence = UntrackedFileManifestSection.BuildChangeEvidence(
+                changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection),
         };
 
         return JsonSerializer.Serialize(document);
@@ -133,24 +148,33 @@ internal static class CodeReviewContextManifestBuilder
         IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        CorrectionEvidence correctionEvidence)
-    {
-        var root = JsonNode.Parse(Build(
-            projectId,
-            gitWorkspaceId,
-            resultGitCheckpointId,
-            resultCheckpointFingerprintSha256,
-            runObjective,
-            resolvedPlanMessageId,
-            resolvedPlanSummary,
-            resolvedPlanStructuredContentJson,
-            executionReportMessageId,
-            executionReportSummary,
-            executionReportStructuredContentJson,
-            orderedVerificationEvidence,
-            changedPaths,
-            completeDiff))!.AsObject();
+        CorrectionEvidence correctionEvidence,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        // The correction evidence is part of what must fit the manifest ceiling, so it is added
+        // inside each fitting attempt rather than after the section was already sized.
+        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section =>
+        {
+            var root = JsonNode.Parse(Serialize(
+                projectId,
+                gitWorkspaceId,
+                resultGitCheckpointId,
+                resultCheckpointFingerprintSha256,
+                runObjective,
+                resolvedPlanMessageId,
+                resolvedPlanSummary,
+                resolvedPlanStructuredContentJson,
+                executionReportMessageId,
+                executionReportSummary,
+                executionReportStructuredContentJson,
+                orderedVerificationEvidence,
+                changedPaths,
+                completeDiff,
+                section))!.AsObject();
+            return AddCorrectionEvidence(root, correctionEvidence);
+        });
 
+    private static string AddCorrectionEvidence(JsonObject root, CorrectionEvidence correctionEvidence)
+    {
         root["correctionEvidence"] = new JsonObject
         {
             ["previousExecutionReport"] = new JsonObject

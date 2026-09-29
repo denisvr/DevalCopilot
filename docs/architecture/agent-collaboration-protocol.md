@@ -438,7 +438,8 @@ Agent input is assembled from selected durable records:
 - applicable project instructions;
 - current plan revision and unresolved challenges;
 - relevant decisions and findings;
-- Git fingerprint and bounded diff summary;
+- Git fingerprint, bounded tracked diff, and bounded previews of eligible untracked text files, each marked as
+  complete, shortened, or omitted (see "Bounded untracked-file previews in Agent manifests");
 - verification evidence and selected log excerpts;
 - budgets, permissions, and expected response schema.
 
@@ -2161,6 +2162,48 @@ ADR-0009's role-first authority are applied unchanged; nothing in an accepted AD
   model or effort inference, and new provider flags. Implementing an escalated plan needs a new explicit
   planning request.
 
+### Bounded untracked-file previews in Agent manifests
+
+Git evidence had a blind spot: the checkpoint fingerprint covers every untracked (`??`) path and its raw-content hash
+(`git hash-object --no-filters`), but `git diff HEAD` does not print a new file's text, so a review stage saw the path
+in `changedPaths` and none of its contents. The five Agent manifests that carry `changeEvidence` (critical review,
+challenge resolution, implementation, implementation review including the correction variant, and review correction)
+now also carry an `untrackedFiles` section inside `changeEvidence`, under the same untrusted-evidence boundary.
+
+- **Capture.** `IGitWorkspaceEvidenceReader.CaptureWithUntrackedPreviewsAsync` (only Agent claim handlers call it; the
+  plain `CaptureAsync` and every other caller are unchanged) returns `UntrackedFiles`, one entry per `??` path of the
+  same capture, in ordinal path order. Previews are read inside the reader's existing status/diff observation bracket
+  and only against the hashes the fingerprint is computed from. The fingerprint, tracked diff, status, and changed
+  paths are unchanged; a preview never feeds them.
+- **Admission (Windows).** A file is previewed only when it is opened as a regular file, the operating system reports
+  that the open handle's final path is exactly, and case-sensitively, the resolved worktree root plus the
+  Git-reported relative path (`GetFinalPathNameByHandle`, describing what is open rather than racing a separate check, so no link, junction,
+  swapped component, or case-distinct spelling redirected the open), its length is at most 64 KiB, the bytes hash to
+  the fingerprint's git blob identity, contain no NUL byte, and are valid UTF-8. A legitimately redirected worktree
+  root is accepted because the root is resolved with the same call. Path forms that could name something else
+  (rooted, drive or stream syntax, dot or empty segments) are refused unopened; a directory is never opened. No
+  bytes are read from a handle whose containment is not proven.
+- **Other hosts.** There is no equivalent proof, so every untracked file is omitted as `containment_unproven`;
+  lexical containment is never used as a substitute.
+- **Bounds.** At most 4 KiB of each file and 16 KiB in total at the reader, then measured against the 32 KiB
+  manifest ceiling as serialized: the preview budget is halved (16, 8, 4, 2, 1, 0 KiB) until the manifest fits, and
+  a last fixed-size summary (`omittedFileCount`, `omissionReason: manifest_budget`) states that everything was
+  omitted. Cuts land on a character boundary.
+- **Truthfulness.** Each entry says `preview: included|omitted`, an `omissionReason` (`not_regular_file`,
+  `containment_unproven`, `missing`, `unreadable`, `content_identity_mismatch`, `too_large`, `binary`, `invalid_utf8`,
+  `aggregate_limit`, `manifest_budget`, or `not_captured` for a path with no captured entry), `sizeBytes` when known,
+  and `contentComplete`, which is true only when `text` is the entire file. A prefix is never described as a complete
+  file, `allFilesComplete` summarizes it, and a fixed notice states that the list does not prove nothing else
+  changed. Ignored files never appear (Git does not list them); a tracked-only or no-change capture produces a
+  manifest byte-identical to the previous shape.
+- **Boundaries.** Raw source text lives only in the sealed manifest and the provider's standard input, as before. It is
+  never written to SQLite, an API response, a log, an error, or browser storage, and no reason carries a path or an
+  exception message. A file changed after its identity was captured is omitted as `content_identity_mismatch`; the
+  fingerprint keeps the captured identity, so a preview can never be attributed to content it does not match.
+- **Not included.** A generic file browser or retrieval tool, tracked-file full text, a per-file request, a provider
+  flag, permission or session change, generated summaries, compaction, account or approval semantics, and any change
+  to the checkpoint fingerprint, claim, budget, or dispatch rules. The evidence is untrusted context, not approval.
+
 ## Token efficiency
 
 - Build a context manifest for each attempt and include only inputs required by
@@ -2171,6 +2214,8 @@ ADR-0009's role-first authority are applied unchanged; nothing in an accepted AD
   do not ask each agent to restate the same background.
 - Send changed hunks, unresolved findings, and relevant neighboring code before
   considering a complete diff or file.
+- Never present a truncated or omitted file as complete evidence: a preview states its own completeness, and
+  every untracked path of a capture is accounted for (see "Bounded untracked-file previews in Agent manifests").
 - Prefer deterministic tools for discovery, validation, counting, formatting,
   and status checks instead of spending model tokens inferring their results.
 - Do not repeat an agent attempt unless state, instructions, evidence, or the

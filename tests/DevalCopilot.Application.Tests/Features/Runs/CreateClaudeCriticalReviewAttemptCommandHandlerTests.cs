@@ -233,7 +233,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(Fingerprint)), new FakeArtifactStore(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -259,6 +259,9 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
             dbContext.Artifacts, a => a.AttemptId == attempt.Id && a.Purpose == ArtifactPurpose.AgentContextManifest);
         Assert.Equal(attempt.AgentContextManifestArtifactId, manifestArtifact.Id);
         Assert.Equal("application/json", manifestArtifact.MediaType);
+        UntrackedManifestTestSupport.AssertManifestCarriesPreviews(File.ReadAllText(Path.Combine(
+            Path.GetTempPath(), "devalcopilot-app-tests-partials", run.Id.ToString("N"), attempt.Id.ToString("N"),
+            "AgentContextManifest.partial")));
     }
 
     [Fact]
