@@ -8,6 +8,21 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `210f4e8699dad670aadf0816ea99f9b85ff8627f` (parent
+  `bc78068cf0f7d7cf2c6e3f5a931f0cd1ea7064c0`) was committed with the reviewed 67-file token-activity stop slice
+  (33 modified, 34 new, including this file and `planner-handoff.md`), pushed as a normal fast-forward to
+  `origin/main`, and verified with `git fetch origin main` and `git ls-remote`: local `HEAD`, local `origin/main`, and
+  the live remote all matched the delivered SHA, with a clean working tree. Before the commit, only wording was
+  corrected: the set-handler comment and the architecture section now say a committed change to the value of a
+  configured concurrency token (lifecycle, Claude model and effort request, either stop threshold) causes the
+  conflict, not any Run change, and this file records both CRLF notices. Staged `git diff --cached --check` reported
+  only CRLF notices (the model snapshot, the generated client, and the two new generated migration files) and local
+  documentation links (143) resolved. Focused checks rerun against that commit after a solution build (0 errors, 0
+  warnings), all passing: Application 441 (stop accumulator, gate, policy guard, untrusted-evidence, cockpit
+  projection, set handler, and all six claim-path suites), Api 46 (stop endpoint, planning request endpoint, and hosted
+  supervisor including the claimed-before-stop and restart-replay tests), Infrastructure 2 (migration), and frontend
+  84 (stop panel, refresh, hook, and cockpit wiring). This closure records the delivered SHA and those checks only; no
+  code or product contract changed after publication.
 - Current delivery, based on verified parent `bc78068cf0f7d7cf2c6e3f5a931f0cd1ea7064c0`: **run-scoped, provider-separated
   token-activity stop at Agent claim**. See [planner-handoff.md](planner-handoff.md) for the selection and the
   ["Per-provider run token-activity stop at Agent claim"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim)
