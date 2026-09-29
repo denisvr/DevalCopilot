@@ -144,6 +144,15 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             }
         }
 
+        // The run-scoped, provider-separated token-activity stop (see AgentTokenStopGate), after
+        // the run-wide budgets above and before any provider-availability probe, Git work, or
+        // manifest sealing. Unconfigured, it reads nothing and changes nothing.
+        var tokenStopError = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.Codex, cancellationToken);
+        if (tokenStopError is not null)
+        {
+            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(tokenStopError);
+        }
+
         var codexSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.CodexCli, cancellationToken);
         if (codexSnapshot is null
@@ -278,6 +287,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         await using (claimTransaction)
         {
             bool preferenceStillCurrent;
+            bool stopPolicyStillCurrent;
             Error? repairSourceError = null;
             try
             {
@@ -286,12 +296,16 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 preferenceStillCurrent = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
                     dbContext, run.Id, requestedModel, requestedEffort, cancellationToken);
 
+                // The token stop policy the claim decided against must be unchanged too: one more
+                // atomic UPDATE ... WHERE compare inside this same transaction (see CurrentTokenStopPolicy).
+                stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
+
                 // A repair's source is re-read here, after that first write statement: it has
                 // taken this transaction's database write lock (a matching row is rewritten in
                 // place; even zero matches still open the write transaction), so no other claim
                 // can commit between this re-check and this claim's own insert. Only a still-current
                 // preference proceeds; a stale one is reported as the preference conflict below.
-                if (preferenceStillCurrent && command.RepairSourceAttemptId is { } repairSourceAtCommit)
+                if (preferenceStillCurrent && stopPolicyStillCurrent && command.RepairSourceAttemptId is { } repairSourceAtCommit)
                 {
                     repairSourceError = await PlanningRepairSource.EvaluateAsync(
                         dbContext, run.Id, repairSourceAtCommit, workspace.Id, checkpoint.Id,
@@ -329,6 +343,16 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 return Result<CreateCodexPlanningAttemptCommandResult>.Failure(Error.Conflict(
                     "agent_attempts.assignment_preference_changed",
                     "The run's requested Codex model or effort changed while this claim was being prepared; retry the request."));
+            }
+
+            if (!stopPolicyStillCurrent)
+            {
+                // A concurrent stop-threshold change committed after this claim decided against
+                // the old policy. The transaction is rolled back before any insert, the sealed
+                // manifest is removed, and nothing was consumed; a retry re-decides.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(CurrentTokenStopPolicy.PolicyChangedDuringClaim());
             }
 
             if (repairSourceError is not null)
@@ -480,6 +504,14 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
                                 Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
                         }
+                    }
+
+                    // A concurrent claim that also concluded with recorded usage can carry this provider over
+                    // its token stop even while count capacity remains; that is never a retryable slot conflict.
+                    var tokenStopOnRace = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.Codex, cancellationToken);
+                    if (tokenStopOnRace is not null)
+                    {
+                        return Result<CreateCodexPlanningAttemptCommandResult>.Failure(tokenStopOnRace);
                     }
 
                     return Result<CreateCodexPlanningAttemptCommandResult>.Failure(

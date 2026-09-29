@@ -56,4 +56,9 @@ public static class RunEventType
     /// <summary>The owner set or cleared one provider's advisory token-activity warning threshold.
     /// The payload carries only the provider name and the new threshold (null when cleared).</summary>
     public const string TokenWarningThresholdChanged = "run.token_warning_threshold_changed";
+
+    /// <summary>The owner set or cleared one provider's token-activity stop threshold, which gates
+    /// future Agent claims for that provider. The payload carries only the provider name and the new
+    /// threshold (null when cleared).</summary>
+    public const string TokenStopThresholdChanged = "run.token_stop_threshold_changed";
 }

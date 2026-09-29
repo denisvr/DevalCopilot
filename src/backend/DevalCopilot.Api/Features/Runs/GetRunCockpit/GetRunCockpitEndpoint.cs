@@ -65,6 +65,7 @@ public sealed class GetRunCockpitEndpoint(
                 value.RequestedCodexEffort,
                 value.RequestedClaudeModel,
                 value.RequestedClaudeEffort,
-                (value.TokenWarnings ?? []).Select(RunCockpitTokenWarningResponse.FromDomain).ToArray()));
+                (value.TokenWarnings ?? []).Select(RunCockpitTokenWarningResponse.FromDomain).ToArray(),
+                (value.TokenStops ?? []).Select(RunCockpitTokenStopResponse.FromDomain).ToArray()));
     }
 }

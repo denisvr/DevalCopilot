@@ -52,11 +52,23 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
             autonomousDurationSeconds += (timeProvider.GetUtcNow() - run.LastAdvancedAtUtc).TotalSeconds;
         }
 
-        var latestAgentAttempt = await dbContext.Attempts
-            .AsNoTracking()
-            .Where(attempt => attempt.RunId == run.Id && attempt.Kind == AttemptKind.Agent)
-            .OrderByDescending(attempt => attempt.AttemptNumber)
-            .FirstOrDefaultAsync(cancellationToken);
+        // The latest-attempt card needs the full entity. If that one row carries an unrecognized
+        // persisted enum value it cannot be materialized: the card is then omitted rather than failing
+        // the whole cockpit, so the stop projection below (which classifies rows without
+        // materializing them) is still delivered. Nothing about the failure is exposed.
+        Attempt? latestAgentAttempt;
+        try
+        {
+            latestAgentAttempt = await dbContext.Attempts
+                .AsNoTracking()
+                .Where(attempt => attempt.RunId == run.Id && attempt.Kind == AttemptKind.Agent)
+                .OrderByDescending(attempt => attempt.AttemptNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            latestAgentAttempt = null;
+        }
 
         // The run-wide Agent claim-budget projection: every claimed Agent attempt permanently
         // consumes one slot regardless of role, provider, dispatch, result, or interruption —
@@ -80,8 +92,18 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
             .Where(attempt => attempt.RunId == run.Id && attempt.Kind == AttemptKind.Agent && attempt.AgentDispatchedAtUtc != null)
             .Select(attempt => new
             {
-                attempt.Status,
-                attempt.AgentProvider,
+                IsRunning = attempt.Status == AttemptStatus.Running,
+                IsTerminal = attempt.Status == AttemptStatus.Completed
+                    || attempt.Status == AttemptStatus.Failed
+                    || attempt.Status == AttemptStatus.Interrupted,
+                IsCodexProvider = attempt.AgentProvider == AgentProvider.Codex,
+                IsClaudeProvider = attempt.AgentProvider == AgentProvider.ClaudeCode,
+                IsCodexPair = attempt.AgentProvider == AgentProvider.Codex
+                    && (attempt.AgentRole == AgentRole.Planner
+                        || attempt.AgentRole == AgentRole.Resolver
+                        || attempt.AgentRole == AgentRole.CodeReviewer),
+                IsClaudePair = attempt.AgentProvider == AgentProvider.ClaudeCode
+                    && (attempt.AgentRole == AgentRole.CriticalReviewer || attempt.AgentRole == AgentRole.Implementer),
                 attempt.AgentInputTokens,
                 attempt.AgentOutputTokens,
                 attempt.AgentCacheCreationInputTokens,
@@ -96,20 +118,42 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
         var tokenUsageAccumulator = new RunCockpitTokenUsageAccumulator();
         var providerTokenUsageAccumulator = new RunCockpitProviderTokenUsageAccumulator();
         var tokenWarningAccumulator = new RunCockpitTokenWarningAccumulator();
+        var tokenStopAccumulator = new AgentTokenStopAccumulator();
         var processDurationAccumulator = new RunCockpitAgentProcessDurationAccumulator();
         await foreach (var attempt in dispatchedAttemptEvidence.WithCancellation(cancellationToken))
         {
+            // Status and provider were classified by the database, never materialized through the
+            // string-enum conversion. For the advisory and raw projections an unrecognized status is
+            // pending (never counted) and an unrecognized provider is unattributed; the stop
+            // additionally requires a coherent role/provider pair (see PersistedAgentAttemptStopEvidence).
+            var status = attempt.IsTerminal ? AttemptStatus.Completed : AttemptStatus.Running;
+            AgentProvider? provider = attempt.IsCodexProvider
+                ? AgentProvider.Codex
+                : attempt.IsClaudeProvider ? AgentProvider.ClaudeCode : null;
             var tokenUsageEvidence = AgentTokenUsageEvidence.FromPersisted(
-                attempt.AgentProvider,
+                provider,
                 attempt.AgentInputTokens,
                 attempt.AgentOutputTokens,
                 attempt.AgentCacheCreationInputTokens,
                 attempt.AgentCacheReadInputTokens,
                 attempt.AgentTokenUsageSchemaVersion);
 
-            tokenUsageAccumulator.Add(attempt.Status, tokenUsageEvidence);
-            providerTokenUsageAccumulator.Add(attempt.Status, attempt.AgentProvider, tokenUsageEvidence);
-            tokenWarningAccumulator.Add(attempt.Status, attempt.AgentProvider, tokenUsageEvidence);
+            tokenUsageAccumulator.Add(status, tokenUsageEvidence);
+            providerTokenUsageAccumulator.Add(status, provider, tokenUsageEvidence);
+            tokenWarningAccumulator.Add(status, provider, tokenUsageEvidence);
+
+            var stopEvidence = new PersistedAgentAttemptStopEvidence(
+                attempt.IsRunning,
+                attempt.IsTerminal,
+                attempt.IsCodexPair,
+                attempt.IsClaudePair,
+                attempt.AgentInputTokens,
+                attempt.AgentOutputTokens,
+                attempt.AgentCacheCreationInputTokens,
+                attempt.AgentCacheReadInputTokens,
+                attempt.AgentTokenUsageSchemaVersion);
+            var (stopStatus, stopProvider) = stopEvidence.Classify();
+            tokenStopAccumulator.Add(stopStatus, stopProvider, stopEvidence.Usage(stopProvider));
 
             AgentProcessExecutionEvidence? processEvidence = null;
             if (attempt.AgentProcessOutcome is { } processOutcome
@@ -119,7 +163,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 processEvidence = AgentProcessExecutionEvidence.Create(processOutcome, attempt.AgentProcessExitCode, processDuration);
             }
 
-            processDurationAccumulator.Add(attempt.Status, processEvidence);
+            processDurationAccumulator.Add(status, processEvidence);
         }
 
         var tokenUsageSummary = tokenUsageAccumulator.ToSummary();
@@ -190,6 +234,10 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                         latestAgentAttempt.AgentRequestedEffort),
                 run.RequestedClaudeModel,
                 run.RequestedClaudeEffort,
-                tokenWarningAccumulator.ToEntries(run.CodexTokenWarningThreshold, run.ClaudeTokenWarningThreshold)));
+                tokenWarningAccumulator.ToEntries(run.CodexTokenWarningThreshold, run.ClaudeTokenWarningThreshold),
+                [
+                    tokenStopAccumulator.ToEvaluation(AgentProvider.Codex, run.CodexTokenStopThreshold),
+                    tokenStopAccumulator.ToEvaluation(AgentProvider.ClaudeCode, run.ClaudeTokenStopThreshold),
+                ]));
     }
 }

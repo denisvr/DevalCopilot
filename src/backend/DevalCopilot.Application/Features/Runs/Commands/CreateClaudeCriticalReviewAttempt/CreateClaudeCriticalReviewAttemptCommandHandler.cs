@@ -132,6 +132,15 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             }
         }
 
+        // The run-scoped, provider-separated token-activity stop (see AgentTokenStopGate), after
+        // the run-wide budgets above and before any provider-availability probe, Git work, or
+        // manifest sealing. Unconfigured, it reads nothing and changes nothing.
+        var tokenStopError = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.ClaudeCode, cancellationToken);
+        if (tokenStopError is not null)
+        {
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(tokenStopError);
+        }
+
         var claudeSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.ClaudeCli, cancellationToken);
         if (claudeSnapshot is null
@@ -218,6 +227,10 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
         var requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
 
+        // The token stop's own commit-time guard: the claim's Run UPDATE also requires the exact stop
+        // policy this claim decided against (see CurrentTokenStopPolicy).
+        CurrentTokenStopPolicy.Guard(dbContext, run);
+
         var attempt = Attempt.ClaimAgentCriticalReviewWithModelRequest(
             attemptId,
             run.Id,
@@ -299,8 +312,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 // The Run's lifecycle or Claude model request changed between this claim's late
                 // read and its commit (see CurrentClaudeModelPreference); the whole batch rolled
                 // back, so nothing persisted and a retry re-reads the current state.
+                // A token stop policy change is named as such; anything else keeps the generic
+                // run-changed conflict.
                 return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
-                    CurrentClaudeModelPreference.RunChangedDuringClaim());
+                    await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
+                        ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
+                        : CurrentClaudeModelPreference.RunChangedDuringClaim());
             }
 
             var competingRunningAttemptExists = await dbContext.Attempts
@@ -357,6 +374,14 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                         return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
                             Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
                     }
+                }
+
+                // A concurrent claim that also concluded with recorded usage can carry this provider over
+                // its token stop even while count capacity remains; that is never a retryable slot conflict.
+                var tokenStopOnRace = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.ClaudeCode, cancellationToken);
+                if (tokenStopOnRace is not null)
+                {
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(tokenStopOnRace);
                 }
 
                 return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(

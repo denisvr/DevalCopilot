@@ -282,6 +282,58 @@ public sealed class Run
         }
     }
 
+    /// <summary>The largest stop threshold this Run accepts: the same 10^12 bound as the advisory
+    /// warning threshold, so every configured threshold stays comparable with the bounded sums the
+    /// claim gate and cockpit derive.</summary>
+    public const long MaxTokenStopThreshold = MaxTokenWarningThreshold;
+
+    /// <summary>
+    /// The owner's optional stop threshold, in Codex-reported token-activity units (validated
+    /// <c>inputTokens + outputTokens</c> of concluded, dispatched Codex attempts). <see langword="null"/>
+    /// means none is configured (the default for every historical and newly created Run). Unlike the
+    /// advisory warning threshold this one is enforced, but only as a retrospective local guardrail:
+    /// once locally recorded Codex activity reaches it, no new Codex Agent claim may commit. It is
+    /// not an account allowance, a per-attempt cap, or a reservation. It is an EF concurrency token,
+    /// so a claim can never commit against a stale policy.
+    /// </summary>
+    public long? CodexTokenStopThreshold { get; private set; }
+
+    /// <summary>The same stop threshold for Claude Code (validated <c>inputTokens +
+    /// cacheCreationInputTokens + cacheReadInputTokens + outputTokens</c>). Independent of
+    /// <see cref="CodexTokenStopThreshold"/>: the two are never combined.</summary>
+    public long? ClaudeTokenStopThreshold { get; private set; }
+
+    /// <summary>Sets or clears one provider's token-activity stop threshold, leaving the other
+    /// provider's untouched. A non-null value must be positive and at most
+    /// <see cref="MaxTokenStopThreshold"/>; permitted while <see cref="Lifecycle"/> is Created or
+    /// Running. A change applies to future claims only.</summary>
+    public void SetTokenStopThreshold(AgentProvider provider, long? threshold)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot change a token stop threshold for a run whose lifecycle is {Lifecycle}.");
+        }
+
+        if (provider is not (AgentProvider.Codex or AgentProvider.ClaudeCode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(provider), provider, "A token stop threshold applies only to Codex or Claude Code.");
+        }
+
+        if (threshold is { } value && (value < 1 || value > MaxTokenStopThreshold))
+        {
+            throw new ArgumentOutOfRangeException(nameof(threshold), threshold, "A token stop threshold must be between 1 and the supported maximum.");
+        }
+
+        if (provider == AgentProvider.Codex)
+        {
+            CodexTokenStopThreshold = threshold;
+        }
+        else
+        {
+            ClaudeTokenStopThreshold = threshold;
+        }
+    }
+
     private static bool IsValidRequestedAssignmentIdentifier(string? value) =>
         value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= MaxRequestedAssignmentIdentifierLength);
 

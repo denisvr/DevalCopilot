@@ -21,6 +21,7 @@ import {
   SetCodexAssignmentPreferenceEndpointClient,
   SetClaudeModelPreferenceEndpointClient,
   SetTokenWarningThresholdEndpointClient,
+  SetTokenStopThresholdEndpointClient,
   GetRunCockpitEndpointClient,
   GetCollaborationTimelineEndpointClient,
   GetCollaborationMessageEvidenceEndpointClient,
@@ -72,6 +73,7 @@ export const codexModelCatalogClient = () => new GetCodexModelCatalogEndpointCli
 export const setCodexAssignmentPreferenceClient = () => new SetCodexAssignmentPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setClaudeModelPreferenceClient = () => new SetClaudeModelPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setTokenWarningThresholdClient = () => new SetTokenWarningThresholdEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const setTokenStopThresholdClient = () => new SetTokenStopThresholdEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const processAttemptOutputClient = () => new GetProcessAttemptOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectWorkspaceClient = () => new GetProjectWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const prepareWorkspaceClient = () => new PrepareRepositoryWorkspaceEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -129,6 +131,8 @@ export type {
   SetClaudeModelPreferenceResponse,
   SetTokenWarningThresholdResponse,
   RunCockpitTokenWarningResponse,
+  SetTokenStopThresholdResponse,
+  RunCockpitTokenStopResponse,
   RecheckProjectPhysicalIdentityResponse,
   RegisterProjectResponse,
   RequestHostCapabilityRefreshResponse,

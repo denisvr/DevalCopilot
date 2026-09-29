@@ -46,7 +46,7 @@ internal sealed class RunCockpitTokenWarningAccumulator
             return;
         }
 
-        var count = Contribution(provider!.Value, usage);
+        var count = AgentTokenActivityFormula.Count(provider!.Value, usage);
         if (count is null)
         {
             bucket.Insufficient = checked(bucket.Insufficient + 1);
@@ -80,21 +80,5 @@ internal sealed class RunCockpitTokenWarningAccumulator
 
         return new RunCockpitTokenWarningEntry(
             provider, threshold, state, bucket.Known, bucket.Counted, bucket.Pending, bucket.Insufficient, _unattributed);
-    }
-
-    private static long? Contribution(AgentProvider provider, AgentTokenUsageEvidence? usage)
-    {
-        if (usage is null)
-        {
-            return null;
-        }
-
-        return provider switch
-        {
-            AgentProvider.Codex => (long)usage.InputTokens + usage.OutputTokens,
-            AgentProvider.ClaudeCode when usage.CacheCreationInputTokens is { } creation && usage.CacheReadInputTokens is { } read =>
-                (long)usage.InputTokens + creation + read + usage.OutputTokens,
-            _ => null,
-        };
     }
 }

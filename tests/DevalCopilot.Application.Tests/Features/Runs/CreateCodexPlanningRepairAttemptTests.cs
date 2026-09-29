@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
@@ -558,5 +559,117 @@ public sealed partial class CreateCodexPlanningAttemptCommandHandlerTests
         var deleted = firstStore.DeletedSealedFiles.Concat(secondStore.DeletedSealedFiles).ToArray();
         Assert.True(deleted.Length <= 1);
         Assert.DoesNotContain(deleted, entry => entry.AttemptId == winner.Value.AttemptId);
+    }
+
+    // ---- Run-scoped Codex token-activity stop on the planning claims -------------------------
+
+    private static Attempt InvalidPlannerWithUsage(
+        Run run, GitWorkspace workspace, GitCheckpoint checkpoint, int number, AgentTokenUsageEvidence usage)
+    {
+        var attempt = ClaimPlanner(run, workspace, checkpoint, number);
+        attempt.MarkAgentDispatched(Now);
+        attempt.CompleteAgent(
+            AgentOutcome.InvalidStructuredOutput, Fingerprint, Now,
+            AgentProcessExecutionEvidence.Create(ProcessOutcome.Exited, 0, TimeSpan.FromSeconds(1)), usage);
+        return attempt;
+    }
+
+    private async Task<(Guid RunId, Guid SourceId)> SeedUsageSourceAsync(int maximumAgentAttempts = 16)
+    {
+        await using var context = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(
+            context, claimRun: true, maximumAgentAttempts: maximumAgentAttempts);
+        var source = InvalidPlannerWithUsage(run, workspace, checkpoint, 1, TokenStopTestSupport.CodexUsage(1000, 200));
+        context.Attempts.Add(source);
+        await context.SaveChangesAsync(CancellationToken.None);
+        return (run.Id, source.Id);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_reached_codex_stop_refuses_ordinary_and_repair_planning_claims_before_any_external_work(bool repair)
+    {
+        var (runId, sourceId) = await SeedUsageSourceAsync();
+        await TokenStopTestSupport.SetStopAsync(_fixture, runId, AgentProvider.Codex, 1200);
+        var reader = new TokenStopTestSupport.CountingEvidenceReader(MatchingEvidence);
+        var artifactStore = new FakeArtifactStore();
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewHandler(context, artifactStore, reader)
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(runId, repair ? sourceId : null), CancellationToken.None);
+
+        Assert.Equal(AgentTokenStopGate.ReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, reader.Calls);
+        await AssertNothingClaimedAsync(runId, 1, artifactStore);
+    }
+
+    [Fact]
+    public async Task A_repair_claim_below_the_codex_stop_is_permitted_and_counts_toward_it_afterwards()
+    {
+        var (runId, sourceId) = await SeedUsageSourceAsync();
+        await TokenStopTestSupport.SetStopAsync(_fixture, runId, AgentProvider.Codex, 1201);
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewHandler(context, new FakeArtifactStore())
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(runId, sourceId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(sourceId, (await verify.Attempts.SingleAsync(a => a.Id == result.Value.AttemptId)).AgentRepairSourceAttemptId);
+    }
+
+    [Fact]
+    public async Task A_repair_claim_whose_source_has_no_recorded_usage_cannot_prove_the_codex_stop_and_is_refused()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (run, _, _, source) = await SeedWithInvalidSourceAsync(seedContext);
+        await TokenStopTestSupport.SetStopAsync(_fixture, run.Id, AgentProvider.Codex, 1_000_000);
+        var artifactStore = new FakeArtifactStore();
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewHandler(context, artifactStore)
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(run.Id, source.Id), CancellationToken.None);
+
+        Assert.Equal(AgentTokenStopGate.EvidenceIndeterminateCode, Assert.Single(result.Errors).Code);
+        await AssertNothingClaimedAsync(run.Id, 1, artifactStore);
+    }
+
+    [Fact]
+    public async Task A_stop_change_at_the_repair_claim_commit_creates_no_repair_and_leaves_the_source_eligible()
+    {
+        var (runId, sourceId) = await SeedUsageSourceAsync();
+        await TokenStopTestSupport.SetStopAsync(_fixture, runId, AgentProvider.Codex, 1201);
+        var artifactStore = new FakeArtifactStore();
+        var reader = new RaceInjectingEvidenceReader(
+            MatchingEvidence, _ => TokenStopTestSupport.SetStopAsync(_fixture, runId, AgentProvider.Codex, 1200));
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewHandler(context, artifactStore, reader)
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(runId, sourceId), CancellationToken.None);
+
+        Assert.Equal(CurrentTokenStopPolicy.PolicyChangedDuringClaimCode, Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(1, await verify.Attempts.CountAsync(a => a.RunId == runId));
+        Assert.Empty(verify.Artifacts.Where(a => a.RunId == runId && verify.Attempts.All(x => x.Id != a.AttemptId)));
+    }
+
+    [Fact]
+    public async Task A_created_run_is_claimed_under_a_configured_codex_stop_with_no_dispatched_history()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, _, _) = await SeedEligibleRunAsync(seedContext, claimRun: false);
+        await TokenStopTestSupport.SetStopAsync(_fixture, run.Id, AgentProvider.Codex, 1);
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewHandler(context, new FakeArtifactStore())
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(run.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verify = _fixture.CreateContext();
+        var claimedRun = await verify.Runs.AsNoTracking().SingleAsync(r => r.Id == run.Id);
+        Assert.Equal(RunLifecycle.Running, claimedRun.Lifecycle);
+        Assert.Equal(1, claimedRun.CodexTokenStopThreshold);
     }
 }

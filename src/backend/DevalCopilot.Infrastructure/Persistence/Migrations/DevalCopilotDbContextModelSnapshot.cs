@@ -1126,7 +1126,15 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<long?>("ClaudeTokenStopThreshold")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
                     b.Property<long?>("ClaudeTokenWarningThreshold")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("CodexTokenStopThreshold")
+                        .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
 
                     b.Property<long?>("CodexTokenWarningThreshold")

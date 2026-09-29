@@ -27,4 +27,5 @@ public sealed record GetRunCockpitResponse(
     string? RequestedCodexEffort,
     string? RequestedClaudeModel = null,
     string? RequestedClaudeEffort = null,
-    IReadOnlyList<RunCockpitTokenWarningResponse>? TokenWarnings = null);
+    IReadOnlyList<RunCockpitTokenWarningResponse>? TokenWarnings = null,
+    IReadOnlyList<RunCockpitTokenStopResponse>? TokenStops = null);

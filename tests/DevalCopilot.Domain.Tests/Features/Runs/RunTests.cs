@@ -449,4 +449,97 @@ public sealed class RunTests
         Assert.Throws<InvalidOperationException>(() => run.SetTokenWarningThreshold(AgentProvider.Codex, null));
         Assert.Equal(9, run.CodexTokenWarningThreshold);
     }
+
+    [Fact]
+    public void Token_stop_thresholds_default_to_null_for_a_new_run()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token stops", BaseTime);
+
+        Assert.Null(run.CodexTokenStopThreshold);
+        Assert.Null(run.ClaudeTokenStopThreshold);
+    }
+
+    [Fact]
+    public void SetTokenStopThreshold_sets_each_provider_independently_and_clears_one_without_the_other()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token stops", BaseTime);
+        run.Claim(BaseTime);
+
+        run.SetTokenStopThreshold(AgentProvider.Codex, 1_000);
+        run.SetTokenStopThreshold(AgentProvider.ClaudeCode, 50_000);
+        Assert.Equal(1_000, run.CodexTokenStopThreshold);
+        Assert.Equal(50_000, run.ClaudeTokenStopThreshold);
+
+        run.SetTokenStopThreshold(AgentProvider.Codex, null);
+        Assert.Null(run.CodexTokenStopThreshold);
+        Assert.Equal(50_000, run.ClaudeTokenStopThreshold);
+    }
+
+    [Fact]
+    public void SetTokenStopThreshold_is_independent_of_the_advisory_warning_thresholds()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token stops", BaseTime);
+
+        run.SetTokenStopThreshold(AgentProvider.Codex, 5);
+        run.SetTokenWarningThreshold(AgentProvider.ClaudeCode, 6);
+
+        Assert.Equal(5, run.CodexTokenStopThreshold);
+        Assert.Null(run.CodexTokenWarningThreshold);
+        Assert.Null(run.ClaudeTokenStopThreshold);
+        Assert.Equal(6, run.ClaudeTokenWarningThreshold);
+    }
+
+    [Fact]
+    public void The_stop_threshold_bound_is_the_same_positive_range_as_the_warning_threshold()
+    {
+        Assert.Equal(Run.MaxTokenWarningThreshold, Run.MaxTokenStopThreshold);
+        Assert.Equal(1_000_000_000_000L, Run.MaxTokenStopThreshold);
+    }
+
+    [Theory]
+    [InlineData(1L)]
+    [InlineData(Run.MaxTokenStopThreshold)]
+    public void SetTokenStopThreshold_accepts_the_inclusive_bounds(long threshold)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token stops", BaseTime);
+
+        run.SetTokenStopThreshold(AgentProvider.ClaudeCode, threshold);
+
+        Assert.Equal(threshold, run.ClaudeTokenStopThreshold);
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-1L)]
+    [InlineData(long.MinValue)]
+    [InlineData(Run.MaxTokenStopThreshold + 1)]
+    [InlineData(long.MaxValue)]
+    public void SetTokenStopThreshold_rejects_zero_negative_and_overflowing_values_keeping_the_prior_value(long threshold)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token stops", BaseTime);
+        run.SetTokenStopThreshold(AgentProvider.Codex, 7);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => run.SetTokenStopThreshold(AgentProvider.Codex, threshold));
+        Assert.Equal(7, run.CodexTokenStopThreshold);
+    }
+
+    [Fact]
+    public void SetTokenStopThreshold_rejects_an_undefined_provider()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token stops", BaseTime);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => run.SetTokenStopThreshold((AgentProvider)99, 5));
+    }
+
+    [Fact]
+    public void SetTokenStopThreshold_rejects_a_terminal_run_and_keeps_the_prior_value()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token stops", BaseTime);
+        run.Claim(BaseTime);
+        run.SetTokenStopThreshold(AgentProvider.Codex, 9);
+        run.Complete(BaseTime.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() => run.SetTokenStopThreshold(AgentProvider.Codex, null));
+        Assert.Equal(9, run.CodexTokenStopThreshold);
+    }
 }

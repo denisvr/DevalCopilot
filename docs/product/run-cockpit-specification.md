@@ -554,6 +554,39 @@ the backend's inclusive 1 to 1,000,000,000,000. See the
 ["Per-provider run token-activity warnings"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-warnings)
 section of the agent-collaboration-protocol for the exact counting and concurrency rules.
 
+### Per-provider token-activity stops
+
+A separate "Token-activity stops (enforced at claim)" panel, shown directly after the advisory warnings and
+never merged with them, gives Codex and Claude Code each their own optional stop threshold control (a positive
+whole number of tokens, Save and Clear; Clear only when one is set) and their own status. Unlike a warning, a
+configured stop refuses the next Agent attempt for that provider. The panel says plainly that it is checked only
+when an attempt is claimed, that it is not an account allowance, that it does not cap or cancel an attempt
+already claimed, and that it does not show that a provider is available; each provider's exact count formula is
+printed beside its control and the two counts are never combined. Non-numeric, zero, negative, fractional, or
+oversized input (including 10^12 + 1) is rejected locally with a generic message and no request; a save failure
+shows a safe generic message, keeps the prior state, and does not refresh.
+
+Each provider is in exactly one visibly distinct state, taken from the server's `tokenStops` projection and
+never inferred locally. **Neutral** when no stop is set ("a new attempt is not limited by a token stop"). A
+**blocking alert** (`role="alert"`) when the known count is at or above the stop, naming the count, the
+concluded attempts, the threshold, that new attempts for that provider are refused until the threshold is raised
+or cleared, that an already claimed attempt is unaffected, and, when other evidence is missing, that the count is
+a lower bound with each gap named. A second **blocking alert** when staying below the stop cannot be proved,
+naming every cause (attempts still running, attempts without usable usage evidence, for Claude Code all four
+counts being required, attempts not attributable to a provider, or a total that is not representable) and that
+new attempts are refused. A **permitting** state when the stop does not refuse a claim: either the run has no
+dispatched attempt yet (stated as not a measured zero) or the count is below the stop with complete evidence (a
+known zero is stated as such); both say the stop does not show that the provider is available, and the panel
+never says a provider is eligible or safe to call. Changing a stop re-evaluates already-recorded evidence
+immediately: after a successful save or clear the panel re-queries the authoritative cockpit (the change emits no
+run event) through the same generation-guarded refresh as the warnings, discards a response for a run that is no
+longer current, and if that refresh fails says so plainly ("Saved, but the cockpit could not be refreshed; the
+displayed stop state may be out of date."). A claim action that the server refuses because of a stop shows the
+server's fixed safe message, which carries no count or evidence. The local range check is the backend's
+inclusive 1 to 1,000,000,000,000. See the
+["Per-provider run token-activity stop at Agent claim"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim)
+section of the agent-collaboration-protocol for the exact counting, enforcement, and concurrency rules.
+
 ### One manual Codex plan format repair
 
 Beside the Codex planning action, a separate "Codex plan repair" panel appears only when the latest Planner

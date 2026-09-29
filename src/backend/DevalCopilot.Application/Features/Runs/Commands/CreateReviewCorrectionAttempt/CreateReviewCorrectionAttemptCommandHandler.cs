@@ -89,6 +89,16 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             }
         }
 
+        // The run-scoped, provider-separated token-activity stop (see AgentTokenStopGate), after
+        // the run-wide budgets above and, like them, before the review-correction budget,
+        // escalation, and authorization logic below, so a stopped run never consumes a human
+        // authorization or creates an escalation. Unconfigured, it reads nothing.
+        var tokenStopError = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.ClaudeCode, cancellationToken);
+        if (tokenStopError is not null)
+        {
+            return Failure(tokenStopError);
+        }
+
         var workspace = await dbContext.GitWorkspaces
             .Where(candidate => candidate.ProjectId == run.ProjectId)
             .OrderByDescending(candidate => candidate.WorkspaceNumber)
@@ -253,6 +263,10 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         // concurrency token, so this Attempt snapshots exactly the model and effort pair that is still current
         // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
         var requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
+
+        // The token stop's own commit-time guard: the claim's Run UPDATE also requires the exact stop
+        // policy this claim decided against (see CurrentTokenStopPolicy).
+        CurrentTokenStopPolicy.Guard(dbContext, run);
         var attempt = Attempt.ClaimAgentReviewCorrectionWithModelRequest(
             attemptId,
             run.Id,
@@ -324,7 +338,13 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
                 // The Run's lifecycle or Claude model request changed between this claim's late
                 // read and its commit (see CurrentClaudeModelPreference); the whole batch rolled
                 // back, so nothing persisted and a retry re-reads the current state.
-                return Failure(CurrentClaudeModelPreference.RunChangedDuringClaim());
+                // A token stop policy change is named as such; anything else keeps the generic
+                // run-changed conflict. The refused authorization stays unconsumed either way: the
+                // whole batch, including its Consume, rolled back.
+                return Failure(
+                    await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
+                        ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
+                        : CurrentClaudeModelPreference.RunChangedDuringClaim());
             }
 
             var competingRunningAttemptExists = await dbContext.Attempts
@@ -374,6 +394,14 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
                     {
                         return Failure(Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
                     }
+                }
+
+                // A concurrent claim that also concluded with recorded usage can carry this provider over
+                // its token stop even while count capacity remains; that is never a retryable slot conflict.
+                var tokenStopOnRace = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.ClaudeCode, cancellationToken);
+                if (tokenStopOnRace is not null)
+                {
+                    return Failure(tokenStopOnRace);
                 }
 
                 return Failure(Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));

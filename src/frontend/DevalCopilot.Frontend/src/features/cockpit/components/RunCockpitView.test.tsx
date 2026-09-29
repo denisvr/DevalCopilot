@@ -13,6 +13,7 @@ import {
   ParticipantIdentityResponse,
   ReviewCorrectionAttemptStatusResponse,
   RunCockpitAgentAttemptResponse,
+  RunCockpitTokenStopResponse,
   RunCockpitTokenWarningResponse,
   RunCockpitProviderTokenUsageEntryResponse,
   RunTokenUsageSummaryResponse,
@@ -1653,6 +1654,43 @@ describe('RunCockpitView token-activity warnings', () => {
     rerender(<RunCockpitView runId="run-2" />)
 
     expect(screen.queryByLabelText('Codex token-activity warning')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('RunCockpitView token-activity stops', () => {
+  it('renders each provider stop from the cockpit projection, separate from the advisory warning, and hides it for a newly selected run', () => {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({
+        ...runningCockpit,
+        tokenStops: [
+          new RunCockpitTokenStopResponse({
+            provider: 'Codex', state: 'ThresholdReached', claimBlocked: true, thresholdTokens: 1200, knownTokenCount: 1200,
+            countedAttempts: 1, pendingAttempts: 0, insufficientEvidenceAttempts: 0, unattributedAttempts: 0, countOverflowed: false,
+          }),
+          new RunCockpitTokenStopResponse({
+            provider: 'ClaudeCode', state: 'BelowThresholdComplete', claimBlocked: false, thresholdTokens: 900, knownTokenCount: 4,
+            countedAttempts: 1, pendingAttempts: 0, insufficientEvidenceAttempts: 0, unattributedAttempts: 0, countOverflowed: false,
+          }),
+        ],
+      }),
+      cards: [],
+      connection: 'live',
+      loading: true,
+      error: null,
+      syncError: null,
+      refresh: async () => true,
+    })
+
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Codex token stop reached')
+    expect(screen.getByLabelText('Claude Code token stop')).toHaveTextContent('does not show that the provider is available')
+    expect(screen.queryByLabelText('Codex token-activity warning')).toHaveTextContent('no token-activity warning threshold set')
+
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByLabelText('Codex token stop')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

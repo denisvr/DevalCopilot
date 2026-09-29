@@ -69,9 +69,13 @@
   durable records and evidence. Complete transcripts and unchanged repository
   content are not replayed by default.
 - Token usage is a visible, best-effort measurement at attempt and run level
-  when provider data is available. It is not an enforceable budget: no token
-  or account-usage threshold is enforced anywhere in the system today (see
-  the open risks in `docs/roadmap/current-work.md`).
+  when provider data is available. It is not an account or cost budget and no
+  account-usage threshold is enforced anywhere in the system. The one
+  enforced token control is an owner-configured, run-scoped, provider-separated
+  stop on locally recorded token activity that refuses the next Agent claim for
+  that provider once reached or unprovable; it is a retrospective local
+  guardrail, not an account allowance or a per-attempt cap, and the advisory
+  warning is separate (see the open risks in `docs/roadmap/current-work.md`).
 - Git, Codex, Claude Code, and GitHub integrations are replaceable
   Infrastructure adapters behind narrow Application ports.
 - The MVP uses existing local CLI authentication and never copies provider

@@ -22,6 +22,7 @@ import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionRe
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 import { CodexAssignmentPreferenceControl } from './CodexAssignmentPreferenceControl'
 import { ClaudeModelPreferenceControl } from './ClaudeModelPreferenceControl'
+import { TokenStopPanel } from './TokenStopPanel'
 import { TokenWarningPanel } from './TokenWarningPanel'
 import { AgentInvocationTimeBudgetBanner } from './AgentInvocationTimeBudgetBanner'
 import { AgentProcessDurationSummaryBanner } from './AgentProcessDurationSummaryBanner'
@@ -176,6 +177,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
         />
       )}
       {cockpit.runId === runId && <TokenWarningPanel key={runId} runId={runId} tokenWarnings={cockpit.tokenWarnings} onSaved={refresh} />}
+      {cockpit.runId === runId && <TokenStopPanel key={`token-stop:${runId}`} runId={runId} tokenStops={cockpit.tokenStops} onSaved={refresh} />}
       <LatestAgentAttemptEvidence attempt={cockpit.runId === runId ? cockpit.latestAgentAttempt : null} />
       <RunTokenUsageSummary summary={cockpit.runId === runId ? cockpit.tokenUsageSummary : null} />
       <ProviderTokenUsageSummaries entries={cockpit.runId === runId ? cockpit.providerTokenUsageSummaries : null} />

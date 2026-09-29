@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -1188,5 +1189,181 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         Assert.Empty(verifyContext.Attempts.Where(a => a.RunId == runId && a.AgentRole == AgentRole.CriticalReviewer));
 
         Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+    }
+
+    // ---- Run-scoped token-activity stop ------------------------------------------------
+
+    private async Task<(Guid RunId, Guid ProposalId, Guid WorkspaceId, Guid CheckpointId)> SeedStopScenarioAsync(
+        bool providerObserved = true, int maximumAgentAttempts = 16, TimeSpan? maximumAgentInvocationTime = null)
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(
+            seedContext, claimRun: true, claudeObserved: providerObserved,
+            maximumAgentAttempts: maximumAgentAttempts, maximumAgentInvocationTime: maximumAgentInvocationTime);
+        var (planningAttempt, proposalMessage) = SeedCompletedProposal(run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        seedContext.Attempts.Add(planningAttempt);
+        seedContext.CollaborationMessages.Add(proposalMessage);
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        return (run.Id, proposalMessage.Id, workspace.Id, checkpoint.Id);
+    }
+
+    private async Task<int> AttemptCountAsync(Guid runId)
+    {
+        await using var verify = _fixture.CreateContext();
+        return await verify.Attempts.CountAsync(a => a.RunId == runId);
+    }
+
+    private CreateClaudeCriticalReviewAttemptCommandHandler NewStopHandler(
+        DevalCopilotDbContext context, IGitWorkspaceEvidenceReader reader, FakeArtifactStore? store = null) =>
+        new(context, reader, store ?? new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+    private static TokenStopTestSupport.CountingEvidenceReader CountingReader() => new(
+        new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null));
+
+    private static RaceInjectingEvidenceReader RaceReader(Func<CancellationToken, Task> race) => new(
+        new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null), race);
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task HandleAsync_refuses_a_claim_at_a_reached_stop_before_any_external_work(bool providerObserved)
+    {
+        var scenario = await SeedStopScenarioAsync(providerObserved: providerObserved);
+        await TokenStopTestSupport.AddHistoryAsync(
+            _fixture, scenario.RunId, scenario.WorkspaceId, scenario.CheckpointId, AgentProvider.ClaudeCode, TokenStopTestSupport.ClaudeUsage(500, 50, 5, 60));
+        await TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.ClaudeCode, 615);
+        var attemptsBefore = await AttemptCountAsync(scenario.RunId);
+        var reader = CountingReader();
+        var artifactStore = new FakeArtifactStore();
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewStopHandler(context, reader, artifactStore)
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+
+        // Refused ahead of provider availability (also when the runtime is unobserved), Git work, and sealing.
+        Assert.Equal(AgentTokenStopGate.ReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, reader.Calls);
+        Assert.Empty(artifactStore.DeletedSealedFiles);
+        Assert.Equal(attemptsBefore, await AttemptCountAsync(scenario.RunId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_refuses_a_claim_whose_stop_evidence_is_indeterminate_before_any_external_work()
+    {
+        var scenario = await SeedStopScenarioAsync(providerObserved: false);
+        await TokenStopTestSupport.AddHistoryAsync(
+            _fixture, scenario.RunId, scenario.WorkspaceId, scenario.CheckpointId, AgentProvider.ClaudeCode, usage: null);
+        await TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.ClaudeCode, 1_000_000);
+        var reader = CountingReader();
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewStopHandler(context, reader)
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+
+        Assert.Equal(AgentTokenStopGate.EvidenceIndeterminateCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, reader.Calls);
+    }
+
+    [Fact]
+    public async Task HandleAsync_ignores_the_other_providers_stop_and_an_unconfigured_stop()
+    {
+        var scenario = await SeedStopScenarioAsync();
+        await TokenStopTestSupport.AddHistoryAsync(
+            _fixture, scenario.RunId, scenario.WorkspaceId, scenario.CheckpointId, AgentProvider.ClaudeCode, TokenStopTestSupport.ClaudeUsage(500, 50, 5, 60));
+        await TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.Codex, 1);
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewStopHandler(context, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint))
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_a_budget_before_the_stop_when_both_apply()
+    {
+        var scenario = await SeedStopScenarioAsync(maximumAgentAttempts: 1);
+        await TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.ClaudeCode, 1);
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewStopHandler(context, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint))
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+
+        Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_the_time_budget_before_the_stop_when_both_apply()
+    {
+        var scenario = await SeedStopScenarioAsync(maximumAgentInvocationTime: TimeSpan.FromMinutes(15));
+        await TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.ClaudeCode, 1);
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewStopHandler(context, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint))
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+
+        Assert.Equal("agent_attempts.time_budget_exceeded", Assert.Single(result.Errors).Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_refuses_to_commit_against_a_stop_policy_that_changed_after_it_decided_and_a_retry_re_decides()
+    {
+        var scenario = await SeedStopScenarioAsync();
+        await TokenStopTestSupport.AddHistoryAsync(
+            _fixture, scenario.RunId, scenario.WorkspaceId, scenario.CheckpointId, AgentProvider.ClaudeCode, TokenStopTestSupport.ClaudeUsage(500, 50, 5, 60));
+        var attemptsBefore = await AttemptCountAsync(scenario.RunId);
+        var artifactStore = new FakeArtifactStore();
+        var reader = RaceReader(_ => TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.ClaudeCode, 1));
+        await using var context = _fixture.CreateContext();
+
+        // Decided against "no stop"; the owner then sets one that the recorded usage already reaches.
+        var result = await NewStopHandler(context, reader, artifactStore)
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+
+        Assert.Equal(CurrentTokenStopPolicy.PolicyChangedDuringClaimCode, Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+        await using (var verify = _fixture.CreateContext())
+        {
+            Assert.Equal(attemptsBefore, await verify.Attempts.CountAsync(a => a.RunId == scenario.RunId));
+            Assert.Empty(verify.AttemptInputMessages.Where(m => verify.Attempts.All(a => a.Id != m.AttemptId)));
+            Assert.Empty(verify.Artifacts.Where(a => verify.Attempts.All(x => x.Id != a.AttemptId)));
+        }
+
+        await using var retryContext = _fixture.CreateContext();
+        var retry = await NewStopHandler(retryContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint))
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+        Assert.Equal(AgentTokenStopGate.ReachedCode, Assert.Single(retry.Errors).Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_treats_a_change_to_the_other_providers_stop_as_a_policy_change_too()
+    {
+        var scenario = await SeedStopScenarioAsync();
+        var reader = RaceReader(_ => TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.Codex, 5));
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewStopHandler(context, reader)
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+
+        Assert.Equal(CurrentTokenStopPolicy.PolicyChangedDuringClaimCode, Assert.Single(result.Errors).Code);
+    }
+
+    [Fact]
+    public async Task HandleAsync_a_stop_set_after_the_claim_commits_is_prospective_and_leaves_the_claimed_attempt()
+    {
+        var scenario = await SeedStopScenarioAsync();
+        await TokenStopTestSupport.AddHistoryAsync(
+            _fixture, scenario.RunId, scenario.WorkspaceId, scenario.CheckpointId, AgentProvider.ClaudeCode, TokenStopTestSupport.ClaudeUsage(500, 50, 5, 60));
+        await using var context = _fixture.CreateContext();
+
+        var result = await NewStopHandler(context, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint))
+            .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(scenario.RunId, scenario.ProposalId), CancellationToken.None);
+        Assert.True(result.IsSuccess);
+
+        await TokenStopTestSupport.SetStopAsync(_fixture, scenario.RunId, AgentProvider.ClaudeCode, 1);
+
+        await using var verify = _fixture.CreateContext();
+        var claimed = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == result.Value.AttemptId);
+        Assert.Equal(AttemptStatus.Running, claimed.Status);
     }
 }

@@ -60,6 +60,14 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         builder.Property(run => run.CodexTokenWarningThreshold);
         builder.Property(run => run.ClaudeTokenWarningThreshold);
 
+        // Token-activity stop thresholds: no default and no backfill (a historical run has none).
+        // Unlike the advisory warning thresholds these ARE concurrency tokens: a claim's Run
+        // UPDATE (Claude paths) or its stop-policy guard (Codex paths, see CurrentTokenStopPolicy)
+        // must fail when the policy changed after the claim decided against it, so an Attempt can
+        // never durably commit against a stale stop policy.
+        builder.Property(run => run.CodexTokenStopThreshold).IsConcurrencyToken();
+        builder.Property(run => run.ClaudeTokenStopThreshold).IsConcurrencyToken();
+
         builder.HasOne<Project>().WithMany().HasForeignKey(run => run.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(run => new { run.ProjectId, run.ExecutionNumber }).IsUnique();
     }

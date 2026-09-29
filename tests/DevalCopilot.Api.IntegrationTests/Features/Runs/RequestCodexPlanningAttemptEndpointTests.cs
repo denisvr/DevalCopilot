@@ -328,6 +328,59 @@ public sealed class RequestCodexPlanningAttemptEndpointTests : IDisposable
         Assert.Empty(dbContext.Attempts.Where(a => a.RunId == runId));
     }
 
+    private async Task ConfigureCodexStopAsync(Guid runId, Guid workspaceId, Guid checkpointId, long threshold, AgentTokenUsageEvidence? usage)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var history = Attempt.ClaimAgent(
+            Guid.NewGuid(), runId, 1, workspaceId, checkpointId, MatchingFingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, now, 1);
+        history.MarkAgentDispatched(now);
+        history.CompleteAgent(AgentOutcome.ProviderInvocationFailed, MatchingFingerprint, now, tokenUsage: usage);
+        dbContext.Attempts.Add(history);
+        var run = await dbContext.Runs.SingleAsync(item => item.Id == runId);
+        run.SetTokenStopThreshold(AgentProvider.Codex, threshold);
+        await dbContext.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Returns_conflict_when_the_codex_token_stop_is_reached_and_creates_no_attempt()
+    {
+        var (runId, workspaceId, checkpointId) = await SeedEligibleRunAsync(claimRun: true, codexObserved: true);
+        await ConfigureCodexStopAsync(
+            runId, workspaceId, checkpointId, 1200, AgentTokenUsageEvidence.Create(1000, 200, null, null, AgentTokenUsageEvidencePolicy.CodexCliSchemaVersion));
+        using var client = CreateAuthenticatedClient();
+
+        var response = await client.PostAsync($"/api/runs/{runId}/agent-attempts/codex-plan", content: null);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("agent_attempts.token_stop_reached", body, StringComparison.Ordinal);
+        AssertNoDisclosure(body);
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Single(verifyContext.Attempts.Where(a => a.RunId == runId));
+    }
+
+    [Fact]
+    public async Task Returns_a_safe_domain_failure_when_the_codex_token_stop_cannot_be_proved_and_creates_no_attempt()
+    {
+        var (runId, workspaceId, checkpointId) = await SeedEligibleRunAsync(claimRun: true, codexObserved: true);
+        await ConfigureCodexStopAsync(runId, workspaceId, checkpointId, 1_000_000, usage: null);
+        using var client = CreateAuthenticatedClient();
+
+        var response = await client.PostAsync($"/api/runs/{runId}/agent-attempts/codex-plan", content: null);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("agent_attempts.token_stop_evidence_indeterminate", body, StringComparison.Ordinal);
+        AssertNoDisclosure(body);
+        using var verifyScope = _factory.Services.CreateScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Single(verifyContext.Attempts.Where(a => a.RunId == runId));
+    }
+
     private static void AssertNoDisclosure(string body)
     {
         Assert.DoesNotContain("C:\\", body, StringComparison.OrdinalIgnoreCase);

@@ -8,6 +8,105 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Current delivery, based on verified parent `bc78068cf0f7d7cf2c6e3f5a931f0cd1ea7064c0`: **run-scoped, provider-separated
+  token-activity stop at Agent claim**. See [planner-handoff.md](planner-handoff.md) for the selection and the
+  ["Per-provider run token-activity stop at Agent claim"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim)
+  and
+  ["Per-provider token-activity stops"](../product/run-cockpit-specification.md#per-provider-token-activity-stops)
+  sections for the contract. No ADR is added or reversed; `engineering-context.md` now states that this one token
+  control is enforced while account-usage limits are not.
+  - Behavior: an owner sets or clears one nullable stop threshold per provider (`Run.CodexTokenStopThreshold`,
+    `Run.ClaudeTokenStopThreshold`; 1..10^12; `AddRunTokenStopThresholds` adds two nullable columns with no default and
+    no backfill) through the protected `POST /api/runs/{runId}/token-stop-threshold` (`SetTokenStopThresholdCommand`, one
+    `SaveChangesAsync` for the Run change and its `run.token_stop_threshold_changed` event; terminal run 422, concurrent
+    change 409). Both columns are EF concurrency tokens (the advisory warning columns still are not), so concurrent
+    writers never silently overwrite each other. Each of the six Agent claim paths calls `AgentTokenStopGate` for its
+    fixed provider after the run-wide count and reserved-time budgets (their precedence is unchanged) and before any
+    provider-availability check, Git capture, manifest sealing, or review-correction escalation and authorization
+    consumption. Unconfigured, the gate reads nothing and behavior is unchanged. The count is the advisory warning's
+    provider-specific formula through one shared rule (Codex input + output with cached input already inside input;
+    Claude input + cache creation + cache read + output, both cache counts required) over dispatched Agent attempts only;
+    a running attempt is pending, and missing, malformed, unsupported, or unattributed evidence, an untrusted persisted row, and a 64-bit overflow are
+    gaps, never zero. A known count at or above the threshold (including equality) refuses with
+    `agent_attempts.token_stop_reached` (409) even beside gaps; otherwise an unprovable state refuses with
+    `agent_attempts.token_stop_evidence_indeterminate` (422); no dispatched history permits the first claim. The advisory
+    warning's state is never read, and the providers are never combined. At the durable claim boundary the Claude paths
+    mark both stop columns modified so their single Run UPDATE requires the loaded policy, and the Codex paths run an
+    `ExecuteUpdate ... WHERE` compare beside the existing model-preference compare inside their explicit transaction;
+    either mismatch fails with `agent_attempts.token_stop_policy_changed` (409), rolls back the Attempt, inputs,
+    artifact, and any authorization consumption, deletes the sealed manifest, and a retry re-decides. A lost budget-slot
+    race re-evaluates the stop before reporting a slot conflict. A change after a claim commits is prospective. The
+    cockpit adds a separate `tokenStops` projection (threshold, state, `claimBlocked`, known count, and the counted,
+    pending, insufficient, and unattributed counts, from the same accumulator as the gate) and a separate "Token-activity
+    stops (enforced at claim)" panel with per-provider Save and Clear, local 1..10^12 validation, an authoritative
+    refresh after a successful save or clear, a safe synchronization message on refresh failure, distinct blocking and
+    permitting states, and no statement that a provider is available. The cockpit's warning panel and the `tokenWarnings`
+    projection are unchanged apart from sharing the count formula. No CLI argument, provider adapter, usage parser,
+    account-allowance, session, context, or cancellation change; no real provider is called.
+  - Correction round (review NO-GO on the persisted-evidence boundary): `Status`, `AgentProvider`, and `AgentRole` are
+    string-converted enums, so an unrecognized stored string made the gate and the cockpit throw during
+    materialization, an undefined number such as `99` was counted as a concluded attempt merely because it was not
+    `Running`, and a valid provider on a role/provider-incoherent row was trusted. First added SQLite-persisted
+    regression cases (unparseable `Status` and `AgentProvider`, `Status = '99'`, empty status, unrecognized role, and
+    incoherent role/provider pairs with otherwise plausible usage, each beside a healthy attempt) for the gate, the
+    cockpit, and the Claude implementation claim (zero Git, sealing, or attempt work, no stored string in the error);
+    they failed (16 of 27 with materialization exceptions, undefined status counted, and incoherent attribution
+    trusted). The fix classifies in the database through `PersistedAgentAttemptStopEvidence` (booleans compared against
+    the known names, never materializing the strings): an untrusted row is an unattributed gap for both providers,
+    sound rows keep provider separation and the known-count-at-threshold precedence, and the cockpit's other
+    accumulators receive an unrecognized status as pending and an unrecognized provider as unattributed. The
+    latest-attempt card, which loads a full entity, is omitted if that one row cannot be materialized. All 27 pass.
+    Applies only to a configured stop; an unconfigured claim still issues no query. No adapter, parser, or
+    allowance change. `mvp-delivery-plan.md` now describes the local stop in the present tense and keeps the provider
+    account-usage stop-threshold exit criterion and the remaining token and account-usage controls open. Remaining
+    limit: other older reads that materialize a corrupted attempt row elsewhere in the system (for example other
+    status queries) are unchanged and out of this correction.
+  - Checks run: `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false` 0 errors/0 warnings;
+    Domain 670/670 (was 657); Application 1438/1438 (was 1269); Infrastructure 591 passed, 2 skipped (the existing
+    host-capability skips); Api 459/459 (was 440); Architecture 9/9; frontend `vitest` 825/825 (was 795), `tsc -b` and
+    `npm run build` clean, and `oxlint` with no warning from a changed file (only the pre-existing hook warnings);
+    the regenerated `api-client.ts` is byte-identical across repeated Api builds (SHA-256 `b3e1c836…`, regenerated for
+    the new operation and `tokenStops`); `git diff --check` clean apart from the two known CRLF notices (the migration model snapshot and the generated client);
+    local links in the changed and handoff documents, now including the delivery plan (143), resolve, including the two new anchors. The
+    migration was generated with `dotnet ef` after a rebuild of the startup project (an earlier attempt from a stale
+    startup build produced an empty migration and its `migrations remove` deleted the previous migration; both were
+    reverted from Git and the tree contains exactly the one new migration and the snapshot change).
+  - New tests: Domain set, clear, independence from the warning, bounds, undefined provider, and terminal-run rules;
+    Application accumulator (both formulas, equality, no-history versus unknown, running, missing, malformed, cache
+    missing, unattributed, undefined provider, provider separation, overflow through an internal seam, error mapping),
+    persisted-row gate tests (corrupted usage columns, unsupported schema, unattributed, cache breakdown on Codex,
+    undispatched, unconfigured reads nothing), the policy guard in isolation, set/clear handler (validation, lifecycle
+    race, both concurrent-writer orders), cockpit projection (states, warning independence, re-derivation on change,
+    agreement with the gate); for each of the six claim paths a reached refusal and an indeterminate refusal before any
+    Git capture, sealing, or provider probe (also with the runtime unobserved), unconfigured and other-provider stop
+    unaffected, count and time budget precedence, a stop change during external work as a policy-changed refusal with
+    orphan cleanup, a retry that re-decides, the other provider's change also refusing, and a stop set after a claim
+    leaving the claimed attempt; review correction additionally proves no escalation is created and an available
+    authorization stays unconsumed, then is consumed once after the stop is cleared; planning repair, a Created run, and
+    a repair source without usage; migration (nullable, no default, no backfill, concurrency-token metadata); Api auth,
+    404, validation, terminal run, exact-equality projection, per-change event, and the 409 and 422 mappings on the
+    planning request endpoint; a hosted test where a claim committed before the stop still dispatches and finishes and a
+    hosted restart replay where a fresh container refuses the claim from persisted state with zero provider invocations;
+    frontend hook, panel (every state, formulas, local validation including 10^12 + 1, safe errors, unrepresentable
+    total, no eligibility wording), refresh (into and out of a block without any run event, sync failure, failed save
+    without refresh, run change), and cockpit wiring (a sibling-key collision that kept a stale panel was found and fixed).
+    Mutation checks (each failed the targeted tests, then restored): the Codex commit-time compare set to always-true
+    failed both Codex race tests; changing `>=` to `>` and removing the gate calls in the planning and review-correction
+    handlers failed 26 tests. Removing only the explicit Claude `Guard` call did not fail a claim test because the existing
+    model-preference guard already forces the same Run UPDATE whose WHERE carries every concurrency token; the guard is
+    therefore proven on its own by `CurrentTokenStopPolicyTests`. Tests use deterministic doubles.
+  - Remaining risks and limits: a local, retrospective guardrail on best-effort provider-reported usage, not an account
+    allowance, per-attempt cap, reservation, or guarantee about an invocation in progress; a provider or attempt that
+    recorded no usage leaves the provider unable to clear (indeterminate) until the owner raises or clears the stop, with
+    no override; a change to either provider's threshold makes an in-flight claim of either provider retry (the guard
+    is the pair), which is conservative; a review-correction request that would only create the human escalation is also
+    refused while the Claude stop blocks; the Codex commit-time atomicity relies on the existing explicit-transaction
+    write lock and the Claude atomicity on the Run UPDATE's concurrency tokens, both proven at a deterministic seam
+    rather than with a truly interleaved commit; overflow cannot be reached with real bounded inputs and is proven
+    through an internal seam; the UI shows a blocking state but does not disable claim actions (the server refuses with a
+    fixed safe message); Codex account-allowance observations are not read.
+  - Post-publication verification: after a GO and publication, rerun the focused stop Application, claim-path, Api
+    endpoint, hosted, migration, and frontend stop tests against the delivered commit.
 - Published delivery: `725476e54d9f7bcf437f3fc920bd375dae1fed67` (parent
   `2b12bae263e9d9eff0c18157e8dd0c5aaa37863a`) was committed with the reviewed 30-file bounded human-guidance slice
   (18 modified, 12 new), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main` and
@@ -1717,10 +1816,13 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Open risks
 
-- Provider account-usage and token thresholds remain unenforced. Per-attempt
-  token usage is not account allowance or cost. Provider-session resume,
-  runtime controls, and context-window/compaction work remain open under
-  [Increment 4](mvp-delivery-plan.md).
+- Provider account-usage limits remain unenforced. The only enforced token
+  control is the owner-configured, run-scoped token-activity stop at Agent
+  claim, a retrospective guardrail on locally recorded usage; it is not an
+  account allowance, a per-attempt cap, or a cost limit, and the advisory
+  warning remains separate. Per-attempt token usage is not account allowance
+  or cost. Provider-session resume, runtime controls, and context-window/
+  compaction work remain open under [Increment 4](mvp-delivery-plan.md).
 - [ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md)
   and [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
   bound claim count and reserved time, not actual wall time or provider usage;

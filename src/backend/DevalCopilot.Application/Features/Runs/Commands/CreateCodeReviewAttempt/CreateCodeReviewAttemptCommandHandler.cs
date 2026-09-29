@@ -106,6 +106,15 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
             }
         }
 
+        // The run-scoped, provider-separated token-activity stop (see AgentTokenStopGate), after
+        // the run-wide budgets above and before any provider-availability probe, Git work, or
+        // manifest sealing. Unconfigured, it reads nothing and changes nothing.
+        var tokenStopError = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.Codex, cancellationToken);
+        if (tokenStopError is not null)
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(tokenStopError);
+        }
+
         var workspace = await dbContext.GitWorkspaces
             .Where(candidate => candidate.ProjectId == run.ProjectId)
             .OrderByDescending(candidate => candidate.WorkspaceNumber)
@@ -336,12 +345,17 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
         await using (claimTransaction)
         {
             bool preferenceStillCurrent;
+            bool stopPolicyStillCurrent;
             try
             {
                 // One atomic UPDATE ... WHERE statement requiring the Run's requested model/effort
                 // to still exactly match what was just read above.
                 preferenceStillCurrent = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
                     dbContext, run.Id, requestedModel, requestedEffort, cancellationToken);
+
+                // The token stop policy the claim decided against must be unchanged too: one more
+                // atomic UPDATE ... WHERE compare inside this same transaction (see CurrentTokenStopPolicy).
+                stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -374,6 +388,16 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(Error.Conflict(
                     "agent_attempts.assignment_preference_changed",
                     "The run's requested Codex model or effort changed while this claim was being prepared; retry the request."));
+            }
+
+            if (!stopPolicyStillCurrent)
+            {
+                // A concurrent stop-threshold change committed after this claim decided against
+                // the old policy. The transaction is rolled back before any insert, the sealed
+                // manifest is removed, and nothing was consumed; a retry re-decides.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodeReviewAttemptCommandResult>.Failure(CurrentTokenStopPolicy.PolicyChangedDuringClaim());
             }
 
             dbContext.Attempts.Add(attempt);
@@ -499,6 +523,14 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                             return Result<CreateCodeReviewAttemptCommandResult>.Failure(
                                 Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
                         }
+                    }
+
+                    // A concurrent claim that also concluded with recorded usage can carry this provider over
+                    // its token stop even while count capacity remains; that is never a retryable slot conflict.
+                    var tokenStopOnRace = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.Codex, cancellationToken);
+                    if (tokenStopOnRace is not null)
+                    {
+                        return Result<CreateCodeReviewAttemptCommandResult>.Failure(tokenStopOnRace);
                     }
 
                     return Result<CreateCodeReviewAttemptCommandResult>.Failure(

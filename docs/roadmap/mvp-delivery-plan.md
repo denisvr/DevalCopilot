@@ -206,10 +206,20 @@ no time-budget policy at all (truthfully `NULL`), never a fabricated ceiling.
 See
 [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md).
 This is a reservation ceiling only — it does not measure actual wall-clock
-process duration, enforce token or provider account-usage limits, or
-independently guarantee a provider invocation cannot outlive its own
-configured timeout. The remaining Increment 4 loop, token, and account-usage
-budgets remain deferred.
+process duration, enforce provider account-usage limits, or independently
+guarantee a provider invocation cannot outlive its own configured timeout.
+
+A separate, owner-configured, run-scoped token-activity stop is also
+implemented for each of Codex and Claude Code: once that provider's locally
+recorded, provider-reported usage has reached the configured threshold, or
+staying below it cannot be proved from the persisted evidence, the next Agent
+claim for that provider is refused before any external work; an already
+claimed attempt is unaffected. It is a retrospective local guardrail, not a
+provider account allowance, a per-attempt cap, or a token reservation, and it
+is distinct from the advisory token-activity warning. See the
+[architecture description](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim).
+The provider account-usage stop-threshold exit criterion above, and the
+remaining Increment 4 loop, token, and account-usage controls, remain open.
 
 ## Increment 5: Local supervised delivery loop
 
