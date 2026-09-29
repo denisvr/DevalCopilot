@@ -8,6 +8,20 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `38df8aba5837bb168d43c2f4db0f3474134210f1` (parent
+  `f22325000682caf1d3bd8c6b6384807e03199e79`) was committed with the reviewed second-planning-challenge-round slice
+  (20 modified, 13 new files, including this file and `planner-handoff.md`), pushed as a normal fast-forward to
+  `origin/main`, and verified with `git fetch origin main` and `git ls-remote`: local `HEAD`, local `origin/main`,
+  and the live remote all matched that SHA with a clean tree. Before staging, only the wording that described the
+  unreadable-row guard was made precise (it catches `InvalidOperationException`, which cannot prove an
+  enum-conversion cause and could have another origin; `DbException` and cancellation exceptions are not caught by
+  it); no behavior, test, wire contract, or migration changed. Staged `git diff --check` and the local documentation
+  links (136) were clean. Post-publication checks against that commit: solution build 0 errors/0 warnings; focused
+  Application lineage, persisted-identity integrity, review/resolution/implementation claim, result and escalation
+  tests 233/233; hosted-supervisor tests (second round, challenge resolution, critical review) 26/26; frontend
+  lineage, summary, cockpit, review-action, and selector tests 114/114. The full suites recorded below were run
+  before publication. This closure records the SHA and those checks only; no code or product contract changed
+  after publication.
 - Published delivery: `f22325000682caf1d3bd8c6b6384807e03199e79` (parent
   `210f4e8699dad670aadf0816ea99f9b85ff8627f`) is the factual closure of the token-activity stop slice (its delivered
   SHA and checks; no code or product contract change). At the start of the next slice, `main`, local `origin/main`,
