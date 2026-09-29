@@ -8,6 +8,19 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `6367e359674799fb1f41d8a919c61ed56f15b4cd` (parent `87e42a06f2f82f5cfde05939d8e923730bcbe8a1`) was
+  committed with the reviewed bounded untracked-file context slice (23 modified, 9 new files, including this file and
+  `planner-handoff.md`), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main` and
+  `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched that SHA with a clean tree. Before
+  staging, only this file's counts were corrected (Infrastructure 625 passed, 3 skipped; 35 new Infrastructure tests,
+  34 ran) and the case-distinct-sibling regression was named in its test description; no code, test, wire, schema, or
+  product contract changed, and the routed EngineeringStandards documents were read in full without a required change.
+  Staged `git diff --cached --check` was clean and local documentation links (112) resolved. Post-publication checks
+  against that commit: solution build 0 errors/0 warnings; Infrastructure untracked-preview reader, real-Git preview,
+  and evidence-reader tests 35 passed, 1 skipped (the file-symbolic-link case, which this host cannot create without
+  elevation); Application manifest and the five handler test classes 295/295; hosted critical-review supervisor tests,
+  including the real-store sealed-manifest replay, 16/16. This closure records the delivered SHA and those checks only;
+  no code or product contract changed after publication.
 - Published delivery: `87e42a06f2f82f5cfde05939d8e923730bcbe8a1` (parent `38df8aba5837bb168d43c2f4db0f3474134210f1`) is
   the factual closure of the second-planning-challenge-round slice (its delivered SHA and checks; no code or product
   contract change). At the start of the next slice, `main`, local `origin/main`, and the live remote matched it,
