@@ -56,4 +56,36 @@ describe('useSetClaudeModelPreference', () => {
     expect(result.current.error).not.toContain('sensitive detail')
     expect(result.current.saving).toBe(false)
   })
+
+  it('sends the model and effort together as one request', async () => {
+    const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: 'opus' }))
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+
+    const { result } = renderHook(() => useSetClaudeModelPreference())
+
+    await act(async () => {
+      await result.current.save('run-1', 'opus', 'high')
+    })
+
+    expect(setClaudeModelPreference).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ requestedModel: 'opus', requestedEffort: 'high' }),
+    )
+  })
+
+  it('sends no effort when none is supplied', async () => {
+    const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: 'haiku' }))
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+
+    const { result } = renderHook(() => useSetClaudeModelPreference())
+
+    await act(async () => {
+      await result.current.save('run-1', 'haiku')
+    })
+
+    expect(setClaudeModelPreference).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ requestedModel: 'haiku', requestedEffort: undefined }),
+    )
+  })
 })

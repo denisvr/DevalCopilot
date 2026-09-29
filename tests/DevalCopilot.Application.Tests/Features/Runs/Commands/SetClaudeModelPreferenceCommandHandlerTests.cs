@@ -30,7 +30,7 @@ public sealed class SetClaudeModelPreferenceCommandHandlerTests : IAsyncLifetime
 
         if (alias is not null)
         {
-            run.SetRequestedClaudeModel(alias);
+            run.SetRequestedClaudeModelRequest(alias, null);
         }
 
         context.Runs.Add(run);
@@ -76,7 +76,7 @@ public sealed class SetClaudeModelPreferenceCommandHandlerTests : IAsyncLifetime
         Assert.Equal(alias, result.Value.RequestedModel);
         var (model, events) = await ReadStateAsync(runId);
         Assert.Equal(alias, model);
-        Assert.Equal("{\"requestedModel\":\"" + alias + "\"}", Assert.Single(events));
+        Assert.Equal("{\"requestedModel\":\"" + alias + "\",\"requestedEffort\":null}", Assert.Single(events));
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class SetClaudeModelPreferenceCommandHandlerTests : IAsyncLifetime
         Assert.Null(result.Value.RequestedModel);
         var (model, events) = await ReadStateAsync(runId);
         Assert.Null(model);
-        Assert.Equal("{\"requestedModel\":null}", Assert.Single(events));
+        Assert.Equal("{\"requestedModel\":null,\"requestedEffort\":null}", Assert.Single(events));
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class SetClaudeModelPreferenceCommandHandlerTests : IAsyncLifetime
         var runId = await SeedRunAsync(alias: "sonnet");
         await using var context = _fixture.CreateContext();
         var run = await context.Runs.SingleAsync(candidate => candidate.Id == runId);
-        Assert.Throws<ArgumentException>(() => run.SetRequestedClaudeModel(alias));
+        Assert.Throws<ArgumentException>(() => run.SetRequestedClaudeModelRequest(alias, null));
         Assert.Equal("sonnet", run.RequestedClaudeModel);
     }
 
@@ -185,5 +185,112 @@ public sealed class SetClaudeModelPreferenceCommandHandlerTests : IAsyncLifetime
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private async Task<(string? Model, string? Effort)> ReadPairAsync(Guid runId)
+    {
+        await using var context = _fixture.CreateContext();
+        var run = await context.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == runId);
+        return (run.RequestedClaudeModel, run.RequestedClaudeEffort);
+    }
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("sonnet", "medium")]
+    [InlineData("opus", "high")]
+    public async Task HandleAsync_persists_the_pair_and_records_one_event_carrying_both_values(string model, string effort)
+    {
+        var runId = await SeedRunAsync(claim: true);
+        await using var context = _fixture.CreateContext();
+
+        var result = await Handler(context).HandleAsync(
+            new SetClaudeModelPreferenceCommand(runId, model, effort), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(model, result.Value.RequestedModel);
+        Assert.Equal(effort, result.Value.RequestedEffort);
+        Assert.Equal((model, effort), await ReadPairAsync(runId));
+        var (_, events) = await ReadStateAsync(runId);
+        Assert.Equal("{\"requestedModel\":\"" + model + "\",\"requestedEffort\":\"" + effort + "\"}", Assert.Single(events));
+    }
+
+    [Fact]
+    public async Task HandleAsync_clearing_removes_the_effort_with_the_model_in_one_event()
+    {
+        var runId = await SeedRunAsync(claim: true);
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus", "high");
+        await using var context = _fixture.CreateContext();
+
+        var result = await Handler(context).HandleAsync(new SetClaudeModelPreferenceCommand(runId, null, null), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal((null, null), await ReadPairAsync(runId));
+        var (_, events) = await ReadStateAsync(runId);
+        Assert.Equal("{\"requestedModel\":null,\"requestedEffort\":null}", Assert.Single(events));
+    }
+
+    [Theory]
+    [InlineData(null, "low")]
+    [InlineData("haiku", "low")]
+    [InlineData("sonnet", "Low")]
+    [InlineData("sonnet", "HIGH")]
+    [InlineData("sonnet", " high")]
+    [InlineData("opus", "")]
+    [InlineData("opus", "max")]
+    [InlineData("opus", "xhigh")]
+    public void Validator_rejects_an_invalid_pair(string? model, string? effort)
+    {
+        var validation = new SetClaudeModelPreferenceCommandValidator()
+            .Validate(new SetClaudeModelPreferenceCommand(Guid.NewGuid(), model, effort));
+
+        Assert.False(validation.IsValid);
+        Assert.All(validation.Errors, error => Assert.Equal("validation.invalid", error.ErrorCode));
+    }
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("opus", "high")]
+    [InlineData("opus", null)]
+    [InlineData("haiku", null)]
+    [InlineData(null, null)]
+    public void Validator_accepts_each_valid_pair(string? model, string? effort)
+    {
+        var validation = new SetClaudeModelPreferenceCommandValidator()
+            .Validate(new SetClaudeModelPreferenceCommand(Guid.NewGuid(), model, effort));
+
+        Assert.True(validation.IsValid);
+    }
+
+    [Fact]
+    public async Task HandleAsync_rejects_a_terminal_run_for_a_pair_without_any_partial_write()
+    {
+        var runId = await SeedRunAsync(claim: true);
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "sonnet", "low");
+        await CompleteRunAsync(runId);
+
+        await using var context = _fixture.CreateContext();
+        var result = await Handler(context).HandleAsync(new SetClaudeModelPreferenceCommand(runId, "opus", "high"), CancellationToken.None);
+
+        Assert.Equal(ClaudeModelPreferenceErrors.RunNotEditableCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(("sonnet", "low"), await ReadPairAsync(runId));
+        Assert.Empty((await ReadStateAsync(runId)).Events);
+    }
+
+    [Fact]
+    public async Task HandleAsync_reports_a_competing_effort_only_change_as_a_conflict_with_no_partial_write()
+    {
+        var runId = await SeedRunAsync(claim: true);
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus", "low");
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus", "high")));
+
+        // The handler read ("opus", "low") and asks for ("opus", "medium"). The competitor changes only
+        // the effort (same model), so only the effort concurrency token can detect it.
+        var result = await Handler(handlerContext).HandleAsync(
+            new SetClaudeModelPreferenceCommand(runId, "opus", "medium"), CancellationToken.None);
+
+        Assert.Equal(ClaudeModelPreferenceErrors.ConcurrentChangeCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(("opus", "high"), await ReadPairAsync(runId));
+        Assert.Empty((await ReadStateAsync(runId)).Events);
     }
 }

@@ -337,14 +337,14 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));
         var adapter = new FakeCriticalReviewAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson };
         await using var provider = BuildServiceProvider(evidenceReader, adapter);
-        var (runId, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader, "sonnet");
+        var (runId, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(provider, evidenceReader, "sonnet", "low");
 
         // The owner changes the run preference after the claim and before dispatch.
         await using (var scope = provider.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
-            run.SetRequestedClaudeModel("opus");
+            run.SetRequestedClaudeModelRequest("opus", "high");
             await dbContext.SaveChangesAsync();
         }
 
@@ -362,6 +362,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
 
         Assert.Equal(1, adapter.InvocationCount);
         Assert.Equal("sonnet", adapter.LastRequest!.RequestedClaudeModel);
+        Assert.Equal("low", adapter.LastRequest!.RequestedClaudeEffort);
     }
 
     [Fact]
@@ -385,6 +386,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         }
 
         Assert.Null(adapter.LastRequest!.RequestedClaudeModel);
+        Assert.Null(adapter.LastRequest!.RequestedClaudeEffort);
     }
 
     [Fact]
@@ -783,7 +785,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
     /// </summary>
     private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid LeaseId, Guid ProposalMessageId)>
         SeedEligibleClaudeCriticalReviewAttemptAsync(
-            ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null)
+            ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null, string? requestedClaudeEffort = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -815,7 +817,7 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         if (requestedClaudeModel is not null)
         {
             var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
-            run.SetRequestedClaudeModel(requestedClaudeModel);
+            run.SetRequestedClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
             await dbContext.SaveChangesAsync(CancellationToken.None);
         }
 

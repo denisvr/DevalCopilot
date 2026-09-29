@@ -186,8 +186,10 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                         latestAgentAttempt.GetAgentProcessExecutionEvidence(),
                         latestAgentAttempt.AgentTimeout,
                         latestAgentAttempt.GetAgentTokenUsageEvidence(),
-                        latestAgentAttempt.AgentRequestedModel),
+                        latestAgentAttempt.AgentRequestedModel,
+                        latestAgentAttempt.AgentRequestedEffort),
                 run.RequestedClaudeModel,
+                run.RequestedClaudeEffort,
                 tokenWarningAccumulator.ToEntries(run.CodexTokenWarningThreshold, run.ClaudeTokenWarningThreshold)));
     }
 }

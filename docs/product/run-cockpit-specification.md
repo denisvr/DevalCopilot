@@ -496,6 +496,39 @@ from a null. No observed-model value is shown. See the
 section of the agent-collaboration-protocol for the durable request, claim-snapshot,
 and invocation-argument semantics.
 
+### Explicit Claude effort requests
+
+The Claude request control also carries an optional **effort** request (`low`,
+`medium`, or `high`) that is offered only together with an explicitly chosen
+`sonnet` or `opus` alias. The effort select starts on "No effort request", is
+disabled for "No preference" and `haiku`, and is cleared automatically when the
+model changes to one that cannot carry it, so the UI never submits an invalid pair
+(the server validates again). Save and Clear submit the model and effort as one
+pair; Clear removes both. The control states that the value is a **request only**:
+the effort actually applied is not observed, and the provider may reject or adjust
+it (organization or model limits can change the applied level, including silently),
+so this slice derives no observed or effective effort from the request, and its new fields
+and lines display requests only. (Provider-reported observed facts already shown elsewhere,
+such as the implementation status view's "Effort observed", are separate and unchanged.)
+
+After a successful Save or Clear the cockpit explicitly re-queries the
+authoritative projection, because this operation emits no run notification. That
+refresh is generation-safe: a response for a run that is no longer selected is
+discarded, and a failed or stale refresh shows the fixed message "Saved, but the
+cockpit could not be refreshed; the displayed request may be out of date." rather
+than a raw error. A failed save shows its fixed safe message and triggers no
+refresh.
+
+The run's current request and the latest Claude attempt's own claim-time request
+are separate lines: "Requested Claude effort for future attempts: <level>" (or
+"No Claude effort requested"), and on the latest attempt "Effort requested at
+claim: <level>" or "No effort request recorded for this attempt". A null covers
+both an attempt claimed without an effort and one that predates this feature; the
+cockpit does not distinguish them or infer a default. A non-Claude attempt shows no
+effort line even though its stored Codex effort may be present. See
+["Explicit Claude effort requests"](../architecture/agent-collaboration-protocol.md#explicit-claude-effort-requests)
+for the durable request, claim-snapshot, and argument semantics.
+
 ### Per-provider token-activity warnings
 
 A "Token-activity warnings (advisory)" panel gives Codex and Claude Code each their own optional threshold

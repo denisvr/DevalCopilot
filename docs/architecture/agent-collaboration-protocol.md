@@ -1524,7 +1524,7 @@ inferred to be an observed or effective model. `null` means no override.
   (its one `SaveChangesAsync` owns the implicit transaction that commits the Run
   change and its `run.claude_model_preference_changed` event together; under the
   mediator's ambient transaction a failed concurrency-checked UPDATE could leave
-  the event INSERT behind). The validator and `Run.SetRequestedClaudeModel` both
+  the event INSERT behind). The validator and `Run.SetRequestedClaudeModelRequest` both
   reject anything outside the closed set before any write (HTTP 400), and a
   terminal Run is rejected (HTTP 422, `claude_model.run_not_editable`). The
   handler forces the Run UPDATE even when the alias is unchanged, so the
@@ -1550,7 +1550,7 @@ inferred to be an observed or effective model. `null` means no override.
   batch back; the handler removes the sealed manifest it wrote and returns
   `agent_attempts.run_changed_during_claim` (HTTP 409, retry re-reads). A change
   committed during external work is simply reflected in the snapshot. Requested
-  effort is always `null` for Claude attempts. The claim paths' assignment
+  effort is `null` unless the later effort extension below applies. The claim paths' assignment
   validation, permission profiles, budgets, one-running-attempt rule, Git/workspace
   checks, and authorization rules are unchanged.
 - **Dispatch.** The eligible-attempt queries project the Attempt's own
@@ -1564,8 +1564,8 @@ inferred to be an observed or effective model. `null` means no override.
   argument list byte-for-byte unchanged (proven by the existing exact-argument-list
   tests); a member of the closed set appends exactly `--model <alias>` as two
   discrete arguments after the fixed list; anything else fails the invocation closed
-  before any process starts. Each role passes exactly its own snapshot. No
-  `--effort`, permission, tool, session, settings, or schema argument changes.
+  before any process starts. Each role passes exactly its own snapshot. The effort argument added by [the later slice](#explicit-claude-effort-requests) is the only extension; no
+  permission, tool, session, settings, or schema argument changes.
 - **Provider rejection.** If the provider rejects the alias, the invocation ends as
   the ordinary recorded failure (`ProviderInvocationFailed`); there is no retry,
   fallback model, or automatic clear. Attempt-level `AgentObservedModel` stays
@@ -1574,6 +1574,81 @@ inferred to be an observed or effective model. `null` means no override.
   current request for future attempts) and `latestAgentAttempt.requestedModel` (that
   attempt's own immutable snapshot). Both are requests; no observed or effective
   model is exposed.
+
+### Explicit Claude effort requests
+
+The model-alias request above is extended by one optional **requested effort**
+(`Run.RequestedClaudeEffort`) for the same three Claude roles. The closed,
+case-sensitive levels are `low`, `medium`, and `high` (`ClaudeEffortLevel`), and
+`ClaudeModelRequest.IsValid` is the single pair rule shared by the Run, the
+Attempt claim factories, the validator, and the adapter argument boundary: an
+effort is accepted **only** with an explicitly requested `sonnet` or `opus`
+alias; `haiku` or no model is valid only with a `null` effort. The
+[Claude CLI reference](https://code.claude.com/docs/en/cli-reference) documents
+`--effort`, and the [model configuration](https://code.claude.com/docs/en/model-config)
+page documents model-dependent support and that organization or model limits can
+alter the level applied, including silently in JSON output mode. The installed `claude`
+2.1.276 `--help` independently lists `--effort <level>` (it also names `xhigh` and `max`,
+which this slice deliberately does not expose). The pair rule
+is therefore request syntax under the currently documented support, not
+capability discovery: no catalog is read, no CLI default is inferred, and neither
+account eligibility nor any *effective* or *observed* effort is claimed. This slice does
+not derive an observed or effective effort from the `--effort` request and adds no
+observed-effort field; it neither records nor displays one. (Provider-reported
+observed assignment facts that other paths already record, such as
+`ImplementationAttemptStatusResponse.ObservedEffort`, are separate and unchanged.)
+The provider may reject or adjust a request; a rejection is the
+ordinary recorded failed invocation with no retry or fallback, and a silent
+adjustment is a documented limitation that this design cannot observe.
+
+- **Persistence.** The additive `AddClaudeEffortPreference` migration adds one
+  nullable `runs.RequestedClaudeEffort` column with no default and no backfill; a
+  historical Run keeps `NULL` and its stored model request unchanged. Attempts
+  reuse the existing immutable `AgentRequestedEffort` column (no new Attempt
+  column); it stays `NULL` for every earlier Claude attempt.
+- **Set/clear.** The existing `POST /api/runs/{runId}/claude-model-preference`
+  operation accepts `requestedModel` and `requestedEffort` as one pair
+  (`SetClaudeModelPreferenceCommand`). The validator rejects an unknown level, and
+  an effort without `sonnet` or `opus` (HTTP 400), before any write; a terminal
+  Run is still HTTP 422. The pair and one `run.claude_model_preference_changed`
+  event (payload `{requestedModel, requestedEffort}`) commit in the handler's
+  single `SaveChangesAsync`. Clearing removes both values in that one event.
+- **Concurrency.** `RequestedClaudeEffort` is an EF concurrency token alongside
+  `Lifecycle` and `RequestedClaudeModel`, and the handler forces both preference
+  properties into its UPDATE, so a competing change to *either* value (including an
+  effort-only change) or a lifecycle transition makes the save match zero rows and
+  roll back the Run change and its event together (retryable HTTP 409, or 422 for a
+  now-terminal run). A token-warning threshold save shares the Run row and can
+  therefore also return a retryable 409 during a concurrent preference change.
+- **Claim-time snapshot.** `CurrentClaudeModelPreference.ReadAndGuardAsync` now reads
+  both columns in one untracked query as late as possible in each of the three claim
+  paths (after external Git and manifest work, before the single claim commit),
+  returns the immutable pair, and resets both tracked Run properties' original values
+  to it. The claim's `UPDATE runs ... WHERE Id, Lifecycle, RequestedClaudeModel,
+  RequestedClaudeEffort` therefore requires the exact pair the Attempt snapshotted; a
+  change of either value after the read rolls the whole batch back, the handler
+  deletes the sealed manifest it wrote, and `agent_attempts.run_changed_during_claim`
+  (HTTP 409) is returned. `ClaimAgentCriticalReviewWithModelRequest`,
+  `ClaimAgentReviewCorrectionWithModelRequest`, and
+  `ClaimAgentImplementationWithAssignment` validate the pair and store it in
+  `AgentRequestedModel`/`AgentRequestedEffort`. Budgets, eligibility, permission
+  profiles, and authorization are unchanged.
+- **Dispatch.** The eligible-attempt queries project the Attempt's own
+  `AgentRequestedEffort` into the three invocation requests
+  (`RequestedClaudeEffort`), which the supervisors pass unchanged; the mutable Run is
+  never read at dispatch or restart replay.
+- **Adapters.** `ClaudeModelRequestArguments.TryAppend` validates the pair with
+  `ClaudeModelRequest.IsValid` and appends, as discrete arguments after the
+  existing list, `--model <alias>` and then `--effort <level>` only for a valid
+  non-null value. A `null` request and a model-only request keep exactly their
+  previous argument lists; a malformed persisted pair (bad level, effort without
+  `sonnet`/`opus`, effort without a model) fails the invocation closed before any
+  process starts. No permission, tool, schema, session, or settings argument changes,
+  and the Codex paths are untouched.
+- **Read model.** The cockpit adds `requestedClaudeEffort` (the Run's current request
+  for future attempts) and `latestAgentAttempt.requestedEffort` (that attempt's own
+  claim-time snapshot). Both are requests; these new fields never carry an observed or
+  effective effort. The frontend shows the attempt's effort line only for a Claude attempt.
 
 ### Per-provider run token-activity warnings
 

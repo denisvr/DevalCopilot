@@ -309,7 +309,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         Assert.Single(dbContext.Attempts.Where(a => a.RunId == run.Id));
     }
 
-    private async Task<(Guid RunId, Guid ProposalMessageId)> SeedClaudeModelScenarioAsync(string? initialAlias)
+    private async Task<(Guid RunId, Guid ProposalMessageId)> SeedClaudeModelScenarioAsync(string? initialAlias, string? initialEffort = null)
     {
         await using var seedContext = _fixture.CreateContext();
         var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext, claimRun: true);
@@ -318,7 +318,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         seedContext.CollaborationMessages.Add(proposalMessage);
         if (initialAlias is not null)
         {
-            run.SetRequestedClaudeModel(initialAlias);
+            run.SetRequestedClaudeModelRequest(initialAlias, initialEffort);
         }
 
         await seedContext.SaveChangesAsync(CancellationToken.None);
@@ -365,6 +365,66 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
 
         Assert.True(result.IsSuccess);
         Assert.Equal("haiku", await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, result.Value.AttemptId));
+    }
+
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("opus", "medium")]
+    [InlineData("opus", "high")]
+    public async Task HandleAsync_snapshots_the_model_effort_pair_immutably_into_the_attempt(string model, string effort)
+    {
+        var (runId, proposalMessageId) = await SeedClaudeModelScenarioAsync(model, effort);
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(model, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, result.Value.AttemptId));
+        Assert.Equal(effort, await ClaudeModelPreferenceTestSupport.ReadAttemptEffortAsync(_fixture, result.Value.AttemptId));
+
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, null, null);
+        Assert.Equal(model, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, result.Value.AttemptId));
+        Assert.Equal(effort, await ClaudeModelPreferenceTestSupport.ReadAttemptEffortAsync(_fixture, result.Value.AttemptId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_snapshots_an_effort_committed_during_external_evidence_capture()
+    {
+        var (runId, proposalMessageId) = await SeedClaudeModelScenarioAsync(initialAlias: "opus", initialEffort: "low");
+        await using var handlerContext = _fixture.CreateContext();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            _ => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus", "high"));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("high", await ClaudeModelPreferenceTestSupport.ReadAttemptEffortAsync(_fixture, result.Value.AttemptId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_no_attempt_when_only_the_effort_changes_between_snapshot_and_commit()
+    {
+        var (runId, proposalMessageId) = await SeedClaudeModelScenarioAsync(initialAlias: "opus", initialEffort: "low");
+        var artifactStore = new FakeArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus", "high")));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.run_changed_during_claim", Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == runId && a.AgentRole == AgentRole.CriticalReviewer));
+        Assert.Empty(verify.Artifacts.Where(a => a.RunId == runId));
+        Assert.Equal("high", (await verify.Runs.AsNoTracking().SingleAsync(r => r.Id == runId)).RequestedClaudeEffort);
     }
 
     [Fact]

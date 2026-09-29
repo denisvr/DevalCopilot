@@ -6,8 +6,53 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
-## Current checkpoint (2026-09-28)
+## Current checkpoint (2026-09-29)
 
+- Current delivery, based on verified parent
+  `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`: an optional, explicit, run-scoped Claude
+  **effort request** (`low`, `medium`, `high`) paired with the existing model-alias request for the
+  CriticalReviewer, Implementer, and ReviewCorrection roles. See [planner-handoff.md](planner-handoff.md)
+  for the selection and the
+  ["Explicit Claude effort requests"](../architecture/agent-collaboration-protocol.md#explicit-claude-effort-requests)
+  and
+  ["Explicit Claude effort requests"](../product/run-cockpit-specification.md#explicit-claude-effort-requests)
+  sections for the contract.
+  - Behavior: nullable `Run.RequestedClaudeEffort` (additive migration `AddClaudeEffortPreference`, no
+    default or backfill) and a shared `ClaudeModelRequest.IsValid` pair rule: an effort is valid only with
+    an explicit `sonnet` or `opus`; `haiku` or no model requires a null effort; case-sensitive closed sets.
+    The existing protected `POST /api/runs/{runId}/claude-model-preference` accepts `requestedModel` and
+    `requestedEffort` as one pair (bad pair 400, terminal run 422, concurrent change 409) and persists it
+    with one `run.claude_model_preference_changed` event whose payload now carries both values. The effort
+    column is an EF concurrency token like the model column, so an effort-only race also rolls back. In all
+    three claim paths `CurrentClaudeModelPreference.ReadAndGuardAsync` reads both values late (after Git
+    evidence and manifest work) and guards them at the single claim commit; the pair is snapshotted into the
+    existing immutable `Attempt.AgentRequestedModel`/`AgentRequestedEffort` (no new Attempt column), and a
+    change between read and commit rolls the claim back and deletes the sealed manifest. Dispatch and
+    restart replay use the Attempt snapshot only. `ClaudeModelRequestArguments` appends discrete `--model`
+    then `--effort` arguments only for a valid non-null snapshot; null and model-only argument lists are
+    unchanged and an invalid persisted pair fails before any process starts. The cockpit adds
+    `requestedClaudeEffort` and `latestAgentAttempt.requestedEffort`; the control has an effort select
+    (disabled unless sonnet/opus), Save/Clear send the pair, and a successful Save or Clear refreshes the
+    authoritative cockpit through `useRunCockpit().refresh` (stale run or failed refresh shows a fixed safe
+    message). All new fields are labelled requests; this slice derives no observed or effective effort from
+    `--effort` (existing provider-reported observed facts elsewhere are unchanged). Claude's
+    documented `--effort` support depends on model and organization limits, and a provider may reject or
+    silently adjust a request; that is a limitation, never an observation. No Codex path, permission, tool,
+    schema, session argument, claim budget, token warning, model catalog, or fallback was changed.
+  - Checks run: solution build 0 errors/0 warnings; Domain 612/612; Application 1186/1186;
+    Infrastructure 583 passed, 2 skipped (the two pre-existing host-capability skips); Api 400/400;
+    Architecture 9/9; frontend `vitest` 739/739, `tsc -b`, `npm run build`, and `oxlint` with no warnings in
+    touched files (pre-existing warnings elsewhere are unchanged); repeated API builds left `api-client.ts`
+    byte-identical (SHA-256 `1faf2f68…267b`); `git diff --check` clean apart from the known generated-file
+    line-ending notices; local documentation links resolve. Mutation checks: removing the effort concurrency
+    token failed the four effort-only race tests (set handler and the three claim handlers), and dropping the
+    effort original-value refresh failed the three capture-window snapshot tests; both restored. Tests use
+    deterministic doubles and never call a real provider.
+  - Remaining risks: effort support by model, account, and organization is unproven and not discovered; a
+    silent provider adjustment is unobservable; a concurrent preference change can make a token-warning
+    threshold save return a retryable 409 (shared Run concurrency tokens).
+  - Post-publication verification: after a GO and publication, rerun the focused Claude claim, adapter,
+    supervisor replay, set/clear endpoint, and migration tests against the delivered commit.
 - Published delivery: `46c33900089eb4ad4d29f6fc440fe96a9158fe7c` (parent
   `8d1afb1b9a597c43eff7fa2aa4a1a7b60153640b`) was committed with the reviewed 48-file
   per-provider token-activity warnings slice (22 modified, 26 new), pushed as a normal fast-forward to

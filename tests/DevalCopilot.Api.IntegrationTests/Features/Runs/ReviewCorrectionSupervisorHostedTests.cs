@@ -78,12 +78,12 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
         var adapter = new GatedAdapter(_artifactStore);
         await using var provider = BuildProvider(evidence, adapter, new TestNotifier());
-        var seed = await SeedAsync(provider, claimedClaudeModel: "sonnet");
+        var seed = await SeedAsync(provider, claimedClaudeModel: "sonnet", claimedClaudeEffort: "low");
         await using (var scope = provider.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             var run = await db.Runs.SingleAsync(item => item.Id == seed.RunId);
-            run.SetRequestedClaudeModel("opus");
+            run.SetRequestedClaudeModelRequest("opus", "high");
             await db.SaveChangesAsync();
         }
 
@@ -102,6 +102,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         }
 
         Assert.Equal("sonnet", adapter.LastRequest!.RequestedClaudeModel);
+        Assert.Equal("low", adapter.LastRequest!.RequestedClaudeEffort);
     }
 
     [Fact]
@@ -126,6 +127,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         }
 
         Assert.Null(adapter.LastRequest!.RequestedClaudeModel);
+        Assert.Null(adapter.LastRequest!.RequestedClaudeEffort);
     }
 
     [Fact]
@@ -339,7 +341,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
     private static ReviewCorrectionSupervisor CreateSupervisor(ServiceProvider provider, GatedAdapter adapter, IGitWorkspaceEvidenceReader evidence) =>
         new(provider.GetRequiredService<IServiceScopeFactory>(), adapter, evidence, provider.GetRequiredService<IArtifactStore>(), NullLogger<ReviewCorrectionSupervisor>.Instance);
 
-    private async Task<Seed> SeedAsync(ServiceProvider provider, string? claimedClaudeModel = null)
+    private async Task<Seed> SeedAsync(ServiceProvider provider, string? claimedClaudeModel = null, string? claimedClaudeEffort = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -360,7 +362,7 @@ public sealed class ReviewCorrectionSupervisorHostedTests : IDisposable
         var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now, 4); review.MarkAgentDispatched(now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.Record(Guid.NewGuid(), run.Id, review.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.ReviewFinding, report.Id, "The branch needs correction.", JsonSerializer.Serialize(new { severity = "high", category = "correctness", evidence = "The branch is incomplete.", requiredChange = "Complete the branch." }), CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(1));
         var manifestId = Guid.NewGuid();
-        var correction = Attempt.ClaimAgentReviewCorrectionWithModelRequest(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now, claimedClaudeModel, 5);
+        var correction = Attempt.ClaimAgentReviewCorrectionWithModelRequest(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now, claimedClaudeModel, claimedClaudeEffort, 5);
         var manifestPath = _artifactStore.GetPartialPath(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest); Directory.CreateDirectory(Path.GetDirectoryName(manifestPath)!); await File.WriteAllTextAsync(manifestPath, "manifest");
         var sealedManifest = await _artifactStore.SealAsync(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest, CancellationToken.None);
         db.Projects.Add(project); db.Runs.Add(run); db.GitWorkspaces.Add(workspace); db.GitCheckpoints.Add(checkpoint); db.RepositoryMutationLeases.Add(lease); db.HostCapabilitySnapshots.Add(capability); db.Attempts.AddRange(planning, acceptanceAttempt, implementation, review, correction); db.CollaborationMessages.AddRange(proposal, acceptance, report, finding);

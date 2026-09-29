@@ -259,12 +259,12 @@ public sealed class RunTests
     public void SetRequestedClaudeModel_accepts_each_closed_alias_while_created_or_running(string alias)
     {
         var created = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
-        created.SetRequestedClaudeModel(alias);
+        created.SetRequestedClaudeModelRequest(alias, null);
         Assert.Equal(alias, created.RequestedClaudeModel);
 
         var running = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
         running.Claim(BaseTime);
-        running.SetRequestedClaudeModel(alias);
+        running.SetRequestedClaudeModelRequest(alias, null);
         Assert.Equal(alias, running.RequestedClaudeModel);
     }
 
@@ -272,11 +272,11 @@ public sealed class RunTests
     public void SetRequestedClaudeModel_changes_and_clears_a_previous_request()
     {
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
-        run.SetRequestedClaudeModel("opus");
-        run.SetRequestedClaudeModel("haiku");
+        run.SetRequestedClaudeModelRequest("opus", null);
+        run.SetRequestedClaudeModelRequest("haiku", null);
         Assert.Equal("haiku", run.RequestedClaudeModel);
 
-        run.SetRequestedClaudeModel(null);
+        run.SetRequestedClaudeModelRequest(null, null);
         Assert.Null(run.RequestedClaudeModel);
     }
 
@@ -290,9 +290,9 @@ public sealed class RunTests
     public void SetRequestedClaudeModel_rejects_anything_outside_the_closed_alias_set_and_keeps_the_prior_value(string value)
     {
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
-        run.SetRequestedClaudeModel("sonnet");
+        run.SetRequestedClaudeModelRequest("sonnet", null);
 
-        Assert.Throws<ArgumentException>(() => run.SetRequestedClaudeModel(value));
+        Assert.Throws<ArgumentException>(() => run.SetRequestedClaudeModelRequest(value, null));
         Assert.Equal("sonnet", run.RequestedClaudeModel);
     }
 
@@ -301,11 +301,81 @@ public sealed class RunTests
     {
         var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
         run.Claim(BaseTime);
-        run.SetRequestedClaudeModel("sonnet");
+        run.SetRequestedClaudeModelRequest("sonnet", null);
         run.Complete(BaseTime.AddMinutes(1));
 
-        Assert.Throws<InvalidOperationException>(() => run.SetRequestedClaudeModel(null));
+        Assert.Throws<InvalidOperationException>(() => run.SetRequestedClaudeModelRequest(null, null));
         Assert.Equal("sonnet", run.RequestedClaudeModel);
+    }
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("sonnet", "medium")]
+    [InlineData("sonnet", "high")]
+    [InlineData("opus", "low")]
+    [InlineData("opus", "medium")]
+    [InlineData("opus", "high")]
+    [InlineData("opus", null)]
+    [InlineData("haiku", null)]
+    [InlineData(null, null)]
+    public void SetRequestedClaudeModelRequest_stores_each_valid_pair_atomically(string? model, string? effort)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+
+        run.SetRequestedClaudeModelRequest(model, effort);
+
+        Assert.Equal(model, run.RequestedClaudeModel);
+        Assert.Equal(effort, run.RequestedClaudeEffort);
+    }
+
+    [Theory]
+    [InlineData(null, "low")]
+    [InlineData("haiku", "low")]
+    [InlineData("haiku", "high")]
+    [InlineData("sonnet", "Low")]
+    [InlineData("sonnet", "HIGH")]
+    [InlineData("sonnet", "high ")]
+    [InlineData("sonnet", "")]
+    [InlineData("opus", "max")]
+    [InlineData("opus", "xhigh")]
+    [InlineData("Opus", "low")]
+    [InlineData("fable", "low")]
+    public void SetRequestedClaudeModelRequest_rejects_an_invalid_pair_and_keeps_the_prior_pair(string? model, string? effort)
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.SetRequestedClaudeModelRequest("opus", "medium");
+
+        Assert.Throws<ArgumentException>(() => run.SetRequestedClaudeModelRequest(model, effort));
+
+        Assert.Equal("opus", run.RequestedClaudeModel);
+        Assert.Equal("medium", run.RequestedClaudeEffort);
+    }
+
+    [Fact]
+    public void SetRequestedClaudeModelRequest_clears_both_values_and_a_new_run_has_neither()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        Assert.Null(run.RequestedClaudeEffort);
+
+        run.SetRequestedClaudeModelRequest("sonnet", "high");
+        run.SetRequestedClaudeModelRequest(null, null);
+
+        Assert.Null(run.RequestedClaudeModel);
+        Assert.Null(run.RequestedClaudeEffort);
+    }
+
+    [Fact]
+    public void SetRequestedClaudeModelRequest_rejects_a_terminal_run_for_the_effort_too()
+    {
+        var run = Run.RecordIntent(Guid.NewGuid(), Guid.NewGuid(), 1, "Add token budgets", BaseTime);
+        run.Claim(BaseTime);
+        run.SetRequestedClaudeModelRequest("sonnet", "low");
+        run.Complete(BaseTime.AddMinutes(1));
+
+        Assert.Throws<InvalidOperationException>(() => run.SetRequestedClaudeModelRequest("opus", "high"));
+
+        Assert.Equal("sonnet", run.RequestedClaudeModel);
+        Assert.Equal("low", run.RequestedClaudeEffort);
     }
 
     [Fact]

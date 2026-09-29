@@ -21,4 +21,5 @@ public sealed record EligibleImplementationAttempt(
     TimeSpan Timeout,
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
-    string? RequestedClaudeModel = null);
+    string? RequestedClaudeModel = null,
+    string? RequestedClaudeEffort = null);

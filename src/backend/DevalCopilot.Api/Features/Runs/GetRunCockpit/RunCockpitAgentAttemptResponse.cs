@@ -3,7 +3,7 @@ namespace DevalCopilot.Api.Features.Runs.GetRunCockpit;
 /// <summary>The run's most recent Agent attempt. <c>Outcome</c> is the semantic classification;
 /// <c>ProcessExecution</c> is the separate host-measured process evidence; <c>TokenUsage</c> is the
 /// separate provider-reported usage evidence. <c>RequestedModel</c> is the attempt's own immutable
-/// model <em>request</em> (never an observed or effective model). Never a path, argument, environment value, output,
+/// model and effort <em>requests</em> (never an observed or effective model or effort). Never a path, argument, environment value, output,
 /// manifest, session identifier, schema version, or credential.</summary>
 public sealed record RunCockpitAgentAttemptResponse(
     Guid AttemptId,
@@ -15,4 +15,5 @@ public sealed record RunCockpitAgentAttemptResponse(
     DateTimeOffset? DispatchedAtUtc,
     AgentProcessExecutionResponse ProcessExecution,
     AgentTokenUsageResponse TokenUsage,
-    string? RequestedModel = null);
+    string? RequestedModel = null,
+    string? RequestedEffort = null);

@@ -2621,6 +2621,7 @@ export interface ISetCodexAssignmentPreferenceRequest {
 
 export class SetClaudeModelPreferenceResponse implements ISetClaudeModelPreferenceResponse {
     requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
 
     constructor(data?: ISetClaudeModelPreferenceResponse) {
         if (data) {
@@ -2634,6 +2635,7 @@ export class SetClaudeModelPreferenceResponse implements ISetClaudeModelPreferen
     init(_data?: any) {
         if (_data) {
             this.requestedModel = _data["requestedModel"];
+            this.requestedEffort = _data["requestedEffort"];
         }
     }
 
@@ -2647,16 +2649,19 @@ export class SetClaudeModelPreferenceResponse implements ISetClaudeModelPreferen
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["requestedModel"] = this.requestedModel;
+        data["requestedEffort"] = this.requestedEffort;
         return data;
     }
 }
 
 export interface ISetClaudeModelPreferenceResponse {
     requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
 }
 
 export class SetClaudeModelPreferenceRequest implements ISetClaudeModelPreferenceRequest {
     requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
 
     constructor(data?: ISetClaudeModelPreferenceRequest) {
         if (data) {
@@ -2670,6 +2675,7 @@ export class SetClaudeModelPreferenceRequest implements ISetClaudeModelPreferenc
     init(_data?: any) {
         if (_data) {
             this.requestedModel = _data["requestedModel"];
+            this.requestedEffort = _data["requestedEffort"];
         }
     }
 
@@ -2683,12 +2689,14 @@ export class SetClaudeModelPreferenceRequest implements ISetClaudeModelPreferenc
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["requestedModel"] = this.requestedModel;
+        data["requestedEffort"] = this.requestedEffort;
         return data;
     }
 }
 
 export interface ISetClaudeModelPreferenceRequest {
     requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
 }
 
 export class RequestReviewCorrectionResponse implements IRequestReviewCorrectionResponse {
@@ -3309,6 +3317,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     requestedCodexModel?: string | undefined;
     requestedCodexEffort?: string | undefined;
     requestedClaudeModel?: string | undefined;
+    requestedClaudeEffort?: string | undefined;
     tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
@@ -3359,6 +3368,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             this.requestedCodexModel = _data["requestedCodexModel"];
             this.requestedCodexEffort = _data["requestedCodexEffort"];
             this.requestedClaudeModel = _data["requestedClaudeModel"];
+            this.requestedClaudeEffort = _data["requestedClaudeEffort"];
             if (Array.isArray(_data["tokenWarnings"])) {
                 this.tokenWarnings = [] as any;
                 for (let item of _data["tokenWarnings"])
@@ -3413,6 +3423,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         data["requestedCodexModel"] = this.requestedCodexModel;
         data["requestedCodexEffort"] = this.requestedCodexEffort;
         data["requestedClaudeModel"] = this.requestedClaudeModel;
+        data["requestedClaudeEffort"] = this.requestedClaudeEffort;
         if (Array.isArray(this.tokenWarnings)) {
             data["tokenWarnings"] = [];
             for (let item of this.tokenWarnings)
@@ -3448,6 +3459,7 @@ export interface IGetRunCockpitResponse {
     requestedCodexModel?: string | undefined;
     requestedCodexEffort?: string | undefined;
     requestedClaudeModel?: string | undefined;
+    requestedClaudeEffort?: string | undefined;
     tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
 }
 
@@ -3506,6 +3518,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
     processExecution?: AgentProcessExecutionResponse;
     tokenUsage?: AgentTokenUsageResponse;
     requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
 
     constructor(data?: IRunCockpitAgentAttemptResponse) {
         if (data) {
@@ -3528,6 +3541,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
             this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
             this.requestedModel = _data["requestedModel"];
+            this.requestedEffort = _data["requestedEffort"];
         }
     }
 
@@ -3550,6 +3564,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
         data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         data["requestedModel"] = this.requestedModel;
+        data["requestedEffort"] = this.requestedEffort;
         return data;
     }
 }
@@ -3565,6 +3580,7 @@ export interface IRunCockpitAgentAttemptResponse {
     processExecution?: AgentProcessExecutionResponse;
     tokenUsage?: AgentTokenUsageResponse;
     requestedModel?: string | undefined;
+    requestedEffort?: string | undefined;
 }
 
 export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {

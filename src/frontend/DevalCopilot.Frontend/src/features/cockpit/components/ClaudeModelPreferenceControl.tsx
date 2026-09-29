@@ -8,52 +8,103 @@ import { useSetClaudeModelPreference } from '../hooks/useSetClaudeModelPreferenc
  */
 const CLAUDE_MODEL_ALIASES = ['sonnet', 'opus', 'haiku'] as const
 
+/** The closed, case-sensitive `--effort` levels the backend accepts (validated again server-side). */
+const CLAUDE_EFFORT_LEVELS = ['low', 'medium', 'high'] as const
+
+/** Only an explicitly requested sonnet or opus alias can carry an effort request; the server enforces it. */
+function supportsEffort(model: string | null): boolean {
+  return model === 'sonnet' || model === 'opus'
+}
+
+const SYNC_FAILURE_MESSAGE = 'Saved, but the cockpit could not be refreshed; the displayed request may be out of date.'
+
 interface ClaudeModelPreferenceControlProps {
   runId: string
   requestedClaudeModel: string | null
+  requestedClaudeEffort?: string | null
+  /** Re-queries the authoritative cockpit; resolves false on failure or if the run changed meanwhile. */
+  onSaved?: () => Promise<boolean>
 }
 
 /**
- * Lets the owner explicitly request a Claude model alias for this run's later Critical reviewer,
- * Implementer, and review-correction attempts. The model select always starts on an explicit
- * "No preference" option and never auto-selects an alias. A change here never affects an
- * already-claimed attempt's own immutable request; it only takes effect at a later claim. This
- * control shows only the owner's *requested* alias, never an observed, effective, or
- * account-available model — the provider may reject an alias and no fallback model is used.
- * The parent keys this component by run and durable value, so it remounts from the cockpit
- * projection (the source of truth) whenever either changes.
+ * Lets the owner explicitly request a Claude model alias, and for sonnet or opus an optional
+ * effort level, for this run's later Critical reviewer, Implementer, and review-correction
+ * attempts. Both selects always start on an explicit "no request" option and never auto-select a
+ * value. A change here never affects an already-claimed attempt's own immutable request; it only
+ * takes effect at a later claim. This control shows only the owner's *requested* pair, never an
+ * observed, effective, or account-available model or effort — the provider may reject or adjust a
+ * request and no fallback is used. A successful save or clear re-queries the authoritative
+ * cockpit, because the endpoint emits no run notification. The parent keys this component by run
+ * and durable pair, so it remounts from the cockpit projection (the source of truth) whenever
+ * either changes.
  */
-export function ClaudeModelPreferenceControl({ runId, requestedClaudeModel }: ClaudeModelPreferenceControlProps) {
-  const [saved, setSaved] = useState<string | null>(requestedClaudeModel)
-  const [selected, setSelected] = useState(requestedClaudeModel ?? '')
+export function ClaudeModelPreferenceControl({
+  runId,
+  requestedClaudeModel,
+  requestedClaudeEffort = null,
+  onSaved,
+}: ClaudeModelPreferenceControlProps) {
+  const [saved, setSaved] = useState<{ model: string | null; effort: string | null }>({
+    model: requestedClaudeModel,
+    effort: requestedClaudeEffort,
+  })
+  const [selectedModel, setSelectedModel] = useState(requestedClaudeModel ?? '')
+  const [selectedEffort, setSelectedEffort] = useState(requestedClaudeEffort ?? '')
+  const [syncFailed, setSyncFailed] = useState(false)
   const { saving, error, save } = useSetClaudeModelPreference()
 
-  const handleSave = async () => {
-    const model = selected.length > 0 ? selected : null
-    if (await save(runId, model)) {
-      setSaved(model)
+  const effortEnabled = supportsEffort(selectedModel.length > 0 ? selectedModel : null)
+
+  const commit = async (model: string | null, effort: string | null) => {
+    setSyncFailed(false)
+    if (!(await save(runId, model, effort))) {
+      return false
     }
+    setSaved({ model, effort })
+    if (onSaved && !(await onSaved())) {
+      setSyncFailed(true)
+    }
+    return true
+  }
+
+  const handleModelChange = (value: string) => {
+    setSelectedModel(value)
+    if (!supportsEffort(value.length > 0 ? value : null)) {
+      setSelectedEffort('')
+    }
+  }
+
+  const handleSave = async () => {
+    const model = selectedModel.length > 0 ? selectedModel : null
+    const effort = supportsEffort(model) && selectedEffort.length > 0 ? selectedEffort : null
+    await commit(model, effort)
   }
 
   const handleClear = async () => {
-    if (await save(runId, null)) {
-      setSaved(null)
-      setSelected('')
+    if (await commit(null, null)) {
+      setSelectedModel('')
+      setSelectedEffort('')
     }
   }
 
-  const currentLabel =
-    saved === null
+  const modelLabel =
+    saved.model === null
       ? 'No Claude model requested for future attempts: no model argument will be passed. The model actually used is not observed.'
-      : `Requested Claude model for future attempts: ${saved}. This is a request only; the model actually used is not observed.`
+      : `Requested Claude model for future attempts: ${saved.model}. This is a request only; the model actually used is not observed.`
+
+  const effortLabel =
+    saved.effort === null
+      ? 'No Claude effort requested for future attempts: no effort argument will be passed. The effort actually applied is not observed.'
+      : `Requested Claude effort for future attempts: ${saved.effort}. This is a request only; the effort actually applied is not observed, and the provider may reject or adjust it.`
 
   return (
     <div className="dc-claude-model-preference" aria-label="Claude model request">
-      <span className="dc-claude-model-preference-current">{currentLabel}</span>
+      <span className="dc-claude-model-preference-current">{modelLabel}</span>
+      <span className="dc-claude-model-preference-current">{effortLabel}</span>
       <select
         aria-label="Requested Claude model"
-        value={selected}
-        onChange={(event) => setSelected(event.target.value)}
+        value={selectedModel}
+        onChange={(event) => handleModelChange(event.target.value)}
         disabled={saving}
       >
         <option value="">No preference</option>
@@ -63,13 +114,32 @@ export function ClaudeModelPreferenceControl({ runId, requestedClaudeModel }: Cl
           </option>
         ))}
       </select>
+      <select
+        aria-label="Requested Claude effort"
+        value={selectedEffort}
+        onChange={(event) => setSelectedEffort(event.target.value)}
+        disabled={saving || !effortEnabled}
+        title={effortEnabled ? undefined : 'An effort can be requested only together with sonnet or opus.'}
+      >
+        <option value="">No effort request</option>
+        {CLAUDE_EFFORT_LEVELS.map((level) => (
+          <option key={level} value={level}>
+            {level}
+          </option>
+        ))}
+      </select>
       <button type="button" onClick={() => void handleSave()} disabled={saving}>
         Save
       </button>
-      <button type="button" onClick={() => void handleClear()} disabled={saving || saved === null}>
+      <button
+        type="button"
+        onClick={() => void handleClear()}
+        disabled={saving || (saved.model === null && saved.effort === null)}
+      >
         Clear
       </button>
       {error && <span className="dc-claude-model-preference-error">{error}</span>}
+      {syncFailed && <span className="dc-claude-model-preference-error">{SYNC_FAILURE_MESSAGE}</span>}
     </div>
   )
 }

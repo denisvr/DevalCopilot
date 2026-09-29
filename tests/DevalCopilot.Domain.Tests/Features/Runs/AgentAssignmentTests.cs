@@ -8,12 +8,12 @@ public sealed class AgentAssignmentTests
     [Fact]
     public void Claim_persists_the_Claude_assignment_without_inventing_observations()
     {
-        var attempt = Claim("claude-model", "high");
+        var attempt = Claim("opus", "high");
 
         var assignment = attempt.GetAssignmentSnapshot();
         Assert.NotNull(assignment);
         Assert.Equal(AgentProvider.ClaudeCode, assignment.Provider);
-        Assert.Equal("claude-model", assignment.RequestedModel);
+        Assert.Equal("opus", assignment.RequestedModel);
         Assert.Equal("high", assignment.RequestedEffort);
         Assert.Null(assignment.ObservedModel);
         Assert.Null(assignment.ObservedEffort);
@@ -24,14 +24,14 @@ public sealed class AgentAssignmentTests
     [Fact]
     public void Provider_observations_are_write_once_and_do_not_change_requested_assignment()
     {
-        var attempt = Claim("requested-model", "requested-effort");
+        var attempt = Claim("sonnet", "medium");
 
         attempt.RecordAgentObservedAssignment("observed-model", "observed-effort");
 
         var assignment = attempt.GetAssignmentSnapshot();
         Assert.NotNull(assignment);
-        Assert.Equal("requested-model", assignment.RequestedModel);
-        Assert.Equal("requested-effort", assignment.RequestedEffort);
+        Assert.Equal("sonnet", assignment.RequestedModel);
+        Assert.Equal("medium", assignment.RequestedEffort);
         Assert.Equal("observed-model", assignment.ObservedModel);
         Assert.Equal("observed-effort", assignment.ObservedEffort);
         Assert.Throws<InvalidOperationException>(() => attempt.RecordAgentObservedAssignment("other-model", null));
@@ -176,16 +176,16 @@ public sealed class AgentAssignmentTests
     [Fact]
     public void Invalid_persisted_provider_profile_or_contract_is_not_projected()
     {
-        var attempt = Claim("model", "effort");
+        var attempt = Claim("opus", "low");
 
         SetPrivateProperty(attempt, nameof(Attempt.AgentProvider), (AgentProvider)999);
         Assert.Null(attempt.GetAssignmentSnapshot());
 
-        attempt = Claim("model", "effort");
+        attempt = Claim("opus", "low");
         SetPrivateProperty(attempt, nameof(Attempt.AgentPermissionProfile), (AgentPermissionProfile)999);
         Assert.Null(attempt.GetAssignmentSnapshot());
 
-        attempt = Claim("model", "effort");
+        attempt = Claim("opus", "low");
         SetPrivateProperty(attempt, nameof(Attempt.AgentAdapterContractVersion), new string('v', 129));
         Assert.Null(attempt.GetAssignmentSnapshot());
     }

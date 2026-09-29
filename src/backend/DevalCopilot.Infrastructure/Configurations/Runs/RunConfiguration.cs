@@ -52,6 +52,7 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         // guard and the set operation both depend on the token appearing in the UPDATE's WHERE
         // clause (see CurrentClaudeModelPreference).
         builder.Property(run => run.RequestedClaudeModel).HasMaxLength(32).IsConcurrencyToken();
+        builder.Property(run => run.RequestedClaudeEffort).HasMaxLength(16).IsConcurrencyToken();
 
         // Advisory token-warning thresholds: no default, no backfill (a historical run has none),
         // and deliberately NOT concurrency tokens, so writing one can never make a claim's own Run

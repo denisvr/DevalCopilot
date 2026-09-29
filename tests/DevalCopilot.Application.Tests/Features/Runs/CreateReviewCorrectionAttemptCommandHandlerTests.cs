@@ -503,6 +503,67 @@ public sealed class CreateReviewCorrectionAttemptCommandHandlerTests : IAsyncLif
         Assert.Empty(await verify.Artifacts.Where(item => item.RunId == seed.Run.Id).ToListAsync());
     }
 
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("opus", "medium")]
+    [InlineData("opus", "high")]
+    public async Task Claim_snapshots_the_model_effort_pair_immutably_into_the_attempt(string model, string effort)
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, model, effort);
+
+        await using var handlerContext = _fixture.CreateContext();
+        var result = await Handler(handlerContext).HandleAsync(Command(seed), CancellationToken.None);
+
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
+        Assert.Equal(model, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, created.AttemptId));
+        Assert.Equal(effort, await ClaudeModelPreferenceTestSupport.ReadAttemptEffortAsync(_fixture, created.AttemptId));
+
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, null, null);
+        Assert.Equal(model, await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, created.AttemptId));
+        Assert.Equal(effort, await ClaudeModelPreferenceTestSupport.ReadAttemptEffortAsync(_fixture, created.AttemptId));
+    }
+
+    [Fact]
+    public async Task Claim_snapshots_an_effort_committed_during_external_evidence_capture()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, "opus", "low");
+        var evidence = new RecordingEvidenceReader(
+            seed.Evidence, _ => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, "opus", "high"));
+        await using var handlerContext = _fixture.CreateContext();
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext, evidence, new TestArtifactStore(), new FixedTimeProvider(Now)).HandleAsync(Command(seed), CancellationToken.None);
+
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
+        Assert.Equal("high", await ClaudeModelPreferenceTestSupport.ReadAttemptEffortAsync(_fixture, created.AttemptId));
+    }
+
+    [Fact]
+    public async Task Claim_persists_no_attempt_when_only_the_effort_changes_between_snapshot_and_commit()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var seed = await SeedAsync(seedContext);
+        await ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, "opus", "low");
+        var store = new TestArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, seed.Run.Id, "opus", "high")));
+
+        var result = await new CreateReviewCorrectionAttemptCommandHandler(
+            handlerContext, new RecordingEvidenceReader(seed.Evidence), store, new FixedTimeProvider(Now)).HandleAsync(Command(seed), CancellationToken.None);
+
+        AssertCode(result, "agent_attempts.run_changed_during_claim");
+        Assert.Single(store.DeletedSealedFiles);
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(await verify.Attempts.Where(item => item.RunId == seed.Run.Id && item.AgentResponseContract == AgentResponseContract.ReviewCorrection).ToListAsync());
+        Assert.Empty(await verify.Artifacts.Where(item => item.RunId == seed.Run.Id).ToListAsync());
+        Assert.Equal("high", (await verify.Runs.AsNoTracking().SingleAsync(r => r.Id == seed.Run.Id)).RequestedClaudeEffort);
+    }
+
     [Fact]
     public async Task Claim_is_unaffected_by_a_token_warning_threshold_committed_in_its_commit_window()
     {

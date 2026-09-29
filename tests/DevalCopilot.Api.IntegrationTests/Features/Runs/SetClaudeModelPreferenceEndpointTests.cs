@@ -116,7 +116,7 @@ public sealed class SetClaudeModelPreferenceEndpointTests
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
         var recorded = await dbContext.Events.AsNoTracking()
             .SingleAsync(item => item.RunId == runId && item.EventType == RunEventType.ClaudeModelPreferenceChanged);
-        Assert.Equal("{\"requestedModel\":\"" + alias + "\"}", recorded.PayloadJson);
+        Assert.Equal("{\"requestedModel\":\"" + alias + "\",\"requestedEffort\":null}", recorded.PayloadJson);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class SetClaudeModelPreferenceEndpointTests
             run.Claim(now);
             var attempt = Attempt.ClaimAgentCriticalReviewWithModelRequest(
                 Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
-                TimeSpan.FromMinutes(10), 262144, 524288, now, ClaudeModelAlias.Sonnet, agentBudgetSlot: 1);
+                TimeSpan.FromMinutes(10), 262144, 524288, now, ClaudeModelAlias.Sonnet, null, agentBudgetSlot: 1);
             dbContext.Attempts.Add(attempt);
             await dbContext.SaveChangesAsync();
         }
@@ -190,5 +190,128 @@ public sealed class SetClaudeModelPreferenceEndpointTests
         var latest = cockpit.GetProperty("latestAgentAttempt");
         Assert.Equal("sonnet", latest.GetProperty("requestedModel").GetString());
         Assert.False(latest.TryGetProperty("observedModel", out _));
+    }
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("sonnet", "medium")]
+    [InlineData("opus", "high")]
+    public async Task Setting_a_pair_persists_both_records_one_event_and_projects_them_as_requests_only(string model, string effort)
+    {
+        var factory = new ApiWebApplicationFactory();
+        using var client = CreateAuthenticatedClient(factory);
+        var runId = await SeedRunAsync(factory);
+
+        var response = await client.PostAsJsonAsync(Route(runId), new { requestedModel = model, requestedEffort = effort });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(model, document.RootElement.GetProperty("requestedModel").GetString());
+        Assert.Equal(effort, document.RootElement.GetProperty("requestedEffort").GetString());
+
+        var cockpit = await GetCockpitAsync(client, runId);
+        Assert.Equal(model, cockpit.GetProperty("requestedClaudeModel").GetString());
+        Assert.Equal(effort, cockpit.GetProperty("requestedClaudeEffort").GetString());
+        Assert.False(cockpit.TryGetProperty("observedClaudeEffort", out _));
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var recorded = await dbContext.Events.AsNoTracking()
+            .SingleAsync(item => item.RunId == runId && item.EventType == RunEventType.ClaudeModelPreferenceChanged);
+        Assert.Equal("{\"requestedModel\":\"" + model + "\",\"requestedEffort\":\"" + effort + "\"}", recorded.PayloadJson);
+    }
+
+    [Theory]
+    [InlineData(null, "low")]
+    [InlineData("haiku", "low")]
+    [InlineData("sonnet", "Low")]
+    [InlineData("sonnet", "HIGH")]
+    [InlineData("opus", "max")]
+    [InlineData("opus", "")]
+    public async Task An_invalid_pair_returns_400_and_writes_nothing(string? model, string effort)
+    {
+        var factory = new ApiWebApplicationFactory();
+        using var client = CreateAuthenticatedClient(factory);
+        var runId = await SeedRunAsync(factory);
+        (await client.PostAsJsonAsync(Route(runId), new { requestedModel = "opus", requestedEffort = "medium" })).EnsureSuccessStatusCode();
+
+        var response = await client.PostAsJsonAsync(Route(runId), new { requestedModel = model, requestedEffort = effort });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var run = await dbContext.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == runId);
+        Assert.Equal("opus", run.RequestedClaudeModel);
+        Assert.Equal("medium", run.RequestedClaudeEffort);
+        Assert.Single(dbContext.Events.Where(item => item.EventType == RunEventType.ClaudeModelPreferenceChanged));
+    }
+
+    [Fact]
+    public async Task Clearing_removes_the_effort_and_a_terminal_run_keeps_its_pair_untouched()
+    {
+        var factory = new ApiWebApplicationFactory();
+        using var client = CreateAuthenticatedClient(factory);
+        var runId = await SeedRunAsync(factory);
+        (await client.PostAsJsonAsync(Route(runId), new { requestedModel = "opus", requestedEffort = "high" })).EnsureSuccessStatusCode();
+
+        var cleared = await client.PostAsJsonAsync(Route(runId), new { requestedModel = (string?)null, requestedEffort = (string?)null });
+
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+        var cockpit = await GetCockpitAsync(client, runId);
+        Assert.Equal(JsonValueKind.Null, cockpit.GetProperty("requestedClaudeModel").ValueKind);
+        Assert.Equal(JsonValueKind.Null, cockpit.GetProperty("requestedClaudeEffort").ValueKind);
+
+        var terminalRunId = await SeedRunAsync(factory, terminal: true);
+        var rejected = await client.PostAsJsonAsync(Route(terminalRunId), new { requestedModel = "opus", requestedEffort = "high" });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, rejected.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var terminal = await dbContext.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == terminalRunId);
+        Assert.Null(terminal.RequestedClaudeEffort);
+        Assert.Empty(dbContext.Events.Where(item => item.RunId == terminalRunId && item.EventType == RunEventType.ClaudeModelPreferenceChanged));
+    }
+
+    [Fact]
+    public async Task An_absent_credential_returns_401_for_a_pair_and_writes_nothing()
+    {
+        var factory = new ApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+        var runId = await SeedRunAsync(factory);
+
+        var response = await client.PostAsJsonAsync(Route(runId), new { requestedModel = "opus", requestedEffort = "high" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Null((await dbContext.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == runId)).RequestedClaudeEffort);
+    }
+
+    [Fact]
+    public async Task The_cockpit_projects_the_latest_attempts_own_effort_snapshot_not_the_runs_current_one()
+    {
+        var factory = new ApiWebApplicationFactory();
+        using var client = CreateAuthenticatedClient(factory);
+        var runId = await SeedRunAsync(factory);
+        var now = DateTimeOffset.UtcNow;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            run.Claim(now);
+            var attempt = Attempt.ClaimAgentCriticalReviewWithModelRequest(
+                Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), new string('a', 64), Guid.NewGuid(),
+                TimeSpan.FromMinutes(10), 262144, 524288, now, ClaudeModelAlias.Opus, ClaudeEffortLevel.Low, agentBudgetSlot: 1);
+            dbContext.Attempts.Add(attempt);
+            await dbContext.SaveChangesAsync();
+        }
+
+        (await client.PostAsJsonAsync(Route(runId), new { requestedModel = "sonnet", requestedEffort = "high" })).EnsureSuccessStatusCode();
+
+        var cockpit = await GetCockpitAsync(client, runId);
+        Assert.Equal("high", cockpit.GetProperty("requestedClaudeEffort").GetString());
+        var latest = cockpit.GetProperty("latestAgentAttempt");
+        Assert.Equal("opus", latest.GetProperty("requestedModel").GetString());
+        Assert.Equal("low", latest.GetProperty("requestedEffort").GetString());
+        Assert.False(latest.TryGetProperty("observedEffort", out _));
     }
 }

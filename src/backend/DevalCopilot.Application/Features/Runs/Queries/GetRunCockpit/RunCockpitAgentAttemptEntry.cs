@@ -18,4 +18,5 @@ public sealed record RunCockpitAgentAttemptEntry(
     AgentProcessExecutionEvidence? ProcessExecution,
     TimeSpan? Timeout,
     AgentTokenUsageEvidence? TokenUsage = null,
-    string? RequestedModel = null);
+    string? RequestedModel = null,
+    string? RequestedEffort = null);

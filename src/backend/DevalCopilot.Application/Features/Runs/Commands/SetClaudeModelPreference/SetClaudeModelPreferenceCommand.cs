@@ -5,9 +5,11 @@ namespace DevalCopilot.Application.Features.Runs.Commands.SetClaudeModelPreferen
 
 /// <summary>
 /// Sets or clears the owner's explicit, run-scoped requested Claude model alias for this run's later
-/// CriticalReviewer, Implementer, and ReviewCorrection claims. <see cref="RequestedModel"/>
+/// CriticalReviewer, Implementer, and ReviewCorrection claims, together with an optional effort
+/// level saved as one pair. <see cref="RequestedModel"/>
 /// <see langword="null"/> clears the preference (no <c>--model</c> override); a non-null value must
-/// be one of the closed <c>ClaudeModelAlias</c> members. This is a request only: never an observed
+/// be one of the closed <c>ClaudeModelAlias</c> members, and <see cref="RequestedEffort"/> (a closed
+/// <c>ClaudeEffortLevel</c>) is accepted only with an explicit <c>sonnet</c> or <c>opus</c> alias. This is a request only: never an observed
 /// or effective model, an account-eligibility guarantee, or a change to any already-claimed
 /// attempt's own immutable snapshot.
 ///
@@ -18,5 +20,5 @@ namespace DevalCopilot.Application.Features.Runs.Commands.SetClaudeModelPreferen
 /// INSERT in that outer transaction.
 /// </para>
 /// </summary>
-public sealed record SetClaudeModelPreferenceCommand(Guid RunId, string? RequestedModel)
+public sealed record SetClaudeModelPreferenceCommand(Guid RunId, string? RequestedModel, string? RequestedEffort = null)
     : IManualTransactionCommand<Result<SetClaudeModelPreferenceCommandResult>>;

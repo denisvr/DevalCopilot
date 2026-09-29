@@ -8,13 +8,13 @@ using Microsoft.EntityFrameworkCore;
 namespace DevalCopilot.Application.Features.Runs.Commands.SetClaudeModelPreference;
 
 /// <summary>
-/// Durably records the run-scoped Claude model-alias request and its change event in one
+/// Durably records the run-scoped Claude model-alias/effort request pair and its change event in one
 /// <c>SaveChangesAsync</c> call. The alias set is closed and validated without any provider call:
 /// this never claims the alias is available to the signed-in account. It never mutates an
 /// already-claimed attempt's own snapshot — only a later claim reads the new value.
 ///
 /// <para>
-/// <c>Run.Lifecycle</c> and <c>Run.RequestedClaudeModel</c> are EF concurrency tokens (see
+/// <c>Run.Lifecycle</c>, <c>Run.RequestedClaudeModel</c>, and <c>Run.RequestedClaudeEffort</c> are EF concurrency tokens (see
 /// <c>RunConfiguration</c>). A lifecycle transition, or another preference change, committed between
 /// this handler's read and its save makes the UPDATE match zero rows: the failed save rolls back
 /// the Run change and the queued event together (this is a manual-transaction command, so the save
@@ -36,7 +36,7 @@ public sealed class SetClaudeModelPreferenceCommandHandler(IDevalCopilotDbContex
 
         try
         {
-            run.SetRequestedClaudeModel(command.RequestedModel);
+            run.SetRequestedClaudeModelRequest(command.RequestedModel, command.RequestedEffort);
         }
         catch (InvalidOperationException)
         {
@@ -47,6 +47,7 @@ public sealed class SetClaudeModelPreferenceCommandHandler(IDevalCopilotDbContex
         // clause always guards the lifecycle: a no-op set must not append an event to a Run that
         // became terminal after the read above.
         dbContext.Entry(run).Property(candidate => candidate.RequestedClaudeModel).IsModified = true;
+        dbContext.Entry(run).Property(candidate => candidate.RequestedClaudeEffort).IsModified = true;
 
         dbContext.Events.Add(RunEvent.Record(
             Guid.NewGuid(),
@@ -54,7 +55,7 @@ public sealed class SetClaudeModelPreferenceCommandHandler(IDevalCopilotDbContex
             attemptId: null,
             RunEventType.ClaudeModelPreferenceChanged,
             ParticipantIdentity.ForHuman(),
-            JsonSerializer.Serialize(new { requestedModel = run.RequestedClaudeModel }),
+            JsonSerializer.Serialize(new { requestedModel = run.RequestedClaudeModel, requestedEffort = run.RequestedClaudeEffort }),
             timeProvider.GetUtcNow()));
 
         try
@@ -78,6 +79,6 @@ public sealed class SetClaudeModelPreferenceCommandHandler(IDevalCopilotDbContex
             };
         }
 
-        return Result<SetClaudeModelPreferenceCommandResult>.Success(new SetClaudeModelPreferenceCommandResult(run.RequestedClaudeModel));
+        return Result<SetClaudeModelPreferenceCommandResult>.Success(new SetClaudeModelPreferenceCommandResult(run.RequestedClaudeModel, run.RequestedClaudeEffort));
     }
 }

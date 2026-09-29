@@ -46,6 +46,13 @@ export function LatestAgentAttemptEvidence({ attempt }: LatestAgentAttemptEviden
             : 'No model request recorded for this attempt (the model actually used is not observed).'}
         </p>
       )}
+      {attempt.provider === 'ClaudeCode' && (
+        <p className="dc-latest-agent-attempt-effort-request">
+          {attempt.requestedEffort
+            ? `Effort requested at claim: ${attempt.requestedEffort} (a request only; the effort actually applied is not observed and may be adjusted by the provider).`
+            : 'No effort request recorded for this attempt (the effort actually applied is not observed).'}
+        </p>
+      )}
       <ProcessEvidenceLine
         processExecution={attempt.processExecution}
         dispatchedAtUtc={attempt.dispatchedAtUtc}

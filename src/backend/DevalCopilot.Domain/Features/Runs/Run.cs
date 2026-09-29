@@ -202,22 +202,34 @@ public sealed class Run
     /// </summary>
     public string? RequestedClaudeModel { get; private set; }
 
-    /// <summary>Sets or clears the run-scoped Claude model-alias request. Only a member of the
-    /// closed <see cref="ClaudeModelAlias"/> set (or <see langword="null"/>) is accepted; permitted
-    /// while <see cref="Lifecycle"/> is Created or Running.</summary>
-    public void SetRequestedClaudeModel(string? requestedModel)
+    /// <summary>
+    /// The owner's current, explicit, run-scoped request for a Claude CLI effort level
+    /// (<see cref="ClaudeEffortLevel"/>), valid only together with a requested <c>sonnet</c> or
+    /// <c>opus</c> alias (see <see cref="ClaudeModelRequest"/>). A request for the CLI's
+    /// <c>--effort</c> argument, never an observed or effective effort: the provider may reject or
+    /// adjust it. <see langword="null"/> means no effort argument.
+    /// </summary>
+    public string? RequestedClaudeEffort { get; private set; }
+
+    /// <summary>Sets or clears the run-scoped Claude model/effort request as one pair. Only a pair
+    /// accepted by <see cref="ClaudeModelRequest.IsValid"/> is stored; permitted while
+    /// <see cref="Lifecycle"/> is Created or Running.</summary>
+    public void SetRequestedClaudeModelRequest(string? requestedModel, string? requestedEffort)
     {
         if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
         {
             throw new InvalidOperationException($"Cannot change the requested Claude model for a run whose lifecycle is {Lifecycle}.");
         }
 
-        if (requestedModel is not null && !ClaudeModelAlias.IsSupported(requestedModel))
+        if (!ClaudeModelRequest.IsValid(requestedModel, requestedEffort))
         {
-            throw new ArgumentException("A requested Claude model must be one of the supported aliases.", nameof(requestedModel));
+            throw new ArgumentException(
+                "A requested Claude model must be a supported alias, and an effort is valid only with sonnet or opus.",
+                nameof(requestedModel));
         }
 
         RequestedClaudeModel = requestedModel;
+        RequestedClaudeEffort = requestedEffort;
     }
 
     /// <summary>The largest warning threshold this Run accepts (10^12 reported token-activity

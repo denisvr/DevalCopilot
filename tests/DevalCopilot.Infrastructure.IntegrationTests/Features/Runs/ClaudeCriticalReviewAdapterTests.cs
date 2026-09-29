@@ -960,7 +960,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         }
     }
 
-    private async Task<IReadOnlyList<string>> CaptureArgumentsAsync(string? requestedClaudeModel)
+    private async Task<IReadOnlyList<string>> CaptureArgumentsAsync(string? requestedClaudeModel, string? requestedClaudeEffort = null)
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
@@ -969,7 +969,7 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
             CreateLaunchFile($"fake-claude-model-{Guid.NewGuid():N}.exe"), TimeSpan.FromSeconds(30), 65536, 131072,
-            requestedClaudeModel);
+            requestedClaudeModel, requestedClaudeEffort);
 
         var result = await new ClaudeCriticalReviewAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 
@@ -1016,6 +1016,54 @@ public sealed class ClaudeCriticalReviewAdapterTests : IDisposable
         var request = new CriticalReviewInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
             CreateLaunchFile("fake-claude-bad-model.exe"), TimeSpan.FromSeconds(30), 65536, 131072, malformed);
+
+        var result = await new ClaudeCriticalReviewAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
+
+        Assert.Equal(CriticalReviewInvocationOutcome.Failed, result.Outcome);
+        Assert.Null(fake.CapturedRequest);
+    }
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("sonnet", "medium")]
+    [InlineData("opus", "high")]
+    public async Task A_requested_pair_appends_exactly_discrete_model_then_effort_arguments(string alias, string effort)
+    {
+        var baseline = await CaptureArgumentsAsync(null);
+        var modelOnly = await CaptureArgumentsAsync(alias);
+        var requested = await CaptureArgumentsAsync(alias, effort);
+
+        Assert.DoesNotContain("--effort", baseline);
+        Assert.DoesNotContain("--effort", modelOnly);
+        Assert.Equal(baseline.Count + 4, requested.Count);
+        Assert.Equal(["--model", alias, "--effort", effort], requested.Skip(baseline.Count));
+        var sessionIdValue = Array.IndexOf(baseline.ToArray(), "--session-id") + 1;
+        for (var index = 0; index < baseline.Count; index++)
+        {
+            if (index != sessionIdValue)
+            {
+                Assert.Equal(baseline[index], requested[index]);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "low")]
+    [InlineData("haiku", "low")]
+    [InlineData("sonnet", "Low")]
+    [InlineData("sonnet", "HIGH")]
+    [InlineData("opus", "max")]
+    [InlineData("opus", "")]
+    [InlineData("opus", "high --dangerously-skip-permissions")]
+    public async Task An_invalid_model_effort_snapshot_fails_closed_without_starting_a_process(string? model, string effort)
+    {
+        var runId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var fake = new FakeProcessExecutionAdapter();
+        var request = new CriticalReviewInvocationRequest(
+            runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
+            CreateLaunchFile("fake-claude-bad-pair.exe"), TimeSpan.FromSeconds(30), 65536, 131072, model, effort);
 
         var result = await new ClaudeCriticalReviewAdapter(fake, _artifactStore).InvokeAsync(request, CancellationToken.None);
 

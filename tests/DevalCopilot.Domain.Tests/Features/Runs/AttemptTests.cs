@@ -1358,10 +1358,10 @@ public sealed class AttemptTests
     {
         var criticalReview = Attempt.ClaimAgentCriticalReviewWithModelRequest(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, alias, agentBudgetSlot: 1);
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, alias, null, agentBudgetSlot: 1);
         var reviewCorrection = Attempt.ClaimAgentReviewCorrectionWithModelRequest(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, alias, agentBudgetSlot: 1);
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, alias, null, agentBudgetSlot: 1);
         var implementation = Attempt.ClaimAgentImplementationWithAssignment(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
             TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, alias, requestedEffort: null,
@@ -1399,9 +1399,70 @@ public sealed class AttemptTests
     {
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReviewWithModelRequest(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, value, agentBudgetSlot: 1));
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, value, null, agentBudgetSlot: 1));
         Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentReviewCorrectionWithModelRequest(
             Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
-            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, value, agentBudgetSlot: 1));
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, value, null, agentBudgetSlot: 1));
+    }
+
+    [Theory]
+    [InlineData("sonnet", "low")]
+    [InlineData("opus", "medium")]
+    [InlineData("opus", "high")]
+    [InlineData("haiku", null)]
+    [InlineData(null, null)]
+    public void The_three_claude_claim_factories_snapshot_the_requested_pair(string? model, string? effort)
+    {
+        var criticalReview = Attempt.ClaimAgentCriticalReviewWithModelRequest(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, model, effort, agentBudgetSlot: 1);
+        var reviewCorrection = Attempt.ClaimAgentReviewCorrectionWithModelRequest(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, model, effort, agentBudgetSlot: 1);
+        var implementation = Attempt.ClaimAgentImplementationWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, model, effort,
+            AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", agentBudgetSlot: 1);
+
+        foreach (var attempt in new[] { criticalReview, reviewCorrection, implementation })
+        {
+            Assert.Equal(model, attempt.AgentRequestedModel);
+            Assert.Equal(effort, attempt.AgentRequestedEffort);
+            Assert.Null(attempt.AgentObservedEffort);
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "low")]
+    [InlineData("haiku", "low")]
+    [InlineData("sonnet", "Low")]
+    [InlineData("sonnet", "xhigh")]
+    [InlineData("opus", "")]
+    public void The_claude_claim_factories_reject_an_invalid_pair(string? model, string? effort)
+    {
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentCriticalReviewWithModelRequest(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, model, effort, agentBudgetSlot: 1));
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentReviewCorrectionWithModelRequest(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, model, effort, agentBudgetSlot: 1));
+        Assert.Throws<ArgumentException>(() => Attempt.ClaimAgentImplementationWithAssignment(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, model, effort,
+            AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", agentBudgetSlot: 1));
+    }
+
+    [Fact]
+    public void The_fixed_null_claude_claim_overloads_snapshot_no_effort()
+    {
+        var criticalReview = Attempt.ClaimAgentCriticalReview(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1);
+        var implementation = Attempt.ClaimAgentImplementation(
+            Guid.NewGuid(), Guid.NewGuid(), 1, Guid.NewGuid(), Guid.NewGuid(), "fingerprint-1", Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, BaseTime, 1);
+
+        Assert.Null(criticalReview.AgentRequestedEffort);
+        Assert.Null(implementation.AgentRequestedEffort);
     }
 }

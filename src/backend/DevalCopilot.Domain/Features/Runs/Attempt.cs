@@ -232,11 +232,11 @@ public sealed class Attempt
         => ClaimAgentCriticalReviewWithModelRequest(
             id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
             contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
-            requestedClaudeModel: null, agentBudgetSlot);
+            requestedClaudeModel: null, requestedClaudeEffort: null, agentBudgetSlot);
 
     /// <summary>Claims a Claude critical-review attempt with an optional owner-requested Claude
-    /// model alias, snapshotted immutably. <see cref="ClaimAgentCriticalReview"/> is the fixed-null
-    /// convenience overload; a non-null value must be a member of <see cref="ClaudeModelAlias"/>.</summary>
+    /// model alias and effort level, snapshotted immutably. <see cref="ClaimAgentCriticalReview"/> is the fixed-null
+    /// convenience overload; the pair must satisfy <see cref="ClaudeModelRequest.IsValid"/>.</summary>
     public static Attempt ClaimAgentCriticalReviewWithModelRequest(
         Guid id,
         Guid runId,
@@ -250,12 +250,13 @@ public sealed class Attempt
         int maxTotalCapturedBytes,
         DateTimeOffset claimedAtUtc,
         string? requestedClaudeModel,
+        string? requestedClaudeEffort,
         int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
-        ValidateClaudeModelAlias(requestedClaudeModel, nameof(requestedClaudeModel));
+        ValidateClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.CriticalReview);
 
@@ -284,6 +285,7 @@ public sealed class Attempt
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
             AgentRequestedModel = requestedClaudeModel,
+            AgentRequestedEffort = requestedClaudeEffort,
             // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
             // ClaudeCriticalReviewAdapter is read-only (its fixed empty "--tools" allowlist and
             // "--permission-mode plan" arguments) — a concrete, non-Unknown permission profile
@@ -512,7 +514,8 @@ public sealed class Attempt
             requestedModel: null, requestedEffort: null,
             Runs.AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", agentBudgetSlot);
 
-    /// <summary>Claims an initial Claude Code ImplementationReport attempt with bounded,
+    /// <summary>Claims an initial Claude Code ImplementationReport attempt with a Claude model/effort
+    /// request that must satisfy <see cref="ClaudeModelRequest.IsValid"/> and bounded,
     /// immutable requested assignment facts. Provider identity remains fixed by this supported
     /// execution path; it is provenance, not semantic authority.</summary>
     public static Attempt ClaimAgentImplementationWithAssignment(
@@ -550,6 +553,7 @@ public sealed class Attempt
         }
         ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
         ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
+        ValidateClaudeModelRequest(requestedModel, requestedEffort);
 
         return new Attempt
         {
@@ -590,11 +594,13 @@ public sealed class Attempt
         }
     }
 
-    private static void ValidateClaudeModelAlias(string? value, string paramName)
+    private static void ValidateClaudeModelRequest(string? model, string? effort)
     {
-        if (value is not null && !ClaudeModelAlias.IsSupported(value))
+        if (!ClaudeModelRequest.IsValid(model, effort))
         {
-            throw new ArgumentException("A requested Claude model must be one of the supported aliases.", paramName);
+            throw new ArgumentException(
+                "A requested Claude model must be a supported alias, and an effort is valid only with sonnet or opus.",
+                nameof(model));
         }
     }
 
@@ -645,11 +651,11 @@ public sealed class Attempt
         => ClaimAgentReviewCorrectionWithModelRequest(
             id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
             contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
-            requestedClaudeModel: null, agentBudgetSlot);
+            requestedClaudeModel: null, requestedClaudeEffort: null, agentBudgetSlot);
 
     /// <summary>Claims a review-correction attempt with an optional owner-requested Claude model
-    /// alias, snapshotted immutably. <see cref="ClaimAgentReviewCorrection"/> is the fixed-null
-    /// convenience overload; a non-null value must be a member of <see cref="ClaudeModelAlias"/>.</summary>
+    /// alias and effort level, snapshotted immutably. <see cref="ClaimAgentReviewCorrection"/> is the fixed-null
+    /// convenience overload; the pair must satisfy <see cref="ClaudeModelRequest.IsValid"/>.</summary>
     public static Attempt ClaimAgentReviewCorrectionWithModelRequest(
         Guid id,
         Guid runId,
@@ -663,12 +669,13 @@ public sealed class Attempt
         int maxTotalCapturedBytes,
         DateTimeOffset claimedAtUtc,
         string? requestedClaudeModel,
+        string? requestedClaudeEffort,
         int agentBudgetSlot)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
-        ValidateClaudeModelAlias(requestedClaudeModel, nameof(requestedClaudeModel));
+        ValidateClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ReviewCorrection);
 
@@ -696,6 +703,7 @@ public sealed class Attempt
             AgentMaxBytesPerStream = maxBytesPerStream,
             AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
             AgentRequestedModel = requestedClaudeModel,
+            AgentRequestedEffort = requestedClaudeEffort,
             // Mirrors ClaimAgentImplementation's own fixed-assignment reasoning: the current
             // ClaudeReviewCorrectionAdapter passes the same workspace-edit allowlist and
             // permission mode as the initial implementation adapter — a concrete, non-Unknown

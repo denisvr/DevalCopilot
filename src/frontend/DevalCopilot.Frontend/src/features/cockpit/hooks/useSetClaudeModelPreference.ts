@@ -5,7 +5,7 @@ import { setClaudeModelPreferenceClient } from '../../../api/clients'
 interface UseSetClaudeModelPreferenceResult {
   saving: boolean
   error: string | null
-  save: (runId: string, requestedModel: string | null) => Promise<boolean>
+  save: (runId: string, requestedModel: string | null, requestedEffort?: string | null) => Promise<boolean>
 }
 
 const GENERIC_MESSAGE = 'The Claude model request could not be saved for this run.'
@@ -30,21 +30,24 @@ function extractSafeErrorDetail(caught: unknown): string {
 }
 
 /**
- * Sets or clears the run-scoped requested Claude model alias for future CriticalReviewer,
+ * Sets or clears the run-scoped requested Claude model alias and optional effort level for future CriticalReviewer,
  * Implementer, and ReviewCorrection claims. This never affects an already-claimed attempt's own
- * immutable request, and the alias is a request only — never an observed or effective model.
+ * immutable request, and the pair is a request only — never an observed or effective model or effort.
  */
 export function useSetClaudeModelPreference(): UseSetClaudeModelPreferenceResult {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const save = useCallback(async (runId: string, requestedModel: string | null) => {
+  const save = useCallback(async (runId: string, requestedModel: string | null, requestedEffort: string | null = null) => {
     setSaving(true)
     setError(null)
     try {
       await setClaudeModelPreferenceClient().setClaudeModelPreference(
         runId,
-        new SetClaudeModelPreferenceRequest({ requestedModel: requestedModel ?? undefined }),
+        new SetClaudeModelPreferenceRequest({
+          requestedModel: requestedModel ?? undefined,
+          requestedEffort: requestedEffort ?? undefined,
+        }),
       )
       return true
     } catch (caught: unknown) {

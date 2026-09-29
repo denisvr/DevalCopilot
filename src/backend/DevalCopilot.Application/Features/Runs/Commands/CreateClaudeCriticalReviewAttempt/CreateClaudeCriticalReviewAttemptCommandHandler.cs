@@ -214,9 +214,9 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         var agentBudgetSlot = agentAttemptsUsed + 1;
 
         // Read as late as possible (after every external step) and guarded by the Run's
-        // concurrency token, so this Attempt snapshots exactly the alias that is still current
+        // concurrency token, so this Attempt snapshots exactly the model and effort pair that is still current
         // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
-        var requestedClaudeModel = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
+        var requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
 
         var attempt = Attempt.ClaimAgentCriticalReviewWithModelRequest(
             attemptId,
@@ -230,7 +230,8 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             MaxBytesPerStream,
             MaxTotalCapturedBytes,
             nowUtc,
-            requestedClaudeModel,
+            requestedClaude.Model,
+            requestedClaude.Effort,
             agentBudgetSlot);
         dbContext.Attempts.Add(attempt);
 

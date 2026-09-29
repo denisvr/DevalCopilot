@@ -75,4 +75,98 @@ describe('ClaudeModelPreferenceControl', () => {
     expect(screen.queryByText(/sensitive detail/)).toBeNull()
     expect(screen.getByText(/Requested Claude model for future attempts: sonnet\./)).toBeTruthy()
   })
+
+  it('offers exactly the closed effort levels plus an explicit no-request start, disabled until sonnet or opus is chosen', () => {
+    render(<ClaudeModelPreferenceControl runId="run-1" requestedClaudeModel={null} />)
+
+    const effort = screen.getByLabelText('Requested Claude effort') as HTMLSelectElement
+    expect(effort.value).toBe('')
+    expect(Array.from(effort.options).map((option) => option.value)).toEqual(['', 'low', 'medium', 'high'])
+    expect(effort.disabled).toBe(true)
+
+    fireEvent.change(screen.getByLabelText('Requested Claude model'), { target: { value: 'haiku' } })
+    expect(effort.disabled).toBe(true)
+
+    fireEvent.change(screen.getByLabelText('Requested Claude model'), { target: { value: 'sonnet' } })
+    expect(effort.disabled).toBe(false)
+  })
+
+  it('shows the current effort request as a request only and never as an observed or effective effort', () => {
+    render(<ClaudeModelPreferenceControl runId="run-1" requestedClaudeModel="opus" requestedClaudeEffort="high" />)
+
+    expect(
+      screen.getByText(
+        'Requested Claude effort for future attempts: high. This is a request only; the effort actually applied is not observed, and the provider may reject or adjust it.',
+      ),
+    ).toBeTruthy()
+    expect((screen.getByLabelText('Requested Claude effort') as HTMLSelectElement).value).toBe('high')
+  })
+
+  it('saves a model and effort as one pair and calls the refresh callback once after success', async () => {
+    const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: 'opus' }))
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+    const onSaved = vi.fn().mockResolvedValue(true)
+    render(<ClaudeModelPreferenceControl runId="run-1" requestedClaudeModel={null} onSaved={onSaved} />)
+
+    fireEvent.change(screen.getByLabelText('Requested Claude model'), { target: { value: 'opus' } })
+    fireEvent.change(screen.getByLabelText('Requested Claude effort'), { target: { value: 'medium' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    expect(setClaudeModelPreference).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ requestedModel: 'opus', requestedEffort: 'medium' }),
+    )
+    expect(screen.getByText(/Requested Claude effort for future attempts: medium\./)).toBeTruthy()
+  })
+
+  it('drops a selected effort when the model changes to one that cannot carry it, and never sends it', async () => {
+    const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: 'haiku' }))
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+    render(<ClaudeModelPreferenceControl runId="run-1" requestedClaudeModel="opus" requestedClaudeEffort="high" />)
+
+    fireEvent.change(screen.getByLabelText('Requested Claude model'), { target: { value: 'haiku' } })
+    expect((screen.getByLabelText('Requested Claude effort') as HTMLSelectElement).value).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(setClaudeModelPreference).toHaveBeenCalled())
+    expect(setClaudeModelPreference).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ requestedModel: 'haiku', requestedEffort: undefined }),
+    )
+  })
+
+  it('clears both values and refreshes; a failed refresh shows a fixed safe message', async () => {
+    const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({}))
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+    const onSaved = vi.fn().mockResolvedValue(false)
+    render(
+      <ClaudeModelPreferenceControl runId="run-1" requestedClaudeModel="opus" requestedClaudeEffort="high" onSaved={onSaved} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1))
+    expect(setClaudeModelPreference).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ requestedModel: undefined, requestedEffort: undefined }),
+    )
+    expect(
+      await screen.findByText('Saved, but the cockpit could not be refreshed; the displayed request may be out of date.'),
+    ).toBeTruthy()
+    expect((screen.getByLabelText('Requested Claude effort') as HTMLSelectElement).value).toBe('')
+  })
+
+  it('does not call the refresh callback when the save fails', async () => {
+    const setClaudeModelPreference = vi.fn().mockRejectedValue(new Error('sensitive detail'))
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+    const onSaved = vi.fn()
+    render(<ClaudeModelPreferenceControl runId="run-1" requestedClaudeModel={null} onSaved={onSaved} />)
+
+    fireEvent.change(screen.getByLabelText('Requested Claude model'), { target: { value: 'sonnet' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.getByText('The Claude model request could not be saved for this run.')).toBeTruthy())
+    expect(onSaved).not.toHaveBeenCalled()
+  })
 })

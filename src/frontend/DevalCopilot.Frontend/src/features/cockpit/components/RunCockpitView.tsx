@@ -165,9 +165,11 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
       )}
       {cockpit.runId === runId && (
         <ClaudeModelPreferenceControl
-          key={`${runId}:${cockpit.requestedClaudeModel ?? ''}`}
+          key={`${runId}:${cockpit.requestedClaudeModel ?? ''}:${cockpit.requestedClaudeEffort ?? ''}`}
           runId={runId}
           requestedClaudeModel={cockpit.requestedClaudeModel ?? null}
+          requestedClaudeEffort={cockpit.requestedClaudeEffort ?? null}
+          onSaved={refresh}
         />
       )}
       {cockpit.runId === runId && <TokenWarningPanel key={runId} runId={runId} tokenWarnings={cockpit.tokenWarnings} onSaved={refresh} />}

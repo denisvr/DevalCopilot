@@ -50,7 +50,8 @@ public sealed class GetRunCockpitEndpoint(
                         attempt.DispatchedAtUtc,
                         AgentProcessExecutionResponse.FromAttempt(attempt.ProcessExecution, attempt.Timeout),
                         AgentTokenUsageResponse.FromAttempt(attempt.TokenUsage),
-                        attempt.RequestedModel)
+                        attempt.RequestedModel,
+                        attempt.RequestedEffort)
                     : null,
                 RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary),
                 value.ProviderTokenUsageSummaries.Select(RunCockpitProviderTokenUsageEntryResponse.FromDomain).ToArray(),
@@ -63,6 +64,7 @@ public sealed class GetRunCockpitEndpoint(
                 value.RequestedCodexModel,
                 value.RequestedCodexEffort,
                 value.RequestedClaudeModel,
+                value.RequestedClaudeEffort,
                 (value.TokenWarnings ?? []).Select(RunCockpitTokenWarningResponse.FromDomain).ToArray()));
     }
 }

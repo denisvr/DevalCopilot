@@ -7,7 +7,139 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-28): per-provider run token-activity warnings
+## Current selection (2026-09-29): explicit Claude effort requests at safe attempt boundaries
+
+- Correction re-review (2026-09-29): **GO for the reviewed substantive diff.**
+  Independently verified `main`, `HEAD`, local and live `origin/main` at
+  `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`; nothing staged, 67
+  modified tracked files (including this planner record) and 6 untracked
+  files. `ClaudeModelRequestSnapshot` now has its own file, with the claim
+  guard unchanged. The architecture, cockpit spec, and `current-work.md`
+  accurately distinguish this slice's request-only fields from pre-existing
+  independently provider-observed effort facts. Independently repeated the
+  solution build: 0 errors and 0 warnings; the executor's one intermediate,
+  undiagnosed build error did not recur. `git diff --check` reports only the
+  two known generated-file line-ending notices. The executor reports focused
+  Application 243/243, API 138/138, Architecture 9/9, doc links, stable
+  generated client, and the earlier full-suite results in `current-work.md`.
+  Those results remain applicable because this correction moved one unchanged
+  type and changed documentation only. This GO covers only this exact diff;
+  no next product slice is selected.
+- Publication instruction: commit exactly the reviewed substantive slice on
+  `main`, including `current-work.md` and this planner review record; push
+  normally as a fast-forward to `origin/main`; independently fetch/verify that
+  the live remote points to the delivered commit and report its exact SHA and
+  worktree state. Run the focused Claude claim, adapter, supervisor replay,
+  set/clear endpoint, and migration checks against that commit as
+  `current-work.md` states. Then make only a factual `current-work.md` closure
+  recording the substantive SHA, verified publication, and checks actually
+  run, commit/push that closure normally, and independently verify the live
+  remote and clean tree again. A material post-GO change, unexpected
+  staged/worktree change, recurring build or test failure, failed push, or
+  remote divergence stops for Codex review/direction; do not force-push or
+  reconcile remote history. The narrowly factual closure needs no second GO.
+
+- First uncommitted diff review (2026-09-29): **NO-GO; two bounded
+  corrections in this same slice.** Independently verified `main`, `HEAD`,
+  local and live `origin/main` at
+  `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`; nothing staged, 67
+  modified tracked files (including this planner record) and 5 untracked
+  files. Focused Domain 235/235, Application 133/133, Infrastructure 94/94,
+  API 59/59, and frontend 72/72 passed; the executor reports full validation
+  in `current-work.md`. The pair validation, claim guard, Attempt-only dispatch,
+  adapter argument boundary, migration, and cockpit refresh match the selected
+  scope. Correct these two issues before GO:
+  1. `CurrentClaudeModelPreference.cs` now declares both the public top-level
+     `ClaudeModelRequestSnapshot` record struct and the public top-level
+     `CurrentClaudeModelPreference` class. The engineering contract requires
+     exactly one top-level C# type per file. Move the snapshot unchanged into
+     its own correctly named file; keep the shared claim guard behavior.
+  2. The new architecture section says no observed effort is "stored, or
+     displayed," and the new cockpit spec says no observed effort is "ever
+     shown." Those blanket claims conflict with the existing
+     `ImplementationAttemptStatusResponse.ObservedEffort` field and
+     `ImplementationAction`'s "Effort observed" line. Narrow the text to the
+     actual guarantee: this slice does not infer an observed/effective value
+     from `--effort`, and its new cockpit request fields display only requests.
+     Keep any existing independently provider-observed assignment field
+     accurately distinguished. Check `current-work.md` for the same wording.
+  Keep the diff uncommitted and unpushed. Rerun the build and affected focused
+  tests after the file move, documentation links, and `git diff --check`;
+  identify earlier full-suite results that still apply. Return the complete
+  corrected diff for GO/NO-GO. No commit/push GO is granted.
+
+- Verified publication baseline: branch `main`; `HEAD`, local `origin/main`, and
+  live `origin/main` all equal `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`.
+  Staged, unstaged, and untracked state was empty before this planner-only edit.
+  The prior token-warning delivery is substantive commit
+  `46c33900089eb4ad4d29f6fc440fe96a9158fe7c` followed by factual closure
+  `bc6e1552f1964aadcb7cb71c1d6c71400cb46e1e`; the reported focused
+  post-publication checks passed and the live remote was independently verified.
+- Select one coherent Increment 4 slice: extend the existing explicit,
+  run-scoped Claude model-alias request with an **optional requested effort**
+  for future CriticalReviewer, Implementer, and ReviewCorrection attempts.
+  Allow the closed, case-sensitive `low`/`medium`/`high` request values only
+  when the owner also explicitly requests `sonnet` or `opus`; `haiku` and an
+  absent model have no effort control under the currently documented model
+  support. No preference means no `--effort` argument. This is an invocation
+  request, not an observed/effective effort, capability discovery, account
+  allowance, or eligibility guarantee. The official [Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  documents `--effort`; [model configuration](https://code.claude.com/docs/en/model-config)
+  documents model-dependent support and possible silent organization/model
+  clamping in JSON mode. Alias resolution and account availability remain
+  unproven; the provider may reject or adjust a request without any application
+  retry, fallback, or fabricated observed value.
+- Boundaries: add one nullable Run effort field and additive no-backfill
+  migration; extend the existing protected Claude model-preference set/clear
+  operation to validate and atomically persist the model/effort pair with one
+  durable change event and safe lifecycle/concurrency handling. Extend the
+  existing late claim-time fresh read and EF commit guard to snapshot both
+  fields into each of the three Attempt assignments, including a race with a
+  preference change after external Git/manifest work. Carry only that immutable
+  Attempt snapshot through eligible queries, invocation requests, supervisors,
+  and the three Claude adapters. A shared argument boundary appends exactly
+  `--effort <level>` for a valid non-null snapshot, preserving current null and
+  model-only argument lists; invalid stored values fail closed before process
+  start. Add the requested pair to cockpit transport and control, regenerate
+  NSwag, and make a successful Save/Clear refresh the authoritative cockpit
+  without requiring a run event. Show the current Run request separately from
+  the latest Claude attempt's own claim-time snapshot, never as observed.
+  Update the architecture/product specs and `current-work.md` truthfully.
+- Exclusions: no Claude model catalog, runtime-capability claim, observed
+  effort inference, provider-session resume, context compaction, account
+  allowance/stop rule, token-warning change, permission/tool/schema change,
+  Codex path, additional role, new provider, or generic settings framework.
+  Keep the six claim budgets and eligibility rules unchanged. Do not infer
+  support from CLI defaults or use a real provider in automated tests.
+- Stop gates: return before broadening scope if the configured CLI contract
+  cannot safely accept a discrete `--effort` argument; model/effort cannot be
+  snapshotted and guarded atomically at commit; any changed adapter argument
+  would loosen permission, tools, schema, or session isolation; or the UI
+  cannot distinguish a requested value from a provider-observed/effective one.
+  Document any provider rejection or silent clamp as a limitation, never a
+  successful effective-effort observation.
+- Acceptance evidence: exact closed-set and pair validation, terminal-run and
+  authenticated API refusals, independent no-backfill migration, atomic
+  preference/event persistence, change-during-claim rollback and manifest
+  cleanup for all three roles, immutable dispatch/restart replay, exact
+  per-adapter arguments for null/model-only/model-plus-effort and invalid
+  snapshots with zero process starts, provider failure without application fallback,
+  cockpit request-versus-attempt labels, and immediate post-save/clear refresh
+  with stale-run and safe-failure behavior. Run focused Domain/Application/
+  Infrastructure/API/frontend tests, relevant full solution and frontend
+  validation, TypeScript, lint, production build, deterministic NSwag
+  regeneration, documentation links, and `git diff --check`; report actual
+  commands, outcomes, and skips.
+- Expected executor preflight: `main` at the full HEAD above; nothing staged;
+  only `docs/roadmap/planner-handoff.md` modified/unstaged by this selection;
+  nothing untracked. The first delivery is a complete **uncommitted, unpushed**
+  diff with a commit-ready `current-work.md` entry for Codex GO/NO-GO. Slice
+  selection gives no commit/push GO. A future GO will use one publication
+  instruction for the reviewed substantive commit, normal fast-forward push,
+  live-remote verification, and tightly bounded factual documentation closure;
+  any material post-GO change returns for review.
+
+## Prior selection (2026-09-28): per-provider run token-activity warnings
 
 - Correction re-review (2026-09-29): **GO for the reviewed substantive diff.**
   Independently verified `main`, `HEAD`, local and live `origin/main` at

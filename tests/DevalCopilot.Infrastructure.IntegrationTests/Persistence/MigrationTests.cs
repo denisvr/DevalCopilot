@@ -94,7 +94,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
 
                 var newAttempt = Attempt.ClaimAgentImplementationWithAssignment(
                     Guid.NewGuid(), runId, 2, Guid.NewGuid(), Guid.NewGuid(), "sha256:migration", Guid.NewGuid(),
-                    TimeSpan.FromMinutes(20), 1024, 2048, now, "claude-model", "balanced",
+                    TimeSpan.FromMinutes(20), 1024, 2048, now, "opus", "medium",
                     AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", 2);
                 upgradedContext.Attempts.Add(newAttempt);
                 await upgradedContext.SaveChangesAsync();
@@ -112,10 +112,10 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
             Assert.Null(historicalAttempt.AgentAdapterContractVersion);
             Assert.Equal(AgentPermissionProfile.Unknown, historicalAttempt.GetAssignmentSnapshot()!.PermissionProfile);
 
-            var roundTrippedAttempt = await reopenedContext.Attempts.SingleAsync(attempt => attempt.AgentRequestedModel == "claude-model");
+            var roundTrippedAttempt = await reopenedContext.Attempts.SingleAsync(attempt => attempt.AgentRequestedModel == "opus");
             Assert.Equal(AgentProvider.ClaudeCode, roundTrippedAttempt.AgentProvider);
-            Assert.Equal("claude-model", roundTrippedAttempt.AgentRequestedModel);
-            Assert.Equal("balanced", roundTrippedAttempt.AgentRequestedEffort);
+            Assert.Equal("opus", roundTrippedAttempt.AgentRequestedModel);
+            Assert.Equal("medium", roundTrippedAttempt.AgentRequestedEffort);
             Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, roundTrippedAttempt.AgentPermissionProfile);
             Assert.Equal("claude-implementation-v1", roundTrippedAttempt.AgentAdapterContractVersion);
         }

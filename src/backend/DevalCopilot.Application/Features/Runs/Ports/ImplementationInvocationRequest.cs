@@ -6,8 +6,8 @@ namespace DevalCopilot.Application.Features.Runs.Ports;
 /// resolved and revalidated by the caller from the durable Claude capability snapshot — this
 /// request never causes a new search through PATH or a private provider install location. There
 /// is no <c>LaunchScriptPath</c>: the Claude launch target is always a direct executable.
-/// <see cref="RequestedClaudeModel"/> is this claimed attempt's own immutable model-alias request
-/// (never a later, possibly different, mutable Run value); <see langword="null"/> means no override. The
+/// <see cref="RequestedClaudeModel"/> is this claimed attempt's own immutable model-alias and effort request
+/// (never a later, possibly different, mutable Run value); <see langword="null"/> means no override. <see cref="RequestedClaudeEffort"/> is the paired, optional immutable effort request. The
 /// <see cref="WorkspacePath"/> is the owned worktree and the only directory the process may read or edit.
 /// </summary>
 public sealed record ImplementationInvocationRequest(
@@ -21,4 +21,5 @@ public sealed record ImplementationInvocationRequest(
     TimeSpan Timeout,
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
-    string? RequestedClaudeModel = null);
+    string? RequestedClaudeModel = null,
+    string? RequestedClaudeEffort = null);

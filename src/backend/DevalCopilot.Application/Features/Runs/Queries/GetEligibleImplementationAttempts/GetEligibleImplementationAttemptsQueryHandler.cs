@@ -62,6 +62,7 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                     MaxBytesPerStream = combined.attempt.AgentMaxBytesPerStream!.Value,
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
                     RequestedClaudeModel = combined.attempt.AgentRequestedModel,
+                    RequestedClaudeEffort = combined.attempt.AgentRequestedEffort,
                 })
             .ToListAsync(cancellationToken);
 
@@ -91,7 +92,8 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                 candidate.Timeout,
                 candidate.MaxBytesPerStream,
                 candidate.MaxTotalCapturedBytes,
-                candidate.RequestedClaudeModel))
+                candidate.RequestedClaudeModel,
+                candidate.RequestedClaudeEffort))
             .ToArray();
     }
 

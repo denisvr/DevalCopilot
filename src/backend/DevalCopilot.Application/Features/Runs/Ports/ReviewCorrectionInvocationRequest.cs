@@ -1,7 +1,7 @@
 namespace DevalCopilot.Application.Features.Runs.Ports;
 
 /// <summary><see cref="RequestedClaudeModel"/> is this claimed attempt's own immutable model-alias
-/// request (never a later, possibly different, mutable Run value); <see langword="null"/> means no override.</summary>
+/// request (never a later, possibly different, mutable Run value); <see langword="null"/> means no override. <see cref="RequestedClaudeEffort"/> is the paired, optional immutable effort request.</summary>
 public sealed record ReviewCorrectionInvocationRequest(
     Guid RunId,
     Guid AttemptId,
@@ -13,4 +13,5 @@ public sealed record ReviewCorrectionInvocationRequest(
     TimeSpan Timeout,
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
-    string? RequestedClaudeModel = null);
+    string? RequestedClaudeModel = null,
+    string? RequestedClaudeEffort = null);

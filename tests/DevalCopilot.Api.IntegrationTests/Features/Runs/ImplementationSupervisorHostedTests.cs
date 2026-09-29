@@ -114,13 +114,13 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
             FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]),
         };
         await using var provider = BuildServiceProvider(evidenceReader, adapter);
-        var (runId, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, "haiku");
+        var (runId, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, "sonnet", "low");
 
         await using (var scope = provider.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
-            run.SetRequestedClaudeModel("opus");
+            run.SetRequestedClaudeModelRequest("opus", "high");
             await dbContext.SaveChangesAsync();
         }
 
@@ -137,7 +137,8 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         }
 
         Assert.Equal(1, adapter.InvocationCount);
-        Assert.Equal("haiku", adapter.LastRequest!.RequestedClaudeModel);
+        Assert.Equal("sonnet", adapter.LastRequest!.RequestedClaudeModel);
+        Assert.Equal("low", adapter.LastRequest!.RequestedClaudeEffort);
     }
 
     [Fact]
@@ -167,6 +168,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         }
 
         Assert.Null(adapter.LastRequest!.RequestedClaudeModel);
+        Assert.Null(adapter.LastRequest!.RequestedClaudeEffort);
     }
 
     [Fact]
@@ -543,7 +545,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
     /// implementation attempt itself through <see cref="CreateImplementationAttemptCommand"/>.
     /// </summary>
     private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid ProposalId)> SeedEligibleImplementationAttemptAsync(
-        ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null)
+        ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null, string? requestedClaudeEffort = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -582,7 +584,7 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         if (requestedClaudeModel is not null)
         {
             var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
-            run.SetRequestedClaudeModel(requestedClaudeModel);
+            run.SetRequestedClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
             await dbContext.SaveChangesAsync(CancellationToken.None);
         }
 

@@ -68,6 +68,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandler(IDevalCo
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
                     InputCollaborationMessageId = inputMessage.CollaborationMessageId,
                     RequestedClaudeModel = combined.attempt.AgentRequestedModel,
+                    RequestedClaudeEffort = combined.attempt.AgentRequestedEffort,
                 })
             .ToListAsync(cancellationToken);
 
@@ -98,7 +99,8 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandler(IDevalCo
                 candidate.MaxBytesPerStream,
                 candidate.MaxTotalCapturedBytes,
                 candidate.InputCollaborationMessageId,
-                candidate.RequestedClaudeModel))
+                candidate.RequestedClaudeModel,
+                candidate.RequestedClaudeEffort))
             .ToArray();
     }
 

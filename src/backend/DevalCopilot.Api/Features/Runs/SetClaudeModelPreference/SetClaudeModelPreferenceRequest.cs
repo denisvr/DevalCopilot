@@ -1,3 +1,3 @@
 namespace DevalCopilot.Api.Features.Runs.SetClaudeModelPreference;
 
-public sealed record SetClaudeModelPreferenceRequest(string? RequestedModel);
+public sealed record SetClaudeModelPreferenceRequest(string? RequestedModel, string? RequestedEffort = null);

@@ -61,9 +61,9 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         var workspaceId = Guid.NewGuid();
         var checkpointId = Guid.NewGuid();
         var proposalId = Guid.NewGuid();
-        var requestedModel = "claude-model-requested";
+        var requestedModel = "opus";
         var observedModel = "claude-model-observed";
-        var requestedEffort = "high-requested";
+        var requestedEffort = "high";
         var observedEffort = "medium-observed";
         var contractVersion = "claude-implementation-v1";
         var forbiddenSentinel = "must-not-be-in-response";

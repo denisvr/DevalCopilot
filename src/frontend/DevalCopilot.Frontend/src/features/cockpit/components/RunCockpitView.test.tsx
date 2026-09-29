@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { processAttemptOutputClient } from '../../../api/clients'
+import { processAttemptOutputClient, setClaudeModelPreferenceClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
   AgentClaimPathTimeFitResponse,
@@ -49,6 +49,7 @@ vi.mock('../hooks/useReviewCorrectionAttemptStatus')
 vi.mock('../hooks/useRequestReviewCorrection')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
+  setClaudeModelPreferenceClient: vi.fn(),
   reviewCorrectionAttemptStatusClient: vi.fn(),
   codexAccountAllowanceClient: vi.fn(() => ({
     getCodexAccountAllowance: vi.fn().mockResolvedValue({ status: 'Unknown' }),
@@ -1510,5 +1511,94 @@ describe('RunCockpitView token-activity warnings', () => {
 
     expect(screen.queryByLabelText('Codex token-activity warning')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('RunCockpitView Claude effort request', () => {
+  function mockCockpit(refresh: () => Promise<boolean>, overrides: Partial<GetRunCockpitResponse> = {}) {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, requestedClaudeModel: 'opus', requestedClaudeEffort: 'low', ...overrides }),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh,
+    })
+  }
+
+  it('shows the run effort request separately from the latest attempt\'s claim-time effort, both as requests only', () => {
+    mockCockpit(async () => true, {
+      latestAgentAttempt: new RunCockpitAgentAttemptResponse({
+        attemptId: 'attempt-2',
+        attemptNumber: 2,
+        role: 'Implementer',
+        provider: 'ClaudeCode',
+        status: 'Running',
+        requestedModel: 'sonnet',
+        requestedEffort: 'high',
+      }),
+    })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByLabelText('Claude model request')).toHaveTextContent(
+      'Requested Claude effort for future attempts: low. This is a request only; the effort actually applied is not observed',
+    )
+    expect(screen.getByRole('region', { name: 'Latest agent attempt' })).toHaveTextContent(
+      'Effort requested at claim: high (a request only',
+    )
+  })
+
+  it('refreshes the authoritative cockpit after a successful Save without any run notification', async () => {
+    const setClaudeModelPreference = vi.fn().mockResolvedValue({ requestedModel: 'sonnet', requestedEffort: 'medium' })
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+    const refresh = vi.fn().mockResolvedValue(true)
+    mockCockpit(refresh)
+
+    render(<RunCockpitView runId="run-1" />)
+    fireEvent.change(screen.getByLabelText('Requested Claude model'), { target: { value: 'sonnet' } })
+    fireEvent.change(screen.getByLabelText('Requested Claude effort'), { target: { value: 'medium' } })
+    fireEvent.click(within(screen.getByLabelText('Claude model request')).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    expect(setClaudeModelPreference).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ requestedModel: 'sonnet', requestedEffort: 'medium' }),
+    )
+    expect(screen.queryByText(/could not be refreshed/)).not.toBeInTheDocument()
+  })
+
+  it('refreshes after a successful Clear and shows a fixed safe message when the refresh fails or the run went stale', async () => {
+    const setClaudeModelPreference = vi.fn().mockResolvedValue({})
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+    const refresh = vi.fn().mockResolvedValue(false)
+    mockCockpit(refresh)
+
+    render(<RunCockpitView runId="run-1" />)
+    fireEvent.click(within(screen.getByLabelText('Claude model request')).getByRole('button', { name: 'Clear' }))
+
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    expect(setClaudeModelPreference).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ requestedModel: undefined, requestedEffort: undefined }),
+    )
+    expect(
+      await screen.findByText('Saved, but the cockpit could not be refreshed; the displayed request may be out of date.'),
+    ).toBeInTheDocument()
+  })
+
+  it('does not refresh when the save itself fails', async () => {
+    const setClaudeModelPreference = vi.fn().mockRejectedValue(new Error('sensitive detail'))
+    vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
+    const refresh = vi.fn().mockResolvedValue(true)
+    mockCockpit(refresh)
+
+    render(<RunCockpitView runId="run-1" />)
+    fireEvent.click(within(screen.getByLabelText('Claude model request')).getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('The Claude model request could not be saved for this run.')).toBeInTheDocument()
+    expect(refresh).not.toHaveBeenCalled()
+    expect(screen.queryByText(/sensitive detail/)).not.toBeInTheDocument()
   })
 })

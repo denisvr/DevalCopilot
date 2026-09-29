@@ -100,7 +100,8 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             "--session-id", Guid.NewGuid().ToString(),
         };
 
-        if (!ClaudeModelRequestArguments.TryAppend(arguments, request.RequestedClaudeModel))
+        if (!ClaudeModelRequestArguments.TryAppend(
+                arguments, request.RequestedClaudeModel, request.RequestedClaudeEffort))
         {
             return Failed();
         }
