@@ -73,6 +73,21 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required to request a Codex plan."));
         }
 
+        // A manual format repair additionally requires an eligible source (see
+        // PlanningRepairSource); it is re-evaluated at the durable claim boundary below. It is
+        // evaluated before the running-attempt check so a request that lost a race to the
+        // source's one repair is told the repair was already requested, not that some attempt is
+        // running. An ordinary request skips this entirely and is unaffected.
+        if (command.RepairSourceAttemptId is { } repairSourceAttemptId)
+        {
+            var sourceError = await PlanningRepairSource.EvaluateAsync(
+                dbContext, run.Id, repairSourceAttemptId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, cancellationToken);
+            if (sourceError is not null)
+            {
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(sourceError);
+            }
+        }
+
         // Run-wide, not Agent-scoped: a Simulated or Process attempt already Running for this run
         // is exactly as disqualifying as an Agent attempt already Running — only one attempt of
         // any kind may ever be Running for a run at a time. The filtered unique index on
@@ -151,8 +166,11 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         var manifestArtifactId = Guid.NewGuid();
         var nowUtc = timeProvider.GetUtcNow();
 
-        var manifestJson = ContextManifestBuilder.Build(
-            run.ProjectId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, run.Objective, null, []);
+        var manifestJson = command.RepairSourceAttemptId is null
+            ? ContextManifestBuilder.Build(
+                run.ProjectId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, run.Objective, null, [])
+            : ContextManifestBuilder.BuildFormatRepair(
+                run.ProjectId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, run.Objective);
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             // Genuinely unreachable with today's bounded manifest fields, but never silently
@@ -179,21 +197,38 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         // artifact-sealing work above have both already completed. See CurrentCodexAssignmentPreference.
         var (requestedModel, requestedEffort) = await CurrentCodexAssignmentPreference.ReadAsync(dbContext, run.Id, cancellationToken);
 
-        var attempt = Attempt.ClaimAgentWithAssignment(
-            attemptId,
-            run.Id,
-            attemptNumber,
-            workspace.Id,
-            checkpoint.Id,
-            checkpoint.FingerprintSha256,
-            manifestArtifactId,
-            InvocationTimeout,
-            MaxBytesPerStream,
-            MaxTotalCapturedBytes,
-            nowUtc,
-            requestedModel,
-            requestedEffort,
-            agentBudgetSlot);
+        var attempt = command.RepairSourceAttemptId is { } sourceAttemptId
+            ? Attempt.ClaimAgentPlanningRepair(
+                attemptId,
+                run.Id,
+                attemptNumber,
+                workspace.Id,
+                checkpoint.Id,
+                checkpoint.FingerprintSha256,
+                manifestArtifactId,
+                InvocationTimeout,
+                MaxBytesPerStream,
+                MaxTotalCapturedBytes,
+                nowUtc,
+                requestedModel,
+                requestedEffort,
+                agentBudgetSlot,
+                sourceAttemptId)
+            : Attempt.ClaimAgentWithAssignment(
+                attemptId,
+                run.Id,
+                attemptNumber,
+                workspace.Id,
+                checkpoint.Id,
+                checkpoint.FingerprintSha256,
+                manifestArtifactId,
+                InvocationTimeout,
+                MaxBytesPerStream,
+                MaxTotalCapturedBytes,
+                nowUtc,
+                requestedModel,
+                requestedEffort,
+                agentBudgetSlot);
 
         var manifestArtifact = Artifact.Record(
             manifestArtifactId,
@@ -243,12 +278,25 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         await using (claimTransaction)
         {
             bool preferenceStillCurrent;
+            Error? repairSourceError = null;
             try
             {
                 // One atomic UPDATE ... WHERE statement requiring the Run's requested model/effort
                 // to still exactly match what was just read above.
                 preferenceStillCurrent = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
                     dbContext, run.Id, requestedModel, requestedEffort, cancellationToken);
+
+                // A repair's source is re-read here, after that first write statement: it has
+                // taken this transaction's database write lock (a matching row is rewritten in
+                // place; even zero matches still open the write transaction), so no other claim
+                // can commit between this re-check and this claim's own insert. Only a still-current
+                // preference proceeds; a stale one is reported as the preference conflict below.
+                if (preferenceStillCurrent && command.RepairSourceAttemptId is { } repairSourceAtCommit)
+                {
+                    repairSourceError = await PlanningRepairSource.EvaluateAsync(
+                        dbContext, run.Id, repairSourceAtCommit, workspace.Id, checkpoint.Id,
+                        checkpoint.FingerprintSha256, cancellationToken);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -281,6 +329,16 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 return Result<CreateCodexPlanningAttemptCommandResult>.Failure(Error.Conflict(
                     "agent_attempts.assignment_preference_changed",
                     "The run's requested Codex model or effort changed while this claim was being prepared; retry the request."));
+            }
+
+            if (repairSourceError is not null)
+            {
+                // The source became ineligible (a newer attempt, a competing repair, or any other
+                // change) between the request-time check and this boundary: no repair is claimed
+                // and the sealed manifest is removed, exactly like a changed preference.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(repairSourceError);
             }
 
             dbContext.Attempts.Add(attempt);
@@ -334,7 +392,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                     // reporting a conflict or deleting this request's own artifact here would both
                     // be false.
                     return Result<CreateCodexPlanningAttemptCommandResult>.Success(
-                        new CreateCodexPlanningAttemptCommandResult(attemptId, attemptNumber));
+                        new CreateCodexPlanningAttemptCommandResult(attemptId, attemptNumber, command.RepairSourceAttemptId));
                 }
 
                 if (durability == AttemptDurabilityCheckResult.Unresolved)
@@ -356,6 +414,16 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 dbContext.Attempts.Remove(attempt);
                 dbContext.Artifacts.Remove(manifestArtifact);
+
+                if (command.RepairSourceAttemptId is { } repairSourceOnRace
+                    && await dbContext.Attempts.AsNoTracking().AnyAsync(
+                        candidate => candidate.AgentRepairSourceAttemptId == repairSourceOnRace, cancellationToken))
+                {
+                    // The race the (AgentRepairSourceAttemptId) unique index exists to close: a
+                    // concurrent request already committed the one repair of this source.
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(Error.Conflict(
+                        PlanningRepairSource.AlreadyRequestedCode, "A repair was already requested for this attempt."));
+                }
 
                 var competingRunningAttemptExists = await dbContext.Attempts
                     .AsNoTracking()
@@ -462,7 +530,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 if (durability == AttemptDurabilityCheckResult.Persisted)
                 {
                     return Result<CreateCodexPlanningAttemptCommandResult>.Success(
-                        new CreateCodexPlanningAttemptCommandResult(attemptId, attemptNumber));
+                        new CreateCodexPlanningAttemptCommandResult(attemptId, attemptNumber, command.RepairSourceAttemptId));
                 }
 
                 if (durability == AttemptDurabilityCheckResult.Unresolved)
@@ -484,7 +552,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         }
 
         return Result<CreateCodexPlanningAttemptCommandResult>.Success(
-            new CreateCodexPlanningAttemptCommandResult(attempt.Id, attempt.AttemptNumber));
+            new CreateCodexPlanningAttemptCommandResult(attempt.Id, attempt.AttemptNumber, command.RepairSourceAttemptId));
     }
 
     /// <summary>

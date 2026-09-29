@@ -20,6 +20,7 @@ import * as useRunCockpitModule from '../hooks/useRunCockpit'
 import * as useCollaborationTimelineModule from '../hooks/useCollaborationTimeline'
 import * as useAgentAttemptStatusModule from '../hooks/useAgentAttemptStatus'
 import * as useRequestCodexPlanningAttemptModule from '../hooks/useRequestCodexPlanningAttempt'
+import * as useRequestCodexPlanningRepairAttemptModule from '../hooks/useRequestCodexPlanningRepairAttempt'
 import * as useClaudeCriticalReviewAttemptStatusModule from '../hooks/useClaudeCriticalReviewAttemptStatus'
 import * as useRequestClaudeCriticalReviewModule from '../hooks/useRequestClaudeCriticalReview'
 import * as useChallengeResolutionAttemptStatusModule from '../hooks/useChallengeResolutionAttemptStatus'
@@ -37,6 +38,7 @@ vi.mock('../hooks/useRunCockpit')
 vi.mock('../hooks/useCollaborationTimeline')
 vi.mock('../hooks/useAgentAttemptStatus')
 vi.mock('../hooks/useRequestCodexPlanningAttempt')
+vi.mock('../hooks/useRequestCodexPlanningRepairAttempt')
 vi.mock('../hooks/useClaudeCriticalReviewAttemptStatus')
 vi.mock('../hooks/useRequestClaudeCriticalReview')
 vi.mock('../hooks/useChallengeResolutionAttemptStatus')
@@ -63,6 +65,9 @@ const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)
 const useCollaborationTimelineMock = vi.mocked(useCollaborationTimelineModule.useCollaborationTimeline)
 const useAgentAttemptStatusMock = vi.mocked(useAgentAttemptStatusModule.useAgentAttemptStatus)
 const useRequestCodexPlanningAttemptMock = vi.mocked(useRequestCodexPlanningAttemptModule.useRequestCodexPlanningAttempt)
+const useRequestCodexPlanningRepairAttemptMock = vi.mocked(
+  useRequestCodexPlanningRepairAttemptModule.useRequestCodexPlanningRepairAttempt,
+)
 const useClaudeCriticalReviewAttemptStatusMock = vi.mocked(
   useClaudeCriticalReviewAttemptStatusModule.useClaudeCriticalReviewAttemptStatus,
 )
@@ -111,6 +116,11 @@ beforeEach(() => {
     refresh: vi.fn(),
   })
   useRequestCodexPlanningAttemptMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useRequestCodexPlanningRepairAttemptMock.mockReturnValue({
     requesting: false,
     error: null,
     request: vi.fn(),
@@ -558,6 +568,73 @@ describe('RunCockpitView', () => {
       expect(Object.keys(sessionStorage)).toHaveLength(0)
       expect(document.cookie).not.toContain(sentinel)
       expect(window.location.href).not.toContain(sentinel)
+    })
+  })
+
+  describe('Codex planning repair wiring', () => {
+    function withInvalidLatestAttempt(overrides: Partial<ConstructorParameters<typeof AgentAttemptStatusResponse>[0]> = {}) {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      })
+      useAgentAttemptStatusMock.mockReturnValue({
+        status: new AgentAttemptStatusResponse({
+          hasAttempt: true,
+          attemptId: 'attempt-9',
+          attemptNumber: 3,
+          status: 'Failed',
+          outcome: 'InvalidStructuredOutput',
+          ...overrides,
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+    }
+
+    it('requests the repair for the current run and the displayed attempt, beside the ordinary action', () => {
+      withInvalidLatestAttempt()
+      const request = vi.fn()
+      useRequestCodexPlanningRepairAttemptMock.mockReturnValue({ requesting: false, error: null, request })
+
+      render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Request one format-repair plan' }))
+
+      expect(request).toHaveBeenCalledWith('attempt-9')
+      expect(useRequestCodexPlanningRepairAttemptMock).toHaveBeenCalledWith('run-1', expect.any(Function))
+      expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeEnabled()
+    })
+
+    it('binds the repair hook to the newly selected run and offers no repair for a stale status', () => {
+      withInvalidLatestAttempt()
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      expect(screen.getByRole('button', { name: 'Request one format-repair plan' })).toBeInTheDocument()
+
+      // The status hook masks another run's status to null during a switch (its own contract).
+      useAgentAttemptStatusMock.mockReturnValue({ status: null, loading: true, error: null, refresh: vi.fn() })
+      rerender(<RunCockpitView runId="run-2" />)
+
+      expect(useRequestCodexPlanningRepairAttemptMock).toHaveBeenLastCalledWith('run-2', expect.any(Function))
+      expect(screen.queryByRole('button', { name: 'Request one format-repair plan' })).not.toBeInTheDocument()
+    })
+
+    it('shows a safe repair error while the ordinary action stays available', () => {
+      withInvalidLatestAttempt()
+      useRequestCodexPlanningRepairAttemptMock.mockReturnValue({
+        requesting: false,
+        error: 'A repair was already requested for this attempt.',
+        request: vi.fn(),
+      })
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByText('A repair was already requested for this attempt.')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
     })
   })
 

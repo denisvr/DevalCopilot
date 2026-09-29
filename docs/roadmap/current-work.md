@@ -8,6 +8,61 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Current delivery, based on verified parent `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`: **one manual Codex Planner
+  format-repair attempt** (ADR-0004's optional bounded repair, Planner/Proposal only). See
+  [planner-handoff.md](planner-handoff.md) for the selection and the
+  ["One manual Codex Planner format repair"](../architecture/agent-collaboration-protocol.md#one-manual-codex-planner-format-repair)
+  and
+  ["One manual Codex plan format repair"](../product/run-cockpit-specification.md#one-manual-codex-plan-format-repair)
+  sections for the contract.
+  - Behavior: protected `POST /api/runs/{runId}/agent-attempts/{sourceAttemptId}/codex-plan-repair` (no body) sends
+    the existing `CreateCodexPlanningAttemptCommand` with a `RepairSourceAttemptId`, so a repair is the ordinary
+    Planner claim (workspace, lease, fresh Git checkpoint, provider observation, run model/effort snapshot, one
+    Running attempt, count and reserved-time budgets, sealed-manifest cleanup) plus a source check. The source must be
+    in the run, a dispatched Codex Planner/Proposal attempt with status `Failed` and outcome exactly
+    `InvalidStructuredOutput` (`Attempt.IsEligiblePlanningRepairSource`; a persisted `Completed` row with that outcome is
+    refused), not itself a repair, not already repaired, the run's latest Agent attempt, and made against exactly the
+    workspace, checkpoint, and fingerprint the repair claim selects (a newer valid checkpoint is refused; ordinary requests
+    cover it); each refusal is a fixed safe error (404 not found for unknown and foreign-run ids; 409 ineligible,
+    repair-of-repair, already requested, not latest, checkpoint mismatch). Eligibility is evaluated before the
+    running-attempt check at the request and again inside the claim's own transaction after the preference guard's
+    write, so a stale or competing source rolls the claim back and deletes the sealed manifest. Additive migration
+    `AddCodexPlanningRepairLink`: nullable `attempts.AgentRepairSourceAttemptId`, a `NO ACTION` self-foreign-key (a referenced source cannot be deleted alone, while the existing run cascade still
+    deletes source and repair together), and the
+    filtered unique index `ix_attempts_agent_repair_source` (the database backstop, mapped to "already requested").
+    The repair manifest is the ordinary planning manifest plus one fixed `formatRepairNotice`; it contains no source
+    response, parser detail, path, attempt id or outcome, or human text. Dispatch, restart replay, the read-only
+    adapter arguments, parser, result recording, and the one-Proposal ledger rule are unchanged (no adapter,
+    supervisor, or provider code changed). Planner status adds `repairSourceAttemptId` (present for every repair)
+    and `repairSourceAttemptNumber` (null when no source of the same run is found; an invalid enum on the source does not by itself null this scalar projection) lineage. The cockpit adds a separate "Codex plan repair" panel (suggestion for the latest invalid non-repair
+    attempt, lineage line, safe errors, run-scoped request state); the ordinary request stays available.
+  - Checks run: solution build 0 errors/0 warnings (a transient `MSB3026` copy-lock warning on one incremental build
+    cleared on rebuild; a `--no-incremental` parallel build hit a metadata-file race that a normal rebuild cleared);
+    Domain 625/625; Application 1221/1221; Infrastructure 589 passed, 2 skipped (the existing host-capability skips);
+    Api 428/428; Architecture 9/9; frontend `vitest` 776/776, `tsc -b`, `npm run build` clean, and `oxlint` with no
+    warnings in new or touched files (pre-existing warnings elsewhere unchanged); repeated Api builds left
+    `api-client.ts` byte-identical (SHA-256 `d535bb6f…`, regenerated for the new operation and response fields).
+    New tests: Domain factory and eligibility; Application claim success, manifest shape and secrecy, fail-closed
+    cases (unknown, foreign run, wrong outcome, Claude source, nonlatest, newer running Agent attempt, other-kind
+    running attempt, repair of a repair, already repaired, count and time budgets, provider, lease, workspace, stale
+    checkpoint, a newer valid checkpoint that differs from the source's, a persisted Completed row with the invalid outcome), preference change during external work, source made stale during the claim, competing repair during
+    the claim, and a concurrent claim pair (six consecutive passes); Infrastructure migration data/index preservation,
+    filtered unique index, concurrent insert race, foreign key, run cascade versus blocked source-only delete (the cascade test fails if the foreign key is RESTRICT), and down/up round trip; Api endpoint auth, 404/409
+    mapping, success, no leakage, ordinary request unaffected, status lineage; hosted-supervisor restart replay and
+    interrupted-repair reconciliation; frontend hook, component, and cockpit wiring including a run switch. Mutation
+    checks (each failed the targeted tests, then restored): disabling the commit-boundary source re-check failed the
+    stale-source test, and disabling the latest-attempt check failed three tests. Tests use deterministic doubles;
+    no real provider is called. `git diff --check` and local documentation links are recorded in the review report.
+  - Remaining risks: a repair spends a real Agent budget slot and reserved time and can fail like any claim; the
+    "one repair" and "no chain" rules are enforced by the handler, the Domain rule, and the unique index but repair
+    chains have no database constraint of their own; a source whose row cannot be materialized is treated as
+    ineligible rather than diagnosed; the Application concurrent-pair test usually rejects the loser at the request
+    check, so the interleaved commit-boundary case is covered by the deterministic injected-race tests and the index
+    backstop; the source-identity check compares immutable values against the same selected workspace and checkpoint at the request and at the claim boundary, so the boundary repeat guards code paths rather than a changing input; a run whose interrupted repair is reconciled leaves the run not active, so no further claim is
+    possible; the source response remains inspectable only through the existing history and is never sent to the
+    provider, so a repair can only ever be a fresh attempt, not a semantic fix.
+  - Post-publication verification: after a GO and publication, rerun the focused repair claim, migration, endpoint,
+    hosted-supervisor replay, and frontend repair tests against the delivered commit.
 - Published delivery: `998c05f98558cfccc849cf2845b3348d97584b3d` (parent
   `391317193575d111a5e27afd76140010ce3bd21b`) was committed with the reviewed 44-file Agent-attempt history and
   evidence inspector slice (14 modified, 30 new), pushed as a normal fast-forward to `origin/main`, and verified

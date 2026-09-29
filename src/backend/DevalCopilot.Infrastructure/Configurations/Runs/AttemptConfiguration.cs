@@ -100,8 +100,28 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         // deterministic slot by the AddAgentClaimBudget migration.
         builder.Property(attempt => attempt.AgentBudgetSlot);
 
+        // Immutable lineage of the one manual Planner format repair: null for every attempt that is
+        // not a repair, never backfilled. NoAction (checked at statement end), not Cascade or
+        // Restrict: deleting a referenced source on its own is refused, while deleting its run
+        // cascades to source and repair together.
+        builder.Property(attempt => attempt.AgentRepairSourceAttemptId);
+        builder.HasOne<Attempt>()
+            .WithMany()
+            .HasForeignKey(attempt => attempt.AgentRepairSourceAttemptId)
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.HasOne<Run>().WithMany().HasForeignKey(attempt => attempt.RunId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(attempt => new { attempt.RunId, attempt.AttemptNumber }).IsUnique();
+
+        // The at-most-one-repair-per-source invariant's database backstop. The primary defense is
+        // the claim handler's source check and its commit-boundary re-check; this filtered unique
+        // index turns a lost race into a safe "already repaired" conflict instead of two repairs
+        // of one source. A repair of a repair is excluded by the handler and by
+        // Attempt.IsEligiblePlanningRepairSource, not by this index.
+        builder.HasIndex(attempt => attempt.AgentRepairSourceAttemptId)
+            .IsUnique()
+            .HasDatabaseName("ix_attempts_agent_repair_source")
+            .HasFilter("\"AgentRepairSourceAttemptId\" IS NOT NULL");
 
         // The run-wide Agent claim-budget invariant's database backstop: at most one Agent
         // attempt may ever occupy a given (RunId, AgentBudgetSlot) pair. The primary defense is

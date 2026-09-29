@@ -15,17 +15,17 @@ const GENERIC_MESSAGE = 'A Codex plan could not be requested for this run.'
  * value from the structured problem-details body) — never a raw exception message, stack
  * trace, or anything else the transport layer might have captured.
  */
-function extractSafeErrorDetail(caught: unknown): string {
+export function extractSafeErrorDetail(caught: unknown, fallback: string = GENERIC_MESSAGE): string {
   if (!ApiException.isApiException(caught)) {
-    return GENERIC_MESSAGE
+    return fallback
   }
 
   try {
     const parsed = JSON.parse((caught as ApiException).response) as { errors?: { detail?: string }[] }
     const detail = parsed.errors?.[0]?.detail
-    return typeof detail === 'string' && detail.length > 0 ? detail : GENERIC_MESSAGE
+    return typeof detail === 'string' && detail.length > 0 ? detail : fallback
   } catch {
-    return GENERIC_MESSAGE
+    return fallback
   }
 }
 

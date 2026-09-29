@@ -554,6 +554,26 @@ the backend's inclusive 1 to 1,000,000,000,000. See the
 ["Per-provider run token-activity warnings"](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-warnings)
 section of the agent-collaboration-protocol for the exact counting and concurrency rules.
 
+### One manual Codex plan format repair
+
+Beside the Codex planning action, a separate "Codex plan repair" panel appears only when the latest Planner
+attempt's recorded outcome is `Codex returned an invalid structured response` (`InvalidStructuredOutput`), that
+attempt is not itself a repair, and no known global budget or time-fit block applies. It offers one button,
+"Request one format-repair plan", and says plainly that the last response failed structural validation, that the
+repair is a fresh plan attempt with a format reminder that uses one Agent attempt and reserved time, and that it
+does not correct or reuse the earlier response. The button is only a suggestion: the server decides eligibility
+and its fixed, safe refusal (for example, "A repair was already requested for this attempt.") is shown in the
+panel; a failure that is not a backend message shows a generic one. The button is disabled while the repair or an
+ordinary plan request is in flight or the status is loading, and the ordinary "Request Codex plan" button stays
+available and is disabled while a repair request is in flight. After a repair is claimed the Planner status
+refreshes; the panel then shows lineage ("Attempt #N is the one repair request for attempt #M.", or "…a repair
+request for an earlier attempt." if the source number is unknown), that a repair is not repaired again, and that
+an ordinary plan can still be requested — never that the repair fixed or preserved anything. A repair's request
+state and error belong to the run that requested it and never appear on another run after a switch; the status
+that offers the button is masked during a run switch by the existing status hook. See
+["One manual Codex Planner format repair"](../architecture/agent-collaboration-protocol.md#one-manual-codex-planner-format-repair)
+for the eligibility, claim, manifest, and persistence contract.
+
 ### Provider account usage guardrails
 
 This remains the target end state the observation above is one step toward;

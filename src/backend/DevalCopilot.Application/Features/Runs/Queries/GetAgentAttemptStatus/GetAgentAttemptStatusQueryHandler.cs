@@ -73,6 +73,18 @@ public sealed class GetAgentAttemptStatusQueryHandler(IDevalCopilotDbContext dbC
             .Select(artifact => new AgentAttemptArtifactMetadata(artifact.Purpose, artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome))
             .ToArrayAsync(cancellationToken);
 
+        // Lineage only: the source's own number, read scoped to this run. A missing source row
+        // leaves the number unknown rather than guessed.
+        int? repairSourceAttemptNumber = null;
+        if (attempt.AgentRepairSourceAttemptId is { } repairSourceAttemptId)
+        {
+            repairSourceAttemptNumber = await dbContext.Attempts
+                .AsNoTracking()
+                .Where(candidate => candidate.Id == repairSourceAttemptId && candidate.RunId == query.RunId)
+                .Select(candidate => (int?)candidate.AttemptNumber)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         var isCoherentDefaultPlannerAssignment =
             attempt.AgentRole == AgentRole.Planner
             && assignment.Provider == AgentProvider.Codex
@@ -96,7 +108,9 @@ public sealed class GetAgentAttemptStatusQueryHandler(IDevalCopilotDbContext dbC
             attempt.AgentTimeout,
             attempt.GetAgentTokenUsageEvidence(),
             configuredCommandSandbox,
-            configuredRolloutPersistence));
+            configuredRolloutPersistence,
+            attempt.AgentRepairSourceAttemptId,
+            repairSourceAttemptNumber));
     }
 
     private static Result<AgentAttemptStatusQueryResult> InvalidAssignment() =>

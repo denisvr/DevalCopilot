@@ -7,7 +7,217 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-29): inspect historical Agent attempts without a collaboration message
+## Current selection (2026-09-29): one manual Codex Planner format-repair attempt
+
+- Corrected uncommitted diff re-review (2026-09-29): **GO for the reviewed
+  substantive slice, with the exact factual wording edit below before
+  staging.** Independently verified `main`, `HEAD`, local and live
+  `origin/main` at `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`, zero
+  staged files, 24 modified tracked files and 14 untracked files. The prior
+  NO-GO findings are corrected: source workspace/checkpoint/fingerprint are
+  compared at request and claim boundaries, a persisted `Completed` plus
+  `InvalidStructuredOutput` row is refused, and the migrated SQLite FK is
+  `NO ACTION`. The actual migration test proves individual source deletion
+  fails while deleting its run cascades through source and repair. I built
+  the solution independently (0 warnings, 0 errors) and ran focused
+  Infrastructure migration tests 6/6, Application planning-claim tests
+  68/68, and API repair-endpoint tests 7/7. An initial filter based on the
+  Application test file name matched no tests; the corrected partial-class
+  filter ran all 68. `git diff --check` reports only the two known generated
+  file CRLF notices. The executor reports fresh complete Domain 625/625,
+  Application 1221/1221, Infrastructure 589 passed/2 expected skips, API
+  428/428, Architecture 9/9, frontend 776/776 plus typecheck/build/lint,
+  stable generated client, and resolved local documentation links; those
+  results are applicable to this reviewed diff.
+- Single publication instruction after this GO: before staging, correct
+  only two factual descriptions of the nullable source attempt number:
+  in `AgentAttemptStatusQueryResult.cs` XML comments and the new
+  `current-work.md` entry, replace the claim that it becomes null when the
+  source row is "unreadable" with the actual scalar-query behavior: the
+  repair source id remains present, while its number is null when no
+  same-run source row resolves. A malformed enum in an existing source row
+  does not by itself make that projected number null. Change no behavior,
+  test, wire field, migration, or other documentation beyond this planner
+  GO record. Check the exact staged set is the reviewed 24 modified plus
+  14 new files, including `current-work.md` and this planner record; run
+  `git diff --check` and local handoff-link checks. Commit the reviewed
+  substantive slice on `main`, push it normally as a fast-forward to
+  `origin/main`, and independently fetch and verify the live remote points
+  to its exact SHA. Against that substantive commit, rerun focused repair
+  claim, migration/constraint/cascade, API endpoint, hosted-supervisor
+  replay, and frontend repair-action tests; report exact commands/results
+  and tree state. Then make only a tightly bounded factual
+  `current-work.md` closure recording the delivered substantive SHA,
+  verified publication, and post-publication checks actually run; commit
+  and push that documentation-only closure normally, and verify live remote
+  and clean tree again. No commit contains its own SHA in its documentation.
+  Any material post-GO change, unexpected staged/worktree file, recurring
+  build or test failure, push failure, or remote divergence stops for Codex
+  review; do not force-push or reconcile history. The two narrow factual
+  edits named here need no separate GO. This GO authorizes only publication
+  of this reviewed slice; it does not select another slice.
+
+- First uncommitted diff review (2026-09-29): **NO-GO; correct this same
+  slice, keep it uncommitted and unpushed.** Independently verified branch
+  `main`, `HEAD`, local and live `origin/main` at
+  `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`, zero staged files,
+  24 modified tracked files (including this planner record and
+  `current-work.md`), and 14 untracked files. The reported full suites and
+  generated-client stability are evidence, but the current diff has these
+  contract gaps:
+  1. `PlanningRepairSource.EvaluateAsync` checks the source's run, role,
+     outcome, latest Agent position, and uniqueness but never compares its
+     immutable `AgentGitWorkspaceId`, `AgentGitCheckpointId`, and fingerprint
+     with the workspace/checkpoint selected for the repair. A newer valid
+     checkpoint can therefore be used for a "repair" of an older failed
+     response even with a fresh matching Git fingerprint. Enforce exact
+     source-to-repair workspace/checkpoint/fingerprint identity at both the
+     request and durable claim checks; add a case with an old source, a
+     newer valid checkpoint, and fresh evidence matching that newer
+     checkpoint. It must refuse without claiming or leaking a manifest.
+  2. The new self-reference uses SQLite `ON DELETE RESTRICT`, while the
+     existing Attempt-to-Run FK uses `ON DELETE CASCADE` and the mapping
+     comment says both source and repair go with their run. With a source
+     and linked repair present, `DELETE FROM runs` fails with `FOREIGN KEY
+     constraint failed`: reproduced independently in SQLite with this exact
+     FK shape. Preserve protection against deleting a referenced source
+     individually while allowing the existing run cascade; a `NO ACTION`
+     self-FK is one candidate, subject to an actual migrated-database
+     integration test proving both operations. Update mapping, migration,
+     snapshot, and claims together.
+  3. `Attempt.IsEligiblePlanningRepairSource` accepts `Status = Completed`
+     alongside `InvalidStructuredOutput`, though `CompleteAgent` records
+     this outcome as `Failed`. Require the coherent persisted state, and
+     test that a deliberately inconsistent status/outcome row is refused.
+     The selection's use of "completed" meant a finished attempt, not the
+     `AttemptStatus.Completed` enum value; the correct source status is
+     `Failed`.
+  4. Make `current-work.md` commit-ready by removing its temporary
+     "uncommitted and unpushed until reviewed" sentence and update its
+     behavior/risk wording for the corrections. The query-result XML comment
+     also says `RepairSourceAttemptId` becomes null if the source row is
+     unreadable, while the projection retains the id and only the number
+     becomes null; align that comment with the actual wire behavior.
+  Rerun affected tests first, then the relevant full backend/frontend
+  validation because source eligibility and persistence behavior change;
+  verify migration round-trip/index/FK/cascade behavior, generated-client
+  stability if the wire changes, documentation links, and `git diff --check`.
+  Report exact reruns and any remaining risk with the corrected uncommitted
+  diff. No publication GO and no next slice are granted.
+
+- Verified baseline before this planner-only edit: branch `main`; `HEAD`, local
+  `origin/main`, and live `origin/main` all equal
+  `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`; staged, unstaged, and
+  untracked state empty. The Agent-attempt history slice was published as
+  `998c05f98558cfccc849cf2845b3348d97584b3d`, followed by the factual
+  `current-work.md` closure at this baseline. A sandboxed repeat of
+  `git ls-remote` could not connect; an unsandboxed repeat returned this exact
+  live SHA. Git and code remain authoritative if this changes.
+- Objective: implement the optional, one-bounded-format-repair provision of
+  [ADR-0004](../decisions/0004-use-a-structured-agent-collaboration-protocol.md)
+  for the **Codex Planner Proposal contract only**. Today a cleanly exited
+  Planner attempt with `InvalidStructuredOutput` preserves its sealed response
+  but appends no Proposal; the cockpit can request a fresh plan, with no durable
+  connection to that failure or one-repair limit. A human-requested repair
+  should make one new, explicitly linked, read-only Planner invocation with a
+  fixed host-authored format reminder and the current bounded planning context.
+  It must either yield one ordinarily validated Proposal or fail closed with
+  its own truthful outcome. This is a fresh schema-constrained response, not
+  a claim that the original response's meaning was preserved or transformed.
+  The source response remains inspectable through
+  the existing Agent-attempt history; do not copy its raw text, parser detail,
+  or sealed path into the new provider context or an API response.
+- Boundaries: add an immutable repair-source relationship on the new Attempt,
+  with an additive migration and database-enforced at-most-one repair per
+  source. An eligible source is the run's latest Agent attempt, a terminal
+  Codex Planner/Proposal attempt whose status is `Failed` and outcome is exactly
+  `InvalidStructuredOutput`, which is not itself a repair. Require the same
+  run, workspace, checkpoint, fresh fingerprint, active lease, provider
+  observation, current model/effort snapshot, no running attempt, and the
+  existing count and reserved-time budgets as an ordinary Planner claim.
+  Revalidate source identity/eligibility and the source's latest position at
+  the durable claim boundary; a concurrent claim or repair must produce a
+  safe, retryable or already-used result and no orphaned sealed manifest.
+  Preserve the existing Planner dispatch/replay, read-only sandbox, timeout,
+  capture limits, parser, result recording, and one-Proposal ledger rule.
+  Expose one protected manual request action and truthful source/repair
+  lineage in the Planner status/cockpit; the UI may suggest repair only for
+  the known invalid latest attempt, while the server alone decides eligibility.
+  Keep the existing ordinary planning request available under its own rules.
+- Exclusions: no automatic retry; no repair of Claude or other Codex roles;
+  no repair chain or second repair of one source; no provider-session resume;
+  no refeeding raw output, transcript, secrets, or untrusted diagnostic text;
+  no schema relaxation, fabricated Proposal, alternate provider, new CLI
+  argument, or budget override. This is a DevalCopilot-owned retry contract,
+  not evidence of model, account allowance, session, or invocation
+  eligibility. Do not create a generic retry framework or broad HumanInstruction
+  control. The accepted ADRs' other contracts remain intact.
+- Stop gates: return to planner/reviewer before broadening if a safe
+  source-to-repair uniqueness/claim transaction cannot be established; if
+  preserving current read-only dispatch, clean-exit validation, and immutable
+  source context requires changing provider behavior or revising an accepted
+  ADR; or if the real artifact/sensitivity contracts require copying prior
+  raw output for a meaningful repair. Do not silently loosen source matching,
+  Git evidence, parser, or budget rules to make the path work.
+- Acceptance evidence: migration round-trip and unique-index race; Domain
+  factory validation; application/API success and fail-closed cases (unknown,
+  foreign-run, wrong role/contract/outcome, nonlatest source, repair-of-repair,
+  already repaired, active attempt, changed checkpoint/lease, exhausted count
+  or time budget, provider unavailable, preference change during claim);
+  source/repair lineage and no duplicate Proposal; supervisor replay and
+  unchanged read-only adapter arguments; frontend manual action, safe errors,
+  run switch, and refresh; no raw response/path/diagnostic leakage. Run the
+  routed build, full affected backend/frontend suites, migration/integration
+  checks, generated-client stability, doc links, and `git diff --check`.
+  Tests must use deterministic doubles and no real provider invocation.
+- **Executor prompt (English; send in a new Claude executor chat):**
+
+  > Implement the selected “one manual Codex Planner format-repair attempt”
+  > slice recorded at the top of `docs/roadmap/planner-handoff.md`. Before
+  > editing, read `AGENTS.md`, `../EngineeringStandards/ENGINEERING.md`,
+  > `docs/engineering-context.md`, `docs/roadmap/current-work.md`, this planner
+  > handoff, the relevant routed standards, the Increment 4 roadmap, ADR-0004,
+  > ADR-0012, ADR-0013, and the relevant current code/tests. Verify branch
+  > `main`, exact `HEAD` `ea8ae506d116ac9af812cc0891baa13b6a2ac13f`,
+  > local and live `origin/main` at that same SHA, zero staged files, only
+  > `docs/roadmap/planner-handoff.md` modified/unstaged by Codex's selection,
+  > and zero untracked files. Stop and report any material discrepancy before
+  > editing; Git and code prevail over this prompt.
+  >
+  > Implement one human-requested repair claim for the latest completed Codex
+  > Planner/Proposal attempt whose outcome is `InvalidStructuredOutput`. Make
+  > the new Attempt durably identify its source, allow at most one direct repair
+  > per source through a database backstop, and forbid a repair of a repair.
+  > Use the ordinary planning claim's workspace, lease, fresh Git checkpoint,
+  > provider observation, model/effort snapshot, concurrency, budget,
+  > sealed-manifest cleanup, and short claim-transaction protections. Guard
+  > source eligibility again at the commit boundary. The repair manifest may
+  > carry only current bounded planning context plus a fixed host-authored
+  > statement that the source output failed structural validation and must
+  > satisfy the unchanged Proposal schema. Do not include the source's raw
+  > response, parser details, artifact path, or arbitrary human text. Reuse
+  > only the original objective and current verified context; describe the
+  > result as a fresh Proposal, never as a semantic correction of the source.
+  > Reuse the existing read-only Planner dispatch, restart replay, parser, result
+  > recording, and one-Proposal ledger behavior. Add a protected manual API
+  > action and a clear cockpit action/status that distinguish a repair from
+  > an ordinary new plan without treating a displayed button as eligibility.
+  > Keep the ordinary request available. Preserve response secrecy and use
+  > safe fixed errors.
+  >
+  > Cover the listed acceptance cases with meaningful tests, including a
+  > concurrent pair of repair claims, a source made stale during claim, a
+  > preference change during claim, and process restart/replay. Update the
+  > architecture and cockpit specifications and make a concise, commit-ready
+  > `docs/roadmap/current-work.md` entry describing actual behavior, checks,
+  > and residual risks, with no future SHA or publication claim. If a stop
+  > gate in the selected handoff is reached, stop and report evidence instead
+  > of broadening scope. Present the complete **uncommitted, unpushed** diff,
+  > exact changed-file/staged/unstaged/untracked state, test commands and
+  > outcomes, and any failures for Codex GO/NO-GO review. Do not commit or
+  > push; this selection grants no publication GO.
+
+## Previous selection (2026-09-29): inspect historical Agent attempts without a collaboration message
 
 - Final correction re-review (2026-09-29): **GO for the reviewed substantive
   slice, with one exact factual handoff edit described below.** Independently

@@ -35,6 +35,7 @@ import {
   RequestHostCapabilityRefreshEndpointClient,
   StartSimulatedRunEndpointClient,
   RequestCodexPlanningAttemptEndpointClient,
+  RequestCodexPlanningRepairAttemptEndpointClient,
   GetAgentAttemptStatusEndpointClient,
   RequestClaudeCriticalReviewEndpointClient,
   GetClaudeCriticalReviewAttemptStatusEndpointClient,
@@ -88,6 +89,7 @@ export const claimVerificationExecutionClient = () => new ClaimVerificationExecu
 export const recordCheckpointReviewClient = () => new RecordCheckpointReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const verificationExecutionOutputClient = () => new GetVerificationExecutionOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestCodexPlanningAttemptClient = () => new RequestCodexPlanningAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestCodexPlanningRepairAttemptClient = () => new RequestCodexPlanningRepairAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptStatusClient = () => new GetAgentAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestClaudeCriticalReviewClient = () => new RequestClaudeCriticalReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const claudeCriticalReviewAttemptStatusClient = () => new GetClaudeCriticalReviewAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -141,6 +143,7 @@ export type {
   VerificationExecutionResponse,
   CheckpointReviewResponse,
   RequestCodexPlanningAttemptResponse,
+  RequestCodexPlanningRepairAttemptResponse,
   AgentAttemptStatusResponse,
   AgentAttemptArtifactMetadataResponse,
   RequestClaudeCriticalReviewResponse,

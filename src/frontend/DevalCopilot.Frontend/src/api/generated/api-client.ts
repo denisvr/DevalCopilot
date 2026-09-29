@@ -412,6 +412,57 @@ export class GetImplementationAttemptStatusEndpointClient {
     }
 }
 
+export class RequestCodexPlanningRepairAttemptEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestCodexPlanningRepairAttempt(runId: string, sourceAttemptId: string): Promise<RequestCodexPlanningRepairAttemptResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/{sourceAttemptId}/codex-plan-repair";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (sourceAttemptId === undefined || sourceAttemptId === null)
+            throw new globalThis.Error("The parameter 'sourceAttemptId' must be defined.");
+        url_ = url_.replace("{sourceAttemptId}", encodeURIComponent("" + sourceAttemptId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestCodexPlanningRepairAttempt(_response);
+        });
+    }
+
+    protected processRequestCodexPlanningRepairAttempt(response: Response): Promise<RequestCodexPlanningRepairAttemptResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestCodexPlanningRepairAttemptResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestCodexPlanningRepairAttemptResponse>(null as any);
+    }
+}
+
 export class RequestCodexPlanningAttemptEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3030,6 +3081,50 @@ export interface IRequestImplementationRequest {
     planProposalMessageId?: string;
 }
 
+export class RequestCodexPlanningRepairAttemptResponse implements IRequestCodexPlanningRepairAttemptResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    repairSourceAttemptId?: string;
+
+    constructor(data?: IRequestCodexPlanningRepairAttemptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.repairSourceAttemptId = _data["repairSourceAttemptId"];
+        }
+    }
+
+    static fromJS(data: any): RequestCodexPlanningRepairAttemptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestCodexPlanningRepairAttemptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["repairSourceAttemptId"] = this.repairSourceAttemptId;
+        return data;
+    }
+}
+
+export interface IRequestCodexPlanningRepairAttemptResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    repairSourceAttemptId?: string;
+}
+
 export class RequestCodexPlanningAttemptResponse implements IRequestCodexPlanningAttemptResponse {
     attemptId?: string;
     attemptNumber?: number;
@@ -5192,6 +5287,8 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
     tokenUsage?: AgentTokenUsageResponse | undefined;
     configuredCommandSandbox?: string | undefined;
     configuredRolloutPersistence?: string | undefined;
+    repairSourceAttemptId?: string | undefined;
+    repairSourceAttemptNumber?: number | undefined;
 
     constructor(data?: IAgentAttemptStatusResponse) {
         if (data) {
@@ -5221,6 +5318,8 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
             this.configuredCommandSandbox = _data["configuredCommandSandbox"];
             this.configuredRolloutPersistence = _data["configuredRolloutPersistence"];
+            this.repairSourceAttemptId = _data["repairSourceAttemptId"];
+            this.repairSourceAttemptNumber = _data["repairSourceAttemptNumber"];
         }
     }
 
@@ -5250,6 +5349,8 @@ export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         data["configuredCommandSandbox"] = this.configuredCommandSandbox;
         data["configuredRolloutPersistence"] = this.configuredRolloutPersistence;
+        data["repairSourceAttemptId"] = this.repairSourceAttemptId;
+        data["repairSourceAttemptNumber"] = this.repairSourceAttemptNumber;
         return data;
     }
 }
@@ -5268,6 +5369,8 @@ export interface IAgentAttemptStatusResponse {
     tokenUsage?: AgentTokenUsageResponse | undefined;
     configuredCommandSandbox?: string | undefined;
     configuredRolloutPersistence?: string | undefined;
+    repairSourceAttemptId?: string | undefined;
+    repairSourceAttemptNumber?: number | undefined;
 }
 
 export class AgentAttemptHistoryResponse implements IAgentAttemptHistoryResponse {

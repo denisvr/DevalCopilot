@@ -34,7 +34,15 @@ public sealed record AgentAttemptStatusQueryResult(
     /// result, resume eligibility, or invocation eligibility. Populated only when provider, role,
     /// permission profile, and adapter contract version all agree with the current, single
     /// supported planning adapter; otherwise <see langword="null"/>.</summary>
-    string? ConfiguredRolloutPersistence = null)
+    string? ConfiguredRolloutPersistence = null,
+    /// <summary>Immutable lineage: the Planner attempt this attempt is the one manual format repair
+    /// of, or <see langword="null"/> for an ordinary attempt. Always present for a repair, even when no source
+    /// attempt of this run is found. Provenance only — never a claim that this attempt corrected the source.</summary>
+    Guid? RepairSourceAttemptId = null,
+    /// <summary>The source attempt's number within this run, or <see langword="null"/> for an ordinary attempt or
+    /// when no source attempt of the same run is found (the id above stays present). A source with an
+    /// invalid persisted enum does not by itself make this scalar projection null.</summary>
+    int? RepairSourceAttemptNumber = null)
 {
     public static readonly AgentAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, []);

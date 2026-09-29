@@ -318,4 +318,37 @@ public sealed class GetAgentAttemptStatusQueryHandlerTests(SqliteDatabaseFixture
         Assert.Null(result.Value.ProcessExecution);
         Assert.Equal(TimeSpan.FromMinutes(10), result.Value.Timeout);
     }
+
+    [Fact]
+    public async Task HandleAsync_reports_repair_lineage_only_for_the_repair_attempt_and_never_for_its_source()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "DevalCopilot", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Repair lineage", Now);
+        run.Claim(Now);
+        var source = ClaimAgentAttempt(run.Id, 1, Now);
+        source.MarkAgentDispatched(Now.AddSeconds(1));
+        source.CompleteAgent(AgentOutcome.InvalidStructuredOutput, Fingerprint, Now.AddSeconds(2), processEvidence: TestProcessEvidence.CleanExit);
+        dbContext.Projects.Add(project);
+        dbContext.Runs.Add(run);
+        dbContext.Attempts.Add(source);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        var handler = new GetAgentAttemptStatusQueryHandler(dbContext);
+
+        var beforeRepair = await handler.HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+        Assert.Equal(AgentOutcome.InvalidStructuredOutput, beforeRepair.Value.Outcome);
+        Assert.Null(beforeRepair.Value.RepairSourceAttemptId);
+        Assert.Null(beforeRepair.Value.RepairSourceAttemptNumber);
+
+        dbContext.Attempts.Add(Attempt.ClaimAgentPlanningRepair(
+            Guid.NewGuid(), run.Id, 2, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(),
+            TimeSpan.FromMinutes(10), 262144, 524288, Now.AddMinutes(1), null, null, 2, source.Id));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        var afterRepair = await handler.HandleAsync(new GetAgentAttemptStatusQuery(run.Id), CancellationToken.None);
+        Assert.Equal(2, afterRepair.Value.AttemptNumber);
+        Assert.Equal(AttemptStatus.Running, afterRepair.Value.Status);
+        Assert.Equal(source.Id, afterRepair.Value.RepairSourceAttemptId);
+        Assert.Equal(1, afterRepair.Value.RepairSourceAttemptNumber);
+    }
 }

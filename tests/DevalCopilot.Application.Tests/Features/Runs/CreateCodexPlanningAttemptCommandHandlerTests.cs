@@ -13,7 +13,7 @@ using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
-public sealed class CreateCodexPlanningAttemptCommandHandlerTests : IAsyncLifetime
+public sealed partial class CreateCodexPlanningAttemptCommandHandlerTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 17, 9, 0, 0, TimeSpan.Zero);
     private static readonly string Fingerprint = new('a', 64);

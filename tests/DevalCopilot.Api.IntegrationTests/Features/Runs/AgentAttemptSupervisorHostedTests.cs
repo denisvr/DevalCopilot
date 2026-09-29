@@ -38,7 +38,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// <c>ProcessAttemptSupervisorHostedTests</c>'s hosting pattern exactly, adapted for the Agent
 /// attempt feature.
 /// </summary>
-public sealed class AgentAttemptSupervisorHostedTests : IDisposable
+public sealed partial class AgentAttemptSupervisorHostedTests : IDisposable
 {
     private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(5);
 

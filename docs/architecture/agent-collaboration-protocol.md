@@ -408,7 +408,11 @@ Execution from a changes-requested review.
 An adapter validates protocol version, type, identifiers, cardinality, text
 limits, and referenced artifacts. Invalid output produces a failed attempt with
 the raw response preserved. The system may request one bounded format repair,
-but it never invents missing decisions, evidence, or success.
+but it never invents missing decisions, evidence, or success. Today that
+provision exists only as a **human-requested** repair of a Codex Planner
+Proposal attempt; see
+[One manual Codex Planner format repair](#one-manual-codex-planner-format-repair).
+There is no automatic retry and no repair of any other role.
 
 ## Context assembly
 
@@ -1791,6 +1795,76 @@ or evaluate it. No threshold exists for a historical or new run until the owner 
   `claude-cli-usage-v1`) and the documented Codex cached-input breakdown and Claude cache-token semantics; this
   slice adds no adapter, provider invocation, allowance read, or provider-session resume. The two providers'
   counts are provider-specific and are never summed into a cross-provider figure.
+
+### One manual Codex Planner format repair
+
+A human may request **one** repair of a Codex Planner attempt whose recorded outcome is exactly
+`InvalidStructuredOutput` (a clean-exit provider response that failed the Proposal contract's
+validation; the attempt's status is `Failed` and its sealed response stays inspectable through
+[Agent-attempt history and evidence inspection](#agent-attempt-history-and-evidence-inspection)). This is
+ADR-0004's optional bounded format repair, implemented for the Planner/Proposal contract only. It is a
+**fresh, schema-constrained Planner invocation**, never a claim that the original response's meaning was
+preserved, transformed, or corrected, and it is a DevalCopilot-owned retry contract, not evidence of model,
+account-allowance, session, or invocation eligibility.
+
+- **Operation.** `POST /api/runs/{runId}/agent-attempts/{sourceAttemptId}/codex-plan-repair` (protected, no
+  request body, no free text). The ordinary `POST …/agent-attempts/codex-plan` request stays available under
+  its own rules. Both send `CreateCodexPlanningAttemptCommand`; the repair carries `RepairSourceAttemptId`, so
+  the repair is the same handler and therefore has the same protections.
+- **Eligibility (server-owned).** The source must belong to the run (an unknown id and another run's id are the
+  same 404 `agent_attempts.repair_source_not_found`), be a dispatched Codex Planner/Proposal Agent attempt with status `Failed` and outcome
+  `InvalidStructuredOutput` (the only coherent pair; a persisted `Completed` row with that outcome is refused;
+  `Attempt.IsEligiblePlanningRepairSource`, else 409
+  `agent_attempts.repair_source_ineligible`), have no `AgentRepairSourceAttemptId` itself (a repair is never
+  repaired: `agent_attempts.repair_of_repair_forbidden`), have no existing repair
+  (`agent_attempts.repair_already_requested`), and be the run's **latest Agent attempt**
+  (`agent_attempts.repair_source_not_latest`; a still-running newer Agent attempt is a newer attempt), and have
+  been made against exactly the workspace, checkpoint, and fingerprint the repair claim selects
+  (`agent_attempts.repair_source_checkpoint_mismatch`: a newer valid checkpoint is a different context, so use an
+  ordinary request; the source identity is immutable, so this is checked at the request and again at the durable
+  claim boundary against the same selected values). The
+  cockpit may suggest the action but never decides eligibility.
+- **Claim.** All ordinary planning-claim gates apply unchanged and in the same order: active run, ready
+  workspace, active lease, current checkpoint, no other Running attempt of any kind, the count budget
+  (ADR-0012) and reserved-time budget (ADR-0013), an observed Codex capability, and a fresh Git fingerprint
+  equal to the checkpoint's. The repair takes the next Agent budget slot and attempt number and snapshots the
+  Run's current Codex model/effort exactly like an ordinary claim. Source eligibility is checked at the request
+  and **again inside the claim's own database transaction**, immediately after the guard UPDATE of the
+  preference check (a write that takes SQLite's write lock), so no other claim can commit between the re-check
+  and the insert. A source that stopped being eligible, or a competing repair, rolls the claim back and deletes
+  the already-sealed manifest, exactly like a changed preference; the same holds for every other failure path of
+  the ordinary claim.
+- **Persistence.** The additive `AddCodexPlanningRepairLink` migration adds a nullable
+  `attempts.AgentRepairSourceAttemptId` (no default, no backfill), a self-referencing foreign key with
+  `NO ACTION` delete behavior (deleting a referenced source on its own is refused, while the existing
+  Attempt-to-Run cascade still deletes a run with its source and repair together; SQLite checks it at
+  statement end, and an integration test proves both), and the filtered unique index `ix_attempts_agent_repair_source`
+  (`WHERE AgentRepairSourceAttemptId IS NOT NULL`), the database backstop for at most one repair per source. If
+  that index ever rejects a claim, the handler reports `agent_attempts.repair_already_requested`. The link is
+  set only by `Attempt.ClaimAgentPlanningRepair` and is immutable. Repair chains are excluded by the
+  handler and by the Domain eligibility rule, not by a database constraint. The new attempt is otherwise an
+  ordinary read-only Planner attempt (provider Codex, contract Proposal, `ReadOnly` profile, adapter
+  `codex-planning-v1`).
+- **Manifest.** The sealed context manifest (`AgentContextManifest`, host-constructed) is the ordinary planning
+  manifest for the current verified context — the run objective, project/workspace/checkpoint identities and
+  fingerprint, the unchanged expected Proposal schema, and instruction references, with no human instruction and
+  no prior decisions, exactly as an ordinary claim — plus one fixed host-authored
+  `formatRepairNotice` (`ContextManifestBuilder.FormatRepairNotice`): an earlier planning response failed
+  structural validation, this is a fresh planning request, and exactly one Proposal satisfying the unchanged
+  schema is required. It never contains the source's raw response, parser or validation detail, artifact path,
+  attempt identity or outcome, or any human-supplied text.
+- **Dispatch and result.** Nothing downstream changed: the supervisor picks the repair up as an ordinary
+  Planner attempt (including replay after a restart while it is still `Running` and undispatched), the single
+  read-only adapter dispatch and its arguments, timeout, capture limits, parser, result recording, and the
+  one-Proposal ledger rule are reused. The repair yields either one ordinarily validated Proposal or its own
+  truthful outcome (including `InvalidStructuredOutput` again, after which nothing more can be repaired). A
+  dispatched repair that a restart interrupts is reconciled `Interrupted`, is never re-invoked, and consumes the
+  source's one repair. The source attempt and its evidence are never modified.
+- **Read model.** The Planner status (`GET …/agent-attempts/codex-plan`) adds `repairSourceAttemptId` and
+  `repairSourceAttemptNumber` to the latest Planner attempt — lineage only, null for an ordinary attempt. No
+  response of either operation carries the source's response, a path, a hash, or a diagnostic.
+- **Limits.** The retry consumes a real Agent budget slot and reserved invocation time and can fail like any
+  claim. It is not an automatic retry, provider-session resume, schema relaxation, or a way to bypass a budget.
 
 ## Token efficiency
 

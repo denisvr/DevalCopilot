@@ -2,6 +2,7 @@ import { useRunCockpit } from '../hooks/useRunCockpit'
 import { useCollaborationTimeline } from '../hooks/useCollaborationTimeline'
 import { useAgentAttemptStatus } from '../hooks/useAgentAttemptStatus'
 import { useRequestCodexPlanningAttempt } from '../hooks/useRequestCodexPlanningAttempt'
+import { useRequestCodexPlanningRepairAttempt } from '../hooks/useRequestCodexPlanningRepairAttempt'
 import { useClaudeCriticalReviewAttemptStatus } from '../hooks/useClaudeCriticalReviewAttemptStatus'
 import { useRequestClaudeCriticalReview } from '../hooks/useRequestClaudeCriticalReview'
 import { useChallengeResolutionAttemptStatus } from '../hooks/useChallengeResolutionAttemptStatus'
@@ -26,6 +27,7 @@ import { AgentInvocationTimeBudgetBanner } from './AgentInvocationTimeBudgetBann
 import { AgentProcessDurationSummaryBanner } from './AgentProcessDurationSummaryBanner'
 import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
+import { CodexPlanningRepairAction } from './CodexPlanningRepairAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ImplementationAction } from './ImplementationAction'
@@ -50,6 +52,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const collaborationTimeline = useCollaborationTimeline(runId, cockpit?.latestSequence)
   const agentAttemptStatus = useAgentAttemptStatus(runId, cockpit?.latestSequence)
   const requestCodexPlanningAttempt = useRequestCodexPlanningAttempt(agentAttemptStatus.refresh)
+  const requestCodexPlanningRepair = useRequestCodexPlanningRepairAttempt(runId, agentAttemptStatus.refresh)
   const claudeCriticalReviewAttemptStatus = useClaudeCriticalReviewAttemptStatus(runId, cockpit?.latestSequence)
   const requestClaudeCriticalReview = useRequestClaudeCriticalReview(claudeCriticalReviewAttemptStatus.refresh)
   const challengeResolutionAttemptStatus = useChallengeResolutionAttemptStatus(runId, cockpit?.latestSequence)
@@ -183,9 +186,19 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             status={agentAttemptStatus.status}
             statusLoading={agentAttemptStatus.loading}
             statusError={agentAttemptStatus.error}
-            requesting={requestCodexPlanningAttempt.requesting}
+            requesting={requestCodexPlanningAttempt.requesting || requestCodexPlanningRepair.requesting}
             requestError={requestCodexPlanningAttempt.error}
             onRequest={() => void requestCodexPlanningAttempt.request(runId)}
+            globalClaimBlock={globalClaimBlock}
+            timeFit={codexPlanningTimeFit}
+          />
+          <CodexPlanningRepairAction
+            status={agentAttemptStatus.status}
+            statusLoading={agentAttemptStatus.loading}
+            ordinaryRequesting={requestCodexPlanningAttempt.requesting}
+            repairRequesting={requestCodexPlanningRepair.requesting}
+            repairError={requestCodexPlanningRepair.error}
+            onRequestRepair={(sourceAttemptId) => void requestCodexPlanningRepair.request(sourceAttemptId)}
             globalClaimBlock={globalClaimBlock}
             timeFit={codexPlanningTimeFit}
           />

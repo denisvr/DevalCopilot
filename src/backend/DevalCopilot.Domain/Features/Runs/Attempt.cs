@@ -119,49 +119,89 @@ public sealed class Attempt
         string? requestedModel,
         string? requestedEffort,
         int agentBudgetSlot)
+        => ClaimPlanningAttempt(
+            id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
+            contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
+            requestedModel, requestedEffort, agentBudgetSlot, repairSourceAttemptId: null);
+
+    /// <summary>
+    /// Claims the one human-requested format-repair Codex Planner attempt for a source Planner
+    /// attempt that ended <see cref="Runs.AgentOutcome.InvalidStructuredOutput"/>. It is an ordinary
+    /// read-only Planner attempt in every respect (same provider, role, contract, permission
+    /// profile, and adapter version) plus one immutable link to its source. The link is durable
+    /// provenance for lineage and the at-most-one-repair-per-source database backstop — never
+    /// evidence that the new attempt corrects or preserves the source response's meaning. Whether
+    /// the source is actually eligible is the calling Application handler's responsibility (it
+    /// must load the source), so this factory only rejects a structurally impossible link.
+    /// </summary>
+    public static Attempt ClaimAgentPlanningRepair(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedModel,
+        string? requestedEffort,
+        int agentBudgetSlot,
+        Guid repairSourceAttemptId)
     {
-        if (attemptNumber < 1)
+        if (repairSourceAttemptId == Guid.Empty || repairSourceAttemptId == id)
         {
-            throw new ArgumentOutOfRangeException(nameof(attemptNumber));
+            throw new ArgumentException("A repair requires a distinct source attempt identity.", nameof(repairSourceAttemptId));
         }
 
-        if (gitWorkspaceId == Guid.Empty)
-        {
-            throw new ArgumentException("A Git workspace identity is required.", nameof(gitWorkspaceId));
-        }
+        return ClaimPlanningAttempt(
+            id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
+            contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
+            requestedModel, requestedEffort, agentBudgetSlot, repairSourceAttemptId);
+    }
 
-        if (gitCheckpointId == Guid.Empty)
-        {
-            throw new ArgumentException("A Git checkpoint identity is required.", nameof(gitCheckpointId));
-        }
+    /// <summary>
+    /// Whether this attempt may be the source of the one manual format repair: a
+    /// <see cref="AttemptStatus.Failed"/> (the only status <c>CompleteAgent</c> records for this outcome),
+    /// dispatched Codex Planner/Proposal Agent attempt whose recorded outcome is exactly
+    /// <see cref="Runs.AgentOutcome.InvalidStructuredOutput"/> and which is not itself a repair
+    /// (no repair chain). Position (latest Agent attempt of the run) and "not already repaired"
+    /// are cross-row facts the Application handler checks. Evaluates persisted values only, so an
+    /// incoherent row is never eligible.
+    /// </summary>
+    public bool IsEligiblePlanningRepairSource =>
+        Kind == AttemptKind.Agent
+        && Status == AttemptStatus.Failed
+        && AgentProvider == Runs.AgentProvider.Codex
+        && AgentRole == Runs.AgentRole.Planner
+        && AgentResponseContract == Runs.AgentResponseContract.Proposal
+        && AgentExpectedMessageType == CollaborationMessageType.Proposal
+        && AgentOutcome == Runs.AgentOutcome.InvalidStructuredOutput
+        && AgentDispatchedAtUtc.HasValue
+        && AgentRepairSourceAttemptId is null;
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointFingerprintSha256);
-
-        if (contextManifestArtifactId == Guid.Empty)
-        {
-            throw new ArgumentException("A context manifest artifact identity is required.", nameof(contextManifestArtifactId));
-        }
-
-        if (timeout <= TimeSpan.Zero)
-        {
-            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, "Must be a positive, bounded timeout.");
-        }
-
-        if (maxBytesPerStream < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxBytesPerStream));
-        }
-
-        if (maxTotalCapturedBytes < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxTotalCapturedBytes));
-        }
-
-        if (agentBudgetSlot < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(agentBudgetSlot), agentBudgetSlot, "A claimed Agent attempt requires a positive budget slot.");
-        }
-
+    private static Attempt ClaimPlanningAttempt(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedModel,
+        string? requestedEffort,
+        int agentBudgetSlot,
+        Guid? repairSourceAttemptId)
+    {
+        ValidateAgentClaimArguments(
+            attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
+            timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
         ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
         ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
         ValidateRequestedAssignmentPair(requestedModel, requestedEffort);
@@ -197,6 +237,7 @@ public sealed class Attempt
             AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
             AgentAdapterContractVersion = "codex-planning-v1",
             AgentBudgetSlot = agentBudgetSlot,
+            AgentRepairSourceAttemptId = repairSourceAttemptId,
         };
     }
 
@@ -880,6 +921,12 @@ public sealed class Attempt
     /// Only set when <see cref="Kind"/> is <see cref="AttemptKind.Agent"/>; a Simulated or Process
     /// attempt never consumes this budget.</summary>
     public int? AgentBudgetSlot { get; private set; }
+
+    /// <summary>The Planner attempt this attempt is the one manual format repair of — immutable
+    /// lineage set only by <see cref="ClaimAgentPlanningRepair"/>, otherwise <see langword="null"/>.
+    /// A filtered unique index allows at most one repair per source, and an attempt with a source is
+    /// never itself an eligible source, so repairs never chain.</summary>
+    public Guid? AgentRepairSourceAttemptId { get; private set; }
 
     /// <summary>When the provider was durably committed to being invoked — set once, before the
     /// adapter is ever invoked, and never cleared. Distinguishes "claimed but not yet dispatched"

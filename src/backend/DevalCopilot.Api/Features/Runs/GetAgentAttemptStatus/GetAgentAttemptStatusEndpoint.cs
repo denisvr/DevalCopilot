@@ -43,6 +43,8 @@ public sealed class GetAgentAttemptStatusEndpoint(
             AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout),
             AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage),
             value.ConfiguredCommandSandbox,
-            value.ConfiguredRolloutPersistence));
+            value.ConfiguredRolloutPersistence,
+            value.RepairSourceAttemptId,
+            value.RepairSourceAttemptNumber));
     }
 }
