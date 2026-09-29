@@ -8,6 +8,15 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `998c05f98558cfccc849cf2845b3348d97584b3d` (parent
+  `391317193575d111a5e27afd76140010ce3bd21b`) was committed with the reviewed 44-file Agent-attempt history and
+  evidence inspector slice (14 modified, 30 new), pushed as a normal fast-forward to `origin/main`, and verified
+  with `git fetch origin main` and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all
+  matched the delivered SHA, with a clean working tree. Solution build 0 errors/0 warnings (no build lock recurred).
+  Focused checks rerun against that commit, all passing: Api 35 (history, evidence, and window endpoint tests plus
+  the unchanged message-linked sealed-window tests), Application 20 (attempt-identity and sealed-window tests), and
+  frontend 17 (`AgentAttemptHistoryPanel`). This closure records the delivered SHA and those checks only; no code or
+  product contract changed after publication.
 - Current delivery, based on verified parent `391317193575d111a5e27afd76140010ce3bd21b`: a read-only
   **Agent-attempt history and evidence inspector**. See [planner-handoff.md](planner-handoff.md) for the
   selection and the
