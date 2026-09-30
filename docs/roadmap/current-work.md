@@ -8,11 +8,26 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-30)
 
-- Published delivery: `a75d524b42306818acd139a4d00f58234d0e29d5` (parent `c662a4d0915fbf4ece0304bcfd58b17eab964778`) is
+- Earlier published delivery: `a75d524b42306818acd139a4d00f58234d0e29d5` (parent `c662a4d0915fbf4ece0304bcfd58b17eab964778`) is
   the factual closure of the Claude mutation turn-limit slice (its delivered SHA and post-publication checks; no code or
   product contract change). At the start of this slice, `main`, local `origin/main`, and the live remote matched it, nothing
   was staged or untracked, and only `docs/roadmap/planner-handoff.md` (the planner's slice selection) was modified.
-- Current delivery, based on verified parent `a75d524b42306818acd139a4d00f58234d0e29d5`: **manual format recovery for the
+- Published delivery: `85d0822bb4479a38c84aad56be48fb499e86ce88` (parent `a75d524b42306818acd139a4d00f58234d0e29d5`)
+  was committed with the reviewed manual format recovery slice for the critical review, challenge resolution, and code
+  review stages and its review corrections (56 modified and 43 new files, including this file and `planner-handoff.md`
+  with Codex's corrected-diff GO), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin
+  main` and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched that SHA with a clean tree.
+  The staged diff was checked with `git diff --cached --check` (only git's CRLF notice for the generated client).
+  Post-publication checks against that commit (.NET sequential, `--no-build --no-restore` for tests): `dotnet build
+  DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1` 0 warnings, 0 errors; Domain 807/807; Application
+  `FullyQualifiedName~Repair` 271/271; Api (`Repair` plus the Claude critical review, challenge resolution, and
+  implementation review hosted supervisor suites) 94/94; Architecture 9/9; frontend `npm test -- --run` 1052/1052,
+  `npm run build` clean, `npm run lint` 20 warnings (the baseline count, all `react(set-state-in-effect)`); `api-client.ts`
+  SHA-256 `4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386` unchanged; `git diff --check` and the checkout
+  clean; nothing skipped in these runs. Limits: no real-provider reliability is proven (process doubles only); the
+  documented `dotnet format` whitespace findings in older record declarations remain and no formatter cleanliness is
+  claimed; the Planner repair hook keeps its earlier stale-completion behavior; next-slice selection remains with Codex.
+- Delivery, based on verified parent `a75d524b42306818acd139a4d00f58234d0e29d5`: **manual format recovery for the
   remaining read-only collaboration stages** (Increment 4). See [planner-handoff.md](planner-handoff.md) for the selection
   and ["One manual format repair of the remaining read-only stages"](../architecture/agent-collaboration-protocol.md#one-manual-format-repair-of-the-remaining-read-only-stages)
   and ["One manual format repair of a critical review, challenge resolution, or code review"](../product/run-cockpit-specification.md#one-manual-format-repair-of-a-critical-review-challenge-resolution-or-code-review)
