@@ -14,4 +14,6 @@ public sealed record ReviewCorrectionInvocationRequest(
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
     string? RequestedClaudeModel = null,
-    string? RequestedClaudeEffort = null);
+    string? RequestedClaudeEffort = null,
+    int? RequestedMaxTurns = null,
+    string? AdapterContractVersion = null);

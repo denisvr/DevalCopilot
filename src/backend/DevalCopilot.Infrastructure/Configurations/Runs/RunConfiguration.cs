@@ -54,6 +54,20 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         builder.Property(run => run.RequestedClaudeModel).HasMaxLength(32).IsConcurrencyToken();
         builder.Property(run => run.RequestedClaudeEffort).HasMaxLength(16).IsConcurrencyToken();
 
+        // The owner's Claude agentic-turn-limit request for the two mutating Claude paths: no default and no
+        // backfill (a historical run has none). Mapped as a field-only property holding the exact stored text in
+        // an INTEGER-affinity column, so a fractional, overflowing, or non-numeric stored value is read as
+        // malformed instead of being truncated or overflowing during materialization, and so a malformed value
+        // still round-trips exactly (see Run.ReadRequestedClaudeMaxTurns). A concurrency token for the same reason
+        // as the model request: the claim's late snapshot guard and the set operation both need it in the
+        // UPDATE's WHERE clause (see CurrentClaudeMutationTurnLimit).
+        builder.Ignore(run => run.RequestedClaudeMaxTurns);
+        builder.Property<string?>(Run.RequestedClaudeMaxTurnsStorageProperty)
+            .HasColumnName("RequestedClaudeMaxTurns")
+            .HasColumnType("INTEGER")
+            .IsConcurrencyToken()
+            .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
+
         // Advisory token-warning thresholds: no default, no backfill (a historical run has none),
         // and deliberately NOT concurrency tokens, so writing one can never make a claim's own Run
         // UPDATE fail (see SetTokenWarningThresholdCommandHandler).

@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -10,11 +11,10 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetImplementationAttemp
 public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbContext dbContext)
     : IQueryHandler<GetImplementationAttemptStatusQuery, Result<ImplementationAttemptStatusQueryResult>>
 {
-    // Mirrors the adapter contract version already fixed at claim time (Attempt.ClaimAgentImplementation)
+    // Mirrors the adapter contract versions fixed at claim time (ClaudeMutationAdapterContract: exact v1 and v2)
     // and the fixed CLI argument hardcoded in ClaudeImplementationAdapter's own "--permission-mode" entry.
     // Duplicated here rather than shared across layers, exactly like AdapterContractVersion is already
     // duplicated between Attempt.cs and CreateImplementationAttemptCommandHandler.
-    private const string ClaudeImplementerAdapterContractVersion = "claude-implementation-v1";
     private const string ConfiguredClaudeImplementerPermissionMode = "acceptEdits";
 
     // Mirrors the current adapter's own hardcoded "--no-session-persistence" argument
@@ -43,7 +43,12 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
     public async Task<Result<ImplementationAttemptStatusQueryResult>> HandleAsync(
         GetImplementationAttemptStatusQuery query, CancellationToken cancellationToken)
     {
-        var runExists = await dbContext.Runs.AsNoTracking().AnyAsync(run => run.Id == query.RunId, cancellationToken);
+        var runRequest = await dbContext.Runs.AsNoTracking()
+            .Where(run => run.Id == query.RunId)
+            .Select(run => new { Stored = EF.Property<string?>(run, Run.RequestedClaudeMaxTurnsStorageProperty) })
+            .SingleOrDefaultAsync(cancellationToken);
+        var runExists = runRequest is not null;
+        var runRequestedMaxTurns = runRequest?.Stored;
         if (!runExists)
         {
             return Result<ImplementationAttemptStatusQueryResult>.Failure(
@@ -75,7 +80,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
 
         if (attempt is null)
         {
-            return Result<ImplementationAttemptStatusQueryResult>.Success(ImplementationAttemptStatusQueryResult.NoAttempt);
+            return Result<ImplementationAttemptStatusQueryResult>.Success(
+                ImplementationAttemptStatusQueryResult.NoAttempt with { RunTurnLimitRequest = ClaudeMutationTurnLimitFact.ForRunStored(runRequestedMaxTurns) });
         }
 
         var assignment = attempt.GetAssignmentSnapshot();
@@ -123,7 +129,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             attempt.AgentRole == AgentRole.Implementer
             && assignment.Provider == AgentProvider.ClaudeCode
             && assignment.PermissionProfile == AgentPermissionProfile.WorkspaceEditOnly
-            && assignment.AdapterContractVersion == ClaudeImplementerAdapterContractVersion;
+            && attempt.AgentResponseContract == AgentResponseContract.ImplementationReport
+            && ClaudeMutationAdapterContract.IsKnownVersionFor(attempt.AgentResponseContract, assignment.AdapterContractVersion);
 
         var configuredPermissionMode = isCoherentDefaultImplementationAssignment
             ? ConfiguredClaudeImplementerPermissionMode
@@ -171,7 +178,9 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             configuredSessionPersistence,
             configuredPermissionPrompts,
             configuredResumeEligibility,
-            configuredBuiltInTools));
+            configuredBuiltInTools,
+            ClaudeMutationTurnLimitFact.ForRunStored(runRequestedMaxTurns),
+            ClaudeMutationTurnLimitFact.ForAttempt(attempt)));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>

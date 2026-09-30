@@ -3,6 +3,7 @@ using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
+using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Infrastructure.Features.Runs;
 
@@ -49,6 +50,13 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
 
         if (!ClaudeModelRequestArguments.TryAppend(
                 arguments, request.RequestedClaudeModel, request.RequestedClaudeEffort))
+        {
+            return Failed();
+        }
+
+        if (!ClaudeMutationTurnLimitArguments.TryAppend(
+                arguments, request.RequestedMaxTurns, request.AdapterContractVersion,
+                ClaudeMutationAdapterContract.ReviewCorrectionV2))
         {
             return Failed();
         }

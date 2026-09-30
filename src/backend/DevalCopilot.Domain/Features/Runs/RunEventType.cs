@@ -53,6 +53,11 @@ public static class RunEventType
     /// requested alias (or null when cleared).</summary>
     public const string ClaudeModelPreferenceChanged = "run.claude_model_preference_changed";
 
+    /// <summary>The owner set or cleared the run-scoped Claude agentic-turn-limit request for future
+    /// initial implementation and review correction claims. The payload carries only the new requested
+    /// limit (or null when cleared).</summary>
+    public const string ClaudeMutationTurnLimitChanged = "run.claude_mutation_turn_limit_changed";
+
     /// <summary>The owner set or cleared one provider's advisory token-activity warning threshold.
     /// The payload carries only the provider name and the new threshold (null when cleared).</summary>
     public const string TokenWarningThresholdChanged = "run.token_warning_threshold_changed";

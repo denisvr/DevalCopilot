@@ -24,4 +24,5 @@ public sealed record AgentAttemptEvidenceResponse(
     DateTimeOffset? DispatchedAtUtc,
     AgentProcessExecutionResponse? ProcessExecution,
     AgentTokenUsageResponse? TokenUsage,
-    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts);
+    IReadOnlyList<AgentAttemptArtifactMetadataResponse> Artifacts,
+    ClaudeMutationTurnLimitResponse? MaxTurns = null);

@@ -62,6 +62,8 @@ public sealed class GetImplementationAttemptStatusEndpoint(
             value.ConfiguredSessionPersistence,
             value.ConfiguredPermissionPrompts,
             value.ConfiguredResumeEligibility,
-            value.ConfiguredBuiltInTools));
+            value.ConfiguredBuiltInTools,
+            ClaudeMutationTurnLimitResponse.FromDomain(value.RunTurnLimitRequest),
+            ClaudeMutationTurnLimitResponse.FromDomain(value.AttemptTurnLimit)));
     }
 }

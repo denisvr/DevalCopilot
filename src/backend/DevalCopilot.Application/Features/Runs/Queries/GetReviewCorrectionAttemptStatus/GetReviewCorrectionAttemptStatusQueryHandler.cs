@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.Projects;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,10 +12,9 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetReviewCorrectionAtte
 public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDbContext dbContext)
     : IQueryHandler<GetReviewCorrectionAttemptStatusQuery, Result<ReviewCorrectionAttemptStatusQueryResult>>
 {
-    // Mirrors the adapter contract version fixed at claim time (Attempt.ClaimAgentReviewCorrection)
+    // Mirrors the adapter contract versions fixed at claim time (ClaudeMutationAdapterContract: exact v1 and v2)
     // and the current ClaudeReviewCorrectionAdapter's own fixed CLI arguments — fixed
     // configuration facts, never a provider-observed result and never invocation eligibility.
-    private const string ClaudeReviewCorrectionAdapterContractVersion = "claude-review-correction-v1";
     private const string ConfiguredClaudeReviewCorrectionPermissionMode = "acceptEdits";
     private const string ConfiguredClaudeReviewCorrectionSessionPersistence = "Disabled";
     private const string ConfiguredClaudeReviewCorrectionPermissionPrompts = "None";
@@ -112,7 +112,8 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
                 false, null, null, currentReview?.ReviewAttempt.Id, initialReportId, null, null, null, null, 0, null, null, null, [],
                 run.MaximumReviewCorrectionAttempts, correctionAttemptsUsed,
                 correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts,
-                latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization));
+                latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization,
+                RunTurnLimitRequest: ClaudeMutationTurnLimitFact.ForRun(run)));
         }
 
         // This assignment check is a pure addition after the lineage/budget computation above,
@@ -147,7 +148,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
             && attempt.AgentResponseContract == AgentResponseContract.ReviewCorrection
             && assignment.Provider == AgentProvider.ClaudeCode
             && assignment.PermissionProfile == AgentPermissionProfile.WorkspaceEditOnly
-            && assignment.AdapterContractVersion == ClaudeReviewCorrectionAdapterContractVersion;
+            && ClaudeMutationAdapterContract.IsKnownVersionFor(attempt.AgentResponseContract, assignment.AdapterContractVersion);
 
         var configuredPermissionMode = isCoherentDefaultReviewCorrectionAssignment
             ? ConfiguredClaudeReviewCorrectionPermissionMode : null;
@@ -169,7 +170,8 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
             latestEscalation?.Id, latestEscalation?.CollaborationMessageId, hasAvailableAuthorization,
             attempt.GetAgentProcessExecutionEvidence(), attempt.AgentTimeout, attempt.GetAgentTokenUsageEvidence(),
             configuredPermissionMode, configuredSessionPersistence, configuredPermissionPrompts,
-            configuredResumeEligibility, configuredBuiltInTools));
+            configuredResumeEligibility, configuredBuiltInTools,
+            ClaudeMutationTurnLimitFact.ForRun(run), ClaudeMutationTurnLimitFact.ForAttempt(attempt)));
     }
 
     private static Result<ReviewCorrectionAttemptStatusQueryResult> InvalidAssignment() =>

@@ -22,4 +22,6 @@ public sealed record ImplementationInvocationRequest(
     int MaxBytesPerStream,
     int MaxTotalCapturedBytes,
     string? RequestedClaudeModel = null,
-    string? RequestedClaudeEffort = null);
+    string? RequestedClaudeEffort = null,
+    int? RequestedMaxTurns = null,
+    string? AdapterContractVersion = null);

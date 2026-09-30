@@ -553,7 +553,7 @@ public sealed class Attempt
             id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
             contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
             requestedModel: null, requestedEffort: null,
-            Runs.AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v1", agentBudgetSlot);
+            Runs.AgentPermissionProfile.WorkspaceEditOnly, ClaudeMutationAdapterContract.ImplementationV1, agentBudgetSlot);
 
     /// <summary>Claims an initial Claude Code ImplementationReport attempt with a Claude model/effort
     /// request that must satisfy <see cref="ClaudeModelRequest.IsValid"/> and bounded,
@@ -575,7 +575,8 @@ public sealed class Attempt
         string? requestedEffort,
         AgentPermissionProfile permissionProfile,
         string adapterContractVersion,
-        int agentBudgetSlot)
+        int agentBudgetSlot,
+        int? requestedMaxTurns = null)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
@@ -595,6 +596,10 @@ public sealed class Attempt
         ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
         ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
         ValidateClaudeModelRequest(requestedModel, requestedEffort);
+        ValidateMutationTurnLimit(
+            requestedMaxTurns,
+            adapterContractVersion == ClaudeMutationAdapterContract.ImplementationV2
+                && permissionProfile == Runs.AgentPermissionProfile.WorkspaceEditOnly);
 
         return new Attempt
         {
@@ -607,6 +612,7 @@ public sealed class Attempt
             AgentProvider = Runs.AgentProvider.ClaudeCode,
             AgentRole = contract.Role,
             AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
+            _agentRequestedMaxTurns = ClaudeMutationTurnLimit.Format(requestedMaxTurns),
             // Mirrors ClaimAgentCriticalReview/ClaimAgentChallengeResolution's own reasoning:
             // the real ExecutionReport this attempt produces is represented by
             // AgentResponseContract below, never by this placeholder.
@@ -645,6 +651,26 @@ public sealed class Attempt
         }
     }
 
+    /// <summary>A requested turn limit must be valid and may only be stored with a contract version that
+    /// can carry it, so a limit is never recorded beside an invocation that would omit it.</summary>
+    private static void ValidateMutationTurnLimit(int? requestedMaxTurns, bool contractCarriesTurnLimit)
+    {
+        if (!ClaudeMutationTurnLimit.IsValid(requestedMaxTurns))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(requestedMaxTurns),
+                requestedMaxTurns,
+                $"A requested Claude turn limit must be between {ClaudeMutationTurnLimit.Minimum} and {ClaudeMutationTurnLimit.Maximum}.");
+        }
+
+        if (requestedMaxTurns is not null && !contractCarriesTurnLimit)
+        {
+            throw new ArgumentException(
+                "A requested Claude turn limit requires the version 2 mutation contract with the workspace-edit profile.",
+                nameof(requestedMaxTurns));
+        }
+    }
+
     private static bool IsValidAssignmentIdentifier(string? value) =>
         value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= 128);
 
@@ -676,6 +702,9 @@ public sealed class Attempt
     /// — it is recorded separately, immediately after this call, as this attempt's own ordered
     /// <see cref="AttemptInputMessage"/> rows.
     /// </summary>
+    /// <remarks>This overload is the historical version 1 mutation contract: no turn-limit option can be carried.
+    /// It is retained as the fixed-null convenience overload (and to seed version 1 history in tests); every
+    /// new claim uses <see cref="ClaimAgentReviewCorrectionWithModelRequest"/>.</remarks>
     public static Attempt ClaimAgentReviewCorrection(
         Guid id,
         Guid runId,
@@ -689,14 +718,16 @@ public sealed class Attempt
         int maxTotalCapturedBytes,
         DateTimeOffset claimedAtUtc,
         int agentBudgetSlot)
-        => ClaimAgentReviewCorrectionWithModelRequest(
+        => ClaimReviewCorrection(
             id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
             contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
-            requestedClaudeModel: null, requestedClaudeEffort: null, agentBudgetSlot);
+            requestedClaudeModel: null, requestedClaudeEffort: null, agentBudgetSlot,
+            ClaudeMutationAdapterContract.ReviewCorrectionV1, requestedMaxTurns: null);
 
-    /// <summary>Claims a review-correction attempt with an optional owner-requested Claude model
-    /// alias and effort level, snapshotted immutably. <see cref="ClaimAgentReviewCorrection"/> is the fixed-null
-    /// convenience overload; the pair must satisfy <see cref="ClaudeModelRequest.IsValid"/>.</summary>
+    /// <summary>Claims a review-correction attempt under the version 2 mutation contract with an optional
+    /// owner-requested Claude model alias and effort level and an optional agentic-turn limit, all
+    /// snapshotted immutably. The pair must satisfy <see cref="ClaudeModelRequest.IsValid"/> and the
+    /// limit <see cref="ClaudeMutationTurnLimit.IsValid"/>.</summary>
     public static Attempt ClaimAgentReviewCorrectionWithModelRequest(
         Guid id,
         Guid runId,
@@ -711,12 +742,38 @@ public sealed class Attempt
         DateTimeOffset claimedAtUtc,
         string? requestedClaudeModel,
         string? requestedClaudeEffort,
-        int agentBudgetSlot)
+        int agentBudgetSlot,
+        int? requestedMaxTurns = null)
+        => ClaimReviewCorrection(
+            id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
+            contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
+            requestedClaudeModel, requestedClaudeEffort, agentBudgetSlot,
+            ClaudeMutationAdapterContract.ReviewCorrectionV2, requestedMaxTurns);
+
+    private static Attempt ClaimReviewCorrection(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedClaudeModel,
+        string? requestedClaudeEffort,
+        int agentBudgetSlot,
+        string adapterContractVersion,
+        int? requestedMaxTurns)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
         ValidateClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
+        ValidateMutationTurnLimit(
+            requestedMaxTurns, adapterContractVersion == ClaudeMutationAdapterContract.ReviewCorrectionV2);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ReviewCorrection);
 
@@ -750,7 +807,8 @@ public sealed class Attempt
             // permission mode as the initial implementation adapter — a concrete, non-Unknown
             // permission profile and a dedicated adapter contract version, never caller-supplied.
             AgentPermissionProfile = Runs.AgentPermissionProfile.WorkspaceEditOnly,
-            AgentAdapterContractVersion = "claude-review-correction-v1",
+            AgentAdapterContractVersion = adapterContractVersion,
+            _agentRequestedMaxTurns = ClaudeMutationTurnLimit.Format(requestedMaxTurns),
             AgentBudgetSlot = agentBudgetSlot,
         };
     }
@@ -983,6 +1041,36 @@ public sealed class Attempt
     public AgentPermissionProfile? AgentPermissionProfile { get; private set; }
 
     public string? AgentAdapterContractVersion { get; private set; }
+    /// <summary>The EF field-only property that holds the snapshot as its exact stored text. Persistence and
+    /// queries refer to this name; every other reader uses <see cref="ReadAgentRequestedMaxTurns"/>.</summary>
+    public const string AgentRequestedMaxTurnsStorageProperty = "_agentRequestedMaxTurns";
+
+    private string? _agentRequestedMaxTurns;
+
+    /// <summary>The exact reading of the immutable Claude agentic-turn-limit request this mutation attempt was
+    /// claimed with (passed as <c>--max-turns</c>). Absent means none was recorded; malformed means the stored
+    /// representation is not a canonical whole number in range, so it is never read as a request, as null, or as
+    /// zero. Only a version 2 mutation contract can carry one (see <see cref="ClaudeMutationAdapterContract"/>).
+    /// A claim-time snapshot of the owner's request, never a measured or observed turn count.</summary>
+    public ClaudeMutationTurnLimitReading ReadAgentRequestedMaxTurns() => ClaudeMutationTurnLimit.Read(_agentRequestedMaxTurns);
+
+    /// <summary>The valid snapshot, or <see langword="null"/> when none was recorded. Throws when the stored value
+    /// is malformed, so a malformed snapshot can never be mistaken for "none".</summary>
+    public int? AgentRequestedMaxTurns => ReadAgentRequestedMaxTurns() is { IsMalformed: false } reading
+        ? reading.Value
+        : throw new InvalidOperationException("The stored Claude turn-limit snapshot is malformed.");
+
+    /// <summary>What this attempt's own stored facts say about a turn-limit request, by exact
+    /// version-aware mapping (see <see cref="ClaudeMutationAdapterContract.Classify"/>).</summary>
+    public ClaudeMutationTurnLimitEvidence GetMutationTurnLimitEvidence() => ClaudeMutationAdapterContract.Classify(
+        AgentResponseContract, AgentRole, AgentProvider, AgentPermissionProfile, AgentAdapterContractVersion, ReadAgentRequestedMaxTurns());
+
+    /// <summary>Whether a provider may be invoked for this attempt as far as its turn-limit snapshot is concerned:
+    /// an attempt that recorded none is unaffected, and one that recorded a request needs a well-formed request
+    /// and the complete coherent role, provider, response-contract, permission-profile, and exact version 2
+    /// tuple (see <see cref="ClaudeMutationAdapterContract.IsDispatchCoherent"/>).</summary>
+    public bool HasDispatchCoherentTurnLimit() => ClaudeMutationAdapterContract.IsDispatchCoherent(
+        AgentResponseContract, AgentRole, AgentProvider, AgentPermissionProfile, AgentAdapterContractVersion, ReadAgentRequestedMaxTurns());
 
     /// <summary>Returns the assignment facts without introducing a second persisted aggregate.
     /// Non-Agent attempts have no assignment snapshot.</summary>
@@ -995,6 +1083,7 @@ public sealed class Attempt
             || !IsValidAssignmentIdentifier(AgentObservedModel)
             || !IsValidAssignmentIdentifier(AgentRequestedEffort)
             || !IsValidAssignmentIdentifier(AgentObservedEffort)
+            || ReadAgentRequestedMaxTurns().IsMalformed
             || (AgentAdapterContractVersion is { } contractVersion
                 && (string.IsNullOrWhiteSpace(contractVersion) || contractVersion.Length > 128)))
         {
@@ -1014,7 +1103,8 @@ public sealed class Attempt
             AgentRequestedEffort,
             AgentObservedEffort,
             permissionProfile,
-            AgentAdapterContractVersion);
+            AgentAdapterContractVersion,
+            ReadAgentRequestedMaxTurns().Value);
     }
 
     /// <summary>Records provider-reported assignment facts exactly once. A provider that does

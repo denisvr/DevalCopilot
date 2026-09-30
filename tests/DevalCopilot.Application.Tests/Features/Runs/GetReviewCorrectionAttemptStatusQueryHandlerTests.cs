@@ -1,4 +1,5 @@
 using System.Data.Common;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Queries.GetReviewCorrectionAttemptStatus;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -171,7 +172,7 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             correctionAttemptId = seed.CorrectionAttemptId;
             await seedContext.SaveChangesAsync(CancellationToken.None);
             await seedContext.Database.ExecuteSqlInterpolatedAsync($"""
-                UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v2'
+                UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v3'
                 WHERE Id = {correctionAttemptId}
                 """);
         }
@@ -217,6 +218,144 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
             .SqlQueryRaw<string>("SELECT AgentPermissionProfile AS Value FROM attempts WHERE Id = {0}", correctionAttemptId)
             .SingleAsync();
         Assert.Equal(sentinel, persistedValue);
+    }
+
+    private async Task<(Guid RunId, Guid CorrectionAttemptId)> SeedCorrectionWithTurnLimitAsync(
+        string? version, int? attemptLimit, int? runLimit = null)
+    {
+        Guid runId;
+        Guid correctionAttemptId;
+        await using var seedContext = _fixture.CreateContext();
+        var seed = SeedReviewCorrectionAttempt(seedContext);
+        runId = seed.RunId;
+        correctionAttemptId = seed.CorrectionAttemptId;
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        if (version is not null)
+        {
+            await seedContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE attempts SET AgentAdapterContractVersion = {version} WHERE Id = {correctionAttemptId}");
+        }
+
+        await ClaudeMutationTurnLimitTestSupport.SetRawAttemptLimitAsync(_fixture, correctionAttemptId, attemptLimit);
+        await ClaudeMutationTurnLimitTestSupport.SetRawRunLimitAsync(_fixture, runId, runLimit);
+        return (runId, correctionAttemptId);
+    }
+
+    private async Task<ReviewCorrectionAttemptStatusQueryResult> ReadCorrectionStatusAsync(Guid runId)
+    {
+        await using var context = _fixture.CreateContext();
+        var result = await new GetReviewCorrectionAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetReviewCorrectionAttemptStatusQuery(runId), CancellationToken.None);
+        Assert.True(result.IsSuccess, string.Join("; ", result.Errors.Select(error => error.Code)));
+        return result.Value;
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(37)]
+    [InlineData(100)]
+    public async Task Status_reports_a_requested_turn_limit_for_a_current_v2_attempt(int limit)
+    {
+        var (runId, _) = await SeedCorrectionWithTurnLimitAsync("claude-review-correction-v2", limit, runLimit: 55);
+
+        var status = await ReadCorrectionStatusAsync(runId);
+
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.Requested, limit), status.AttemptTurnLimit);
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.Requested, 55), status.RunTurnLimitRequest);
+        Assert.Equal("acceptEdits", status.ConfiguredPermissionMode);
+        Assert.Equal("Read,Edit,Write,Glob,Grep", status.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task Status_reports_not_requested_for_a_v2_attempt_without_a_limit()
+    {
+        var (runId, _) = await SeedCorrectionWithTurnLimitAsync("claude-review-correction-v2", attemptLimit: null);
+
+        var status = await ReadCorrectionStatusAsync(runId);
+
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.NotRequested, null), status.AttemptTurnLimit);
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.NotRequested, null), status.RunTurnLimitRequest);
+        Assert.Equal("acceptEdits", status.ConfiguredPermissionMode);
+    }
+
+    [Fact]
+    public async Task Status_reports_not_recorded_for_a_legacy_v1_attempt_and_still_populates_configured_facts()
+    {
+        var (runId, _) = await SeedCorrectionWithTurnLimitAsync(version: null, attemptLimit: null);
+
+        var status = await ReadCorrectionStatusAsync(runId);
+
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.NotRecorded, null), status.AttemptTurnLimit);
+        Assert.Equal("acceptEdits", status.ConfiguredPermissionMode);
+        Assert.Equal("Disabled", status.ConfiguredSessionPersistence);
+        Assert.Equal("None", status.ConfiguredPermissionPrompts);
+        Assert.Equal("Ineligible", status.ConfiguredResumeEligibility);
+        Assert.Equal("Read,Edit,Write,Glob,Grep", status.ConfiguredBuiltInTools);
+    }
+
+    [Fact]
+    public async Task Status_reports_unknown_for_a_limit_stored_beside_a_v1_attempt()
+    {
+        var (runId, _) = await SeedCorrectionWithTurnLimitAsync(version: null, attemptLimit: 5);
+
+        var status = await ReadCorrectionStatusAsync(runId);
+
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.Unknown, null), status.AttemptTurnLimit);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(101)]
+    public async Task Status_fails_closed_for_a_malformed_out_of_range_attempt_limit(int stored)
+    {
+        var (runId, attemptId) = await SeedCorrectionWithTurnLimitAsync("claude-review-correction-v2", stored);
+
+        await using var context = _fixture.CreateContext();
+        var result = await new GetReviewCorrectionAttemptStatusQueryHandler(context)
+            .HandleAsync(new GetReviewCorrectionAttemptStatusQuery(runId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("agent_attempts.invalid_assignment", error.Code);
+        Assert.DoesNotContain(stored.ToString(), error.Description, StringComparison.Ordinal);
+        Assert.Equal(stored.ToString(), await ClaudeMutationTurnLimitTestSupport.ReadAttemptRawAsync(_fixture, attemptId));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public async Task Status_reports_the_run_request_as_unknown_when_the_stored_value_is_out_of_range(int stored)
+    {
+        var (runId, _) = await SeedCorrectionWithTurnLimitAsync("claude-review-correction-v2", attemptLimit: 5, runLimit: stored);
+
+        var status = await ReadCorrectionStatusAsync(runId);
+
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.Unknown, null), status.RunTurnLimitRequest);
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.Requested, 5), status.AttemptTurnLimit);
+    }
+
+    [Fact]
+    public async Task Status_still_reports_the_run_request_when_there_is_no_attempt()
+    {
+        Guid runId;
+        await using (var seedContext = _fixture.CreateContext())
+        {
+            var seed = SeedReviewChangesRequested(seedContext);
+            runId = seed.RunId;
+            await seedContext.SaveChangesAsync(CancellationToken.None);
+        }
+
+        Assert.Equal(
+            new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.NotRequested, null),
+            (await ReadCorrectionStatusAsync(runId)).RunTurnLimitRequest);
+        await ClaudeMutationTurnLimitTestSupport.SetRawRunLimitAsync(_fixture, runId, 21);
+
+        var status = await ReadCorrectionStatusAsync(runId);
+
+        Assert.False(status.HasAttempt);
+        Assert.Null(status.AttemptTurnLimit);
+        Assert.Equal(new ClaudeMutationTurnLimitFact(ClaudeMutationTurnLimitEvidence.Requested, 21), status.RunTurnLimitRequest);
     }
 
     private async Task<(int Count, Guid? ReportId)> MeasureAsync(Guid runId, Guid expectedReportId)

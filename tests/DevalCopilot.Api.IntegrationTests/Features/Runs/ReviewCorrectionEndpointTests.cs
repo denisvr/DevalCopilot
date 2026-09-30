@@ -160,7 +160,7 @@ public sealed partial class ReviewCorrectionEndpointTests : IDisposable
         {
             var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
             await db.Database.ExecuteSqlInterpolatedAsync(
-                $"UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v2' WHERE Id = {attemptId}");
+                $"UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v3' WHERE Id = {attemptId}");
         }
 
         var after = await client.GetAsync($"/api/runs/{seed.RunId}/agent-attempts/review-correction");

@@ -511,6 +511,231 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
         Assert.Equal(WorkspaceStatus.Ready, workspace.Status);
     }
 
+    private async Task RunSupervisorToTerminalAsync(ServiceProvider provider, Guid attemptId)
+    {
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await PollForTerminalStatusAsync(provider, attemptId);
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+    }
+
+    [Fact]
+    public async Task The_dispatched_invocation_replays_the_claimed_attempts_turn_limit_not_a_later_run_change()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
+            call <= 4
+                ? Matching(Fingerprint)
+                : MatchingWithChangedPaths(ChangedFingerprint, [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")]));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]) };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (runId, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, requestedMaxTurns: 12);
+
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            run.SetRequestedClaudeMaxTurns(99);
+            await dbContext.SaveChangesAsync();
+        }
+
+        await RunSupervisorToTerminalAsync(provider, attemptId);
+
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal(12, adapter.LastRequest!.RequestedMaxTurns);
+        Assert.Equal(ClaudeMutationAdapterContract.ImplementationV2, adapter.LastRequest.AdapterContractVersion);
+    }
+
+    [Fact]
+    public async Task A_run_without_a_turn_limit_dispatches_none_under_the_v2_contract()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
+            call <= 4
+                ? Matching(Fingerprint)
+                : MatchingWithChangedPaths(ChangedFingerprint, [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")]));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]) };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader);
+
+        await RunSupervisorToTerminalAsync(provider, attemptId);
+
+        Assert.Null(adapter.LastRequest!.RequestedMaxTurns);
+        Assert.Equal(ClaudeMutationAdapterContract.ImplementationV2, adapter.LastRequest.AdapterContractVersion);
+    }
+
+    [Fact]
+    public async Task An_undispatched_claimed_attempt_replays_its_turn_limit_after_a_restart_despite_a_later_run_change()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => Matching(Fingerprint));
+        Guid runId;
+        Guid attemptId;
+        await using (var provider = BuildServiceProvider(evidenceReader, new FakeClaudeImplementationAdapter(_artifactStore)))
+        {
+            (runId, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, requestedMaxTurns: 7);
+        }
+
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
+
+        var reopenedAdapter = new FakeClaudeImplementationAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]) };
+        var reopenedEvidence = new SequencedGitWorkspaceEvidenceReader(call =>
+            call == 1
+                ? Matching(Fingerprint)
+                : MatchingWithChangedPaths(ChangedFingerprint, [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")]));
+        await using var reopenedProvider = BuildServiceProvider(reopenedEvidence, reopenedAdapter);
+        await using (var scope = reopenedProvider.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await dbContext.Database.MigrateAsync();
+            var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
+            run.SetRequestedClaudeMaxTurns(null);
+            await dbContext.SaveChangesAsync();
+        }
+
+        await RunSupervisorToTerminalAsync(reopenedProvider, attemptId);
+
+        Assert.Equal(1, reopenedAdapter.InvocationCount);
+        Assert.Equal(7, reopenedAdapter.LastRequest!.RequestedMaxTurns);
+    }
+
+    [Fact]
+    public async Task A_failed_invocation_with_a_turn_limit_and_an_unchanged_source_fails_without_success_retry_or_extra_budget()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => Matching(Fingerprint));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore)
+        {
+            ResultToReturn = new ImplementationInvocationResult(ImplementationInvocationOutcome.Failed, false, false, null),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (runId, attemptId, workspaceId, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, requestedMaxTurns: 3);
+        await using var seedScope = provider.CreateAsyncScope();
+        var agentAttemptsBefore = await seedScope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>().Attempts
+            .CountAsync(candidate => candidate.RunId == runId && candidate.Kind == AttemptKind.Agent);
+
+        await RunSupervisorToTerminalAsync(provider, attemptId);
+        await Task.Delay(TimeSpan.FromMilliseconds(600));
+
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal(3, adapter.LastRequest!.RequestedMaxTurns);
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var attempt = await dbContext.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attemptId);
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.AttemptId == attemptId && message.Type == CollaborationMessageType.ExecutionReport));
+        Assert.Equal(WorkspaceStatus.Ready, (await dbContext.GitWorkspaces.SingleAsync(w => w.Id == workspaceId)).Status);
+        Assert.Equal(agentAttemptsBefore, await dbContext.Attempts.CountAsync(candidate => candidate.RunId == runId && candidate.Kind == AttemptKind.Agent));
+        Assert.Equal(3, attempt.AgentRequestedMaxTurns);
+    }
+
+    [Fact]
+    public async Task A_failed_invocation_with_a_turn_limit_and_a_changed_source_flags_needs_attention_with_no_success_checkpoint()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
+            call <= 4
+                ? Matching(Fingerprint)
+                : MatchingWithChangedPaths(ChangedFingerprint, [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")]));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore)
+        {
+            ResultToReturn = new ImplementationInvocationResult(ImplementationInvocationOutcome.Failed, false, false, null),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, workspaceId, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, requestedMaxTurns: 3);
+
+        await RunSupervisorToTerminalAsync(provider, attemptId);
+
+        Assert.Equal(1, adapter.InvocationCount);
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var attempt = await dbContext.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attemptId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Empty(dbContext.CollaborationMessages.Where(message => message.AttemptId == attemptId && message.Type == CollaborationMessageType.ExecutionReport));
+        Assert.Equal(WorkspaceStatus.NeedsAttention, (await dbContext.GitWorkspaces.SingleAsync(w => w.Id == workspaceId)).Status);
+    }
+
+    [Fact]
+    public async Task A_failed_invocation_with_a_turn_limit_and_unavailable_completion_evidence_is_never_trusted_as_unchanged()
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(call =>
+            call <= 4
+                ? Matching(Fingerprint)
+                : new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.GitInvocationFailed, null, null, [], null));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore)
+        {
+            ResultToReturn = new ImplementationInvocationResult(ImplementationInvocationOutcome.Failed, false, false, null),
+        };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, workspaceId, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, requestedMaxTurns: 3);
+
+        await RunSupervisorToTerminalAsync(provider, attemptId);
+
+        Assert.Equal(1, adapter.InvocationCount);
+        await using var scope = provider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var attempt = await dbContext.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attemptId);
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.CheckpointEvidenceUnavailable, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Equal(WorkspaceStatus.NeedsAttention, (await dbContext.GitWorkspaces.SingleAsync(w => w.Id == workspaceId)).Status);
+    }
+
+    public static IEnumerable<object[]> CapBoundaryTampering =>
+    [
+        ["UPDATE attempts SET AgentPermissionProfile = 'ReadOnly' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentPermissionProfile = 'Unknown' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentAdapterContractVersion = 'claude-implementation-v1' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v2' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 3.5 WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = X'37' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 'blob:37' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 9e999 WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentProvider = 'Codex' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 4294967297 WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 'abc' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 101 WHERE Id = '{0}'"],
+    ];
+
+    [Theory]
+    [MemberData(nameof(CapBoundaryTampering))]
+    public async Task A_cap_beside_incoherent_or_malformed_persisted_state_never_starts_the_provider(string tamperSqlTemplate)
+    {
+        var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => Matching(Fingerprint));
+        var adapter = new FakeClaudeImplementationAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidImplementationReportJson(["src/Foo.cs"]) };
+        await using var provider = BuildServiceProvider(evidenceReader, adapter);
+        var (_, attemptId, _, _) = await SeedEligibleImplementationAttemptAsync(provider, evidenceReader, requestedMaxTurns: 7);
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await dbContext.Database.ExecuteSqlRawAsync(string.Format(tamperSqlTemplate, attemptId.ToString().ToUpperInvariant()));
+        }
+
+        var supervisor = CreateSupervisor(provider);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(1500));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        Assert.Equal(0, adapter.InvocationCount);
+        await using var verify = provider.CreateAsyncScope();
+        var persisted = await verify.ServiceProvider.GetRequiredService<DevalCopilotDbContext>().Attempts
+            .AsNoTracking().SingleAsync(candidate => candidate.Id == attemptId);
+        Assert.Null(persisted.AgentDispatchedAtUtc);
+        Assert.Equal(AttemptStatus.Running, persisted.Status);
+    }
+
     private static GitWorkspaceEvidenceResult Matching(string fingerprintSha256) =>
         new(GitWorkspaceEvidenceOutcome.Success, StartingHeadSha, fingerprintSha256, [], null);
 
@@ -545,7 +770,8 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
     /// implementation attempt itself through <see cref="CreateImplementationAttemptCommand"/>.
     /// </summary>
     private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid ProposalId)> SeedEligibleImplementationAttemptAsync(
-        ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null, string? requestedClaudeEffort = null)
+        ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, string? requestedClaudeModel = null, string? requestedClaudeEffort = null,
+        int? requestedMaxTurns = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -581,10 +807,11 @@ public sealed class ImplementationSupervisorHostedTests : IDisposable
             new RecordClaudeCriticalReviewResultCommand(runId, reviewAttemptId, AgentOutcome.Accepted, Fingerprint, [], review, null, ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
             CancellationToken.None)).IsSuccess);
 
-        if (requestedClaudeModel is not null)
+        if (requestedClaudeModel is not null || requestedMaxTurns is not null)
         {
             var run = await dbContext.Runs.SingleAsync(candidate => candidate.Id == runId);
             run.SetRequestedClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
+            run.SetRequestedClaudeMaxTurns(requestedMaxTurns);
             await dbContext.SaveChangesAsync(CancellationToken.None);
         }
 

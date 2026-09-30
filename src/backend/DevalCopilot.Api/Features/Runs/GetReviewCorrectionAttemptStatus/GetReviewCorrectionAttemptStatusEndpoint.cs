@@ -35,6 +35,8 @@ public sealed class GetReviewCorrectionAttemptStatusEndpoint(
             value.ConfiguredSessionPersistence,
             value.ConfiguredPermissionPrompts,
             value.ConfiguredResumeEligibility,
-            value.ConfiguredBuiltInTools));
+            value.ConfiguredBuiltInTools,
+            ClaudeMutationTurnLimitResponse.FromDomain(value.RunTurnLimitRequest),
+            ClaudeMutationTurnLimitResponse.FromDomain(value.AttemptTurnLimit)));
     }
 }

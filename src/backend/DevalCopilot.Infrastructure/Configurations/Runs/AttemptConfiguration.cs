@@ -68,6 +68,15 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         builder.Property(attempt => attempt.AgentObservedEffort).HasMaxLength(128);
         builder.Property(attempt => attempt.AgentPermissionProfile).HasConversion<string>().HasMaxLength(32);
         builder.Property(attempt => attempt.AgentAdapterContractVersion).HasMaxLength(128);
+        // No default and no backfill: only a version 2 mutation attempt can carry a request. Mapped as a
+        // field-only property holding the exact stored text in an INTEGER-affinity column (see
+        // Attempt.ReadAgentRequestedMaxTurns), so a malformed stored value is never truncated, never overflows
+        // materialization of a healthy sibling row, and never reads as a valid request.
+        builder.Ignore(attempt => attempt.AgentRequestedMaxTurns);
+        builder.Property<string?>(Attempt.AgentRequestedMaxTurnsStorageProperty)
+            .HasColumnName("AgentRequestedMaxTurns")
+            .HasColumnType("INTEGER")
+            .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
 
         builder.Property(attempt => attempt.AgentTimeout)
             .HasConversion(

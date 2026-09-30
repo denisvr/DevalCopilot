@@ -15,4 +15,6 @@ public sealed record EligibleReviewCorrectionAttempt(
     int MaxTotalCapturedBytes,
     IReadOnlyList<Guid> OrderedInputMessageIds,
     string? RequestedClaudeModel = null,
-    string? RequestedClaudeEffort = null);
+    string? RequestedClaudeEffort = null,
+    int? RequestedMaxTurns = null,
+    string? AdapterContractVersion = null);

@@ -55,4 +55,12 @@ public sealed record ReviewCorrectionAttemptStatusResponse(
     /// invocation eligibility. <see langword="null"/> unless provider, role, permission profile,
     /// and adapter contract version all agree with the current, single supported
     /// review-correction adapter.</summary>
-    string? ConfiguredBuiltInTools);
+    string? ConfiguredBuiltInTools,
+    /// <summary>The Run's current saved Claude agentic-turn-limit request: a request for future Claude
+    /// implementation and correction attempts, never a measured turn count, an account or host-enforced
+    /// ceiling, or invocation eligibility.</summary>
+    ClaudeMutationTurnLimitResponse? RunTurnLimitRequest,
+    /// <summary>This attempt's own immutable turn-limit record: <c>Requested</c> with its number,
+    /// <c>NotRequested</c> (a coherent version 2 attempt with none), <c>NotRecorded</c> (a legacy attempt), or
+    /// <c>Unknown</c>. Null when there is no attempt.</summary>
+    ClaudeMutationTurnLimitResponse? AttemptTurnLimit);

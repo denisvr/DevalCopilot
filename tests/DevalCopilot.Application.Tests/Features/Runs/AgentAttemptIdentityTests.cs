@@ -24,6 +24,9 @@ public sealed class AgentAttemptIdentityTests
         };
     }
 
+    private static void SetStoredTurnLimit(Attempt attempt, string stored) =>
+        typeof(Attempt).GetField(Attempt.AgentRequestedMaxTurnsStorageProperty, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.SetValue(attempt, stored);
+
     private static void Set<TValue>(Attempt attempt, string property, TValue value) =>
         typeof(Attempt).GetProperty(property)!.SetValue(attempt, value);
 
@@ -90,5 +93,22 @@ public sealed class AgentAttemptIdentityTests
 
         Assert.False(AgentAttemptIdentity.IsCoherent(oversized));
         Assert.False(AgentAttemptIdentity.IsCoherent(badStatus));
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    public void A_stored_out_of_range_turn_limit_is_not_coherent_but_a_valid_one_is(int kind)
+    {
+        var valid = Claim(kind);
+        SetStoredTurnLimit(valid, "100");
+        Assert.True(AgentAttemptIdentity.IsCoherent(valid));
+
+        foreach (var stored in new[] { "0", "-1", "101", "2147483647", "3.5", "4294967297", "abc", "" })
+        {
+            var attempt = Claim(kind);
+            SetStoredTurnLimit(attempt, stored);
+            Assert.False(AgentAttemptIdentity.IsCoherent(attempt));
+        }
     }
 }

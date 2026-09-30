@@ -638,9 +638,12 @@ applies identically. Two differences are deliberate:
   bundled documentation asserting this in so many words, and confirming it further would require
   an authenticated invocation this project's evidence discipline forbids. Mirrors the
   `result`-field-shape limitation the critical-review contract above already discloses in kind.
-- **No `--max-turns`**: implementation is inherently multi-step (read, edit, re-read), unlike a
-  single-turn critical review; the actual bound remains the process-level timeout, cancellation,
-  and process-tree termination already established for every other provider adapter.
+- **No `--max-turns` by default; an optional owner request adds exactly one**: implementation is
+  inherently multi-step (read, edit, re-read), unlike a single-turn critical review, so no turn
+  limit is passed unless the attempt's immutable snapshot requested one (see
+  ["Optional Claude agentic-turn limit for mutation attempts"](#optional-claude-agentic-turn-limit-for-mutation-attempts));
+  otherwise the bound remains the process-level timeout, cancellation, and process-tree
+  termination already established for every other provider adapter.
 
 Because each initial Implementer invocation can genuinely mutate the worktree, the
 orchestrator always independently re-reads fresh Git evidence after this adapter returns —
@@ -765,7 +768,8 @@ not currently exposed through any API response. The initial Implementer
 attempt additionally persists durable assignment facts: requested and observed
 model slots, requested and observed effort slots, a permission profile
 (`WorkspaceEditOnly`), and an adapter contract version
-(`claude-implementation-v1`). In practice its requested and observed model
+(`claude-implementation-v1` for history and `claude-implementation-v2` for every new claim, see
+"Optional Claude agentic-turn limit for mutation attempts"). In practice its requested and observed model
 and effort currently remain null: no model or effort is requested, and the
 Claude adapter does not authoritatively report either, so nothing is
 inferred. There is still no provider selection — the initial Implementer
@@ -1815,6 +1819,109 @@ adjustment is a documented limitation that this design cannot observe.
   for future attempts) and `latestAgentAttempt.requestedEffort` (that attempt's own
   claim-time snapshot). Both are requests; these new fields never carry an observed or
   effective effort. The frontend shows the attempt's effort line only for a Claude attempt.
+
+### Optional Claude agentic-turn limit for mutation attempts
+
+The two Claude paths that can edit the worktree — the initial Implementer and review correction — accept one
+optional, owner-requested agentic-turn limit, passed as `--max-turns N`. The
+[Claude CLI reference](https://code.claude.com/docs/en/cli-reference) documents `--max-turns` as a print-mode
+limit on agentic turns that exits with an error when reached, and the
+[headless contract](https://code.claude.com/docs/en/headless) describes non-zero exits for failure and invalid
+flags. No installed-version or authenticated runtime observation is claimed: the argument is the documented
+explicit one, and the tests use deterministic process doubles, which do not prove real provider enforcement. The
+limit is a request for a provider-loop guardrail beside the existing host timeout. It is never a measured turn
+count, a token, cost, or account ceiling, a host-enforced resource limit, a replacement for any budget or stop, or an
+invocation-eligibility claim. `CriticalReviewer` keeps exactly `--max-turns 1`; no Codex invocation changes.
+
+- **Request and validation.** `Run.RequestedClaudeMaxTurns` is `null` (no DevalCopilot override, the value for every
+  new and historical run) or a whole number from 1 through 100 inclusive (`ClaudeMutationTurnLimit`, the single rule
+  shared by the Run, the Attempt factories, the validator, and the adapters). The protected operation
+  `POST /api/runs/{runId}/claude-mutation-turn-limit` (`SetClaudeMutationTurnLimitCommand`, body
+  `{ "maxTurns": N | null }`) sets or clears it for a Created or Running run. The member must be present (an omitted
+  member is HTTP 400, not a clear); zero, negative, above 100, fractional, string, and overflowing values are HTTP 400
+  before any write; a terminal run is HTTP 422 (`claude_turn_limit.run_not_editable`); an unknown run is HTTP 404. The
+  request and one human-authored `run.claude_mutation_turn_limit_changed` event (payload `{maxTurns}`) commit in the
+  handler's single `SaveChangesAsync`, with no provider call. `Run.Lifecycle` and `Run.RequestedClaudeMaxTurns` are EF
+  concurrency tokens and the UPDATE is forced even for a same-value set, so a lifecycle transition or competing change
+  rolls back the change and its event together (retryable HTTP 409 `claude_turn_limit.concurrent_change`, or 422 for a
+  now-terminal run). A change affects only later claims, including while an earlier attempt is still running.
+- **Immutable claim snapshot.** `Attempt.AgentRequestedMaxTurns` (one additive nullable column; the
+  `AddClaudeMutationTurnLimit` migration adds it and `runs.RequestedClaudeMaxTurns` with no default and no backfill)
+  records the value the claim decided against. `CurrentClaudeMutationTurnLimit.ReadAndGuardAsync` reads the column
+  afresh in both mutation claim handlers, after external Git evidence and manifest sealing and before the single claim
+  commit, and resets the tracked Run property's original value to it, so the claim's `UPDATE runs ... WHERE` requires
+  that exact value. A change committed after the read rolls the whole batch back (attempt, ordered inputs, manifest
+  artifact, and any consumed review-correction authorization), the handler deletes the sealed manifest it wrote, and
+  `agent_attempts.run_changed_during_claim` (HTTP 409) is returned. A stored value outside the accepted range is refused
+  with `agent_attempts.claude_turn_limit_invalid` (before any authorization is consumed, with the manifest removed),
+  never clamped or claimed without its limit. The ordered correction inputs and guidance, authorization consumption, the
+  count, time, and token gates, leases, and the one-running-attempt invariant are unchanged.
+- **Persisted-state integrity.** Both columns are a field-only EF property (beside the `Run.RequestedClaudeMaxTurns` and
+  `Attempt.AgentRequestedMaxTurns` accessors) in an INTEGER-affinity column, exposed to the Domain as one string whose form
+  identifies the SQLite storage class (`ExactStoredIntegerTextTypeMapping`, used for these two columns only). The
+  representation is disjoint because every non-integer class carries a one-letter tag that is never the first character of
+  a canonical integer: an `integer` is its canonical digits; a `real` is `r:` plus the 16 hex digits of its exact IEEE-754
+  bits (so every finite value, both infinities, and negative zero are preserved without decimal rounding); a `blob` is `b:`
+  plus its exact bytes in hex; an actual `text` is `t:` plus the text verbatim, so TEXT that merely looks like another form
+  (`blob:37`, `b:37`, `r:...`, digits, or an empty string) is still TEXT; any other class is `?:` plus its type name. The
+  original value is bound back with its actual type and content (an integer as INTEGER, a real from its bits, a BLOB from its
+  bytes, TEXT after its tag); nothing is inferred from untagged text, and a malformed suffix never throws (an untagged or
+  ill-formed string is bound as plain text). The SQL literal form uses the same decoding. `ClaudeMutationTurnLimit.Read`
+  accepts only the canonical digits of a whole number from 1 through 100. Anything else (a fraction such as `3.5`, a number
+  too large for an `int`, any TEXT, any REAL, any BLOB including digits, zero, a negative, above 100, a sign, a leading zero,
+  or padding) is **malformed**: it is never truncated, decoded, read as a different number, null, or zero, and never allowed
+  to overflow the materialization of a healthy sibling row. A whole-valued REAL written to the column is converted to INTEGER
+  by the column's own affinity at write time, before any read. The accessors return only a valid request or none and throw
+  for a malformed value, so a malformed value cannot be mistaken for "no request"; the exact readings
+  (`ReadRequestedClaudeMaxTurns`, `ReadAgentRequestedMaxTurns`) expose the malformed state. A malformed Run value is
+  refused at the claim with `agent_attempts.claude_turn_limit_invalid` (manifest removed, correction authorization
+  unconsumed), reported as `Unknown` by the role status and the cockpit, and replaced by setting a new valid request:
+  the stored text is the concurrency-token original value, so a malformed value still round-trips exactly and neither
+  the setter nor any unrelated save of the Run is blocked by it. A malformed Attempt snapshot is never dispatched,
+  fails a role status with `agent_attempts.invalid_assignment`, invalidates that attempt's history identity, and is
+  `Unknown` in the cockpit. No `CHECK` constraint was added: the read and dispatch boundaries are authoritative and are
+  what the tests exercise with corrupted rows, and a later constraint would need a table rebuild.
+- **Dispatch gate.** The invocation request carries only the cap and the contract version, so the complete tuple is
+  checked before any process can start, in both the eligibility feeds and the authoritative
+  `MarkAgentAttemptDispatched` gate (`agent_attempts.invalid_agent_contract`). An attempt that recorded a request is
+  dispatchable only with a well-formed request and the persisted Claude provider (both feeds check the attempt's actual
+  stored provider, not a constant), the Implementer role, the response contract of a
+  mutation path, the `WorkspaceEditOnly` permission profile, and that path's exact version 2 contract
+  (`ClaudeMutationAdapterContract.IsDispatchCoherent`). An attempt that recorded none (coherent v1/null and v2/null) is
+  unaffected, so historical dispatch eligibility is unchanged, and restart replay still uses the attempt's stored
+  values. An attempt that fails the gate stays claimed and undispatched, is never invoked, and is not retried.
+- **Versioned invocation contract.** Every newly claimed initial implementation uses `claude-implementation-v2` and every
+  newly claimed correction uses `claude-review-correction-v2`, even when the limit is `null`. Version 1 is the historical
+  invocation with no override and stays valid history: an already-claimed v1 attempt with a null limit dispatches with its
+  original argument list. The Domain factories (`ClaimAgentImplementationWithAssignment`,
+  `ClaimAgentReviewCorrectionWithModelRequest`) reject a non-null limit beside v1, an unknown version, or a permission
+  profile other than `WorkspaceEditOnly`; the convenience overloads remain v1 with no limit. `ClaudeMutationAdapterContract`
+  holds the four exact versions and classifies a stored attempt by exact version-aware mappings.
+- **Dispatch and adapters.** The eligible-attempt queries project the Attempt's own `AgentRequestedMaxTurns` and
+  `AdapterContractVersion` into the two invocation requests, which the supervisors pass unchanged; the mutable Run is never
+  read at dispatch or restart replay, and an undispatched attempt replays from its stored configuration and sealed
+  manifest. `ClaudeMutationTurnLimitArguments.TryAppend` appends, after the model and effort arguments, exactly
+  `--max-turns` and the invariant-culture integer when a limit is present; nothing for a null request (a v1 attempt and a
+  v2 attempt with no limit keep their exact argument lists); and fails the invocation closed before any process starts for
+  an out-of-range value or a version other than the path's own exact v2. No argument is dropped and retried unrestricted.
+  Every other argument, the model and effort rules, authentication, tool and permission restrictions, stdin delivery,
+  stream limits, timeout, and cancellation are unchanged.
+- **Failure.** A cap-induced or unsupported-flag error uses the existing failed-invocation path. The system does not infer
+  that the cap was reached from an exit code, stderr text, missing output, or the configuration alone, and adds no
+  limit-reached outcome. Both mutation supervisors still capture fresh post-invocation Git evidence, retain the available
+  process and artifact evidence, mark a suspected mutation `NeedsAttention`, and produce no success checkpoint,
+  ExecutionReport, or RevisionResponse from a failed invocation. There is no automatic retry, rollback, resume, or
+  fallback, and the failed attempt keeps its one claimed budget slot.
+- **Read model.** The two role status views add `runTurnLimitRequest` (the run's current saved request) and
+  `attemptTurnLimit` (that attempt's immutable record); the cockpit adds `claudeMutationTurnLimit` and
+  `latestAgentAttempt.maxTurns`; the historical Agent attempt evidence adds `maxTurns`. Each is `{state, maxTurns}` with
+  `state` exactly one of `Requested` (the saved or snapshotted request `maxTurns`; it describes the request, including for an
+  undispatched attempt or a run with no attempt yet, and says nothing about dispatch, which the versioned adapter decides), `NotRequested` (a coherent version 2 attempt, or a run, with
+  no request), `NotRecorded` (a legacy version 1 attempt, never an observed unlimited capacity), or `Unknown` (the stored
+  facts disagree, for example a limit beside a version that cannot carry it). The status views accept exactly the v1 and v2
+  versions of their own path for the existing configured facts; an unknown version still shows none. A malformed
+  out-of-range attempt value fails a role status with the existing `agent_attempts.invalid_assignment` error and makes a
+  history entry's identity invalid, without disclosing the stored value.
 
 ### Per-provider run token-activity warnings
 

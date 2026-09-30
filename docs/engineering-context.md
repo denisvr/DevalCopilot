@@ -79,6 +79,12 @@
   text hunk too large to select whole adds only a separate, at most 4 KiB, explicitly incomplete sample of its changed
   lines outside `diff` (see
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-tracked-hunk-evidence-in-agent-manifests)).
+- The two Claude paths that can edit the worktree (initial implementation and review correction) may carry one
+  owner-requested, run-scoped agentic-turn limit, snapshotted immutably on each claimed attempt and passed as the
+  provider's documented `--max-turns` argument under the `claude-implementation-v2` and `claude-review-correction-v2`
+  contracts. It is a provider-loop request beside the host timeout, never a measured count, a token, cost, or account
+  ceiling, or a host-enforced limit (see
+  [the protocol](architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no
   account-usage threshold is enforced anywhere in the system. The one

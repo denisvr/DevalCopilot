@@ -3,6 +3,7 @@ import type { AgentAttemptEvidenceResponse, AgentAttemptHistoryEntryResponse } f
 import { useAgentAttemptEvidence } from '../hooks/useAgentAttemptEvidence'
 import { useAgentAttemptHistory } from '../hooks/useAgentAttemptHistory'
 import { AgentAttemptArtifactViewer } from './AgentAttemptArtifactViewer'
+import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
 import { ARTIFACT_PURPOSE_LABELS } from '../artifactPurposes'
 
 function formatUtc(value: Date | string | undefined): string | null {
@@ -92,6 +93,7 @@ function AgentAttemptEvidenceBody({ runId, evidence }: { runId: string; evidence
           ))}
         </ul>
       )}
+      <ClaudeTurnLimitFacts attemptFact={evidence.maxTurns} />
       <AgentAttemptArtifactViewer runId={runId} attemptId={evidence.attemptId ?? ''} artifacts={artifacts} />
     </div>
   )

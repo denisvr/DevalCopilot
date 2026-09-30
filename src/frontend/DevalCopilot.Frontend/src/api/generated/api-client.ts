@@ -212,6 +212,58 @@ export class SetCodexAssignmentPreferenceEndpointClient {
     }
 }
 
+export class SetClaudeMutationTurnLimitEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    setClaudeMutationTurnLimit(runId: string, request: SetClaudeMutationTurnLimitRequest): Promise<SetClaudeMutationTurnLimitResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/claude-mutation-turn-limit";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSetClaudeMutationTurnLimit(_response);
+        });
+    }
+
+    protected processSetClaudeMutationTurnLimit(response: Response): Promise<SetClaudeMutationTurnLimitResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SetClaudeMutationTurnLimitResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetClaudeMutationTurnLimitResponse>(null as any);
+    }
+}
+
 export class SetClaudeModelPreferenceEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3020,6 +3072,78 @@ export interface ISetCodexAssignmentPreferenceRequest {
     requestedEffort?: string | undefined;
 }
 
+export class SetClaudeMutationTurnLimitResponse implements ISetClaudeMutationTurnLimitResponse {
+    maxTurns?: number | undefined;
+
+    constructor(data?: ISetClaudeMutationTurnLimitResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.maxTurns = _data["maxTurns"];
+        }
+    }
+
+    static fromJS(data: any): SetClaudeMutationTurnLimitResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetClaudeMutationTurnLimitResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["maxTurns"] = this.maxTurns;
+        return data;
+    }
+}
+
+export interface ISetClaudeMutationTurnLimitResponse {
+    maxTurns?: number | undefined;
+}
+
+export class SetClaudeMutationTurnLimitRequest implements ISetClaudeMutationTurnLimitRequest {
+    maxTurns!: number | undefined;
+
+    constructor(data?: ISetClaudeMutationTurnLimitRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.maxTurns = _data["maxTurns"];
+        }
+    }
+
+    static fromJS(data: any): SetClaudeMutationTurnLimitRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetClaudeMutationTurnLimitRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["maxTurns"] = this.maxTurns;
+        return data;
+    }
+}
+
+export interface ISetClaudeMutationTurnLimitRequest {
+    maxTurns: number | undefined;
+}
+
 export class SetClaudeModelPreferenceResponse implements ISetClaudeModelPreferenceResponse {
     requestedModel?: string | undefined;
     requestedEffort?: string | undefined;
@@ -3765,6 +3889,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     requestedClaudeEffort?: string | undefined;
     tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
     tokenStops?: RunCockpitTokenStopResponse[] | undefined;
+    claudeMutationTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -3825,6 +3950,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
                 for (let item of _data["tokenStops"])
                     this.tokenStops!.push(RunCockpitTokenStopResponse.fromJS(item));
             }
+            this.claudeMutationTurnLimit = _data["claudeMutationTurnLimit"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["claudeMutationTurnLimit"]) : undefined as any;
         }
     }
 
@@ -3885,6 +4011,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             for (let item of this.tokenStops)
                 data["tokenStops"].push(item ? item.toJSON() : undefined as any);
         }
+        data["claudeMutationTurnLimit"] = this.claudeMutationTurnLimit ? this.claudeMutationTurnLimit.toJSON() : undefined as any;
         return data;
     }
 }
@@ -3918,6 +4045,7 @@ export interface IGetRunCockpitResponse {
     requestedClaudeEffort?: string | undefined;
     tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
     tokenStops?: RunCockpitTokenStopResponse[] | undefined;
+    claudeMutationTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -3976,6 +4104,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
     tokenUsage?: AgentTokenUsageResponse;
     requestedModel?: string | undefined;
     requestedEffort?: string | undefined;
+    maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
 
     constructor(data?: IRunCockpitAgentAttemptResponse) {
         if (data) {
@@ -3999,6 +4128,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
             this.requestedModel = _data["requestedModel"];
             this.requestedEffort = _data["requestedEffort"];
+            this.maxTurns = _data["maxTurns"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["maxTurns"]) : undefined as any;
         }
     }
 
@@ -4022,6 +4152,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         data["requestedModel"] = this.requestedModel;
         data["requestedEffort"] = this.requestedEffort;
+        data["maxTurns"] = this.maxTurns ? this.maxTurns.toJSON() : undefined as any;
         return data;
     }
 }
@@ -4038,6 +4169,7 @@ export interface IRunCockpitAgentAttemptResponse {
     tokenUsage?: AgentTokenUsageResponse;
     requestedModel?: string | undefined;
     requestedEffort?: string | undefined;
+    maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
 }
 
 export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {
@@ -4134,6 +4266,46 @@ export interface IAgentTokenUsageResponse {
     outputTokens?: number | undefined;
     cacheCreationInputTokens?: number | undefined;
     cacheReadInputTokens?: number | undefined;
+}
+
+export class ClaudeMutationTurnLimitResponse implements IClaudeMutationTurnLimitResponse {
+    state?: string;
+    maxTurns?: number | undefined;
+
+    constructor(data?: IClaudeMutationTurnLimitResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.maxTurns = _data["maxTurns"];
+        }
+    }
+
+    static fromJS(data: any): ClaudeMutationTurnLimitResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ClaudeMutationTurnLimitResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["maxTurns"] = this.maxTurns;
+        return data;
+    }
+}
+
+export interface IClaudeMutationTurnLimitResponse {
+    state?: string;
+    maxTurns?: number | undefined;
 }
 
 export class RunTokenUsageSummaryResponse implements IRunTokenUsageSummaryResponse {
@@ -4556,6 +4728,8 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
     configuredPermissionPrompts?: string | undefined;
     configuredResumeEligibility?: string | undefined;
     configuredBuiltInTools?: string | undefined;
+    runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
+    attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
 
     constructor(data?: IReviewCorrectionAttemptStatusResponse) {
         if (data) {
@@ -4599,6 +4773,8 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
             this.configuredPermissionPrompts = _data["configuredPermissionPrompts"];
             this.configuredResumeEligibility = _data["configuredResumeEligibility"];
             this.configuredBuiltInTools = _data["configuredBuiltInTools"];
+            this.runTurnLimitRequest = _data["runTurnLimitRequest"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["runTurnLimitRequest"]) : undefined as any;
+            this.attemptTurnLimit = _data["attemptTurnLimit"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["attemptTurnLimit"]) : undefined as any;
         }
     }
 
@@ -4642,6 +4818,8 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
         data["configuredPermissionPrompts"] = this.configuredPermissionPrompts;
         data["configuredResumeEligibility"] = this.configuredResumeEligibility;
         data["configuredBuiltInTools"] = this.configuredBuiltInTools;
+        data["runTurnLimitRequest"] = this.runTurnLimitRequest ? this.runTurnLimitRequest.toJSON() : undefined as any;
+        data["attemptTurnLimit"] = this.attemptTurnLimit ? this.attemptTurnLimit.toJSON() : undefined as any;
         return data;
     }
 }
@@ -4674,6 +4852,8 @@ export interface IReviewCorrectionAttemptStatusResponse {
     configuredPermissionPrompts?: string | undefined;
     configuredResumeEligibility?: string | undefined;
     configuredBuiltInTools?: string | undefined;
+    runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
+    attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
 }
 
 export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
@@ -4812,6 +4992,8 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
     configuredPermissionPrompts?: string | undefined;
     configuredResumeEligibility?: string | undefined;
     configuredBuiltInTools?: string | undefined;
+    runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
+    attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
 
     constructor(data?: IImplementationAttemptStatusResponse) {
         if (data) {
@@ -4863,6 +5045,8 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
             this.configuredPermissionPrompts = _data["configuredPermissionPrompts"];
             this.configuredResumeEligibility = _data["configuredResumeEligibility"];
             this.configuredBuiltInTools = _data["configuredBuiltInTools"];
+            this.runTurnLimitRequest = _data["runTurnLimitRequest"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["runTurnLimitRequest"]) : undefined as any;
+            this.attemptTurnLimit = _data["attemptTurnLimit"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["attemptTurnLimit"]) : undefined as any;
         }
     }
 
@@ -4914,6 +5098,8 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
         data["configuredPermissionPrompts"] = this.configuredPermissionPrompts;
         data["configuredResumeEligibility"] = this.configuredResumeEligibility;
         data["configuredBuiltInTools"] = this.configuredBuiltInTools;
+        data["runTurnLimitRequest"] = this.runTurnLimitRequest ? this.runTurnLimitRequest.toJSON() : undefined as any;
+        data["attemptTurnLimit"] = this.attemptTurnLimit ? this.attemptTurnLimit.toJSON() : undefined as any;
         return data;
     }
 }
@@ -4950,6 +5136,8 @@ export interface IImplementationAttemptStatusResponse {
     configuredPermissionPrompts?: string | undefined;
     configuredResumeEligibility?: string | undefined;
     configuredBuiltInTools?: string | undefined;
+    runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
+    attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {
@@ -5787,6 +5975,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
 
     constructor(data?: IAgentAttemptEvidenceResponse) {
         if (data) {
@@ -5817,6 +6006,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
                 for (let item of _data["artifacts"])
                     this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
             }
+            this.maxTurns = _data["maxTurns"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["maxTurns"]) : undefined as any;
         }
     }
 
@@ -5847,6 +6037,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
             for (let item of this.artifacts)
                 data["artifacts"].push(item ? item.toJSON() : undefined as any);
         }
+        data["maxTurns"] = this.maxTurns ? this.maxTurns.toJSON() : undefined as any;
         return data;
     }
 }
@@ -5866,6 +6057,7 @@ export interface IAgentAttemptEvidenceResponse {
     processExecution?: AgentProcessExecutionResponse | undefined;
     tokenUsage?: AgentTokenUsageResponse | undefined;
     artifacts?: AgentAttemptArtifactMetadataResponse[];
+    maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
 }
 
 export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {

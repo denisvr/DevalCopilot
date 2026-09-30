@@ -320,6 +320,246 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         Assert.Equal(AttemptStatus.Interrupted, (await verify.Attempts.SingleAsync(item => item.Id == seed.CorrectionId)).Status);
     }
 
+    private async Task RunToTerminalAsync(ServiceProvider provider, GatedAdapter adapter, SequencedEvidence evidence, TestNotifier notifier, Guid correctionId)
+    {
+        var supervisor = CreateSupervisor(provider, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await adapter.Invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            adapter.Release();
+            await notifier.Notified.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        await using var scope = provider.CreateAsyncScope();
+        Assert.NotEqual(AttemptStatus.Running, await scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>()
+            .Attempts.Where(item => item.Id == correctionId).Select(item => item.Status).SingleAsync());
+    }
+
+    [Fact]
+    public async Task Dispatch_replays_the_claimed_attempts_turn_limit_not_a_later_run_change()
+    {
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var adapter = new GatedAdapter(_artifactStore);
+        await using var provider = BuildProvider(evidence, adapter, new TestNotifier());
+        var seed = await SeedAsync(provider, claimedMaxTurns: 12);
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            var run = await db.Runs.SingleAsync(item => item.Id == seed.RunId);
+            run.SetRequestedClaudeMaxTurns(99);
+            await db.SaveChangesAsync();
+        }
+
+        adapter.FindingId = seed.FindingId;
+        var supervisor = CreateSupervisor(provider, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await adapter.Invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            adapter.Release();
+            await WaitForStatusAsync(provider, seed.CorrectionId, AttemptStatus.Completed);
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        Assert.Equal(12, adapter.LastRequest!.RequestedMaxTurns);
+        Assert.Equal(ClaudeMutationAdapterContract.ReviewCorrectionV2, adapter.LastRequest.AdapterContractVersion);
+    }
+
+    [Fact]
+    public async Task A_correction_claimed_without_a_turn_limit_dispatches_none_under_the_v2_contract()
+    {
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var adapter = new GatedAdapter(_artifactStore);
+        await using var provider = BuildProvider(evidence, adapter, new TestNotifier());
+        var seed = await SeedAsync(provider);
+        adapter.FindingId = seed.FindingId;
+        var supervisor = CreateSupervisor(provider, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await adapter.Invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            adapter.Release();
+            await WaitForStatusAsync(provider, seed.CorrectionId, AttemptStatus.Completed);
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        Assert.Null(adapter.LastRequest!.RequestedMaxTurns);
+        Assert.Equal(ClaudeMutationAdapterContract.ReviewCorrectionV2, adapter.LastRequest.AdapterContractVersion);
+    }
+
+    [Fact]
+    public async Task An_undispatched_claimed_correction_replays_its_turn_limit_after_a_restart_despite_a_later_run_change()
+    {
+        Seed seed;
+        await using (var first = BuildProvider(new SequencedEvidence(_ => Matching()), new GatedAdapter(_artifactStore), new TestNotifier()))
+        {
+            seed = await SeedAsync(first, claimedMaxTurns: 7);
+        }
+
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
+
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var adapter = new GatedAdapter(_artifactStore) { FindingId = seed.FindingId };
+        await using var reopened = BuildProvider(evidence, adapter, new TestNotifier());
+        await using (var scope = reopened.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await db.Database.MigrateAsync();
+            var run = await db.Runs.SingleAsync(item => item.Id == seed.RunId);
+            run.SetRequestedClaudeMaxTurns(null);
+            await db.SaveChangesAsync();
+        }
+
+        var supervisor = CreateSupervisor(reopened, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await adapter.Invoked.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            adapter.Release();
+            await WaitForStatusAsync(reopened, seed.CorrectionId, AttemptStatus.Completed);
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal(7, adapter.LastRequest!.RequestedMaxTurns);
+    }
+
+    [Fact]
+    public async Task A_failed_correction_with_a_turn_limit_and_an_unchanged_source_fails_without_success_retry_or_extra_budget()
+    {
+        var evidence = new SequencedEvidence(_ => Matching());
+        var adapter = new GatedAdapter(_artifactStore) { Result = new ReviewCorrectionInvocationResult(ImplementationInvocationOutcome.Failed, false, false, null) };
+        var notifier = new TestNotifier();
+        await using var provider = BuildProvider(evidence, adapter, notifier);
+        var seed = await SeedAsync(provider, claimedMaxTurns: 3);
+        int agentAttemptsBefore;
+        await using (var before = provider.CreateAsyncScope())
+        {
+            agentAttemptsBefore = await before.ServiceProvider.GetRequiredService<DevalCopilotDbContext>().Attempts
+                .CountAsync(item => item.RunId == seed.RunId && item.Kind == AttemptKind.Agent);
+        }
+
+        await RunToTerminalAsync(provider, adapter, evidence, notifier, seed.CorrectionId);
+        await Task.Delay(TimeSpan.FromMilliseconds(600));
+
+        Assert.Equal(1, adapter.InvocationCount);
+        Assert.Equal(3, adapter.LastRequest!.RequestedMaxTurns);
+        await using var context = provider.GetRequiredService<IDbContextFactory<DevalCopilotDbContext>>().CreateDbContext();
+        var attempt = await context.Attempts.SingleAsync(item => item.Id == seed.CorrectionId);
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Empty(context.CollaborationMessages.Where(item => item.AttemptId == seed.CorrectionId));
+        Assert.Equal(WorkspaceStatus.Ready, await context.GitWorkspaces.Where(item => item.Id == seed.WorkspaceId).Select(item => item.Status).SingleAsync());
+        Assert.Equal(agentAttemptsBefore, await context.Attempts.CountAsync(item => item.RunId == seed.RunId && item.Kind == AttemptKind.Agent));
+        Assert.Equal(3, attempt.AgentRequestedMaxTurns);
+    }
+
+    [Fact]
+    public async Task A_failed_correction_with_a_turn_limit_and_a_changed_source_flags_needs_attention_with_no_success_records()
+    {
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var adapter = new GatedAdapter(_artifactStore) { Result = new ReviewCorrectionInvocationResult(ImplementationInvocationOutcome.Failed, false, false, null) };
+        var notifier = new TestNotifier();
+        await using var provider = BuildProvider(evidence, adapter, notifier);
+        var seed = await SeedAsync(provider, claimedMaxTurns: 3);
+
+        await RunToTerminalAsync(provider, adapter, evidence, notifier, seed.CorrectionId);
+
+        Assert.Equal(1, adapter.InvocationCount);
+        await using var context = provider.GetRequiredService<IDbContextFactory<DevalCopilotDbContext>>().CreateDbContext();
+        var attempt = await context.Attempts.SingleAsync(item => item.Id == seed.CorrectionId);
+        Assert.Equal(AgentOutcome.ProviderInvocationFailed, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Empty(context.CollaborationMessages.Where(item => item.AttemptId == seed.CorrectionId));
+        Assert.Equal(WorkspaceStatus.NeedsAttention, await context.GitWorkspaces.Where(item => item.Id == seed.WorkspaceId).Select(item => item.Status).SingleAsync());
+    }
+
+    [Fact]
+    public async Task A_failed_correction_with_a_turn_limit_and_unavailable_completion_evidence_is_never_trusted_as_unchanged()
+    {
+        var evidence = new SequencedEvidence(call => call == 1
+            ? Matching()
+            : new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.GitInvocationFailed, null, null, [], null));
+        var adapter = new GatedAdapter(_artifactStore) { Result = new ReviewCorrectionInvocationResult(ImplementationInvocationOutcome.Failed, false, false, null) };
+        var notifier = new TestNotifier();
+        await using var provider = BuildProvider(evidence, adapter, notifier);
+        var seed = await SeedAsync(provider, claimedMaxTurns: 3);
+
+        await RunToTerminalAsync(provider, adapter, evidence, notifier, seed.CorrectionId);
+
+        Assert.Equal(1, adapter.InvocationCount);
+        await using var context = provider.GetRequiredService<IDbContextFactory<DevalCopilotDbContext>>().CreateDbContext();
+        var attempt = await context.Attempts.SingleAsync(item => item.Id == seed.CorrectionId);
+        Assert.Equal(AttemptStatus.Failed, attempt.Status);
+        Assert.Equal(AgentOutcome.CheckpointEvidenceUnavailable, attempt.AgentOutcome);
+        Assert.Null(attempt.AgentResultGitCheckpointId);
+        Assert.Equal(WorkspaceStatus.NeedsAttention, await context.GitWorkspaces.Where(item => item.Id == seed.WorkspaceId).Select(item => item.Status).SingleAsync());
+    }
+
+    public static IEnumerable<object[]> CapBoundaryTampering =>
+    [
+        ["UPDATE attempts SET AgentPermissionProfile = 'ReadOnly' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentPermissionProfile = 'Unknown' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentAdapterContractVersion = 'claude-review-correction-v1' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentAdapterContractVersion = 'claude-implementation-v2' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 3.5 WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = X'37' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 'blob:37' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 9e999 WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentProvider = 'Codex' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 4294967297 WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 'abc' WHERE Id = '{0}'"],
+        ["UPDATE attempts SET AgentRequestedMaxTurns = 101 WHERE Id = '{0}'"],
+    ];
+
+    [Theory]
+    [MemberData(nameof(CapBoundaryTampering))]
+    public async Task A_cap_beside_incoherent_or_malformed_persisted_state_never_starts_the_correction_provider(string tamperSqlTemplate)
+    {
+        var evidence = new SequencedEvidence(call => call == 1 ? Matching() : Changed());
+        var adapter = new GatedAdapter(_artifactStore);
+        await using var provider = BuildProvider(evidence, adapter, new TestNotifier());
+        var seed = await SeedAsync(provider, claimedMaxTurns: 7);
+        adapter.FindingId = seed.FindingId;
+        await using (var scope = provider.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await db.Database.ExecuteSqlRawAsync(string.Format(tamperSqlTemplate, seed.CorrectionId.ToString().ToUpperInvariant()));
+        }
+
+        var supervisor = CreateSupervisor(provider, adapter, evidence);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(1500));
+        }
+        finally
+        {
+            await supervisor.StopAsync(new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token);
+        }
+
+        Assert.Equal(0, adapter.InvocationCount);
+        await using var verify = provider.GetRequiredService<IDbContextFactory<DevalCopilotDbContext>>().CreateDbContext();
+        var attempt = await verify.Attempts.AsNoTracking().SingleAsync(item => item.Id == seed.CorrectionId);
+        Assert.Null(attempt.AgentDispatchedAtUtc);
+        Assert.Equal(AttemptStatus.Running, attempt.Status);
+    }
+
     private ServiceProvider BuildProvider(IGitWorkspaceEvidenceReader evidence, GatedAdapter adapter, TestNotifier notifier)
     {
         var services = new ServiceCollection();
@@ -343,7 +583,7 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
 
     private async Task<Seed> SeedAsync(
         ServiceProvider provider, string? claimedClaudeModel = null, string? claimedClaudeEffort = null,
-        TimeSpan? maximumAgentInvocationTime = null)
+        TimeSpan? maximumAgentInvocationTime = null, int? claimedMaxTurns = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -366,7 +606,7 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         var review = Attempt.ClaimAgentCodeReview(Guid.NewGuid(), run.Id, 4, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now, 4); review.MarkAgentDispatched(now); review.CompleteAgent(AgentOutcome.ReviewChangesRequested, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         var finding = CollaborationMessage.Record(Guid.NewGuid(), run.Id, review.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.ReviewFinding, report.Id, "The branch needs correction.", JsonSerializer.Serialize(new { severity = "high", category = "correctness", evidence = "The branch is incomplete.", requiredChange = "Complete the branch." }), CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(1));
         var manifestId = Guid.NewGuid();
-        var correction = Attempt.ClaimAgentReviewCorrectionWithModelRequest(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now, claimedClaudeModel, claimedClaudeEffort, 5);
+        var correction = Attempt.ClaimAgentReviewCorrectionWithModelRequest(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now, claimedClaudeModel, claimedClaudeEffort, 5, claimedMaxTurns);
         var manifestPath = _artifactStore.GetPartialPath(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest); Directory.CreateDirectory(Path.GetDirectoryName(manifestPath)!); await File.WriteAllTextAsync(manifestPath, "manifest");
         var sealedManifest = await _artifactStore.SealAsync(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest, CancellationToken.None);
         db.Projects.Add(project); db.Runs.Add(run); db.GitWorkspaces.Add(workspace); db.GitCheckpoints.Add(checkpoint); db.RepositoryMutationLeases.Add(lease); db.HostCapabilitySnapshots.Add(capability); db.Attempts.AddRange(planning, acceptanceAttempt, implementation, review, correction); db.CollaborationMessages.AddRange(proposal, acceptance, report, finding);

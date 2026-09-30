@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Application.Features.Runs.Queries.GetSealedAgentArtifactWindow;
 using DevalCopilot.Domain.Features.Runs;
@@ -70,6 +71,7 @@ public sealed class GetAgentAttemptEvidenceQueryHandler(IDevalCopilotDbContext d
             attempt.AgentTimeout,
             attempt.GetAgentProcessExecutionEvidence(),
             attempt.GetAgentTokenUsageEvidence(),
-            artifacts));
+            artifacts,
+            ClaudeMutationTurnLimitFact.ForAttempt(attempt)));
     }
 }

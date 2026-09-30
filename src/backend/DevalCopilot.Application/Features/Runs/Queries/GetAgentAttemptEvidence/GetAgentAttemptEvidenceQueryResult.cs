@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Domain.Features.Runs;
 
@@ -26,4 +27,5 @@ public sealed record GetAgentAttemptEvidenceQueryResult(
     TimeSpan? Timeout,
     AgentProcessExecutionEvidence? ProcessExecution,
     AgentTokenUsageEvidence? TokenUsage,
-    IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts);
+    IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
+    ClaudeMutationTurnLimitFact? MaxTurns = null);

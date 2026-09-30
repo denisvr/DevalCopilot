@@ -1,4 +1,5 @@
 import type { RunCockpitAgentAttemptResponse } from '../../../api/clients'
+import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -53,6 +54,7 @@ export function LatestAgentAttemptEvidence({ attempt }: LatestAgentAttemptEviden
             : 'No effort request recorded for this attempt (the effort actually applied is not observed).'}
         </p>
       )}
+      <ClaudeTurnLimitFacts attemptFact={attempt.maxTurns} className="dc-latest-agent-attempt-turn-limit" />
       <ProcessEvidenceLine
         processExecution={attempt.processExecution}
         dispatchedAtUtc={attempt.dispatchedAtUtc}

@@ -16,4 +16,5 @@ public sealed record RunCockpitAgentAttemptResponse(
     AgentProcessExecutionResponse ProcessExecution,
     AgentTokenUsageResponse TokenUsage,
     string? RequestedModel = null,
-    string? RequestedEffort = null);
+    string? RequestedEffort = null,
+    ClaudeMutationTurnLimitResponse? MaxTurns = null);

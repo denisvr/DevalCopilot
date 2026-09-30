@@ -5,6 +5,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -265,6 +266,16 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
         var requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
 
+        // The Claude agentic-turn-limit request gets the same late read and commit-time guard; a stored
+        // value outside the accepted range is refused here (with the sealed manifest removed, and before
+        // any correction authorization is consumed) rather than clamped or claimed without its limit.
+        var requestedTurnLimit = await CurrentClaudeMutationTurnLimit.ReadAndGuardAsync(dbContext, run, cancellationToken);
+        if (requestedTurnLimit.IsFailure)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Failure(requestedTurnLimit.Errors[0]);
+        }
+
         // The token stop's own commit-time guard: the claim's Run UPDATE also requires the exact stop
         // policy this claim decided against (see CurrentTokenStopPolicy).
         CurrentTokenStopPolicy.Guard(dbContext, run);
@@ -282,7 +293,8 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             nowUtc,
             requestedClaude.Model,
             requestedClaude.Effort,
-            agentBudgetSlot);
+            agentBudgetSlot,
+            requestedTurnLimit.Value);
         authorization?.Consume(attemptId, nowUtc);
         dbContext.Attempts.Add(attempt);
 

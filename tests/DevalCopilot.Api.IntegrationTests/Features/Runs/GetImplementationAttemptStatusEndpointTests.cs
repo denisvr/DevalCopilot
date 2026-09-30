@@ -137,7 +137,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
             var attempt = Attempt.ClaimAgentImplementationWithAssignment(
                 Guid.NewGuid(), runId, 1, workspaceId, checkpointId, new string('a', 64), Guid.NewGuid(),
                 TimeSpan.FromMinutes(20), 65536, 131072, now, requestedModel: null, requestedEffort: null,
-                AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v2", 1);
+                AgentPermissionProfile.WorkspaceEditOnly, "claude-implementation-v3", 1);
 
             dbContext.Projects.Add(project);
             dbContext.Runs.Add(run);
@@ -154,7 +154,7 @@ public sealed class GetImplementationAttemptStatusEndpointTests(CodexPlanningApi
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var document = JsonDocument.Parse(body);
         var root = document.RootElement;
-        Assert.Equal("claude-implementation-v2", root.GetProperty("adapterContractVersion").GetString());
+        Assert.Equal("claude-implementation-v3", root.GetProperty("adapterContractVersion").GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionMode").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredSessionPersistence").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("configuredPermissionPrompts").ValueKind);

@@ -7,7 +7,240 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-30): bounded changed-line samples for oversized tracked hunks
+## Current selection (2026-09-30): optional Claude mutation agentic-turn limit
+
+- Verified baseline: branch `main`; `HEAD`, local `origin/main`, and live `origin/main` all equal
+  `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`; staged, unstaged, and untracked state empty.
+  The prior slice is complete: substantive `2c0c1be7895f31399db11d6e2320fb089da39296`, parent
+  `f6e26c109ef8679f34ba9f4b1c14e3dc391afb54`; this baseline changes only `current-work.md` for
+  factual closure. After this planner edit, the executor expects the same refs, nothing staged,
+  only this file modified/unstaged, and nothing untracked. No implementation or publication GO.
+- Selected exactly one end-to-end Increment 4 slice: an owner-set optional **Claude mutation
+  agentic-turn limit**, shared by initial implementation and review correction. The cockpit records
+  intent, each claim snapshots it immutably, and both adapters actually pass `--max-turns N`.
+  This bounds the provider's internal multi-step loop independently of host timeout, while retaining
+  safe Git reconciliation after a failed invocation that may already have edited files.
+- Evidence and comparison: `ClaudeCriticalReviewAdapter` already passes `--max-turns 1`;
+  `ClaudeImplementationAdapter` and `ClaudeReviewCorrectionAdapter` omit it intentionally.
+  Both mutating supervisors already capture post-invocation Git evidence, and their result handlers
+  mark suspected failed mutation `NeedsAttention`. This connects an available explicit control to
+  existing recovery rather than adding a detached disclosure. Further context sampling has lower
+  marginal value after the published whole-hunk and changed-line slices. Generalized format repair
+  remains a possible later recovery improvement, but the current CriticalReviewer request already
+  permits a fresh request after unsuccessful review; adding repair provenance there would not add
+  this resource bound. Context occupancy cannot be inferred from aggregate token usage
+  (`ClaudeCliTokenUsage` deliberately ignores `modelUsage`). Claude account allowance and provider
+  resume still lack the required safe contracts; Codex allowance observation alone proves neither
+  threshold enforcement nor invocation eligibility. None of those alternatives is selected.
+- Current external contract: the [official Claude CLI reference](https://code.claude.com/docs/en/cli-reference)
+  defines `--max-turns` in print mode as an agentic-turn limit that exits with an error when reached;
+  the [headless contract](https://code.claude.com/docs/en/headless) describes failure exits and invalid
+  flags. The local `claude` command was unavailable; no installed-version or authenticated runtime
+  observation is claimed. This is an explicit provider argument, not an inferred default, measured
+  turn count, token/cost/account ceiling, host sandbox, or eligibility claim.
+- Architectural decision: nullable run request and flat immutable Attempt snapshot; accepted integer
+  range 1..100; null requests no override, including for new runs. Additive migration leaves old data
+  null without backfill. A protected set/clear operation records human intent and its event atomically
+  for active runs. Fresh late claim reads and a commit guard apply to the two mutation paths; already
+  claimed attempts never read a later run request. New contracts are `claude-implementation-v2` and
+  `claude-review-correction-v2`; preserve known v1/null invocations and history, reject a non-null cap
+  with incompatible provenance, and keep configured-fact disclosures version-specific. Legacy null
+  is not an observed unlimited capacity. Existing failure classifications/reconciliation are sufficient;
+  do not invent a limit-reached outcome from a generic failure. The optional override refines the
+  documented mutation invocation choice without reversing accepted ADRs or replacing hard budgets.
+- Scope: run request/setter/event, flat Attempt snapshot, additive migration, both mutation
+  claim/dispatch/adapter/status paths, historical inspection, cockpit set/clear control, generated
+  client, focused tests, and relevant product/architecture documentation. The executor prompt is
+  supplied separately in the planner chat. Preserve ADR-0004/0009's authority/context boundaries,
+  ADR-0010's ordered correction inputs,
+  ADR-0012/0013's hard count/time ceilings, token stops, sealed replay, and worktree exclusivity.
+  No new provider/account/session capability, context feature, generic control framework, automatic
+  retry/fallback, or scheduler. Return a complete unstaged, uncommitted, unpushed diff with a
+  commit-ready `current-work.md` and actual checks for Codex GO/NO-GO.
+- Stop gates: unsafe flag compatibility; guessed v1 history or expanded dispatch eligibility;
+  a configuration race, corruption, or replay that can discard/change the immutable cap;
+  failure recovery without fresh Git evidence or with fabricated success; new recovery authority,
+  an excluded capability, or ADR reversal. Report the evidence gap without expanding scope.
+- Acceptance: prove request validation/set/clear and protected API behavior; atomic intent/event
+  persistence; migrated SQLite legacy-null/round-trip/upgrade/down and claim-setting/lifecycle
+  races; both mutation claims with authorization rollback/orphan cleanup; exact adapter arguments,
+  null/v1 compatibility and invalid/version-incoherent refusal; immutable snapshot dispatch and
+  restart replay; failure with unchanged/changed/unreadable source and no false success/retry;
+  current/legacy/malformed status/history disclosure and cockpit interaction flows. Run affected
+  checks first, relevant full backend/frontend/build/architecture validation, generated-client
+  stability, formatter/analyzer/security/dependency checks, local links, and `git diff --check`.
+  Report commands, results, skips, and limits; doubles are not real provider enforcement evidence.
+- Future publication remains one instruction after explicit GO: reviewed substantive commit, normal
+  fast-forward push, live-remote verification and agreed checks, then only factual documentation
+  closure committed/pushed/verified normally. Material change requires re-review; failed push or
+  divergence stops. This selection grants no commit/push GO.
+
+
+- Uncommitted implementation review (2026-09-30): **NO-GO; correct this same slice and keep the complete
+  diff unstaged, uncommitted, and unpushed.** Independently verified `main`; `HEAD`, local `origin/main`,
+  and live `origin/main` remain `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`. Nothing staged;
+  60 modified tracked files (including this planner record), 41 untracked files. Reconcile the report's
+  59-modified count with the complete inventory on return; no substantive commit or push exists.
+  The snapshot, race rollback, versioned arguments, and ordinary failure/reconciliation tests are useful
+  evidence, but these selected fail-closed and disclosure requirements remain unmet:
+  1. **Persisted assignment coherence at dispatch.** The two eligible mutation feeds carry the numeric
+     limit and version without proving the permission profile; `MarkAgentAttemptDispatched` checks
+     defined role/provider and response-role coherence but not the cap-bearing assignment's complete
+     tuple. A reviewer SQLite probe changed a capped v2 implementation's profile to `ReadOnly`: the
+     feed still returned it and the final gate succeeded. The adapters receive no permission profile
+     and accept that valid cap/version. Reject incompatible persisted cap-bearing role/provider/
+     response/profile/version facts before provider invocation in both mutation paths; a factory
+     rejection or `Unknown` read-side fact alone is insufficient. Preserve coherent v1/null history
+     and replay, and avoid unrelated expansion of historical dispatch eligibility.
+  2. **Validate the persisted numeric representation before lossy materialization.** Nullable `int`
+     projection is not a safe corruption boundary on SQLite. A reviewer probe stored `3.5` in
+     `Attempts.AgentRequestedMaxTurns`: the implementation feed materialized `3` as a valid request,
+     which the adapter accepts. Stored `4294967297` instead raised `OverflowException` while reading
+     the candidate list. Correct the narrow Run/Attempt turn-limit storage/read boundary so fractional,
+     overflowing, or nonnumeric representations cannot become an invented valid request or break
+     healthy candidates/projections. Claims must safely refuse malformed Run requests, clean up sealed
+     artifacts, and leave correction authorization unconsumed; malformed Attempt snapshots must never
+     reach a provider and must retain safe status/history/cockpit behavior. Test persisted SQLite values
+     in both paths, including a healthy sibling row; do not merely validate an already-coerced `int` or
+     blanket-catch exceptions and drop the cap. Add storage integrity constraints if appropriate, without
+     changing null legacy semantics or backfilling invented requests.
+  3. **Request provenance is not invocation observation.** The new evidence enum, API response XML,
+     protocol, and cockpit specification say `Requested` means the number "was passed"; that fact is
+     also returned for undispatched attempts and Run intent before any attempt exists. Describe the
+     saved/snapshotted request and the versioned adapter's argument behavior separately. In
+     `current-work.md`, distinguish a rejected flag (ordinary failure) from an ignored flag (not proven
+     or detected by this implementation); do not claim ignoring necessarily causes failure.
+- Independent validation of the submitted tree: solution build with `--no-restore
+  -p:UseSharedCompilation=false -m:1` passed, 0 warnings/errors (the first parallel solution build
+  encountered an internal output-file collision); Domain 765/765; Application 1904/1904;
+  Infrastructure turn-limit/adapter/migration 69/69; API turn-limit/projection and both hosted mutation
+  supervisors 75/75; frontend turn-limit/control/display/hook and cockpit 180/180. The three temporary
+  reviewer probes failed as described above and were removed; no implementation file was edited by
+  the reviewer. Generated client SHA-256 remains `b5f82c9b030fa1259c5456628b2196fea28e578d4193a9333a27a6e2e8ed424e`.
+  `git diff --check` has no whitespace errors and emits the generated-client CRLF notice.
+  Executor-reported broader checks remain reported evidence, not independently rerun checks.
+- Correction stays in the existing Claude executor chat. Add red regression evidence for the findings,
+  run affected checks first and relevant full validation after the correction, reconcile the complete
+  inventory, and update the commit-ready `current-work.md` with actual checks and limits. Return the
+  entire unstaged/uncommitted/unpushed diff for Codex re-review. No publication GO or next selection.
+
+- Corrected uncommitted diff re-review (2026-09-30): **NO-GO; continue this same correction round,
+  unstaged, uncommitted, and unpushed.** Independently verified `main`; `HEAD`, local `origin/main`,
+  and live `origin/main` still equal `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`; zero staged,
+  61 modified tracked files, 44 untracked files. The demonstrated `3.5`/overflow/text reads, known
+  incompatible-profile final gate, request-provenance wording, claim rollback, and historical-null
+  tests are corrected. The field-only string mapping is a bounded change to the new flat columns,
+  but it still loses the SQLite storage class before validating the request:
+  1. **Storage-class coercion remains dispatchable.** A reviewer wrote `new byte[] { 0x37 }`
+     (SQLite BLOB `X'37'`) through the existing raw-storage test helper. Both mutation feeds returned
+     it as cap `7` beside a healthy cap `9`, and separate direct final-gate probes succeeded in both
+     paths. Reading a column with `GetString` does not prove that its stored value is an integer or
+     text; the BLOB is decoded to digits before `ClaudeMutationTurnLimit.Read` sees it. Reject
+     unsupported storage classes before conversion, rather than validating only the converted
+     string or declaring a digit BLOB to be a supported request. Apply the narrow storage boundary
+     consistently to Run intent, immutable Attempt snapshots, claim reads/guards, dispatch, and
+     disclosures. Preserve null and valid integer semantics, migration compatibility, late-read
+     atomicity, orphan cleanup, unconsumed correction authorization, and healthy sibling behavior.
+     A justified storage constraint is an alternative only with evidence that unsupported writes
+     are rejected and migration/read behavior stays safe; do not broaden into a persistence framework.
+  2. **The correction feed invents the provider during coherence checking.**
+     `GetEligibleReviewCorrectionAttempts` neither filters nor projects the actual provider, then
+     passes the constant `ClaudeCode` to `IsDispatchCoherent`. A reviewer changed a cap-bearing
+     correction row to provider `Codex`; the feed still returned it. The implementation counterpart
+     excluded it, and the corrected final dispatch gate already refuses it, so this finding does
+     not claim a provider invocation bypass. Make the cap-bearing correction feed check the actual
+     persisted provider without expanding or changing null historical eligibility. Add the missing
+     provider-provenance regression and keep documentation consistent with the real guards.
+- Independent correction checks: solution build `--no-restore -p:UseSharedCompilation=false -m:1`
+  passed with 0 warnings/errors; Domain 782/782; focused Application mutation claims, setter,
+  dispatch, status, history/evidence, cockpit and turn-limit tests 187/187; Infrastructure turn-limit,
+  adapter, storage and migration 79/79; API turn-limit/projection/malformed-storage and both hosted
+  mutation supervisors 115/115. Reviewer BLOB probes failed 2/2 in each of the feed and direct-gate
+  runs; the provider-feed probes failed for correction and passed for implementation. Temporary
+  probes were removed, and Application was rebuilt and the focused suite rerun afterward. No
+  implementation file was edited by the reviewer. Generated-client SHA-256 remains
+  `b5f82c9b030fa1259c5456628b2196fea28e578d4193a9333a27a6e2e8ed424e`; `git diff --check` has
+  no whitespace errors and emits two CRLF notices (model snapshot and generated client). Broader
+  executor checks remain reported evidence; frontend was not independently rerun in this re-review.
+- Return the complete corrected diff in the existing Claude chat, with red/green storage-class and
+  provider-feed evidence, affected checks followed by relevant full validation, accurate changed-file
+  inventory, and a commit-ready `current-work.md`. Update the storage claims in the protocol and
+  comments to match the actual contract. No commit/push GO, publication instruction, or next slice.
+
+- Second corrected diff re-review (2026-09-30): **NO-GO for one remaining storage-identity issue;
+  keep this same slice unstaged, uncommitted, and unpushed.** Verified `main`; `HEAD`, local
+  `origin/main`, and live `origin/main` remain `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`;
+  zero staged, 61 modified tracked files, 45 untracked files. The digit-BLOB dispatch bypass and
+  correction-feed provider assumption are corrected. The new mapping is confined to the two
+  selected columns and is an acceptable architectural location, but its encoding is ambiguous:
+  actual TEXT `blob:37` and BLOB `X'37'` both become the same CLR string. `ConfigureParameter`
+  then sends either back as a BLOB. A raw TEXT `blob:ZZ` instead throws `FormatException` while
+  preparing the original-value parameter. REAL positive infinity is read as text and rebound as
+  text, which cannot match the original REAL in the concurrency predicate. Reviewer SQLite
+  repair probes failed for TEXT `blob:37`, TEXT `blob:`, TEXT `blob:ZZ`, and REAL positive
+  infinity (4 failed/9 total); the first two and infinity produced false concurrency conflicts,
+  and the invalid hex text threw. The high-precision finite REAL probe passed; no general finite
+  rounding failure is claimed.
+- Required bounded architectural correction: the internal representation must distinguish the
+  actual SQLite storage classes without collisions. Keep canonical INTEGER requests and null
+  semantics, but encode every non-integer class disjointly (including actual TEXT that resembles
+  any internal marker), or use an equivalently explicit typed representation. Rebind original
+  values with their actual types and content; do not guess BLOB provenance from unescaped text
+  or rely on integer affinity to reconstruct every REAL. Keep parameter and literal behavior
+  consistent where relevant. This is a correction of the two-column mapping, not a general
+  persistence framework, migration redesign, or new recovery authority. Prove unchanged
+  storage class/content after unrelated Run saves and successful protected set/clear repair,
+  as well as genuine concurrent-change refusal. Include marker-looking TEXT, valid/invalid/empty
+  hex suffixes, finite and non-finite REALs, integer/null cases, and digit/empty/arbitrary BLOBs.
+  Retain safe malformed claims/projections, zero invocation, healthy siblings, and sealed replay.
+- Independent checks: build `--no-restore -p:UseSharedCompilation=false -m:1` passed with
+  0 warnings/errors; Domain 782/782; focused Application 192/192; Infrastructure turn-limit,
+  adapter/storage/migration 81/81; API turn-limit/projection/malformed-storage and both hosted
+  supervisors 123/123. Temporary reviewer probes were removed; Infrastructure was rebuilt and
+  its focused suite rerun afterward. No implementation file was edited by the reviewer. The
+  generated-client SHA-256 remains `b5f82c9b030fa1259c5456628b2196fea28e578d4193a9333a27a6e2e8ed424e`.
+  `git diff --check` has no whitespace errors, with the two known CRLF notices. Broader executor
+  checks remain reported evidence. Return the complete corrected diff in the existing Claude
+  chat with red/green evidence, actual checks, accurate storage documentation and commit-ready
+  `current-work.md`. No commit/push GO or publication instruction is granted.
+
+- Final corrected diff re-review (2026-09-30): **GO for publication of this reviewed slice,
+  subject only to the factual XML correction below before staging.** Independently reverified
+  `main`; `HEAD`, local `origin/main`, and live `origin/main` all remain
+  `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`; zero staged, 61 modified tracked files and
+  46 untracked files (107 total, including this planner record and `current-work.md`). The
+  representation now distinguishes INTEGER, REAL, TEXT and BLOB without marker collisions,
+  preserves REAL bits and original parameter types, and aligns SQL literals with binding.
+  The storage matrix proves unrelated saves, set/clear repair, genuine concurrency refusal,
+  exact class/content preservation, and integer/null compatibility. Both feeds and the final
+  gate reject malformed or incoherent cap-bearing attempts; the correction feed checks the
+  actual provider through a SQL comparison. Prior request-provenance, immutable replay,
+  claim rollback/orphan/authorization, and fresh-Git failure-recovery requirements remain
+  satisfied. This is still the selected optional provider-argument request, not evidence of
+  measured turns, real provider enforcement, account allowance, or resume capability.
+- Independent final checks: solution build `--no-restore -p:UseSharedCompilation=false -m:1`
+  passed with 0 warnings/errors; full Domain 782/782, Application 1967/1967, API 581/581,
+  Architecture 9/9 and frontend 974/974; frontend `tsc -b` passed; focused Infrastructure
+  turn-limit, adapter, migration and exact-storage tests 242/242. Generated-client SHA-256
+  remains `b5f82c9b030fa1259c5456628b2196fea28e578d4193a9333a27a6e2e8ed424e`.
+  `git diff --check` has no whitespace errors (two known CRLF notices); 143 local link
+  paths resolve. Executor-reported full Infrastructure 867 passed/3 environment skips,
+  earlier lint/build/audits and formatter diagnostics remain reported evidence rather than
+  independently rerun results. No reviewer probe or unexpected temporary file remains.
+- Only permitted pre-staging wording correction: in the XML `<para>` of
+  `src/backend/DevalCopilot.Domain/Features/Runs/ClaudeMutationTurnLimit.cs`, replace the
+  obsolete claim that a REAL or TEXT value is its own text with the actual type-preserving
+  representation (canonical INTEGER digits; tagged REAL bits, TEXT and BLOB bytes; absent
+  null). Do not change executable code, tests, wire contracts, migration, or other text as
+  part of this correction. This named factual edit needs no separate GO.
+- Publish only the reviewed substantive set, including `current-work.md` and this GO record,
+  with a normal fast-forward push and exact live-remote verification. The single publication
+  instruction is supplied to the owner in chat. After the agreed checks against the substantive
+  commit, allow only a factual `current-work.md` closure, committed/pushed/reverified normally.
+  A material post-GO change, unexpected file, recurring failure, push failure or divergence
+  stops for re-review; no force-push or history reconciliation. This GO selects no new slice.
+
+## Previous selection (2026-09-30): bounded changed-line samples for oversized tracked hunks
 
 - Verified planning baseline: branch `main`; `HEAD`, local `origin/main`, and live `origin/main` all equal `f6e26c109ef8679f34ba9f4b1c14e3dc391afb54`; staged, unstaged, and untracked state are empty. The tracked-hunk slice was delivered as `b19413fac3f82f400c00ea6ab787d45c2898f1ae` and factually closed at this baseline. After this planner edit the executor must expect the same branch and SHA, nothing staged, only `docs/roadmap/planner-handoff.md` modified/unstaged, and nothing untracked. Git and code prevail over this record.
 - Objective: improve the five Agent-stage context manifests where a valid text hunk is larger than the 8 KiB complete-hunk budget and currently contributes no text at all. From the already parsed, captured diff, add a **separate, bounded changed-line sample** for eligible oversized hunks, with explicit file/hunk identity and incomplete-evidence labels. This advances the roadmap's progressive context and the protocol's changed-hunk guidance without presenting a fragment as a complete or applyable patch. The current `ChangeEvidenceManifest`, `TrackedDiffParser`, and `TrackedDiffSelector` are the integration points; [Git's patch format](https://git-scm.com/docs/diff-format) and [`git diff --binary`](https://git-scm.com/docs/git-diff) define the external input format. ADR-0004's selected context and ADR-0009's role/provider boundary remain intact.

@@ -3,8 +3,12 @@ import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
+import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
+
+/** The exact, closed set of Claude implementation adapter contracts this view recognizes; never a prefix match. */
+const KNOWN_ADAPTER_CONTRACTS: readonly string[] = ['claude-implementation-v1', 'claude-implementation-v2']
 
 interface ImplementationActionProps {
   planProposalMessageId: string | null
@@ -83,8 +87,8 @@ export function ImplementationAction({
       : 'Unknown'
   const assignmentRole = status?.role === 'Implementer' ? 'Implementer' : 'Unknown'
   const permissionProfile = status?.permissionProfile === 'WorkspaceEditOnly' ? 'Workspace edit only' : 'Unknown'
-  const adapterContract = status?.adapterContractVersion === 'claude-implementation-v1'
-    ? 'claude-implementation-v1'
+  const adapterContract = KNOWN_ADAPTER_CONTRACTS.includes(status?.adapterContractVersion ?? '')
+    ? (status?.adapterContractVersion ?? 'Unknown')
     : 'Unknown'
   const configuredPermissionMode = status?.configuredPermissionMode === 'acceptEdits' ? 'acceptEdits' : 'Unknown'
   const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
@@ -130,6 +134,13 @@ export function ImplementationAction({
           Configured resume eligibility: {configuredResumeEligibility} · Configured built-in tools:{' '}
           {configuredBuiltInTools}
         </p>
+      )}
+      {status && (
+        <ClaudeTurnLimitFacts
+          attemptFact={hasAttempt ? status.attemptTurnLimit : null}
+          runRequest={status.runTurnLimitRequest}
+          className="dc-implementation-turn-limit"
+        />
       )}
       {status && hasAttempt && (
         <>

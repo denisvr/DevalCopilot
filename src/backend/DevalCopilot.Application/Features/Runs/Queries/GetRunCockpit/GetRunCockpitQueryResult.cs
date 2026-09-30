@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Queries.GetRunCockpit;
@@ -30,4 +31,5 @@ public sealed record GetRunCockpitQueryResult(
     string? RequestedClaudeModel = null,
     string? RequestedClaudeEffort = null,
     IReadOnlyList<RunCockpitTokenWarningEntry>? TokenWarnings = null,
-    IReadOnlyList<AgentTokenStopEvaluation>? TokenStops = null);
+    IReadOnlyList<AgentTokenStopEvaluation>? TokenStops = null,
+    ClaudeMutationTurnLimitFact? ClaudeTurnLimitRequest = null);

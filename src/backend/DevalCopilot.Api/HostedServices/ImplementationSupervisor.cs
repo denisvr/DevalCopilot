@@ -145,7 +145,9 @@ public sealed class ImplementationSupervisor(
                     attempt.MaxBytesPerStream,
                     attempt.MaxTotalCapturedBytes,
                     attempt.RequestedClaudeModel,
-                    attempt.RequestedClaudeEffort),
+                    attempt.RequestedClaudeEffort,
+                    attempt.RequestedMaxTurns,
+                    attempt.AdapterContractVersion),
                 stoppingToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

@@ -44,6 +44,10 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandler(IDevalCopilo
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
                     RequestedClaudeModel = combined.attempt.AgentRequestedModel,
                     RequestedClaudeEffort = combined.attempt.AgentRequestedEffort,
+                    StoredTurnLimit = EF.Property<string?>(combined.attempt, Attempt.AgentRequestedMaxTurnsStorageProperty),
+                    HasWorkspaceEditProfile = combined.attempt.AgentPermissionProfile == AgentPermissionProfile.WorkspaceEditOnly,
+                    IsClaudeProvider = combined.attempt.AgentProvider == AgentProvider.ClaudeCode,
+                    AdapterContractVersion = combined.attempt.AgentAdapterContractVersion,
                 })
             .ToListAsync(cancellationToken);
 
@@ -61,14 +65,22 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandler(IDevalCopilo
             .ToDictionary(group => group.Key, group => group.OrderByDescending(item => item.CheckpointNumber).First().Id);
 
         var eligible = candidates.Where(candidate => current.TryGetValue(candidate.GitWorkspaceId, out var id) && id == candidate.GitCheckpointId)
-            .OrderBy(candidate => candidate.ClaimedAtUtc)
-            .Select(candidate => new EligibleReviewCorrectionAttempt(
-                candidate.Id, candidate.RunId, candidate.GitWorkspaceId, candidate.WorkspacePath,
-                candidate.GitCheckpointId, candidate.CheckpointFingerprintSha256,
-                candidate.ContextManifestRelativeStoragePath, candidate.ContextManifestByteLength,
-                candidate.ContextManifestContentHash, candidate.Timeout, candidate.MaxBytesPerStream,
-                candidate.MaxTotalCapturedBytes, [], candidate.RequestedClaudeModel,
-                candidate.RequestedClaudeEffort))
+            .Select(candidate => (Candidate: candidate, TurnLimit: ClaudeMutationTurnLimit.Read(candidate.StoredTurnLimit)))
+            .Where(entry => ClaudeMutationAdapterContract.IsDispatchCoherent(
+                AgentResponseContract.ReviewCorrection, AgentRole.Implementer,
+                entry.Candidate.IsClaudeProvider ? AgentProvider.ClaudeCode : null,
+                entry.Candidate.HasWorkspaceEditProfile ? AgentPermissionProfile.WorkspaceEditOnly : null,
+                entry.Candidate.AdapterContractVersion, entry.TurnLimit))
+            .OrderBy(entry => entry.Candidate.ClaimedAtUtc)
+            .Select(entry => new EligibleReviewCorrectionAttempt(
+                entry.Candidate.Id, entry.Candidate.RunId, entry.Candidate.GitWorkspaceId, entry.Candidate.WorkspacePath,
+                entry.Candidate.GitCheckpointId, entry.Candidate.CheckpointFingerprintSha256,
+                entry.Candidate.ContextManifestRelativeStoragePath, entry.Candidate.ContextManifestByteLength,
+                entry.Candidate.ContextManifestContentHash, entry.Candidate.Timeout, entry.Candidate.MaxBytesPerStream,
+                entry.Candidate.MaxTotalCapturedBytes, [], entry.Candidate.RequestedClaudeModel,
+                entry.Candidate.RequestedClaudeEffort,
+                entry.TurnLimit.Value,
+                entry.Candidate.AdapterContractVersion))
             .ToArray();
 
         var attemptIds = eligible.Select(candidate => candidate.AttemptId).ToArray();

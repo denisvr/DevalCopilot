@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Queries.GetRunCockpit;
@@ -19,4 +20,5 @@ public sealed record RunCockpitAgentAttemptEntry(
     TimeSpan? Timeout,
     AgentTokenUsageEvidence? TokenUsage = null,
     string? RequestedModel = null,
-    string? RequestedEffort = null);
+    string? RequestedEffort = null,
+    ClaudeMutationTurnLimitFact? TurnLimit = null);

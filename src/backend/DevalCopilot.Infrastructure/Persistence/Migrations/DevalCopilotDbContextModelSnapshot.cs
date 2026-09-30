@@ -858,6 +858,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("_agentRequestedMaxTurns")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("AgentRequestedMaxTurns");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AgentRepairSourceAttemptId")
@@ -1198,6 +1202,11 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("_requestedClaudeMaxTurns")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("RequestedClaudeMaxTurns");
 
                     b.HasKey("Id");
 

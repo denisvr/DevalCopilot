@@ -45,6 +45,7 @@ public sealed class GetAgentAttemptEvidenceEndpoint(
             value.Artifacts
                 .Select(artifact => new AgentAttemptArtifactMetadataResponse(
                     artifact.Purpose.ToString(), artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome.ToString()))
-                .ToArray()));
+                .ToArray(),
+            ClaudeMutationTurnLimitResponse.FromDomain(value.MaxTurns)));
     }
 }

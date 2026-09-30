@@ -190,6 +190,7 @@ public sealed class MigrationTests(SqliteFileFixture fixture) : IClassFixture<Sq
         Assert.Contains("AddNeutralParticipantIdentity", appliedMigrations);
         Assert.Contains("AddReviewCorrectionBudgetAndEscalations", appliedMigrations);
         Assert.Contains("AddAgentAssignmentFacts", appliedMigrations);
+        Assert.Contains("AddClaudeMutationTurnLimit", appliedMigrations);
     }
 
     [Fact]

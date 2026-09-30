@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { processAttemptOutputClient, setClaudeModelPreferenceClient } from '../../../api/clients'
+import { processAttemptOutputClient, setClaudeModelPreferenceClient, setClaudeMutationTurnLimitClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
   AgentClaimPathTimeFitResponse,
@@ -9,6 +9,7 @@ import {
   AgentTokenUsageResponse,
   ClaudeCriticalReviewAttemptStatusResponse,
   ChallengeResolutionAttemptStatusResponse,
+  ClaudeMutationTurnLimitResponse,
   GetRunCockpitResponse,
   ParticipantIdentityResponse,
   ReviewCorrectionAttemptStatusResponse,
@@ -56,6 +57,7 @@ vi.mock('../hooks/useAuthorizeReviewCorrection')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   setClaudeModelPreferenceClient: vi.fn(),
+  setClaudeMutationTurnLimitClient: vi.fn(),
   reviewCorrectionAttemptStatusClient: vi.fn(),
   codexAccountAllowanceClient: vi.fn(() => ({
     getCodexAccountAllowance: vi.fn().mockResolvedValue({ status: 'Unknown' }),
@@ -1948,5 +1950,128 @@ describe('RunCockpitView Claude effort request', () => {
     expect(await screen.findByText('The Claude model request could not be saved for this run.')).toBeInTheDocument()
     expect(refresh).not.toHaveBeenCalled()
     expect(screen.queryByText(/sensitive detail/)).not.toBeInTheDocument()
+  })
+})
+
+describe('RunCockpitView Claude turn limit request', () => {
+  function mockCockpit(refresh: () => Promise<boolean>, overrides: Partial<GetRunCockpitResponse> = {}) {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({
+        ...runningCockpit,
+        claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'Requested', maxTurns: 12 }),
+        ...overrides,
+      }),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh,
+    })
+  }
+
+  it('shows the control with the current saved request for an editable run', () => {
+    mockCockpit(async () => true)
+
+    render(<RunCockpitView runId="run-1" />)
+
+    const control = screen.getByRole('group', { name: 'Claude turn limit' })
+    expect(control).toHaveTextContent('Current run request: 12 turns')
+    expect((within(control).getByLabelText('Requested Claude turn limit') as HTMLInputElement).value).toBe('12')
+  })
+
+  it.each(['Created', 'Running'])('is editable while the run is %s', (lifecycle) => {
+    mockCockpit(async () => true, { lifecycle })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByLabelText('Requested Claude turn limit')).toBeTruthy()
+  })
+
+  it.each(['Completed', 'Failed'])('is read-only once the run is %s', (lifecycle) => {
+    mockCockpit(async () => true, { lifecycle })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    const control = screen.getByRole('group', { name: 'Claude turn limit' })
+    expect(control).toHaveTextContent('Current run request: 12 turns')
+    expect(within(control).queryByLabelText('Requested Claude turn limit')).toBeNull()
+    expect(within(control).queryByRole('button', { name: 'Save' })).toBeNull()
+  })
+
+  it('refreshes the authoritative cockpit after a successful save', async () => {
+    const setClaudeMutationTurnLimit = vi.fn().mockResolvedValue({ maxTurns: 20 })
+    vi.mocked(setClaudeMutationTurnLimitClient).mockReturnValue({ setClaudeMutationTurnLimit } as never)
+    const refresh = vi.fn().mockResolvedValue(true)
+    mockCockpit(refresh)
+
+    render(<RunCockpitView runId="run-1" />)
+    const control = screen.getByRole('group', { name: 'Claude turn limit' })
+    fireEvent.change(within(control).getByLabelText('Requested Claude turn limit'), { target: { value: '20' } })
+    fireEvent.click(within(control).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    expect(setClaudeMutationTurnLimit).toHaveBeenCalledWith('run-1', expect.objectContaining({ maxTurns: 20 }))
+  })
+
+  it('refreshes after a clear and does not refresh when the save fails', async () => {
+    const setClaudeMutationTurnLimit = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('sensitive detail'))
+    vi.mocked(setClaudeMutationTurnLimitClient).mockReturnValue({ setClaudeMutationTurnLimit } as never)
+    const refresh = vi.fn().mockResolvedValue(true)
+    mockCockpit(refresh)
+
+    render(<RunCockpitView runId="run-1" />)
+    const control = screen.getByRole('group', { name: 'Claude turn limit' })
+    fireEvent.click(within(control).getByRole('button', { name: 'Clear' }))
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Claude turn limit' })).getByRole('button', { name: 'Clear' }))
+    expect(await screen.findByText('The Claude turn limit request could not be saved for this run.')).toBeTruthy()
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText(/sensitive detail/)).toBeNull()
+  })
+
+  it('shows Unknown for a stored value the server could not validate', () => {
+    mockCockpit(async () => true, { claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'Unknown' }) })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('group', { name: 'Claude turn limit' })).toHaveTextContent('Current run request: Unknown')
+  })
+
+  it('shows the latest attempt immutable fact separately from the current run request', () => {
+    mockCockpit(async () => true, {
+      claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'NotRequested' }),
+      latestAgentAttempt: new RunCockpitAgentAttemptResponse({
+        attemptId: 'attempt-2',
+        attemptNumber: 2,
+        role: 'Implementer',
+        provider: 'ClaudeCode',
+        status: 'Running',
+        maxTurns: new ClaudeMutationTurnLimitResponse({ state: 'Requested', maxTurns: 7 }),
+      }),
+    })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('region', { name: 'Latest agent attempt' })).toHaveTextContent(
+      'Claude turn limit for this attempt: Requested: 7 turns',
+    )
+    expect(screen.getByRole('group', { name: 'Claude turn limit' })).toHaveTextContent('Current run request: Not requested')
+  })
+
+  it('does not carry a typed draft or error across a run switch', () => {
+    mockCockpit(async () => true, { claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'NotRequested' }) })
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    fireEvent.change(screen.getByLabelText('Requested Claude turn limit'), { target: { value: '55' } })
+    expect((screen.getByLabelText('Requested Claude turn limit') as HTMLInputElement).value).toBe('55')
+
+    mockCockpit(async () => true, {
+      runId: 'run-2',
+      claudeMutationTurnLimit: new ClaudeMutationTurnLimitResponse({ state: 'NotRequested' }),
+    })
+    rerender(<RunCockpitView runId="run-2" />)
+
+    expect((screen.getByLabelText('Requested Claude turn limit') as HTMLInputElement).value).toBe('')
   })
 })

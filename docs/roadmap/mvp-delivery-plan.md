@@ -221,6 +221,14 @@ is distinct from the advisory token-activity warning. See the
 The provider account-usage stop-threshold exit criterion above, and the
 remaining Increment 4 loop, token, and account-usage controls, remain open.
 
+The two Claude paths that can edit the worktree also accept an optional,
+owner-requested, run-scoped agentic-turn limit (1 through 100), snapshotted
+immutably on each claimed attempt and passed as the provider's documented
+`--max-turns` argument; it is a provider-loop request alongside the host
+timeout, not a measured turn count, a token, cost, or account ceiling, a
+replacement for any budget or stop, or an eligibility claim. See the
+[architecture description](../architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts).
+
 The plan-challenge loop is bounded and its exhaustion escalates: a proposal
 lineage may have one optional second critical review of the first Resolver
 revision and, if challenged, one explicit second resolution. That successful

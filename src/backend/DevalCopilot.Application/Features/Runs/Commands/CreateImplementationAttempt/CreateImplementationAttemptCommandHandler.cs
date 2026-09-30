@@ -4,6 +4,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -30,7 +31,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
     /// document, never a transcript or repository copy.</summary>
     private const int MaxContextManifestBytes = 32 * 1024;
-    private const string AdapterContractVersion = "claude-implementation-v1";
+    private const string AdapterContractVersion = ClaudeMutationAdapterContract.ImplementationV2;
     private const string PlanChallengedCode = "agent_attempts.plan_challenged";
 
     /// <summary>Implementation is inherently multi-step (read, edit, re-read, verify its own
@@ -257,6 +258,16 @@ public sealed class CreateImplementationAttemptCommandHandler(
         // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
         var requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
 
+        // The Claude agentic-turn-limit request gets the same late read and commit-time guard; a stored
+        // value outside the accepted range is refused here (with the sealed manifest removed) rather
+        // than clamped or claimed without its limit.
+        var requestedTurnLimit = await CurrentClaudeMutationTurnLimit.ReadAndGuardAsync(dbContext, run, cancellationToken);
+        if (requestedTurnLimit.IsFailure)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateImplementationAttemptCommandResult>.Failure(requestedTurnLimit.Errors[0]);
+        }
+
         // The token stop's own commit-time guard: the claim's Run UPDATE also requires the exact stop
         // policy this claim decided against (see CurrentTokenStopPolicy).
         CurrentTokenStopPolicy.Guard(dbContext, run);
@@ -277,7 +288,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
             requestedEffort: requestedClaude.Effort,
             AgentPermissionProfile.WorkspaceEditOnly,
             AdapterContractVersion,
-            agentBudgetSlot);
+            agentBudgetSlot,
+            requestedTurnLimit.Value);
         dbContext.Attempts.Add(attempt);
 
         var inputMessages = new List<AttemptInputMessage>(orderedInputMessageIds.Count);

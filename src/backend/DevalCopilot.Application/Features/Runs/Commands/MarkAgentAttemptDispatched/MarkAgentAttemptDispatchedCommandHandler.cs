@@ -89,6 +89,19 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                     "The attempt's role, provider, and response contract are not a valid, coherent combination."));
         }
 
+        // The cap-bearing half of the same coherence gate: an attempt that recorded a Claude agentic-turn-limit
+        // snapshot is dispatchable only with a well-formed request and the complete coherent role, provider,
+        // response-contract, permission-profile, and exact version 2 tuple. The invocation request carries only the
+        // cap and the version, so this is where an incompatible persisted profile or provenance, or a malformed
+        // stored value, is stopped before any provider process could start. An attempt with no snapshot is unaffected.
+        if (!attempt.HasDispatchCoherentTurnLimit())
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.Conflict(
+                    "agent_attempts.invalid_agent_contract",
+                    "The attempt's turn-limit snapshot and assignment are not a valid, coherent combination."));
+        }
+
         if (attempt.Status != AttemptStatus.Running)
         {
             return Result<DateTimeOffset>.Failure(

@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Domain.Features.Runs;
 
@@ -77,7 +78,16 @@ public sealed record ImplementationAttemptStatusQueryResult(
     /// permission profile, and adapter contract version all agree with the current, single
     /// supported implementation adapter; otherwise <see langword="null"/>, exactly like every
     /// other assignment fact here.</summary>
-    string? ConfiguredBuiltInTools = null)
+    string? ConfiguredBuiltInTools = null,
+    /// <summary>The Run's current saved Claude agentic-turn-limit request (not requested, a valid request, or
+    /// unknown when the stored value is out of range) — a request for future Claude implementation and
+    /// correction attempts, never a measured turn count, an account or host-enforced ceiling, or invocation
+    /// eligibility.</summary>
+    ClaudeMutationTurnLimitFact? RunTurnLimitRequest = null,
+    /// <summary>This attempt's own immutable turn-limit record by exact version-aware mapping: requested N, not
+    /// requested (a coherent version 2 attempt with none), not recorded (a legacy version 1 attempt), or
+    /// unknown. <see langword="null"/> when there is no attempt.</summary>
+    ClaudeMutationTurnLimitFact? AttemptTurnLimit = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

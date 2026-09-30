@@ -242,7 +242,7 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         Assert.Null(attempt.AgentRequestedEffort);
         Assert.Null(attempt.AgentObservedEffort);
         Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, attempt.AgentPermissionProfile);
-        Assert.Equal("claude-implementation-v1", attempt.AgentAdapterContractVersion);
+        Assert.Equal("claude-implementation-v2", attempt.AgentAdapterContractVersion);
 
         var orderedInputMessages = dbContext.AttemptInputMessages.Where(m => m.AttemptId == attempt.Id).OrderBy(m => m.Sequence).ToList();
         Assert.Equal(2, orderedInputMessages.Count);
@@ -969,6 +969,259 @@ public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifet
         Assert.DoesNotContain("not-a-", error.Description, StringComparison.Ordinal);
         Assert.Equal(0, reader.Calls);
         Assert.Empty(artifactStore.DeletedSealedFiles);
+        Assert.Equal(attemptsBefore, await AttemptCountAsync(runId));
+    }
+
+    // ---- Claude mutation turn-limit request (claim-time snapshot, late read, commit-time guard) ----
+
+    private async Task<(Guid RunId, Guid ProposalId)> SeedTurnLimitScenarioAsync(
+        int? initialLimit, bool revisedForm = false, int maximumAgentAttempts = 16)
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (_, run, workspace, checkpoint) = await SeedEligibleRunAsync(seedContext, maximumAgentAttempts: maximumAgentAttempts);
+        var proposal = revisedForm
+            ? SeedResolvedRevisedProposal(seedContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now)
+            : SeedAcceptedOriginalProposal(seedContext, run.Id, workspace.Id, checkpoint.Id, Fingerprint, Now);
+        if (initialLimit is not null)
+        {
+            run.SetRequestedClaudeMaxTurns(initialLimit);
+        }
+
+        await seedContext.SaveChangesAsync(CancellationToken.None);
+        return (run.Id, proposal.Id);
+    }
+
+    private async Task AssertNoImplementationClaimPersistedAsync(Guid runId, int attemptsBefore, long eventsBefore)
+    {
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(attemptsBefore, await verify.Attempts.CountAsync(a => a.RunId == runId));
+        Assert.Empty(verify.Attempts.Where(a => a.RunId == runId && a.AgentRole == AgentRole.Implementer));
+        Assert.Empty(verify.AttemptInputMessages.Where(m => verify.Attempts.All(a => a.Id != m.AttemptId)));
+        Assert.Empty(verify.Artifacts.Where(a => a.RunId == runId));
+        Assert.Equal(eventsBefore, await ClaudeMutationTurnLimitTestSupport.CountEventsAsync(_fixture, runId));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(1)]
+    [InlineData(37)]
+    [InlineData(100)]
+    public async Task HandleAsync_snapshots_the_runs_turn_limit_under_the_v2_contract_immutably(int? limit)
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(limit);
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var attemptId = result.Value.AttemptId;
+        Assert.Equal(limit, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, attemptId));
+        Assert.Equal("claude-implementation-v2", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, attemptId));
+
+        // A later change or clear never alters the already-claimed attempt.
+        await ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, runId, limit == 50 ? 51 : 50);
+        Assert.Equal(limit, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, attemptId));
+        await ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, runId, null);
+        Assert.Equal(limit, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, attemptId));
+        await using var verify = _fixture.CreateContext();
+        var attempt = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == attemptId);
+        Assert.Equal(AgentPermissionProfile.WorkspaceEditOnly, attempt.AgentPermissionProfile);
+        Assert.Equal(limit is null ? ClaudeMutationTurnLimitEvidence.NotRequested : ClaudeMutationTurnLimitEvidence.Requested, attempt.GetMutationTurnLimitEvidence());
+    }
+
+    [Fact]
+    public async Task HandleAsync_snapshots_the_turn_limit_for_a_resolved_revised_proposal()
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initialLimit: 12, revisedForm: true);
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(12, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, result.Value.AttemptId));
+        Assert.Equal("claude-implementation-v2", await ClaudeMutationTurnLimitTestSupport.ReadAttemptContractVersionAsync(_fixture, result.Value.AttemptId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_snapshots_a_turn_limit_committed_during_external_evidence_capture()
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initialLimit: null);
+        await using var handlerContext = _fixture.CreateContext();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            _ => ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, runId, 9));
+        var handler = new CreateImplementationAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(9, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, result.Value.AttemptId));
+    }
+
+    [Theory]
+    [InlineData(null, 5)]
+    [InlineData(5, 6)]
+    [InlineData(5, null)]
+    public async Task HandleAsync_persists_nothing_when_the_turn_limit_changes_between_snapshot_and_commit(int? initial, int? competing)
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initial);
+        var attemptsBefore = await AttemptCountAsync(runId);
+        var eventsBefore = await ClaudeMutationTurnLimitTestSupport.CountEventsAsync(_fixture, runId);
+        var artifactStore = new FakeArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, runId, competing)));
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.run_changed_during_claim", Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+        await AssertNoImplementationClaimPersistedAsync(runId, attemptsBefore, eventsBefore);
+        Assert.Equal(competing, await ClaudeMutationTurnLimitTestSupport.ReadRunLimitAsync(_fixture, runId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_persists_nothing_when_the_run_lifecycle_changes_between_snapshot_and_commit()
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initialLimit: 5);
+        var attemptsBefore = await AttemptCountAsync(runId);
+        var eventsBefore = await ClaudeMutationTurnLimitTestSupport.CountEventsAsync(_fixture, runId);
+        var artifactStore = new FakeArtifactStore();
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(async () =>
+        {
+            await using var competing = _fixture.CreateContext();
+            var competingRun = await competing.Runs.SingleAsync(r => r.Id == runId);
+            competingRun.Complete(Now.AddMinutes(1));
+            await competing.SaveChangesAsync();
+        }));
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("agent_attempts.run_changed_during_claim", Assert.Single(result.Errors).Code);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+        await AssertNoImplementationClaimPersistedAsync(runId, attemptsBefore, eventsBefore);
+    }
+
+    [Fact]
+    public async Task HandleAsync_claim_only_conflicts_on_the_exact_claimed_runs_turn_limit()
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initialLimit: 5);
+        Guid otherRunId;
+        await using (var otherSeed = _fixture.CreateContext())
+        {
+            var otherProject = Project.Register(Guid.NewGuid(), "Other", Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), Now);
+            var otherRun = Run.RecordIntent(Guid.NewGuid(), otherProject.Id, 1, "Other", Now);
+            otherRun.Claim(Now);
+            otherSeed.Projects.Add(otherProject);
+            otherSeed.Runs.Add(otherRun);
+            await otherSeed.SaveChangesAsync();
+            otherRunId = otherRun.Id;
+        }
+
+        await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
+            () => ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, otherRunId, 77)));
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(5, await ClaudeMutationTurnLimitTestSupport.ReadAttemptLimitAsync(_fixture, result.Value.AttemptId));
+        Assert.Equal(77, await ClaudeMutationTurnLimitTestSupport.ReadRunLimitAsync(_fixture, otherRunId));
+    }
+
+    public static IEnumerable<object[]> StorageClassCases =>
+        [[new byte[] { 0x37 }], ["blob:37"], ["b:37"], [double.PositiveInfinity]];
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-3)]
+    [InlineData(101)]
+    [InlineData(3.5)]
+    [InlineData(4294967297L)]
+    [InlineData("abc")]
+    [MemberData(nameof(StorageClassCases))]
+    public async Task HandleAsync_refuses_an_invalid_stored_turn_limit_without_clamping_and_removes_the_orphan_manifest(object stored)
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initialLimit: null);
+        await ClaudeMutationTurnLimitTestSupport.SetRawRunLimitAsync(_fixture, runId, stored);
+        var attemptsBefore = await AttemptCountAsync(runId);
+        var eventsBefore = await ClaudeMutationTurnLimitTestSupport.CountEventsAsync(_fixture, runId);
+        var artifactStore = new FakeArtifactStore();
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateImplementationAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        var error = Assert.Single(result.Errors);
+        Assert.Equal("agent_attempts.claude_turn_limit_invalid", error.Code);
+        Assert.DoesNotContain(ClaudeMutationTurnLimitTestSupport.StoredText(stored), error.Description, StringComparison.Ordinal);
+        Assert.Single(artifactStore.DeletedSealedFiles, entry => entry.Purpose == ArtifactPurpose.AgentContextManifest);
+        await AssertNoImplementationClaimPersistedAsync(runId, attemptsBefore, eventsBefore);
+        Assert.Equal(ClaudeMutationTurnLimitTestSupport.StoredText(stored), await ClaudeMutationTurnLimitTestSupport.ReadRunRawAsync(_fixture, runId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_turn_limit_does_not_weaken_the_claim_count_gate()
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initialLimit: 5, maximumAgentAttempts: 2);
+        await using var context = _fixture.CreateContext();
+        var handler = new CreateImplementationAttemptCommandHandler(
+            context, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.Equal("agent_attempts.budget_exhausted", Assert.Single(result.Errors).Code);
+        Assert.Equal(2, await AttemptCountAsync(runId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_turn_limit_does_not_weaken_the_token_stop_gate()
+    {
+        var (runId, proposalId, workspaceId, checkpointId) = await SeedStopScenarioAsync();
+        await ClaudeMutationTurnLimitTestSupport.SetLimitAsync(_fixture, runId, 5);
+        await TokenStopTestSupport.AddHistoryAsync(
+            _fixture, runId, workspaceId, checkpointId, AgentProvider.ClaudeCode, TokenStopTestSupport.ClaudeUsage(500, 50, 5, 60));
+        await TokenStopTestSupport.SetStopAsync(_fixture, runId, AgentProvider.ClaudeCode, 615);
+        var attemptsBefore = await AttemptCountAsync(runId);
+        await using var context = _fixture.CreateContext();
+
+        var result = await new CreateImplementationAttemptCommandHandler(
+                context, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now))
+            .HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.Equal(AgentTokenStopGate.ReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(attemptsBefore, await AttemptCountAsync(runId));
+    }
+
+    [Fact]
+    public async Task HandleAsync_turn_limit_does_not_weaken_the_one_running_attempt_invariant()
+    {
+        var (runId, proposalId) = await SeedTurnLimitScenarioAsync(initialLimit: 5);
+        await using (var seed = _fixture.CreateContext())
+        {
+            seed.Attempts.Add(Attempt.Claim(Guid.NewGuid(), runId, 99, Now));
+            await seed.SaveChangesAsync();
+        }
+
+        var attemptsBefore = await AttemptCountAsync(runId);
+        await using var context = _fixture.CreateContext();
+        var result = await new CreateImplementationAttemptCommandHandler(
+                context, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now))
+            .HandleAsync(new CreateImplementationAttemptCommand(runId, proposalId), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
         Assert.Equal(attemptsBefore, await AttemptCountAsync(runId));
     }
 }

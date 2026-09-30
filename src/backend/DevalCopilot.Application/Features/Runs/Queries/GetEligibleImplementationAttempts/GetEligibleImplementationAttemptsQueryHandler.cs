@@ -63,6 +63,9 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                     MaxTotalCapturedBytes = combined.attempt.AgentMaxTotalCapturedBytes!.Value,
                     RequestedClaudeModel = combined.attempt.AgentRequestedModel,
                     RequestedClaudeEffort = combined.attempt.AgentRequestedEffort,
+                    StoredTurnLimit = EF.Property<string?>(combined.attempt, Attempt.AgentRequestedMaxTurnsStorageProperty),
+                    HasWorkspaceEditProfile = combined.attempt.AgentPermissionProfile == AgentPermissionProfile.WorkspaceEditOnly,
+                    AdapterContractVersion = combined.attempt.AgentAdapterContractVersion,
                 })
             .ToListAsync(cancellationToken);
 
@@ -78,22 +81,29 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
             .Where(candidate =>
                 currentCheckpointByWorkspace.TryGetValue(candidate.GitWorkspaceId, out var currentCheckpointId)
                 && currentCheckpointId == candidate.GitCheckpointId)
-            .OrderBy(candidate => candidate.ClaimedAtUtc)
-            .Select(candidate => new EligibleImplementationAttempt(
-                candidate.Id,
-                candidate.RunId,
-                candidate.GitWorkspaceId,
-                candidate.WorkspacePath,
-                candidate.GitCheckpointId,
-                candidate.CheckpointFingerprintSha256,
-                candidate.ContextManifestRelativeStoragePath,
-                candidate.ContextManifestByteLength,
-                candidate.ContextManifestContentHash,
-                candidate.Timeout,
-                candidate.MaxBytesPerStream,
-                candidate.MaxTotalCapturedBytes,
-                candidate.RequestedClaudeModel,
-                candidate.RequestedClaudeEffort))
+            .Select(candidate => (Candidate: candidate, TurnLimit: ClaudeMutationTurnLimit.Read(candidate.StoredTurnLimit)))
+            .Where(entry => ClaudeMutationAdapterContract.IsDispatchCoherent(
+                AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode,
+                entry.Candidate.HasWorkspaceEditProfile ? AgentPermissionProfile.WorkspaceEditOnly : null,
+                entry.Candidate.AdapterContractVersion, entry.TurnLimit))
+            .OrderBy(entry => entry.Candidate.ClaimedAtUtc)
+            .Select(entry => new EligibleImplementationAttempt(
+                entry.Candidate.Id,
+                entry.Candidate.RunId,
+                entry.Candidate.GitWorkspaceId,
+                entry.Candidate.WorkspacePath,
+                entry.Candidate.GitCheckpointId,
+                entry.Candidate.CheckpointFingerprintSha256,
+                entry.Candidate.ContextManifestRelativeStoragePath,
+                entry.Candidate.ContextManifestByteLength,
+                entry.Candidate.ContextManifestContentHash,
+                entry.Candidate.Timeout,
+                entry.Candidate.MaxBytesPerStream,
+                entry.Candidate.MaxTotalCapturedBytes,
+                entry.Candidate.RequestedClaudeModel,
+                entry.Candidate.RequestedClaudeEffort,
+                entry.TurnLimit.Value,
+                entry.Candidate.AdapterContractVersion))
             .ToArray();
     }
 

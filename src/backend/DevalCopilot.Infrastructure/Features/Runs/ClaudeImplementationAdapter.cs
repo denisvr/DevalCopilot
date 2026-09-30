@@ -36,10 +36,14 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// beyond the name and the accompanying embedded-binary strings ("auto-accept edits",
 /// "acceptEditsSuggestionApplies") — disclosed here as a documented limitation, not asserted as
 /// directly observed.</item>
-/// <item>No <c>--max-turns</c> — unlike a single-turn critical review, implementation is
-/// inherently multi-step (read, edit, re-read); the actual bound remains the process-level
-/// <see cref="ProcessExecutionRequest.Timeout"/> plus cancellation and process-tree
-/// termination, mirroring Codex planning's own unbounded-turn design.</item>
+/// <item>No <c>--max-turns</c> unless the attempt's immutable snapshot requested one — unlike a
+/// single-turn critical review, implementation is inherently multi-step (read, edit, re-read). An
+/// optional owner request for the documented print-mode agentic-turn limit is passed exactly once as
+/// <c>--max-turns N</c> (see <see cref="ClaudeMutationTurnLimitArguments"/>); without one the only
+/// bound remains the process-level <see cref="ProcessExecutionRequest.Timeout"/> plus cancellation and
+/// process-tree termination. The limit is a provider-loop request, never a measured turn count or a
+/// token, cost, or account ceiling, and a provider error on reaching it is an ordinary failed
+/// invocation.</item>
 /// </list>
 /// Every other hardening decision — <c>--safe-mode</c>, <c>--restricted</c>,
 /// <c>--disable-slash-commands</c>, <c>--no-chrome</c>, <c>--permission-prompts none</c>,
@@ -102,6 +106,13 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
 
         if (!ClaudeModelRequestArguments.TryAppend(
                 arguments, request.RequestedClaudeModel, request.RequestedClaudeEffort))
+        {
+            return Failed();
+        }
+
+        if (!ClaudeMutationTurnLimitArguments.TryAppend(
+                arguments, request.RequestedMaxTurns, request.AdapterContractVersion,
+                ClaudeMutationAdapterContract.ImplementationV2))
         {
             return Failed();
         }

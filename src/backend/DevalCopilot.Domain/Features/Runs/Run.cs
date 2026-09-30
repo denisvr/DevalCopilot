@@ -232,6 +232,44 @@ public sealed class Run
         RequestedClaudeEffort = requestedEffort;
     }
 
+    /// <summary>The EF field-only property that holds the request as its exact stored text. Persistence and
+    /// queries refer to this name; every other reader uses <see cref="ReadRequestedClaudeMaxTurns"/>.</summary>
+    public const string RequestedClaudeMaxTurnsStorageProperty = "_requestedClaudeMaxTurns";
+
+    private string? _requestedClaudeMaxTurns;
+
+    /// <summary>The exact reading of the owner's current, explicit, run-scoped request for a Claude agentic-turn
+    /// limit, passed as the CLI's <c>--max-turns</c> argument to future initial implementation and review
+    /// correction attempts only (see <see cref="ClaudeMutationTurnLimit"/>). Absent means no DevalCopilot
+    /// override (the default for every historical and newly created Run); malformed means the stored
+    /// representation is not a canonical whole number in range and must be refused, never clamped or ignored. A
+    /// request for a provider-loop guardrail, never a measured turn count, a token, cost, or account ceiling, or
+    /// a host-enforced resource limit. Changing it never affects an already-claimed attempt's own immutable
+    /// snapshot. The stored text is an EF concurrency token, so a claim can never commit against a stale
+    /// request, and a malformed stored value still round-trips exactly so it can be repaired by setting a new
+    /// request.</summary>
+    public ClaudeMutationTurnLimitReading ReadRequestedClaudeMaxTurns() => ClaudeMutationTurnLimit.Read(_requestedClaudeMaxTurns);
+
+    /// <summary>The valid request, or <see langword="null"/> when there is none. Throws when the stored value is
+    /// malformed, so a malformed request can never be mistaken for "no request"; callers that must tolerate it use
+    /// <see cref="ReadRequestedClaudeMaxTurns"/>.</summary>
+    public int? RequestedClaudeMaxTurns => ReadRequestedClaudeMaxTurns() is { IsMalformed: false } reading
+        ? reading.Value
+        : throw new InvalidOperationException("The stored Claude turn-limit request is malformed.");
+
+    /// <summary>Sets or clears the run-scoped Claude mutation turn-limit request. A non-null value must
+    /// satisfy <see cref="ClaudeMutationTurnLimit.IsValid"/>; permitted while <see cref="Lifecycle"/> is
+    /// Created or Running. A change applies to future claims only, and replaces a malformed stored value.</summary>
+    public void SetRequestedClaudeMaxTurns(int? maxTurns)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot change the requested Claude turn limit for a run whose lifecycle is {Lifecycle}.");
+        }
+
+        _requestedClaudeMaxTurns = ClaudeMutationTurnLimit.Format(maxTurns);
+    }
+
     /// <summary>The largest warning threshold this Run accepts (10^12 reported token-activity
     /// units). A bound, not a policy: it keeps every threshold comparable with the bounded sums
     /// the cockpit projects and safely representable everywhere.</summary>

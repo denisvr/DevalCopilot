@@ -51,7 +51,8 @@ public sealed class GetRunCockpitEndpoint(
                         AgentProcessExecutionResponse.FromAttempt(attempt.ProcessExecution, attempt.Timeout),
                         AgentTokenUsageResponse.FromAttempt(attempt.TokenUsage),
                         attempt.RequestedModel,
-                        attempt.RequestedEffort)
+                        attempt.RequestedEffort,
+                        ClaudeMutationTurnLimitResponse.FromDomain(attempt.TurnLimit))
                     : null,
                 RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary),
                 value.ProviderTokenUsageSummaries.Select(RunCockpitProviderTokenUsageEntryResponse.FromDomain).ToArray(),
@@ -66,6 +67,7 @@ public sealed class GetRunCockpitEndpoint(
                 value.RequestedClaudeModel,
                 value.RequestedClaudeEffort,
                 (value.TokenWarnings ?? []).Select(RunCockpitTokenWarningResponse.FromDomain).ToArray(),
-                (value.TokenStops ?? []).Select(RunCockpitTokenStopResponse.FromDomain).ToArray()));
+                (value.TokenStops ?? []).Select(RunCockpitTokenStopResponse.FromDomain).ToArray(),
+                ClaudeMutationTurnLimitResponse.FromDomain(value.ClaudeTurnLimitRequest)));
     }
 }

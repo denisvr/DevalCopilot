@@ -3,6 +3,7 @@ import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
+import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { ReviewCorrectionGuidanceEntry } from './ReviewCorrectionGuidanceEntry'
 import { TokenUsageLine } from './TokenUsageLine'
@@ -196,6 +197,13 @@ export function ReviewCorrectionAction({
           Configured resume eligibility: {configuredResumeEligibility} · Configured built-in tools:{' '}
           {configuredBuiltInTools}
         </p>
+      )}
+      {status && (
+        <ClaudeTurnLimitFacts
+          attemptFact={status.hasAttempt ? status.attemptTurnLimit : null}
+          runRequest={status.runTurnLimitRequest}
+          className="dc-review-correction-turn-limit"
+        />
       )}
       {status?.hasAttempt && (
         <>

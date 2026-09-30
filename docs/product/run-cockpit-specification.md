@@ -529,6 +529,36 @@ effort line even though its stored Codex effort may be present. See
 ["Explicit Claude effort requests"](../architecture/agent-collaboration-protocol.md#explicit-claude-effort-requests)
 for the durable request, claim-snapshot, and argument semantics.
 
+### Optional Claude turn limit for implementation and correction
+
+A "Claude turn limit" control lets the owner request one whole-number agentic-turn guardrail (1 through 100) for the
+run's **future** Claude implementation and review-correction attempts. It is labelled as a **request**: not an account,
+token, or cost limit, not enforced by the host, and never a measured turn count ("the turns actually used are not
+measured"). It is shown as "Current run request: Not requested | N turns | Unknown", offers a numeric field with Save and
+Clear, and is editable only while the run is Created or Running; otherwise it states that the request can no longer be
+changed, and the backend's HTTP 422 remains the real guard. The draft is validated locally and never clamped: an empty
+field clears only through Clear (Save on an empty field asks for a number), and only canonical ASCII whole numbers 1
+through 100 are sent (no sign, spaces, fraction, exponent, or leading zero). Clear sends an explicit `null`. The control is
+disabled and a second submit is ignored while a save is pending, and a failed save shows a fixed message chosen by the
+HTTP status only (never server text); a conflict tells the owner to reload the run and retry. After a successful Save
+or Clear the cockpit explicitly re-queries the authoritative projection, with the same generation-safe refresh and fixed
+"Saved, but the cockpit could not be refreshed" message as the model request, and a run switch discards the draft, pending
+state, and error.
+
+The latest Agent attempt, the implementation and review-correction status blocks, and the historical attempt evidence
+show that attempt's own immutable fact as "Claude turn limit for this attempt: <text>" and nothing for an attempt that is
+not a Claude implementation or correction attempt. The four texts are exact and distinct: **Requested: N turns** (the
+saved or snapshotted request, shown as a request only and not as proof that a provider received or honored it), **Not requested** (a coherent version 2 attempt
+that recorded no request), **Not recorded** (a legacy version 1 attempt, which is never read as an observed unlimited
+capacity), and **Unknown** (recorded facts disagree, the stored value is invalid, or the state is unrecognized; never a
+number). The two role blocks also show "Current run request (applies to future attempts): <text>" so the owner can compare
+the run's saved request with the attempt's immutable fact. Nothing here implies eligibility, a configured capability, or
+that a provider honored the request; a turn-limit error from the provider is an ordinary failed invocation. The
+implementation action recognizes exactly the adapter contract versions `claude-implementation-v1` and
+`claude-implementation-v2`, and shows any other value as unknown. See
+["Optional Claude agentic-turn limit for mutation attempts"](../architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts)
+for the durable request, claim-snapshot, versioning, and argument semantics.
+
 ### Per-provider token-activity warnings
 
 A "Token-activity warnings (advisory)" panel gives Codex and Claude Code each their own optional threshold
@@ -741,8 +771,8 @@ the existing provider, role, permission profile, and adapter contract facts on
 the implementation action, never as a replacement for any of them. It is
 populated only when this attempt's own provider, role, permission profile, and
 adapter contract version all agree with the current, single supported
-implementation path (`ClaudeCode`, `Implementer`, `WorkspaceEditOnly`,
-`claude-implementation-v1`) — for example, a historical attempt recorded
+implementation path (`ClaudeCode`, `Implementer`, `WorkspaceEditOnly`, and exactly
+`claude-implementation-v1` or `claude-implementation-v2`) — for example, a historical attempt recorded
 against a superseded adapter contract version shows `Unknown` here exactly
 like every other assignment fact, never the current adapter's mode by
 assumption. It carries no runtime-control, authorization, or claim-eligibility
@@ -897,8 +927,8 @@ effective access, an MCP or complete security boundary, model or effort, or
 invocation eligibility of any kind. Each attempt claims a concrete,
 non-Unknown permission profile — `ReadOnly` for CriticalReviewer,
 `WorkspaceEditOnly` for ReviewCorrection — and a distinct, fixed adapter
-contract version (`claude-critical-review-v1` and
-`claude-review-correction-v1` respectively) at claim time; all five facts are
+contract version (`claude-critical-review-v1` for CriticalReviewer and
+`claude-review-correction-v1` or, for every new claim, `claude-review-correction-v2` for ReviewCorrection) at claim time; all five facts are
 populated only when that attempt's own provider, role, response contract,
 permission profile, and adapter contract version all agree with the current,
 single supported path for that role — no attempt yet, and a valid but

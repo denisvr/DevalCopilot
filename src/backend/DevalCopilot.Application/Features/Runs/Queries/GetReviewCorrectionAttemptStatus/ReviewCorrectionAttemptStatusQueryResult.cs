@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Queries.GetReviewCorrectionAttemptStatus;
@@ -58,7 +59,16 @@ public sealed record ReviewCorrectionAttemptStatusQueryResult(
     /// invocation eligibility. Populated only when provider, role, permission profile, and adapter
     /// contract version all agree with the current, single supported review-correction adapter;
     /// otherwise <see langword="null"/>.</summary>
-    string? ConfiguredBuiltInTools = null)
+    string? ConfiguredBuiltInTools = null,
+    /// <summary>The Run's current saved Claude agentic-turn-limit request (not requested, a valid request, or
+    /// unknown when the stored value is out of range) — a request for future Claude implementation and
+    /// correction attempts, never a measured turn count, an account or host-enforced ceiling, or invocation
+    /// eligibility.</summary>
+    ClaudeMutationTurnLimitFact? RunTurnLimitRequest = null,
+    /// <summary>This attempt's own immutable turn-limit record by exact version-aware mapping: requested N, not
+    /// requested (a coherent version 2 attempt with none), not recorded (a legacy version 1 attempt), or
+    /// unknown. <see langword="null"/> when there is no attempt.</summary>
+    ClaudeMutationTurnLimitFact? AttemptTurnLimit = null)
 {
     public static readonly ReviewCorrectionAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, 0, null, null, null, [], 2, 0, false, null, null, false);

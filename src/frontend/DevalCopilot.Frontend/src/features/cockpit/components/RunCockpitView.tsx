@@ -26,6 +26,7 @@ import { selectLatestExecutionReportMessageId } from '../selectLatestExecutionRe
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 import { CodexAssignmentPreferenceControl } from './CodexAssignmentPreferenceControl'
 import { ClaudeModelPreferenceControl } from './ClaudeModelPreferenceControl'
+import { ClaudeMutationTurnLimitControl } from './ClaudeMutationTurnLimitControl'
 import { TokenStopPanel } from './TokenStopPanel'
 import { TokenWarningPanel } from './TokenWarningPanel'
 import { AgentInvocationTimeBudgetBanner } from './AgentInvocationTimeBudgetBanner'
@@ -180,6 +181,15 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           runId={runId}
           requestedClaudeModel={cockpit.requestedClaudeModel ?? null}
           requestedClaudeEffort={cockpit.requestedClaudeEffort ?? null}
+          onSaved={refresh}
+        />
+      )}
+      {cockpit.runId === runId && (
+        <ClaudeMutationTurnLimitControl
+          key={`turn-limit:${runId}:${cockpit.claudeMutationTurnLimit?.state ?? ''}:${cockpit.claudeMutationTurnLimit?.maxTurns ?? ''}`}
+          runId={runId}
+          request={cockpit.claudeMutationTurnLimit}
+          editable={cockpit.lifecycle === 'Created' || cockpit.lifecycle === 'Running'}
           onSaved={refresh}
         />
       )}

@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -231,13 +232,15 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                         latestAgentAttempt.AgentTimeout,
                         latestAgentAttempt.GetAgentTokenUsageEvidence(),
                         latestAgentAttempt.AgentRequestedModel,
-                        latestAgentAttempt.AgentRequestedEffort),
+                        latestAgentAttempt.AgentRequestedEffort,
+                        ClaudeMutationTurnLimitFact.ForAttempt(latestAgentAttempt)),
                 run.RequestedClaudeModel,
                 run.RequestedClaudeEffort,
                 tokenWarningAccumulator.ToEntries(run.CodexTokenWarningThreshold, run.ClaudeTokenWarningThreshold),
                 [
                     tokenStopAccumulator.ToEvaluation(AgentProvider.Codex, run.CodexTokenStopThreshold),
                     tokenStopAccumulator.ToEvaluation(AgentProvider.ClaudeCode, run.ClaudeTokenStopThreshold),
-                ]));
+                ],
+                ClaudeMutationTurnLimitFact.ForRun(run)));
     }
 }
