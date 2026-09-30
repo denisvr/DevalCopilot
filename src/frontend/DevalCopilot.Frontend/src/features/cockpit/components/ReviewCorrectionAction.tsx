@@ -164,6 +164,7 @@ export function ReviewCorrectionAction({
                 {onAuthorizeWithGuidance && (
                   <ReviewCorrectionGuidanceEntry
                     key={status.escalationId}
+                    escalationId={status.escalationId}
                     authorizing={Boolean(authorizing)}
                     statusLoading={statusLoading}
                     onSubmit={onAuthorizeWithGuidance}

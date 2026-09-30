@@ -26,7 +26,7 @@ describe('useRequestChallengeResolution', () => {
     } as unknown as ReturnType<typeof requestChallengeResolutionClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestChallengeResolution(onRequested))
+    const { result } = renderHook(() => useRequestChallengeResolution('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -48,7 +48,7 @@ describe('useRequestChallengeResolution', () => {
       requestChallengeResolution: vi.fn().mockReturnValue(pending.promise),
     } as unknown as ReturnType<typeof requestChallengeResolutionClient>)
 
-    const { result } = renderHook(() => useRequestChallengeResolution(vi.fn()))
+    const { result } = renderHook(() => useRequestChallengeResolution('run-1', vi.fn()))
 
     expect(result.current.requesting).toBe(false)
 
@@ -80,7 +80,7 @@ describe('useRequestChallengeResolution', () => {
     } as unknown as ReturnType<typeof requestChallengeResolutionClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestChallengeResolution(onRequested))
+    const { result } = renderHook(() => useRequestChallengeResolution('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -97,7 +97,7 @@ describe('useRequestChallengeResolution', () => {
       requestChallengeResolution: vi.fn().mockRejectedValue(new Error('ECONNRESET at 10.0.0.7:5432')),
     } as unknown as ReturnType<typeof requestChallengeResolutionClient>)
 
-    const { result } = renderHook(() => useRequestChallengeResolution(vi.fn()))
+    const { result } = renderHook(() => useRequestChallengeResolution('run-1', vi.fn()))
 
     await act(async () => {
       await result.current.request('run-1', 'review-attempt-1')

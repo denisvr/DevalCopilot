@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ClaudeMutationTurnLimitResponse } from '../../../api/clients'
 import { describeClaudeRunTurnLimit } from '../describeClaudeTurnLimit'
+import { useOwnedFlow } from '../hooks/useRunActionLifetime'
 import { useSetClaudeMutationTurnLimit } from '../hooks/useSetClaudeMutationTurnLimit'
 
 const SYNC_FAILURE_MESSAGE = 'Saved, but the cockpit could not be refreshed; the displayed request may be out of date.'
@@ -25,18 +26,37 @@ interface ClaudeMutationTurnLimitControlProps {
  * saved value so the draft re-initialises from that authoritative state.
  */
 export function ClaudeMutationTurnLimitControl({ runId, request, editable, onSaved }: ClaudeMutationTurnLimitControlProps) {
-  const [draft, setDraft] = useState(request?.state === 'Requested' && request.maxTurns !== undefined ? String(request.maxTurns) : '')
+  const authoritativeDraft = request?.state === 'Requested' && request.maxTurns !== undefined ? String(request.maxTurns) : ''
+  const identity = `${runId}|${request?.state ?? ''}|${request?.maxTurns ?? ''}`
+  const [seenIdentity, setSeenIdentity] = useState(identity)
+  const [draft, setDraft] = useState(authoritativeDraft)
   const [syncFailed, setSyncFailed] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const { saving, error, save, clear } = useSetClaudeMutationTurnLimit(runId)
+  const beginFlow = useOwnedFlow(runId, identity)
 
-  const commit = async (action: () => Promise<boolean>) => {
+  // A different run or authoritative request re-derives the draft and drops validation and
+  // synchronization messages during render, so nothing owned by the previous identity survives.
+  if (seenIdentity !== identity) {
+    setSeenIdentity(identity)
+    setDraft(authoritativeDraft)
     setSyncFailed(false)
     setLocalError(null)
-    if (!(await action())) {
+  }
+
+  // One flow = save or clear, then local updates, then the authoritative refresh. Every continuation
+  // re-checks that this flow still owns the control, so an older flow never clears a newer draft or
+  // writes a stale warning. `onAccepted` runs as soon as the server accepted the change, so a draft
+  // typed while the refresh is pending is never wiped by it.
+  const commit = async (action: () => Promise<boolean>, onAccepted?: () => void) => {
+    const owns = beginFlow()
+    setSyncFailed(false)
+    setLocalError(null)
+    if (!(await action()) || !owns()) {
       return false
     }
-    if (onSaved && !(await onSaved())) {
+    onAccepted?.()
+    if (onSaved && !(await onSaved()) && owns()) {
       setSyncFailed(true)
     }
     return true
@@ -51,9 +71,7 @@ export function ClaudeMutationTurnLimitControl({ runId, request, editable, onSav
   }
 
   const handleClear = async () => {
-    if (await commit(clear)) {
-      setDraft('')
-    }
+    await commit(clear, () => setDraft(''))
   }
 
   const current = describeClaudeRunTurnLimit(request)

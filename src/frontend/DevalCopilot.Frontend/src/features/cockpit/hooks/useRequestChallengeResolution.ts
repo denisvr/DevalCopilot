@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, RequestChallengeResolutionRequest } from '../../../api/generated/api-client'
 import { requestChallengeResolutionClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseRequestChallengeResolutionResult {
   requesting: boolean
@@ -33,30 +34,26 @@ function extractSafeErrorDetail(caught: unknown): string {
 /** Requests one durable Codex challenge-resolution attempt of a specific Challenged Claude
  * critical-review attempt, then triggers the caller's own status refresh. Mirrors
  * `useRequestClaudeCriticalReview` exactly. */
-export function useRequestChallengeResolution(onRequested: () => void): UseRequestChallengeResolutionResult {
-  const [requesting, setRequesting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+/** Requests one durable Codex challenge-resolution attempt of a specific Challenged Claude
+ * critical-review attempt, then triggers the caller's own status refresh.
+ * The request is bound to `currentRunId`'s interaction lifetime: an obsolete completion, a
+ * foreign `runId`, or a duplicate of an in-flight submission never changes the current state. */
+export function useRequestChallengeResolution(currentRunId: string, onRequested: () => void): UseRequestChallengeResolutionResult {
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
   const request = useCallback(
-    async (runId: string, challengedReviewAttemptId: string) => {
-      setRequesting(true)
-      setError(null)
-      try {
-        await requestChallengeResolutionClient().requestChallengeResolution(
-          runId,
-          new RequestChallengeResolutionRequest({ challengedReviewAttemptId }),
-        )
-        onRequested()
-        return true
-      } catch (caught: unknown) {
-        setError(extractSafeErrorDetail(caught))
-        return false
-      } finally {
-        setRequesting(false)
-      }
-    },
-    [onRequested],
+    (runId: string, challengedReviewAttemptId: string) =>
+      run(
+        runId,
+        () =>
+          requestChallengeResolutionClient().requestChallengeResolution(
+            runId,
+            new RequestChallengeResolutionRequest({ challengedReviewAttemptId }),
+          ),
+        { toMessage: extractSafeErrorDetail, onSuccess: onRequested },
+      ),
+    [run, onRequested],
   )
 
-  return { requesting, error, request }
+  return { requesting: busy, error, request }
 }

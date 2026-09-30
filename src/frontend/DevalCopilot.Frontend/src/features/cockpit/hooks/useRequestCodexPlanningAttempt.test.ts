@@ -26,7 +26,7 @@ describe('useRequestCodexPlanningAttempt', () => {
     } as unknown as ReturnType<typeof requestCodexPlanningAttemptClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestCodexPlanningAttempt(onRequested))
+    const { result } = renderHook(() => useRequestCodexPlanningAttempt('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -45,7 +45,7 @@ describe('useRequestCodexPlanningAttempt', () => {
       requestCodexPlanningAttempt: vi.fn().mockReturnValue(pending.promise),
     } as unknown as ReturnType<typeof requestCodexPlanningAttemptClient>)
 
-    const { result } = renderHook(() => useRequestCodexPlanningAttempt(vi.fn()))
+    const { result } = renderHook(() => useRequestCodexPlanningAttempt('run-1', vi.fn()))
 
     expect(result.current.requesting).toBe(false)
 
@@ -77,7 +77,7 @@ describe('useRequestCodexPlanningAttempt', () => {
     } as unknown as ReturnType<typeof requestCodexPlanningAttemptClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestCodexPlanningAttempt(onRequested))
+    const { result } = renderHook(() => useRequestCodexPlanningAttempt('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -94,7 +94,7 @@ describe('useRequestCodexPlanningAttempt', () => {
       requestCodexPlanningAttempt: vi.fn().mockRejectedValue(new Error('ECONNRESET at 10.0.0.7:5432')),
     } as unknown as ReturnType<typeof requestCodexPlanningAttemptClient>)
 
-    const { result } = renderHook(() => useRequestCodexPlanningAttempt(vi.fn()))
+    const { result } = renderHook(() => useRequestCodexPlanningAttempt('run-1', vi.fn()))
 
     await act(async () => {
       await result.current.request('run-1')

@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, AuthorizeReviewCorrectionWithGuidanceRequest } from '../../../api/generated/api-client'
 import { authorizeReviewCorrectionClient, authorizeReviewCorrectionWithGuidanceClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseAuthorizeReviewCorrectionResult {
   authorizing: boolean
@@ -23,47 +24,31 @@ function extractSafeErrorDetail(caught: unknown): string {
   }
 }
 
+/**
+ * Authorizes one additional review correction (plain or with guidance). Bound to `currentRunId`'s
+ * interaction lifetime: an obsolete completion, a foreign `runId`, or a second submission while
+ * one is in flight changes nothing, and resolves false so a caller never clears a draft or reports
+ * success for work that no longer belongs to the current lifetime.
+ */
 export function useAuthorizeReviewCorrection(currentRunId: string, onAuthorized: () => void): UseAuthorizeReviewCorrectionResult {
-  const [state, setState] = useState({ runId: currentRunId, authorizing: false, error: null as string | null })
-  const generationRef = useRef(0)
-  const currentRunIdRef = useRef(currentRunId)
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
-  if (currentRunIdRef.current !== currentRunId) {
-    currentRunIdRef.current = currentRunId
-    generationRef.current += 1
-  }
+  const authorize = useCallback(
+    (runId: string, escalationId: string, guidance?: string) =>
+      run(
+        runId,
+        () =>
+          guidance === undefined
+            ? authorizeReviewCorrectionClient().authorizeReviewCorrection(runId, escalationId)
+            : authorizeReviewCorrectionWithGuidanceClient().authorizeReviewCorrectionWithGuidance(
+                runId,
+                escalationId,
+                new AuthorizeReviewCorrectionWithGuidanceRequest({ guidance }),
+              ),
+        { toMessage: extractSafeErrorDetail, onSuccess: onAuthorized },
+      ),
+    [run, onAuthorized],
+  )
 
-  const authorize = useCallback(async (runId: string, escalationId: string, guidance?: string) => {
-    const generation = ++generationRef.current
-    if (runId !== currentRunIdRef.current) return false
-    setState({ runId, authorizing: true, error: null })
-    try {
-      if (guidance === undefined) {
-        await authorizeReviewCorrectionClient().authorizeReviewCorrection(runId, escalationId)
-      } else {
-        await authorizeReviewCorrectionWithGuidanceClient().authorizeReviewCorrectionWithGuidance(
-          runId,
-          escalationId,
-          new AuthorizeReviewCorrectionWithGuidanceRequest({ guidance }),
-        )
-      }
-      if (generation === generationRef.current && runId === currentRunIdRef.current) onAuthorized()
-      return true
-    } catch (caught: unknown) {
-      if (generation === generationRef.current && runId === currentRunIdRef.current) {
-        setState({ runId, authorizing: false, error: extractSafeErrorDetail(caught) })
-      }
-      return false
-    } finally {
-      if (generation === generationRef.current && runId === currentRunIdRef.current) {
-        setState((current) => ({ ...current, authorizing: false }))
-      }
-    }
-  }, [onAuthorized])
-
-  return {
-    authorizing: state.runId === currentRunId ? state.authorizing : false,
-    error: state.runId === currentRunId ? state.error : null,
-    authorize,
-  }
+  return { authorizing: busy, error, authorize }
 }

@@ -14,7 +14,7 @@ describe('useSetClaudeModelPreference', () => {
     const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: 'opus' }))
     vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
 
-    const { result } = renderHook(() => useSetClaudeModelPreference())
+    const { result } = renderHook(() => useSetClaudeModelPreference('run-1'))
 
     let succeeded = false
     await act(async () => {
@@ -31,7 +31,7 @@ describe('useSetClaudeModelPreference', () => {
     const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: undefined }))
     vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
 
-    const { result } = renderHook(() => useSetClaudeModelPreference())
+    const { result } = renderHook(() => useSetClaudeModelPreference('run-1'))
 
     await act(async () => {
       await result.current.save('run-1', null)
@@ -44,7 +44,7 @@ describe('useSetClaudeModelPreference', () => {
     const setClaudeModelPreference = vi.fn().mockRejectedValue(new Error('sensitive detail'))
     vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
 
-    const { result } = renderHook(() => useSetClaudeModelPreference())
+    const { result } = renderHook(() => useSetClaudeModelPreference('run-1'))
 
     let succeeded = true
     await act(async () => {
@@ -61,7 +61,7 @@ describe('useSetClaudeModelPreference', () => {
     const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: 'opus' }))
     vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
 
-    const { result } = renderHook(() => useSetClaudeModelPreference())
+    const { result } = renderHook(() => useSetClaudeModelPreference('run-1'))
 
     await act(async () => {
       await result.current.save('run-1', 'opus', 'high')
@@ -77,7 +77,7 @@ describe('useSetClaudeModelPreference', () => {
     const setClaudeModelPreference = vi.fn().mockResolvedValue(new SetClaudeModelPreferenceResponse({ requestedModel: 'haiku' }))
     vi.mocked(setClaudeModelPreferenceClient).mockReturnValue({ setClaudeModelPreference } as never)
 
-    const { result } = renderHook(() => useSetClaudeModelPreference())
+    const { result } = renderHook(() => useSetClaudeModelPreference('run-1'))
 
     await act(async () => {
       await result.current.save('run-1', 'haiku')

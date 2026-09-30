@@ -86,26 +86,21 @@ describe('useAuthorizeReviewCorrection', () => {
     expect(result.current.authorizing).toBe(false)
   })
 
-  it('isolates repeated request generations and never persists correction data', async () => {
+  it('ignores a second submission while one is in flight and never persists correction data', async () => {
     const first = deferred<void>()
-    const second = deferred<void>()
     const refresh = vi.fn()
-    const authorizeReviewCorrection = vi.fn()
-      .mockReturnValueOnce(first.promise)
-      .mockReturnValueOnce(second.promise)
+    const authorizeReviewCorrection = vi.fn().mockReturnValueOnce(first.promise)
     vi.mocked(authorizeReviewCorrectionClient).mockReturnValue({ authorizeReviewCorrection } as never)
     const { result } = renderHook(() => useAuthorizeReviewCorrection('run-1', refresh))
     let firstRequest!: Promise<boolean>
-    let secondRequest!: Promise<boolean>
     act(() => { firstRequest = result.current.authorize('run-1', 'escalation-1') })
-    act(() => { secondRequest = result.current.authorize('run-1', 'escalation-2') })
+    await act(async () => expect(await result.current.authorize('run-1', 'escalation-2')).toBe(false))
+    expect(authorizeReviewCorrection).toHaveBeenCalledOnce()
+    expect(result.current.authorizing).toBe(true)
 
     await act(async () => {
       first.resolve()
-      await firstRequest
-      expect(refresh).not.toHaveBeenCalled()
-      second.resolve()
-      await secondRequest
+      expect(await firstRequest).toBe(true)
     })
     expect(refresh).toHaveBeenCalledOnce()
     expect(localStorage.length).toBe(0)

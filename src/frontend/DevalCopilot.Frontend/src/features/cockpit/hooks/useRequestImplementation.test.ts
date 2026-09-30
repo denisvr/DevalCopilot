@@ -26,7 +26,7 @@ describe('useRequestImplementation', () => {
     } as unknown as ReturnType<typeof requestImplementationClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestImplementation(onRequested))
+    const { result } = renderHook(() => useRequestImplementation('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -48,7 +48,7 @@ describe('useRequestImplementation', () => {
       requestImplementation: vi.fn().mockReturnValue(pending.promise),
     } as unknown as ReturnType<typeof requestImplementationClient>)
 
-    const { result } = renderHook(() => useRequestImplementation(vi.fn()))
+    const { result } = renderHook(() => useRequestImplementation('run-1', vi.fn()))
 
     expect(result.current.requesting).toBe(false)
 
@@ -80,7 +80,7 @@ describe('useRequestImplementation', () => {
     } as unknown as ReturnType<typeof requestImplementationClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestImplementation(onRequested))
+    const { result } = renderHook(() => useRequestImplementation('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -97,7 +97,7 @@ describe('useRequestImplementation', () => {
       requestImplementation: vi.fn().mockRejectedValue(new Error('ECONNRESET at 10.0.0.7:5432')),
     } as unknown as ReturnType<typeof requestImplementationClient>)
 
-    const { result } = renderHook(() => useRequestImplementation(vi.fn()))
+    const { result } = renderHook(() => useRequestImplementation('run-1', vi.fn()))
 
     await act(async () => {
       await result.current.request('run-1', 'proposal-1')

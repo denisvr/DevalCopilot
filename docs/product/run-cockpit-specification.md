@@ -726,6 +726,47 @@ changes or the form unmounts, and is cleared after an accepted submit. See
 ["Bounded human guidance for one authorized review correction"](../architecture/agent-collaboration-protocol.md#bounded-human-guidance-for-one-authorized-review-correction)
 for the normalization, conflict, linkage, and manifest rules.
 
+### Run-isolated asynchronous controls
+
+Every asynchronous control that changes a run's Agent work or settings — the six ordinary requests (Planner,
+CriticalReviewer, Resolver, Implementer, CodeReviewer, ReviewCorrection), the four format repairs, plain and guided
+review-correction authorization, and the five settings (Codex model/effort, Claude model/effort, token warning, token
+stop, Claude turn limit) — belongs to **one run's mounted interaction lifetime**. The server stays the only authority for
+claims, authorizations and accepted settings; this contract governs only what the browser shows.
+
+- **Lifetime and identity.** A lifetime begins when the control commits for a run and ends when the run changes or the
+  control unmounts; returning to an earlier run is a new lifetime (A to B to A never restores A's pending state, error,
+  saved label, draft, or synchronization warning). Every committed render binds its handlers to its own lifetime, so a
+  handler retained from an earlier render stays rejected even after the control returns to the same run. A request is
+  bound to an explicit run, that lifetime, and one submission. Lifetimes are activated and ended in effects, never by
+  mutating refs during render, so StrictMode's extra mount/cleanup pair and abandoned renders cannot own or leak one.
+- **Before the API.** A handler captured for an obsolete lifetime, or an explicitly supplied run id that is not the
+  current run, is rejected before any request is sent or any state is written (including a local validation message), and
+  without touching a valid current request. A second
+  submission of the same control while one is in flight is ignored synchronously (no second request); independent
+  controls and the two providers stay usable together, and there is no global UI mutation lock.
+- **After every asynchronous boundary.** Ownership is re-checked before writing pending or error state, refreshing,
+  consuming a refresh result, updating a saved label, clearing a draft, or reporting success. The resolved boolean is
+  true only for an accepted request whose lifetime is still current, so a component never treats a late result as
+  permission to continue. Drafts and truthful refresh-failure feedback are preserved within the current interaction.
+- **Flows and owning identity.** A component flow (save or clear, local updates, then the authoritative refresh) is an
+  operation owned by the committed identity that owns the component's local state: the run plus the authoritative value
+  (or, for guidance, the escalation). Its continuations stay valid only while that identity is current and no newer flow of
+  the same control began, so an older flow never clears a newer draft or writes a stale synchronization warning, including
+  when the authoritative value changes in the same run during the request or the refresh, and returning to an earlier
+  identity is a new one; this holds for every control that re-derives local state from an authoritative value, including
+  the Codex model/effort control's save and clear. A guidance submission additionally clears the draft only if it was not edited since it was sent
+  (an edit that yields identical text still counts), and never writes to another escalation's or a remounted entry. A draft or saved value is updated
+  as soon as the server accepted the change, so text typed while the refresh is pending is kept. When a control's owning
+  identity changes (the run, the authoritative value, or the escalation) its selections, drafts, validation, and
+  synchronization messages are re-derived from the new identity; a parent's `key` is not required for that.
+- **Stale completions are not cancellations.** A request the server accepted remains a real operation when the UI has
+  moved on. Ignoring its completion does not cancel, undo, retry, or reinterpret it as refused; the next authoritative
+  status or cockpit read shows its real outcome.
+- **Scope.** The shared lifetime is `useRunActionLifetime`/`useRunScopedAction`; each concrete typed operation stays in
+  its own hook and keeps its HTTP operation, serialization, validation bounds, safe error mapping, and wording.
+  Read-only fetching, project registration, run creation, and verification-recipe management are unchanged.
+
 ### Provider account usage guardrails
 
 This remains the target end state the observation above is one step toward;

@@ -205,36 +205,29 @@ describe('useRequestCodeReviewRepairAttempt', () => {
       expect(result.current.requesting).toBe(false)
     })
 
-    it('ignores an older completion while a newer request of the same run is pending', async () => {
-      const older = controllable<typeof REPAIR_RESPONSE>()
-      const newer = controllable<typeof REPAIR_RESPONSE>()
-      mockClient(vi.fn().mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise))
+    it('ignores a second submission while one is in flight and ignores a completion after a remount', async () => {
+      const first = controllable<typeof REPAIR_RESPONSE>()
+      const op = vi.fn().mockReturnValueOnce(first.promise)
+      mockClient(op)
       const onRequested = vi.fn()
 
-      const { result } = renderHook(() => useRequestCodeReviewRepairAttempt('run-1', onRequested))
-      let olderPromise!: Promise<boolean>
-      let newerPromise!: Promise<boolean>
+      const { result, unmount } = renderHook(() => useRequestCodeReviewRepairAttempt('run-1', onRequested))
+      let firstPromise!: Promise<boolean>
       act(() => {
-        olderPromise = result.current.request('attempt-3')
+        firstPromise = result.current.request('attempt-3')
       })
-      act(() => {
-        newerPromise = result.current.request('attempt-3')
-      })
-
-      await act(async () => {
-        older.reject(new Error('older failed'))
-        await olderPromise
-      })
+      await act(async () => expect(await result.current.request('attempt-3')).toBe(false))
+      expect(op).toHaveBeenCalledTimes(1)
       expect(result.current.requesting).toBe(true)
-      expect(result.current.error).toBeNull()
-      expect(onRequested).not.toHaveBeenCalled()
 
+      unmount()
+      const remounted = renderHook(() => useRequestCodeReviewRepairAttempt('run-1', onRequested))
       await act(async () => {
-        newer.resolve(REPAIR_RESPONSE)
-        await newerPromise
+        first.resolve(REPAIR_RESPONSE)
+        expect(await firstPromise).toBe(false)
       })
-      expect(result.current.requesting).toBe(false)
-      expect(onRequested).toHaveBeenCalledTimes(1)
+      expect(remounted.result.current.requesting).toBe(false)
+      expect(onRequested).not.toHaveBeenCalled()
     })
   })
 })

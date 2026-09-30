@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useOwnedFlow } from '../hooks/useRunActionLifetime'
 import { useSetClaudeModelPreference } from '../hooks/useSetClaudeModelPreference'
 
 /**
@@ -44,6 +45,8 @@ export function ClaudeModelPreferenceControl({
   requestedClaudeEffort = null,
   onSaved,
 }: ClaudeModelPreferenceControlProps) {
+  const identity = `${runId}|${requestedClaudeModel ?? ''}|${requestedClaudeEffort ?? ''}`
+  const [seenIdentity, setSeenIdentity] = useState(identity)
   const [saved, setSaved] = useState<{ model: string | null; effort: string | null }>({
     model: requestedClaudeModel,
     effort: requestedClaudeEffort,
@@ -51,17 +54,33 @@ export function ClaudeModelPreferenceControl({
   const [selectedModel, setSelectedModel] = useState(requestedClaudeModel ?? '')
   const [selectedEffort, setSelectedEffort] = useState(requestedClaudeEffort ?? '')
   const [syncFailed, setSyncFailed] = useState(false)
-  const { saving, error, save } = useSetClaudeModelPreference()
+  const { saving, error, save } = useSetClaudeModelPreference(runId)
+  const beginFlow = useOwnedFlow(runId, identity)
+
+  // A different run or authoritative pair re-derives the selection, saved label, and warning
+  // during render, so nothing owned by the previous identity is shown or kept.
+  if (seenIdentity !== identity) {
+    setSeenIdentity(identity)
+    setSaved({ model: requestedClaudeModel, effort: requestedClaudeEffort })
+    setSelectedModel(requestedClaudeModel ?? '')
+    setSelectedEffort(requestedClaudeEffort ?? '')
+    setSyncFailed(false)
+  }
 
   const effortEnabled = supportsEffort(selectedModel.length > 0 ? selectedModel : null)
 
-  const commit = async (model: string | null, effort: string | null) => {
+  // One flow = save, then local updates, then the authoritative refresh. Every continuation re-checks
+  // that this flow still owns the control, so an older flow never clears a newer selection or writes a
+  // stale warning. `onAccepted` runs as soon as the server accepted the change.
+  const commit = async (model: string | null, effort: string | null, onAccepted?: () => void) => {
+    const owns = beginFlow()
     setSyncFailed(false)
-    if (!(await save(runId, model, effort))) {
+    if (!(await save(runId, model, effort)) || !owns()) {
       return false
     }
     setSaved({ model, effort })
-    if (onSaved && !(await onSaved())) {
+    onAccepted?.()
+    if (onSaved && !(await onSaved()) && owns()) {
       setSyncFailed(true)
     }
     return true
@@ -81,10 +100,10 @@ export function ClaudeModelPreferenceControl({
   }
 
   const handleClear = async () => {
-    if (await commit(null, null)) {
+    await commit(null, null, () => {
       setSelectedModel('')
       setSelectedEffort('')
-    }
+    })
   }
 
   const modelLabel =

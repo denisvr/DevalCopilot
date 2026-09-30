@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, RequestReviewCorrectionRequest } from '../../../api/generated/api-client'
 import { requestReviewCorrectionClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseRequestReviewCorrectionResult {
   requesting: boolean
@@ -21,42 +22,26 @@ function extractSafeErrorDetail(caught: unknown): string {
   }
 }
 
+/** Requests one durable Claude review-correction attempt of a specific code-review attempt, then
+ * triggers the caller's own status refresh.
+ * The request is bound to `currentRunId`'s interaction lifetime: an obsolete completion, a
+ * foreign `runId`, or a duplicate of an in-flight submission never changes the current state. */
 export function useRequestReviewCorrection(currentRunId: string, onRequested: () => void): UseRequestReviewCorrectionResult {
-  const [state, setState] = useState({ runId: currentRunId, requesting: false, error: null as string | null })
-  const generationRef = useRef(0)
-  const currentRunIdRef = useRef(currentRunId)
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
-  if (currentRunIdRef.current !== currentRunId) {
-    currentRunIdRef.current = currentRunId
-    generationRef.current += 1
-  }
-
-  const request = useCallback(async (runId: string, implementationReviewAttemptId: string) => {
-    const generation = ++generationRef.current
-    if (runId !== currentRunIdRef.current) return false
-    setState({ runId, requesting: true, error: null })
-    try {
-      await requestReviewCorrectionClient().requestReviewCorrection(
+  const request = useCallback(
+    (runId: string, implementationReviewAttemptId: string) =>
+      run(
         runId,
-        new RequestReviewCorrectionRequest({ implementationReviewAttemptId }),
-      )
-      if (generation === generationRef.current && runId === currentRunIdRef.current) onRequested()
-      return true
-    } catch (caught: unknown) {
-      if (generation === generationRef.current && runId === currentRunIdRef.current) {
-        setState({ runId, requesting: false, error: extractSafeErrorDetail(caught) })
-      }
-      return false
-    } finally {
-      if (generation === generationRef.current && runId === currentRunIdRef.current) {
-        setState((current) => ({ ...current, requesting: false }))
-      }
-    }
-  }, [onRequested])
+        () =>
+          requestReviewCorrectionClient().requestReviewCorrection(
+            runId,
+            new RequestReviewCorrectionRequest({ implementationReviewAttemptId }),
+          ),
+        { toMessage: extractSafeErrorDetail, onSuccess: onRequested },
+      ),
+    [run, onRequested],
+  )
 
-  return {
-    requesting: state.runId === currentRunId ? state.requesting : false,
-    error: state.runId === currentRunId ? state.error : null,
-    request,
-  }
+  return { requesting: busy, error, request }
 }

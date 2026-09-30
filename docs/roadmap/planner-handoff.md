@@ -7,7 +7,150 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-30): manual format recovery for the remaining read-only collaboration stages
+## Current selection (2026-09-30): run-isolated asynchronous cockpit controls
+
+- Published baseline independently verified: branch `main`; `HEAD`, local `origin/main`, and live
+  `origin/main` equal `ad66cfe1a42223e8dab0c1a1f7b5bb9d2c8793f6`, with nothing staged, unstaged, or
+  untracked. Substantive delivery `85d0822bb4479a38c84aad56be48fb499e86ce88` has parent
+  `a75d524b42306818acd139a4d00f58234d0e29d5` and exactly 56 modified/43 added files, including the
+  planner GO. The closure has that substantive commit as parent and changes only `current-work.md`.
+  The parent chain is fast-forward and the published inventory matches the reviewed slice.
+  Independently repeated on the published code: solution build with `--no-restore
+  -p:UseSharedCompilation=false -m:1`, 0 errors/0 warnings; Domain 807/807; Application repair filter
+  271/271; Api repair plus the three ordinary read-only hosted supervisors 94/94; Architecture 9/9;
+  frontend 1052/1052 and `npm run build` including typecheck (existing chunk-size notice). No skips
+  occurred in these tests. Generated-client SHA-256 remains
+  `4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386`. Full backend validation
+  remains the independent corrected-tree evidence in the previous review; post-publication lint is
+  executor evidence. Its baseline warnings have mixed categories, not only `set-state-in-effect`.
+  The accepted formatter limitation includes newly added parameter comments, not only old lines.
+  After this planner edit expect the same branch/HEAD/refs, zero staged files, only this handoff
+  modified/unstaged, and nothing untracked.
+- Select exactly one bounded Increment 4 stabilization outcome: isolate every existing asynchronous
+  Agent action and run-setting control in the cockpit to its current run and mounted interaction
+  lifetime. Switching projects/runs must not import pending/error/saved/draft state, complete another
+  run's UI action, or refresh the wrong run. An old response cannot release a newer request's controls.
+  This makes the existing manual collaboration and runtime controls safe to use while navigating.
+- Evidence and alternatives: ordinary planning, critical-review, resolution, implementation, and
+  code-review hooks hold unqualified pending/error state. The Planner repair tags state only with
+  `runId`; correction request/authorization guard completions but preserve old state and mutate refs
+  during render. Four setters hold unqualified state; the turn-limit setter tags it but retains old
+  errors and identifies in-flight work by run alone. Setter components also continue after `await`,
+  updating saved values/drafts or awaiting refresh outside hook guards. Two independent temporary
+  regressions failed on published code: A's ordinary planning completion set B's pending flag false,
+  and a turn-limit error reappeared after A -> B -> A. Both probes were removed and the clean tree
+  verified before selection. The three newly delivered repair hooks provide useful prior race
+  coverage, but do not establish this contract for the remaining controls or their callers.
+  A single coherent audit and correction across these existing controls is preferable to thirteen
+  isolated hook handoffs. Further context sampling is lower priority than this reproduced user-flow
+  defect. Account allowance, provider-session resume, and context compaction remain unproven without
+  safe provider contracts; observation is not threshold enforcement or invocation eligibility. A live
+  provider proof is still valuable but is not required to establish or fix this host-owned defect.
+- Precise scope: the six existing ordinary request hooks (Planner, CriticalReviewer, Resolver,
+  Implementer, CodeReviewer, ReviewCorrection), all four format-repair hooks, review-correction
+  authorization (plain and guided), and the five setters (Codex model/effort, Claude model/effort,
+  token warning, token stop, Claude mutation turn limit). Include their immediate cockpit callers,
+  preference/threshold/turn-limit controls and guidance entry, and focused tests. Preserve public
+  HTTP contracts, generated request serialization, validation limits, safe error mappings, advisory
+  versus enforced wording, source/target IDs and provider separation. Existing frontend hook signatures
+  may change to bind the current run explicitly; update all immediate callers/tests together.
+  The already-correct three repair hooks need only compatibility coverage or changes required by the
+  common lifecycle contract, not unrelated rewrites.
+- Architectural boundary: frontend interaction lifetime owns pending/error and local success; the
+  server remains the sole authority for claim, authorization and setting acceptance. Use an explicit
+  run/lifetime/request identity, not only string equality with the latest run ID. Invalidate old work
+  on switch and unmount; returning to A creates a new lifetime. Before any API call, reject handlers
+  belonging to an obsolete lifetime or an explicitly supplied foreign run, without invalidating a
+  valid current request. Prevent duplicate in-flight submissions synchronously within the same active
+  control; preserve independent controls/providers and do not invent a global UI mutation lock.
+  After each asynchronous boundary, require current ownership before changing state, invoking refresh
+  callbacks, consuming a refresh result, clearing drafts or reporting UI success. Ignored accepted
+  requests remain real server operations; do not cancel, undo, automatically retry or reinterpret them
+  as refused. Boolean success consumed by components must not authorize stale local continuations.
+  Re-read server state through the existing current-run refresh/status mechanisms when appropriate.
+  Respect committed React lifecycles, StrictMode and abandoned renders: do not read/write generation
+  refs during render or suppress lint rules. The official [effect lifecycle contract](https://react.dev/reference/react/useEffect)
+  and [ref contract](https://react.dev/reference/react/useRef) apply. A small cockpit-owned lifecycle
+  hook is permitted for these demonstrated consumers; keep typed API operations in their concrete
+  hooks. No global store, query-library migration, generic workflow framework or error-system rewrite.
+- Component boundary: audit post-save and post-refresh continuations as well as hook state. A late
+  save, clear or guided authorization may not overwrite another lifetime's selected values, draft,
+  validation or synchronization warning. Preserve drafts and truthful sync-failure feedback within
+  the current interaction. Reset run/target-owned drafts when that identity changes, retaining existing
+  authoritative-value resynchronization. Do not use a keyed full-cockpit remount as the sole fix:
+  hooks and immediate controls must satisfy their own supported lifecycle contract.
+- Exclusions: new backend behavior/endpoints, provider invocation/flags, claim or dispatch changes,
+  source/verification authority, schemas/migrations, new budgets/overrides, allowance or resume,
+  compaction/context manifests, scheduler/coordinator, pause/stop/takeover, Git/publication controls,
+  project registration/run creation, verification-recipe management, and unrelated read-only fetching.
+  Existing read hooks may only be adjusted if necessary for the selected controls' refresh ownership;
+  stop and report a broader read-layer defect rather than expanding into all server-state fetching.
+  No ADR reversal is needed: retain ADR-0002/0004/0009/0010/0012/0013 and the existing authority boundaries.
+- Stop gates: isolation requires altering server authority/serialization, cancelling accepted mutations,
+  broad state-management replacement or an excluded workflow; stale actions still reach the API or
+  wrong lifetime after the proposed mechanism; correctness requires render-time mutable refs or lint
+  suppression; generated client or backend behavior drifts. Report the specific gap and keep the
+  complete diff unstaged, uncommitted and unpushed for planner judgment.
+- Acceptance evidence: reproduce the two planning probes red before correction, then green; cover
+  each in-scope hook with controlled promises for late success/failure after switching, A -> B -> A,
+  unmount/remount, old completion while the new lifetime is pending, duplicate same-control submission,
+  rejected stale/foreign handlers, current success/refusal and safe errors. Prove obsolete refreshes
+  never fire, rejected stale calls do not clear current pending, and independent providers/controls
+  remain usable. Include representative real-hook cockpit tests for ordinary versus repair pending
+  controls, an implementation/correction action, guided authorization, and setters (save/clear and a
+  deferred refresh completing after a switch); assert drafts/saved labels/sync warnings stay local.
+  Include StrictMode and same-run rerender compatibility. Test the behavior rather than merely mirroring
+  generation implementation; targeted mutation evidence should remove an ownership guard and fail.
+  Run affected checks first, then full frontend tests, typecheck, lint and production build on the final
+  tree, dependency audit, solution build/client-drift verification, local doc links and tracked/untracked
+  whitespace checks. Report exact commands/counts and distinguish baseline diagnostics. Backend tests
+  need not be repeated solely for frontend ownership changes; cite unchanged published evidence and
+  stop if backend changes become necessary. Update the cockpit contract and a commit-ready
+  `current-work.md` with actual evidence and limits. The executor does not edit this planner record.
+- Handoff: one new Claude executor chat implements this selection and retains all corrections and
+  eventual publication. The full English prompt is provided in the planner chat only. Selection grants
+  no commit/push GO; return the complete diff for Codex review. After future GO, one publication
+  instruction covers the reviewed substantive commit, normal fast-forward push, live-remote verification
+  and tightly bounded factual documentation closure. Re-review material post-GO changes.
+
+- Corrected-diff review (2026-09-30): **GO for this reviewed slice's publication only.**
+  Codex independently verified `main`; `HEAD`, local `origin/main` and live `origin/main` equal
+  `ad66cfe1a42223e8dab0c1a1f7b5bb9d2c8793f6`; nothing staged; 42 modified tracked files and six
+  untracked files (48 total, including this planner record). The reviewed inventory is confined to
+  the selected frontend controls/hooks/tests and three documentation files; no backend, dependency,
+  generated-client, API, provider, budget or ADR change. All prior review blockers are resolved:
+  obsolete handlers and validation cannot reacquire or release another lifetime; controls reset their
+  own run/target state; component flows retain operation and authoritative-identity ownership; guidance
+  also protects edits by draft version; Codex Save/Clear now use the same flow ownership. Codex's two
+  independent same-run authoritative-pair probes, previously red, both passed and were removed.
+  Independent final checks: full frontend 1285/1285 (96 files); solution build with `--no-restore
+  -p:UseSharedCompilation=false -m:1`, 0 errors/0 warnings; `npm run build` including typecheck,
+  existing chunk-size notice; lint 12 warnings in untouched files (mixed categories); `npm audit`,
+  0 vulnerabilities; generated-client SHA-256 unchanged at
+  `4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386`; tracked/untracked whitespace,
+  changed-file NUL scan and 121 local Markdown path targets clean (anchors not checked). Backend
+  suites were not repeated for a frontend-only change. Red/green and mutation counts remain executor
+  evidence, distinct from these independent checks.
+  Accepted limits: read-only fetching is unchanged; ownership is per mounted hook/component instance;
+  React may replace a memoized lifetime and its discarded handlers are rejected; browser layout/passive
+  timing and provider behavior are not proven by jsdom; the guidance lifetime guard is defense in depth
+  alongside the independently effective edit-version guard. These do not establish allowance enforcement,
+  invocation eligibility, provider-session resume, or any new provider capability.
+  The publication prompt permits only two precise factual pre-commit corrections in `current-work.md`:
+  identify three review-correction rounds, and distinguish this final tree's mutation runs (Codex guards
+  removed: 3 failures; authoritative identity ignored: 7) from retained earlier-tree mutation evidence.
+  No code, test or product-contract change is authorized after this review; any material change returns
+  for review before commit. Expected inventory after this planner-only GO edit remains 42 modified/six
+  untracked, nothing staged, same branch/HEAD/refs.
+  The same executor chat may commit exactly the reviewed 48-file substantive slice, including both
+  handoffs and those factual corrections, push `main` normally to `origin/main`, fetch and verify
+  local/live refs and clean state, run the bounded post-publication checks in the prompt, then make
+  one `current-work.md`-only factual closure commit and normal push with the same remote verification.
+  Do not embed a commit's own SHA in its documentation. Stop on push failure, divergence, inventory
+  drift or failed checks; no force-push, reconciliation or unreviewed implementation fix. Publication
+  is not complete until verified remotely. No next slice is selected or authorized by this GO.
+
+## Previous selection (2026-09-30): manual format recovery for the remaining read-only collaboration stages
 
 - Publication and baseline independently verified: branch `main`; `HEAD`, local `origin/main`, and live
   `origin/main` all equal `a75d524b42306818acd139a4d00f58234d0e29d5`; staged, unstaged, and untracked

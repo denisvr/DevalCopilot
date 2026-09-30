@@ -17,7 +17,7 @@ describe('useSetCodexAssignmentPreference', () => {
     vi.mocked(setCodexAssignmentPreferenceClient).mockReturnValue({ setCodexAssignmentPreference } as never)
     const onSaved = vi.fn()
 
-    const { result } = renderHook(() => useSetCodexAssignmentPreference(onSaved))
+    const { result } = renderHook(() => useSetCodexAssignmentPreference('run-1', onSaved))
 
     let succeeded = false
     await act(async () => {
@@ -40,7 +40,7 @@ describe('useSetCodexAssignmentPreference', () => {
     )
     vi.mocked(setCodexAssignmentPreferenceClient).mockReturnValue({ setCodexAssignmentPreference } as never)
 
-    const { result } = renderHook(() => useSetCodexAssignmentPreference(() => {}))
+    const { result } = renderHook(() => useSetCodexAssignmentPreference('run-1', () => {}))
 
     await act(async () => {
       await result.current.save('run-1', null, null)
@@ -57,7 +57,7 @@ describe('useSetCodexAssignmentPreference', () => {
     vi.mocked(setCodexAssignmentPreferenceClient).mockReturnValue({ setCodexAssignmentPreference } as never)
     const onSaved = vi.fn()
 
-    const { result } = renderHook(() => useSetCodexAssignmentPreference(onSaved))
+    const { result } = renderHook(() => useSetCodexAssignmentPreference('run-1', onSaved))
 
     let succeeded = true
     await act(async () => {

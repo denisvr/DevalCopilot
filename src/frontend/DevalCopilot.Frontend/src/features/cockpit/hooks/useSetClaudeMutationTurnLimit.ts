@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, SetClaudeMutationTurnLimitRequest } from '../../../api/generated/api-client'
 import { setClaudeMutationTurnLimitClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 import { parseClaudeTurnLimitDraft } from '../describeClaudeTurnLimit'
 
 interface UseSetClaudeMutationTurnLimitResult {
@@ -38,60 +39,39 @@ function safeMessage(caught: unknown): string {
  * Sets or clears the run-scoped Claude agentic-turn request for future Claude implementation and
  * review-correction attempts. It is a request for a provider-loop guardrail, not an account,
  * token, or cost ceiling, and never affects an already-claimed attempt. Clearing sends an explicit
- * JSON null because the server rejects a missing member. State is scoped to `runId`: switching
- * runs drops the pending flag and error of the previous one.
+ * JSON null because the server rejects a missing member. The pending flag and error belong to the
+ * run's mounted interaction lifetime: a switch or unmount drops them (returning to an earlier run
+ * never restores an old error), an obsolete completion changes nothing, and a second submission
+ * while one is in flight is ignored. A resolved false is never an authorization for a caller to
+ * refresh, clear a draft, or show success.
  */
 export function useSetClaudeMutationTurnLimit(runId: string): UseSetClaudeMutationTurnLimitResult {
-  const [savingRunId, setSavingRunId] = useState<string | null>(null)
-  const [errorState, setErrorState] = useState<{ runId: string; message: string } | null>(null)
-  const inFlightRunId = useRef<string | null>(null)
+  const { busy, error, run, reportError } = useRunScopedAction(runId)
 
   const send = useCallback(
-    async (maxTurns: number | null) => {
-      if (inFlightRunId.current === runId) {
-        return false
-      }
-      inFlightRunId.current = runId
-      setSavingRunId(runId)
-      setErrorState(null)
-      try {
-        // fromJS keeps a null member, so the serialized body is {"maxTurns":null} for a clear.
-        await setClaudeMutationTurnLimitClient().setClaudeMutationTurnLimit(
-          runId,
-          SetClaudeMutationTurnLimitRequest.fromJS({ maxTurns }),
-        )
-        return true
-      } catch (caught: unknown) {
-        setErrorState({ runId, message: safeMessage(caught) })
-        return false
-      } finally {
-        if (inFlightRunId.current === runId) {
-          inFlightRunId.current = null
-        }
-        setSavingRunId((current) => (current === runId ? null : current))
-      }
-    },
-    [runId],
+    (maxTurns: number | null) =>
+      run(
+        runId,
+        // fromJS keeps a null member, so the serialized body is {'maxTurns':null} for a clear.
+        () => setClaudeMutationTurnLimitClient().setClaudeMutationTurnLimit(runId, SetClaudeMutationTurnLimitRequest.fromJS({ maxTurns })),
+        { toMessage: safeMessage },
+      ),
+    [run, runId],
   )
 
   const save = useCallback(
     async (draft: string) => {
       const parsed = parseClaudeTurnLimitDraft(draft)
       if (parsed.kind === 'invalid') {
-        setErrorState({ runId, message: TURN_LIMIT_VALIDATION_MESSAGE })
+        reportError(TURN_LIMIT_VALIDATION_MESSAGE)
         return false
       }
       return send(parsed.kind === 'set' ? parsed.maxTurns : null)
     },
-    [runId, send],
+    [reportError, send],
   )
 
   const clear = useCallback(() => send(null), [send])
 
-  return {
-    saving: savingRunId === runId,
-    error: errorState?.runId === runId ? errorState.message : null,
-    save,
-    clear,
-  }
+  return { saving: busy, error, save, clear }
 }

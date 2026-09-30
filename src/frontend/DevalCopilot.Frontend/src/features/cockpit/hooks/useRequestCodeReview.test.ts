@@ -26,7 +26,7 @@ describe('useRequestCodeReview', () => {
     } as unknown as ReturnType<typeof requestCodeReviewClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestCodeReview(onRequested))
+    const { result } = renderHook(() => useRequestCodeReview('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -48,7 +48,7 @@ describe('useRequestCodeReview', () => {
       requestCodeReview: vi.fn().mockReturnValue(pending.promise),
     } as unknown as ReturnType<typeof requestCodeReviewClient>)
 
-    const { result } = renderHook(() => useRequestCodeReview(vi.fn()))
+    const { result } = renderHook(() => useRequestCodeReview('run-1', vi.fn()))
 
     expect(result.current.requesting).toBe(false)
 
@@ -82,7 +82,7 @@ describe('useRequestCodeReview', () => {
     } as unknown as ReturnType<typeof requestCodeReviewClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestCodeReview(onRequested))
+    const { result } = renderHook(() => useRequestCodeReview('run-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -100,7 +100,7 @@ describe('useRequestCodeReview', () => {
       requestCodeReview: vi.fn().mockRejectedValue(new Error('ECONNRESET at 10.0.0.7:5432')),
     } as unknown as ReturnType<typeof requestCodeReviewClient>)
 
-    const { result } = renderHook(() => useRequestCodeReview(vi.fn()))
+    const { result } = renderHook(() => useRequestCodeReview('run-1', vi.fn()))
 
     await act(async () => {
       await result.current.request('run-1', 'message-1')
@@ -129,7 +129,7 @@ describe('useRequestCodeReview', () => {
     } as unknown as ReturnType<typeof requestCodeReviewClient>)
 
     const onRequestedAtCallTime = vi.fn()
-    const { result, rerender } = renderHook(({ onRequested }) => useRequestCodeReview(onRequested), {
+    const { result, rerender } = renderHook(({ onRequested }) => useRequestCodeReview('run-1', onRequested), {
       initialProps: { onRequested: onRequestedAtCallTime },
     })
 
@@ -164,7 +164,7 @@ describe('useRequestCodeReview', () => {
     sessionStorage.clear()
     const urlBefore = window.location.href
 
-    const { result } = renderHook(() => useRequestCodeReview(vi.fn()))
+    const { result } = renderHook(() => useRequestCodeReview('run-1', vi.fn()))
     await act(async () => {
       await result.current.request('run-1', 'message-1')
     })

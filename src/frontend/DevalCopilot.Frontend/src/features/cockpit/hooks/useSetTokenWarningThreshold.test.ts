@@ -13,7 +13,7 @@ describe('useSetTokenWarningThreshold', () => {
   it('saves one providers threshold', async () => {
     const setTokenWarningThreshold = vi.fn().mockResolvedValue(new SetTokenWarningThresholdResponse({ provider: 'Codex', thresholdTokens: 10 }))
     vi.mocked(setTokenWarningThresholdClient).mockReturnValue({ setTokenWarningThreshold } as never)
-    const { result } = renderHook(() => useSetTokenWarningThreshold())
+    const { result } = renderHook(() => useSetTokenWarningThreshold('run-1'))
 
     let succeeded = false
     await act(async () => {
@@ -29,7 +29,7 @@ describe('useSetTokenWarningThreshold', () => {
   it('clears by sending undefined', async () => {
     const setTokenWarningThreshold = vi.fn().mockResolvedValue(new SetTokenWarningThresholdResponse({ provider: 'ClaudeCode' }))
     vi.mocked(setTokenWarningThresholdClient).mockReturnValue({ setTokenWarningThreshold } as never)
-    const { result } = renderHook(() => useSetTokenWarningThreshold())
+    const { result } = renderHook(() => useSetTokenWarningThreshold('run-1'))
 
     await act(async () => {
       await result.current.save('run-1', 'ClaudeCode', null)
@@ -41,7 +41,7 @@ describe('useSetTokenWarningThreshold', () => {
   it('reports a safe error message without leaking the underlying failure', async () => {
     const setTokenWarningThreshold = vi.fn().mockRejectedValue(new Error('sensitive detail'))
     vi.mocked(setTokenWarningThresholdClient).mockReturnValue({ setTokenWarningThreshold } as never)
-    const { result } = renderHook(() => useSetTokenWarningThreshold())
+    const { result } = renderHook(() => useSetTokenWarningThreshold('run-1'))
 
     let succeeded = true
     await act(async () => {

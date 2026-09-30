@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, RequestImplementationRequest } from '../../../api/generated/api-client'
 import { requestImplementationClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseRequestImplementationResult {
   requesting: boolean
@@ -33,30 +34,26 @@ function extractSafeErrorDetail(caught: unknown): string {
 /** Requests one durable Claude implementation attempt of a specific authoritative resolved
  * plan, then triggers the caller's own status refresh. Mirrors `useRequestChallengeResolution`
  * exactly. */
-export function useRequestImplementation(onRequested: () => void): UseRequestImplementationResult {
-  const [requesting, setRequesting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+/** Requests one durable Claude implementation attempt of a specific authoritative resolved
+ * plan, then triggers the caller's own status refresh.
+ * The request is bound to `currentRunId`'s interaction lifetime: an obsolete completion, a
+ * foreign `runId`, or a duplicate of an in-flight submission never changes the current state. */
+export function useRequestImplementation(currentRunId: string, onRequested: () => void): UseRequestImplementationResult {
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
   const request = useCallback(
-    async (runId: string, planProposalMessageId: string) => {
-      setRequesting(true)
-      setError(null)
-      try {
-        await requestImplementationClient().requestImplementation(
-          runId,
-          new RequestImplementationRequest({ planProposalMessageId }),
-        )
-        onRequested()
-        return true
-      } catch (caught: unknown) {
-        setError(extractSafeErrorDetail(caught))
-        return false
-      } finally {
-        setRequesting(false)
-      }
-    },
-    [onRequested],
+    (runId: string, planProposalMessageId: string) =>
+      run(
+        runId,
+        () =>
+          requestImplementationClient().requestImplementation(
+            runId,
+            new RequestImplementationRequest({ planProposalMessageId }),
+          ),
+        { toMessage: extractSafeErrorDetail, onSuccess: onRequested },
+      ),
+    [run, onRequested],
   )
 
-  return { requesting, error, request }
+  return { requesting: busy, error, request }
 }

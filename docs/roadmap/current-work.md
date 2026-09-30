@@ -27,6 +27,95 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   clean; nothing skipped in these runs. Limits: no real-provider reliability is proven (process doubles only); the
   documented `dotnet format` whitespace findings in older record declarations remain and no formatter cleanliness is
   claimed; the Planner repair hook keeps its earlier stale-completion behavior; next-slice selection remains with Codex.
+- Current delivery, based on verified parent `ad66cfe1a42223e8dab0c1a1f7b5bb9d2c8793f6` (branch `main`; `HEAD`, local and
+  live `origin/main` matched it and only the planner-owned `planner-handoff.md` was modified at the start):
+  **run-isolated asynchronous cockpit controls** (Increment 4 stabilization, frontend only), including three review-correction
+  round after Codex's NO-GO. See [planner-handoff.md](planner-handoff.md) for the selection and
+  ["Run-isolated asynchronous controls"](../product/run-cockpit-specification.md#run-isolated-asynchronous-controls) for the
+  contract. No backend, endpoint, generated-client, schema, dependency, provider, budget, or ADR change; HTTP operations,
+  serialization, validation bounds, safe error mappings, and authority wording are unchanged.
+  - Reproduced red on published code first: (1) planning for A, switch, planning for B, then A completing set B's
+    `requesting` to false while B was pending; (2) a turn-limit save error on A reappeared after A to B to A. Both are
+    covered (green) by the shared suite below.
+  - Mechanism: a small cockpit-owned set in `hooks/`. `useRunActionLifetime` gives every committed render that binds a run its
+    own lifetime instance (activated and ended in an effect, never by render-time ref mutation). Handlers capture that
+    instance, so a handler retained from an earlier render stays rejected after A to B to A (a new lifetime) instead of
+    acquiring the new one; `begin(runId, control)` also rejects a foreign run id and a second in-flight submission of the same
+    control, and `capture()`/`isActive()` are bound to the same instance. `useRunScopedAction` holds pending/error state tagged
+    with the run, dropped when the lifetime ends, and resolves true only for an accepted request whose lifetime is still
+    current; its local-validation path (`reportError`) is rejected for an obsolete lifetime and never releases a pending
+    submission. `useOwnedFlow(runId, identity)` adds operation ownership for a component's multi-step flow (save, local updates,
+    refresh): a flow's continuations stay valid only while the committed identity that owns the component's local state (run
+    plus authoritative value, or the escalation) is current and no newer flow of the same control began, a change of identity
+    during either the request or the refresh ends the flow, returning to an earlier identity is a new one, and a handler of an
+    ended identity never supersedes the current flow. Lifetimes are ended in a layout effect so they end in the commit that
+    replaces them. The six ordinary request hooks, the four repair hooks,
+    `useAuthorizeReviewCorrection` (plain and guided) and the five setters are thin wrappers that keep their typed client
+    calls, serialization, and safe error text; hook signatures now take the current run. The controls (Codex and Claude model,
+    turn limit, token warning/stop) and the guidance entry additionally re-derive their selections, drafts, saved values, and
+    validation/synchronization messages during render when their owning identity (run plus authoritative value, or the
+    escalation) changes, so nothing is carried between runs even without the parent's `key`; the draft and saved value are
+    updated as soon as the server accepted a change, so a draft typed while the refresh is pending is never wiped by it, and
+    the guidance entry clears only the text that was accepted. A stale accepted request remains a real server operation; its
+    completion is ignored, never cancelled, retried, or read as a refusal. The three repair hooks from the previous slice were
+    folded into the common contract; their "older completion while a newer request is pending" test became a
+    duplicate-submission plus remount test because a second in-flight submission of one control is now rejected.
+  - Review correction (Codex NO-GO, three findings, all reproduced red first, 6/6 failing on the prior tree): (1) the stable
+    lifetime API read the current lifetime at invocation, so a retained run A planning handler succeeded (with an API request)
+    after A to B to A and a retained turn-limit save handler with an invalid draft cleared run B's pending flag; (2) without
+    parent keys the Claude model control kept A's opus selection and the turn-limit control kept A's draft 5 over B's
+    authoritative 7; (3) an older turn-limit Clear's deferred refresh cleared a draft entered after a newer Save. Fixed as
+    described above; the earlier suites missed them because they exercised hooks through fresh handlers, always used the
+    parent's key, and typed the next run's draft by hand instead of asserting the authoritative value.
+  - Second correction round (Codex NO-GO, two findings, both reproduced red first): (1) an unkeyed guidance entry switched
+    from escalation A (deferred accepted submission) to B, with the same text typed for B, had B's draft erased when A's
+    result completed, because string equality and the parent's key were the only protection; the entry now binds the completion
+    to its escalation lifetime and to a draft version bumped by every edit (including identical text), so it clears only an
+    unedited draft of the current target and never touches the accepted server authorization; (2) an unkeyed turn-limit
+    control whose Clear awaited a deferred refresh restored a stale warning when the authoritative request changed 3 to 7 in
+    the same run, because `useOwnedFlow` checked only the run lifetime; flow ownership now follows the same committed identity
+    the component resets by, and the Claude model, token warning and token stop consumers use it too. The earlier suites missed
+    both because they changed the target or identity only together with a manual edit, or never changed the authoritative value
+    while a flow was pending.
+  - Third correction round (Codex NO-GO, one finding, reproduced red first, 3 of 4 new tests failing): the Codex model/effort
+    control reset its local state by run plus authoritative pair but its Save and Clear continuations wrote after the await
+    using only the run-scoped setter result, so an old accepted request completing after the authoritative pair changed in the
+    same run reverted the saved label to the old pair (Save) or erased the new selections and label (Clear). Both continuations
+    now use `useOwnedFlow(runId, identity)` like the other controls; an accepted request stays a real server operation. The
+    earlier suites missed it because the Codex control was only tested for a run switch, never for an authoritative change in
+    the same run while a request was pending.
+  - Tests: `runScopedActions.test.tsx` runs one controlled-promise contract over 16 controls (195 tests: current success,
+    safe refusal and non-echoed exceptions, late success/failure after a switch, run B pending while A completes, A to B to A,
+    unmount/remount, duplicate submission, a same-run rerender with StrictMode, foreign run id and stale handler rejection
+    preserving a current pending request, and two independent controls); `AsyncControlIsolation.test.tsx` uses real hooks in
+    the token stop panel, turn-limit control, Claude and Codex model controls, and a guided authorization form without the
+    parent's key, with distinct authoritative values per run; `OwnershipCorrections.test.tsx` holds the red/green regressions
+    for the three findings plus older-flow/newer-flow cases for the token stop, Claude model, and guidance entry;
+    `ContinuationOwnership.test.tsx` covers the second and third rounds (Codex Save and Clear with a changed authoritative pair, a return to the
+    earlier pair, and a current unchanged success; guidance A to B, A to B to A, unmount and remount, identical-text
+    edits and a clean current success; turn limit 3 to 7 during the refresh, during the API phase, returning to 3, and a
+    same-run rerender that keeps a truthful failure; Claude model pair change; token warning and stop threshold change);
+    `RunCockpitView.test.tsx` gains real-hook isolation tests for ordinary versus repair (CodeReviewer) and for the
+    Implementer request across a run switch, each asserting pending controls, per-run API calls, and that the old run's late
+    completion does not release the new run's control or refresh.
+  - Mutation evidence reported by the executor: on the final reviewed tree, removing the Codex control's ownership checks failed 3 tests, and ignoring the authoritative flow identity failed 7. Earlier-tree runs are retained as earlier evidence, not final-tree reruns: shared lifetime 208 failures; removed flow ownership 5; removed identity reset 4; unguarded reportError 1; ignored authoritative identity 4; removed newer-flow check 3; removed guidance draft-version check 2. Each reported mutation was restored. Removing only the guidance lifetime check failed no tests in that round; it remains defense in depth alongside draft-version protection. Layout-effect versus passive-effect timing was not distinguished under jsdom.
+  - Checks run on the final tree (all frontend; `npm` from `src/frontend/DevalCopilot.Frontend`): `npx vitest run` 96 files,
+    1285/1285 (was 1052 at the parent); `tsc -b` clean; `npm run build` clean (the usual chunk-size notice); `npm run lint` 12
+    warnings (was 20 at the parent; none in a file this slice created, the rest the older baseline warnings); `npm audit`
+    0 vulnerabilities; `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1` 0 warnings/0 errors
+    with `api-client.ts` SHA-256 unchanged (`4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386`); local
+    document links resolve; `git diff --check` and a trailing-whitespace scan of the untracked files clean. Backend suites
+    were not rerun: no backend file changed, so the published evidence of the previous slice still applies.
+  - Inventory: 48 files against the baseline: 42 modified tracked files (including the planner-owned `planner-handoff.md`,
+    not edited here, this file, and the cockpit specification) and 6 new (`useRunActionLifetime.ts`, `useRunScopedAction.ts`,
+    `runScopedActions.test.tsx`, `AsyncControlIsolation.test.tsx`, `OwnershipCorrections.test.tsx`,
+    `ContinuationOwnership.test.tsx`).
+  - Open risks and limits: read-only status and timeline fetching was not changed, so it keeps its own (already
+    run-tagged) handling; the lifetime and flow ownership are per hook or component instance, so two separate instances of one
+    control would not share an in-flight guard (the cockpit mounts one of each); each lifetime is created with `useMemo`,
+    which React may in principle recompute, in which case handlers of the discarded instance are rejected (fail-safe, never
+    unsafe); ignoring a stale completion means a request accepted just before a switch shows its outcome only on the next
+    status read of its own run; nothing here is verified against a real provider or a real browser beyond the jsdom tests.
 - Delivery, based on verified parent `a75d524b42306818acd139a4d00f58234d0e29d5`: **manual format recovery for the
   remaining read-only collaboration stages** (Increment 4). See [planner-handoff.md](planner-handoff.md) for the selection
   and ["One manual format repair of the remaining read-only stages"](../architecture/agent-collaboration-protocol.md#one-manual-format-repair-of-the-remaining-read-only-stages)

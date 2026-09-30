@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { requestCodexPlanningRepairAttemptClient } from '../../../api/clients'
 import { extractSafeErrorDetail } from './useRequestCodexPlanningAttempt'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseRequestCodexPlanningRepairAttemptResult {
   requesting: boolean
@@ -10,45 +11,28 @@ interface UseRequestCodexPlanningRepairAttemptResult {
 
 const GENERIC_MESSAGE = 'A repair attempt could not be requested for this run.'
 
-/** The request state, tagged with the run it belongs to so a request started for one run can
- * never show its in-flight state or its error on a different run. */
-interface RepairRequestState {
-  runId: string
-  requesting: boolean
-  error: string | null
-}
-
 /**
  * Requests the one manual format repair of the given Codex planning attempt for `runId`, then
  * triggers the caller's own status refresh. The server alone decides eligibility; this hook only
- * relays the request and surfaces the backend's fixed, safe error text.
+ * relays the request and surfaces the backend's fixed, safe error text. The request is bound to
+ * the run's interaction lifetime: a run switch or unmount drops the state, an obsolete completion
+ * never writes state or refreshes, and a second submission of the same attempt while one is in
+ * flight is ignored. An ignored completion does not cancel a request the server already accepted.
  */
 export function useRequestCodexPlanningRepairAttempt(
   runId: string,
   onRequested: () => void,
 ): UseRequestCodexPlanningRepairAttemptResult {
-  const [state, setState] = useState<RepairRequestState | null>(null)
+  const { busy, error, run } = useRunScopedAction(runId)
 
   const request = useCallback(
-    async (sourceAttemptId: string) => {
-      setState({ runId, requesting: true, error: null })
-      try {
-        await requestCodexPlanningRepairAttemptClient().requestCodexPlanningRepairAttempt(runId, sourceAttemptId)
-        setState({ runId, requesting: false, error: null })
-        onRequested()
-        return true
-      } catch (caught: unknown) {
-        setState({ runId, requesting: false, error: extractSafeErrorDetail(caught, GENERIC_MESSAGE) })
-        return false
-      }
-    },
-    [runId, onRequested],
+    (sourceAttemptId: string) =>
+      run(runId, () => requestCodexPlanningRepairAttemptClient().requestCodexPlanningRepairAttempt(runId, sourceAttemptId), {
+        toMessage: (caught) => extractSafeErrorDetail(caught, GENERIC_MESSAGE),
+        onSuccess: onRequested,
+      }),
+    [run, runId, onRequested],
   )
 
-  const belongsToCurrentRun = state?.runId === runId
-  return {
-    requesting: belongsToCurrentRun ? state.requesting : false,
-    error: belongsToCurrentRun ? state.error : null,
-    request,
-  }
+  return { requesting: busy, error, request }
 }

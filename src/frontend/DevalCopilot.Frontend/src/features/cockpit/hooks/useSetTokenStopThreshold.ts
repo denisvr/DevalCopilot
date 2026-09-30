@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, SetTokenStopThresholdRequest } from '../../../api/generated/api-client'
 import { setTokenStopThresholdClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseSetTokenStopThresholdResult {
   saving: boolean
@@ -33,27 +34,27 @@ function extractSafeErrorDetail(caught: unknown): string {
  * Sets or clears one provider's token-activity stop threshold for a run. The stop refuses a new
  * Agent claim for that provider once locally recorded usage reaches it; it is not an account
  * allowance, a per-attempt cap, or a reservation, and it never affects an already claimed attempt.
+ *
+ * Bound to `currentRunId`'s interaction lifetime: an obsolete completion, a foreign `runId`, or a second
+ * submission while one is in flight changes nothing and resolves false, so a caller never updates a
+ * saved value or draft for work that no longer belongs to the current lifetime.
  */
-export function useSetTokenStopThreshold(): UseSetTokenStopThresholdResult {
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function useSetTokenStopThreshold(currentRunId: string): UseSetTokenStopThresholdResult {
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
-  const save = useCallback(async (runId: string, provider: 'Codex' | 'ClaudeCode', thresholdTokens: number | null) => {
-    setSaving(true)
-    setError(null)
-    try {
-      await setTokenStopThresholdClient().setTokenStopThreshold(
+  const save = useCallback(
+    (runId: string, provider: 'Codex' | 'ClaudeCode', thresholdTokens: number | null) =>
+      run(
         runId,
-        new SetTokenStopThresholdRequest({ provider, thresholdTokens: thresholdTokens ?? undefined }),
-      )
-      return true
-    } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
-      return false
-    } finally {
-      setSaving(false)
-    }
-  }, [])
+        () =>
+          setTokenStopThresholdClient().setTokenStopThreshold(
+            runId,
+            new SetTokenStopThresholdRequest({ provider, thresholdTokens: thresholdTokens ?? undefined }),
+          ),
+        { toMessage: extractSafeErrorDetail },
+      ),
+    [run],
+  )
 
-  return { saving, error, save }
+  return { saving: busy, error, save }
 }

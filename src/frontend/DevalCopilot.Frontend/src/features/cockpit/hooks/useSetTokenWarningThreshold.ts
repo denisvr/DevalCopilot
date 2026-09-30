@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, SetTokenWarningThresholdRequest } from '../../../api/generated/api-client'
 import { setTokenWarningThresholdClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseSetTokenWarningThresholdResult {
   saving: boolean
@@ -32,27 +33,27 @@ function extractSafeErrorDetail(caught: unknown): string {
 /**
  * Sets or clears one provider's advisory token-activity warning threshold for a run. The
  * threshold is a warning on locally recorded usage only — never a budget or an eligibility rule.
+ *
+ * Bound to `currentRunId`'s interaction lifetime: an obsolete completion, a foreign `runId`, or a second
+ * submission while one is in flight changes nothing and resolves false, so a caller never updates a
+ * saved value or draft for work that no longer belongs to the current lifetime.
  */
-export function useSetTokenWarningThreshold(): UseSetTokenWarningThresholdResult {
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function useSetTokenWarningThreshold(currentRunId: string): UseSetTokenWarningThresholdResult {
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
-  const save = useCallback(async (runId: string, provider: 'Codex' | 'ClaudeCode', thresholdTokens: number | null) => {
-    setSaving(true)
-    setError(null)
-    try {
-      await setTokenWarningThresholdClient().setTokenWarningThreshold(
+  const save = useCallback(
+    (runId: string, provider: 'Codex' | 'ClaudeCode', thresholdTokens: number | null) =>
+      run(
         runId,
-        new SetTokenWarningThresholdRequest({ provider, thresholdTokens: thresholdTokens ?? undefined }),
-      )
-      return true
-    } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
-      return false
-    } finally {
-      setSaving(false)
-    }
-  }, [])
+        () =>
+          setTokenWarningThresholdClient().setTokenWarningThreshold(
+            runId,
+            new SetTokenWarningThresholdRequest({ provider, thresholdTokens: thresholdTokens ?? undefined }),
+          ),
+        { toMessage: extractSafeErrorDetail },
+      ),
+    [run],
+  )
 
-  return { saving, error, save }
+  return { saving: busy, error, save }
 }

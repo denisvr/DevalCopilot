@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useOwnedFlow } from '../hooks/useRunActionLifetime'
 
 /** Mirrors `ReviewCorrectionGuidance.MaximumLength`; the server stays authoritative. */
 export const MAXIMUM_GUIDANCE_LENGTH = 600
 
 interface ReviewCorrectionGuidanceEntryProps {
+  /** The escalation this draft is for; a different escalation starts with an empty draft. */
+  escalationId: string
   authorizing: boolean
   statusLoading: boolean
   /** Sends the raw draft to the guided operation. Resolves true only when the server accepted it. */
@@ -23,9 +26,24 @@ function normalizeForLocalCheck(draft: string): string {
  * refusal is shown by the caller. The text is advisory context recorded in the collaboration
  * timeline; it is not screened for secrets, so the form says not to include any.
  */
-export function ReviewCorrectionGuidanceEntry({ authorizing, statusLoading, onSubmit }: ReviewCorrectionGuidanceEntryProps) {
+export function ReviewCorrectionGuidanceEntry({
+  escalationId,
+  authorizing,
+  statusLoading,
+  onSubmit,
+}: ReviewCorrectionGuidanceEntryProps) {
+  const beginFlow = useOwnedFlow(escalationId, 'guidance')
+  // Bumped by every edit, including one that yields identical text, so a submission's completion can
+  // tell whether the draft was touched after it was sent.
+  const draftVersion = useRef(0)
+  const [seenEscalationId, setSeenEscalationId] = useState(escalationId)
   const [draft, setDraft] = useState('')
   const [showValidation, setShowValidation] = useState(false)
+  if (seenEscalationId !== escalationId) {
+    setSeenEscalationId(escalationId)
+    setDraft('')
+    setShowValidation(false)
+  }
   const normalized = normalizeForLocalCheck(draft)
   const validationMessage =
     normalized.length === 0
@@ -44,8 +62,13 @@ export function ReviewCorrectionGuidanceEntry({ authorizing, statusLoading, onSu
           setShowValidation(true)
           return
         }
+        // The completion clears the draft only while this entry still belongs to the same escalation
+        // lifetime and the draft was not edited since it was sent; the accepted server authorization is
+        // never touched either way.
+        const owns = beginFlow()
+        const versionAtSubmit = draftVersion.current
         void onSubmit(draft).then((accepted) => {
-          if (accepted) setDraft('')
+          if (accepted && owns() && draftVersion.current === versionAtSubmit) setDraft('')
         })
       }}
     >
@@ -58,6 +81,7 @@ export function ReviewCorrectionGuidanceEntry({ authorizing, statusLoading, onSu
         aria-describedby="dc-review-correction-guidance-help dc-review-correction-guidance-count"
         aria-invalid={showValidation && validationMessage ? true : undefined}
         onChange={(event) => {
+          draftVersion.current += 1
           setDraft(event.target.value)
           setShowValidation(false)
         }}

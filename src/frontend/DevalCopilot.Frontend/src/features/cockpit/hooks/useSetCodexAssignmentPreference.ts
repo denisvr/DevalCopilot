@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, SetCodexAssignmentPreferenceRequest } from '../../../api/generated/api-client'
 import { setCodexAssignmentPreferenceClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseSetCodexAssignmentPreferenceResult {
   saving: boolean
@@ -33,34 +34,30 @@ function extractSafeErrorDetail(caught: unknown): string {
  * Sets or clears the run-scoped requested Codex model/effort for future Planner, Challenge
  * Resolver, and Code Reviewer claims, then triggers the caller's own cockpit refresh. This never
  * affects an already-claimed attempt's own immutable assignment.
+ *
+ * Bound to `currentRunId`'s interaction lifetime: an obsolete completion, a foreign `runId`, or a second
+ * submission while one is in flight changes nothing and resolves false, so a caller never updates a
+ * saved value or draft for work that no longer belongs to the current lifetime.
  */
-export function useSetCodexAssignmentPreference(onSaved: () => void): UseSetCodexAssignmentPreferenceResult {
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function useSetCodexAssignmentPreference(currentRunId: string, onSaved: () => void): UseSetCodexAssignmentPreferenceResult {
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
   const save = useCallback(
-    async (runId: string, requestedModel: string | null, requestedEffort: string | null) => {
-      setSaving(true)
-      setError(null)
-      try {
-        await setCodexAssignmentPreferenceClient().setCodexAssignmentPreference(
-          runId,
-          new SetCodexAssignmentPreferenceRequest({
+    (runId: string, requestedModel: string | null, requestedEffort: string | null) =>
+      run(
+        runId,
+        () =>
+          setCodexAssignmentPreferenceClient().setCodexAssignmentPreference(
+            runId,
+            new SetCodexAssignmentPreferenceRequest({
             requestedModel: requestedModel ?? undefined,
             requestedEffort: requestedEffort ?? undefined,
           }),
-        )
-        onSaved()
-        return true
-      } catch (caught: unknown) {
-        setError(extractSafeErrorDetail(caught))
-        return false
-      } finally {
-        setSaving(false)
-      }
-    },
-    [onSaved],
+          ),
+        { toMessage: extractSafeErrorDetail, onSuccess: onSaved },
+      ),
+    [run, onSaved],
   )
 
-  return { saving, error, save }
+  return { saving: busy, error, save }
 }

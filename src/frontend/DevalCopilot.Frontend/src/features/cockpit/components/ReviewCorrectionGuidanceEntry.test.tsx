@@ -44,7 +44,7 @@ function actionElement(props: Partial<ActionProps> = {}, status: ReviewCorrectio
 describe('ReviewCorrectionGuidanceEntry', () => {
   it('submits the raw draft once and clears it only after acceptance', async () => {
     const onSubmit = vi.fn().mockResolvedValue(true)
-    render(<ReviewCorrectionGuidanceEntry authorizing={false} statusLoading={false} onSubmit={onSubmit} />)
+    render(<ReviewCorrectionGuidanceEntry escalationId='escalation-1' authorizing={false} statusLoading={false} onSubmit={onSubmit} />)
     const box = screen.getByLabelText(GUIDANCE_LABEL)
 
     fireEvent.change(box, { target: { value: '  Keep the fix small.  ' } })
@@ -56,7 +56,7 @@ describe('ReviewCorrectionGuidanceEntry', () => {
 
   it('keeps the draft when the server refuses it', async () => {
     const onSubmit = vi.fn().mockResolvedValue(false)
-    render(<ReviewCorrectionGuidanceEntry authorizing={false} statusLoading={false} onSubmit={onSubmit} />)
+    render(<ReviewCorrectionGuidanceEntry escalationId='escalation-1' authorizing={false} statusLoading={false} onSubmit={onSubmit} />)
     const box = screen.getByLabelText(GUIDANCE_LABEL)
 
     fireEvent.change(box, { target: { value: 'Try again later.' } })
@@ -68,7 +68,7 @@ describe('ReviewCorrectionGuidanceEntry', () => {
 
   it('validates blank and over-long drafts locally without calling the server', () => {
     const onSubmit = vi.fn().mockResolvedValue(true)
-    render(<ReviewCorrectionGuidanceEntry authorizing={false} statusLoading={false} onSubmit={onSubmit} />)
+    render(<ReviewCorrectionGuidanceEntry escalationId='escalation-1' authorizing={false} statusLoading={false} onSubmit={onSubmit} />)
     const box = screen.getByLabelText(GUIDANCE_LABEL)
 
     fireEvent.change(box, { target: { value: '   \n ' } })
@@ -86,7 +86,7 @@ describe('ReviewCorrectionGuidanceEntry', () => {
   })
 
   it('shows a pending state, locks the field, and warns that the text is not screened for secrets', () => {
-    render(<ReviewCorrectionGuidanceEntry authorizing={true} statusLoading={false} onSubmit={vi.fn()} />)
+    render(<ReviewCorrectionGuidanceEntry escalationId='escalation-1' authorizing={true} statusLoading={false} onSubmit={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: 'Authorizing…' })).toBeDisabled()
     expect(screen.getByLabelText(GUIDANCE_LABEL)).toBeDisabled()
@@ -94,7 +94,7 @@ describe('ReviewCorrectionGuidanceEntry', () => {
   })
 
   it('never persists the draft in browser storage or the URL', () => {
-    render(<ReviewCorrectionGuidanceEntry authorizing={false} statusLoading={false} onSubmit={vi.fn()} />)
+    render(<ReviewCorrectionGuidanceEntry escalationId='escalation-1' authorizing={false} statusLoading={false} onSubmit={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText(GUIDANCE_LABEL), { target: { value: 'DRAFT-SENTINEL' } })
 

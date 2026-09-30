@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { RunCockpitTokenWarningResponse } from '../../../api/clients'
 import { useSetTokenWarningThreshold } from '../hooks/useSetTokenWarningThreshold'
+import { useOwnedFlow } from '../hooks/useRunActionLifetime'
 
 type WarningProvider = 'Codex' | 'ClaudeCode'
 
@@ -93,11 +94,24 @@ function statusMessage(warning: RunCockpitTokenWarningResponse | undefined, prov
 
 function ProviderWarning({ runId, provider, warning, onSaved }: ProviderWarningProps) {
   const label = PROVIDER_LABEL[provider]
+  const identity = `${runId}|${provider}|${warning?.thresholdTokens ?? ''}`
+  const [seenIdentity, setSeenIdentity] = useState(identity)
   const [saved, setSaved] = useState<number | null>(warning?.thresholdTokens ?? null)
   const [input, setInput] = useState(warning?.thresholdTokens === undefined ? '' : String(warning.thresholdTokens))
   const [localError, setLocalError] = useState<string | null>(null)
   const [syncFailed, setSyncFailed] = useState(false)
-  const { saving, error, save } = useSetTokenWarningThreshold()
+  const { saving, error, save } = useSetTokenWarningThreshold(runId)
+  const beginFlow = useOwnedFlow(runId, identity)
+
+  // A different run, provider, or authoritative threshold re-derives the saved value, input, and
+  // messages during render, so nothing owned by the previous identity is shown or kept.
+  if (seenIdentity !== identity) {
+    setSeenIdentity(identity)
+    setSaved(warning?.thresholdTokens ?? null)
+    setInput(warning?.thresholdTokens === undefined ? '' : String(warning.thresholdTokens))
+    setLocalError(null)
+    setSyncFailed(false)
+  }
   const status = statusMessage(warning, provider)
 
   const handleSave = async () => {
@@ -108,11 +122,12 @@ function ProviderWarning({ runId, provider, warning, onSaved }: ProviderWarningP
     }
     setLocalError(null)
     setSyncFailed(false)
-    if (await save(runId, provider, Number(trimmed))) {
+    const owns = beginFlow()
+    if ((await save(runId, provider, Number(trimmed))) && owns()) {
       setSaved(Number(trimmed))
       // The threshold endpoint emits no run event, so the authoritative cockpit is re-queried
       // explicitly; the warning shown above is always re-derived by the server from recorded evidence.
-      if (onSaved && !(await onSaved())) {
+      if (onSaved && !(await onSaved()) && owns()) {
         setSyncFailed(true)
       }
     }
@@ -121,10 +136,11 @@ function ProviderWarning({ runId, provider, warning, onSaved }: ProviderWarningP
   const handleClear = async () => {
     setLocalError(null)
     setSyncFailed(false)
-    if (await save(runId, provider, null)) {
+    const owns = beginFlow()
+    if ((await save(runId, provider, null)) && owns()) {
       setSaved(null)
       setInput('')
-      if (onSaved && !(await onSaved())) {
+      if (onSaved && !(await onSaved()) && owns()) {
         setSyncFailed(true)
       }
     }

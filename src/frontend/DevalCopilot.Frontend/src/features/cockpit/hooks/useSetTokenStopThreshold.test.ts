@@ -13,7 +13,7 @@ describe('useSetTokenStopThreshold', () => {
   it('saves one providers threshold', async () => {
     const setTokenStopThreshold = vi.fn().mockResolvedValue(new SetTokenStopThresholdResponse({ provider: 'Codex', thresholdTokens: 10 }))
     vi.mocked(setTokenStopThresholdClient).mockReturnValue({ setTokenStopThreshold } as never)
-    const { result } = renderHook(() => useSetTokenStopThreshold())
+    const { result } = renderHook(() => useSetTokenStopThreshold('run-1'))
 
     let succeeded = false
     await act(async () => {
@@ -29,7 +29,7 @@ describe('useSetTokenStopThreshold', () => {
   it('clears by sending undefined', async () => {
     const setTokenStopThreshold = vi.fn().mockResolvedValue(new SetTokenStopThresholdResponse({ provider: 'ClaudeCode' }))
     vi.mocked(setTokenStopThresholdClient).mockReturnValue({ setTokenStopThreshold } as never)
-    const { result } = renderHook(() => useSetTokenStopThreshold())
+    const { result } = renderHook(() => useSetTokenStopThreshold('run-1'))
 
     await act(async () => {
       await result.current.save('run-1', 'ClaudeCode', null)
@@ -42,7 +42,7 @@ describe('useSetTokenStopThreshold', () => {
     const response = JSON.stringify({ errors: [{ code: 'token_stop.run_not_editable', detail: "This run's token stop thresholds can no longer be changed." }] })
     const setTokenStopThreshold = vi.fn().mockRejectedValue(new ApiException('Unprocessable', 422, response, {}, null))
     vi.mocked(setTokenStopThresholdClient).mockReturnValue({ setTokenStopThreshold } as never)
-    const { result } = renderHook(() => useSetTokenStopThreshold())
+    const { result } = renderHook(() => useSetTokenStopThreshold('run-1'))
 
     await act(async () => {
       await result.current.save('run-1', 'Codex', 5)
@@ -54,7 +54,7 @@ describe('useSetTokenStopThreshold', () => {
   it('reports a safe error message without leaking the underlying failure', async () => {
     const setTokenStopThreshold = vi.fn().mockRejectedValue(new Error('sensitive detail'))
     vi.mocked(setTokenStopThresholdClient).mockReturnValue({ setTokenStopThreshold } as never)
-    const { result } = renderHook(() => useSetTokenStopThreshold())
+    const { result } = renderHook(() => useSetTokenStopThreshold('run-1'))
 
     let succeeded = true
     await act(async () => {

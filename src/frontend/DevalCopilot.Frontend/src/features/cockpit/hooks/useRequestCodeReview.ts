@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { ApiException, RequestCodeReviewRequest } from '../../../api/generated/api-client'
 import { requestCodeReviewClient } from '../../../api/clients'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseRequestCodeReviewResult {
   requesting: boolean
@@ -33,30 +34,26 @@ function extractSafeErrorDetail(caught: unknown): string {
 /** Requests one durable Codex code-review attempt of a specific implementation ExecutionReport
  * message, then triggers the caller's own status refresh. Mirrors
  * `useRequestClaudeCriticalReview`/`useRequestChallengeResolution` exactly. */
-export function useRequestCodeReview(onRequested: () => void): UseRequestCodeReviewResult {
-  const [requesting, setRequesting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+/** Requests one durable Codex code-review attempt of a specific implementation ExecutionReport
+ * message, then triggers the caller's own status refresh.
+ * The request is bound to `currentRunId`'s interaction lifetime: an obsolete completion, a
+ * foreign `runId`, or a duplicate of an in-flight submission never changes the current state. */
+export function useRequestCodeReview(currentRunId: string, onRequested: () => void): UseRequestCodeReviewResult {
+  const { busy, error, run } = useRunScopedAction(currentRunId)
 
   const request = useCallback(
-    async (runId: string, executionReportMessageId: string) => {
-      setRequesting(true)
-      setError(null)
-      try {
-        await requestCodeReviewClient().requestCodeReview(
-          runId,
-          new RequestCodeReviewRequest({ executionReportMessageId }),
-        )
-        onRequested()
-        return true
-      } catch (caught: unknown) {
-        setError(extractSafeErrorDetail(caught))
-        return false
-      } finally {
-        setRequesting(false)
-      }
-    },
-    [onRequested],
+    (runId: string, executionReportMessageId: string) =>
+      run(
+        runId,
+        () =>
+          requestCodeReviewClient().requestCodeReview(
+            runId,
+            new RequestCodeReviewRequest({ executionReportMessageId }),
+          ),
+        { toMessage: extractSafeErrorDetail, onSuccess: onRequested },
+      ),
+    [run, onRequested],
   )
 
-  return { requesting, error, request }
+  return { requesting: busy, error, request }
 }

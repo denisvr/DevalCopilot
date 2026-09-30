@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useOwnedFlow } from '../hooks/useRunActionLifetime'
 import { useCodexModelCatalog } from '../hooks/useCodexModelCatalog'
 import { useSetCodexAssignmentPreference } from '../hooks/useSetCodexAssignmentPreference'
 
@@ -23,21 +24,25 @@ export function CodexAssignmentPreferenceControl({
   requestedCodexEffort,
 }: CodexAssignmentPreferenceControlProps) {
   const { catalog, loading: catalogLoading, error: catalogError } = useCodexModelCatalog()
+  const identity = `${runId}|${requestedCodexModel ?? ''}|${requestedCodexEffort ?? ''}`
+  const [seenIdentity, setSeenIdentity] = useState(identity)
   const [saved, setSaved] = useState({ model: requestedCodexModel, effort: requestedCodexEffort })
   const [selectedModel, setSelectedModel] = useState(requestedCodexModel ?? '')
   const [selectedEffort, setSelectedEffort] = useState(requestedCodexEffort ?? '')
 
-  // The parent cockpit projection is the durable source of truth (e.g. after a page reload);
-  // a locally saved value from this component's own successful save is otherwise preferred so
-  // the control never appears to "revert" while waiting for the next cockpit read.
-  useEffect(() => {
+  // The parent cockpit projection is the durable source of truth (e.g. after a page reload). When the
+  // run or that durable value changes, the selection is re-derived from it during render, so run A's
+  // selection is never shown for run B; a locally saved value from this run's own save is otherwise
+  // preferred so the control never appears to "revert" while waiting for the next cockpit read.
+  if (seenIdentity !== identity) {
+    setSeenIdentity(identity)
     setSaved({ model: requestedCodexModel, effort: requestedCodexEffort })
     setSelectedModel(requestedCodexModel ?? '')
     setSelectedEffort(requestedCodexEffort ?? '')
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally resyncs only when the run identity or its durable value changes
-  }, [runId, requestedCodexModel, requestedCodexEffort])
+  }
 
-  const { saving, error: saveError, save } = useSetCodexAssignmentPreference(() => {})
+  const { saving, error: saveError, save } = useSetCodexAssignmentPreference(runId, () => {})
+  const beginFlow = useOwnedFlow(runId, identity)
 
   const models = catalog?.status === 'Observed' ? (catalog.models ?? []) : []
   const selectedModelEntry = models.find((model) => model.id === selectedModel)
@@ -51,15 +56,20 @@ export function CodexAssignmentPreferenceControl({
   const handleSave = async () => {
     const model = selectedModel.length > 0 ? selectedModel : null
     const effort = model !== null && selectedEffort.length > 0 ? selectedEffort : null
+    const owns = beginFlow()
     const succeeded = await save(runId, model, effort)
-    if (succeeded) {
+    // Local updates belong to the committed identity that owns this state: if the run or the
+    // authoritative pair changed meanwhile, the accepted request stays a server operation but does
+    // not write over the re-derived label and selections.
+    if (succeeded && owns()) {
       setSaved({ model, effort })
     }
   }
 
   const handleClear = async () => {
+    const owns = beginFlow()
     const succeeded = await save(runId, null, null)
-    if (succeeded) {
+    if (succeeded && owns()) {
       setSaved({ model: null, effort: null })
       setSelectedModel('')
       setSelectedEffort('')

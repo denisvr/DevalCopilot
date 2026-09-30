@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { processAttemptOutputClient, requestCodeReviewRepairAttemptClient, setClaudeModelPreferenceClient, setClaudeMutationTurnLimitClient } from '../../../api/clients'
+import { processAttemptOutputClient, requestCodeReviewClient, requestImplementationClient, requestCodeReviewRepairAttemptClient, setClaudeModelPreferenceClient, setClaudeMutationTurnLimitClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
   AgentClaimPathTimeFitResponse,
@@ -65,6 +65,8 @@ vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   setClaudeModelPreferenceClient: vi.fn(),
   setClaudeMutationTurnLimitClient: vi.fn(),
+  requestCodeReviewClient: vi.fn(),
+  requestImplementationClient: vi.fn(),
   requestCodeReviewRepairAttemptClient: vi.fn(),
   reviewCorrectionAttemptStatusClient: vi.fn(),
   codexAccountAllowanceClient: vi.fn(() => ({
@@ -1086,6 +1088,54 @@ describe('RunCockpitView', () => {
       expect(request).toHaveBeenCalledWith('run-1', 'first')
     })
 
+    it('keeps the Implementer request isolated per run while an older run completes late (real hook)', async () => {
+      const realImplementation = await vi.importActual<typeof useRequestImplementationModule>(
+        '../hooks/useRequestImplementation',
+      )
+      useRequestImplementationMock.mockImplementation(realImplementation.useRequestImplementation)
+      arrange([rootCard, firstRevision], { reviewed: 'root', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'root' })
+      useRunCockpitMock.mockImplementation((id: string | null) => ({
+        cockpit: new GetRunCockpitResponse({ ...runningCockpit, runId: id ?? undefined }),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      }))
+      let finishA!: () => void
+      let finishB!: () => void
+      const requestImplementation = vi
+        .fn()
+        .mockReturnValueOnce(new Promise<void>((resolve) => (finishA = resolve)))
+        .mockReturnValueOnce(new Promise<void>((resolve) => (finishB = resolve)))
+      vi.mocked(requestImplementationClient).mockReturnValue({ requestImplementation } as unknown as ReturnType<
+        typeof requestImplementationClient
+      >)
+      const implement = () => screen.getByRole('button', { name: /Implement the resolved plan with Claude|^Requesting…$/ })
+
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(implement())
+      expect(implement()).toBeDisabled()
+
+      rerender(<RunCockpitView runId="run-2" />)
+      expect(implement()).toBeEnabled()
+      fireEvent.click(implement())
+      expect(implement()).toBeDisabled()
+      expect(requestImplementation).toHaveBeenCalledTimes(2)
+      expect(requestImplementation.mock.calls.map((call) => call[0])).toEqual(['run-1', 'run-2'])
+
+      await act(async () => {
+        finishA()
+      })
+      expect(implement()).toBeDisabled()
+
+      await act(async () => {
+        finishB()
+      })
+      await waitFor(() => expect(implement()).toBeEnabled())
+    })
+
     it('offers the implementation of a first revision after its own second review was Accepted', () => {
       arrange([rootCard, firstRevision], { reviewed: 'first', outcome: 'Accepted' }, { outcome: 'Resolved', original: 'root' })
 
@@ -1547,6 +1597,78 @@ describe('RunCockpitView', () => {
 
       expect(screen.getByRole('button', { name: 'Requesting repair…' })).toBeDisabled()
       expect(screen.getByRole('button', { name: /^Requesting…$/ })).toBeDisabled()
+    })
+
+    it('keeps ordinary and repair controls isolated per run while an older run’s requests complete late (real hooks)', async () => {
+      const realRepair = await vi.importActual<typeof useRequestCodeReviewRepairAttemptModule>(
+        '../hooks/useRequestCodeReviewRepairAttempt',
+      )
+      const realOrdinary = await vi.importActual<typeof useRequestCodeReviewModule>('../hooks/useRequestCodeReview')
+      useRequestCodeReviewRepairAttemptMock.mockImplementation(realRepair.useRequestCodeReviewRepairAttempt)
+      useRequestCodeReviewMock.mockImplementation(realOrdinary.useRequestCodeReview)
+      let finishOrdinaryA!: () => void
+      let finishOrdinaryB!: () => void
+      const requestCodeReview = vi
+        .fn()
+        .mockReturnValueOnce(new Promise<void>((resolve) => (finishOrdinaryA = resolve)))
+        .mockReturnValueOnce(new Promise<void>((resolve) => (finishOrdinaryB = resolve)))
+      vi.mocked(requestCodeReviewClient).mockReturnValue({ requestCodeReview } as unknown as ReturnType<
+        typeof requestCodeReviewClient
+      >)
+      useRunCockpitMock.mockImplementation((id: string | null) => ({
+        cockpit: new GetRunCockpitResponse({ ...runningCockpit, runId: id ?? undefined }),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      }))
+      useReviewCorrectionAttemptStatusMock.mockReturnValue({
+        status: new ReviewCorrectionAttemptStatusResponse({ reviewableExecutionReportMessageId: 'report-1' }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+      const refreshA = vi.fn()
+      useCodeReviewAttemptStatusMock.mockReturnValue({
+        status: new CodeReviewAttemptStatusResponse({
+          hasAttempt: true,
+          attemptId: 'code-review-9',
+          attemptNumber: 3,
+          status: 'Failed',
+          outcome: 'InvalidStructuredOutput',
+        }),
+        loading: false,
+        error: null,
+        refresh: refreshA,
+      })
+      const repairButton = () => screen.getByRole('button', { name: 'Request one format-repair code review' })
+
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Request code review' }))
+      expect(repairButton()).toBeDisabled()
+
+      rerender(<RunCockpitView runId="run-2" />)
+      expect(repairButton()).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Request code review' })).toBeEnabled()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Request code review' }))
+      expect(repairButton()).toBeDisabled()
+      expect(requestCodeReview).toHaveBeenCalledTimes(2)
+
+      await act(async () => {
+        finishOrdinaryA()
+      })
+      expect(repairButton()).toBeDisabled()
+      expect(screen.getByRole('button', { name: /^Requesting…$/ })).toBeDisabled()
+      expect(refreshA).not.toHaveBeenCalled()
+
+      await act(async () => {
+        finishOrdinaryB()
+      })
+      await waitFor(() => expect(repairButton()).toBeEnabled())
+      expect(refreshA).toHaveBeenCalledTimes(1)
     })
   })
 

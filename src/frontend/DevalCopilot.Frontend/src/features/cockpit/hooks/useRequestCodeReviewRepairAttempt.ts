@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback } from 'react'
 import { requestCodeReviewRepairAttemptClient } from '../../../api/clients'
 import { extractSafeErrorDetail } from './useRequestCodexPlanningAttempt'
+import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseRequestCodeReviewRepairAttemptResult {
   requesting: boolean
@@ -10,60 +11,28 @@ interface UseRequestCodeReviewRepairAttemptResult {
 
 const GENERIC_MESSAGE = 'A code review repair attempt could not be requested for this run.'
 
-/** The request state, tagged with the run it belongs to so a request started for one run can
- * never show its in-flight state or its error on a different run. */
-interface RepairRequestState {
-  runId: string
-  requesting: boolean
-  error: string | null
-}
-
 /**
  * Requests the one manual format repair of the given code review attempt for `runId`, then
  * triggers the caller's own status refresh. The server alone decides eligibility; this hook only
- * relays the request and surfaces the backend's fixed, safe error text.
+ * relays the request and surfaces the backend's fixed, safe error text. The request is bound to
+ * the run's interaction lifetime: a run switch or unmount drops the state, an obsolete completion
+ * never writes state or refreshes, and a second submission of the same attempt while one is in
+ * flight is ignored. An ignored completion does not cancel a request the server already accepted.
  */
 export function useRequestCodeReviewRepairAttempt(
   runId: string,
   onRequested: () => void,
 ): UseRequestCodeReviewRepairAttemptResult {
-  const [state, setState] = useState<RepairRequestState | null>(null)
-  // Bumped by every new request and by every run switch or unmount, so only the latest request of
-  // the current run may write state or trigger the refresh. Ignoring a stale completion does not
-  // cancel a request the server already accepted; the next status read shows its real outcome.
-  const generation = useRef(0)
-
-  useEffect(
-    () => () => {
-      generation.current += 1
-      setState(null)
-    },
-    [runId],
-  )
+  const { busy, error, run } = useRunScopedAction(runId)
 
   const request = useCallback(
-    async (sourceAttemptId: string) => {
-      const mine = ++generation.current
-      setState({ runId, requesting: true, error: null })
-      try {
-        await requestCodeReviewRepairAttemptClient().requestCodeReviewRepairAttempt(runId, sourceAttemptId)
-        if (mine !== generation.current) return false
-        setState({ runId, requesting: false, error: null })
-        onRequested()
-        return true
-      } catch (caught: unknown) {
-        if (mine !== generation.current) return false
-        setState({ runId, requesting: false, error: extractSafeErrorDetail(caught, GENERIC_MESSAGE) })
-        return false
-      }
-    },
-    [runId, onRequested],
+    (sourceAttemptId: string) =>
+      run(runId, () => requestCodeReviewRepairAttemptClient().requestCodeReviewRepairAttempt(runId, sourceAttemptId), {
+        toMessage: (caught) => extractSafeErrorDetail(caught, GENERIC_MESSAGE),
+        onSuccess: onRequested,
+      }),
+    [run, runId, onRequested],
   )
 
-  const belongsToCurrentRun = state?.runId === runId
-  return {
-    requesting: belongsToCurrentRun ? state.requesting : false,
-    error: belongsToCurrentRun ? state.error : null,
-    request,
-  }
+  return { requesting: busy, error, request }
 }
