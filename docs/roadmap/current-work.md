@@ -8,6 +8,20 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-30)
 
+- Published delivery: `c662a4d0915fbf4ece0304bcfd58b17eab964778` (parent `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`) was
+  committed with the reviewed optional Claude mutation agentic-turn-limit slice (61 modified and 46 new files, including this
+  file and `planner-handoff.md`), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main`
+  and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched that SHA with a clean tree. Before
+  staging, only the XML `<para>` of `ClaudeMutationTurnLimit.cs` was corrected to describe the type-preserving representation
+  (no executable code, test, wire contract, or migration changed). Staged `git diff --cached --check` was clean and local
+  documentation links (143) resolved. Post-publication checks against that commit: solution build
+  (`--no-restore -p:UseSharedCompilation=false -m:1`) 0 errors/0 warnings; Domain turn-limit and adapter-contract tests
+  112/112; Application setter, both claims, dispatch, eligibility, status, history, evidence, and cockpit tests 437/437;
+  Infrastructure adapters, migration, and exact-storage matrix 335/335; Api setter, malformed-storage and projection tests and
+  both hosted mutation-supervisor suites, including sealed replay and failed-invocation recovery, 139/139; frontend `vitest`
+  974/974 and `tsc -b` clean; no test was skipped in those runs; `api-client.ts` SHA-256
+  `b5f82c9b030fa1259c5456628b2196fea28e578d4193a9333a27a6e2e8ed424e` unchanged and the working tree clean afterward. This
+  closure records the delivered SHA and those checks only; no code or product contract changed after publication.
 - Published delivery: `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944` (parent `2c0c1be7895f31399db11d6e2320fb089da39296`) is
   the factual closure of the changed-line sample slice (its delivered SHA and checks; no code or product contract
   change). At the start of this slice, `main`, local `origin/main`, and the live remote matched it, nothing was staged
@@ -149,7 +163,7 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     agent-contract refusal) until an operator resolves it; no new recovery authority was added. The columns are not
     protected by a storage `CHECK` constraint, so a row written out of band is handled at read and dispatch time, not
     prevented. The cockpit shows a saved run request that can differ from an earlier attempt's immutable fact by design.
-  - Post-publication verification: after a GO and publication, rerun the focused turn-limit Domain, Application,
+  - Post-publication verification (completed; see the published-delivery entry above): rerun the focused turn-limit Domain, Application,
     Infrastructure adapter, storage and migration, Api endpoint, malformed-storage and hosted supervisor, and frontend
     turn-limit tests, and confirm the generated client is unchanged, against the delivered commit.
 - Published delivery: `2c0c1be7895f31399db11d6e2320fb089da39296` (parent `f6e26c109ef8679f34ba9f4b1c14e3dc391afb54`) was
