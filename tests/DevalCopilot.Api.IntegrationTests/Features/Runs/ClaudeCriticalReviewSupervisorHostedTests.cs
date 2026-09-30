@@ -441,6 +441,58 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
     }
 
     [Fact]
+    public async Task After_a_restart_the_claimed_attempt_dispatches_the_sealed_tracked_hunk_selection_not_a_fresh_capture()
+    {
+        static string Hunk(int start, string oldLine, string newLine) => $"@@ -{start},1 +{start},1 @@\n-{oldLine}\n+{newLine}\n";
+        static string File(string path, string hunks) => $"diff --git a/{path} b/{path}\nindex 1111111..2222222 100644\n--- a/{path}\n+++ b/{path}\n{hunks}";
+        var largeHunk = "@@ -1,50 +1,50 @@\n" + string.Concat(Enumerable.Range(0, 50).Select(i => $"-{new string('a', 90)}{i:D2}\n+{new string('b', 90)}{i:D2}\n"));
+        var claimDiff = File("src/Large.cs", largeHunk) + File("src/Small.cs", Hunk(3, "old sealed value", "new sealed value"));
+        var claimEvidence = new GitWorkspaceEvidenceResult(
+            GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint,
+            [new GitWorkspaceChangedPath("src/Large.cs", null, " ", "M"), new GitWorkspaceChangedPath("src/Small.cs", null, " ", "M")],
+            claimDiff);
+        Guid attemptId;
+        string sealedHashBeforeRestart;
+        await using (var first = BuildServiceProvider(new SequencedGitWorkspaceEvidenceReader(_ => claimEvidence), new FakeCriticalReviewAdapter(_artifactStore)))
+        {
+            (_, attemptId, _, _, _) = await SeedEligibleClaudeCriticalReviewAttemptAsync(
+                first, new SequencedGitWorkspaceEvidenceReader(_ => claimEvidence));
+            await using var scope = first.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            sealedHashBeforeRestart = (await db.Artifacts.SingleAsync(
+                a => a.AttemptId == attemptId && a.Purpose == ArtifactPurpose.AgentContextManifest)).ContentHash;
+        }
+
+        // A fresh container is a host restart. Its Git evidence differs, so only the sealed manifest can carry the selection.
+        var restartedEvidence = claimEvidence with { CompleteDiff = "REPLACED AFTER RESTART" };
+        var adapter = new FakeCriticalReviewAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson };
+        await using var restarted = BuildServiceProvider(new SequencedGitWorkspaceEvidenceReader(_ => restartedEvidence), adapter);
+        var supervisor = CreateSupervisor(restarted);
+        await supervisor.StartAsync(CancellationToken.None);
+        try
+        {
+            Assert.Equal(AttemptStatus.Completed, await PollForTerminalStatusAsync(restarted, attemptId));
+        }
+        finally
+        {
+            using var stopCancellation = new CancellationTokenSource(PollTimeout);
+            await supervisor.StopAsync(stopCancellation.Token);
+        }
+
+        var request = adapter.LastRequest!;
+        Assert.Equal(sealedHashBeforeRestart, request.ContextManifestContentHash);
+        var sealedManifest = await _artifactStore.VerifyAndReadSealedAsync(
+            request.ContextManifestRelativeStoragePath, request.ContextManifestByteLength, request.ContextManifestContentHash,
+            0, 32 * 1024, CancellationToken.None);
+        Assert.Equal(SealedReadStatus.Ok, sealedManifest.Status);
+        using var manifest = JsonDocument.Parse(sealedManifest.Text);
+        var evidence = manifest.RootElement.GetProperty("changeEvidence");
+        Assert.Contains("+new sealed value", evidence.GetProperty("diff").GetString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("REPLACED", sealedManifest.Text, StringComparison.Ordinal);
+        Assert.Equal("hunk_too_large", evidence.GetProperty("diffSelection").GetProperty("items")[0].GetProperty("reason").GetString());
+    }
+
+    [Fact]
     public async Task A_provider_rejection_of_the_requested_alias_is_recorded_as_a_failure_with_no_fallback_attempt()
     {
         var evidenceReader = new SequencedGitWorkspaceEvidenceReader(_ => SequencedGitWorkspaceEvidenceReader.Matching(Fingerprint));

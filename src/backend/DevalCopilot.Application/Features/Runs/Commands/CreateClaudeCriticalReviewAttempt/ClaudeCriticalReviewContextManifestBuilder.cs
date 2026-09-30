@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
@@ -37,11 +38,6 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
         "Does the bounded diff evidence actually support the proposal's own claims about current state?",
     ];
 
-    /// <summary>Hard ceiling on how much of the pre-dispatch bounded diff evidence this manifest
-    /// ever inlines — the evidence reader's own capture is already bounded, but this is an
-    /// independent, second bound at the point the manifest is assembled.</summary>
-    private const int MaxInlinedDiffCharacters = 8 * 1024;
-
     public static string Build(
         Guid projectId,
         Guid gitWorkspaceId,
@@ -54,10 +50,10 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
-        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+        ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             reviewedProposalMessageId, reviewedProposalSummary, reviewedProposalStructuredContentJson,
-            changedPaths, completeDiff, section));
+            changeEvidence));
 
     private static string Serialize(
         Guid projectId,
@@ -68,9 +64,7 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
         Guid reviewedProposalMessageId,
         string reviewedProposalSummary,
         string reviewedProposalStructuredContentJson,
-        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
-        object? untrackedSection)
+        Dictionary<string, object?> changeEvidence)
     {
         var document = new
         {
@@ -97,8 +91,7 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
                 summary = reviewedProposalSummary,
                 structuredContent = JsonSerializer.Deserialize<JsonElement>(reviewedProposalStructuredContentJson),
             },
-            changeEvidence = UntrackedFileManifestSection.BuildChangeEvidence(
-                changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection),
+            changeEvidence,
         };
 
         return JsonSerializer.Serialize(document);

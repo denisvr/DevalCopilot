@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAttempt;
@@ -23,10 +24,6 @@ internal static class ImplementationContextManifestBuilder
         "docs/engineering-context.md",
         "docs/architecture/agent-collaboration-protocol.md",
     ];
-
-    /// <summary>Hard ceiling on how much of the pre-dispatch bounded diff evidence this manifest
-    /// ever inlines — mirrors <c>ChallengeResolutionContextManifestBuilder</c>'s own bound.</summary>
-    private const int MaxInlinedDiffCharacters = 8 * 1024;
 
     internal sealed record AcceptanceEvidence(string Summary, string StructuredContentJson);
 
@@ -118,10 +115,10 @@ internal static class ImplementationContextManifestBuilder
         string? completeDiff,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles) =>
-        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+        ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             proposalMessageId, proposalSummary, proposalStructuredContentJson, resolutionEvidence,
-            changedPaths, completeDiff, configuredVerificationCommands, section));
+            configuredVerificationCommands, changeEvidence));
 
     private static string Serialize(
         Guid projectId,
@@ -133,10 +130,8 @@ internal static class ImplementationContextManifestBuilder
         string proposalSummary,
         string proposalStructuredContentJson,
         object resolutionEvidence,
-        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
-        object? untrackedSection)
+        Dictionary<string, object?> changeEvidence)
     {
         var document = new
         {
@@ -175,8 +170,7 @@ internal static class ImplementationContextManifestBuilder
                 structuredContent = Deserialize(proposalStructuredContentJson),
                 resolutionEvidence,
             },
-            changeEvidence = UntrackedFileManifestSection.BuildChangeEvidence(
-                changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection),
+            changeEvidence,
         };
 
         return JsonSerializer.Serialize(document);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrectionAttempt;
@@ -9,8 +10,6 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrection
 /// output is copied into the provider context.</summary>
 internal static class ReviewCorrectionContextManifestBuilder
 {
-    private const int MaxInlinedDiffCharacters = 8 * 1024;
-
     internal sealed record Finding(Guid MessageId, string Summary, string StructuredContentJson);
 
     /// <summary>The exact accepted human guidance and the HumanInstruction it was recorded in.</summary>
@@ -40,10 +39,10 @@ internal static class ReviewCorrectionContextManifestBuilder
         string? completeDiff,
         Guidance? humanGuidance = null,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
-        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+        ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, runId, workspaceId, startingCheckpointId, startingFingerprint, objective,
             executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,
-            orderedFindings, changedPaths, completeDiff, humanGuidance, section));
+            orderedFindings, humanGuidance, changeEvidence));
 
     private static string Serialize(
         Guid projectId,
@@ -56,10 +55,8 @@ internal static class ReviewCorrectionContextManifestBuilder
         string executionReportSummary,
         string executionReportStructuredContentJson,
         IReadOnlyList<Finding> orderedFindings,
-        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
         Guidance? humanGuidance,
-        object? untrackedSection)
+        Dictionary<string, object?> changeEvidence)
     {
         // Insertion order is the serialized order: an unguided document is byte-identical to the former
         // anonymous-type form, and the guidance fields are added once, only for an authorization that
@@ -103,8 +100,7 @@ internal static class ReviewCorrectionContextManifestBuilder
             summary = f.Summary,
             structuredContent = JsonSerializer.Deserialize<JsonElement>(f.StructuredContentJson),
         }).ToArray();
-        document["changeEvidence"] = UntrackedFileManifestSection.BuildChangeEvidence(
-            changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection);
+        document["changeEvidence"] = changeEvidence;
 
         return JsonSerializer.Serialize(document);
     }

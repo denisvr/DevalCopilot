@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateChallengeResolutionAttempt;
@@ -21,10 +22,6 @@ internal static class ChallengeResolutionContextManifestBuilder
         "docs/architecture/agent-collaboration-protocol.md",
     ];
 
-    /// <summary>Hard ceiling on how much of the pre-dispatch bounded diff evidence this manifest
-    /// ever inlines — mirrors <c>ClaudeCriticalReviewContextManifestBuilder</c>'s own bound.</summary>
-    private const int MaxInlinedDiffCharacters = 8 * 1024;
-
     internal sealed record ChallengeEvidence(Guid MessageId, string Summary, string StructuredContentJson);
 
     public static string Build(
@@ -40,10 +37,10 @@ internal static class ChallengeResolutionContextManifestBuilder
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
-        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+        ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             originalProposalMessageId, originalProposalSummary, originalProposalStructuredContentJson,
-            orderedChallenges, changedPaths, completeDiff, section));
+            orderedChallenges, changeEvidence));
 
     private static string Serialize(
         Guid projectId,
@@ -55,9 +52,7 @@ internal static class ChallengeResolutionContextManifestBuilder
         string originalProposalSummary,
         string originalProposalStructuredContentJson,
         IReadOnlyList<ChallengeEvidence> orderedChallenges,
-        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
-        object? untrackedSection)
+        Dictionary<string, object?> changeEvidence)
     {
         var document = new
         {
@@ -96,8 +91,7 @@ internal static class ChallengeResolutionContextManifestBuilder
                     structuredContent = JsonSerializer.Deserialize<JsonElement>(challenge.StructuredContentJson),
                 })
                 .ToArray(),
-            changeEvidence = UntrackedFileManifestSection.BuildChangeEvidence(
-                changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection),
+            changeEvidence,
         };
 
         return JsonSerializer.Serialize(document);

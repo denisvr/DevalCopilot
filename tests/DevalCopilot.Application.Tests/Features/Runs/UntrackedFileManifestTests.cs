@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
-using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Commands.CreateChallengeResolutionAttempt;
 using DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodeReviewAttempt;
@@ -38,7 +38,7 @@ public sealed class UntrackedFileManifestTests
     private static string Padded(int paddingCharacters) =>
         JsonSerializer.Serialize(new { p = new string('p', paddingCharacters) });
 
-    private static BuildManifest Builder(string variant) => variant switch
+    internal static BuildManifest Builder(string variant) => variant switch
     {
         "critical-review" => (paths, diff, files, padding) => ClaudeCriticalReviewContextManifestBuilder.Build(
             Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding), paths, diff, files),
@@ -75,14 +75,14 @@ public sealed class UntrackedFileManifestTests
         _ => throw new ArgumentOutOfRangeException(nameof(variant)),
     };
 
-    private static GitWorkspaceChangedPath Untracked(string path) => new(path, null, "?", "?");
+    internal static GitWorkspaceChangedPath Untracked(string path) => new(path, null, "?", "?");
 
-    private static GitWorkspaceChangedPath Tracked(string path) => new(path, null, " ", "M");
+    internal static GitWorkspaceChangedPath Tracked(string path) => new(path, null, " ", "M");
 
-    private static GitWorkspaceUntrackedFile Included(string path, string text, bool complete = true, long? size = null) =>
+    internal static GitWorkspaceUntrackedFile Included(string path, string text, bool complete = true, long? size = null) =>
         new(path, null, size ?? Encoding.UTF8.GetByteCount(text), text, complete);
 
-    private static GitWorkspaceUntrackedFile Omitted(string path, GitWorkspaceUntrackedOmission reason, long? size = null) =>
+    internal static GitWorkspaceUntrackedFile Omitted(string path, GitWorkspaceUntrackedOmission reason, long? size = null) =>
         new(path, reason, size, null, false);
 
     private static JsonElement Files(string manifest) =>

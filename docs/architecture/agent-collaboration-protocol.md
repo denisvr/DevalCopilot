@@ -438,8 +438,9 @@ Agent input is assembled from selected durable records:
 - applicable project instructions;
 - current plan revision and unresolved challenges;
 - relevant decisions and findings;
-- Git fingerprint, bounded tracked diff, and bounded previews of eligible untracked text files, each marked as
-  complete, shortened, or omitted (see "Bounded untracked-file previews in Agent manifests");
+- Git fingerprint, a bounded selection of complete tracked-file hunks, and bounded previews of eligible untracked
+  text files, each marked as complete, shortened, or omitted (see "Bounded tracked-hunk evidence in Agent manifests"
+  and "Bounded untracked-file previews in Agent manifests");
 - verification evidence and selected log excerpts;
 - budgets, permissions, and expected response schema.
 
@@ -2186,8 +2187,8 @@ now also carry an `untrackedFiles` section inside `changeEvidence`, under the sa
 - **Other hosts.** There is no equivalent proof, so every untracked file is omitted as `containment_unproven`;
   lexical containment is never used as a substitute.
 - **Bounds.** At most 4 KiB of each file and 16 KiB in total at the reader, then measured against the 32 KiB
-  manifest ceiling as serialized: the preview budget is halved (16, 8, 4, 2, 1, 0 KiB) until the manifest fits, and
-  a last fixed-size summary (`omittedFileCount`, `omissionReason: manifest_budget`) states that everything was
+  manifest ceiling as serialized together with the tracked hunks (see "Bounded tracked-hunk evidence in Agent
+  manifests"): the preview budget is reduced until the manifest fits, and a last fixed-size summary (`omittedFileCount`, `omissionReason: manifest_budget`) states that everything was
   omitted. Cuts land on a character boundary.
 - **Truthfulness.** Each entry says `preview: included|omitted`, an `omissionReason` (`not_regular_file`,
   `containment_unproven`, `missing`, `unreadable`, `content_identity_mismatch`, `too_large`, `binary`, `invalid_utf8`,
@@ -2203,6 +2204,50 @@ now also carry an `untrackedFiles` section inside `changeEvidence`, under the sa
 - **Not included.** A generic file browser or retrieval tool, tracked-file full text, a per-file request, a provider
   flag, permission or session change, generated summaries, compaction, account or approval semantics, and any change
   to the checkpoint fingerprint, claim, budget, or dispatch rules. The evidence is untrusted context, not approval.
+
+### Bounded tracked-hunk evidence in Agent manifests
+
+The five Agent manifests that carry `changeEvidence` used to copy the first 8,192 UTF-16 characters of the captured
+tracked diff. That prefix could end inside a hunk or a Unicode scalar and let one large first file hide every later
+change. They now share one policy (`ChangeEvidenceManifest`, with `TrackedDiffParser` and `TrackedDiffSelector`, under
+`Features/Runs/Policies`) that consumes only the diff and changed paths the reader already captured and bracketed; no
+Git call, capture command, fingerprint, changed-path list, claim rule, or replay rule changed.
+
+- **Small valid diffs are unchanged.** An empty diff stays `""` and an absent diff stays `null`. A non-empty diff is
+  inlined as the exact string with `diffTruncated: false` and no extra member, as before, only when it fits 8 KiB
+  (UTF-8 bytes) and its parse is recognized with every file a supported text or metadata-only block and no binary
+  patch. A short non-header string, a malformed hunk, an unsupported header line, or an unparseable path is never
+  presented as a complete exact diff: it receives the omission metadata below.
+- **Selection.** Otherwise the diff is split into `diff --git` blocks and hunks. A boundary is taken only where the
+  format makes it certain: content lines carry a `' '`, `'+'`, `'-'`, or `'\'` prefix, so a line beginning with
+  `diff --git ` or `@@ ` is always a header, and a hunk ends exactly where its header's old and new line counts are
+  consumed (a trailing `\ No newline at end of file` stays inside its hunk). Complete file headers and complete hunks
+  are then chosen in rounds over the files in diff order, at most one further hunk per file per round, so every file
+  receives a first hunk before any file receives a second and an oversized hunk never prevents a later smaller hunk of
+  the same or another file from being chosen. Output keeps the original file and hunk order, is deterministic, is at
+  most 8 KiB of UTF-8, and is assembled only from whole hunks, so no hunk and no Unicode scalar is split.
+- **Truthful accounting.** A selected subset sets `diffTruncated: true` and adds `diffSelection`: `complete: false`, a
+  fixed notice that the text is not the full diff and not an applyable patch, file counts (`total`, `included`,
+  `partial`, `omitted`), hunk counts, and `items` for every file that is not fully present, each with its path, kind
+  (`text`, `metadata_only`, `binary`, `unsupported`), selection (`partial`, `omitted`), hunk counts, and a fixed reason
+  (`hunk_too_large`, `diff_budget`, `binary`, `unsupported_format`, `malformed_hunk`, `header_unparseable`,
+  `manifest_budget`). No reason carries source text, a binary payload, a path, or an exception. Metadata-only changes
+  (a mode change, an empty file added or removed) are included whole because their header is the entire change; a
+  binary patch's payload is never sent. Quoted paths (octal escapes for non-ASCII bytes) are decoded exactly one way;
+  only the default `a/` and `b/` prefixes with the same path on both sides are accepted, so a repository configured
+  with `diff.noprefix` or `diff.mnemonicPrefix` reports its files as `header_unparseable` instead of being guessed. A
+  text that does not begin with a git file header, or a block whose counts or header lines do not check out, is
+  reported as `unsupported_format` or `malformed_hunk` and never truncated by characters.
+- **Fitting with untracked previews.** The whole serialized manifest is measured against the 32 KiB ceiling. Optional
+  text is reduced together, tracked hunks and untracked previews, through the steps 8 KiB/16 KiB, 8/8, 4/4, 2/2, 1/1,
+  0/0; then the tracked `items` are replaced by their counts (`itemsOmitted`); then the untracked section becomes its
+  omitted-file count. Authoritative plan, review, and correction inputs, every changed path, the tracked counts, and
+  the untracked accounting are never dropped. If those alone exceed the ceiling the builder returns them and the claim
+  handler's existing `context_manifest_too_large` refusal applies.
+- **Boundaries.** Repository text stays inside the manifest's existing untrusted-evidence boundary and appears only
+  in the sealed manifest and provider input. A sealed manifest replays byte for byte after a restart; the selection is
+  never recomputed at dispatch. Not included: raw full-diff or file retrieval, a new Git command, a rename or copy
+  format, and any approval or eligibility meaning.
 
 ## Token efficiency
 

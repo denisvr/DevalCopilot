@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateCodeReviewAttempt;
@@ -24,8 +25,6 @@ internal static class CodeReviewContextManifestBuilder
         "docs/engineering-context.md",
         "docs/architecture/agent-collaboration-protocol.md",
     ];
-
-    private const int MaxInlinedDiffCharacters = 8 * 1024;
 
     internal sealed record VerificationEvidence(
         string CommandName, int CommandNumber, string Status, string? Outcome, int? ExitCode);
@@ -57,11 +56,11 @@ internal static class CodeReviewContextManifestBuilder
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
-        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section => Serialize(
+        ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, resultGitCheckpointId, resultCheckpointFingerprintSha256, runObjective,
             resolvedPlanMessageId, resolvedPlanSummary, resolvedPlanStructuredContentJson,
             executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,
-            orderedVerificationEvidence, changedPaths, completeDiff, section));
+            orderedVerificationEvidence, changeEvidence));
 
     private static string Serialize(
         Guid projectId,
@@ -76,9 +75,7 @@ internal static class CodeReviewContextManifestBuilder
         string executionReportSummary,
         string executionReportStructuredContentJson,
         IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
-        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
-        object? untrackedSection)
+        Dictionary<string, object?> changeEvidence)
     {
         var document = new
         {
@@ -126,8 +123,7 @@ internal static class CodeReviewContextManifestBuilder
                     evidence.ExitCode,
                 })
                 .ToArray(),
-            changeEvidence = UntrackedFileManifestSection.BuildChangeEvidence(
-                changedPaths, completeDiff, MaxInlinedDiffCharacters, untrackedSection),
+            changeEvidence,
         };
 
         return JsonSerializer.Serialize(document);
@@ -152,7 +148,7 @@ internal static class CodeReviewContextManifestBuilder
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
         // The correction evidence is part of what must fit the manifest ceiling, so it is added
         // inside each fitting attempt rather than after the section was already sized.
-        UntrackedFileManifestSection.Fit(changedPaths, untrackedFiles, section =>
+        ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence =>
         {
             var root = JsonNode.Parse(Serialize(
                 projectId,
@@ -167,9 +163,7 @@ internal static class CodeReviewContextManifestBuilder
                 executionReportSummary,
                 executionReportStructuredContentJson,
                 orderedVerificationEvidence,
-                changedPaths,
-                completeDiff,
-                section))!.AsObject();
+                changeEvidence))!.AsObject();
             return AddCorrectionEvidence(root, correctionEvidence);
         });
 

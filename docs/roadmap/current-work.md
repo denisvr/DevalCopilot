@@ -8,6 +8,91 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `882c707252a3ea6da1302b67bbe65eefb36c331b` (parent `6367e359674799fb1f41d8a919c61ed56f15b4cd`) is
+  the factual closure of the untracked-file-context slice (its delivered SHA and checks; no code or product contract
+  change). At the start of the next slice, `main`, local `origin/main`, and the live remote matched it, nothing was
+  staged or untracked, and only `docs/roadmap/planner-handoff.md` (the planner's slice selection) was modified.
+- Current delivery, based on verified parent `882c707252a3ea6da1302b67bbe65eefb36c331b`: **bounded tracked-hunk
+  evidence across Agent manifests**. See [planner-handoff.md](planner-handoff.md) for the selection and
+  ["Bounded tracked-hunk evidence in Agent manifests"](../architecture/agent-collaboration-protocol.md#bounded-tracked-hunk-evidence-in-agent-manifests)
+  for the contract. No ADR is added or reversed; no migration, API route or contract, generated-client, Git capture
+  command, fingerprint, changed-path list, claim-eligibility, provider, permission, budget, or frontend change.
+  - Defect proven first: the five manifest builders copied `CompleteDiff[..8192]` (UTF-16 characters). A deterministic
+    fixture (`TrackedDiffPrefixDefectTests`) with a large first file and a later small change failed against the old
+    code (`Not found: "+new value"`), and a real disposable worktree (`TrackedDiffRealGitTests`) shows the first 8,192
+    characters contain neither the later file's header nor its change. Both now pass, and the fixture test remains as
+    the regression.
+  - Correction round (review NO-GO on the small-diff shortcut): the exact-string path had required only a size within 8 KiB
+    and no binary marker, so a short non-header string, a small block with a malformed hunk, an unsupported header
+    line, or an unparseable path was inlined verbatim and marked `diffTruncated: false`, i.e. complete. It now requires an
+    empty diff or a recognized parse in which every file is a supported text or metadata-only block with no binary patch.
+    `TrackedDiffShortInputTests` covers the four short cases across all seven builder entry points (28 cases) and the
+    valid small text plus metadata-only diff (7); before the fix the 28 failed and the 7 passed, and all 35 pass now.
+    Application is now 1668 (35 more); Domain, Infrastructure, Api, Architecture, the generated client, links, and
+    `git diff --check` were rerun on the final tree with the results below.
+  - Behavior: one shared policy in `Features/Runs/Policies` (`ChangeEvidenceManifest`, `TrackedDiffParser`,
+    `TrackedDiffSelector`, and small records; the previous slice's `UntrackedFileManifestSection` moved there from the
+    feature root and now only shapes the untracked section) replaces the prefix in all seven builder entry points
+    (critical review, challenge resolution, implementation accepted and revised, implementation review and its correction
+    variant, review correction). It reads only the captured `CompleteDiff` and `ChangedPaths`. An empty diff
+    stays `""` and an absent diff stays `null`; a non-empty diff keeps its exact string, `diffTruncated: false`, and
+    the historical member set only when it fits 8 KiB of UTF-8 and its parse is recognized with every file a supported
+    text or metadata-only block and no binary patch. Otherwise the diff is split into blocks and whole hunks (boundaries are
+    certain because content lines carry a prefix, and a hunk ends where its header counts are consumed; a
+    `\ No newline at end of file` marker stays in its hunk), and complete headers and hunks are selected in rounds, at
+    most one further hunk per file per round, in original order, within 8 KiB of UTF-8, so no hunk and no scalar is
+    split, every file gets a first hunk before any gets a second, and an oversized hunk never blocks a later small one.
+    `diffTruncated` is true and `diffSelection` states `complete: false`, that the text is not the full or an
+    applyable patch, file and hunk counts, and `items` for every partial or absent file with a fixed reason
+    (`hunk_too_large`, `diff_budget`, `binary`, `unsupported_format`, `malformed_hunk`, `header_unparseable`,
+    `manifest_budget`), never source text, a payload, a path in a reason, or an exception. Metadata-only changes are
+    included whole; binary payloads are never sent; quoted (octal-escaped) paths decode one way; only `a/` and `b/`
+    prefixes with equal paths are accepted, and anything else is reported, not guessed. A text that does not start with
+    a git file header, even a short one, is `unsupported_format` with `diff: null`, and a short block with a malformed
+    hunk, an unsupported header line, or an unparseable path is never inlined as an exact complete string: it is a
+    recognized, omitted file item with its fixed reason. Fitting measures the serialized manifest against 32 KiB
+    and reduces tracked hunks and untracked previews together (8/16, 8/8, 4/4, 2/2, 1/1, 0/0 KiB), then replaces tracked
+    `items` with counts, then the untracked section with its omitted-file count; plan/review inputs, all changed
+    paths, and the accounting are never dropped, and if they alone exceed 32 KiB the builder returns them and the
+    handler's existing `context_manifest_too_large` refusal applies.
+  - Checks run (final tree): `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false` 0 errors/0
+    warnings; Domain 670/670; Application 1668/1668 (was 1543); Infrastructure 625 passed, 3 skipped (unchanged: the
+    two existing symlink skips and the previous slice's file-symbolic-link case, because this host cannot create a
+    file symlink without elevation); Api 464/464 (was 463); Architecture 9/9; frontend not touched, so no frontend
+    check was run; `api-client.ts` byte-identical after the build (SHA-256 `b3e1c836…`, unchanged); `git diff --check`
+    clean; local links in the changed and handoff documents resolve (script, including the new anchor). Focused tests
+    were run first.
+  - New tests: `TrackedDiffEvidenceTests` (parser: empty and unrecognized text, whole-hunk splitting with exact
+    round trip, missing-final-newline markers on either side, binary/mode-only/empty-file classification, quoted
+    octal, space, and tab paths, six malformed or unsupported forms with fixed reasons, header-looking body lines;
+    selector: oversized-first-hunk, first-hunk-per-file fairness, whole-hunk/ordered/deterministic/UTF-8 byte bound
+    at five budgets, a hunk crossing the old cutoff, nontext accounting; and, for all seven builder entry points,
+    small-diff exact compatibility, empty and absent diffs, large-first-file with omissions reported, non-ASCII hunks
+    and quoted paths, unsupported format, coexistence with untracked previews, tight fitting across 25 paddings with
+    mandatory inputs and every accounting entry retained and both tracked and untracked text reduced, a mandatory-only
+    manifest that is returned oversize for the handler's refusal, determinism, and repository text only under
+    `changeEvidence`); `TrackedDiffRealGitTests` (a disposable worktree with staged and unstaged changes, a large
+    first file, a later small change, a non-ASCII quoted path, a path with a space, a missing final newline, a binary
+    file, a mode-only change, and an untracked file: identical fingerprint and diff for identical input and equal to an
+    independent `git diff` run, the old prefix defect, parse without unsupported files, the selection, and byte-identical
+    manifests across captures); and one hosted test through the real command chain and artifact store in which a fresh
+    container (a host restart) with different Git evidence dispatches the sealed selection, whose hash equals the
+    artifact row recorded before the restart. The previous slice's builder test was updated only for the new namespace
+    and shared variant table.
+  - Mutation checks (each failed the targeted tests, then restored): letting a hunk be cut at the byte budget failed
+    dozens of tests (all seven builders' large-file, non-ASCII, coexistence, and boundary tests, the selector budget
+    test, and the prefix-defect regression); removing the one-hunk-per-file-per-round limit failed the fairness test.
+  - Open risks and limits: a repository configured with `diff.noprefix` or `diff.mnemonicPrefix` reports its files as
+    `header_unparseable` (accounted, not guessed) because the capture command is fixed; renames and copies are not
+    captured (`--no-renames`) and a rename-format block would be `unsupported_format`; invalid UTF-8 inside tracked
+    text reaches the selector already replaced by the process reader; only complete hunks are shown, so a single hunk
+    over 8 KiB (for example a 300-line rewrite) is omitted entirely as `hunk_too_large` rather than shown in part,
+    which is deliberate but can hide the most relevant change of a very large file; hunk selection is fair by round,
+    not by relevance; the mandatory-only refusal is proven at the builder (the returned size) and by the unchanged
+    handler bound, not by a new handler-level test; and the parser trusts hunk counts as a boundary, so a diff
+    engineered to be self-consistent but misleading is still only untrusted evidence.
+  - Post-publication verification: after a GO and publication, rerun the focused tracked-diff parser, selector,
+    builder, real-Git, handler, and hosted restart-replay tests against the delivered commit.
 - Published delivery: `6367e359674799fb1f41d8a919c61ed56f15b4cd` (parent `87e42a06f2f82f5cfde05939d8e923730bcbe8a1`) was
   committed with the reviewed bounded untracked-file context slice (23 modified, 9 new files, including this file and
   `planner-handoff.md`), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main` and
