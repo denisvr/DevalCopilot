@@ -8,6 +8,17 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-29)
 
+- Published delivery: `b19413fac3f82f400c00ea6ab787d45c2898f1ae` (parent `882c707252a3ea6da1302b67bbe65eefb36c331b`) was
+  committed with the reviewed bounded tracked-hunk evidence slice (11 modified, 1 deleted, 14 new files, including this
+  file and `planner-handoff.md`), pushed as a normal fast-forward to `origin/main`, and verified with
+  `git fetch origin main` and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched that
+  SHA with a clean tree. Staged `git diff --cached --check` was clean and local documentation links (117) resolved; no
+  code, test, or document changed between the reviewed diff and the commit. Post-publication checks against that
+  commit: solution build 0 errors/0 warnings; Application tracked-diff parser, selector, builder, short-input, and
+  real-Git tests, the untracked-manifest tests, and the five handler test classes plus review-correction guidance tests
+  420/420; hosted critical-review supervisor tests, including the sealed restart replay, 17/17; no test was skipped
+  in those runs. This closure records the delivered SHA and those checks only; no code or product contract changed
+  after publication.
 - Published delivery: `882c707252a3ea6da1302b67bbe65eefb36c331b` (parent `6367e359674799fb1f41d8a919c61ed56f15b4cd`) is
   the factual closure of the untracked-file-context slice (its delivered SHA and checks; no code or product contract
   change). At the start of the next slice, `main`, local `origin/main`, and the live remote matched it, nothing was
