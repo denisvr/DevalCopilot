@@ -2,6 +2,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -83,6 +84,8 @@ public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContex
         var configuredCommandSandbox = isCoherentDefaultCodeReviewerAssignment ? ConfiguredCodexCommandSandbox : null;
         var configuredRolloutPersistence = isCoherentDefaultCodeReviewerAssignment ? ConfiguredCodexRolloutPersistence : null;
 
+        var repairLineage = await AgentRepairLineage.ReadForStatusAsync(dbContext, attempt, cancellationToken);
+
         return Result<CodeReviewAttemptStatusQueryResult>.Success(new CodeReviewAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -98,7 +101,9 @@ public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContex
             attempt.AgentTimeout,
             attempt.GetAgentTokenUsageEvidence(),
             configuredCommandSandbox,
-            configuredRolloutPersistence));
+            configuredRolloutPersistence,
+            repairLineage.SourceAttemptId,
+            repairLineage.SourceAttemptNumber));
     }
 
     private static Result<CodeReviewAttemptStatusQueryResult> InvalidAssignment() =>

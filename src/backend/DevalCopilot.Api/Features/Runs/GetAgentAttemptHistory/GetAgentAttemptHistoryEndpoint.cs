@@ -53,7 +53,9 @@ public sealed class GetAgentAttemptHistoryEndpoint(
                     entry.Role?.ToString(),
                     entry.Provider?.ToString(),
                     entry.ResponseContract?.ToString(),
-                    entry.Outcome?.ToString()))
+                    entry.Outcome?.ToString(),
+                    entry.RepairSourceAttemptId,
+                    entry.RepairSourceAttemptNumber))
                 .ToArray(),
             value.HasMore,
             value.NextBeforeAttemptNumber));

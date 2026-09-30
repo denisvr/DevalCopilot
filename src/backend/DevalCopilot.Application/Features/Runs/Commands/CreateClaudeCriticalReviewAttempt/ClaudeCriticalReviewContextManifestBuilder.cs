@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
@@ -38,6 +39,14 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
         "Does the bounded diff evidence actually support the proposal's own claims about current state?",
     ];
 
+    /// <summary>The fixed, host-authored reminder carried by a format-repair manifest — the only
+    /// repair-specific content. Never the source response, a parser detail, an artifact path, an
+    /// attempt identity, or human text; it frames the result as a fresh review, not a correction.</summary>
+    public const string FormatRepairNotice =
+        "An earlier critical-review response for this proposal failed structural validation. "
+        + "This is a fresh review request: return exactly one response that satisfies the "
+        + "unchanged expectedOutputSchema.";
+
     public static string Build(
         Guid projectId,
         Guid gitWorkspaceId,
@@ -49,11 +58,12 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
         string reviewedProposalStructuredContentJson,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
+        bool formatRepair = false) =>
         ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             reviewedProposalMessageId, reviewedProposalSummary, reviewedProposalStructuredContentJson,
-            changeEvidence));
+            changeEvidence, formatRepair));
 
     private static string Serialize(
         Guid projectId,
@@ -64,7 +74,8 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
         Guid reviewedProposalMessageId,
         string reviewedProposalSummary,
         string reviewedProposalStructuredContentJson,
-        Dictionary<string, object?> changeEvidence)
+        Dictionary<string, object?> changeEvidence,
+        bool formatRepair)
     {
         var document = new
         {
@@ -94,6 +105,7 @@ internal static class ClaudeCriticalReviewContextManifestBuilder
             changeEvidence,
         };
 
-        return JsonSerializer.Serialize(document);
+        var json = JsonSerializer.Serialize(document);
+        return formatRepair ? ReadOnlyFormatRepairManifest.InsertNotice(json, FormatRepairNotice) : json;
     }
 }

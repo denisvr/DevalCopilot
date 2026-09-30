@@ -56,7 +56,14 @@ public sealed record ClaudeCriticalReviewAttemptStatusQueryResult(
     /// eligibility. Populated only when provider, role, permission profile, and adapter contract
     /// version all agree with the current, single supported critical-review adapter; otherwise
     /// <see langword="null"/>.</summary>
-    string? ConfiguredBuiltInTools = null)
+    string? ConfiguredBuiltInTools = null,
+    /// <summary>Immutable lineage: the attempt this attempt is the one manual format repair of, or
+    /// <see langword="null"/> for an ordinary attempt. Always present for a repair, even when no source attempt of
+    /// this run is found. Provenance only — never a claim that this attempt corrected the source.</summary>
+    Guid? RepairSourceAttemptId = null,
+    /// <summary>The source attempt's number within this run, or <see langword="null"/> for an ordinary attempt
+    /// or when no source attempt of the same run is found (the id above stays present).</summary>
+    int? RepairSourceAttemptNumber = null)
 {
     public static readonly ClaudeCriticalReviewAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, []);

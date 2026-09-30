@@ -2,6 +2,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -94,6 +95,8 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
         var configuredBuiltInTools = isCoherentDefaultCriticalReviewerAssignment
             ? ConfiguredClaudeCriticalReviewerBuiltInTools : null;
 
+        var repairLineage = await AgentRepairLineage.ReadForStatusAsync(dbContext, attempt, cancellationToken);
+
         return Result<ClaudeCriticalReviewAttemptStatusQueryResult>.Success(new ClaudeCriticalReviewAttemptStatusQueryResult(
             true,
             attempt.Id,
@@ -112,7 +115,9 @@ public sealed class GetClaudeCriticalReviewAttemptStatusQueryHandler(IDevalCopil
             configuredSessionPersistence,
             configuredPermissionPrompts,
             configuredResumeEligibility,
-            configuredBuiltInTools));
+            configuredBuiltInTools,
+            repairLineage.SourceAttemptId,
+            repairLineage.SourceAttemptNumber));
     }
 
     private static Result<ClaudeCriticalReviewAttemptStatusQueryResult> InvalidAssignment() =>

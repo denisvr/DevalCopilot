@@ -41,7 +41,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// <c>ClaudeCriticalReviewSupervisorHostedTests</c>'s own race test exactly, one level further
 /// down the collaboration protocol.
 /// </summary>
-public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
+public sealed partial class ChallengeResolutionSupervisorHostedTests : IDisposable
 {
     private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TerminalPollTimeout = TimeSpan.FromSeconds(10);
@@ -697,6 +697,8 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
 
         public int InvocationCount => Volatile.Read(ref _invocationCount);
 
+        public ChallengeResolutionInvocationRequest? LastRequest { get; private set; }
+
         public string? FinalResponseJsonToWrite { get; set; }
 
         public ChallengeResolutionInvocationResult ResultToReturn { get; set; } =
@@ -706,6 +708,7 @@ public sealed class ChallengeResolutionSupervisorHostedTests : IDisposable
             ChallengeResolutionInvocationRequest request, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _invocationCount);
+            LastRequest = request;
 
             if (FinalResponseJsonToWrite is { } content)
             {

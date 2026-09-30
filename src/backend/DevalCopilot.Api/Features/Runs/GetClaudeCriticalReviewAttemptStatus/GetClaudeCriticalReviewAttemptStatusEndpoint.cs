@@ -48,6 +48,8 @@ public sealed class GetClaudeCriticalReviewAttemptStatusEndpoint(
             value.ConfiguredSessionPersistence,
             value.ConfiguredPermissionPrompts,
             value.ConfiguredResumeEligibility,
-            value.ConfiguredBuiltInTools));
+            value.ConfiguredBuiltInTools,
+            value.RepairSourceAttemptId,
+            value.RepairSourceAttemptNumber));
     }
 }

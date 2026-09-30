@@ -16,4 +16,9 @@ public sealed record AgentAttemptHistoryEntryResponse(
     string? Role,
     string? Provider,
     string? ResponseContract,
-    string? Outcome);
+    string? Outcome,
+    /// <summary>The attempt this attempt is the one manual format repair of when that link can be proved (an
+    /// earlier Agent attempt of this run), else null. Lineage only, never a claim that the source was fixed.</summary>
+    Guid? RepairSourceAttemptId = null,
+    /// <summary>The proved source attempt's number, else null.</summary>
+    int? RepairSourceAttemptNumber = null);

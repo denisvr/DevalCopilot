@@ -34,7 +34,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// of the first round and of the second review is seeded through the real production commands, so the
 /// lineage the supervisor's second resolution runs against is exactly what production writes.
 /// </summary>
-public sealed class SecondChallengeRoundSupervisorHostedTests : IDisposable
+public sealed partial class SecondChallengeRoundSupervisorHostedTests : IDisposable
 {
     private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TerminalPollTimeout = TimeSpan.FromSeconds(10);

@@ -7,7 +7,240 @@ Read [AGENTS.md](../../AGENTS.md) for the standing review and publication rules,
 for product and architecture decisions. Verify this checkpoint against Git and
 code before relying on it; older decision detail remains in Git.
 
-## Current selection (2026-09-30): optional Claude mutation agentic-turn limit
+## Current selection (2026-09-30): manual format recovery for the remaining read-only collaboration stages
+
+- Publication and baseline independently verified: branch `main`; `HEAD`, local `origin/main`, and live
+  `origin/main` all equal `a75d524b42306818acd139a4d00f58234d0e29d5`; staged, unstaged, and untracked
+  state empty before this selection. The reviewed turn-limit slice is published as
+  `c662a4d0915fbf4ece0304bcfd58b17eab964778`, parent `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`;
+  its 107-file inventory, permitted XML correction, generated-client SHA-256, and the current-work-only
+  factual closure at this baseline match the publication report. The parent chain is fast-forward; no
+  history discrepancy was found. The executor's post-publication checks are recorded in
+  [current-work.md](current-work.md); they are executor evidence, distinct from Codex's already-recorded
+  independent pre-publication checks. After this planner edit, expect the same branch and refs, nothing
+  staged, only `docs/roadmap/planner-handoff.md` modified/unstaged, and nothing untracked.
+- Selected exactly one bounded Increment 4 outcome: extend the existing **one manual format-repair
+  request per failed source attempt** to CriticalReviewer/CriticalReview (Claude Code),
+  Resolver/ChallengeResolution (Codex), and CodeReviewer/ImplementationReview (Codex), completing this
+  capability across the currently implemented read-only collaboration stages. The existing Planner
+  repair remains behaviorally unchanged. The user can recover these stages after a structurally invalid
+  response without losing the failure record or making an unlinked retry look like its repair.
+- Evidence and alternatives: [ADR-0004](../decisions/0004-use-a-structured-agent-collaboration-protocol.md)
+  explicitly permits one bounded format repair after invalid structured output. The current implementation
+  provides that end-to-end capability only for Planner/Proposal. The other three read-only claim/status/UI
+  paths have ordinary requests and fail-closed results but no repair-source link or repair operation.
+  `Attempt.AgentRepairSourceAttemptId`, its self-reference, and filtered unique index already provide
+  immutable lineage and a database backstop; the column/index are not role-specific. Resolver already
+  rechecks its ordered challenges inside its claim transaction. CodeReviewer owns both ordered inputs
+  and ordered `AttemptVerificationEvidence`, with exact duplicate-review comparison, but a repair must
+  additionally retain the failed source's exact identity. CriticalReviewer currently makes a late read
+  followed by `SaveChangesAsync`; a read alone is insufficient for the repair's cross-row commit guard.
+  Completing all three instances of the same accepted recovery capability is more useful than separate
+  disclosure slices or further context sampling after the published untracked, whole-hunk, and changed-line
+  work. Account-allowance enforcement, Claude allowance, provider-session resume, and context occupancy/
+  compaction still lack the necessary safe contracts for a sound selection. Codex allowance observation
+  is neither threshold enforcement nor invocation eligibility. No new external provider capability is
+  required here: reuse the existing role-specific fresh invocations, arguments, schemas, and parsers.
+- Architectural boundary: each repair is a **fresh invocation of the same read-only role**, with a fixed
+  host-authored format reminder and the ordinarily validated durable context. It neither transforms nor
+  preserves the meaning of the failed output. Add three protected, bodyless, source-anchored request
+  operations under `/api/runs/{runId}/agent-attempts/{sourceAttemptId}` with suffixes
+  `critical-review-repair`, `challenge-resolution-repair`, and `code-review-repair`. Each endpoint sends one
+  command through the mediator; the role's claim handler derives the target from the source's persisted
+  inputs. The frontend supplies no replacement Proposal, challenged-review, ExecutionReport, verification
+  set, free text, provider, or permission. Extend the existing role claim handlers rather than creating a
+  second orchestration layer; keep role-specific validation, manifests, result types, and supervisors.
+- Source rules for these three new operations: same run; Agent kind; `Failed` with exactly
+  `InvalidStructuredOutput`; dispatched and concluded; coherent host process evidence proving clean exit;
+  supported exact role/provider/response-contract/expected-message tuple, `ReadOnly` profile, and that
+  path's current known v1 adapter contract. Require a well-formed assignment, no repair source of its own,
+  no already-claimed repair, no durable semantic result messages from the failed source, and the run's
+  latest Agent attempt. Unknown and foreign-run sources yield the same fixed 404; invalid, stale,
+  already-repaired, and repair-of-repair sources yield safe refusals without persisted-value disclosure.
+  Unreadable enum/assignment/process/input metadata must fail closed without materialization crashes;
+  do not report database or cancellation failures as invalid source evidence.
+- Exact context: retain the source's workspace, checkpoint, and fingerprint, and require them to be
+  current under the ordinary role gates. CriticalReviewer retains exactly its one Proposal input,
+  including the existing supported first-revision review. Resolver retains the original Proposal and
+  complete Challenges in recorded order and validates their owning challenged review and bounded lineage.
+  CodeReviewer retains exactly the ExecutionReport and ordered verification execution IDs, including
+  initial and correction-report review. The current enabled/latest Passed verification selection must
+  still equal the source's recorded set: a rerun, configuration change, reorder, or replacement is an
+  ordinary new review, not this repair. Reject missing/duplicate/gapped/foreign/partial identities; never
+  substitute a merely similar or overlapping set. Revalidate the ordinary target/lineage/verification
+  conditions rather than trusting source rows as authority.
+- Claim and dispatch: all normal lifecycle, workspace/lease, fresh Git, one-running-attempt, duplicate
+  result, count/time budget, provider token-stop, and current model/effort snapshot rules remain mandatory.
+  Refuse invalid repair sources before provider probing, Git capture, or sealing. Re-read source and
+  exact inputs at the durable claim boundary **inside the same short transaction after a write guard
+  has acquired SQLite's write lock**, before persisting the linked Attempt, inputs, verification rows,
+  artifact metadata, lifecycle/event changes, and committing. External work stays outside that transaction.
+  For CriticalReviewer, add the bounded repair transaction/guard needed to establish this guarantee;
+  preserve its ordinary request behavior. The existing global unique repair-source index remains the
+  at-most-one backstop; no new column, backfill, or migration is needed. Roll back refused claims and
+  remove proven orphan manifests; preserve artifacts when durability is unresolved and propagate
+  cancellation using the established durability-probe pattern. Protect the three new repair paths at
+  the final dispatch gate against an incoherent link/source/input identity; do not rerun the pre-claim
+  latest-source/no-existing-repair tests there, since the repair itself now owns that slot. Preserve the
+  ordinary duplicate-input dispatch classifications. A committed repair consumes its one repair even
+  if it is later interrupted or never successfully dispatched.
+- Context and outcome: append a small, fixed, role-specific `formatRepairNotice` to the ordinary bounded
+  manifest, including both CodeReviewer manifest forms. Do not replay the source's raw output,
+  diagnostic, artifact path, parser error, or human text; the source identifier belongs to durable
+  provenance, not provider instructions. The unchanged schema and untrusted-evidence boundary remain.
+  Sealed replay never rebuilds from a later source or setting. Normal result handlers alone can record
+  Acceptance/Challenges, complete Decisions plus revised Proposal, or review results/findings. A repair
+  does not add a planning challenge round, bypass the depth-two escalation, authorize implementation,
+  mark an invalid result successful, or create correction authority. No automatic follow-up occurs.
+- User-visible scope: add source ID/number lineage to the three role status contracts, and bounded
+  lineage metadata to historical attempt evidence with safe nulls when unprovable (including existing
+  Planner links). Add the three manual cockpit actions with pending/error, refresh, run-switch/stale-response
+  handling, no overlap with ordinary requests, and disclosure that repair is fresh and spends a normal
+  Agent slot/reserved time. The button is a suggestion; server policy decides eligibility. Display lineage
+  after success or failure without saying the source was fixed. Regenerate the client normally. Update
+  protocol/cockpit contracts and a commit-ready `current-work.md`; do not rewrite unrelated history.
+- Exclusions: mutating Implementer/ReviewCorrection repair, raw-output replay, schema relaxation,
+  automatic retry/fallback/debate, new provider arguments/authentication/permissions/models, provider
+  session resume, account-allowance observation or thresholds, context-window/compaction/sampling,
+  new budgets/overrides, generic workflow/repair framework, coordinator/scheduler, Git mutation or
+  publication policy, and new recovery authority. Preserve
+  [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md),
+  [ADR-0010](../decisions/0010-add-review-correction-response-contract.md),
+  [ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md), and
+  [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md).
+- Stop gates: inability to prove the source's current exact inputs or clean terminal read-only identity;
+  a repair that needs failed-output replay, changed evidence, permissions, provider contract, or mutating
+  recovery; inability to make source/input revalidation and claim atomic; unresolved durability treated
+  as success or an orphan; dispatch/replay that changes linked context; need for an ADR reversal or any
+  excluded authority. Report the specific gap and keep the diff uncommitted instead of widening scope.
+- Acceptance evidence: end-to-end invalid-source -> manual repair -> ordinary validated result for all
+  three roles using process doubles, including root/revised CriticalReviewer, first/second Resolver
+  resolution and one depth-two escalation, and both initial/correction CodeReviewer report paths.
+  Prove invalid repair output produces no semantic result and cannot be repaired again. Test unknown/
+  foreign/wrong tuple/profile/version/status/outcome, missing/non-clean process evidence, source with
+  semantic messages, corruption/unreadable fields, nonlatest/already-repaired/repair-of-repair, changed
+  workspace/checkpoint/inputs/verification, ordinary request compatibility, and all existing hard stops.
+  Use file-backed SQLite concurrent claims and actual commit-seam source/input changes; show complete
+  rollback, correct error classification, uniqueness, orphan cleanup, cascade/source deletion behavior,
+  cancellation and ambiguous commit durability handling. Prove zero provider invocations on refusal,
+  coherent linked dispatch, unchanged exact adapter arguments, sealed restart replay, dispatched
+  interruption without re-invocation, and exactly-once semantic messages/escalation. Include red/green
+  or mutation evidence for exact input/verification matching and one-repair enforcement. Cover protected
+  API disclosure, safe historical lineage, and cockpit interaction/stale-run behavior. Run affected checks
+  first, relevant full backend/build/Architecture/frontend validation, typecheck/lint/production build,
+  formatter/analyzers and dependency/security checks required by the routed standards; separate known
+  baseline findings from new ones. Check generated-client drift, local documentation links, and
+  `git diff --check`; report commands, outcomes, and environmental skips honestly. Use sequential .NET
+  execution and `-m:1` builds to avoid the previously observed compiler output locks.
+- Handoff: Claude returns the complete **unstaged, uncommitted, unpushed** diff, including this planner
+  selection and a commit-ready `current-work.md` with actual checks and remaining risks, for Codex GO/NO-GO.
+  The complete English executor prompt is supplied in the planner chat, not duplicated here. No
+  commit/push GO is granted by this selection. After a future GO, one publication instruction covers
+  the reviewed substantive commit, normal fast-forward push, live-remote verification, post-publication
+  evidence, and tightly bounded factual documentation closure. Re-review any material change after GO;
+  stop on divergence or push failure without force-push or history reconciliation.
+
+- Corrected diff review (2026-09-30): **GO for publication of this reviewed slice.** This supersedes the
+  initial NO-GO below; no next slice is selected. Codex independently verified branch `main`, `HEAD`,
+  local `origin/main`, and live `origin/main` at `a75d524b42306818acd139a4d00f58234d0e29d5`, with
+  nothing staged, 56 modified tracked files and 43 untracked files (99 total, including this planner
+  record and the commit-ready `current-work.md`). The planner edit changes this record only; the
+  expected branch, HEAD, and inventory remain the same. No implementation change was made by Codex.
+  - All three findings are closed: repair-only validator calls opt into fresh untracked reads for
+    owning attempts, messages, verification commands and executions; the shared lineage/report-chain
+    snapshots already read untracked. Ordinary requests and tracked claim writes retain their behavior.
+    Seven populated-context seam regressions assert safe refusal, no claim/input/verification/artifact
+    rows, and orphan cleanup. The three new hooks invalidate request generations on new requests,
+    run switches, and unmount, clear old state, and ignore stale state writes and refresh callbacks;
+    nine hook regressions and the real-hook cockpit regression cover these races. The five new helper
+    types now have explicit ownership under `Application/Features/Runs/Policies/FormatRepair` with
+    matching namespaces/imports. The executor's mutation results remain separately reported evidence.
+  - Independently repeated on the corrected tree: solution build `--no-restore
+    -p:UseSharedCompilation=false -m:1` with 0 errors/0 warnings; full Domain 807/807,
+    Application 2210/2210, Api 621/621, Infrastructure 867 passed/3 environment-gated skips, and
+    Architecture 9/9; frontend `npm test -- --run` 1052/1052, `npm run build` (including `tsc -b`)
+    clean apart from the reported chunk-size notice; `npm run lint` 20 warnings in untouched files;
+    `npm audit --audit-level=low` 0 vulnerabilities. The first sandboxed Infrastructure run failed
+    on denied scratch-directory/junction access; the permitted rerun outside the sandbox passed.
+    Generated-client SHA-256 remains
+    `4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386` after the build.
+    `git diff --check`, all 43 untracked files' trailing whitespace, and 127 local Markdown link path
+    targets passed; fragment anchors were not checked. The unchanged-dependency .NET audit remains
+    executor evidence from the initial submission, not an independently repeated audit.
+  - Accepted, explicitly bounded formatting limitation: `dotnet format --verify-no-changes
+    --no-restore --include <changed C# files>` is not green. It reports whitespace around XML comments
+    between positional-record parameters in the three role-status query results and five API
+    status/history/evidence responses, including newly added comments that repeat the existing
+    pattern, plus three unchanged lines in `CodeReviewContextManifestBuilder.BuildForCorrection`.
+    No new helper or test file is reported. Do not describe every diagnostic as pre-existing or claim
+    a clean formatter; no unrelated formatter rewrite is authorized by this GO.
+  - Limits remain accepted within the selection: deterministic process doubles prove host behavior,
+    not real-provider reliability; a committed repair consumes its one repair even if never dispatched
+    or invalid again; stale UI completions do not cancel accepted server requests. The existing Planner
+    repair hook retains its earlier behavior and is outside this slice. No new provider, recovery,
+    budget, or publication authority is introduced.
+  - Claude may publish exactly this reviewed substantive diff, including both handoffs, through one
+    normal fast-forward commit/push sequence and verified live-remote equality, then run bounded
+    post-publication checks against that commit. Only the factual `current-work.md` closure described
+    in the publication instruction may follow as a separate documentation commit. Re-review material
+    changes before committing; stop on an unexpected inventory, divergence, push failure, or failed
+    post-publication check. No force-push or history reconciliation. Report verified publication and
+    leave next-slice selection to Codex.
+
+- Initial uncommitted diff review (2026-09-30): **NO-GO; bounded corrections of this same slice.** Codex independently
+  verified branch `main`, `HEAD`, local `origin/main`, and live `origin/main` at
+  `a75d524b42306818acd139a4d00f58234d0e29d5`, nothing staged, 55 modified tracked and 43 untracked
+  files (including the planner-owned selection). The inventory matches the executor report. Independent
+  checks passed: solution build `--no-restore -p:UseSharedCompilation=false -m:1` with 0 errors/0 warnings;
+  Domain 807/807; Application repair-filtered tests 264/264; Api repair and the three ordinary read-only
+  hosted supervisor suites 94/94; Architecture 9/9; frontend 1042/1042 and `tsc -b`; generated-client
+  SHA-256 `4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386` stable across the
+  independent build. Full Application/Infrastructure/Api suites, audits, formatter, lint, and production
+  build remain executor-reported evidence, not checks independently repeated in this review.
+  `git diff --check` and 127 local link path targets across the four changed Markdown files passed;
+  fragment anchors were not checked. Final state remains 55 modified tracked, 43 untracked, and zero staged files.
+  The following requirements are not met:
+  1. **Fresh authority evidence inside the repair claim transaction.** The new Resolver and CodeReviewer
+     revalidation calls ordinary validators whose entity queries still track their results. Issuing the
+     query again does not refresh an already-tracked entity. Three independent, file-backed SQLite probes
+     committed changes from another connection immediately before `BEGIN`: (a) the same claimed
+     verification execution changed from `Passed` to `Failed` with exit code 1; (b) the owning challenged
+     review changed to `Failed`/`InvalidStructuredOutput`; (c) an existing Challenge's recorded actor
+     provider changed from Claude Code to Codex. All three repair claims still returned success; the
+     assertions requiring refusal failed. Fix the repair validators so every authority-bearing entity
+     read at the seam uses current database evidence, not the earlier tracker state. Audit all three
+     new paths; preserve ordinary request behavior and tracked Run writes. Add red/green regressions
+     that keep the claim context alive and populated and mutate existing rows, not only insert new
+     IDs/remove filtered rows. Prove fixed refusals and complete rollback/orphan cleanup. Keep the
+     in-transaction lock/guard; moving the seam before `BEGIN` is appropriate for the current non-deferred
+     SQLite transaction, but does not solve stale EF instances. The official
+     [EF tracking contract](https://learn.microsoft.com/en-us/ef/core/querying/tracking) explains that
+     tracked query results reuse the existing instance without overwriting its values; the
+     [SQLite transaction contract](https://learn.microsoft.com/en-us/dotnet/standard/data/sqlite/transactions)
+     separately describes serializable and explicitly deferred transactions.
+  2. **Run-switch reset and stale-response protection in the three new repair hooks.** Their state is
+     tagged only with `runId`, and every late completion overwrites it. An independent frontend probe
+     started A, switched to B and started B, then completed A: B's `requesting` became false while its
+     request was still pending. Another recorded an error in A, switched A -> B -> A, and the old error
+     reappeared. Both expected-protection assertions failed; the same implementation pattern is present
+     in all three hooks. Track the current run/request generation, reset on switching, and reject stale
+     state updates and stale refresh callbacks. Add success and failure races, A -> B -> A, and a late
+     old request versus a newer pending request for each hook and representative cockpit action overlap.
+  3. **New Application type ownership.** `AgentRepairLineage`, `ReadOnlyFormatRepairInputs`,
+     `ReadOnlyFormatRepairLink`, `ReadOnlyFormatRepairManifest`, and `ReadOnlyFormatRepairSource` were
+     added directly to `Application/Features/Runs`. The routed CQRS and capabilities standards prohibit
+     new types at a feature root that already has operation folders. Place only these new types under
+     explicit responsibility ownership with matching namespaces/imports; keep operation orchestration
+     in its own handler. Do not move unrelated legacy types or build a generic repair framework.
+  All five independent failing probes were temporary and have been removed; the Application test assembly
+  was rebuilt after removing the backend probes. No implementation fix was made by Codex. Update the
+  protocol/current-work evidence to match the corrected behavior, including the fact that the earlier
+  suites missed stale tracked-row and stale request-generation cases. Run affected tests first, then
+  relevant full backend/frontend validation for these authority and UI corrections; report exact commands,
+  outcomes, inventory, and remaining limits. Return the complete diff unstaged, uncommitted, and unpushed
+  for re-review. No commit/push GO or next-slice permission is granted.
+
+## Previous selection (2026-09-30): optional Claude mutation agentic-turn limit
 
 - Verified baseline: branch `main`; `HEAD`, local `origin/main`, and live `origin/main` all equal
   `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`; staged, unstaged, and untracked state empty.

@@ -48,4 +48,9 @@ public sealed record ClaudeCriticalReviewAttemptStatusResponse(
     /// eligibility. <see langword="null"/> unless provider, role, permission profile, and adapter
     /// contract version all agree with the current, single supported critical-review
     /// adapter.</summary>
-    string? ConfiguredBuiltInTools);
+    string? ConfiguredBuiltInTools,
+    /// <summary>The attempt this attempt is the one manual format repair of, or null. Lineage only: it never
+    /// asserts that this attempt corrected or preserved the source response.</summary>
+    Guid? RepairSourceAttemptId,
+    /// <summary>The source attempt's number within this run when known, else null.</summary>
+    int? RepairSourceAttemptNumber);

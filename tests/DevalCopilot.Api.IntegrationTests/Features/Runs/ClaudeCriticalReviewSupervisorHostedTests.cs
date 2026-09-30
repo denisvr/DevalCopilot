@@ -40,7 +40,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// <c>AgentAttemptSupervisorHostedTests</c>'s hosting pattern exactly, adapted for the Claude
 /// critical-review attempt feature.
 /// </summary>
-public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
+public sealed partial class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
 {
     private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(5);
 

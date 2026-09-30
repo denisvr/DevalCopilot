@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { processAttemptOutputClient, setClaudeModelPreferenceClient, setClaudeMutationTurnLimitClient } from '../../../api/clients'
+import { processAttemptOutputClient, requestCodeReviewRepairAttemptClient, setClaudeModelPreferenceClient, setClaudeMutationTurnLimitClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
   AgentClaimPathTimeFitResponse,
@@ -9,6 +9,7 @@ import {
   AgentTokenUsageResponse,
   ClaudeCriticalReviewAttemptStatusResponse,
   ChallengeResolutionAttemptStatusResponse,
+  CodeReviewAttemptStatusResponse,
   ClaudeMutationTurnLimitResponse,
   GetRunCockpitResponse,
   ParticipantIdentityResponse,
@@ -35,6 +36,9 @@ import * as useRequestCodeReviewModule from '../hooks/useRequestCodeReview'
 import * as useReviewCorrectionAttemptStatusModule from '../hooks/useReviewCorrectionAttemptStatus'
 import * as useRequestReviewCorrectionModule from '../hooks/useRequestReviewCorrection'
 import * as useAuthorizeReviewCorrectionModule from '../hooks/useAuthorizeReviewCorrection'
+import * as useRequestClaudeCriticalReviewRepairAttemptModule from '../hooks/useRequestClaudeCriticalReviewRepairAttempt'
+import * as useRequestChallengeResolutionRepairAttemptModule from '../hooks/useRequestChallengeResolutionRepairAttempt'
+import * as useRequestCodeReviewRepairAttemptModule from '../hooks/useRequestCodeReviewRepairAttempt'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -43,6 +47,9 @@ vi.mock('../hooks/useCollaborationTimeline')
 vi.mock('../hooks/useAgentAttemptStatus')
 vi.mock('../hooks/useRequestCodexPlanningAttempt')
 vi.mock('../hooks/useRequestCodexPlanningRepairAttempt')
+vi.mock('../hooks/useRequestCodeReviewRepairAttempt')
+vi.mock('../hooks/useRequestChallengeResolutionRepairAttempt')
+vi.mock('../hooks/useRequestClaudeCriticalReviewRepairAttempt')
 vi.mock('../hooks/useClaudeCriticalReviewAttemptStatus')
 vi.mock('../hooks/useRequestClaudeCriticalReview')
 vi.mock('../hooks/useChallengeResolutionAttemptStatus')
@@ -58,6 +65,7 @@ vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   setClaudeModelPreferenceClient: vi.fn(),
   setClaudeMutationTurnLimitClient: vi.fn(),
+  requestCodeReviewRepairAttemptClient: vi.fn(),
   reviewCorrectionAttemptStatusClient: vi.fn(),
   codexAccountAllowanceClient: vi.fn(() => ({
     getCodexAccountAllowance: vi.fn().mockResolvedValue({ status: 'Unknown' }),
@@ -73,6 +81,15 @@ const useAgentAttemptStatusMock = vi.mocked(useAgentAttemptStatusModule.useAgent
 const useRequestCodexPlanningAttemptMock = vi.mocked(useRequestCodexPlanningAttemptModule.useRequestCodexPlanningAttempt)
 const useRequestCodexPlanningRepairAttemptMock = vi.mocked(
   useRequestCodexPlanningRepairAttemptModule.useRequestCodexPlanningRepairAttempt,
+)
+const useRequestClaudeCriticalReviewRepairAttemptMock = vi.mocked(
+  useRequestClaudeCriticalReviewRepairAttemptModule.useRequestClaudeCriticalReviewRepairAttempt,
+)
+const useRequestChallengeResolutionRepairAttemptMock = vi.mocked(
+  useRequestChallengeResolutionRepairAttemptModule.useRequestChallengeResolutionRepairAttempt,
+)
+const useRequestCodeReviewRepairAttemptMock = vi.mocked(
+  useRequestCodeReviewRepairAttemptModule.useRequestCodeReviewRepairAttempt,
 )
 const useClaudeCriticalReviewAttemptStatusMock = vi.mocked(
   useClaudeCriticalReviewAttemptStatusModule.useClaudeCriticalReviewAttemptStatus,
@@ -128,6 +145,21 @@ beforeEach(() => {
     request: vi.fn(),
   })
   useRequestCodexPlanningRepairAttemptMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useRequestClaudeCriticalReviewRepairAttemptMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useRequestChallengeResolutionRepairAttemptMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useRequestCodeReviewRepairAttemptMock.mockReturnValue({
     requesting: false,
     error: null,
     request: vi.fn(),
@@ -1285,6 +1317,236 @@ describe('RunCockpitView', () => {
 
       rerender(<RunCockpitView runId="run-2" />)
       expect(useChallengeResolutionAttemptStatusMock).toHaveBeenLastCalledWith('run-2', runningCockpit.latestSequence)
+    })
+  })
+
+  describe('Agent role repair wiring', () => {
+    const roles = [
+      {
+        name: 'Claude critical review',
+        repairHook: useRequestClaudeCriticalReviewRepairAttemptMock,
+        ordinaryHook: useRequestClaudeCriticalReviewMock,
+        statusHook: useClaudeCriticalReviewAttemptStatusMock,
+        makeStatus: (overrides: object) =>
+          new ClaudeCriticalReviewAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'review-9',
+            attemptNumber: 3,
+            status: 'Failed',
+            outcome: 'InvalidStructuredOutput',
+            ...overrides,
+          }),
+        repairButton: 'Request one format-repair critical review',
+        ordinaryButton: 'Request Claude review',
+        prepareOrdinary: () =>
+          useCollaborationTimelineMock.mockReturnValue({
+            cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
+            loading: false,
+            error: null,
+            hasSuccessfulResponse: true,
+          }),
+        sourceId: 'review-9',
+        errorText: 'A critical review repair was already requested for this attempt.',
+      },
+      {
+        name: 'challenge resolution',
+        repairHook: useRequestChallengeResolutionRepairAttemptMock,
+        ordinaryHook: useRequestChallengeResolutionMock,
+        statusHook: useChallengeResolutionAttemptStatusMock,
+        makeStatus: (overrides: object) =>
+          new ChallengeResolutionAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'resolution-9',
+            attemptNumber: 3,
+            status: 'Failed',
+            outcome: 'InvalidStructuredOutput',
+            ...overrides,
+          }),
+        repairButton: 'Request one format-repair resolution',
+        ordinaryButton: 'Resolve challenges with Codex',
+        prepareOrdinary: () =>
+          useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+            status: new ClaudeCriticalReviewAttemptStatusResponse({
+              attemptId: 'review-1',
+              attemptNumber: 1,
+              status: 'Completed',
+              outcome: 'Challenged',
+              reviewedProposalMessageId: 'message-1',
+            }),
+            loading: false,
+            error: null,
+            refresh: vi.fn(),
+          }),
+        sourceId: 'resolution-9',
+        errorText: 'A resolution repair was already requested for this attempt.',
+      },
+      {
+        name: 'code review',
+        repairHook: useRequestCodeReviewRepairAttemptMock,
+        ordinaryHook: useRequestCodeReviewMock,
+        statusHook: useCodeReviewAttemptStatusMock,
+        makeStatus: (overrides: object) =>
+          new CodeReviewAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'code-review-9',
+            attemptNumber: 3,
+            status: 'Failed',
+            outcome: 'InvalidStructuredOutput',
+            ...overrides,
+          }),
+        repairButton: 'Request one format-repair code review',
+        ordinaryButton: 'Request code review',
+        prepareOrdinary: () =>
+          useReviewCorrectionAttemptStatusMock.mockReturnValue({
+            status: new ReviewCorrectionAttemptStatusResponse({ reviewableExecutionReportMessageId: 'report-1' }),
+            loading: false,
+            error: null,
+            refresh: vi.fn(),
+          }),
+        sourceId: 'code-review-9',
+        errorText: 'A code review repair was already requested for this attempt.',
+      },
+    ]
+
+    function showRunningCockpit() {
+      useRunCockpitMock.mockReturnValue({
+        cockpit: runningCockpit,
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      })
+    }
+
+    describe.each(roles)('$name repair', (role) => {
+      function withStatus(overrides: object = {}) {
+        showRunningCockpit()
+        role.prepareOrdinary()
+        const refresh = vi.fn()
+        role.statusHook.mockReturnValue({ status: role.makeStatus(overrides), loading: false, error: null, refresh })
+        return refresh
+      }
+
+      it('posts the repair once for the current run and displayed attempt and refreshes that role on success', () => {
+        const refresh = withStatus()
+        const request = vi.fn()
+        role.repairHook.mockReturnValue({ requesting: false, error: null, request })
+
+        render(<RunCockpitView runId="run-1" />)
+        fireEvent.click(screen.getByRole('button', { name: role.repairButton }))
+
+        expect(request).toHaveBeenCalledExactlyOnceWith(role.sourceId)
+        expect(role.repairHook).toHaveBeenCalledWith('run-1', refresh)
+        expect(screen.getByRole('button', { name: role.ordinaryButton })).toBeEnabled()
+      })
+
+      it('disables the ordinary request while the repair is pending', () => {
+        withStatus()
+        role.repairHook.mockReturnValue({ requesting: true, error: null, request: vi.fn() })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByRole('button', { name: 'Requesting repair…' })).toBeDisabled()
+        expect(screen.getByRole('button', { name: /^Requesting…$/ })).toBeDisabled()
+      })
+
+      it('disables the repair while the ordinary request is pending', () => {
+        withStatus()
+        role.ordinaryHook.mockReturnValue({ requesting: true, error: null, request: vi.fn() })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByRole('button', { name: role.repairButton })).toBeDisabled()
+      })
+
+      it('binds to the newly selected run and offers no repair for a masked status', () => {
+        withStatus()
+        const { rerender } = render(<RunCockpitView runId="run-1" />)
+        expect(screen.getByRole('button', { name: role.repairButton })).toBeInTheDocument()
+
+        role.statusHook.mockReturnValue({ status: null, loading: true, error: null, refresh: vi.fn() })
+        rerender(<RunCockpitView runId="run-2" />)
+
+        expect(role.repairHook).toHaveBeenLastCalledWith('run-2', expect.any(Function))
+        expect(screen.queryByRole('button', { name: role.repairButton })).not.toBeInTheDocument()
+      })
+
+      it('shows a safe repair error while the ordinary action stays available', () => {
+        withStatus()
+        role.repairHook.mockReturnValue({ requesting: false, error: role.errorText, request: vi.fn() })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByText(role.errorText)).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: role.ordinaryButton })).toBeEnabled()
+      })
+
+      it('keeps the lineage visible for a repair attempt and offers no second repair', () => {
+        withStatus({ attemptNumber: 4, repairSourceAttemptId: 'earlier-1', repairSourceAttemptNumber: 3 })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByText(/Attempt #4 is the one repair request for attempt #3\./)).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: role.repairButton })).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('repair request state across run switches (real hook)', () => {
+    it('keeps run B pending and disabled when run A’s older repair completes after the switch', async () => {
+      const real = await vi.importActual<typeof useRequestCodeReviewRepairAttemptModule>(
+        '../hooks/useRequestCodeReviewRepairAttempt',
+      )
+      useRequestCodeReviewRepairAttemptMock.mockImplementation(real.useRequestCodeReviewRepairAttempt)
+      let finishA!: () => void
+      vi.mocked(requestCodeReviewRepairAttemptClient).mockReturnValue({
+        requestCodeReviewRepairAttempt: vi
+          .fn()
+          .mockReturnValueOnce(new Promise<void>((resolve) => (finishA = resolve)))
+          .mockReturnValueOnce(new Promise<void>(() => {})),
+      } as unknown as ReturnType<typeof requestCodeReviewRepairAttemptClient>)
+      useRunCockpitMock.mockImplementation((id: string | null) => ({
+        cockpit: new GetRunCockpitResponse({ ...runningCockpit, runId: id ?? undefined }),
+        cards: [],
+        connection: 'live',
+        loading: false,
+        error: null,
+        syncError: null,
+        refresh: async () => true,
+      }))
+      useReviewCorrectionAttemptStatusMock.mockReturnValue({
+        status: new ReviewCorrectionAttemptStatusResponse({ reviewableExecutionReportMessageId: 'report-1' }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+      useCodeReviewAttemptStatusMock.mockReturnValue({
+        status: new CodeReviewAttemptStatusResponse({
+          hasAttempt: true,
+          attemptId: 'code-review-9',
+          attemptNumber: 3,
+          status: 'Failed',
+          outcome: 'InvalidStructuredOutput',
+        }),
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      })
+
+      const { rerender } = render(<RunCockpitView runId="run-1" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Request one format-repair code review' }))
+      rerender(<RunCockpitView runId="run-2" />)
+      fireEvent.click(screen.getByRole('button', { name: 'Request one format-repair code review' }))
+      expect(screen.getByRole('button', { name: 'Requesting repair…' })).toBeDisabled()
+
+      await act(async () => {
+        finishA()
+      })
+
+      expect(screen.getByRole('button', { name: 'Requesting repair…' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /^Requesting…$/ })).toBeDisabled()
     })
   })
 

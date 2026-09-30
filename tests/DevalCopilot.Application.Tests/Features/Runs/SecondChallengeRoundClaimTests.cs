@@ -25,7 +25,7 @@ public sealed class SecondChallengeRoundClaimTests : IAsyncLifetime
 
     private CreateClaudeCriticalReviewAttemptCommandHandler ReviewHandler(
         DevalCopilotDbContext dbContext, CountingEvidenceReader evidence, RecordingArtifactStore store) =>
-        new(dbContext, evidence, store, new FixedTimeProvider(Now));
+        new(dbContext, evidence, store, new FixedTimeProvider(Now), new AttemptDurabilityProbe(_fixture.Options));
 
     private CreateChallengeResolutionAttemptCommandHandler ResolutionHandler(
         DevalCopilotDbContext dbContext, CountingEvidenceReader evidence, RecordingArtifactStore store) =>

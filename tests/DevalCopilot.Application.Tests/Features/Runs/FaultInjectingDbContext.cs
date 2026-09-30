@@ -28,6 +28,24 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public CommitFailureMode CommitFailure { get; set; } = CommitFailureMode.None;
 
+    /// <summary>Runs once, immediately before the real transaction is begun — the
+    /// point after every pre-transaction read and external step and before the claim first in-transaction
+    /// statement. A change committed from an independent context here is exactly a concurrent commit that landed
+    /// at the claim seam, which only in-transaction reads (never a late read before the transaction) can see.</summary>
+    public Func<CancellationToken, Task>? BeforeBeginTransaction { get; set; }
+
+    public SaveChangesFailureMode SaveChangesFailure { get; set; } = SaveChangesFailureMode.None;
+
+    /// <summary>How the claim's <c>SaveChangesAsync</c> fails: a provider-level update failure that applied
+    /// nothing, or the caller's cancellation observed before or after the statements were applied.</summary>
+    public enum SaveChangesFailureMode
+    {
+        None,
+        UpdateExceptionBeforeSave,
+        CancellationBeforeSave,
+        CancellationAfterSave,
+    }
+
     /// <summary>Distinguishes the ways a commit can fail: a genuine failure where nothing actually
     /// persisted, versus the ambiguous-outcome case where the database completed the commit before
     /// the failure became visible to the caller — the exact scenario the handlers' own independent
@@ -92,7 +110,21 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class => inner.Entry(entity);
 
-    public Task<int> SaveChangesAsync(CancellationToken cancellationToken) => inner.SaveChangesAsync(cancellationToken);
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        switch (SaveChangesFailure)
+        {
+            case SaveChangesFailureMode.UpdateExceptionBeforeSave:
+                throw new DbUpdateException("Simulated update failure.", new SimulatedDbException("Simulated update failure."));
+            case SaveChangesFailureMode.CancellationBeforeSave:
+                throw new OperationCanceledException("Simulated cancellation before saving.");
+            case SaveChangesFailureMode.CancellationAfterSave:
+                await inner.SaveChangesAsync(cancellationToken);
+                throw new OperationCanceledException("Simulated cancellation after saving.");
+        }
+
+        return await inner.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken)
     {
@@ -104,6 +136,11 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
         if (ThrowOnBeginTransaction)
         {
             throw new SimulatedDbException("Simulated transaction acquisition failure.");
+        }
+
+        if (BeforeBeginTransaction is { } beforeBegin)
+        {
+            await beforeBegin(cancellationToken);
         }
 
         var transaction = await inner.BeginTransactionAsync(cancellationToken);

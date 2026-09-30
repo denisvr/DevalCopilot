@@ -28,4 +28,6 @@ public sealed record GetAgentAttemptEvidenceQueryResult(
     AgentProcessExecutionEvidence? ProcessExecution,
     AgentTokenUsageEvidence? TokenUsage,
     IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
-    ClaudeMutationTurnLimitFact? MaxTurns = null);
+    ClaudeMutationTurnLimitFact? MaxTurns = null,
+    Guid? RepairSourceAttemptId = null,
+    int? RepairSourceAttemptNumber = null);

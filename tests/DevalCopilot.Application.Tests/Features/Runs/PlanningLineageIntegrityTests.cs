@@ -134,7 +134,7 @@ public sealed class PlanningLineageIntegrityTests : IAsyncLifetime
         var reviewEvidence = new CountingEvidenceReader();
         var reviewStore = new RecordingArtifactStore();
         var review = await new CreateClaudeCriticalReviewAttemptCommandHandler(
-                dbContext, reviewEvidence, reviewStore, new FixedTimeProvider(Now))
+                dbContext, reviewEvidence, reviewStore, new FixedTimeProvider(Now), new AttemptDurabilityProbe(_fixture.Options))
             .HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(lineage.Scene.Run.Id, reviewedProposalId), CancellationToken.None);
 
         // The first revision has only its Challenged second review in this seed, so implementation of it

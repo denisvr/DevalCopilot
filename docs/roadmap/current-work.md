@@ -8,6 +8,152 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-30)
 
+- Published delivery: `a75d524b42306818acd139a4d00f58234d0e29d5` (parent `c662a4d0915fbf4ece0304bcfd58b17eab964778`) is
+  the factual closure of the Claude mutation turn-limit slice (its delivered SHA and post-publication checks; no code or
+  product contract change). At the start of this slice, `main`, local `origin/main`, and the live remote matched it, nothing
+  was staged or untracked, and only `docs/roadmap/planner-handoff.md` (the planner's slice selection) was modified.
+- Current delivery, based on verified parent `a75d524b42306818acd139a4d00f58234d0e29d5`: **manual format recovery for the
+  remaining read-only collaboration stages** (Increment 4). See [planner-handoff.md](planner-handoff.md) for the selection
+  and ["One manual format repair of the remaining read-only stages"](../architecture/agent-collaboration-protocol.md#one-manual-format-repair-of-the-remaining-read-only-stages)
+  and ["One manual format repair of a critical review, challenge resolution, or code review"](../product/run-cockpit-specification.md#one-manual-format-repair-of-a-critical-review-challenge-resolution-or-code-review)
+  for the contract. ADR-0004, ADR-0009, ADR-0010, ADR-0012, and ADR-0013 were read and remain intact; no ADR is added or
+  reversed, and no dependency, migration, column, provider argument, permission, model control, budget, Git, or
+  publication change was made. The existing Planner repair is behaviorally unchanged.
+  - Behavior: a user can request **one** fresh, ordinarily validated invocation of the same read-only role after the
+    latest attempt of that role failed with exactly `InvalidStructuredOutput`: the Claude **CriticalReviewer**
+    (`…/agent-attempts/{sourceAttemptId}/critical-review-repair`), the Codex **Resolver**
+    (`…/challenge-resolution-repair`), and the Codex **CodeReviewer** (`…/code-review-repair`). Each is a protected,
+    bodyless MVC operation that sends one command through `IApplicationMediator` (`…Command.ForRepair(runId,
+    sourceAttemptId)`, a `RepairSourceAttemptId` added to the three existing commands, whose target ids became nullable
+    and are never supplied for a repair); the existing role-specific claim handlers derive the target from the source's
+    persisted inputs. No generic workflow or repair framework was added. The repair neither transforms nor preserves the
+    failed response and adds no challenge round, implementation authority, correction authorization, automatic
+    follow-up, or success inference.
+  - Source rule: `ReadOnlyFormatRepairPolicy` (Domain) pins the path's exact provider, role, response contract,
+    expected message type, protocol `1.0`, `ReadOnly` profile, and current known v1 adapter contract and accepts only a
+    `Failed`, dispatched, concluded `InvalidStructuredOutput` attempt with clean-exit process evidence and a well-formed
+    assignment that is not itself a repair. `ReadOnlyFormatRepairSource` (Application) adds the cross-row facts: same run
+    (unknown and foreign-run sources are the same fixed 404), no durable semantic message from the source (a source that
+    recorded a result did not fail structurally), not already repaired, the run's latest Agent attempt, and the exact
+    workspace, checkpoint, and fingerprint. An unreadable enum, assignment, process, or input row fails closed as
+    `agent_attempts.repair_source_ineligible` without echoing a stored value; only `InvalidOperationException` from
+    materialization counts as unreadable, so database and cancellation failures propagate.
+  - Exact inputs: `ReadOnlyFormatRepairInputs` reads the source's recorded inputs from non-enum columns only and requires
+    the contract's shape (one Proposal; the Proposal plus one or more Challenges in contiguous order; one ExecutionReport plus
+    contiguous, distinct verification (command, execution) pairs). The Resolver derives the challenged review from the
+    first Challenge's owner and requires the ordinary validation plus an **ordered** equality of the Proposal and
+    Challenges; the CodeReviewer runs the ordinary report-chain and verification validation and requires the currently
+    enabled/latest `Passed` selection to equal the recorded set exactly (a rerun, enabled-command change, reorder, or
+    replacement is `agent_attempts.repair_source_inputs_mismatch`). Nothing is substituted, and the source rows are
+    never authority on their own.
+  - Claim and commit seam: every ordinary gate is unchanged and runs in the same order; an invalid repair source is refused
+    before provider probing, Git capture, and manifest sealing (and before the running-attempt check, so the race loser is
+    told "already requested"). At the durable boundary the source, exact inputs, report chain, verification selection,
+    reviewed lineage, and execution context (run active, workspace ready, lease active, selected checkpoint still the
+    latest) are **re-read inside the same short transaction after a guard statement has run in it**, before the linked
+    Attempt, inputs, verification rows, artifact metadata, and lifecycle change are persisted and committed. The Resolver
+    and CodeReviewer extend their existing transaction; the CriticalReviewer gains a repair-only transaction
+    (`CommitRepairAsync`, with the stop-policy compare-and-set as its guard and the Claude preference read after it)
+    while its ordinary request keeps its single concurrency-token save (the handler now takes an
+    `IAttemptDurabilityProbe`). Observation worth recording: on SQLite, Microsoft.Data.Sqlite's default serializable
+    transaction takes the write lock when it begins (a competing writer inside the seam blocked), so the change-before-begin
+    seam is the real race window and is what the tests reproduce. The global unique index
+    `ix_attempts_agent_repair_source` is the at-most-one backstop; no column, migration, default, or backfill exists. Refusal
+    or rollback deletes the proven-orphan sealed manifest; cancellation propagates; an ambiguous save or commit is resolved
+    by the independent durability probe (persisted → success, not persisted → cleanup, unresolved → manifest preserved and
+    `attempts.persistence_unresolved`).
+  - Manifest, dispatch, and result: each ordinary bounded manifest (both CodeReviewer forms) gains one fixed
+    `formatRepairNotice` inserted before `untrustedEvidenceBoundary`; nothing of the source's output, diagnostic,
+    artifact path, identity, or outcome is included and the schema is unchanged. `MarkAgentAttemptDispatched` fails
+    closed with `agent_attempts.invalid_repair_link` (no provider process) when the repair's link, exact tuple, source, or
+    either input identity is incoherent, without re-applying the claim-time "latest"/"no repair" tests; the ordinary
+    duplicate-input classifications are unchanged and the Planner repair has no such gate. Restart replay uses the sealed
+    manifest and claimed assignment; the unchanged adapters, arguments, parsers, and result handlers record either the
+    ordinary validated result or the repair's own outcome (an invalid repair records no semantic message and cannot be
+    repaired again).
+  - Read model and cockpit: the three role status responses add `repairSourceAttemptId`/`repairSourceAttemptNumber`; the
+    history entries and attempt evidence add the same two fields for every repair (including the Planner's), proved
+    through scalar columns and null when the source cannot be proved (another run, not earlier, or unreadable). The
+    generated client was regenerated by the build (not edited). Three repair hooks and panels
+    (`ClaudeCriticalReviewRepairAction`, `ChallengeResolutionRepairAction`, `CodeReviewRepairAction`) mirror the Planner
+    repair: suggestion only, fresh-invocation and normal-budget wording, pending/error handling, authoritative status
+    refresh, no overlap with the ordinary request, run-switch reset, lineage after success or failure, and no claim that
+    the source was fixed; the history panel shows a provenance line only when the source is proved.
+  - Tests (process doubles, file-backed SQLite): `ReadOnlyFormatRepairPolicy` Domain tests; per-role Application suites
+    (`CreateClaudeCriticalReviewRepairAttemptTests`, `CreateChallengeResolutionRepairAttemptTests`,
+    `CreateCodeReviewRepairAttemptTests`) covering root/revised, first/second-round, and initial/correction inputs, the
+    manifest shape, every source corruption (profile, version, tuple, process evidence, unreadable enums, semantic
+    message), unknown/foreign/nonlatest/already-repaired/repair-of-repair/checkpoint mismatch, partial/reordered/extended/
+    gapped/replaced inputs and verification changes, the count, time, and token gates, every commit-seam change
+    (competing repair, newer attempt, input and verification changes, semantic message, new checkpoint, lease, run end,
+    running process attempt, preference and stop-policy change) with complete rollback and orphan cleanup, real
+    concurrent claims (exactly one repair), begin/commit/save failures, cancellation before and after commit, the
+    unresolved-durability branch, and source deletion versus run cascade; `MarkAgentAttemptDispatchedRepairLinkTests`;
+    `ReadOnlyFormatRepairResultTests` (ordinary valid results, invalid repair, no repair-of-repair, exactly-once
+    escalation); `ReadOnlyFormatRepairLineageProjectionTests`; Api `RequestReadOnlyFormatRepairEndpointTests` (auth,
+    identical 404, golden path, body ignored, at-most-one, non-echoing conflicts, status/history/evidence lineage) and
+    hosted supervisor replay tests for all three roles and the second round (invalid source → repair → restart replay from
+    the sealed manifest → ordinary result; an invalid repair; a dispatched repair interrupted by a restart is never
+    re-invoked); and frontend hook, action, cockpit, and history tests.
+  - Mutation evidence (each applied to the final code, failing the targeted tests, then restored byte-identically):
+    comparing the CodeReviewer verification set as an unordered overlap failed 8 (rerun, reorder, disable, add, partial,
+    and the seam variants); comparing the Resolver challenge set as an overlap failed 5; removing only the
+    already-repaired check failed 7; also removing the latest-attempt check failed 14 (the unique index alone then
+    classifies only some races); removing the CriticalReviewer in-transaction revalidation failed 8 seam tests; removing the
+    dispatch link gate failed 28 of 33.
+  - Checks run (final tree; affected tests first, .NET commands one at a time with `-m:1` and
+    `-p:UseSharedCompilation=false`, no compiler lock hit): `dotnet build DevalCopilot.slnx --no-restore` 0 errors/0 warnings;
+    Domain 807/807 (was 782); Application 2203/2203 before the correction round (was 1967); Infrastructure 867 passed, 3 skipped (the existing
+    environment-gated symlink/reparse-point skips; no Infrastructure test was added or changed, and the model is unchanged
+    so no migration exists); Api 621/621 (was 581); Architecture 9/9; frontend `vitest` 1042/1042 before the correction round (was 974), `tsc -b`
+    clean, `npm run build` clean (the usual chunk-size notice), and `npm run lint` 20 warnings, the same count as the
+    parent and none in a file this slice created or changed (all `react(set-state-in-effect)`-style warnings in older
+    hooks); `api-client.ts` regenerated by the build (SHA-256
+    `4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386`, was `b5f82c9b…`) and byte-identical across repeated
+    builds; `dotnet list package --vulnerable --include-transitive` and `npm audit` report nothing (no dependency
+    changed); `git diff --check` clean (only git's CRLF-normalization notice for the generated client) and a
+    trailing-whitespace scan of the untracked files clean; local links in the changed and handoff documents (137)
+    resolve. `dotnet format --verify-no-changes` on the changed C# files reports whitespace diagnostics only in
+    the record declarations whose parameters are separated by documentation comments (the six role-status
+    query-result and response records and the history and evidence response records; the parent reports the same pattern for some of
+    them) and at three lines of `CodeReviewContextManifestBuilder.BuildForCorrection` (a comment between `=>` and its
+    body, unchanged code); formatting findings in the new files were fixed and they are otherwise clean. Baseline versus
+    new: no failing test or warning is new; the 3 Infrastructure skips and the 20 lint warnings are the baseline.
+    Two harness defects of my first tests, not code defects: the test helper seam hook ran after the transaction
+    began (SQLite's write lock is taken at `BEGIN`, so a competing writer blocked for 30 s and failed), and the first
+    corruption tests read tracked, stale entities; both were test-harness fixes.
+  - Review correction (Codex NO-GO, same slice, still uncommitted): (1) the repair commit-seam revalidation in all three
+    paths now reads every authority row untracked (`asNoTracking` on the shared ordinary validators, used only by the repair
+    call sites; tracking is not disabled globally and the tracker holding the Run and pending claim writes is untouched).
+    The earlier suites missed this because their seam tests either changed rows read through untracked snapshots or
+    detached the context, so a stale tracked instance never mattered. Seven new regressions keep the claim context alive and
+    populated and commit the competing change before BEGIN: owning challenged review failed, challenge actor provider and
+    reply target changed, verification execution Passed to Failed, execution-report actor provider and implementer result
+    checkpoint changed, and the critical-review proposal owner failed; each asserts the ordinary refusal code, no linked
+    Attempt, input, verification or artifact rows, and orphan-manifest cleanup. Red evidence: with the repair call sites
+    switched back to tracked reads, the six Resolver/CodeReviewer regressions failed 6/6 (the Critical one already read
+    untracked and passed); restored and green. (2) The three repair hooks now use a request generation that is bumped by
+    every request, run switch and unmount, and reset state on a run switch; a stale completion neither writes pending or
+    error state nor calls the refresh. Stale completions cannot cancel a server request already accepted. Earlier hook tests
+    covered only a single run switch and missed the stale-generation cases. Nine new hook tests (late success/failure
+    across a switch, A to B to A, older completion while a newer request is pending; three per hook) and one cockpit test
+    with the real hook failed 9/9 and 1/1 with the generation guards removed, and pass with them. (3) The five repair
+    helper types moved to `Application/Features/Runs/Policies/FormatRepair` with matching namespaces and imports; no
+    behavior change. Re-run after the correction: build 0 errors; Domain 807; Application 2210 (was 2203); Infrastructure 867
+    passed, 3 skipped (baseline); Api 621; Architecture 9; frontend vitest 1052 (was 1042), `tsc -b`, `npm run build` clean,
+    lint warnings unchanged with none in changed files; `npm audit` clean; `api-client.ts` SHA-256 unchanged
+    (`4ac246f0…6386`). Inventory: 56 modified and 43 untracked files, none staged.
+  - Open risks and limits: nothing proves real provider behavior; the three adapters are unchanged and tested with
+    deterministic process doubles only, so a provider that fails again is simply an ordinary invalid attempt. The repair is
+    a fresh invocation and cannot guarantee a valid response. A committed repair consumes the source's one repair even if
+    it is interrupted or never dispatched. The seam tests reproduce the race by committing a change from an independent
+    connection immediately before the transaction begins; the serialization that follows relies on SQLite's write lock as
+    observed, not on a separate proof of the provider's documented isolation. `ReadOnlyFormatRepairInputs` bounds inputs at
+    64 rows, far above the protocol's cardinalities. The hosted tests cover the Claude and Codex read-only roles; a mutating
+    Implementer or ReviewCorrection attempt still has no repair. Planned post-publication verification: fetch and
+    `ls-remote` to confirm local `HEAD`, `origin/main`, and the live remote agree on the delivered commit with a clean tree,
+    then the focused Domain, Application, Api, and frontend suites, `api-client.ts` hash, and a solution build against that
+    commit.
 - Published delivery: `c662a4d0915fbf4ece0304bcfd58b17eab964778` (parent `5a1f42c3f0a34b5635aa8a0ef1c52fa3aa298944`) was
   committed with the reviewed optional Claude mutation agentic-turn-limit slice (61 modified and 46 new files, including this
   file and `planner-handoff.md`), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main`

@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,7 +44,9 @@ public sealed class GetAgentAttemptHistoryQueryHandler(IDevalCopilotDbContext db
         foreach (var scalars in page)
         {
             var attempt = await AgentAttemptRead.TryMaterializeAsync(dbContext, scalars.Id, cancellationToken);
-            items.Add(ToEntry(scalars, attempt));
+            var valid = attempt is not null && AgentAttemptIdentity.IsCoherent(attempt);
+            var lineage = valid ? await AgentRepairLineage.ReadAsync(dbContext, attempt!, cancellationToken) : AgentRepairLineage.None;
+            items.Add(ToEntry(scalars, attempt, valid, lineage));
         }
 
         return Result<GetAgentAttemptHistoryQueryResult>.Success(new GetAgentAttemptHistoryQueryResult(
@@ -53,9 +56,9 @@ public sealed class GetAgentAttemptHistoryQueryHandler(IDevalCopilotDbContext db
     /// <summary>An unreadable row (null attempt) or one that fails the identity rule is still listed by
     /// number and times, with status only when it was readable and role, provider, contract, and outcome
     /// always withheld.</summary>
-    private static AgentAttemptHistoryEntry ToEntry(AgentAttemptScalars scalars, Attempt? attempt)
+    private static AgentAttemptHistoryEntry ToEntry(
+        AgentAttemptScalars scalars, Attempt? attempt, bool valid, AgentRepairLineage lineage)
     {
-        var valid = attempt is not null && AgentAttemptIdentity.IsCoherent(attempt);
         return new AgentAttemptHistoryEntry(
             scalars.Id,
             scalars.AttemptNumber,
@@ -67,6 +70,8 @@ public sealed class GetAgentAttemptHistoryQueryHandler(IDevalCopilotDbContext db
             valid ? attempt!.AgentRole : null,
             valid ? attempt!.AgentProvider : null,
             valid ? attempt!.AgentResponseContract : null,
-            valid ? attempt!.AgentOutcome : null);
+            valid ? attempt!.AgentOutcome : null,
+            lineage.SourceAttemptId,
+            lineage.SourceAttemptNumber);
     }
 }

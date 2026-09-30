@@ -44,7 +44,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// its own dedicated recording-timeout/failure regression (Section 1 of this slice's correction
 /// pass) and its own dedicated already-reviewed dispatch-time race test.
 /// </summary>
-public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
+public sealed partial class ImplementationReviewSupervisorHostedTests : IDisposable
 {
     private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TerminalPollTimeout = TimeSpan.FromSeconds(10);
@@ -934,6 +934,8 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
 
         public int InvocationCount => Volatile.Read(ref _invocationCount);
 
+        public ImplementationReviewInvocationRequest? LastRequest { get; private set; }
+
         public string? FinalResponseJsonToWrite { get; set; }
 
         public ImplementationReviewInvocationResult ResultToReturn { get; set; } =
@@ -943,6 +945,7 @@ public sealed class ImplementationReviewSupervisorHostedTests : IDisposable
             ImplementationReviewInvocationRequest request, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref _invocationCount);
+            LastRequest = request;
 
             if (FinalResponseJsonToWrite is { } content)
             {

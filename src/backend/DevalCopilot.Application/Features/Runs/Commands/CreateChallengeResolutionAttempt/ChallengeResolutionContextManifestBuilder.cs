@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateChallengeResolutionAttempt;
@@ -22,6 +23,14 @@ internal static class ChallengeResolutionContextManifestBuilder
         "docs/architecture/agent-collaboration-protocol.md",
     ];
 
+    /// <summary>The fixed, host-authored reminder carried by a format-repair manifest — the only
+    /// repair-specific content. Never the source response, a parser detail, an artifact path, an
+    /// attempt identity, or human text; it frames the result as a fresh resolution, not a correction.</summary>
+    public const string FormatRepairNotice =
+        "An earlier challenge-resolution response for these challenges failed structural validation. "
+        + "This is a fresh resolution request: return exactly one response that satisfies the "
+        + "unchanged expectedOutputSchema.";
+
     internal sealed record ChallengeEvidence(Guid MessageId, string Summary, string StructuredContentJson);
 
     public static string Build(
@@ -36,11 +45,12 @@ internal static class ChallengeResolutionContextManifestBuilder
         IReadOnlyList<ChallengeEvidence> orderedChallenges,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
+        bool formatRepair = false) =>
         ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             originalProposalMessageId, originalProposalSummary, originalProposalStructuredContentJson,
-            orderedChallenges, changeEvidence));
+            orderedChallenges, changeEvidence, formatRepair));
 
     private static string Serialize(
         Guid projectId,
@@ -52,7 +62,8 @@ internal static class ChallengeResolutionContextManifestBuilder
         string originalProposalSummary,
         string originalProposalStructuredContentJson,
         IReadOnlyList<ChallengeEvidence> orderedChallenges,
-        Dictionary<string, object?> changeEvidence)
+        Dictionary<string, object?> changeEvidence,
+        bool formatRepair)
     {
         var document = new
         {
@@ -94,6 +105,7 @@ internal static class ChallengeResolutionContextManifestBuilder
             changeEvidence,
         };
 
-        return JsonSerializer.Serialize(document);
+        var json = JsonSerializer.Serialize(document);
+        return formatRepair ? ReadOnlyFormatRepairManifest.InsertNotice(json, FormatRepairNotice) : json;
     }
 }

@@ -19,9 +19,9 @@ public enum AgentOutcome
 
     /// <summary>The provider produced a final response, but it failed protocol/schema
     /// validation: malformed JSON, an unexpected shape, excessive cardinality or text, or missing
-    /// required content. Raw evidence is preserved and never retried automatically; only a Codex
-    /// Planner attempt may receive one human-requested, separately recorded format-repair attempt
-    /// (see <see cref="Attempt.IsEligiblePlanningRepairSource"/>).</summary>
+    /// required content. Raw evidence is preserved and never retried automatically; only a Planner,
+    /// CriticalReviewer, Resolver, or CodeReviewer attempt may receive one human-requested, separately
+    /// recorded format-repair attempt (see <see cref="Attempt.IsEligiblePlanningRepairSource"/> and <see cref="ReadOnlyFormatRepairPolicy"/>).</summary>
     InvalidStructuredOutput = 2,
 
     /// <summary>The provider could not be invoked or did not run to a usable result — a missing

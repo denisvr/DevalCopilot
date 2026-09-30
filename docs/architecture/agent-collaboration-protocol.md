@@ -425,10 +425,12 @@ An adapter validates protocol version, type, identifiers, cardinality, text
 limits, and referenced artifacts. Invalid output produces a failed attempt with
 the raw response preserved. The system may request one bounded format repair,
 but it never invents missing decisions, evidence, or success. Today that
-provision exists only as a **human-requested** repair of a Codex Planner
-Proposal attempt; see
-[One manual Codex Planner format repair](#one-manual-codex-planner-format-repair).
-There is no automatic retry and no repair of any other role.
+provision exists only as a **human-requested** repair of a read-only stage's
+attempt: the Codex Planner Proposal (see
+[One manual Codex Planner format repair](#one-manual-codex-planner-format-repair)) and the Claude
+CriticalReviewer, Codex Resolver, and Codex CodeReviewer stages (see
+[One manual format repair of the remaining read-only stages](#one-manual-format-repair-of-the-remaining-read-only-stages)).
+There is no automatic retry, and no repair of a mutating Implementer or ReviewCorrection attempt.
 
 ## Context assembly
 
@@ -1165,7 +1167,10 @@ without changing any provider, workflow, schema, or the message-linked routes:
   attempts). `limit` defaults to 10 and is hard-capped at 20; a non-positive
   `limit` or cursor is a 400 and an unknown run a 404. The handler reads one extra
   row to compute `hasMore` and returns `nextBeforeAttemptNumber` (the last returned
-  number) only when `hasMore` is true. Rows carry identity and lifecycle facts only.
+  number) only when `hasMore` is true. Rows carry identity and lifecycle facts only, plus — for an attempt that was
+  requested as a manual format repair — `repairSourceAttemptId` and `repairSourceAttemptNumber`, present only when the
+  source is proved (an earlier Agent attempt of the same run) and null otherwise; the evidence route adds the same two
+  fields. They are provenance and never a claim that the source was fixed.
 - **Evidence metadata.** `GET …/agent-attempts/{attemptId}/evidence`
   (`GetAgentAttemptEvidenceQuery`) resolves by the exact `(RunId, AttemptId)` pair and
   `Kind == Agent`; an unknown, foreign-run, or non-Agent attempt is a safe 404
@@ -2158,6 +2163,129 @@ account-allowance, session, or invocation eligibility.
   response of either operation carries the source's response, a path, a hash, or a diagnostic.
 - **Limits.** The retry consumes a real Agent budget slot and reserved invocation time and can fail like any
   claim. It is not an automatic retry, provider-session resume, schema relaxation, or a way to bypass a budget.
+
+### One manual format repair of the remaining read-only stages
+
+The same accepted, bounded recovery (ADR-0004) exists for the three other read-only collaboration stages:
+the Claude Code **CriticalReviewer** (`CriticalReview` contract), the Codex **Resolver** (`ChallengeResolution`), and
+the Codex **CodeReviewer** (`ImplementationReview`). A human may request **one** repair of such an attempt whose
+recorded outcome is exactly `InvalidStructuredOutput`. Like the Planner's, it is a **fresh, schema-constrained
+invocation of the same read-only role** with the ordinarily validated durable context; it neither transforms nor
+preserves the meaning of the failed response, replays none of it, and is not evidence of model, account-allowance,
+session, or invocation eligibility. The Planner's repair is unchanged. A mutating Implementer or ReviewCorrection
+attempt has no repair.
+
+- **Operations.** Three protected, bodyless `POST` operations (no request body, target, prompt, provider, model,
+  or free text; a body sent anyway changes nothing):
+  `/api/runs/{runId}/agent-attempts/{sourceAttemptId}/critical-review-repair`,
+  `…/challenge-resolution-repair`, and `…/code-review-repair`. Each sends one command through
+  `IApplicationMediator` — `CreateClaudeCriticalReviewAttemptCommand`, `CreateChallengeResolutionAttemptCommand`,
+  or `CreateCodeReviewAttemptCommand`, built by its `ForRepair(runId, sourceAttemptId)` — and the role's existing
+  claim handler derives the target from the source's persisted inputs. There is no second orchestration layer and
+  no generic repair framework; each role keeps its own validation, manifest builder, schema, result handler, and
+  supervisor. The response is `{ attemptId, attemptNumber, repairSourceAttemptId }` and nothing from the source.
+- **Source eligibility (server-owned).** The source must belong to the run (an unknown id and another run's id are
+  the same 404 `agent_attempts.repair_source_not_found`, message "The selected attempt was not found for this run.")
+  and satisfy `ReadOnlyFormatRepairPolicy.IsEligibleSource` for the path's own response contract: an Agent attempt
+  with status `Failed` and outcome exactly `InvalidStructuredOutput`, dispatched and concluded, with
+  host-measured process evidence proving a clean exit, the path's exact provider, role, response contract,
+  expected message type, protocol `1.0`, `ReadOnly` permission profile, and current known v1 adapter contract
+  (`claude-critical-review-v1`, `codex-challenge-resolution-v1`, `codex-implementation-review-v1`), and a
+  well-formed assignment snapshot; otherwise 409 `agent_attempts.repair_source_ineligible`. It must carry no
+  `AgentRepairSourceAttemptId` itself (`agent_attempts.repair_of_repair_forbidden`), have produced **no durable
+  collaboration message** (a source that recorded a semantic result did not fail structurally), have no existing
+  repair (`agent_attempts.repair_already_requested`), be the run's **latest Agent attempt**
+  (`agent_attempts.repair_source_not_latest`), and — with the workspace context known — have been made against
+  exactly the selected workspace, checkpoint, and fingerprint (`agent_attempts.repair_source_checkpoint_mismatch`).
+  A stored value that cannot be materialized (an unreadable enum, assignment, process, or input row) fails
+  closed as `agent_attempts.repair_source_ineligible` with a fixed message that echoes no stored value; only
+  `InvalidOperationException` from materializing the source means "unreadable" — database and cancellation
+  failures propagate and are never reported as invalid source evidence.
+- **Exact retained context.** The repair retains exactly the source's recorded inputs, validated again by the
+  ordinary role gates rather than trusted from the source rows:
+  - *CriticalReviewer:* the source's one `Proposal` input (sequence 0), the root Proposal or the first Resolver
+    revision, through the same bounded-lineage rule as an ordinary review.
+  - *Resolver:* the original Proposal and the complete ordered Challenge set. The challenged review is derived from
+    the first Challenge's owning attempt, validated as an ordinary request would be (its own provider-observed
+    Challenges replying to the Proposal, bounded lineage), and the Proposal plus its ordered Challenges must equal the
+    source's recorded ordered inputs — another review, or a merely overlapping, partial, reordered, or extended
+    Challenge set, is `agent_attempts.repair_source_inputs_mismatch` (409); a missing, gapped, or otherwise
+    malformed recorded input set is `agent_attempts.repair_source_ineligible`.
+  - *CodeReviewer:* the ExecutionReport (initial implementation or successfully applied correction report) and the
+    ordered (verification command, verification execution) pairs. The report chain is validated as for an
+    ordinary review, and the *currently enabled and latest `Passed`* verification selection must still equal the
+    source's recorded set: a rerun, an enabled-command change, a reorder, or a replacement is an ordinary new
+    review (`agent_attempts.repair_source_inputs_mismatch`), never substituted into the repair. The ordinary
+    verification errors (`no_verification_commands_enabled`, `verification_evidence_missing`, `_running`, `_not_passed`)
+    still apply.
+
+  Recorded inputs are read from non-enum columns only, so a source with an unreadable enum column is refused rather
+  than crashing, and the database's unique indexes make duplicate message or execution identities impossible.
+- **Claim.** Every ordinary gate applies unchanged and in the same order: active run (`runs.not_active` for the
+  CriticalReviewer, `runs.not_running` for the others), ready workspace, active lease, current checkpoint, no other
+  Running attempt of any kind, the count budget (ADR-0012) and reserved-time budget (ADR-0013), the provider
+  token stop, an observed provider capability, a fresh Git fingerprint equal to the checkpoint's, and a fresh
+  model/effort snapshot. An invalid repair source is refused **before** the provider probe, Git capture, or manifest
+  sealing, and the source check precedes the running-attempt check so a request that lost the race to the source's one
+  repair is told "already requested". The repair takes the next Agent budget slot and attempt number.
+- **Atomic commit seam.** At the durable claim boundary the source, its exact inputs (with the report chain and
+  verification selection for the CodeReviewer, the reviewed lineage for the CriticalReviewer and Resolver), and
+  the execution context (run still active, workspace still ready, lease still active, selected checkpoint still the
+  workspace's latest) are **re-read inside the same short database transaction, after a guard statement has run in
+  it, before the linked Attempt, its inputs, verification rows, and artifact metadata are persisted and committed**;
+  external Git and artifact work stay outside it. The Resolver and CodeReviewer already used a short claim
+  transaction with the Codex preference and stop-policy compare-and-set statements as guards; the CriticalReviewer
+  gains a bounded repair-only transaction (its ordinary request keeps the single concurrency-token save) whose guard is the
+  stop-policy compare-and-set, followed by the Claude preference read. A late read alone is never the guarantee: on
+  SQLite (Microsoft.Data.Sqlite's default serializable transaction) the write lock is taken when the transaction
+  begins, so a competing writer cannot commit between those re-reads and the insert. Every authority read at this
+  seam (owning attempts, messages, report chains, verification commands and executions, and the reviewed
+  lineage, in all three repair paths) is **untracked**: the claim's own context already holds the earlier entity
+  instances, and a tracked re-query would silently return them instead of a change committed just before the
+  transaction began. Tracking is not disabled globally and the tracker holding the Run and the pending claim
+  writes is never cleared. The ordinary request-time validators are unchanged; the repair paths opt into the
+  untracked reads. The five repair helper types (`AgentRepairLineage`, `ReadOnlyFormatRepairInputs`,
+  `ReadOnlyFormatRepairLink`, `ReadOnlyFormatRepairManifest`, `ReadOnlyFormatRepairSource`) live in the Application
+  `Policies/FormatRepair` folder, not in the feature root; orchestration stays in the handlers. A source or input that
+  changed refuses the claim with the same codes as the request-time check, rolls back completely, and deletes the
+  already-sealed manifest. The global unique index `ix_attempts_agent_repair_source` is the at-most-one backstop
+  (`agent_attempts.repair_already_requested` if it ever rejects a claim); no column, migration, default, or backfill
+  was needed. Cancellation always propagates, never becoming a `Result`; a failed save or commit is resolved by the
+  independent durability probe: persisted → success, not persisted → the manifest is deleted, unresolved → the
+  manifest is preserved and `attempts.persistence_unresolved` is reported.
+- **Manifest.** The sealed manifest is the ordinary role manifest for the current verified context plus one fixed,
+  host-authored `formatRepairNotice` member, placed immediately before `untrustedEvidenceBoundary` so it stays in the
+  trusted part of the document; the unchanged expected schema and the untrusted-evidence boundary remain. The
+  notices are
+  `ClaudeCriticalReviewContextManifestBuilder.FormatRepairNotice` (critical review),
+  `ChallengeResolutionContextManifestBuilder.FormatRepairNotice` (challenge resolution), and
+  `CodeReviewContextManifestBuilder.FormatRepairNotice` (both the initial and the correction-evidence form): an
+  earlier response for this proposal, these challenges, or this implementation failed structural validation, this is a
+  fresh request, and exactly one response satisfying the unchanged `expectedOutputSchema` is required. The source's
+  raw output, parser or validation diagnostic, artifact path, attempt identity, outcome, and any human text are
+  never included; the source identifier is durable provenance and not provider instruction. Restart replay uses the
+  sealed manifest and the claimed assignment and never rebuilds from a later source or setting.
+- **Dispatch.** `MarkAgentAttemptDispatched` protects the three repair paths against an incoherent link, source, or
+  input identity (`agent_attempts.invalid_repair_link`, no provider process): the repair's own exact tuple, a distinct
+  earlier same-run source that is still an eligible failed source, the same workspace, checkpoint, and fingerprint,
+  no durable message from the source, and the repair's recorded inputs (and verification pairs) equal to the
+  source's. It deliberately does not re-apply the claim-time "latest" and "no repair" tests, since the repair now owns
+  that slot, and the ordinary duplicate-input classifications (`input_already_reviewed` and its counterparts) stay.
+  A committed repair consumes the source's one repair even if it is interrupted or never dispatched.
+- **Result.** The role's unchanged adapter, arguments, parser, and result handler record either the ordinary
+  validated result (an Acceptance or Challenges; Decisions plus a revised Proposal; a review approval or
+  findings) or the repair's own truthful outcome. An invalid repair records no semantic message and cannot be
+  repaired again. A repair adds no challenge round, does not bypass the two-round planning limit or the exactly-once
+  depth-two escalation (only the repair's valid result can record it), and grants no implementation authority,
+  correction authorization, automatic follow-up, or inferred success.
+- **Read model.** The CriticalReviewer, Resolver, and CodeReviewer status routes add `repairSourceAttemptId` and
+  `repairSourceAttemptNumber` (present for a repair; the number is null only if no source attempt of the run is
+  found). The Agent-attempt history entries and evidence add the same two fields for **every** repair, including
+  the Planner's, and read null unless the link can be proved (an earlier Agent attempt of the same run, found
+  through non-enum columns). All are provenance only — never a claim that the repair fixed or preserved the source.
+- **Limits.** The repair consumes a real Agent budget slot and reserved invocation time and can fail like any claim.
+  It is not an automatic retry, fallback, or debate, provider-session resume, schema relaxation, or a way around a
+  budget, and it never touches Git or publication policy.
 
 ### Optional second challenge round and escalation
 

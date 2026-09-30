@@ -681,6 +681,33 @@ that offers the button is masked during a run switch by the existing status hook
 ["One manual Codex Planner format repair"](../architecture/agent-collaboration-protocol.md#one-manual-codex-planner-format-repair)
 for the eligibility, claim, manifest, and persistence contract.
 
+### One manual format repair of a critical review, challenge resolution, or code review
+
+Beside each of the three remaining read-only stage actions, a separate repair panel appears with the same rules as
+the Codex plan repair above: "Claude critical review repair", "Challenge resolution repair", and "Code review
+repair". Each shows only when that stage's latest attempt has the recorded outcome `InvalidStructuredOutput`, is not
+itself a repair, is not running, and no known global budget or time-fit block for that stage's own claim path
+applies. Its one button ("Request one format-repair critical review", "…challenge resolution", "…code review") comes
+with plain wording: the last response failed structural validation; a repair is a **fresh** attempt with a format
+reminder that uses one normal Agent attempt and reserved time; and it does not correct, reuse, or fix the earlier
+response. The button is only a suggestion — the server alone decides eligibility (the source's exact inputs, and for
+the code review the enabled and latest passed verification selection, must still be current), and its fixed, safe
+refusal is shown in the panel while any other failure shows a generic message. The repair button is disabled while
+that repair or the stage's ordinary request is in flight or the status is loading, and the ordinary button is
+disabled while the repair is in flight, so the two never overlap; the other stages are unaffected. The pending state and
+error belong to the run that requested them and never appear on another run after a switch, including a later return
+to the original run (A to B to A never resurrects A's earlier error or pending state). Each request has a generation, and a
+completion that is no longer the latest request of the current run is ignored: it neither overwrites the current pending or
+error state nor triggers a refresh. Ignoring a stale completion does not cancel a request the server already accepted; the
+next authoritative status read shows its real outcome. On success the stage's
+status refreshes, and the panel then shows lineage ("Attempt #N is the one repair request for attempt #M.", or the
+generic form if the source number is unknown), that a repair is not repaired again, and that an ordinary request
+remains possible — whether the repair later succeeds or fails, and never that it fixed or preserved anything. The
+attempt history and its evidence detail show a provenance line ("Repair request for attempt #M") only when the source
+is proved; otherwise they show nothing. See
+["One manual format repair of the remaining read-only stages"](../architecture/agent-collaboration-protocol.md#one-manual-format-repair-of-the-remaining-read-only-stages)
+for the contract.
+
 ### Optional guidance with a review-correction authorization
 
 Where a review correction's budget is exhausted, its escalation exists, no authorization is available yet, and no

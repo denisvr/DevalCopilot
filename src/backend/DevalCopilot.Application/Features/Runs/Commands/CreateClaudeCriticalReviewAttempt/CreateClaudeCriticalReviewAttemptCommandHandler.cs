@@ -1,13 +1,17 @@
+using System.Data.Common;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
 
@@ -21,7 +25,8 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
     IDevalCopilotDbContext dbContext,
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IAttemptDurabilityProbe attemptDurabilityProbe)
     : ICommandHandler<CreateClaudeCriticalReviewAttemptCommand, Result<CreateClaudeCriticalReviewAttemptCommandResult>>
 {
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
@@ -74,6 +79,24 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
                 Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required to request a Claude critical review."));
+        }
+
+        // A manual format repair derives its target from the source's persisted input and requires an
+        // eligible source (see ReadOnlyFormatRepairSource); both are re-evaluated inside the durable
+        // claim transaction. It runs before the running-attempt check so a request that lost a race
+        // to the source's one repair is told the repair was already requested, not that some attempt
+        // is running. An ordinary request skips this entirely and is unaffected.
+        var proposalMessageId = command.ProposalMessageId ?? Guid.Empty;
+        var repairContext = new ReadOnlyFormatRepairSource.Context(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256);
+        if (command.RepairSourceAttemptId is { } repairSourceAttemptId)
+        {
+            var repairTarget = await ResolveRepairTargetAsync(run.Id, repairSourceAttemptId, repairContext, cancellationToken);
+            if (repairTarget.Error is { } repairTargetError)
+            {
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(repairTargetError);
+            }
+
+            proposalMessageId = repairTarget.ProposalMessageId;
         }
 
         // Run-wide, not Agent-scoped: a Simulated, Process, or Codex-planning Agent attempt
@@ -145,7 +168,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         // probe, Git capture, or manifest sealing, so a lineage refusal (an exhausted or corrupt lineage,
         // an unsupported role/provider pair, an unreadable row) does no external work. A proposal that is
         // simply not found keeps its existing position after the provider and checkpoint checks below.
-        var earlyEligibility = await EvaluateReviewEligibilityAsync(run.Id, command.ProposalMessageId, workspace.Id, checkpoint, cancellationToken);
+        var earlyEligibility = await EvaluateReviewEligibilityAsync(run.Id, proposalMessageId, workspace.Id, checkpoint, cancellationToken);
         if (earlyEligibility.Error is { Code: not "agent_attempts.proposal_not_found" } earlyRefusal)
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(earlyRefusal);
@@ -170,7 +193,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_not_current", "The selected source checkpoint is no longer current for this workspace."));
         }
 
-        var eligibility = await EvaluateReviewEligibilityAsync(run.Id, command.ProposalMessageId, workspace.Id, checkpoint, cancellationToken);
+        var eligibility = await EvaluateReviewEligibilityAsync(run.Id, proposalMessageId, workspace.Id, checkpoint, cancellationToken);
         if (eligibility.Error is { } error)
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(error);
@@ -193,7 +216,8 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             proposalMessage.StructuredContentJson,
             evidence.ChangedPaths,
             evidence.CompleteDiff,
-            evidence.UntrackedFiles);
+            evidence.UntrackedFiles,
+            formatRepair: command.RepairSourceAttemptId is not null);
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             // Genuinely unreachable with today's bounded manifest fields and the evidence
@@ -213,11 +237,21 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 Error.Failure("agent_attempts.context_manifest_seal_failed", "The context manifest could not be sealed."));
         }
 
+        // A repair commits through its own short write-locked transaction (see CommitRepairAsync):
+        // the source, its exact input, the lineage, and the run-wide Running slot are re-read there,
+        // after a write guard holds SQLite's write lock, so a late read alone never decides it.
+        if (command.RepairSourceAttemptId is { } repairSourceAtCommit)
+        {
+            return await CommitRepairAsync(
+                run, workspace, checkpoint, repairContext, repairSourceAtCommit, proposalMessage, attemptId, manifestArtifactId,
+                sealedManifest, nowUtc, agentAttemptsUsed, cancellationToken);
+        }
+
         // The last read before the durable commit: the lineage and the run-wide Running slot are
         // decided again after the external work above, so a competing review or claim that landed
         // in the meantime is refused here (the sealed manifest is removed) rather than committed.
         // The filtered unique index on (RunId WHERE Status = 'Running') still backstops the commit.
-        var lateEligibility = await EvaluateReviewEligibilityAsync(run.Id, command.ProposalMessageId, workspace.Id, checkpoint, cancellationToken);
+        var lateEligibility = await EvaluateReviewEligibilityAsync(run.Id, proposalMessageId, workspace.Id, checkpoint, cancellationToken);
         Error? lateError = lateEligibility.Error;
         if (lateError is null
             && await dbContext.Attempts.AsNoTracking().AnyAsync(
@@ -458,6 +492,391 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         return alreadyReviewed
             ? ReviewEligibility.Failed(Error.Conflict("agent_attempts.already_reviewed", "This proposal already has a successful critical review."))
             : ReviewEligibility.Succeeded(node.Proposal);
+    }
+
+    /// <summary>Evaluates the repair source (see <see cref="ReadOnlyFormatRepairSource"/>) and derives the
+    /// reviewed Proposal from its one persisted input. Nothing here is supplied by the caller.</summary>
+    private async Task<(Guid ProposalMessageId, Error? Error)> ResolveRepairTargetAsync(
+        Guid runId, Guid repairSourceAttemptId, ReadOnlyFormatRepairSource.Context repairContext, CancellationToken cancellationToken)
+    {
+        var evaluation = await ReadOnlyFormatRepairSource.EvaluateAsync(
+            dbContext, runId, repairSourceAttemptId, AgentResponseContract.CriticalReview, repairContext, cancellationToken);
+        if (evaluation.Error is { } sourceError)
+        {
+            return (Guid.Empty, sourceError);
+        }
+
+        var sourceInputs = await ReadOnlyFormatRepairInputs.ReadAsync(
+            dbContext, repairSourceAttemptId, AgentResponseContract.CriticalReview, cancellationToken);
+        return sourceInputs is null
+            ? (Guid.Empty, ReadOnlyFormatRepairSource.Ineligible())
+            : (sourceInputs.OrderedMessageIds[0], null);
+    }
+
+    /// <summary>The repair's final in-transaction read, decided against the state SQLite's write lock now
+    /// protects: the source is still eligible with the same one input, the reviewed lineage still
+    /// allows this review, and no attempt is Running. Returns the refusal, or null when still eligible.</summary>
+    private async Task<Error?> RevalidateRepairAsync(
+        Run run,
+        GitWorkspace workspace,
+        GitCheckpoint checkpoint,
+        ReadOnlyFormatRepairSource.Context repairContext,
+        Guid repairSourceAttemptId,
+        Guid proposalMessageId,
+        CancellationToken cancellationToken)
+    {
+        if (await ReadOnlyFormatRepairSource.EvaluateContextStillCurrentAsync(
+                dbContext, run.Id, workspace.Id, checkpoint.Id, runMayBeCreated: true, cancellationToken) is { } contextError)
+        {
+            return contextError;
+        }
+
+        var target = await ResolveRepairTargetAsync(run.Id, repairSourceAttemptId, repairContext, cancellationToken);
+        if (target.Error is { } targetError)
+        {
+            return targetError;
+        }
+
+        if (target.ProposalMessageId != proposalMessageId)
+        {
+            return ReadOnlyFormatRepairSource.InputsMismatch();
+        }
+
+        var eligibility = await EvaluateReviewEligibilityAsync(run.Id, proposalMessageId, workspace.Id, checkpoint, cancellationToken);
+        if (eligibility.Error is { } eligibilityError)
+        {
+            return eligibilityError;
+        }
+
+        return await dbContext.Attempts.AsNoTracking().AnyAsync(
+            candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken)
+            ? Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.")
+            : null;
+    }
+
+    /// <summary>
+    /// The durable claim of the one manual format repair. One short, explicit transaction — opened only
+    /// after all external work (Git evidence, manifest sealing) has completed — first executes a write
+    /// guard (the token-stop policy compare, an atomic UPDATE ... WHERE), which takes SQLite's write
+    /// lock; only then are the source, its exact input, the reviewed lineage, the running slot, and the
+    /// Claude model preference read, so no other claim can commit between those reads and this claim's
+    /// own inserts and commit. Every failure path removes the already-sealed manifest unless a fresh
+    /// independent probe shows the Attempt durably persisted or could not resolve it, in which case the
+    /// file is preserved; cancellation always propagates and is never converted into a Result.
+    /// </summary>
+    private async Task<Result<CreateClaudeCriticalReviewAttemptCommandResult>> CommitRepairAsync(
+        Run run,
+        GitWorkspace workspace,
+        GitCheckpoint checkpoint,
+        ReadOnlyFormatRepairSource.Context repairContext,
+        Guid repairSourceAttemptId,
+        CollaborationMessage proposalMessage,
+        Guid attemptId,
+        Guid manifestArtifactId,
+        SealedOutputFile sealedManifest,
+        DateTimeOffset nowUtc,
+        int agentAttemptsUsed,
+        CancellationToken cancellationToken)
+    {
+        IDbContextTransaction claimTransaction;
+        try
+        {
+            claimTransaction = await dbContext.BeginTransactionAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            throw;
+        }
+        catch (DbException)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+        }
+
+        await using (claimTransaction)
+        {
+            bool stopPolicyStillCurrent;
+            Error? revalidationError = null;
+            ClaudeModelRequestSnapshot requestedClaude = default;
+            int attemptNumber = 0;
+            try
+            {
+                // The write guard: one atomic UPDATE ... WHERE, the first statement of the transaction,
+                // so the write lock is held before any read below.
+                stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
+                if (stopPolicyStillCurrent)
+                {
+                    revalidationError = await RevalidateRepairAsync(
+                        run, workspace, checkpoint, repairContext, repairSourceAttemptId, proposalMessage.Id, cancellationToken);
+                    if (revalidationError is null)
+                    {
+                        attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
+                        requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
+                        CurrentTokenStopPolicy.Guard(dbContext, run);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                throw;
+            }
+            catch (DbException)
+            {
+                // A raw provider failure (a bounded lock-wait timeout or any other database failure) is
+                // never inferred to mean the source or its inputs changed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (!stopPolicyStillCurrent)
+            {
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(CurrentTokenStopPolicy.PolicyChangedDuringClaim());
+            }
+
+            if (revalidationError is not null)
+            {
+                // The source, its input, the lineage, or the running slot changed after the earlier
+                // checks: no repair is claimed, nothing is consumed, and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(revalidationError);
+            }
+
+            var agentBudgetSlot = agentAttemptsUsed + 1;
+            var attempt = Attempt.ClaimAgentCriticalReviewWithModelRequest(
+                attemptId,
+                run.Id,
+                attemptNumber,
+                workspace.Id,
+                checkpoint.Id,
+                checkpoint.FingerprintSha256,
+                manifestArtifactId,
+                InvocationTimeout,
+                MaxBytesPerStream,
+                MaxTotalCapturedBytes,
+                nowUtc,
+                requestedClaude.Model,
+                requestedClaude.Effort,
+                agentBudgetSlot,
+                repairSourceAttemptId);
+            var inputMessage = AttemptInputMessage.Record(Guid.NewGuid(), attemptId, proposalMessage.Id, sequence: 0);
+            var manifestArtifact = Artifact.Record(
+                manifestArtifactId,
+                run.Id,
+                attemptId,
+                ArtifactPurpose.AgentContextManifest,
+                "application/json",
+                sealedManifest.RelativeStoragePath,
+                sealedManifest.ContentHash,
+                sealedManifest.ByteLength,
+                truncated: false,
+                ArtifactCaptureOutcome.Captured,
+                ArtifactSensitivity.HostConstructedContent,
+                ArtifactRetentionPolicy.RetainUntilRunDeleted,
+                nowUtc);
+
+            dbContext.Attempts.Add(attempt);
+            dbContext.AttemptInputMessages.Add(inputMessage);
+            dbContext.Artifacts.Add(manifestArtifact);
+
+            if (run.Lifecycle == RunLifecycle.Created)
+            {
+                run.Claim(nowUtc);
+            }
+
+            void RemoveTracked()
+            {
+                dbContext.Attempts.Remove(attempt);
+                dbContext.AttemptInputMessages.Remove(inputMessage);
+                dbContext.Artifacts.Remove(manifestArtifact);
+            }
+
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // The database may already have applied the insert; an independent probe is the sole
+                // authority for the manifest's fate, and the cancellation still propagates.
+                await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                if (durability == AttemptDurabilityCheckResult.NotPersisted)
+                {
+                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                    RemoveTracked();
+                }
+
+                throw;
+            }
+            catch (DbUpdateException exception)
+            {
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                if (durability == AttemptDurabilityCheckResult.Persisted)
+                {
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Success(
+                        new CreateClaudeCriticalReviewAttemptCommandResult(attemptId, attemptNumber, repairSourceAttemptId));
+                }
+
+                if (durability == AttemptDurabilityCheckResult.Unresolved)
+                {
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(Error.Failure(
+                        "attempts.persistence_unresolved",
+                        "Whether the attempt was durably recorded could not be confirmed."));
+                }
+
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                RemoveTracked();
+
+                if (exception is DbUpdateConcurrencyException)
+                {
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                        await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
+                            ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
+                            : CurrentClaudeModelPreference.RunChangedDuringClaim());
+                }
+
+                if (await dbContext.Attempts.AsNoTracking().AnyAsync(
+                        candidate => candidate.AgentRepairSourceAttemptId == repairSourceAttemptId, cancellationToken))
+                {
+                    // The race the (AgentRepairSourceAttemptId) unique index exists to close.
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(Error.Conflict(
+                        PlanningRepairSource.AlreadyRequestedCode, "A repair was already requested for this attempt."));
+                }
+
+                if (await dbContext.Attempts.AsNoTracking().AnyAsync(
+                        candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken))
+                {
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                        Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress."));
+                }
+
+                if (await dbContext.Attempts.AsNoTracking().AnyAsync(
+                        candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent && candidate.AgentBudgetSlot == agentBudgetSlot,
+                        cancellationToken))
+                {
+                    var agentAttemptsUsedNow = await dbContext.Attempts.AsNoTracking().CountAsync(
+                        candidate => candidate.RunId == run.Id && candidate.Kind == AttemptKind.Agent, cancellationToken);
+                    if (agentAttemptsUsedNow >= run.MaximumAgentAttempts)
+                    {
+                        return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                            Error.Conflict("agent_attempts.budget_exhausted", "This run has reached its maximum claimed Agent attempts."));
+                    }
+
+                    if (run.MaximumAgentInvocationTime is { } maximumAgentInvocationTimeOnRace)
+                    {
+                        var reservedNow = await AgentInvocationTimeBudget.ComputeReservedAsync(dbContext, run.Id, asNoTracking: true, cancellationToken);
+                        var projectedOnRace = reservedNow is null
+                            ? null
+                            : AgentInvocationTimeReservation.ComputeProjectedReservation(reservedNow.Value, InvocationTimeout);
+                        if (projectedOnRace is null)
+                        {
+                            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                                Error.Failure("agent_attempts.time_budget_evidence_invalid", "This claim's reserved Agent invocation time could not be safely evaluated: prior Agent attempt invocation-time evidence is missing or invalid, or this claim's own reservation is not representable."));
+                        }
+
+                        if (projectedOnRace.Value > maximumAgentInvocationTimeOnRace)
+                        {
+                            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                                Error.Conflict("agent_attempts.time_budget_exceeded", "This run has reached its maximum reserved Agent invocation time."));
+                        }
+                    }
+
+                    var tokenStopOnRace = await AgentTokenStopGate.CheckClaimAsync(dbContext, run, AgentProvider.ClaudeCode, cancellationToken);
+                    if (tokenStopOnRace is not null)
+                    {
+                        return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(tokenStopOnRace);
+                    }
+
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                        Error.Conflict("agent_attempts.budget_slot_conflict", "A concurrent request already claimed this Agent attempt's budget slot; retry the request."));
+                }
+
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            try
+            {
+                await claimTransaction.CommitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                if (durability == AttemptDurabilityCheckResult.NotPersisted)
+                {
+                    artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                    RemoveTracked();
+                }
+
+                throw;
+            }
+            catch (DbException)
+            {
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+
+                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                if (durability == AttemptDurabilityCheckResult.Persisted)
+                {
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Success(
+                        new CreateClaudeCriticalReviewAttemptCommandResult(attemptId, attemptNumber, repairSourceAttemptId));
+                }
+
+                if (durability == AttemptDurabilityCheckResult.Unresolved)
+                {
+                    return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(Error.Failure(
+                        "attempts.persistence_unresolved",
+                        "Whether the attempt was durably recorded could not be confirmed."));
+                }
+
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                RemoveTracked();
+                return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Success(
+                new CreateClaudeCriticalReviewAttemptCommandResult(attemptId, attemptNumber, repairSourceAttemptId));
+        }
+    }
+
+    /// <summary>Rolls back the claim's own guard transaction and releases it, swallowing a failure from
+    /// either step: whatever caused the caller's own primary failure already leaves this transaction's fate
+    /// uncertain, and the <see cref="IAttemptDurabilityProbe"/> check each caller performs afterwards is the
+    /// actual authority on durable state.</summary>
+    private static async Task RollbackBestEffortAsync(IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await transaction.RollbackAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            // Deliberately broad: a rollback after an ambiguous or completed commit can throw a provider
+            // exception or an InvalidOperationException depending on the transaction's own actual fate.
+        }
+        finally
+        {
+            try
+            {
+                await transaction.DisposeAsync();
+            }
+            catch (Exception)
+            {
+                // Best-effort release; the enclosing await using disposes again as a safe no-op.
+            }
+        }
     }
 
     private sealed record ReviewEligibility(CollaborationMessage? Message, Error? Error)

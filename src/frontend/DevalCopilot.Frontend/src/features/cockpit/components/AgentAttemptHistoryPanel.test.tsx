@@ -380,4 +380,54 @@ describe('AgentAttemptHistoryPanel', () => {
     expect(local).not.toHaveBeenCalled()
     expect(window.location.href).not.toContain('stored')
   })
+
+  describe('repair lineage provenance', () => {
+    it('shows the source number, a generic fallback for an id only, and nothing when the link is unknown', async () => {
+      history.mockResolvedValue({
+        items: [
+          entry(3, { repairSourceAttemptId: 'attempt-2', repairSourceAttemptNumber: 2 }),
+          entry(2, { repairSourceAttemptId: 'attempt-1' }),
+          entry(1),
+        ],
+        hasMore: false,
+      })
+      render(<AgentAttemptHistoryPanel runId="run-1" />)
+      openHistory()
+
+      const rows = (await screen.findAllByRole('listitem')).map((row) => row.textContent ?? '')
+      expect(rows[0]).toContain('Repair request for attempt #2')
+      expect(rows[1]).toContain('Repair request for an earlier attempt')
+      expect(rows[1]).not.toContain('#undefined')
+      expect(rows[2]).not.toContain('Repair request')
+      for (const row of rows) {
+        expect(row).not.toMatch(/fixed|corrected|preserved/i)
+      }
+    })
+
+    it('shows provenance in the selected attempt evidence only when a link is recorded', async () => {
+      history.mockResolvedValue({ items: [entry(2), entry(1)], hasMore: false })
+      evidence.mockResolvedValueOnce({
+        ...evidenceFor(2),
+        repairSourceAttemptId: 'attempt-1',
+        repairSourceAttemptNumber: 1,
+      })
+      evidence.mockResolvedValueOnce(evidenceFor(1))
+      render(<AgentAttemptHistoryPanel runId="run-1" />)
+      openHistory()
+      await screen.findByText(/Attempt #2/)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Inspect attempt 2' }))
+      const detail = await screen.findByRole('region', { name: 'Selected Agent attempt evidence' })
+      expect(await within(detail).findByText(/Repair request for attempt #1/)).toBeTruthy()
+      expect(detail.textContent).not.toMatch(/fixed|corrected|preserved/i)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Inspect attempt 1' }))
+      await within(await screen.findByRole('region', { name: 'Selected Agent attempt evidence' })).findByText(
+        /Standard error: 12 bytes/,
+      )
+      expect(screen.getByRole('region', { name: 'Selected Agent attempt evidence' }).textContent).not.toContain(
+        'Repair request',
+      )
+    })
+  })
 })

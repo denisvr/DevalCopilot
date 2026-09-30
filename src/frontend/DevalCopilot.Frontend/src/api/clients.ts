@@ -40,12 +40,15 @@ import {
   RequestCodexPlanningRepairAttemptEndpointClient,
   GetAgentAttemptStatusEndpointClient,
   RequestClaudeCriticalReviewEndpointClient,
+  RequestClaudeCriticalReviewRepairAttemptEndpointClient,
   GetClaudeCriticalReviewAttemptStatusEndpointClient,
   RequestChallengeResolutionEndpointClient,
+  RequestChallengeResolutionRepairAttemptEndpointClient,
   GetChallengeResolutionAttemptStatusEndpointClient,
   RequestImplementationEndpointClient,
   GetImplementationAttemptStatusEndpointClient,
   RequestCodeReviewEndpointClient,
+  RequestCodeReviewRepairAttemptEndpointClient,
   GetCodeReviewAttemptStatusEndpointClient,
   RequestReviewCorrectionEndpointClient,
   GetReviewCorrectionAttemptStatusEndpointClient,
@@ -97,12 +100,15 @@ export const requestCodexPlanningAttemptClient = () => new RequestCodexPlanningA
 export const requestCodexPlanningRepairAttemptClient = () => new RequestCodexPlanningRepairAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptStatusClient = () => new GetAgentAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestClaudeCriticalReviewClient = () => new RequestClaudeCriticalReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestClaudeCriticalReviewRepairAttemptClient = () => new RequestClaudeCriticalReviewRepairAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const claudeCriticalReviewAttemptStatusClient = () => new GetClaudeCriticalReviewAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestChallengeResolutionClient = () => new RequestChallengeResolutionEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestChallengeResolutionRepairAttemptClient = () => new RequestChallengeResolutionRepairAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const challengeResolutionAttemptStatusClient = () => new GetChallengeResolutionAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestImplementationClient = () => new RequestImplementationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const implementationAttemptStatusClient = () => new GetImplementationAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestCodeReviewClient = () => new RequestCodeReviewEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestCodeReviewRepairAttemptClient = () => new RequestCodeReviewRepairAttemptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const codeReviewAttemptStatusClient = () => new GetCodeReviewAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestReviewCorrectionClient = () => new RequestReviewCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const reviewCorrectionAttemptStatusClient = () => new GetReviewCorrectionAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -157,12 +163,15 @@ export type {
   AgentAttemptStatusResponse,
   AgentAttemptArtifactMetadataResponse,
   RequestClaudeCriticalReviewResponse,
+  RequestClaudeCriticalReviewRepairAttemptResponse,
   ClaudeCriticalReviewAttemptStatusResponse,
   RequestChallengeResolutionResponse,
+  RequestChallengeResolutionRepairAttemptResponse,
   ChallengeResolutionAttemptStatusResponse,
   RequestImplementationResponse,
   ImplementationAttemptStatusResponse,
   RequestCodeReviewResponse,
+  RequestCodeReviewRepairAttemptResponse,
   CodeReviewAttemptStatusResponse,
   RequestReviewCorrectionResponse,
   ReviewCorrectionAttemptStatusResponse,

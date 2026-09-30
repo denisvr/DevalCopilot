@@ -5,6 +5,7 @@ import { useAgentAttemptHistory } from '../hooks/useAgentAttemptHistory'
 import { AgentAttemptArtifactViewer } from './AgentAttemptArtifactViewer'
 import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
 import { ARTIFACT_PURPOSE_LABELS } from '../artifactPurposes'
+import { describeRepairLineage } from '../describeRepairLineage'
 
 function formatUtc(value: Date | string | undefined): string | null {
   if (value === undefined) {
@@ -21,7 +22,8 @@ function describeEntry(entry: AgentAttemptHistoryEntryResponse): string {
   }
 
   const outcome = entry.outcome ? ` · Result: ${entry.outcome}` : ''
-  return `Attempt #${entry.attemptNumber} · ${entry.role} · ${entry.provider} · ${entry.status}${outcome}`
+  const lineage = describeRepairLineage(entry.repairSourceAttemptId, entry.repairSourceAttemptNumber)
+  return `Attempt #${entry.attemptNumber} · ${entry.role} · ${entry.provider} · ${entry.status}${outcome}${lineage ? ` · ${lineage}` : ''}`
 }
 
 interface AgentAttemptDetailProps {
@@ -73,6 +75,7 @@ function AgentAttemptEvidenceBody({ runId, evidence }: { runId: string; evidence
   const artifacts = evidence.artifacts ?? []
   const claimed = formatUtc(evidence.claimedAtUtc)
   const completed = formatUtc(evidence.completedAtUtc)
+  const lineage = describeRepairLineage(evidence.repairSourceAttemptId, evidence.repairSourceAttemptNumber)
 
   return (
     <div>
@@ -80,6 +83,7 @@ function AgentAttemptEvidenceBody({ runId, evidence }: { runId: string; evidence
         Attempt #{evidence.attemptNumber} · {evidence.role} · {evidence.provider} · {evidence.attemptStatus}
         {evidence.outcome ? ` · Result: ${evidence.outcome}` : ''}
       </p>
+      {lineage && <p className="dc-attempt-history-lineage">{lineage}. Provenance only.</p>}
       {claimed && <p>Claimed {claimed}{completed ? `, ended ${completed}` : ''}.</p>}
       {artifacts.length === 0 ? (
         <p className="dc-empty-state">No sealed artifacts were recorded for this attempt.</p>

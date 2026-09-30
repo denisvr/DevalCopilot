@@ -20,4 +20,6 @@ public sealed record AgentAttemptHistoryEntry(
     AgentRole? Role,
     AgentProvider? Provider,
     AgentResponseContract? ResponseContract,
-    AgentOutcome? Outcome);
+    AgentOutcome? Outcome,
+    Guid? RepairSourceAttemptId = null,
+    int? RepairSourceAttemptNumber = null);

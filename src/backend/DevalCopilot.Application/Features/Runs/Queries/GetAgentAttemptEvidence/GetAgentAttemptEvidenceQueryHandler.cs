@@ -4,6 +4,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Application.Features.Runs.Queries.GetSealedAgentArtifactWindow;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,6 +52,8 @@ public sealed class GetAgentAttemptEvidenceQueryHandler(IDevalCopilotDbContext d
             .Select(artifact => new { artifact.Purpose, artifact.ByteLength, artifact.Truncated, artifact.CaptureOutcome })
             .ToArrayAsync(cancellationToken);
 
+        var lineage = await AgentRepairLineage.ReadAsync(dbContext, attempt, cancellationToken);
+
         var artifacts = rows
             .OrderBy(row => row.Purpose)
             .Select(row => new AgentAttemptArtifactMetadata(row.Purpose, row.ByteLength, row.Truncated, row.CaptureOutcome))
@@ -72,6 +75,8 @@ public sealed class GetAgentAttemptEvidenceQueryHandler(IDevalCopilotDbContext d
             attempt.GetAgentProcessExecutionEvidence(),
             attempt.GetAgentTokenUsageEvidence(),
             artifacts,
-            ClaudeMutationTurnLimitFact.ForAttempt(attempt)));
+            ClaudeMutationTurnLimitFact.ForAttempt(attempt),
+            lineage.SourceAttemptId,
+            lineage.SourceAttemptNumber));
     }
 }

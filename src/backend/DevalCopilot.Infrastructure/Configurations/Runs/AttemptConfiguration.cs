@@ -109,10 +109,10 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         // deterministic slot by the AddAgentClaimBudget migration.
         builder.Property(attempt => attempt.AgentBudgetSlot);
 
-        // Immutable lineage of the one manual Planner format repair: null for every attempt that is
-        // not a repair, never backfilled. NoAction (checked at statement end), not Cascade or
-        // Restrict: deleting a referenced source on its own is refused, while deleting its run
-        // cascades to source and repair together.
+        // Immutable lineage of the one manual format repair (Planner, CriticalReviewer, Resolver, or
+        // CodeReviewer): null for every attempt that is not a repair, never backfilled. NoAction
+        // (checked at statement end), not Cascade or Restrict: deleting a referenced source on its own
+        // is refused, while deleting its run cascades to source and repair together.
         builder.Property(attempt => attempt.AgentRepairSourceAttemptId);
         builder.HasOne<Attempt>()
             .WithMany()
@@ -126,7 +126,8 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         // the claim handler's source check and its commit-boundary re-check; this filtered unique
         // index turns a lost race into a safe "already repaired" conflict instead of two repairs
         // of one source. A repair of a repair is excluded by the handler and by
-        // Attempt.IsEligiblePlanningRepairSource, not by this index.
+        // Attempt.IsEligiblePlanningRepairSource or ReadOnlyFormatRepairPolicy.IsEligibleSource, not by
+        // this index.
         builder.HasIndex(attempt => attempt.AgentRepairSourceAttemptId)
             .IsUnique()
             .HasDatabaseName("ix_attempts_agent_repair_source")

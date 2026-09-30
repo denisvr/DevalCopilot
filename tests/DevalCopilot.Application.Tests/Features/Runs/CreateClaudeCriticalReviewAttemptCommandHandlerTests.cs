@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
@@ -15,12 +16,15 @@ namespace DevalCopilot.Application.Tests.Features.Runs;
 /// <summary>Mirrors <c>CreateCodexPlanningAttemptCommandHandlerTests</c>'s fixture/fake style
 /// exactly, adapted for the additional reviewed-Proposal validation chain this handler alone
 /// has.</summary>
-public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyncLifetime
+public sealed partial class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 17, 9, 0, 0, TimeSpan.Zero);
     private static readonly string Fingerprint = new('a', 64);
 
     private readonly SqliteDatabaseFixture _fixture = new();
+
+    /// <summary>A real <see cref="AttemptDurabilityProbe"/> against this fixture's own database.</summary>
+    private IAttemptDurabilityProbe DurabilityProbe => new AttemptDurabilityProbe(_fixture.Options);
 
     public Task InitializeAsync() => _fixture.InitializeAsync();
 
@@ -233,7 +237,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(Fingerprint)), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, new FakeGitWorkspaceEvidenceReader(UntrackedManifestTestSupport.Evidence(Fingerprint)), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -276,7 +280,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -303,7 +307,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -339,7 +343,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (runId, proposalMessageId) = await SeedClaudeModelScenarioAsync(alias);
         await using var handlerContext = _fixture.CreateContext();
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -363,7 +367,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var evidenceReader = new RaceInjectingEvidenceReader(
             new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
             _ => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "haiku"));
-        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -381,7 +385,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (runId, proposalMessageId) = await SeedClaudeModelScenarioAsync(model, effort);
         await using var handlerContext = _fixture.CreateContext();
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -402,7 +406,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var evidenceReader = new RaceInjectingEvidenceReader(
             new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
             _ => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus", "high"));
-        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -418,7 +422,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
             () => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus", "high")));
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -444,7 +448,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
                 await competing.SaveChangesAsync();
             }));
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -461,7 +465,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await using var handlerContext = _fixture.CreateContext(new BeforeFirstSaveInterceptor(
             () => ClaudeModelPreferenceTestSupport.SetPreferenceAsync(_fixture, runId, "opus")));
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now));
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -511,7 +515,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
                 await raceContext.SaveChangesAsync(cancellationToken);
             });
 
-        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -554,7 +558,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
                 await raceContext.SaveChangesAsync(cancellationToken);
             });
 
-        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -584,7 +588,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, alternateProviderProposal.Id), CancellationToken.None);
@@ -623,7 +627,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, wronglyTypedMessage.Id), CancellationToken.None);
@@ -651,7 +655,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, mismatchedProposal.Id), CancellationToken.None);
@@ -666,7 +670,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await using var dbContext = _fixture.CreateContext();
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(Guid.NewGuid(), Guid.NewGuid()), CancellationToken.None);
@@ -682,7 +686,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext, workspaceReady: false);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -698,7 +702,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext, leaseActive: false);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -714,7 +718,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext, hasCheckpoint: false);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -734,7 +738,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -750,7 +754,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext, claudeObserved: false);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -769,7 +773,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext, claudeLaunchKind: CapabilityLaunchKind.NodeScript);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -785,7 +789,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext);
 
         var evidenceReader = FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(new string('b', 64));
-        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(dbContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(dbContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -802,7 +806,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         var (_, run, _, _) = await SeedEligibleRunAsync(dbContext);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, Guid.NewGuid()), CancellationToken.None);
@@ -824,7 +828,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, otherProposal.Id), CancellationToken.None);
@@ -852,7 +856,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, acceptanceMessage.Id), CancellationToken.None);
@@ -886,7 +890,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, simulatedProposal.Id), CancellationToken.None);
@@ -929,7 +933,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, orphanedProposal.Id), CancellationToken.None);
@@ -971,7 +975,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposal.Id), CancellationToken.None);
@@ -999,7 +1003,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(currentFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(currentFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -1033,7 +1037,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(currentFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(currentFingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -1061,7 +1065,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -1089,7 +1093,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -1119,7 +1123,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
-            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now));
+            dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -1139,7 +1143,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
 
         var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
             dbContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint),
-            new FakeArtifactStore { SealShouldFail = true }, new FixedTimeProvider(Now));
+            new FakeArtifactStore { SealShouldFail = true }, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(
             new CreateClaudeCriticalReviewAttemptCommand(run.Id, proposalMessage.Id), CancellationToken.None);
@@ -1176,7 +1180,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
                 await raceContext.SaveChangesAsync(cancellationToken);
             });
 
-        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, artifactStore, new FixedTimeProvider(Now), DurabilityProbe);
 
         var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
 
@@ -1216,7 +1220,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandlerTests : IAsyn
 
     private CreateClaudeCriticalReviewAttemptCommandHandler NewStopHandler(
         DevalCopilotDbContext context, IGitWorkspaceEvidenceReader reader, FakeArtifactStore? store = null) =>
-        new(context, reader, store ?? new FakeArtifactStore(), new FixedTimeProvider(Now));
+        new(context, reader, store ?? new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
 
     private static TokenStopTestSupport.CountingEvidenceReader CountingReader() => new(
         new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null));

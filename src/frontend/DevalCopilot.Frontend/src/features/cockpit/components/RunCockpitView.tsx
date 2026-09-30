@@ -5,12 +5,15 @@ import { useRequestCodexPlanningAttempt } from '../hooks/useRequestCodexPlanning
 import { useRequestCodexPlanningRepairAttempt } from '../hooks/useRequestCodexPlanningRepairAttempt'
 import { useClaudeCriticalReviewAttemptStatus } from '../hooks/useClaudeCriticalReviewAttemptStatus'
 import { useRequestClaudeCriticalReview } from '../hooks/useRequestClaudeCriticalReview'
+import { useRequestClaudeCriticalReviewRepairAttempt } from '../hooks/useRequestClaudeCriticalReviewRepairAttempt'
 import { useChallengeResolutionAttemptStatus } from '../hooks/useChallengeResolutionAttemptStatus'
 import { useRequestChallengeResolution } from '../hooks/useRequestChallengeResolution'
+import { useRequestChallengeResolutionRepairAttempt } from '../hooks/useRequestChallengeResolutionRepairAttempt'
 import { useImplementationAttemptStatus } from '../hooks/useImplementationAttemptStatus'
 import { useRequestImplementation } from '../hooks/useRequestImplementation'
 import { useCodeReviewAttemptStatus } from '../hooks/useCodeReviewAttemptStatus'
 import { useRequestCodeReview } from '../hooks/useRequestCodeReview'
+import { useRequestCodeReviewRepairAttempt } from '../hooks/useRequestCodeReviewRepairAttempt'
 import { useReviewCorrectionAttemptStatus } from '../hooks/useReviewCorrectionAttemptStatus'
 import { useRequestReviewCorrection } from '../hooks/useRequestReviewCorrection'
 import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrection'
@@ -35,10 +38,13 @@ import { AgentCollaboration } from './AgentCollaboration'
 import { CodexPlanningAction } from './CodexPlanningAction'
 import { CodexPlanningRepairAction } from './CodexPlanningRepairAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
+import { ClaudeCriticalReviewRepairAction } from './ClaudeCriticalReviewRepairAction'
 import { PlanningLineageSummary } from './PlanningLineageSummary'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
+import { ChallengeResolutionRepairAction } from './ChallengeResolutionRepairAction'
 import { ImplementationAction } from './ImplementationAction'
 import { CodeReviewAction } from './CodeReviewAction'
+import { CodeReviewRepairAction } from './CodeReviewRepairAction'
 import { ReviewCorrectionAction } from './ReviewCorrectionAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
@@ -62,12 +68,15 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestCodexPlanningRepair = useRequestCodexPlanningRepairAttempt(runId, agentAttemptStatus.refresh)
   const claudeCriticalReviewAttemptStatus = useClaudeCriticalReviewAttemptStatus(runId, cockpit?.latestSequence)
   const requestClaudeCriticalReview = useRequestClaudeCriticalReview(claudeCriticalReviewAttemptStatus.refresh)
+  const requestClaudeCriticalReviewRepair = useRequestClaudeCriticalReviewRepairAttempt(runId, claudeCriticalReviewAttemptStatus.refresh)
   const challengeResolutionAttemptStatus = useChallengeResolutionAttemptStatus(runId, cockpit?.latestSequence)
   const requestChallengeResolution = useRequestChallengeResolution(challengeResolutionAttemptStatus.refresh)
+  const requestChallengeResolutionRepair = useRequestChallengeResolutionRepairAttempt(runId, challengeResolutionAttemptStatus.refresh)
   const implementationAttemptStatus = useImplementationAttemptStatus(runId, cockpit?.latestSequence)
   const requestImplementation = useRequestImplementation(implementationAttemptStatus.refresh)
   const codeReviewAttemptStatus = useCodeReviewAttemptStatus(runId, cockpit?.latestSequence)
   const requestCodeReview = useRequestCodeReview(codeReviewAttemptStatus.refresh)
+  const requestCodeReviewRepair = useRequestCodeReviewRepairAttempt(runId, codeReviewAttemptStatus.refresh)
   const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
   const requestReviewCorrection = useRequestReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
   const authorizeReviewCorrection = useAuthorizeReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
@@ -227,11 +236,21 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             status={claudeCriticalReviewAttemptStatus.status}
             statusLoading={claudeCriticalReviewAttemptStatus.loading}
             statusError={claudeCriticalReviewAttemptStatus.error}
-            requesting={requestClaudeCriticalReview.requesting}
+            requesting={requestClaudeCriticalReview.requesting || requestClaudeCriticalReviewRepair.requesting}
             requestError={requestClaudeCriticalReview.error}
             onRequest={() =>
               reviewableProposalMessageId && void requestClaudeCriticalReview.request(runId, reviewableProposalMessageId)
             }
+            globalClaimBlock={globalClaimBlock}
+            timeFit={claudeCriticalReviewTimeFit}
+          />
+          <ClaudeCriticalReviewRepairAction
+            status={claudeCriticalReviewAttemptStatus.status}
+            statusLoading={claudeCriticalReviewAttemptStatus.loading}
+            ordinaryRequesting={requestClaudeCriticalReview.requesting}
+            repairRequesting={requestClaudeCriticalReviewRepair.requesting}
+            repairError={requestClaudeCriticalReviewRepair.error}
+            onRequestRepair={(sourceAttemptId) => void requestClaudeCriticalReviewRepair.request(sourceAttemptId)}
             globalClaimBlock={globalClaimBlock}
             timeFit={claudeCriticalReviewTimeFit}
           />
@@ -242,11 +261,21 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             status={challengeResolutionAttemptStatus.status}
             statusLoading={challengeResolutionAttemptStatus.loading}
             statusError={challengeResolutionAttemptStatus.error}
-            requesting={requestChallengeResolution.requesting}
+            requesting={requestChallengeResolution.requesting || requestChallengeResolutionRepair.requesting}
             requestError={requestChallengeResolution.error}
             onRequest={() =>
               latestChallengedReviewAttemptId && void requestChallengeResolution.request(runId, latestChallengedReviewAttemptId)
             }
+            globalClaimBlock={globalClaimBlock}
+            timeFit={challengeResolutionTimeFit}
+          />
+          <ChallengeResolutionRepairAction
+            status={challengeResolutionAttemptStatus.status}
+            statusLoading={challengeResolutionAttemptStatus.loading}
+            ordinaryRequesting={requestChallengeResolution.requesting}
+            repairRequesting={requestChallengeResolutionRepair.requesting}
+            repairError={requestChallengeResolutionRepair.error}
+            onRequestRepair={(sourceAttemptId) => void requestChallengeResolutionRepair.request(sourceAttemptId)}
             globalClaimBlock={globalClaimBlock}
             timeFit={challengeResolutionTimeFit}
           />
@@ -268,11 +297,21 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             status={codeReviewAttemptStatus.status}
             statusLoading={codeReviewAttemptStatus.loading}
             statusError={codeReviewAttemptStatus.error}
-            requesting={requestCodeReview.requesting}
+            requesting={requestCodeReview.requesting || requestCodeReviewRepair.requesting}
             requestError={requestCodeReview.error}
             onRequest={() =>
               latestExecutionReportMessageId && void requestCodeReview.request(runId, latestExecutionReportMessageId)
             }
+            globalClaimBlock={globalClaimBlock}
+            timeFit={codeReviewTimeFit}
+          />
+          <CodeReviewRepairAction
+            status={codeReviewAttemptStatus.status}
+            statusLoading={codeReviewAttemptStatus.loading}
+            ordinaryRequesting={requestCodeReview.requesting}
+            repairRequesting={requestCodeReviewRepair.requesting}
+            repairError={requestCodeReviewRepair.error}
+            onRequestRepair={(sourceAttemptId) => void requestCodeReviewRepair.request(sourceAttemptId)}
             globalClaimBlock={globalClaimBlock}
             timeFit={codeReviewTimeFit}
           />

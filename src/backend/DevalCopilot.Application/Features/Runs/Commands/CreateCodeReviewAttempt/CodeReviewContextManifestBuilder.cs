@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateCodeReviewAttempt;
@@ -25,6 +26,15 @@ internal static class CodeReviewContextManifestBuilder
         "docs/engineering-context.md",
         "docs/architecture/agent-collaboration-protocol.md",
     ];
+
+    /// <summary>The fixed, host-authored reminder carried by a format-repair manifest (both the initial
+    /// and the correction form) — the only repair-specific content. Never the source response, a parser
+    /// detail, an artifact path, an attempt identity, or human text; it frames the result as a fresh
+    /// review, not a correction.</summary>
+    public const string FormatRepairNotice =
+        "An earlier implementation-review response for this implementation failed structural validation. "
+        + "This is a fresh review request: return exactly one response that satisfies the "
+        + "unchanged expectedOutputSchema.";
 
     internal sealed record VerificationEvidence(
         string CommandName, int CommandNumber, string Status, string? Outcome, int? ExitCode);
@@ -55,12 +65,13 @@ internal static class CodeReviewContextManifestBuilder
         IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
-        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
+        bool formatRepair = false) =>
         ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, resultGitCheckpointId, resultCheckpointFingerprintSha256, runObjective,
             resolvedPlanMessageId, resolvedPlanSummary, resolvedPlanStructuredContentJson,
             executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,
-            orderedVerificationEvidence, changeEvidence));
+            orderedVerificationEvidence, changeEvidence, formatRepair));
 
     private static string Serialize(
         Guid projectId,
@@ -75,7 +86,8 @@ internal static class CodeReviewContextManifestBuilder
         string executionReportSummary,
         string executionReportStructuredContentJson,
         IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
-        Dictionary<string, object?> changeEvidence)
+        Dictionary<string, object?> changeEvidence,
+        bool formatRepair)
     {
         var document = new
         {
@@ -126,7 +138,8 @@ internal static class CodeReviewContextManifestBuilder
             changeEvidence,
         };
 
-        return JsonSerializer.Serialize(document);
+        var json = JsonSerializer.Serialize(document);
+        return formatRepair ? ReadOnlyFormatRepairManifest.InsertNotice(json, FormatRepairNotice) : json;
     }
 
     public static string BuildForCorrection(
@@ -145,7 +158,8 @@ internal static class CodeReviewContextManifestBuilder
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         string? completeDiff,
         CorrectionEvidence correctionEvidence,
-        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null) =>
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
+        bool formatRepair = false) =>
         // The correction evidence is part of what must fit the manifest ceiling, so it is added
         // inside each fitting attempt rather than after the section was already sized.
         ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence =>
@@ -163,7 +177,8 @@ internal static class CodeReviewContextManifestBuilder
                 executionReportSummary,
                 executionReportStructuredContentJson,
                 orderedVerificationEvidence,
-                changeEvidence))!.AsObject();
+                changeEvidence,
+                formatRepair))!.AsObject();
             return AddCorrectionEvidence(root, correctionEvidence);
         });
 

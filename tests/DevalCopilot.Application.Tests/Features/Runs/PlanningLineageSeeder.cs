@@ -30,6 +30,9 @@ internal sealed class PlanningLineageSeeder(
 
     public int NextAttemptNumber => nextAttemptNumber;
 
+    /// <summary>Takes the next attempt number, for an attempt the caller builds itself.</summary>
+    public int ReserveAttemptNumber() => nextAttemptNumber++;
+
     public (Attempt Planner, CollaborationMessage Proposal) AddRoot(Guid? proposalMessageId = null)
     {
         var number = nextAttemptNumber++;

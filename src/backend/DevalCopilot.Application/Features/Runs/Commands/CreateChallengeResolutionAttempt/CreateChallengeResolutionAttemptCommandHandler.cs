@@ -5,6 +5,8 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -51,6 +53,22 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         {
             return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(
                 Error.Conflict("runs.not_running", $"The run is {run.Lifecycle} and cannot start a challenge-resolution attempt."));
+        }
+
+        // A manual format repair first requires an eligible source (see ReadOnlyFormatRepairSource),
+        // evaluated here without workspace context so a request that lost a race to the source's one
+        // repair is told the repair was already requested, not that some attempt is running. The
+        // context-bound comparison and the exact-input derivation follow once the workspace and
+        // checkpoint are known, and both are re-evaluated inside the durable claim transaction. An
+        // ordinary request skips all of this and is unaffected.
+        if (command.RepairSourceAttemptId is { } earlyRepairSourceAttemptId)
+        {
+            var earlySource = await ReadOnlyFormatRepairSource.EvaluateAsync(
+                dbContext, run.Id, earlyRepairSourceAttemptId, AgentResponseContract.ChallengeResolution, null, cancellationToken);
+            if (earlySource.Error is { } earlySourceError)
+            {
+                return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(earlySourceError);
+            }
         }
 
         var alreadyRunning = await dbContext.Attempts.AnyAsync(
@@ -141,6 +159,21 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required to request a challenge resolution."));
         }
 
+        // The repair's target: the challenged review that owns the source's recorded Challenges,
+        // derived from the source's persisted inputs and validated exactly as an ordinary request's
+        // would be — never supplied by the caller. Decided before any provider probe or Git capture.
+        var challengedReviewAttemptId = command.ChallengedReviewAttemptId ?? Guid.Empty;
+        if (command.RepairSourceAttemptId is { } repairSourceAttemptId)
+        {
+            var repairTarget = await ResolveRepairTargetAsync(run.Id, repairSourceAttemptId, workspace.Id, checkpoint, cancellationToken);
+            if (repairTarget.Error is { } repairTargetError)
+            {
+                return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(repairTargetError);
+            }
+
+            challengedReviewAttemptId = repairTarget.ChallengedReviewAttemptId;
+        }
+
         var codexSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.CodexCli, cancellationToken);
         if (codexSnapshot is null || codexSnapshot.ReasonCode != CapabilityProbeReason.None || string.IsNullOrWhiteSpace(codexSnapshot.ResolvedExecutablePath))
@@ -156,7 +189,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_not_current", "The selected source checkpoint is no longer current for this workspace."));
         }
 
-        var challengeValidation = await ValidateChallengedReviewAsync(run.Id, command.ChallengedReviewAttemptId, workspace.Id, checkpoint, cancellationToken);
+        var challengeValidation = await ValidateChallengedReviewAsync(run.Id, challengedReviewAttemptId, workspace.Id, checkpoint, cancellationToken);
         if (challengeValidation.Error is { } error)
         {
             return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(error);
@@ -189,7 +222,8 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 .ToArray(),
             evidence.ChangedPaths,
             evidence.CompleteDiff,
-            evidence.UntrackedFiles);
+            evidence.UntrackedFiles,
+            formatRepair: command.RepairSourceAttemptId is not null);
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             // Genuinely unreachable with today's bounded manifest fields, the fixed maximum
@@ -232,7 +266,8 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
             nowUtc,
             requestedModel,
             requestedEffort,
-            agentBudgetSlot);
+            agentBudgetSlot,
+            command.RepairSourceAttemptId);
 
         // The one authoritative record of this attempt's exact ordered input set: the original
         // Proposal at sequence 0, then every Challenge in timeline order — never a second,
@@ -310,8 +345,11 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 // The two guard writes above already hold the database write lock, so this final
                 // read of the reviewed lineage and of any competing resolution is atomic with the
                 // Attempt insert below: a result committed after the earlier checks is seen here.
-                lateEligibilityError = await RecheckEligibilityAsync(
-                    run.Id, command.ChallengedReviewAttemptId, workspace.Id, checkpoint, challengeMessageIds, cancellationToken);
+                lateEligibilityError = command.RepairSourceAttemptId is { } repairSourceAtCommit
+                    ? await RevalidateRepairAsync(
+                        run.Id, repairSourceAtCommit, challengedReviewAttemptId, workspace.Id, checkpoint, challengeMessageIds, cancellationToken)
+                    : await RecheckEligibilityAsync(
+                        run.Id, challengedReviewAttemptId, workspace.Id, checkpoint, challengeMessageIds, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -413,7 +451,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 if (durability == AttemptDurabilityCheckResult.Persisted)
                 {
                     return Result<CreateChallengeResolutionAttemptCommandResult>.Success(
-                        new CreateChallengeResolutionAttemptCommandResult(attemptId, attemptNumber));
+                        new CreateChallengeResolutionAttemptCommandResult(attemptId, attemptNumber, command.RepairSourceAttemptId));
                 }
 
                 if (durability == AttemptDurabilityCheckResult.Unresolved)
@@ -435,6 +473,16 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 }
 
                 dbContext.Artifacts.Remove(manifestArtifact);
+
+                if (command.RepairSourceAttemptId is { } repairSourceOnRace
+                    && await dbContext.Attempts.AsNoTracking().AnyAsync(
+                        candidate => candidate.AgentRepairSourceAttemptId == repairSourceOnRace, cancellationToken))
+                {
+                    // The race the (AgentRepairSourceAttemptId) unique index exists to close: a
+                    // concurrent request already committed the one repair of this source.
+                    return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(Error.Conflict(
+                        PlanningRepairSource.AlreadyRequestedCode, "A repair was already requested for this attempt."));
+                }
 
                 var competingRunningAttemptExists = await dbContext.Attempts
                     .AsNoTracking()
@@ -548,7 +596,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 if (durability == AttemptDurabilityCheckResult.Persisted)
                 {
                     return Result<CreateChallengeResolutionAttemptCommandResult>.Success(
-                        new CreateChallengeResolutionAttemptCommandResult(attemptId, attemptNumber));
+                        new CreateChallengeResolutionAttemptCommandResult(attemptId, attemptNumber, command.RepairSourceAttemptId));
                 }
 
                 if (durability == AttemptDurabilityCheckResult.Unresolved)
@@ -575,7 +623,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         }
 
         return Result<CreateChallengeResolutionAttemptCommandResult>.Success(
-            new CreateChallengeResolutionAttemptCommandResult(attempt.Id, attempt.AttemptNumber));
+            new CreateChallengeResolutionAttemptCommandResult(attempt.Id, attempt.AttemptNumber, command.RepairSourceAttemptId));
     }
 
     /// <summary>
@@ -625,11 +673,13 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
     /// replies to that exact Proposal.
     /// </summary>
     private async Task<ChallengedReviewValidation> ValidateChallengedReviewAsync(
-        Guid runId, Guid challengedReviewAttemptId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken)
+        Guid runId, Guid challengedReviewAttemptId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken,
+        bool asNoTracking = false)
     {
         try
         {
-            return await ValidateChallengedReviewCoreAsync(runId, challengedReviewAttemptId, workspaceId, checkpoint, cancellationToken);
+            return await ValidateChallengedReviewCoreAsync(
+                runId, challengedReviewAttemptId, workspaceId, checkpoint, cancellationToken, asNoTracking);
         }
         catch (InvalidOperationException)
         {
@@ -643,9 +693,13 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
     }
 
     private async Task<ChallengedReviewValidation> ValidateChallengedReviewCoreAsync(
-        Guid runId, Guid challengedReviewAttemptId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken)
+        Guid runId, Guid challengedReviewAttemptId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken,
+        bool asNoTracking)
     {
-        var challengedReviewAttempt = await dbContext.Attempts
+        // A repair's authority reads must reflect the database now, never an entity instance the context tracked
+        // earlier, so the repair paths ask for untracked reads; the ordinary request keeps tracked reads.
+        var attempts = asNoTracking ? dbContext.Attempts.AsNoTracking() : dbContext.Attempts;
+        var challengedReviewAttempt = await attempts
             .SingleOrDefaultAsync(candidate => candidate.Id == challengedReviewAttemptId, cancellationToken);
         if (challengedReviewAttempt is null || challengedReviewAttempt.RunId != runId)
         {
@@ -717,7 +771,8 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         // must still truthfully match that SAME already-validated attempt's provider, never a
         // fixed literal.
         var expectedChallengeActor = ParticipantIdentity.ForAgent(AgentRole.CriticalReviewer, challengedReviewProvider);
-        var orderedChallenges = await dbContext.CollaborationMessages
+        var messages = asNoTracking ? dbContext.CollaborationMessages.AsNoTracking() : dbContext.CollaborationMessages;
+        var orderedChallenges = await messages
             .Where(candidate => candidate.AttemptId == challengedReviewAttempt.Id && candidate.Type == CollaborationMessageType.Challenge)
             .OrderBy(candidate => candidate.Sequence)
             .ToListAsync(cancellationToken);
@@ -762,9 +817,10 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         Guid workspaceId,
         GitCheckpoint checkpoint,
         IReadOnlyList<Guid> challengeMessageIds,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool asNoTracking = false)
     {
-        var validation = await ValidateChallengedReviewAsync(runId, challengedReviewAttemptId, workspaceId, checkpoint, cancellationToken);
+        var validation = await ValidateChallengedReviewAsync(runId, challengedReviewAttemptId, workspaceId, checkpoint, cancellationToken, asNoTracking);
         if (validation.Error is { } validationError)
         {
             return validationError;
@@ -777,6 +833,106 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         }
 
         return await HasSuccessfulResolutionAsync(challengeMessageIds, cancellationToken) ? AlreadyResolvedError() : null;
+    }
+
+    /// <summary>
+    /// Evaluates the repair source (see <see cref="ReadOnlyFormatRepairSource"/>), derives the challenged
+    /// review that owns its recorded Challenges, validates that review exactly as an ordinary request
+    /// would, and requires its original Proposal and ordered Challenge set to equal the source's recorded
+    /// ordered inputs — never a different review or a merely overlapping set. Nothing is supplied by the
+    /// caller, and no error echoes a stored value; a missing referenced record reads as an ineligible
+    /// source, never as the source's 404.
+    /// </summary>
+    private async Task<(Guid ChallengedReviewAttemptId, Error? Error)> ResolveRepairTargetAsync(
+        Guid runId, Guid repairSourceAttemptId, Guid workspaceId, GitCheckpoint checkpoint, CancellationToken cancellationToken)
+    {
+        var evaluation = await ReadOnlyFormatRepairSource.EvaluateAsync(
+            dbContext,
+            runId,
+            repairSourceAttemptId,
+            AgentResponseContract.ChallengeResolution,
+            new ReadOnlyFormatRepairSource.Context(workspaceId, checkpoint.Id, checkpoint.FingerprintSha256),
+            cancellationToken);
+        if (evaluation.Error is { } sourceError)
+        {
+            return (Guid.Empty, sourceError);
+        }
+
+        var sourceInputs = await ReadOnlyFormatRepairInputs.ReadAsync(
+            dbContext, repairSourceAttemptId, AgentResponseContract.ChallengeResolution, cancellationToken);
+        if (sourceInputs is null)
+        {
+            return (Guid.Empty, ReadOnlyFormatRepairSource.Ineligible());
+        }
+
+        // Only the owner column is read, so an unreadable enum on the message row cannot break this.
+        var firstChallengeMessageId = sourceInputs.OrderedMessageIds[1];
+        var challengedReviewAttemptId = await dbContext.CollaborationMessages
+            .AsNoTracking()
+            .Where(message => message.Id == firstChallengeMessageId && message.RunId == runId)
+            .Select(message => message.AttemptId)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (challengedReviewAttemptId is not { } reviewId)
+        {
+            return (Guid.Empty, ReadOnlyFormatRepairSource.Ineligible());
+        }
+
+        var validation = await ValidateChallengedReviewAsync(runId, reviewId, workspaceId, checkpoint, cancellationToken, asNoTracking: true);
+        if (validation.Error is { } validationError)
+        {
+            return (Guid.Empty, validationError.Code is "agent_attempts.challenged_review_not_found" or "agent_attempts.proposal_not_found"
+                ? ReadOnlyFormatRepairSource.Ineligible()
+                : validationError);
+        }
+
+        var currentOrderedMessageIds = new[] { validation.OriginalProposal!.Id }
+            .Concat(validation.OrderedChallenges!.Select(challenge => challenge.Id))
+            .ToList();
+        return currentOrderedMessageIds.SequenceEqual(sourceInputs.OrderedMessageIds)
+            ? (reviewId, null)
+            : (Guid.Empty, ReadOnlyFormatRepairSource.InputsMismatch());
+    }
+
+    /// <summary>The repair's final in-transaction read, decided against the state the write lock now
+    /// protects: the source is still eligible with the same exact inputs, the challenged review is the one
+    /// this claim sealed, the reviewed lineage and any competing resolution are unchanged, and no attempt
+    /// is Running. Returns the refusal, or null when still eligible.</summary>
+    private async Task<Error?> RevalidateRepairAsync(
+        Guid runId,
+        Guid repairSourceAttemptId,
+        Guid challengedReviewAttemptId,
+        Guid workspaceId,
+        GitCheckpoint checkpoint,
+        IReadOnlyList<Guid> challengeMessageIds,
+        CancellationToken cancellationToken)
+    {
+        if (await ReadOnlyFormatRepairSource.EvaluateContextStillCurrentAsync(
+                dbContext, runId, workspaceId, checkpoint.Id, runMayBeCreated: false, cancellationToken) is { } contextError)
+        {
+            return contextError;
+        }
+
+        var target = await ResolveRepairTargetAsync(runId, repairSourceAttemptId, workspaceId, checkpoint, cancellationToken);
+        if (target.Error is { } targetError)
+        {
+            return targetError;
+        }
+
+        if (target.ChallengedReviewAttemptId != challengedReviewAttemptId)
+        {
+            return ReadOnlyFormatRepairSource.InputsMismatch();
+        }
+
+        if (await RecheckEligibilityAsync(runId, challengedReviewAttemptId, workspaceId, checkpoint, challengeMessageIds, cancellationToken, asNoTracking: true)
+            is { } eligibilityError)
+        {
+            return eligibilityError;
+        }
+
+        return await dbContext.Attempts.AsNoTracking().AnyAsync(
+            candidate => candidate.RunId == runId && candidate.Status == AttemptStatus.Running, cancellationToken)
+            ? Error.Conflict("attempts.run_has_active_attempt", "This run already has an attempt in progress.")
+            : null;
     }
 
     private sealed record ChallengedReviewValidation(

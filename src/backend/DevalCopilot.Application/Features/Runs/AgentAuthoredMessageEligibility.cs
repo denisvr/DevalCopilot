@@ -36,7 +36,8 @@ internal static class AgentAuthoredMessageEligibility
         CollaborationMessage message,
         Guid runId,
         AgentRole expectedRole,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool asNoTracking = false)
     {
         if (message.RunId != runId
             || message.Provenance != CollaborationMessageProvenance.ProviderObserved
@@ -45,7 +46,8 @@ internal static class AgentAuthoredMessageEligibility
             return null;
         }
 
-        var attempt = await dbContext.Attempts.SingleOrDefaultAsync(candidate => candidate.Id == attemptId, cancellationToken);
+        var attempts = asNoTracking ? dbContext.Attempts.AsNoTracking() : dbContext.Attempts;
+        var attempt = await attempts.SingleOrDefaultAsync(candidate => candidate.Id == attemptId, cancellationToken);
         if (attempt is null
             || attempt.RunId != runId
             || attempt.Kind != AttemptKind.Agent

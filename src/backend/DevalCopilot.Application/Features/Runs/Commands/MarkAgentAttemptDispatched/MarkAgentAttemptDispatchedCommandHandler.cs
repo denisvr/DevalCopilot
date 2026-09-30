@@ -2,6 +2,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -52,6 +53,10 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// another ReviewCorrection attempt completed the exact same ordered input identity from the
     /// exact same starting checkpoint while this attempt was waiting to dispatch.</summary>
     public const string InputAlreadyCorrectedCode = "agent_attempts.input_already_corrected";
+
+    /// <summary>A CriticalReviewer, Resolver, or CodeReviewer repair attempt whose source link or input
+    /// identity is incoherent. Fails closed before any provider process; never echoes stored values.</summary>
+    public const string InvalidRepairLinkCode = "agent_attempts.invalid_repair_link";
 
     public async Task<Result<DateTimeOffset>> HandleAsync(
         MarkAgentAttemptDispatchedCommand command, CancellationToken cancellationToken)
@@ -142,6 +147,19 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         if (currentCheckpointId != attempt.AgentGitCheckpointId)
         {
             return WorkspaceNoLongerEligible();
+        }
+
+        // A CriticalReviewer, Resolver, or CodeReviewer manual format repair must still be one
+        // coherent fact: its link, its failed source, and both exact input identities. The repair now
+        // owns the source's one repair slot, so the claim-time "latest attempt" and "no repair" tests
+        // are deliberately not re-applied; the ordinary duplicate-input classifications below still are.
+        if (ReadOnlyFormatRepairLink.AppliesTo(attempt)
+            && !await ReadOnlyFormatRepairLink.IsCoherentAsync(dbContext, attempt, cancellationToken))
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.Conflict(
+                    InvalidRepairLinkCode,
+                    "The attempt's repair link, source, and inputs are not a valid, coherent combination."));
         }
 
         // The critical-review-specific half of the same authoritative last gate: the reviewed

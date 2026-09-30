@@ -292,12 +292,14 @@ public sealed class Attempt
         DateTimeOffset claimedAtUtc,
         string? requestedClaudeModel,
         string? requestedClaudeEffort,
-        int agentBudgetSlot)
+        int agentBudgetSlot,
+        Guid? repairSourceAttemptId = null)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
             timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
         ValidateClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
+        ValidateRepairSource(id, repairSourceAttemptId);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.CriticalReview);
 
@@ -332,8 +334,9 @@ public sealed class Attempt
             // "--permission-mode plan" arguments) — a concrete, non-Unknown permission profile
             // and a dedicated adapter contract version, never caller-supplied.
             AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
-            AgentAdapterContractVersion = "claude-critical-review-v1",
+            AgentAdapterContractVersion = ReadOnlyFormatRepairPolicy.CriticalReviewAdapterContractVersion,
             AgentBudgetSlot = agentBudgetSlot,
+            AgentRepairSourceAttemptId = repairSourceAttemptId,
         };
     }
 
@@ -383,7 +386,8 @@ public sealed class Attempt
         DateTimeOffset claimedAtUtc,
         string? requestedModel,
         string? requestedEffort,
-        int agentBudgetSlot)
+        int agentBudgetSlot,
+        Guid? repairSourceAttemptId = null)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
@@ -391,6 +395,7 @@ public sealed class Attempt
         ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
         ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
         ValidateRequestedAssignmentPair(requestedModel, requestedEffort);
+        ValidateRepairSource(id, repairSourceAttemptId);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ChallengeResolution);
 
@@ -424,8 +429,9 @@ public sealed class Attempt
             // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
             // contract version, never caller-supplied.
             AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
-            AgentAdapterContractVersion = "codex-challenge-resolution-v1",
+            AgentAdapterContractVersion = ReadOnlyFormatRepairPolicy.ChallengeResolutionAdapterContractVersion,
             AgentBudgetSlot = agentBudgetSlot,
+            AgentRepairSourceAttemptId = repairSourceAttemptId,
         };
     }
 
@@ -477,7 +483,8 @@ public sealed class Attempt
         DateTimeOffset claimedAtUtc,
         string? requestedModel,
         string? requestedEffort,
-        int agentBudgetSlot)
+        int agentBudgetSlot,
+        Guid? repairSourceAttemptId = null)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
@@ -485,6 +492,7 @@ public sealed class Attempt
         ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
         ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
         ValidateRequestedAssignmentPair(requestedModel, requestedEffort);
+        ValidateRepairSource(id, repairSourceAttemptId);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ImplementationReview);
 
@@ -518,8 +526,9 @@ public sealed class Attempt
             // read-only") — a concrete, non-Unknown permission profile and a dedicated adapter
             // contract version, never caller-supplied.
             AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
-            AgentAdapterContractVersion = "codex-implementation-review-v1",
+            AgentAdapterContractVersion = ReadOnlyFormatRepairPolicy.ImplementationReviewAdapterContractVersion,
             AgentBudgetSlot = agentBudgetSlot,
+            AgentRepairSourceAttemptId = repairSourceAttemptId,
         };
     }
 
@@ -638,6 +647,14 @@ public sealed class Attempt
         if (!IsValidAssignmentIdentifier(value))
         {
             throw new ArgumentException("Assignment identifiers must be blank or at most 128 characters.", paramName);
+        }
+    }
+
+    private static void ValidateRepairSource(Guid attemptId, Guid? repairSourceAttemptId)
+    {
+        if (repairSourceAttemptId is { } sourceId && (sourceId == Guid.Empty || sourceId == attemptId))
+        {
+            throw new ArgumentException("A repair requires a distinct source attempt identity.", nameof(repairSourceAttemptId));
         }
     }
 
@@ -980,8 +997,9 @@ public sealed class Attempt
     /// attempt never consumes this budget.</summary>
     public int? AgentBudgetSlot { get; private set; }
 
-    /// <summary>The Planner attempt this attempt is the one manual format repair of — immutable
-    /// lineage set only by <see cref="ClaimAgentPlanningRepair"/>, otherwise <see langword="null"/>.
+    /// <summary>The attempt this attempt is the one manual format repair of — immutable lineage set only by
+    /// <see cref="ClaimAgentPlanningRepair"/> or the repair-source argument of the CriticalReviewer, Resolver, and
+    /// CodeReviewer claim factories (see <see cref="ReadOnlyFormatRepairPolicy"/>), otherwise <see langword="null"/>.
     /// A filtered unique index allows at most one repair per source, and an attempt with a source is
     /// never itself an eligible source, so repairs never chain.</summary>
     public Guid? AgentRepairSourceAttemptId { get; private set; }
