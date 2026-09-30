@@ -490,6 +490,12 @@ public sealed class ClaudeCriticalReviewSupervisorHostedTests : IDisposable
         Assert.Contains("+new sealed value", evidence.GetProperty("diff").GetString(), StringComparison.Ordinal);
         Assert.DoesNotContain("REPLACED", sealedManifest.Text, StringComparison.Ordinal);
         Assert.Equal("hunk_too_large", evidence.GetProperty("diffSelection").GetProperty("items")[0].GetProperty("reason").GetString());
+        var sealedSample = evidence.GetProperty("diffSelection").GetProperty("samples");
+        Assert.Equal(1, sealedSample.GetProperty("hunks").GetProperty("sampled").GetInt32());
+        var sealedItem = sealedSample.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal("src/Large.cs", sealedItem.GetProperty("path").GetString());
+        Assert.StartsWith(new string('a', 90), sealedItem.GetProperty("lines")[0].GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(new string('a', 90), evidence.GetProperty("diff").GetString()!, StringComparison.Ordinal);
     }
 
     [Fact]

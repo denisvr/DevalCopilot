@@ -6,8 +6,60 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
-## Current checkpoint (2026-09-29)
+## Current checkpoint (2026-09-30)
 
+- Published delivery: `f6e26c109ef8679f34ba9f4b1c14e3dc391afb54` (parent `b19413fac3f82f400c00ea6ab787d45c2898f1ae`) is
+  the factual closure of the tracked-hunk evidence slice (its delivered SHA and checks; no code or product contract
+  change). At the start of this slice, `main`, local `origin/main`, and the live remote matched it, nothing was staged
+  or untracked, and only `docs/roadmap/planner-handoff.md` (the planner's slice selection) was modified.
+- Current delivery, based on verified parent `f6e26c109ef8679f34ba9f4b1c14e3dc391afb54`: **bounded changed-line
+  samples for oversized tracked hunks**. See [planner-handoff.md](planner-handoff.md) for the selection and the
+  ["Bounded tracked-hunk evidence in Agent manifests"](../architecture/agent-collaboration-protocol.md#bounded-tracked-hunk-evidence-in-agent-manifests)
+  section (bullet "Changed-line samples of oversized hunks") for the contract. No ADR, migration, API or generated-client
+  change, Git call, capture command, fingerprint, changed-path list, provider, permission, budget, claim, or frontend
+  change.
+  - Defect shown first: a valid text hunk whose header plus hunk exceeds 8 KiB was reported `hunk_too_large` and
+    contributed no text anywhere. With the new section unwired, 93 of the 115 new cases failed (the 22 that passed are
+    negative cases); wired, all pass.
+  - Behavior: new `TrackedDiffSampler` (`Features/Runs/Policies`), called by `ChangeEvidenceManifest` for all seven builder
+    entry points, builds `diffSelection.samples` from the already parsed diff only. `diff` still holds only complete
+    headers and hunks and `includedHunks` counts only whole hunks; a small or fully supported diff, an empty diff, an
+    absent diff, and any manifest without an eligible hunk are byte-identical to before (no `samples` member).
+    Eligible: a recognized text hunk with header + hunk > 8 KiB, independent of the fitting step; binary,
+    metadata-only, malformed, unsupported, unrecognized, and merely unselected (`diff_budget`) hunks never sample.
+    Each sample carries `path`, 1-based `hunk`, `changedLines {total, shown}`, and actual `+`/`-` lines
+    (`side`, `text`, `shortened`, `originalBytes` if cut, `noNewlineAtEnd`); the section states `complete: false`,
+    `patch: false`, a fixed incomplete/non-patch/untrusted notice, its limits, and `hunks {eligible, sampled,
+    unsampled}`. Limits: 16 sampled hunks, 8 lines per hunk (removed and added alternate, shown in original order),
+    192 UTF-8 bytes per line cut at scalar boundaries, and 4 KiB for the whole serialized section. Hunk slots and
+    then lines are granted round-robin across files; a hunk that gets no line counts as unsampled. Fitting steps now
+    carry a sample budget (4, 4, 2, 1, 0, 0 KiB); at 0 the section is counts-only with `manifest_budget`.
+    Protocol and `engineering-context.md` updated.
+  - Checks run (final tree): `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false` 0 errors/0
+    warnings; Domain 670/670; Application 1783/1783 (was 1668); Infrastructure 625 passed, 3 skipped (unchanged symlink
+    skips); Api 464/464 (hosted critical-review supervisor tests 17/17, including the sealed restart replay, which now
+    also asserts the sealed sample); Architecture 9/9; frontend not touched, so not run; `api-client.ts` SHA-256
+    `b3e1c836…` unchanged; `git diff --check` clean; local links in the changed and handoff documents (117) resolve
+    (ad hoc script). Focused `TrackedDiff` tests (240) were run first.
+  - New tests: `TrackedDiffSampleTests` (across all seven entry points: large single hunk, huge early line beside a
+    later file, multiple files and hunks with ordinals, additions/deletions/both sides, Unicode and JSON escaping with
+    scalar-safe cuts, no-newline markers, round-robin fairness, the 16-hunk cap, the aggregate byte limit, determinism,
+    small and complete-hunk compatibility, the 8 KiB eligibility boundary at exactly 8192/8193 bytes, binary/
+    malformed/unsupported/unrecognized exclusion, tight fitting across 47 paddings, the mandatory-only oversize
+    result with counts, and the untrusted boundary); a real-Git assertion in `TrackedDiffRealGitTests` that the staged
+    300-line rewrite yields a sample whose lines appear verbatim in the captured diff; and the hosted restart replay.
+  - Mutation checks (each failed the targeted tests, then restored): hunk slots in diff order instead of round-robin
+    failed the fairness test (7); appending sample text to `diff` failed the real-Git and multi-hunk tests; removing
+    the aggregate budget check failed the tight-fitting and fairness tests; removing the per-line limit failed the
+    huge-line and Unicode tests.
+  - Open risks and limits: the counts-only form adds about 90 bytes, so a claim whose manifest already sat within that
+    of 32 KiB would now get the existing `context_manifest_too_large` refusal; with many eligible hunks the 4 KiB
+    bound means some hunks get no line (counted as unsampled) and later lines of a hunk may be cut short; a hunk's
+    first changed lines (not the most relevant) are sampled; a line is shown without context or hunk header, so its
+    position inside the hunk is not stated; the parser's reliance on hunk counts is unchanged, so a self-consistent
+    but misleading diff is still only untrusted evidence.
+  - Post-publication verification: after a GO and publication, rerun the focused tracked-diff, sample, real-Git, and
+    hosted restart-replay tests against the delivered commit.
 - Published delivery: `b19413fac3f82f400c00ea6ab787d45c2898f1ae` (parent `882c707252a3ea6da1302b67bbe65eefb36c331b`) was
   committed with the reviewed bounded tracked-hunk evidence slice (11 modified, 1 deleted, 14 new files, including this
   file and `planner-handoff.md`), pushed as a normal fast-forward to `origin/main`, and verified with

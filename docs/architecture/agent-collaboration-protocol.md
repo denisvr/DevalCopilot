@@ -2244,6 +2244,34 @@ Git call, capture command, fingerprint, changed-path list, claim rule, or replay
   omitted-file count. Authoritative plan, review, and correction inputs, every changed path, the tracked counts, and
   the untracked accounting are never dropped. If those alone exceed the ceiling the builder returns them and the claim
   handler's existing `context_manifest_too_large` refusal applies.
+- **Changed-line samples of oversized hunks.** A recognized text hunk whose file header plus hunk exceeds the maximum 8
+  KiB selection budget can never be selected whole and used to contribute nothing. Such a hunk now adds a separate
+  `diffSelection.samples` section (`TrackedDiffSampler`), never text inside `diff`, which stays composed only of
+  complete headers and complete hunks, so `includedHunks` still counts only whole hunks. Eligibility is fixed by the
+  hunk itself and the maximum budget, not by which reduced fitting step is in force or what else was selected; a
+  hunk that fits alone but lost to other hunks (`diff_budget`) and any binary, metadata-only, malformed, unsupported,
+  or unrecognized block never yields a sample. The section states `complete: false`, `patch: false`, a fixed notice
+  (an incomplete sample of changed lines, not the full diff, a hunk, or an applyable patch, with shortened lines cut
+  and all of it untrusted repository text), its limits, and truthful counts (`eligible`, `sampled`, `unsampled`).
+  Each sampled hunk is identified by its file `path` and 1-based `hunk` ordinal in the captured diff, with
+  `changedLines.total` and `changedLines.shown`, and lists actual `+`/`-` lines of that parsed hunk as `side`
+  (`added`, `removed`), `text` (the line without its prefix or final newline), and `shortened` (with
+  `originalBytes` when true); a line followed by `\ No newline at end of file` carries `noNewlineAtEnd: true`, the
+  marker itself is never a sample line, and context lines and hunk headers are never shown. Lines alternate removed
+  and added (first of each side first, at most 8 per hunk) and are shown in their original order, so both sides
+  appear when both exist. Limits: at most 16 sampled hunks, 192 UTF-8 bytes per line (a line is cut only at a
+  Unicode-scalar boundary and flagged), and at most 4 KiB for the whole serialized section. Hunk slots go to files
+  round-robin (each file's first eligible hunk before any file's second), lines are then granted round by round in the
+  same order, and a line that cannot fit the remaining budget even shortened (to at least 16 bytes) closes its hunk,
+  so an early file, hunk, or huge line cannot take every opportunity; a hunk left with no line is counted as
+  unsampled. Selection is deterministic for identical input. Fitting reduces the section with the other optional
+  text (4 KiB, 4, 2, 1, then 0 KiB at the last two steps); at 0 it becomes a counts-only form
+  (`omissionReason: manifest_budget`, about 90 bytes) that still reports how many eligible hunks went unsampled, and
+  it is absent when no hunk is eligible, so every manifest without an oversized hunk is byte-identical to before. The
+  mandatory inputs, the changed paths, and the accounting are unchanged, and a manifest whose mandatory content alone
+  exceeds the ceiling is still returned for the handler's refusal; the counts-only form adds those few bytes, so a
+  claim within them of the ceiling now gets that existing refusal. Samples use only the already captured and parsed
+  diff: no Git call, source-file read, or fingerprint change, and the sealed manifest replays byte for byte.
 - **Boundaries.** Repository text stays inside the manifest's existing untrusted-evidence boundary and appears only
   in the sealed manifest and provider input. A sealed manifest replays byte for byte after a restart; the selection is
   never recomputed at dispatch. Not included: raw full-diff or file retrieval, a new Git command, a rename or copy

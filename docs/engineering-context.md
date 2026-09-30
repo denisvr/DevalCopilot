@@ -75,7 +75,9 @@
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)).
 - The tracked side of that evidence is a deterministic selection of complete file headers and hunks under an 8 KiB
   UTF-8 bound, fitted with the untracked previews inside the 32 KiB manifest ceiling; omitted tracked material is
-  accounted for with fixed reasons and the selection is never described as a complete or applyable patch (see
+  accounted for with fixed reasons and the selection is never described as a complete or applyable patch. A valid
+  text hunk too large to select whole adds only a separate, at most 4 KiB, explicitly incomplete sample of its changed
+  lines outside `diff` (see
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-tracked-hunk-evidence-in-agent-manifests)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no

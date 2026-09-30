@@ -91,6 +91,26 @@ public sealed class TrackedDiffRealGitTests : IDisposable
         Assert.Equal("brand new untracked", evidence.GetProperty("untrackedFiles").GetProperty("files")[0].GetProperty("text").GetString());
         Assert.Equal(TrackedDiffParser.Parse(selected).Files.Count, selected.Split("diff --git ").Length - 1);
         Assert.DoesNotContain(TrackedDiffParser.Parse(selected).Files, file => file.Kind == TrackedDiffFileKind.Unsupported);
+
+        // The oversized staged rewrite of big.txt contributes a separate, incomplete sample taken from the real diff.
+        var samples = evidence.GetProperty("diffSelection").GetProperty("samples");
+        Assert.False(samples.GetProperty("complete").GetBoolean());
+        Assert.False(samples.GetProperty("patch").GetBoolean());
+        Assert.Equal(1, samples.GetProperty("hunks").GetProperty("eligible").GetInt32());
+        var sampled = samples.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal("big.txt", sampled.GetProperty("path").GetString());
+        Assert.Equal(1, sampled.GetProperty("hunk").GetInt32());
+        Assert.Equal(600, sampled.GetProperty("changedLines").GetProperty("total").GetInt32());
+        var sampledLines = sampled.GetProperty("lines").EnumerateArray().ToArray();
+        Assert.Equal("removed", sampledLines[0].GetProperty("side").GetString());
+        Assert.StartsWith("original line 0001 ", sampledLines[0].GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.Equal(["removed", "removed", "removed", "removed", "added", "added", "added", "added"], sampledLines.Select(line => line.GetProperty("side").GetString()));
+        Assert.StartsWith("rewritten line 0001 ", sampledLines[4].GetProperty("text").GetString(), StringComparison.Ordinal);
+        Assert.All(sampledLines, line => Assert.Contains(
+            (line.GetProperty("side").GetString() == "added" ? "+" : "-") + line.GetProperty("text").GetString() + "\n",
+            diff, StringComparison.Ordinal));
+        Assert.DoesNotContain("rewritten line", selected, StringComparison.Ordinal);
+        Assert.True(Encoding.UTF8.GetByteCount(samples.GetRawText()) <= TrackedDiffSampler.MaxSectionBytes);
     }
 
     [Fact]
