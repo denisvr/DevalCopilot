@@ -8,6 +8,16 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Current checkpoint (2026-09-30)
 
+- Published delivery: `2c0c1be7895f31399db11d6e2320fb089da39296` (parent `f6e26c109ef8679f34ba9f4b1c14e3dc391afb54`) was
+  committed with the reviewed bounded changed-line sample slice (7 modified, 2 new files, including this file and
+  `planner-handoff.md`), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main` and
+  `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched that SHA with a clean tree.
+  Staged `git diff --cached --check` was clean and local documentation links (111) resolved; no code, test, or document
+  changed between the reviewed diff and the commit. Post-publication checks against that commit: solution build 0
+  errors/0 warnings; Application `TrackedDiff` tests 240/240; hosted critical-review supervisor tests, including the
+  sealed restart replay, 17/17; no test was skipped in those runs; `api-client.ts` SHA-256 `b3e1c836…` unchanged and
+  the working tree clean afterward. This closure records the delivered SHA and those checks only; no code or product
+  contract changed after publication.
 - Published delivery: `f6e26c109ef8679f34ba9f4b1c14e3dc391afb54` (parent `b19413fac3f82f400c00ea6ab787d45c2898f1ae`) is
   the factual closure of the tracked-hunk evidence slice (its delivered SHA and checks; no code or product contract
   change). At the start of this slice, `main`, local `origin/main`, and the live remote matched it, nothing was staged
@@ -58,7 +68,7 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
     first changed lines (not the most relevant) are sampled; a line is shown without context or hunk header, so its
     position inside the hunk is not stated; the parser's reliance on hunk counts is unchanged, so a self-consistent
     but misleading diff is still only untrusted evidence.
-  - Post-publication verification: after a GO and publication, rerun the focused tracked-diff, sample, real-Git, and
+  - Post-publication verification (completed; see the published-delivery entry above): rerun the focused tracked-diff, sample, real-Git, and
     hosted restart-replay tests against the delivered commit.
 - Published delivery: `b19413fac3f82f400c00ea6ab787d45c2898f1ae` (parent `882c707252a3ea6da1302b67bbe65eefb36c331b`) was
   committed with the reviewed bounded tracked-hunk evidence slice (11 modified, 1 deleted, 14 new files, including this
