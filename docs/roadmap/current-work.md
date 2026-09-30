@@ -12,7 +12,21 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   the factual closure of the Claude mutation turn-limit slice (its delivered SHA and post-publication checks; no code or
   product contract change). At the start of this slice, `main`, local `origin/main`, and the live remote matched it, nothing
   was staged or untracked, and only `docs/roadmap/planner-handoff.md` (the planner's slice selection) was modified.
-- Published delivery: `85d0822bb4479a38c84aad56be48fb499e86ce88` (parent `a75d524b42306818acd139a4d00f58234d0e29d5`)
+- Published delivery: `9d583d57a025f034f4fd2715f2c712a8f24f0072` (parent `ad66cfe1a42223e8dab0c1a1f7b5bb9d2c8793f6`)
+  was committed with the reviewed run-isolated asynchronous cockpit controls slice (42 modified and 6 new files, including
+  this file, the cockpit specification, and `planner-handoff.md` with Codex's GO, plus the two factual corrections to this
+  file that Codex authorized), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin main`
+  and `git ls-remote`: local `HEAD`, local `origin/main`, and the live remote all matched that SHA with a clean tree. The
+  staged diff was checked with `git diff --cached --check` (only git's CRLF notice for the generated client). Post-publication
+  checks against that commit: `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1` 0 warnings,
+  0 errors; frontend `npx vitest run` 96 files, 1285/1285; `npm run build` (including `tsc -b`) clean with the usual chunk-size
+  notice; `npm run lint` 12 warnings and 0 errors (the baseline was 20; none in a file this slice created);
+  `api-client.ts` SHA-256 `4ac246f0f8fb259563d0985d2ac4035dca5d2cf39d9e5463854633485fa96386` unchanged; `git diff --check`
+  and the checkout clean. Backend suites were not repeated (no backend file changed). Limits: frontend-only behavior verified
+  in jsdom, not against a real provider or browser; lifetime and flow ownership are per hook or component instance; read-only
+  fetching was not changed; layout-effect versus passive-effect timing was not distinguished under jsdom. No next slice is
+  selected here; selection remains with Codex.
+- Earlier published delivery: `85d0822bb4479a38c84aad56be48fb499e86ce88` (parent `a75d524b42306818acd139a4d00f58234d0e29d5`)
   was committed with the reviewed manual format recovery slice for the critical review, challenge resolution, and code
   review stages and its review corrections (56 modified and 43 new files, including this file and `planner-handoff.md`
   with Codex's corrected-diff GO), pushed as a normal fast-forward to `origin/main`, and verified with `git fetch origin
@@ -27,7 +41,7 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   clean; nothing skipped in these runs. Limits: no real-provider reliability is proven (process doubles only); the
   documented `dotnet format` whitespace findings in older record declarations remain and no formatter cleanliness is
   claimed; the Planner repair hook keeps its earlier stale-completion behavior; next-slice selection remains with Codex.
-- Current delivery, based on verified parent `ad66cfe1a42223e8dab0c1a1f7b5bb9d2c8793f6` (branch `main`; `HEAD`, local and
+- Delivery, based on verified parent `ad66cfe1a42223e8dab0c1a1f7b5bb9d2c8793f6` (branch `main`; `HEAD`, local and
   live `origin/main` matched it and only the planner-owned `planner-handoff.md` was modified at the start):
   **run-isolated asynchronous cockpit controls** (Increment 4 stabilization, frontend only), including three review-correction
   round after Codex's NO-GO. See [planner-handoff.md](planner-handoff.md) for the selection and
