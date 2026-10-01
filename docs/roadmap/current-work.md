@@ -10,9 +10,11 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 - Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent
   `325316a00d31be0bd05dfacba7a6c073ff327251` (`main`, local and live `origin/main` matched at the start and after the first
-  review correction round). This entry records no commit or publication: the delivered SHA and the post-publication
-  verification are still to be performed and recorded in a separate factual closure. `planner-handoff.md` is planner-owned and
-  not part of this change.
+  review correction round). Published: `506653539727799f87e15a85dab7db4f7fcbf419` (parent
+  `325316a00d31be0bd05dfacba7a6c073ff327251`) was committed with the 116 reviewed files (66 modified tracked, 50 new; this file and
+  the planner-owned `planner-handoff.md` with Codex's GO included unchanged), pushed as a normal fast-forward to `origin/main`, and
+  verified with `git fetch origin main` and `git ls-remote origin refs/heads/main`: local `HEAD`, local `origin/main`, and the live
+  remote all matched that SHA with a clean checkout. `git diff --cached --check` was clean before the commit.
 - Delivered ([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)): immutable
   `RunExecutionMode` (`Legacy = 0`, `Simulated = 1`, `ManualAgent = 2`) with migration `AddRunExecutionMode` (existing rows become
   `Legacy`, never inferred); the column is read as its exact stored form through the storage-class-preserving mapping, so only the
@@ -63,9 +65,16 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   that project until a later decision adds completion or replacement authority; a `Legacy` run keeps every historical capability; the
   harness ownership proof covers the temp-directory root, marker, and token, not hostile concurrent writers. Not Increment 4 completion;
   no next slice is selected here.
-- Post-publication verification still to be performed after an explicit GO: commit, normal fast-forward push, `git fetch` and
-  `git ls-remote` showing `HEAD`, local and live `origin/main` equal with a clean tree, then a factual closure edit of this entry with
-  the delivered SHA.
+- Post-publication verification of `506653539727799f87e15a85dab7db4f7fcbf419` (`--no-build --no-restore` for tests, sequential): `dotnet build
+DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1` 0 warnings, 0 errors; Domain `RunExecutionModeTests` 32/32; Application
+`ExecutionMode|RunIntentCreation|StartSimulatedRun` 381/381; Infrastructure `AddRunExecutionModeMigrationTests|ExactStoredIntegerTextStorageTests|
+AddClaudeMutationTurnLimitMigrationTests` 183/183; Api `CreateManualRunEndpointTests|ManualRunHostedTests` 25/25; Architecture 9/9; none
+skipped. Frontend: `npm run test:harness` 15/15, `npx vitest run` 100 files 1337/1337, `npm run build` clean (usual chunk-size notice),
+`npm run lint` 12 warnings (the baseline) and 0 errors, then `npx playwright test --reporter=line` 2/2 with `reuseExistingServer: false`,
+normal authentication, and the run-owned fixtures (it ran without the Windows Event Log blocking seen in the review environment); no
+`devalcopilot-e2e-*` directory remained in the temp directory. `api-client.ts` SHA-256 stayed
+`7253732aa5f7bd4c98198f31e2bb701c8c4b74ca2368c1d2c24d4ee78e67f2c8`, `git diff --check` was clean, and the checkout was clean after the
+checks. Formatter cleanliness and real-provider reliability are not claimed. No next slice is selected here.
 
 ## Current checkpoint (2026-09-30)
 
