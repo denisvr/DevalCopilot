@@ -12,7 +12,16 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   `bfb6392074901588639de50633cbb115e8ff77c5` (`main`; `HEAD`, local `origin/main` and live `refs/heads/main` matched it, nothing staged or
   untracked, only the planner-owned `planner-handoff.md` modified at the start; the generated client SHA-256 matched
   `1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`). Presented as an uncommitted, unstaged, unpushed diff for Codex's
-  GO/NO-GO; `planner-handoff.md` was not edited. This entry records the delivered SHA only after publication.
+  GO/NO-GO; `planner-handoff.md` was not edited.
+- Published delivery: `c13b6f086be3b08db2bfa5382a7709269c64be91` (parent `bfb6392074901588639de50633cbb115e8ff77c5`) was committed with the reviewed slice
+  (13 files: 11 modified tracked including `planner-handoff.md` with Codex's GO, and 2 new; the staged inventory and `git diff --cached --check` were verified
+  first), pushed to `origin/main` as a normal fast-forward, and verified after `git fetch`: `HEAD`, local `origin/main` and live `refs/heads/main` all equal that
+  commit with a clean checkout. Post-publication verification against that commit: `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1`
+  0 warnings, 0 errors; filtered Application tests (the new implemented-plan tests, the downstream, repair, code-review claim and correction-status classes) 212/212;
+  filtered Api tests (`HumanAuthorizedPlanHostedTests`) 13/13; full Architecture 9/9; no skips or failures; generated-client SHA-256 unchanged
+  (`1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`); `git diff --check` clean; clean checkout. The Application and Api runs are filtered and
+  are not repeats of the full suites. The full-suite results, frontend, lint, harness, audit and formatter evidence recorded below are retained pre-publication evidence
+  from the identical tree, and no new Chromium run was made. No next slice is selected.
 - Delivered ([ADR-0017](../decisions/0017-review-the-implemented-plan-through-correction.md), which narrowly supersedes only ADR-0016's
   preservation of the ordinary first-revision review target and manifest bytes; ADR-0016's text is unchanged): every newly claimed
   CodeReviewer attempt judges the exact Proposal the initial implementation consumed. `ImplementerExecutionReportEligibility.Result`
