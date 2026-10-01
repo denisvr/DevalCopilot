@@ -302,6 +302,7 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("NextExecutionNumber")
+                        .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("NextVerificationCommandNumber")
@@ -1202,6 +1203,14 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("_executionModeStored")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ExecutionMode")
+                        .HasDefaultValueSql("0");
 
                     b.Property<string>("_requestedClaudeMaxTurns")
                         .IsConcurrencyToken()

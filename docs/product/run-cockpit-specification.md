@@ -63,6 +63,23 @@ Multiple projects may have active runs concurrently. The UI must distinguish:
 - paused by the user or a provider guardrail;
 - terminal.
 
+## Run intake and execution mode
+
+A project with no run, or whose runs are all terminal, shows an objective form (nonblank, at most 2,000 characters) that
+records a **manual Agent run** through the protected `POST /api/runs/manual` operation
+([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)). Recording creates the run
+in `Created`/`Intake` and starts nothing: the cockpit states "Waiting for an explicit planning request", and the existing six
+stage actions are the only way forward. The simulated walking skeleton remains a separately labelled **demo** action with a
+fixed objective. While any run of the project is unfinished the form is replaced by a fixed reason; the availability shown
+is only a hint derived from all runs, and the command re-checks on every submission. The form's pending, error, draft, and
+success belong to the selected project and its committed interaction; an accepted request that finished after the project
+was left remains a real server operation and is neither undone nor resubmitted.
+
+The cockpit and project summaries disclose the run's durable execution mode: "Manual Agent run", "Simulated demo run",
+"Legacy run — execution mode was not recorded", or "Unrecognized execution mode". The Agent request actions are offered only
+for `ManualAgent` and `Legacy` runs; a simulated or unrecognized run shows a fixed note instead. A manual run can stay
+nonterminal after its stages or after its budgets are exhausted; budget copy never promises that a new run replaces it.
+
 ## Run header
 
 The primary header shows:

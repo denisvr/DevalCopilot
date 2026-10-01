@@ -16,7 +16,7 @@ namespace DevalCopilot.Application.Tests.Features.Runs;
 /// <summary>Mirrors <c>CreateClaudeCriticalReviewAttemptCommandHandlerTests</c>'s fixture/fake
 /// style exactly, adapted for the additional Challenged-review/Proposal/Challenge-set validation
 /// chain this handler alone has.</summary>
-public sealed class CreateChallengeResolutionAttemptCommandHandlerTests : IAsyncLifetime
+public sealed partial class CreateChallengeResolutionAttemptCommandHandlerTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 18, 9, 0, 0, TimeSpan.Zero);
     private static readonly string Fingerprint = new('a', 64);

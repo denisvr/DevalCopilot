@@ -43,6 +43,8 @@
   a durable run-wide Agent claim budget.
 - [ADR-0013](decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md):
   Add a durable run-wide Agent invocation-time budget.
+- [ADR-0014](decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md):
+  Add manual Agent run intake with durable execution-mode isolation.
 
 ## Product-specific architecture
 

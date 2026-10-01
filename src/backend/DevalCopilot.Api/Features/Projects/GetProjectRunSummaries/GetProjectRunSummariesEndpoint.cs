@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetHostCapabilityReadiness;
+using DevalCopilot.Api.Features.Runs;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectRunSummaries;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,7 +28,9 @@ public sealed class GetProjectRunSummariesEndpoint(IApplicationMediator mediator
                 summary.BranchName,
                 summary.HeadCommitSha,
                 summary.IsDirty,
-                summary.BaselineObservedAtUtc))
+                summary.BaselineObservedAtUtc,
+                summary.ExecutionMode is { } executionMode ? RunExecutionModeResponse.From(executionMode) : null,
+                summary.CanCreateRun))
             .ToArray();
 
         return Ok(response);

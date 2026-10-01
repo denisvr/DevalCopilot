@@ -49,6 +49,14 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
+        // The execution mode is a durable, immutable admission fact: read afresh (never from the tracked Run)
+        // and checked before any workspace, evidence, manifest, or provider work.
+        var executionModeError = await CurrentRunExecutionMode.CheckAgentAdmittedAsync(dbContext, run.Id, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(executionModeError);
+        }
+
         if (run.Lifecycle != RunLifecycle.Running)
         {
             return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(
@@ -330,6 +338,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         {
             bool preferenceStillCurrent;
             bool stopPolicyStillCurrent;
+            bool modeStillAdmitted;
             Error? lateEligibilityError;
             try
             {
@@ -341,6 +350,10 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 // The token stop policy the claim decided against must be unchanged too: one more
                 // atomic UPDATE ... WHERE compare inside this same transaction (see CurrentTokenStopPolicy).
                 stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
+
+                // The execution mode the claim decided against must still admit Agent work: one more atomic
+                // UPDATE ... WHERE inside this same transaction, so a mode change can never confer stale authority.
+                modeStillAdmitted = await CurrentRunExecutionMode.ConfirmAgentAdmittedAsync(dbContext, run, cancellationToken);
 
                 // The two guard writes above already hold the database write lock, so this final
                 // read of the reviewed lineage and of any competing resolution is atomic with the
@@ -370,6 +383,15 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(
                     Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (!modeStillAdmitted)
+            {
+                // The run no longer admits Agent work. Rolled back before any insert: no attempt, artifact,
+                // reservation, or authorization is consumed, and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(CurrentRunExecutionMode.NotAdmitted());
             }
 
             if (!preferenceStillCurrent)

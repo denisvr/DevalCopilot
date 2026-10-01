@@ -28,7 +28,7 @@ public sealed class GetEligibleClaudeCriticalReviewAttemptsQueryHandler(IDevalCo
                 && attempt.Status == AttemptStatus.Running
                 && attempt.AgentDispatchedAtUtc == null)
             .Join(
-                dbContext.Runs.AsNoTracking().Where(run => run.Lifecycle == RunLifecycle.Running),
+                dbContext.Runs.AsNoTracking().Where(run => run.Lifecycle == RunLifecycle.Running && (EF.Property<string>(run, Run.ExecutionModeStorageProperty) == RunExecutionModeStorage.ManualAgentText || EF.Property<string>(run, Run.ExecutionModeStorageProperty) == RunExecutionModeStorage.LegacyText)),
                 attempt => attempt.RunId,
                 run => run.Id,
                 (attempt, run) => attempt)

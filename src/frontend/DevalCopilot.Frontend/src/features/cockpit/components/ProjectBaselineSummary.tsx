@@ -1,4 +1,5 @@
 import type { ProjectRunSummaryResponse } from '../../../api/clients'
+import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDisclosure'
 
 interface ProjectBaselineSummaryProps {
   project: ProjectRunSummaryResponse
@@ -34,6 +35,11 @@ export function ProjectBaselineSummary({ project }: ProjectBaselineSummaryProps)
       {project.headState ? (
         <span className="dc-project-baseline-dirty" data-dirty={project.isDirty}>
           {project.isDirty ? 'dirty' : 'clean'}
+        </span>
+      ) : null}
+      {project.runId ? (
+        <span className="dc-project-baseline-mode">
+          {deriveRunExecutionModeDisclosure(project.executionMode).label}
         </span>
       ) : null}
     </div>

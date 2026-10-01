@@ -33,3 +33,54 @@ describe('App session states', () => {
     expect(screen.getByText(/close and reopen/i)).toBeInTheDocument()
   })
 })
+
+describe('App run intake availability', () => {
+  async function renderWithProject(project: Record<string, unknown>) {
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => 'ready' }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [{ projectId: 'project-1', projectName: 'DevalCopilot', capabilities: [], ...project }],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({ CandidateWorkspacePanel: () => null }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: () => <p>cockpit-stub</p>,
+    }))
+    const { default: FreshApp } = await import('./App')
+    return render(<FreshApp />)
+  }
+
+  it('offers intake and the labelled demo for a project with no run', async () => {
+    await renderWithProject({})
+    expect(screen.getByRole('textbox', { name: 'Objective' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start simulated run' })).toBeInTheDocument()
+  })
+
+  it('offers intake beside the cockpit when every run is terminal', async () => {
+    await renderWithProject({ runId: 'run-1', lifecycle: 'Completed', executionMode: 'ManualAgent', canCreateRun: true })
+    expect(screen.getByText('cockpit-stub')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Objective' })).toBeInTheDocument()
+  })
+
+  it('shows only the blocked reason while the project has an unfinished run', async () => {
+    await renderWithProject({ runId: 'run-1', lifecycle: 'Running', executionMode: 'ManualAgent', canCreateRun: false })
+    expect(screen.getByText(/only after every run of this project has finished/i)).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Objective' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Start simulated run' })).toBeNull()
+  })
+
+  it('treats a project with a run and no availability hint as blocked', async () => {
+    await renderWithProject({ runId: 'run-1', lifecycle: 'Completed' })
+    expect(screen.queryByRole('textbox', { name: 'Objective' })).toBeNull()
+  })
+})

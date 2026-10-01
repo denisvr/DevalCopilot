@@ -28,6 +28,22 @@ public sealed class CompleteSimulatedRunCommandHandler(IDevalCopilotDbContext db
                 Error.NotFound("attempts.not_found", "The requested attempt was not found for this run."));
         }
 
+        // Only the deterministic simulation may terminalize a run through this command. An Agent or Process
+        // attempt (and so a manual Agent run) is concluded exclusively by its own result handlers.
+        if (attempt.Kind != AttemptKind.Simulated)
+        {
+            return Result<long>.Failure(Error.Conflict(
+                "attempts.simulated_completion_requires_simulated_attempt",
+                "A simulated completion can only conclude a Simulated attempt."));
+        }
+
+        // Read afresh (never from the tracked Run) and guarded by the mode's concurrency token.
+        var executionModeError = await CurrentRunExecutionMode.ReadAndGuardSimulationAsync(dbContext, run, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<long>.Failure(executionModeError);
+        }
+
         if (attempt.Status != AttemptStatus.Running)
         {
             return Result<long>.Failure(
@@ -49,7 +65,18 @@ public sealed class CompleteSimulatedRunCommandHandler(IDevalCopilotDbContext db
             Guid.NewGuid(), run.Id, attempt.Id, RunEventType.RunCompleted, ParticipantIdentity.ForOrchestrator(), payload, nowUtc);
         dbContext.Events.Add(runEvent);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.Events.Remove(runEvent);
+            return Result<long>.Failure(
+                await CurrentRunExecutionMode.HasChangedAsync(dbContext, run, cancellationToken)
+                    ? CurrentRunExecutionMode.ChangedDuringClaim()
+                    : Error.Conflict("runs.not_running", "The run changed and cannot be completed."));
+        }
 
         return Result<long>.Success(runEvent.Sequence);
     }

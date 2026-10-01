@@ -1,6 +1,7 @@
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -50,6 +51,12 @@ public sealed class StartSimulatedRunCommandHandlerTests(SqliteDatabaseFixture f
 
         var first = await handler.HandleAsync(
             new StartSimulatedRunCommand(project.Id, "First run"), CancellationToken.None);
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        // Creation admits a new intent only after every earlier run is terminal.
+        var firstRun = await dbContext.Runs.SingleAsync(candidate => candidate.Id == first.Value.RunId);
+        firstRun.Claim(Now);
+        firstRun.Complete(Now);
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var second = await handler.HandleAsync(

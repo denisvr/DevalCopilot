@@ -47,6 +47,14 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
+        // The execution mode is a durable, immutable admission fact: read afresh (never from the tracked Run)
+        // and checked before any workspace, evidence, manifest, or provider work.
+        var executionModeError = await CurrentRunExecutionMode.CheckAgentAdmittedAsync(dbContext, run.Id, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(executionModeError);
+        }
+
         if (run.Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
         {
             return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
@@ -272,6 +280,15 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
         // Read as late as possible (after every external step) and guarded by the Run's
         // concurrency token, so this Attempt snapshots exactly the model and effort pair that is still current
         // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
+        // The execution mode is read afresh and guarded by its concurrency token, like the model request: the
+        // single SaveChangesAsync below commits only while the stored mode is still the one decided against.
+        var guardedModeError = await CurrentRunExecutionMode.ReadAndGuardAgentAsync(dbContext, run, cancellationToken);
+        if (guardedModeError is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(guardedModeError);
+        }
+
         var requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
 
         // The token stop's own commit-time guard: the claim's Run UPDATE also requires the exact stop
@@ -362,7 +379,9 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 // A token stop policy change is named as such; anything else keeps the generic
                 // run-changed conflict.
                 return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
-                    await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
+                    await CurrentRunExecutionMode.HasChangedAsync(dbContext, run, cancellationToken)
+                        ? CurrentRunExecutionMode.ChangedDuringClaim()
+                        : await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
                         ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
                         : CurrentClaudeModelPreference.RunChangedDuringClaim());
             }
@@ -612,6 +631,12 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                         run, workspace, checkpoint, repairContext, repairSourceAttemptId, proposalMessage.Id, cancellationToken);
                     if (revalidationError is null)
                     {
+                        // Read afresh inside the transaction and guarded for the commit, like the model request.
+                        revalidationError = await CurrentRunExecutionMode.ReadAndGuardAgentAsync(dbContext, run, cancellationToken);
+                    }
+
+                    if (revalidationError is null)
+                    {
                         attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
                         requestedClaude = await CurrentClaudeModelPreference.ReadAndGuardAsync(dbContext, run, cancellationToken);
                         CurrentTokenStopPolicy.Guard(dbContext, run);
@@ -741,7 +766,9 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
                 if (exception is DbUpdateConcurrencyException)
                 {
                     return Result<CreateClaudeCriticalReviewAttemptCommandResult>.Failure(
-                        await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
+                        await CurrentRunExecutionMode.HasChangedAsync(dbContext, run, cancellationToken)
+                            ? CurrentRunExecutionMode.ChangedDuringClaim()
+                            : await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
                             ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
                             : CurrentClaudeModelPreference.RunChangedDuringClaim());
                 }

@@ -22,7 +22,8 @@ export function AgentClaimBudgetBanner({
     <div className="dc-agent-claim-budget-banner" role="alert">
       This run has reached its maximum of {maximumAgentAttempts} claimed Agent attempts (
       {agentAttemptsUsed}/{maximumAgentAttempts} used). No further Agent attempt can be claimed for
-      this run — review the evidence gathered so far, or start a new run to continue.
+      this run — review the evidence gathered so far. Exhausting the budget does not finish this run or authorize
+      replacing it; a new objective can be recorded only after every run of this project has finished.
     </div>
   )
 }

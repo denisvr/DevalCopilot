@@ -52,6 +52,14 @@ public sealed class RecordSimulatedAgentStepCommandHandler(IDevalCopilotDbContex
                 "A simulated collaboration step can only be recorded for a Simulated attempt."));
         }
 
+        // Read afresh (never from the tracked Run) and guarded by the mode's concurrency token: a manual Agent
+        // run never records a simulated step, and the step commits only while the stored mode is unchanged.
+        var executionModeError = await CurrentRunExecutionMode.ReadAndGuardSimulationAsync(dbContext, run, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<RecordSimulatedAgentStepCommandResult>.Failure(executionModeError);
+        }
+
         if (attempt.Status != AttemptStatus.Running)
         {
             return Result<RecordSimulatedAgentStepCommandResult>.Failure(
@@ -130,7 +138,19 @@ public sealed class RecordSimulatedAgentStepCommandHandler(IDevalCopilotDbContex
         dbContext.Events.Add(runEvent);
         dbContext.CollaborationMessages.Add(message);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.Events.Remove(runEvent);
+            dbContext.CollaborationMessages.Remove(message);
+            return Result<RecordSimulatedAgentStepCommandResult>.Failure(
+                await CurrentRunExecutionMode.HasChangedAsync(dbContext, run, cancellationToken)
+                    ? CurrentRunExecutionMode.ChangedDuringClaim()
+                    : Error.Conflict("runs.not_running", "The run changed and cannot advance."));
+        }
 
         return Result<RecordSimulatedAgentStepCommandResult>.Success(
             new RecordSimulatedAgentStepCommandResult(message.Id, runEvent.Sequence));

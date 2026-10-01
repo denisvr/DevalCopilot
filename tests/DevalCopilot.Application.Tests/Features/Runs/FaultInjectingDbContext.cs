@@ -34,6 +34,11 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
     /// at the claim seam, which only in-transaction reads (never a late read before the transaction) can see.</summary>
     public Func<CancellationToken, Task>? BeforeBeginTransaction { get; set; }
 
+    /// <summary>Runs once, immediately before the real <c>SaveChangesAsync</c> (and before any configured
+    /// save failure): a change committed from an independent context here is exactly a concurrent commit that
+    /// landed between a handler's last read and its single save.</summary>
+    public Func<CancellationToken, Task>? BeforeSaveChanges { get; set; }
+
     public SaveChangesFailureMode SaveChangesFailure { get; set; } = SaveChangesFailureMode.None;
 
     /// <summary>How the claim's <c>SaveChangesAsync</c> fails: a provider-level update failure that applied
@@ -112,6 +117,12 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
+        if (BeforeSaveChanges is { } beforeSave)
+        {
+            BeforeSaveChanges = null;
+            await beforeSave(cancellationToken);
+        }
+
         switch (SaveChangesFailure)
         {
             case SaveChangesFailureMode.UpdateExceptionBeforeSave:

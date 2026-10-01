@@ -1612,6 +1612,55 @@ export class GetAgentAttemptArtifactWindowEndpointClient {
     }
 }
 
+export class CreateManualRunEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    createManualRun(request: CreateManualRunRequest): Promise<CreateManualRunResponse> {
+        let url_ = this.baseUrl + "/api/runs/manual";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreateManualRun(_response);
+        });
+    }
+
+    protected processCreateManualRun(response: Response): Promise<CreateManualRunResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CreateManualRunResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CreateManualRunResponse>(null as any);
+    }
+}
+
 export class AuthorizeReviewCorrectionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -4175,6 +4224,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
     tokenStops?: RunCockpitTokenStopResponse[] | undefined;
     claudeMutationTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
+    executionMode?: string | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -4236,6 +4286,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
                     this.tokenStops!.push(RunCockpitTokenStopResponse.fromJS(item));
             }
             this.claudeMutationTurnLimit = _data["claudeMutationTurnLimit"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["claudeMutationTurnLimit"]) : undefined as any;
+            this.executionMode = _data["executionMode"];
         }
     }
 
@@ -4297,6 +4348,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
                 data["tokenStops"].push(item ? item.toJSON() : undefined as any);
         }
         data["claudeMutationTurnLimit"] = this.claudeMutationTurnLimit ? this.claudeMutationTurnLimit.toJSON() : undefined as any;
+        data["executionMode"] = this.executionMode;
         return data;
     }
 }
@@ -4331,6 +4383,7 @@ export interface IGetRunCockpitResponse {
     tokenWarnings?: RunCockpitTokenWarningResponse[] | undefined;
     tokenStops?: RunCockpitTokenStopResponse[] | undefined;
     claudeMutationTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
+    executionMode?: string | undefined;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -6385,6 +6438,86 @@ export interface IAgentAttemptEvidenceResponse {
     repairSourceAttemptNumber?: number | undefined;
 }
 
+export class CreateManualRunResponse implements ICreateManualRunResponse {
+    runId?: string;
+    executionNumber?: number;
+
+    constructor(data?: ICreateManualRunResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.executionNumber = _data["executionNumber"];
+        }
+    }
+
+    static fromJS(data: any): CreateManualRunResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateManualRunResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["executionNumber"] = this.executionNumber;
+        return data;
+    }
+}
+
+export interface ICreateManualRunResponse {
+    runId?: string;
+    executionNumber?: number;
+}
+
+export class CreateManualRunRequest implements ICreateManualRunRequest {
+    projectId?: string;
+    objective?: string;
+
+    constructor(data?: ICreateManualRunRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.objective = _data["objective"];
+        }
+    }
+
+    static fromJS(data: any): CreateManualRunRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateManualRunRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["objective"] = this.objective;
+        return data;
+    }
+}
+
+export interface ICreateManualRunRequest {
+    projectId?: string;
+    objective?: string;
+}
+
 export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {
     status?: string;
     escalationId?: string;
@@ -7091,6 +7224,8 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
     headCommitSha?: string | undefined;
     isDirty?: boolean;
     baselineObservedAtUtc?: Date | undefined;
+    executionMode?: string | undefined;
+    canCreateRun?: boolean;
 
     constructor(data?: IProjectRunSummaryResponse) {
         if (data) {
@@ -7120,6 +7255,8 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
             this.headCommitSha = _data["headCommitSha"];
             this.isDirty = _data["isDirty"];
             this.baselineObservedAtUtc = _data["baselineObservedAtUtc"] ? new Date(_data["baselineObservedAtUtc"].toString()) : undefined as any;
+            this.executionMode = _data["executionMode"];
+            this.canCreateRun = _data["canCreateRun"];
         }
     }
 
@@ -7149,6 +7286,8 @@ export class ProjectRunSummaryResponse implements IProjectRunSummaryResponse {
         data["headCommitSha"] = this.headCommitSha;
         data["isDirty"] = this.isDirty;
         data["baselineObservedAtUtc"] = this.baselineObservedAtUtc ? this.baselineObservedAtUtc.toISOString() : undefined as any;
+        data["executionMode"] = this.executionMode;
+        data["canCreateRun"] = this.canCreateRun;
         return data;
     }
 }
@@ -7167,6 +7306,8 @@ export interface IProjectRunSummaryResponse {
     headCommitSha?: string | undefined;
     isDirty?: boolean;
     baselineObservedAtUtc?: Date | undefined;
+    executionMode?: string | undefined;
+    canCreateRun?: boolean;
 }
 
 export class CapabilityReadinessResponse implements ICapabilityReadinessResponse {

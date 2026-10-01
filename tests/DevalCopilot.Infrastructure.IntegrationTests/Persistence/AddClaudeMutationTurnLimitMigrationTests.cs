@@ -374,7 +374,8 @@ public sealed class AddClaudeMutationTurnLimitMigrationTests : IAsyncLifetime
 
         var runColumnsAfter = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
         var attemptColumnsAfter = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
-        Assert.Equal(["RequestedClaudeMaxTurns"], runColumnsBefore.Except(runColumnsAfter));
+        // The database is at the latest migration, so the later AddRunExecutionMode column is dropped on the way down too.
+        Assert.Equal(["ExecutionMode", "RequestedClaudeMaxTurns"], runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
         Assert.Equal(["AgentRequestedMaxTurns"], attemptColumnsBefore.Except(attemptColumnsAfter));
         Assert.Empty(attemptColumnsAfter.Except(attemptColumnsBefore));

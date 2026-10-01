@@ -12,6 +12,10 @@ namespace DevalCopilot.Application.Features.Projects.Queries.GetProjectRunSummar
 /// rather than fabricating clean/branch data for it.</param>
 /// <param name="BaselineObservedAtUtc">Display metadata only — never used to select which
 /// baseline is current; the greatest <see cref="RepositoryBaseline.BaselineNumber"/> is.</param>
+/// <param name="ExecutionMode">The stored mode of the summarized run, which may be a number outside the
+/// recognized set; null when the project has no run.</param>
+/// <param name="CanCreateRun">True only when the project has no run or only recognized terminal runs. A hint
+/// derived from every run of the project; creation re-checks eligibility authoritatively.</param>
 public sealed record ProjectRunSummaryQueryResult(
     Guid ProjectId,
     string ProjectName,
@@ -25,4 +29,6 @@ public sealed record ProjectRunSummaryQueryResult(
     string? BranchName,
     string? HeadCommitSha,
     bool IsDirty,
-    DateTimeOffset? BaselineObservedAtUtc);
+    DateTimeOffset? BaselineObservedAtUtc,
+    RunExecutionMode? ExecutionMode = null,
+    bool CanCreateRun = false);

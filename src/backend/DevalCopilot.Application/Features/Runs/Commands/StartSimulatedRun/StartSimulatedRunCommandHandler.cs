@@ -1,9 +1,7 @@
-using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Domain.Features.Runs;
-using Microsoft.EntityFrameworkCore;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 
@@ -14,25 +12,12 @@ public sealed class StartSimulatedRunCommandHandler(IDevalCopilotDbContext dbCon
         StartSimulatedRunCommand command,
         CancellationToken cancellationToken)
     {
-        var project = await dbContext.Projects
-            .SingleOrDefaultAsync(candidate => candidate.Id == command.ProjectId, cancellationToken);
+        var recorded = await RunIntentRecorder.RecordAsync(
+            dbContext, timeProvider, command.ProjectId, command.Objective, RunExecutionMode.Simulated, cancellationToken);
 
-        if (project is null)
-        {
-            return Result<StartSimulatedRunCommandResult>.Failure(
-                Error.NotFound("projects.not_found", "The requested project was not found."));
-        }
-
-        var nowUtc = timeProvider.GetUtcNow();
-        var executionNumber = project.ReserveExecutionNumber();
-        var run = Run.RecordIntent(Guid.NewGuid(), project.Id, executionNumber, command.Objective, nowUtc);
-        dbContext.Runs.Add(run);
-
-        var payload = JsonSerializer.Serialize(new { objective = command.Objective });
-        dbContext.Events.Add(
-            RunEvent.Record(Guid.NewGuid(), run.Id, attemptId: null, RunEventType.RunStarted, ParticipantIdentity.ForOrchestrator(), payload, nowUtc));
-
-        return Result<StartSimulatedRunCommandResult>.Success(
-            new StartSimulatedRunCommandResult(run.Id, run.ExecutionNumber));
+        return recorded.IsFailure
+            ? Result<StartSimulatedRunCommandResult>.Failure(recorded.Errors[0])
+            : Result<StartSimulatedRunCommandResult>.Success(
+                new StartSimulatedRunCommandResult(recorded.Value.RunId, recorded.Value.ExecutionNumber));
     }
 }

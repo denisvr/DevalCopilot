@@ -36,6 +36,7 @@ import {
   RegisterProjectEndpointClient,
   RequestHostCapabilityRefreshEndpointClient,
   StartSimulatedRunEndpointClient,
+  CreateManualRunEndpointClient,
   RequestCodexPlanningAttemptEndpointClient,
   RequestCodexPlanningRepairAttemptEndpointClient,
   GetAgentAttemptStatusEndpointClient,
@@ -62,6 +63,7 @@ import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 export const projectsClient = () => new GetProjectRunSummariesEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const registerProjectClient = () => new RegisterProjectEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const startSimulatedRunClient = () => new StartSimulatedRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const createManualRunClient = () => new CreateManualRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const collaborationTimelineClient = () => new GetCollaborationTimelineEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const collaborationMessageEvidenceClient = () => new GetCollaborationMessageEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)

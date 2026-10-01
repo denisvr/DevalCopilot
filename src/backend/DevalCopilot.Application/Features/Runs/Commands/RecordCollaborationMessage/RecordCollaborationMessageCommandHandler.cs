@@ -94,6 +94,18 @@ public sealed class RecordCollaborationMessageCommandHandler(IDevalCopilotDbCont
                 "An agent-provider actor requires an owning Agent attempt."));
         }
 
+        // Simulated content belongs to the simulation only: a message that references a Simulated attempt, or
+        // claims Simulated provenance, requires a run whose mode admits simulation (read afresh, guarded at
+        // commit). Human and orchestrator messages with their own provenance are unaffected.
+        if (attempt is not null || command.Provenance == CollaborationMessageProvenance.Simulated)
+        {
+            var executionModeError = await CurrentRunExecutionMode.ReadAndGuardSimulationAsync(dbContext, run, cancellationToken);
+            if (executionModeError is not null)
+            {
+                return Result<RecordCollaborationMessageCommandResult>.Failure(executionModeError);
+            }
+        }
+
         CollaborationMessage? reply = null;
         if (command.InReplyToMessageId.HasValue)
         {
@@ -154,7 +166,19 @@ public sealed class RecordCollaborationMessageCommandHandler(IDevalCopilotDbCont
             nowUtc);
         dbContext.Events.Add(runEvent);
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.Events.Remove(runEvent);
+            dbContext.CollaborationMessages.Remove(message);
+            return Result<RecordCollaborationMessageCommandResult>.Failure(
+                await CurrentRunExecutionMode.HasChangedAsync(dbContext, run, cancellationToken)
+                    ? CurrentRunExecutionMode.ChangedDuringClaim()
+                    : Error.Conflict("runs.changed", "The run changed while the message was being recorded; retry the request."));
+        }
 
         return Result<RecordCollaborationMessageCommandResult>.Success(
             new RecordCollaborationMessageCommandResult(message.Id, message.Sequence, runEvent.Sequence));

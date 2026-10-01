@@ -229,6 +229,19 @@ prove that. The presentation never adds affected paths to the durable
 `ReviewFinding` ledger and never treats malformed or unknown structured content
 as a semantic fact.
 
+## Run execution mode and isolation
+
+Every run carries an immutable execution mode ([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)):
+`Legacy` (0, recorded before modes existed), `Simulated` (1), or `ManualAgent` (2). The deterministic simulator, including
+step recording, completion, and Simulated-provenance messages, operates only on `Simulated` and `Legacy` runs; the six Agent
+claim paths (with their repair variants), their eligibility feeds, and the final dispatch gate operate only on `ManualAgent`
+and `Legacy` runs; standalone Process attempts operate only on `Legacy` runs. The mode is read afresh at the claim, at the
+commit seam, and at dispatch, so a stale tracked entity never confers authority, and a stored number outside the set admits
+nothing. A manual run is created by recording an objective only; it creates no attempt, manifest, lease, or budget
+consumption, and the explicit stage requests keep every existing workspace, checkpoint, provider, contract, source, budget,
+and authorization gate. `CompleteSimulatedRun` accepts only a `Simulated` attempt, so it can never conclude an Agent
+attempt or a manual run.
+
 ## Message types
 
 ### Proposal

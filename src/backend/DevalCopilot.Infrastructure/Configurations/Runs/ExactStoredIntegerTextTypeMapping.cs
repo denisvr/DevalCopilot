@@ -8,7 +8,7 @@ namespace DevalCopilot.Infrastructure.Configurations.Runs;
 
 /// <summary>
 /// The type mapping of the two Claude turn-limit columns (<c>runs.RequestedClaudeMaxTurns</c> and
-/// <c>attempts.AgentRequestedMaxTurns</c>): an INTEGER-affinity column exposed to the Domain as one string whose form
+/// <c>attempts.AgentRequestedMaxTurns</c>) and of the run execution-mode column (<c>runs.ExecutionMode</c>): an INTEGER-affinity column exposed to the Domain as one string whose form
 /// identifies the SQLite storage class, so no non-integer value can be read as a request and no stored value is
 /// confused with another. The default string mapping reads with <c>GetString</c>, which silently decodes a BLOB (for
 /// example <c>X'37'</c>) into <c>"7"</c> before any validation could see the storage class. The representation is
@@ -27,7 +27,7 @@ namespace DevalCopilot.Infrastructure.Configurations.Runs;
 /// Binding the original value back (the concurrency-token comparison of an UPDATE, or the write of a new value) decodes
 /// the tag and binds that exact type and content, never inferring a type from untagged text and never throwing on a
 /// malformed suffix: a string that is not a well-formed tagged value or canonical integer is bound as plain text. The
-/// SQL literal form uses the same decoding. The mapping applies only to these two columns; it is not a general
+/// SQL literal form uses the same decoding. The mapping applies only to these three columns; it is not a general
 /// persistence mechanism.
 /// </summary>
 public sealed class ExactStoredIntegerTextTypeMapping : RelationalTypeMapping

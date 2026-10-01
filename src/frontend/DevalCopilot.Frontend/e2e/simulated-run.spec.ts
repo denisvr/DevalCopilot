@@ -1,17 +1,8 @@
 import { expect, test } from '@playwright/test'
-import { API_BASE_URL, TEST_LAUNCH_SECRET } from '../playwright.config'
+import { TEST_LAUNCH_SECRET } from '../playwright.config'
+import { createFixtureRepository, injectTestSession, registerProjectViaUi } from './support'
 
-async function injectTestSession(page: import('@playwright/test').Page) {
-  await page.addInitScript(
-    ([baseUrl, secret]) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(window as any).__DEVALCOPILOT_SESSION__ = { baseUrl, secret }
-    },
-    [API_BASE_URL, TEST_LAUNCH_SECRET],
-  )
-}
-
-test('starting a simulated run shows Codex/Claude collaboration and survives a reload against the same database', async ({
+test('an explicitly labelled simulated demo run shows Codex/Claude collaboration and survives a reload', async ({
   page,
 }) => {
   await injectTestSession(page)
@@ -20,16 +11,21 @@ test('starting a simulated run shows Codex/Claude collaboration and survives a r
   // Authenticated initial load: the "no session" state must not appear.
   await expect(page.getByText('No launch session is available')).toHaveCount(0)
 
+  await registerProjectViaUi(page, 'Simulation demo fixture', createFixtureRepository('simulation-demo'))
+  // Registration does not change the selected project: select the new one (a distinct project from any other test).
+  await page.getByRole('button', { name: /^Simulation demo fixture/ }).click()
+
+  await expect(page.getByText('Demo only')).toBeVisible()
   await page.getByRole('button', { name: 'Start simulated run' }).click()
 
   // Visible Codex and Claude collaboration, reconstructed from durable events.
-  await expect(page.getByText(/Codex · codex\.proposal/)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText(/Claude · claude\.challenge/)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText(/Codex · codex\.resolution/)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText(/Claude · claude\.execution/)).toBeVisible({ timeout: 15_000 })
+  for (const type of ['Proposal', 'Challenge', 'Decision', 'ExecutionReport']) {
+    await expect(page.locator(`article.dc-card[data-type="${type}"]`)).toBeVisible({ timeout: 15_000 })
+  }
 
   // Deterministic terminal completion.
   await expect(page.getByText('Completed · Completed')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Simulated demo run').first()).toBeVisible()
 
   const objective = await page.getByRole('heading', { name: 'Prove the walking skeleton' }).textContent()
 
@@ -38,10 +34,10 @@ test('starting a simulated run shows Codex/Claude collaboration and survives a r
   const storageSnapshot = await page.evaluate(() => JSON.stringify(window.localStorage))
   expect(storageSnapshot).not.toContain(TEST_LAUNCH_SECRET)
 
-  // Persisted-run retrieval after a restart: reload the page (a fresh render and a
-  // fresh query round trip) against the same on-disk SQLite file the host still has
-  // open, and confirm the same completed run is still there.
+  // Persisted-run retrieval: reload against the same on-disk SQLite file.
   await page.reload()
+  // After a reload the first registered project is selected again; select this fixture.
+  await page.getByRole('button', { name: /^Simulation demo fixture/ }).click()
   await expect(page.getByText('Completed · Completed')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('heading', { name: objective ?? 'Prove the walking skeleton' })).toBeVisible()
 })

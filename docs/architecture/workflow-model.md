@@ -214,6 +214,14 @@ flowchart TD
     CI -->|"ambiguous or exhausted"| Escalate["Human escalation"]
 ```
 
+### Intake
+
+A user records an objective for a registered project, which creates a manual Agent run in `Created`/`Intake` and starts no
+stage ([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)). Each later stage is an
+explicit request that passes its own claim gates. A new objective is admitted only when the project has no run or every run is
+terminal; this is conservative intake admission, not a scheduler or queue, and completion or replacement of a nonterminal manual
+run is not yet defined.
+
 ## Baseline and preconditions
 
 Before worktree creation, the run records:

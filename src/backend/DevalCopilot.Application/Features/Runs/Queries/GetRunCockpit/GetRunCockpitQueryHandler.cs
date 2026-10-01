@@ -241,6 +241,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                     tokenStopAccumulator.ToEvaluation(AgentProvider.Codex, run.CodexTokenStopThreshold),
                     tokenStopAccumulator.ToEvaluation(AgentProvider.ClaudeCode, run.ClaudeTokenStopThreshold),
                 ],
-                ClaudeMutationTurnLimitFact.ForRun(run)));
+                ClaudeMutationTurnLimitFact.ForRun(run),
+                run.ExecutionMode));
     }
 }

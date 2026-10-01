@@ -19,6 +19,7 @@ import { useRequestReviewCorrection } from '../hooks/useRequestReviewCorrection'
 import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrection'
 import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
+import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDisclosure'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import {
   derivePlanningLineage,
@@ -51,6 +52,7 @@ import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { OneAgentClaimSlotRemainingWarning } from './OneAgentClaimSlotRemainingWarning'
 import { ProviderTokenUsageSummaries } from './ProviderTokenUsageSummaries'
+import { RunExecutionModeNotice } from './RunExecutionModeNotice'
 import { RunHeader } from './RunHeader'
 import { RunTokenUsageSummary } from './RunTokenUsageSummary'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
@@ -129,6 +131,12 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   }
 
   const currentProcessAttemptId = selectCurrentProcessAttemptId(cards)
+  // The Agent request actions are offered only when this run's durable execution mode admits Agent
+  // work: a simulated run and an unrecognized or missing mode withhold them (the backend refuses the
+  // same requests independently). A projection still held from another run is not this run's mode;
+  // that frame is already fail-closed through the claim-block derivation below.
+  const executionMode = deriveRunExecutionModeDisclosure(cockpit.executionMode, cockpit.lifecycle)
+  const agentActionsAllowed = cockpit.runId !== runId || executionMode.agentActionsAllowed
   // Recomputed synchronously during render from the currently selected `runId`, never from an
   // effect: a cockpit projection still describing the previously selected run must never be
   // read as this run's budget state, even for one render frame (see `deriveGlobalAgentClaimBlock`).
@@ -148,6 +156,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
     <>
       <ConnectionBanner state={connection} syncError={syncError} />
       <RunHeader cockpit={cockpit} />
+      {cockpit.runId === runId && <RunExecutionModeNotice executionMode={cockpit.executionMode} lifecycle={cockpit.lifecycle} />}
       {/* A cockpit projection still held from the previously selected run is never rendered as
           evidence for the newly selected one. */}
       {cockpit.runId === runId && (
@@ -210,6 +219,8 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
         <div className="dc-collaboration-column">
+          {agentActionsAllowed ? (
+          <>
           <CodexPlanningAction
             status={agentAttemptStatus.status}
             statusLoading={agentAttemptStatus.loading}
@@ -340,6 +351,12 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               if (reviewAttemptId) void requestReviewCorrection.request(runId, reviewAttemptId)
             }}
           />
+          </>
+          ) : (
+            <p className="dc-run-agent-actions-note">
+              {executionMode.agentActionsNote}
+            </p>
+          )}
           <AgentCollaboration runId={runId} {...collaborationTimeline} />
         </div>
         <UsageEvidenceRail runId={runId} />

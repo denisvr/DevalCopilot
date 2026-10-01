@@ -13,6 +13,21 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         builder.HasKey(run => run.Id);
         builder.Property(run => run.Objective).HasMaxLength(4000).IsRequired();
 
+        // The execution mode is a field-only string holding the exact stored form (see RunExecutionModeStorage), read
+        // through the same storage-class-preserving mapping as the turn-limit columns, so a REAL that would truncate to a
+        // valid mode, an integer that overflows 32 bits, text, and BLOBs are seen as unrecognized instead of being coerced or
+        // throwing, and round-trip exactly through an unrelated save. The default is the Legacy value 0 (a row that predates
+        // the column keeps it, never inferred from attempts, providers, lifecycle, or events). A concurrency token so a claim
+        // that decided against one mode cannot commit against another.
+        builder.Ignore(run => run.ExecutionMode);
+        builder.Property<string>(Run.ExecutionModeStorageProperty)
+            .HasColumnName("ExecutionMode")
+            .HasColumnType("INTEGER")
+            .IsRequired()
+            .HasDefaultValueSql("0")
+            .IsConcurrencyToken()
+            .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
+
         // A concurrency token, not a schema change: EF includes this column's originally-read
         // value in every UPDATE/DELETE statement's WHERE clause, so a write against a stale
         // in-memory Lifecycle (loaded before a concurrent transition committed) affects zero rows

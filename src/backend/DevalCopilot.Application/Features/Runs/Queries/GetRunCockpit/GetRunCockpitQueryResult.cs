@@ -32,4 +32,5 @@ public sealed record GetRunCockpitQueryResult(
     string? RequestedClaudeEffort = null,
     IReadOnlyList<RunCockpitTokenWarningEntry>? TokenWarnings = null,
     IReadOnlyList<AgentTokenStopEvaluation>? TokenStops = null,
-    ClaudeMutationTurnLimitFact? ClaudeTurnLimitRequest = null);
+    ClaudeMutationTurnLimitFact? ClaudeTurnLimitRequest = null,
+    RunExecutionMode? ExecutionMode = null);

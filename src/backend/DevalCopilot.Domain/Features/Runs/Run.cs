@@ -19,6 +19,9 @@ public sealed class Run
     /// <see langword="null"/>.</summary>
     public static readonly TimeSpan DefaultMaximumAgentInvocationTime = TimeSpan.FromMinutes(120);
 
+    /// <summary>Records an intent whose execution mode is <see cref="RunExecutionMode.Legacy"/>: the
+    /// shape of every Run created before execution modes existed. No creation operation uses it; a new
+    /// Run is created through <see cref="RecordClassifiedIntent"/>.</summary>
     public static Run RecordIntent(
         Guid id,
         Guid projectId,
@@ -27,7 +30,59 @@ public sealed class Run
         DateTimeOffset nowUtc,
         int maximumReviewCorrectionAttempts = 2,
         int maximumAgentAttempts = 16,
+        TimeSpan? maximumAgentInvocationTime = null) =>
+        Create(
+            id,
+            projectId,
+            executionNumber,
+            RunExecutionMode.Legacy,
+            objective,
+            nowUtc,
+            maximumReviewCorrectionAttempts,
+            maximumAgentAttempts,
+            maximumAgentInvocationTime);
+
+    /// <summary>Records a new Run under an explicit, immutable execution mode. Only
+    /// <see cref="RunExecutionMode.Simulated"/> and <see cref="RunExecutionMode.ManualAgent"/> are assignable.</summary>
+    public static Run RecordClassifiedIntent(
+        Guid id,
+        Guid projectId,
+        int executionNumber,
+        RunExecutionMode executionMode,
+        string objective,
+        DateTimeOffset nowUtc,
+        int maximumReviewCorrectionAttempts = 2,
+        int maximumAgentAttempts = 16,
         TimeSpan? maximumAgentInvocationTime = null)
+    {
+        if (!RunExecutionModeAdmission.IsAssignableAtCreation(executionMode))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(executionMode), executionMode, "A new Run must be created as Simulated or ManualAgent.");
+        }
+
+        return Create(
+            id,
+            projectId,
+            executionNumber,
+            executionMode,
+            objective,
+            nowUtc,
+            maximumReviewCorrectionAttempts,
+            maximumAgentAttempts,
+            maximumAgentInvocationTime);
+    }
+
+    private static Run Create(
+        Guid id,
+        Guid projectId,
+        int executionNumber,
+        RunExecutionMode executionMode,
+        string objective,
+        DateTimeOffset nowUtc,
+        int maximumReviewCorrectionAttempts,
+        int maximumAgentAttempts,
+        TimeSpan? maximumAgentInvocationTime)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(objective);
 
@@ -56,6 +111,7 @@ public sealed class Run
             Id = id,
             ProjectId = projectId,
             ExecutionNumber = executionNumber,
+            _executionModeStored = RunExecutionModeStorage.Format(executionMode),
             Objective = objective,
             Lifecycle = RunLifecycle.Created,
             Stage = RunStage.Intake,
@@ -74,6 +130,18 @@ public sealed class Run
     public Guid ProjectId { get; private set; }
 
     public int ExecutionNumber { get; private set; }
+
+    /// <summary>The EF field-only property holding the exact stored form of the execution mode (see
+    /// <see cref="RunExecutionModeStorage"/>). Persistence and queries refer to this name; every other reader uses
+    /// <see cref="ExecutionMode"/>. It is an EF concurrency token, so a claim can never commit against a mode that
+    /// changed after it decided, and a malformed stored value round-trips exactly through an unrelated save.</summary>
+    public const string ExecutionModeStorageProperty = "_executionModeStored";
+
+    private string _executionModeStored = RunExecutionModeStorage.Format(RunExecutionMode.Legacy);
+
+    /// <summary>Immutable once created; there is no setter, conversion, or rewrite. A stored value that is not exactly 0, 1,
+    /// or 2 reads as <see cref="RunExecutionModeStorage.Unrecognized"/>, never as a recognized mode.</summary>
+    public RunExecutionMode ExecutionMode => RunExecutionModeStorage.Read(_executionModeStored);
 
     public string Objective { get; private set; } = string.Empty;
 

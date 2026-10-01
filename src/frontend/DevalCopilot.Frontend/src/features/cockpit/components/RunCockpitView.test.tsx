@@ -263,6 +263,7 @@ const healthyAgentClaimBudget = {
 
 const runningCockpit = new GetRunCockpitResponse({
   runId: 'run-1',
+  executionMode: 'ManualAgent',
   projectId: 'project-1',
   projectName: 'DevalCopilot',
   executionNumber: 1,
@@ -437,6 +438,7 @@ describe('RunCockpitView', () => {
   it('never carries a previously selected run\'s global claim block into the newly selected run, even transiently', () => {
     const exhaustedRunOne = new GetRunCockpitResponse({
       runId: 'run-1',
+      executionMode: 'ManualAgent',
       projectId: 'project-1',
       projectName: 'DevalCopilot',
       executionNumber: 1,
@@ -2458,4 +2460,59 @@ describe('RunCockpitView Claude turn limit request', () => {
 
     expect((screen.getByLabelText('Requested Claude turn limit') as HTMLInputElement).value).toBe('')
   })
+})
+
+describe('RunCockpitView execution mode', () => {
+  function renderMode(executionMode: string | undefined, lifecycle = 'Running') {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, executionMode, lifecycle } as ConstructorParameters<
+        typeof GetRunCockpitResponse
+      >[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh: async () => true,
+    })
+    return render(<RunCockpitView runId="run-1" />)
+  }
+
+  it('discloses a manual Agent run and, while Created, that it waits for an explicit planning request', () => {
+    renderMode('ManualAgent', 'Created')
+    expect(screen.getByText('Manual Agent run')).toBeInTheDocument()
+    expect(screen.getByText(/waiting for an explicit planning request/i)).toBeInTheDocument()
+    expect(screen.getByText(/waiting for an explicit planning request/i).textContent).not.toMatch(/autonomous|ready/i)
+    expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
+  })
+
+  it('does not claim a waiting state for a manual Agent run that is already running', () => {
+    renderMode('ManualAgent', 'Running')
+    expect(screen.queryByText(/waiting for an explicit planning request/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps a legacy run visibly unclassified while still offering Agent requests', () => {
+    renderMode('Legacy')
+    expect(screen.getByText('Legacy run — execution mode was not recorded')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
+  })
+
+  it('labels a simulated run as a demo and offers no Agent request action', () => {
+    renderMode('Simulated')
+    expect(screen.getByText('Simulated demo run')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Codex planning' })).not.toBeInTheDocument()
+    expect(screen.getByText(/agent requests are not available for it/i)).toBeInTheDocument()
+  })
+
+  it.each([['Unrecognized'], ['SomethingNew'], [undefined]])(
+    'discloses an unrecognized mode (%s) and offers no Agent request action',
+    (mode) => {
+      renderMode(mode)
+      expect(screen.getByText('Unrecognized execution mode')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Codex planning' })).not.toBeInTheDocument()
+      expect(screen.getByText(/does not recognize/i)).toBeInTheDocument()
+    },
+  )
 })

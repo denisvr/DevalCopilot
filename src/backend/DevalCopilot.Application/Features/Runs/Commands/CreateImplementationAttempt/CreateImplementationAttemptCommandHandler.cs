@@ -52,6 +52,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
+        // The execution mode is a durable, immutable admission fact: read afresh (never from the tracked Run)
+        // and checked before any workspace, evidence, manifest, or provider work.
+        var executionModeError = await CurrentRunExecutionMode.CheckAgentAdmittedAsync(dbContext, run.Id, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(executionModeError);
+        }
+
         if (run.Lifecycle != RunLifecycle.Running)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(
@@ -253,6 +261,15 @@ public sealed class CreateImplementationAttemptCommandHandler(
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
         var agentBudgetSlot = agentAttemptsUsed + 1;
 
+        // The execution mode is read afresh and guarded by its concurrency token, like the model request: the
+        // single SaveChangesAsync below commits only while the stored mode is still the one decided against.
+        var guardedModeError = await CurrentRunExecutionMode.ReadAndGuardAgentAsync(dbContext, run, cancellationToken);
+        if (guardedModeError is not null)
+        {
+            artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+            return Result<CreateImplementationAttemptCommandResult>.Failure(guardedModeError);
+        }
+
         // Read as late as possible (after every external step) and guarded by the Run's
         // concurrency token, so this Attempt snapshots exactly the model and effort pair that is still current
         // when the single SaveChangesAsync below commits — never an earlier-loaded, stale value.
@@ -352,7 +369,9 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 // A token stop policy change is named as such; anything else keeps the generic
                 // run-changed conflict.
                 return Result<CreateImplementationAttemptCommandResult>.Failure(
-                    await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
+                    await CurrentRunExecutionMode.HasChangedAsync(dbContext, run, cancellationToken)
+                        ? CurrentRunExecutionMode.ChangedDuringClaim()
+                        : await CurrentTokenStopPolicy.HasChangedAsync(dbContext, run, cancellationToken)
                         ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
                         : CurrentClaudeModelPreference.RunChangedDuringClaim());
             }

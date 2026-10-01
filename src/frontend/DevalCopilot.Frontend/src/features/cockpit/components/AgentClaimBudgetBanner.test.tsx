@@ -16,4 +16,12 @@ describe('AgentClaimBudgetBanner', () => {
     expect(alert).toHaveTextContent('16')
     expect(alert).toHaveTextContent(/no further agent attempt can be claimed/i)
   })
+
+  it('never promises an immediate replacement run for a run that is still active', () => {
+    render(<AgentClaimBudgetBanner maximumAgentAttempts={16} agentAttemptsUsed={16} agentBudgetExhausted={true} />)
+    const alert = screen.getByRole('alert')
+    expect(alert).not.toHaveTextContent(/start a new run/i)
+    expect(alert).toHaveTextContent(/does not finish this run or authorize replacing it/i)
+    expect(alert).toHaveTextContent(/only after every run of this project has finished/i)
+  })
 })

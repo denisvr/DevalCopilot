@@ -51,6 +51,14 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
+        // The execution mode is a durable, immutable admission fact: read afresh (never from the tracked Run)
+        // and checked before any workspace, evidence, manifest, or provider work.
+        var executionModeError = await CurrentRunExecutionMode.CheckAgentAdmittedAsync(dbContext, run.Id, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(executionModeError);
+        }
+
         if (run.Lifecycle != RunLifecycle.Running)
         {
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(
@@ -386,6 +394,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
         {
             bool preferenceStillCurrent;
             bool stopPolicyStillCurrent;
+            bool modeStillAdmitted;
             Error? repairRevalidationError = null;
             try
             {
@@ -397,6 +406,10 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 // The token stop policy the claim decided against must be unchanged too: one more
                 // atomic UPDATE ... WHERE compare inside this same transaction (see CurrentTokenStopPolicy).
                 stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
+
+                // The execution mode the claim decided against must still admit Agent work: one more atomic
+                // UPDATE ... WHERE inside this same transaction, so a mode change can never confer stale authority.
+                modeStillAdmitted = await CurrentRunExecutionMode.ConfirmAgentAdmittedAsync(dbContext, run, cancellationToken);
 
                 // A repair re-reads its source, both exact input identities, the current verification
                 // selection, and the running slot here, after the two guard writes above hold the
@@ -427,6 +440,15 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateCodeReviewAttemptCommandResult>.Failure(
                     Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (!modeStillAdmitted)
+            {
+                // The run no longer admits Agent work. Rolled back before any insert: no attempt, artifact,
+                // reservation, or authorization is consumed, and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodeReviewAttemptCommandResult>.Failure(CurrentRunExecutionMode.NotAdmitted());
             }
 
             if (!preferenceStillCurrent)

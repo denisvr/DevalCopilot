@@ -16,7 +16,7 @@ namespace DevalCopilot.Application.Tests.Features.Runs;
 /// <summary>Mirrors <c>CreateChallengeResolutionAttemptCommandHandlerTests</c>'s fixture/fake
 /// style exactly, adapted for the two eligible resolved-plan forms this handler alone accepts
 /// (an accepted original Proposal, or a resolved revised Proposal).</summary>
-public sealed class CreateImplementationAttemptCommandHandlerTests : IAsyncLifetime
+public sealed partial class CreateImplementationAttemptCommandHandlerTests : IAsyncLifetime
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 18, 9, 0, 0, TimeSpan.Zero);
     private static readonly string Fingerprint = new('a', 64);

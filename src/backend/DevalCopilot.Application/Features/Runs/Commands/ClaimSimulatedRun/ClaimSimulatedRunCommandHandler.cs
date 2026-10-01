@@ -22,6 +22,14 @@ public sealed class ClaimSimulatedRunCommandHandler(IDevalCopilotDbContext dbCon
                 Error.NotFound("runs.not_found", "The requested run was not found."));
         }
 
+        // Read afresh (never from the tracked Run) and guarded by the mode's concurrency token, so the save
+        // below commits only while the stored mode is still the one this claim decided against.
+        var executionModeError = await CurrentRunExecutionMode.ReadAndGuardSimulationAsync(dbContext, run, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<ClaimSimulatedRunCommandResult>.Failure(executionModeError);
+        }
+
         if (run.Lifecycle != RunLifecycle.Created)
         {
             return Result<ClaimSimulatedRunCommandResult>.Failure(
@@ -36,6 +44,19 @@ public sealed class ClaimSimulatedRunCommandHandler(IDevalCopilotDbContext dbCon
         var attempt = Attempt.Claim(Guid.NewGuid(), run.Id, attemptNumber, nowUtc);
         dbContext.Attempts.Add(attempt);
         run.Claim(nowUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.Attempts.Remove(attempt);
+            return Result<ClaimSimulatedRunCommandResult>.Failure(
+                await CurrentRunExecutionMode.HasChangedAsync(dbContext, run, cancellationToken)
+                    ? CurrentRunExecutionMode.ChangedDuringClaim()
+                    : Error.Conflict("runs.already_claimed", "The run has already been claimed."));
+        }
 
         return Result<ClaimSimulatedRunCommandResult>.Success(
             new ClaimSimulatedRunCommandResult(attempt.Id, attempt.AttemptNumber));

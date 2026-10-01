@@ -19,7 +19,7 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandler(IDevalCopilo
                 && attempt.AgentResponseContract == AgentResponseContract.ReviewCorrection
                 && attempt.Status == AttemptStatus.Running
                 && attempt.AgentDispatchedAtUtc == null)
-            .Join(dbContext.Runs.AsNoTracking().Where(run => run.Lifecycle == RunLifecycle.Running), attempt => attempt.RunId, run => run.Id, (attempt, _) => attempt)
+            .Join(dbContext.Runs.AsNoTracking().Where(run => run.Lifecycle == RunLifecycle.Running && (EF.Property<string>(run, Run.ExecutionModeStorageProperty) == RunExecutionModeStorage.ManualAgentText || EF.Property<string>(run, Run.ExecutionModeStorageProperty) == RunExecutionModeStorage.LegacyText)), attempt => attempt.RunId, run => run.Id, (attempt, _) => attempt)
             .Join(dbContext.GitWorkspaces.AsNoTracking().Where(workspace => workspace.Status == WorkspaceStatus.Ready), attempt => attempt.AgentGitWorkspaceId!.Value, workspace => workspace.Id, (attempt, workspace) => new { attempt, workspace })
             .Join(dbContext.RepositoryMutationLeases.AsNoTracking().Where(lease => lease.Status == LeaseStatus.Active), combined => combined.workspace.Id, lease => lease.WorkspaceId, (combined, _) => combined)
             .Join(dbContext.Artifacts.AsNoTracking()

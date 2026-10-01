@@ -125,6 +125,15 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
             return WorkspaceNoLongerEligible();
         }
 
+        // The execution mode is the final dispatch admission: read afresh (a tracked Run may be stale) and
+        // guarded by its concurrency token, so the dispatch marker commits only while the stored mode still
+        // admits Agent work. A refusal leaves the attempt undispatched and never reaches the provider.
+        var executionModeError = await CurrentRunExecutionMode.ReadAndGuardAgentAsync(dbContext, run, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<DateTimeOffset>.Failure(executionModeError);
+        }
+
         var workspace = await dbContext.GitWorkspaces
             .SingleOrDefaultAsync(candidate => candidate.Id == attempt.AgentGitWorkspaceId, cancellationToken);
         if (workspace is null || workspace.Status != WorkspaceStatus.Ready)

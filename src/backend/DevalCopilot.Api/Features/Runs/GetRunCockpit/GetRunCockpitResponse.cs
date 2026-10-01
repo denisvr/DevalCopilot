@@ -29,4 +29,5 @@ public sealed record GetRunCockpitResponse(
     string? RequestedClaudeEffort = null,
     IReadOnlyList<RunCockpitTokenWarningResponse>? TokenWarnings = null,
     IReadOnlyList<RunCockpitTokenStopResponse>? TokenStops = null,
-    ClaudeMutationTurnLimitResponse? ClaudeMutationTurnLimit = null);
+    ClaudeMutationTurnLimitResponse? ClaudeMutationTurnLimit = null,
+    string? ExecutionMode = null);

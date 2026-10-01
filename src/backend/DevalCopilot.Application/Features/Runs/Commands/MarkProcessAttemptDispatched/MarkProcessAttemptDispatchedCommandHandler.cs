@@ -40,6 +40,21 @@ public sealed class MarkProcessAttemptDispatchedCommandHandler(IDevalCopilotDbCo
                 Error.Conflict("attempts.already_dispatched", "The attempt was already dispatched."));
         }
 
+        // Standalone Process support is historical: only a Legacy run admits it. The mode is read afresh and
+        // guarded by its concurrency token, so the dispatch marker commits only while it still admits Process.
+        var run = await dbContext.Runs.SingleOrDefaultAsync(candidate => candidate.Id == attempt.RunId, cancellationToken);
+        if (run is null)
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.NotFound("runs.not_found", "The requested run was not found."));
+        }
+
+        var executionModeError = await CurrentRunExecutionMode.ReadAndGuardProcessAsync(dbContext, run, cancellationToken);
+        if (executionModeError is not null)
+        {
+            return Result<DateTimeOffset>.Failure(executionModeError);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
         attempt.MarkProcessDispatched(nowUtc);
 

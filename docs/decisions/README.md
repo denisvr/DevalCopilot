@@ -19,6 +19,7 @@ supersedes it.
 - [ADR-0011: Require administrator-provisioned policy before Gemini CLI execution](0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md)
 - [ADR-0012: Add a durable run-wide Agent claim budget](0012-add-a-durable-run-wide-agent-claim-budget.md)
 - [ADR-0013: Add a durable run-wide Agent invocation-time budget](0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
+- [ADR-0014: Add manual Agent run intake with durable execution-mode isolation](0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)
 
 ## Status values
 

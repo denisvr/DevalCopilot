@@ -17,7 +17,7 @@ public sealed class GetEligibleSimulatedRunsQueryHandler(IDevalCopilotDbContext 
         // so oldest-first ordering happens client-side after a narrow projection.
         var eligibleRuns = await dbContext.Runs
             .AsNoTracking()
-            .Where(run => run.Lifecycle == RunLifecycle.Created)
+            .Where(run => run.Lifecycle == RunLifecycle.Created && (EF.Property<string>(run, Run.ExecutionModeStorageProperty) == RunExecutionModeStorage.SimulatedText || EF.Property<string>(run, Run.ExecutionModeStorageProperty) == RunExecutionModeStorage.LegacyText))
             .Select(run => new { run.Id, run.CreatedAtUtc })
             .ToListAsync(cancellationToken);
 

@@ -18,10 +18,39 @@ public sealed class GetProjectRunSummariesQueryHandler(IDevalCopilotDbContext db
             .Select(project => new { project.Id, project.Name, project.CanonicalPath })
             .ToListAsync(cancellationToken);
 
+        // Only runs with a recognized lifecycle are materialized: a stored lifecycle this build does not recognize would
+        // otherwise throw during enum conversion and make the whole project list unavailable. The execution mode is read as its
+        // exact stored form for the same reason (a malformed value is reported as unrecognized, never coerced).
         var runs = await dbContext.Runs
             .AsNoTracking()
-            .Select(run => new { run.ProjectId, run.Id, run.ExecutionNumber, run.Lifecycle, run.Stage })
+            .Where(run => run.Lifecycle == RunLifecycle.Created
+                || run.Lifecycle == RunLifecycle.Running
+                || run.Lifecycle == RunLifecycle.Completed
+                || run.Lifecycle == RunLifecycle.Failed
+                || run.Lifecycle == RunLifecycle.Interrupted)
+            .Select(run => new
+            {
+                run.ProjectId,
+                run.Id,
+                run.ExecutionNumber,
+                run.Lifecycle,
+                run.Stage,
+                StoredExecutionMode = EF.Property<string>(run, Run.ExecutionModeStorageProperty),
+            })
             .ToListAsync(cancellationToken);
+
+        // Projects holding a run of an unrecognized lifecycle stay visibly blocked: the lifecycle is never treated as
+        // terminal, classified, or exposed, and only the project identifier is read.
+        var projectsWithUnrecognizedLifecycle = (await dbContext.Runs
+            .AsNoTracking()
+            .Where(run => run.Lifecycle != RunLifecycle.Created
+                && run.Lifecycle != RunLifecycle.Running
+                && run.Lifecycle != RunLifecycle.Completed
+                && run.Lifecycle != RunLifecycle.Failed
+                && run.Lifecycle != RunLifecycle.Interrupted)
+            .Select(run => run.ProjectId)
+            .Distinct()
+            .ToListAsync(cancellationToken)).ToHashSet();
 
         // Every project's baselines, narrowly projected; "current" is picked client-side below
         // as the greatest BaselineNumber — never the latest ObservedAtUtc, which is display
@@ -53,8 +82,8 @@ public sealed class GetProjectRunSummariesQueryHandler(IDevalCopilotDbContext db
 
         foreach (var project in projects)
         {
-            var mostRelevantRun = runs
-                .Where(run => run.ProjectId == project.Id)
+            var projectRuns = runs.Where(run => run.ProjectId == project.Id).ToArray();
+            var mostRelevantRun = projectRuns
                 .OrderBy(run => run.Lifecycle == RunLifecycle.Completed ? 1 : 0)
                 .ThenByDescending(run => run.ExecutionNumber)
                 .FirstOrDefault();
@@ -81,7 +110,10 @@ public sealed class GetProjectRunSummariesQueryHandler(IDevalCopilotDbContext db
                     currentBaseline?.BranchName,
                     currentBaseline?.HeadCommitSha,
                     currentBaseline?.IsDirty ?? false,
-                    currentBaseline?.ObservedAtUtc));
+                    currentBaseline?.ObservedAtUtc,
+                    mostRelevantRun is null ? null : RunExecutionModeStorage.Read(mostRelevantRun.StoredExecutionMode),
+                    !projectsWithUnrecognizedLifecycle.Contains(project.Id)
+                        && projectRuns.All(run => RunLifecycleAdmission.PermitsNewIntent(run.Lifecycle))));
         }
 
         return results;

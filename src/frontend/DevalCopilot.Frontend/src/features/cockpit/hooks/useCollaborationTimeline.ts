@@ -3,6 +3,7 @@ import type { CollaborationMessageTimelineResponse } from '../../../api/clients'
 import { collaborationTimelineClient } from '../../../api/clients'
 import type { CollaborationTimelineCard } from '../types'
 import { toParticipantIdentity } from '../participantIdentity'
+import { toUtcText } from '../utcText'
 
 interface CollaborationTimelineState {
   runId: string
@@ -49,7 +50,7 @@ function toCard(message: CollaborationMessageTimelineResponse): CollaborationTim
     details: parseDetails(message.structuredContentJson),
     structuredContentJson: message.structuredContentJson ?? '',
     provenance: message.provenance ?? '',
-    occurredAtUtc: (message.occurredAtUtc as unknown as string) ?? '',
+    occurredAtUtc: toUtcText(message.occurredAtUtc),
   }
 }
 

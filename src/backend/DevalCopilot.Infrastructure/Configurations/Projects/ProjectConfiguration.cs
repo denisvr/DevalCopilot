@@ -19,7 +19,9 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
         // genuinely unknown), never a fabricated historical date. Every project registered
         // through Project.Register always supplies a real value.
         builder.Property(project => project.RegisteredAtUtc);
-        builder.Property(project => project.NextExecutionNumber).IsRequired();
+        // A concurrency token: run-intent admission reads the project's runs and then reserves the next
+        // number, so two concurrent intents that both passed the check cannot both commit.
+        builder.Property(project => project.NextExecutionNumber).IsRequired().IsConcurrencyToken();
         builder.Property(project => project.NextBaselineNumber).IsRequired();
         builder.Property(project => project.NextWorkspaceNumber).IsRequired();
         builder.Property(project => project.NextVerificationCommandNumber).IsRequired().HasDefaultValue(1);
