@@ -1,5 +1,6 @@
 using Devalente.Shared.AspNetCore.Mvc;
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Api.Features.Runs.Contracts;
 using DevalCopilot.Application.Features.Runs.Queries.GetRunCockpit;
 using Microsoft.AspNetCore.Mvc;
 
@@ -52,7 +53,8 @@ public sealed class GetRunCockpitEndpoint(
                         AgentTokenUsageResponse.FromAttempt(attempt.TokenUsage),
                         attempt.RequestedModel,
                         attempt.RequestedEffort,
-                        ClaudeMutationTurnLimitResponse.FromDomain(attempt.TurnLimit))
+                        ClaudeMutationTurnLimitResponse.FromDomain(attempt.TurnLimit),
+                        DirectHumanGuidanceResponse.FromDomain(attempt.DirectGuidance))
                     : null,
                 RunTokenUsageSummaryResponse.FromSummary(value.TokenUsageSummary),
                 value.ProviderTokenUsageSummaries.Select(RunCockpitProviderTokenUsageEntryResponse.FromDomain).ToArray(),

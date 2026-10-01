@@ -585,7 +585,8 @@ public sealed class Attempt
         AgentPermissionProfile permissionProfile,
         string adapterContractVersion,
         int agentBudgetSlot,
-        int? requestedMaxTurns = null)
+        int? requestedMaxTurns = null,
+        string? directHumanGuidance = null)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
@@ -609,6 +610,10 @@ public sealed class Attempt
             requestedMaxTurns,
             adapterContractVersion == ClaudeMutationAdapterContract.ImplementationV2
                 && permissionProfile == Runs.AgentPermissionProfile.WorkspaceEditOnly);
+        ValidateDirectHumanGuidance(
+            directHumanGuidance,
+            adapterContractVersion == ClaudeMutationAdapterContract.ImplementationV2
+                && permissionProfile == Runs.AgentPermissionProfile.WorkspaceEditOnly);
 
         return new Attempt
         {
@@ -622,6 +627,7 @@ public sealed class Attempt
             AgentRole = contract.Role,
             AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
             _agentRequestedMaxTurns = ClaudeMutationTurnLimit.Format(requestedMaxTurns),
+            _agentDirectHumanGuidance = directHumanGuidance,
             // Mirrors ClaimAgentCriticalReview/ClaimAgentChallengeResolution's own reasoning:
             // the real ExecutionReport this attempt produces is represented by
             // AgentResponseContract below, never by this placeholder.
@@ -685,6 +691,29 @@ public sealed class Attempt
             throw new ArgumentException(
                 "A requested Claude turn limit requires the version 2 mutation contract with the workspace-edit profile.",
                 nameof(requestedMaxTurns));
+        }
+    }
+
+    /// <summary>Direct guidance must already be exactly its own normalized form, and may only be stored with a contract
+    /// that can carry it, so guidance is never recorded beside an invocation whose sealed context would omit it.</summary>
+    private static void ValidateDirectHumanGuidance(string? directHumanGuidance, bool contractCarriesGuidance)
+    {
+        if (directHumanGuidance is null)
+        {
+            return;
+        }
+
+        if (DirectHumanGuidance.Read(directHumanGuidance).IsMalformed)
+        {
+            throw new ArgumentException(
+                "Direct human guidance must be accepted, normalized text.", nameof(directHumanGuidance));
+        }
+
+        if (!contractCarriesGuidance)
+        {
+            throw new ArgumentException(
+                "Direct human guidance requires the version 2 mutation contract with the workspace-edit profile.",
+                nameof(directHumanGuidance));
         }
     }
 
@@ -760,12 +789,13 @@ public sealed class Attempt
         string? requestedClaudeModel,
         string? requestedClaudeEffort,
         int agentBudgetSlot,
-        int? requestedMaxTurns = null)
+        int? requestedMaxTurns = null,
+        string? directHumanGuidance = null)
         => ClaimReviewCorrection(
             id, runId, attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256,
             contextManifestArtifactId, timeout, maxBytesPerStream, maxTotalCapturedBytes, claimedAtUtc,
             requestedClaudeModel, requestedClaudeEffort, agentBudgetSlot,
-            ClaudeMutationAdapterContract.ReviewCorrectionV2, requestedMaxTurns);
+            ClaudeMutationAdapterContract.ReviewCorrectionV2, requestedMaxTurns, directHumanGuidance);
 
     private static Attempt ClaimReviewCorrection(
         Guid id,
@@ -783,7 +813,8 @@ public sealed class Attempt
         string? requestedClaudeEffort,
         int agentBudgetSlot,
         string adapterContractVersion,
-        int? requestedMaxTurns)
+        int? requestedMaxTurns,
+        string? directHumanGuidance = null)
     {
         ValidateAgentClaimArguments(
             attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
@@ -791,6 +822,8 @@ public sealed class Attempt
         ValidateClaudeModelRequest(requestedClaudeModel, requestedClaudeEffort);
         ValidateMutationTurnLimit(
             requestedMaxTurns, adapterContractVersion == ClaudeMutationAdapterContract.ReviewCorrectionV2);
+        ValidateDirectHumanGuidance(
+            directHumanGuidance, adapterContractVersion == ClaudeMutationAdapterContract.ReviewCorrectionV2);
 
         var contract = AgentAttemptContract.For(Runs.AgentResponseContract.ReviewCorrection);
 
@@ -826,6 +859,7 @@ public sealed class Attempt
             AgentPermissionProfile = Runs.AgentPermissionProfile.WorkspaceEditOnly,
             AgentAdapterContractVersion = adapterContractVersion,
             _agentRequestedMaxTurns = ClaudeMutationTurnLimit.Format(requestedMaxTurns),
+            _agentDirectHumanGuidance = directHumanGuidance,
             AgentBudgetSlot = agentBudgetSlot,
         };
     }
@@ -1089,6 +1123,29 @@ public sealed class Attempt
     /// tuple (see <see cref="ClaudeMutationAdapterContract.IsDispatchCoherent"/>).</summary>
     public bool HasDispatchCoherentTurnLimit() => ClaudeMutationAdapterContract.IsDispatchCoherent(
         AgentResponseContract, AgentRole, AgentProvider, AgentPermissionProfile, AgentAdapterContractVersion, ReadAgentRequestedMaxTurns());
+
+    /// <summary>The EF field-only property that holds the direct-guidance snapshot as its exact stored text.
+    /// Persistence and queries refer to this name; every other reader uses <see cref="ReadAgentDirectHumanGuidance"/>.</summary>
+    public const string AgentDirectHumanGuidanceStorageProperty = "_agentDirectHumanGuidance";
+
+    private string? _agentDirectHumanGuidance;
+
+    /// <summary>The exact reading of the immutable direct human guidance this mutation attempt was claimed with. Assigned
+    /// only by the two mutation claims, in the same commit as the attempt; null means none was recorded (it is not
+    /// proof that no historical human guidance existed). Malformed means the stored text is not exactly an accepted,
+    /// normalized value, so it is never read as guidance, as absence, or as text.</summary>
+    public DirectHumanGuidanceReading ReadAgentDirectHumanGuidance() => DirectHumanGuidance.Read(_agentDirectHumanGuidance);
+
+    /// <summary>What this attempt's own stored facts say about direct guidance, by exact version-aware mapping (see
+    /// <see cref="ClaudeMutationAdapterContract.ClassifyDirectGuidance"/>).</summary>
+    public DirectHumanGuidanceEvidence GetDirectHumanGuidanceEvidence() => ClaudeMutationAdapterContract.ClassifyDirectGuidance(
+        AgentResponseContract, AgentRole, AgentProvider, AgentPermissionProfile, AgentAdapterContractVersion, ReadAgentDirectHumanGuidance());
+
+    /// <summary>Whether a provider may be invoked for this attempt as far as its direct-guidance snapshot is concerned:
+    /// an attempt that recorded none is unaffected, and one that recorded guidance needs well-formed text and the complete
+    /// coherent role, provider, response-contract, permission-profile, and exact version 2 tuple.</summary>
+    public bool HasDispatchCoherentDirectHumanGuidance() => ClaudeMutationAdapterContract.IsDirectGuidanceDispatchCoherent(
+        AgentResponseContract, AgentRole, AgentProvider, AgentPermissionProfile, AgentAdapterContractVersion, ReadAgentDirectHumanGuidance());
 
     /// <summary>Returns the assignment facts without introducing a second persisted aggregate.
     /// Non-Agent attempts have no assignment snapshot.</summary>

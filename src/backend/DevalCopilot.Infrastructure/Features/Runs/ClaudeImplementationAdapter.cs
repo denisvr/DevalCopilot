@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 
@@ -80,7 +81,10 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             fromOffset: 0,
             maxBytes: MaxContextManifestReadBytes,
             cancellationToken).ConfigureAwait(false);
-        if (manifestWindow.Status != SealedReadStatus.Ok)
+        // The sealed manifest must agree exactly with the attempt's immutable direct-guidance snapshot carried by the
+        // request; any disagreement fails closed here, before any process starts, and never reconstructs context.
+        if (manifestWindow.Status != SealedReadStatus.Ok
+            || !DirectHumanGuidanceManifest.Agrees(manifestWindow.Text, request.DirectHumanGuidance))
         {
             return Failed();
         }

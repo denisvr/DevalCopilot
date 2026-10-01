@@ -65,6 +65,73 @@ public static class ClaudeMutationAdapterContract
                 || Classify(responseContract, role, provider, permissionProfile, adapterContractVersion, reading)
                     == ClaudeMutationTurnLimitEvidence.Requested;
 
+    /// <summary>Classifies a stored attempt's direct-guidance snapshot against its own response contract, role, provider,
+    /// permission profile, and adapter contract version, by the same exact version-aware mapping as the turn limit. A
+    /// coherent attempt with no guidance is <see cref="DirectHumanGuidanceEvidence.NotRecorded"/> whatever its contract
+    /// version (a null snapshot says nothing about submission history), a coherent v2 attempt with text is
+    /// <see cref="DirectHumanGuidanceEvidence.Provided"/>, and any disagreement or malformed text is
+    /// <see cref="DirectHumanGuidanceEvidence.Unknown"/>.</summary>
+    public static DirectHumanGuidanceEvidence ClassifyDirectGuidance(
+        AgentResponseContract? responseContract,
+        AgentRole? role,
+        AgentProvider? provider,
+        AgentPermissionProfile? permissionProfile,
+        string? adapterContractVersion,
+        DirectHumanGuidanceReading reading)
+    {
+        if (reading.IsMalformed)
+        {
+            return DirectHumanGuidanceEvidence.Unknown;
+        }
+
+        var (first, second) = responseContract switch
+        {
+            AgentResponseContract.ImplementationReport => (ImplementationV1, ImplementationV2),
+            AgentResponseContract.ReviewCorrection => (ReviewCorrectionV1, ReviewCorrectionV2),
+            _ => (null, null),
+        };
+
+        if (first is null)
+        {
+            return reading.Text is null ? DirectHumanGuidanceEvidence.NotRecorded : DirectHumanGuidanceEvidence.Unknown;
+        }
+
+        if (role != AgentRole.Implementer
+            || provider != AgentProvider.ClaudeCode
+            || permissionProfile != AgentPermissionProfile.WorkspaceEditOnly)
+        {
+            return DirectHumanGuidanceEvidence.Unknown;
+        }
+
+        if (string.Equals(adapterContractVersion, first, StringComparison.Ordinal))
+        {
+            return reading.Text is null ? DirectHumanGuidanceEvidence.NotRecorded : DirectHumanGuidanceEvidence.Unknown;
+        }
+
+        if (string.Equals(adapterContractVersion, second, StringComparison.Ordinal))
+        {
+            return reading.Text is null ? DirectHumanGuidanceEvidence.NotRecorded : DirectHumanGuidanceEvidence.Provided;
+        }
+
+        return DirectHumanGuidanceEvidence.Unknown;
+    }
+
+    /// <summary>Whether a provider may be invoked for an attempt with this direct-guidance reading. An attempt that
+    /// recorded none is unaffected (historical unguided and authorized attempts dispatch as before); malformed text is
+    /// never dispatchable; and recorded guidance needs the complete coherent tuple, including that path's exact version 2.</summary>
+    public static bool IsDirectGuidanceDispatchCoherent(
+        AgentResponseContract? responseContract,
+        AgentRole? role,
+        AgentProvider? provider,
+        AgentPermissionProfile? permissionProfile,
+        string? adapterContractVersion,
+        DirectHumanGuidanceReading reading) =>
+        reading.IsMalformed
+            ? false
+            : reading.Text is null
+                || ClassifyDirectGuidance(responseContract, role, provider, permissionProfile, adapterContractVersion, reading)
+                    == DirectHumanGuidanceEvidence.Provided;
+
     /// <summary>The same classification over an exact stored-text reading: a malformed reading is always
     /// <see cref="ClaudeMutationTurnLimitEvidence.Unknown"/>.</summary>
     public static ClaudeMutationTurnLimitEvidence Classify(

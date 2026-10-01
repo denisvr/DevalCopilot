@@ -30,4 +30,5 @@ public sealed record GetAgentAttemptEvidenceQueryResult(
     IReadOnlyList<AgentAttemptArtifactMetadata> Artifacts,
     ClaudeMutationTurnLimitFact? MaxTurns = null,
     Guid? RepairSourceAttemptId = null,
-    int? RepairSourceAttemptNumber = null);
+    int? RepairSourceAttemptNumber = null,
+    DirectHumanGuidanceFact? DirectGuidance = null);

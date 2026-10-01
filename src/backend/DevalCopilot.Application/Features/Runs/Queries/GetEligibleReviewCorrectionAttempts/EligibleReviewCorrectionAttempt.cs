@@ -17,4 +17,5 @@ public sealed record EligibleReviewCorrectionAttempt(
     string? RequestedClaudeModel = null,
     string? RequestedClaudeEffort = null,
     int? RequestedMaxTurns = null,
-    string? AdapterContractVersion = null);
+    string? AdapterContractVersion = null,
+    string? DirectHumanGuidance = null);

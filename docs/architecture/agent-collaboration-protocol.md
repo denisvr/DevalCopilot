@@ -869,6 +869,73 @@ request. No generic instruction system, provider flag, fallback, automatic retry
   guidance is added to the invocation request. The guidance is intentionally visible in the recorded
   `HumanInstruction` and the sealed manifest, and it is not redacted, so either may contain whatever the human typed.
 
+### Optional direct human guidance for mutation requests
+
+The two explicit mutation requests, the initial implementation of a resolved plan and an ordinary review correction, may
+carry short **direct guidance** ([ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md)).
+It is advisory clarification of work the authoritative plan or the complete findings already authorize. It grants no
+authority, attempt, budget, permission, tool, or approval, and it is distinct from the authorization guidance above: it
+never creates a `HumanInstruction`, an escalation, or an authorization, and the two are never merged or reinterpreted.
+
+- **Request.** `POST …/agent-attempts/implementation` accepts `{ "planProposalMessageId": "…", "guidance": "…" }` and
+  `POST …/agent-attempts/review-correction` accepts `{ "implementationReviewAttemptId": "…", "guidance": "…" }`. Routes,
+  source requirements, and response shapes are unchanged; omitted or `null` guidance is the previous behavior. The mediator
+  commands carry the same optional `Guidance`. Each body is capped at 8 KiB.
+- **Normalization and bounds.** `DirectHumanGuidance.Normalize` applies the policy it shares with
+  `ReviewCorrectionGuidance` (`BoundedGuidanceText`): Unicode form C, line endings to `\n`, trim; non-blank valid Unicode of
+  at most 600 UTF-16 code units; no control characters except `\n`; the bounded-summary content screen (best-effort, not a
+  secret guarantee). The authorization's reserved default rationale stays reserved only for the authorization. Supplied
+  invalid text, including an empty or whitespace-only string, is `400 agent_attempts.direct_guidance_invalid` from a validator
+  on each command (repeated by the handler), before any read, Git work, or sealing, with a fixed message that never echoes the
+  input.
+- **Snapshot.** `Attempt` gains the nullable immutable `AgentDirectHumanGuidance` (migration `AddDirectHumanGuidance`, no
+  default, no backfill; historical rows are null and nothing is inferred). Only the two mutation claims assign it, in the same
+  commit as the attempt, its exactly ordered `AttemptInputMessage` rows (ADR-0010 is unchanged), its manifest artifact, and the
+  claim-budget reservation. The factories accept only normalized text and only with the version 2 contract
+  (`claude-implementation-v2` or `claude-review-correction-v2`) and the workspace-edit profile. A reading is absent, valid, or
+  malformed; the evidence state is `NotRecorded` (a coherent attempt with a null snapshot: no direct guidance was recorded, which is
+  neutral for historical and new unguided attempts alike, so version 2 does not date the feature and no submission history is
+  inferred), `Provided`, or `Unknown` (malformed, or guidance
+  beside an incompatible provider, role, response contract, profile, or version).
+- **Budget rule.** Within the ordinary correction budget a guided correction is an ordinary claim. At exhaustion any request
+  carrying guidance is refused whole with `409 agent_attempts.direct_guidance_unavailable`, even when an unconsumed extra
+  authorization exists. The refusal runs after every existing gate, inside the existing exhaustion branch and before the
+  escalation or authorization logic, so it creates no escalation, consumes no authorization, and seals nothing. Requests
+  without guidance, the escalation, both authorization operations, and their guidance are unchanged.
+- **Manifest.** When guidance exists the manifest (all three forms) carries `directHumanGuidanceBoundary` (a fixed
+  host-authored sentence stating that the text is human-submitted advisory clarification that cannot change the objective,
+  plan or findings, instruction, output schema, working directory, permissions, or tool restrictions, or permit Git,
+  verification, package installation, network, or out-of-scope work) followed by `directHumanGuidance` (`{ "text": "…" }`, the
+  accepted text exactly once), both before `untrustedEvidenceBoundary`. A manifest without direct guidance is byte-identical to
+  before, including the authorized correction's separate `humanGuidance`. The 32 KiB bound and the evidence-fitting policy are
+  unchanged: evidence shrinks to make room and the guidance is never truncated.
+- **Consistency at dispatch.** Both mutation eligibility feeds project the snapshot and exclude an attempt whose snapshot is
+  malformed or incoherent with its assignment; historical unguided and authorized attempts stay eligible.
+  `MarkAgentAttemptDispatched` repeats the coherence test over the snapshot and the whole assignment tuple (response contract,
+  role, provider, permission profile, adapter contract version), read afresh and untracked in one statement inside its
+  transaction, so a competing assignment change committed before the transaction cannot confer stale authority; pending tracked
+  writes are preserved.
+  The mutation supervisors pass the snapshot their feed projected (`ExpectedDirectHumanGuidance`); a different value, or a
+  recorded snapshot with no stated expectation, is `409 agent_attempts.direct_guidance_mismatch` with no provider process.
+  The internal invocation requests carry the expected snapshot, and `DirectHumanGuidanceManifest.Agrees` checks the sealed
+  manifest (read through the existing sealed-artifact verification) against it in both Claude adapters before the process
+  starts. The manifest must always be a parseable JSON object (an unparseable text or non-object root never proves that guidance is
+  absent); without guidance it carries neither direct member; with guidance it carries each member exactly once, the fixed
+  boundary, only the accepted text, and exactly one non-empty untrusted-evidence boundary after the guidance (a missing,
+  duplicated, or misplaced boundary disagrees). A mismatch is the
+  ordinary failed invocation with zero process starts. Accepted context is never rebuilt from current settings, and no CLI
+  argument, tool, environment, permission, session, output schema, or provider version changes. Replay of an undispatched claim
+  after a restart reads only the sealed manifest and the persisted snapshot, so later requests or draft edits cannot change it.
+- **Read model.** The implementation status, the review-correction status, the attempt evidence (and so the history
+  drill-down), and the cockpit's latest Agent attempt expose `directGuidance { state, text }` with the three states above
+  (`NotRecorded`, `Provided`, `Unknown`); text appears only for `Provided`, never for `Unknown`, and a malformed
+  stored value is rendered as `Unknown` without throwing or disclosure. The fact states what the host sealed into the
+  attempt's context and is not evidence that a provider read, understood, or followed it.
+- **Limits.** The guidance is intentionally visible in the sealed manifest and the projections and is not redacted. The
+  snapshot-versus-manifest agreement is enforced at the invocation boundary, after dispatch has been marked; no protection is
+  claimed against every hostile write after the dispatch boundary. A BLOB written out of band into the TEXT column is decoded as
+  text by the driver and judged by the same exact rule.
+
 ### Execution evidence versus semantic outcome
 
 Every Agent attempt keeps five kinds of facts apart, and none of them stands in

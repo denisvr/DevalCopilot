@@ -21,4 +21,5 @@ public sealed record RunCockpitAgentAttemptEntry(
     AgentTokenUsageEvidence? TokenUsage = null,
     string? RequestedModel = null,
     string? RequestedEffort = null,
-    ClaudeMutationTurnLimitFact? TurnLimit = null);
+    ClaudeMutationTurnLimitFact? TurnLimit = null,
+    DirectHumanGuidanceFact? DirectGuidance = null);

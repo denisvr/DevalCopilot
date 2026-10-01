@@ -75,7 +75,7 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var executablePath = Path.Combine(_workspacePath, $"fake-claude-{Guid.NewGuid():N}.exe");
         await File.WriteAllTextAsync(executablePath, string.Empty);
         var fake = new CountingProcessExecutionAdapter { OnExecute = onExecute, ThrowOnExecute = throwOnExecute };
@@ -171,7 +171,7 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
         Assert.Equal("acceptEdits", arguments[arguments.ToList().IndexOf("--permission-mode") + 1]);
         Assert.Contains("--no-session-persistence", arguments);
         Assert.Contains("--json-schema", arguments);
-        Assert.Equal(Encoding.UTF8.GetBytes("manifest content"), requested.Request!.StandardInput);
+        Assert.Equal(Encoding.UTF8.GetBytes("{\"objective\":\"manifest content\"}"), requested.Request!.StandardInput);
         Assert.Equal(_workspacePath, requested.Request.WorkingDirectory);
         Assert.Equal(_workspacePath, requested.Request.ApprovedRoot);
     }
@@ -349,7 +349,7 @@ public sealed class ClaudeMutationTurnLimitAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var executablePath = Path.Combine(_workspacePath, $"fake-claude-critical-{Guid.NewGuid():N}.exe");
         await File.WriteAllTextAsync(executablePath, string.Empty);
 

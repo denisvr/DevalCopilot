@@ -54,6 +54,7 @@ describe('implementation role status', () => {
   const renderImplementation = (status: ImplementationAttemptStatusResponse) =>
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={status}
         statusLoading={false}
@@ -116,6 +117,7 @@ describe('review correction role status', () => {
   const renderCorrection = (status: ReviewCorrectionAttemptStatusResponse) =>
     render(
       <ReviewCorrectionAction
+        runId="run-1"
         reviewAttemptId="review-1"
         reviewOutcome="ReviewChangesRequested"
         status={status}

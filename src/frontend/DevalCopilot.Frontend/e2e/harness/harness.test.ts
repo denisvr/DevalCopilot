@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { getAuthorizedJson } from './authorizedRequest.ts'
+import { isGitUnavailableRefusal, retryOnGitUnavailable } from './readinessRetry.ts'
 import {
   createOwnedRoot,
   DATABASE_FILE,
@@ -257,5 +258,83 @@ describe('the reset script', () => {
       assert.match(result.stderr, /Refusing to reset/)
     }
     ;[...outsideFiles, ...ownedFiles, ...cwdFiles].forEach((file) => assert.equal(existsSync(file), true))
+  })
+})
+
+describe('the registration readiness retry', () => {
+  const gitUnavailable = () => ({
+    status: 409,
+    response: JSON.stringify({ errors: [{ code: 'projects.git_unavailable', detail: 'Git is not currently available on this host.' }] }),
+  })
+  const noSleep = async () => {}
+
+  it('recognizes only a 409 whose first error is the Git readiness refusal', () => {
+    assert.equal(isGitUnavailableRefusal(gitUnavailable()), true)
+    for (const other of [
+      null,
+      new Error('boom'),
+      { status: 400, response: gitUnavailable().response },
+      { status: 409, response: JSON.stringify({ errors: [{ code: 'projects.path_not_found' }] }) },
+      { status: 409, response: JSON.stringify({ errors: [{ code: 'other' }, { code: 'projects.git_unavailable' }] }) },
+      { status: 409, response: 'not json' },
+      { status: 409 },
+    ]) {
+      assert.equal(isGitUnavailableRefusal(other), false)
+    }
+  })
+
+  it('retries the first refusal, builds the fixture once, and succeeds on the next request', async () => {
+    let fixtures = 0
+    const repository = (() => {
+      fixtures += 1
+      return 'repo-path'
+    })()
+    const used: string[] = []
+    let calls = 0
+    const result = await retryOnGitUnavailable(
+      async () => {
+        calls += 1
+        used.push(repository)
+        if (calls === 1) {
+          throw gitUnavailable()
+        }
+        return { projectId: 'p1' }
+      },
+      { attempts: 5, delayMs: 1, sleep: noSleep },
+    )
+
+    assert.deepEqual(result, { projectId: 'p1' })
+    assert.equal(calls, 2)
+    assert.equal(fixtures, 1)
+    assert.deepEqual(used, ['repo-path', 'repo-path'])
+  })
+
+  it('surfaces any other failure at once, safely, without a second request or the transport detail', async () => {
+    let calls = 0
+    await assert.rejects(
+      retryOnGitUnavailable(
+        async () => {
+          calls += 1
+          throw Object.assign(new Error('Authorization: Bearer SECRET-VALUE'), { status: 500, response: 'SECRET-BODY' })
+        },
+        { attempts: 5, delayMs: 1, sleep: noSleep },
+      ),
+      (error: Error) => {
+        assert.match(error.message, /unexpected error \(status 500\)/)
+        assert.doesNotMatch(error.message, /SECRET/)
+        return true
+      },
+    )
+    assert.equal(calls, 1)
+    await assert.rejects(retryOnGitUnavailable(async () => { throw new Error('SECRET') }, { attempts: 3, delayMs: 1, sleep: noSleep }), /unexpected error\./)
+  })
+
+  it('stops after a finite budget of readiness refusals', async () => {
+    let calls = 0
+    await assert.rejects(
+      retryOnGitUnavailable(async () => { calls += 1; throw gitUnavailable() }, { attempts: 3, delayMs: 1, sleep: noSleep }),
+      /Git stayed unavailable after 3 attempts/,
+    )
+    assert.equal(calls, 3)
   })
 })

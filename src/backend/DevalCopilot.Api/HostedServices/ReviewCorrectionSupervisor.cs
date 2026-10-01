@@ -73,7 +73,9 @@ public sealed class ReviewCorrectionSupervisor(
         }
 
         var launchTarget = await DispatchAsync(new GetClaudeLaunchTargetQuery(), stoppingToken);
-        var dispatched = await DispatchAsync(new MarkAgentAttemptDispatchedCommand(attempt.RunId, attempt.AttemptId), stoppingToken);
+        var dispatched = await DispatchAsync(new MarkAgentAttemptDispatchedCommand(
+                attempt.RunId, attempt.AttemptId, new ExpectedDirectHumanGuidance(attempt.DirectHumanGuidance)),
+            stoppingToken);
         if (dispatched.IsFailure)
         {
             if (dispatched.Errors[0].Code == MarkAgentAttemptDispatchedCommandHandler.WorkspaceNoLongerEligibleCode)
@@ -104,7 +106,8 @@ public sealed class ReviewCorrectionSupervisor(
                 attempt.MaxBytesPerStream, attempt.MaxTotalCapturedBytes, attempt.RequestedClaudeModel,
                 attempt.RequestedClaudeEffort,
                 attempt.RequestedMaxTurns,
-                attempt.AdapterContractVersion), stoppingToken);
+                attempt.AdapterContractVersion,
+                attempt.DirectHumanGuidance), stoppingToken);
         }
         catch (OperationCanceledException)
         {

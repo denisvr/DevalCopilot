@@ -6,6 +6,158 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
+## Direct human guidance for mutation requests (2026-10-01)
+
+- Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent
+  `371c3a6b81ddc65bc8de7057d8bd8ce2b388296e` (`main`; `HEAD`, local `origin/main`, and live `refs/heads/main` matched it, nothing staged or
+  untracked, and only the planner-owned `planner-handoff.md` modified at the start; the generated client SHA-256 matched
+  `7253732aa5f7bd4c98198f31e2bb701c8c4b74ca2368c1d2c24d4ee78e67f2c8`). Presented as an uncommitted, unstaged, unpushed diff for Codex's
+  GO/NO-GO, then corrected in the same executor chat after Codex's first review (R1–R4 below). `planner-handoff.md` was not edited. This
+  entry records the delivered SHA only after publication.
+- Delivered ([ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md)): the two explicit mutation requests
+  (`POST …/agent-attempts/implementation` and `…/review-correction`) accept an optional `guidance` (routes, source requirements, and response
+  shapes unchanged; omitted or `null` is the previous behavior; each body capped at 8 KiB). `DirectHumanGuidance.Normalize` shares one
+  policy with the authorization's guidance (`BoundedGuidanceText`: form C, LF, trim, non-blank valid Unicode, at most 600 UTF-16 code units,
+  no control except LF, the bounded-summary screen) while only the authorization keeps its reserved default rationale; invalid text is
+  `400 agent_attempts.direct_guidance_invalid` from a validator on each command (repeated by the handler) before any read or external work,
+  never echoed. Migration `AddDirectHumanGuidance` adds one nullable TEXT `attempts.AgentDirectHumanGuidance` (no default, no backfill, no
+  marker column; historical rows stay null, nothing inferred); only the two mutation claims assign it in the same commit as the attempt,
+  ordered inputs, manifest artifact, and budget reservation; the factories accept only normalized text with the version 2 contract and the
+  workspace-edit profile; a reading is absent, valid, or malformed. At correction-budget exhaustion a request carrying guidance is refused
+  `409 agent_attempts.direct_guidance_unavailable` inside the existing exhaustion branch (after every existing gate, before escalation or
+  authorization logic), even when an extra authorization exists, creating no escalation and consuming no authorization. Both implementation
+  manifest forms and ordinary corrections gain a fixed `directHumanGuidanceBoundary` and one `directHumanGuidance { text }` before
+  `untrustedEvidenceBoundary` only when guidance exists (otherwise byte-identical, including an authorized correction's separate
+  `humanGuidance`; the implementation serializer moved from an anonymous type to an order-preserving dictionary and is compared byte for
+  byte with a copy of the former serializer); the 32 KiB bound is kept by shrinking evidence, never the guidance. Both eligibility feeds
+  exclude a malformed or incoherent snapshot (historical unguided and authorized attempts stay eligible); `MarkAgentAttemptDispatched`
+  reads the snapshot **and the whole assignment tuple** (response contract, role, provider, permission profile, adapter contract version)
+  afresh and untracked in one statement, judges coherence on those fresh facts, and compares the snapshot with the one the supervisor's feed
+  projected (`ExpectedDirectHumanGuidance`; a difference, or a recorded snapshot with no stated expectation, is
+  `409 agent_attempts.direct_guidance_mismatch`; incoherent fresh facts are `agent_attempts.invalid_agent_contract`), never touching
+  pending tracked writes; both invocation requests carry the expected snapshot and both Claude adapters require the sealed manifest (read
+  through the existing sealed-artifact verification) to be a **parseable JSON object** that agrees with it before any process starts: without
+  guidance neither direct member may exist, with guidance each member exactly once, the fixed boundary, only the accepted text, and exactly one
+  non-empty untrusted-evidence boundary after the guidance. No CLI argument, tool, environment, permission, session, output schema, or
+  provider version changed. The implementation and review-correction statuses, attempt evidence (and so the history drill-down), and the
+  cockpit's latest attempt expose `directGuidance { state, text }` with three states: `NotRecorded` (a coherent mutation attempt with a null
+  snapshot: **no direct guidance was recorded**, the same neutral statement for historical and new unguided attempts, never "none was
+  submitted" and never dated by the contract version), `Provided` (the accepted text), and `Unknown` (no text); the contract
+  `DirectHumanGuidanceResponse` lives in `Api/Features/Runs/Contracts`. The cockpit's two actions gain an optional guidance editor beside the
+  unchanged plain buttons, with drafts, busy and error state, handlers, and request and refresh continuations owned by run, source, and
+  interaction lifetime (A→B→A, unmount, stale handlers, synchronous duplicates, a draft version incremented by every edit including identical
+  text, clearing only an unchanged submitted draft after a current success); the editor is withheld at exhaustion and while an authorization
+  is available, with the separate authorization UI unchanged and the server gate authoritative. The generated client was regenerated by the
+  build, not edited.
+- Review correction (Codex's first NO-GO: R1–R4, all reproduced red by the reviewer, then fixed with permanent regressions): **R1** the
+  dispatch gate judged a fresh snapshot against the tracked attempt's tuple, so a provider, profile, or version change committed before BEGIN
+  with an unchanged snapshot still dispatched; the whole tuple is now read fresh (regressions: 18 competing-assignment cases over both paths,
+  pending tracked writes preserved and tracking not disabled, a compatible competing change still dispatching). **R2** a null snapshot on a
+  version 2 attempt was reported `NotProvided` / "none was submitted", inferring submission history; the state and its copy are collapsed into
+  the neutral `NotRecorded` in Domain, projections, UI, the migration expectations, ADR, protocol, and cockpit specification (a legacy
+  `NotProvided` from an older server is shown as unknown by the UI). **R3** the manifest check treated an unparseable or non-object text as
+  agreement with a null snapshot and a guided object without an untrusted-evidence boundary as agreeing; both now disagree, and the existing
+  adapter test fixtures that used opaque text now use valid bounded JSON objects (regressions: 13 new disagreement rows per path through the
+  actual Claude adapters with zero process starts, including malformed JSON and an array holding the direct members, and missing, empty,
+  non-string, duplicated, and misplaced evidence boundaries). **R4** `DirectHumanGuidanceResponse` moved out of the operation-bearing feature
+  root into `Api/Features/Runs/Contracts` (namespace and imports updated; unrelated contracts untouched). Also added: a Playwright specification
+  (`e2e/wire-direct-guidance.spec.ts`) that drives the **generated TypeScript client over real HTTP** against the real host and run-owned
+  database with the launch secret as an Authorization header: guidance serialization for both operations (400 validation with fixed copy
+  and no echo, versus the same domain 409 for valid and omitted guidance), and revival of `Provided` → `Unknown` → `NotRecorded` through the
+  status, evidence, and cockpit responses (the attempt rows are inserted directly into the owned database because no public operation can
+  create them without a provider).
+- Second review correction (Codex: R1–R4 resolved; R5–R6 open; tests, test support, and documentation only, no production change). **R5**
+  the browser specifications depended on execution order: registration does not select the new project and a reload selects the first
+  project, so the manual-intake specification failed ("Demo only" never appeared) when the wire specification ran before it, and the earlier
+  claim that the file name's lexical order isolated them was wrong and is removed. `e2e/support.ts` gains `selectProject`, which clicks the
+  specification's own fixture chip and asserts `data-selected="true"`; `manual-run.spec.ts` selects its project after registration and again
+  after the reload, and `simulated-run.spec.ts` uses the same helper at both points. No database reset, production hook, provider, or
+  lifecycle/deletion authority was added; authentication, `reuseExistingServer: false`, and verified owned-root cleanup are unchanged.
+  Red/green: the previous manual specification preceded by a temporary copy of the wire specification named to sort first failed at the
+  "Demo only" assertion; with the helper all of these passed with real Chromium (`npx playwright test <files> --reporter=line`): wire,
+  manual, simulated (3/3); manual, wire, simulated (3/3); manual, simulated, wire (3/3, the real file name); and each specification alone
+  (1/1 each); the temporary copies were removed and no `devalcopilot-e2e-*` directory remained after any run. **R6** the wire specification
+  built its fixture repository inside the retry loop, so a second pass repeated `git commit` of unchanged content and failed before another
+  API request. The repository is now built once before the request, and `e2e/harness/readinessRetry.ts` retries only a 409 whose first
+  problem error is exactly `projects.git_unavailable`, with a finite budget (45 attempts at 1 s inside a 60 s test timeout); any other
+  failure is surfaced at once as a fixed message with the status only (never the transport detail, which can carry the Authorization
+  header), and exhaustion fails with a fixed message. Deterministic regressions in `e2e/harness/harness.test.ts` (4 new, run by
+  `npm run test:harness`, now 19/19): refusal recognition (only 409 plus that exact first code), first refusal then success with the
+  fixture built exactly once and the same path reused, an unexpected failure surfaced after one request without the secret, and a finite
+  budget. Red: a second `git commit` of unchanged content in a fresh repository fails ("nothing to commit"), which is what the old loop
+  did; the generated-client-over-real-HTTP proof itself is retained unchanged.
+- Inventory of this change (the working tree against the parent, excluding `planner-handoff.md`): 80 modified tracked and 35 new files —
+  backend 43 modified + 13 new (Domain 3 + 4 new: `BoundedGuidanceText`, `DirectHumanGuidance`, `DirectHumanGuidanceEvidence`,
+  `DirectHumanGuidanceReading`; Application 22 + 6 new: `DirectHumanGuidanceManifest`, `DirectHumanGuidanceFact`,
+  `DirectHumanGuidanceErrors`, `ExpectedDirectHumanGuidance`, two validators; Api 14 + 1 new `Contracts/DirectHumanGuidanceResponse`;
+  Infrastructure 4 modified including the EF snapshot, plus the `AddDirectHumanGuidance` migration and designer), tests 7 modified + 12 new
+  (Domain 2, Application 4, Infrastructure 2, Api 4), frontend 24 modified (the regenerated `api-client.ts`, 10 existing unit-test files
+  adjusted for the new signatures, and for R5 the browser `support.ts`, `harness.test.ts`, and the two UI specifications) + 9 new (editor,
+  fact display, description helpers, failure mapping, three unit test files, the real-HTTP Playwright specification, and
+  `e2e/harness/readinessRetry.ts`), documentation 6 modified (this file, the decision index, the engineering context, the protocol, the
+  workflow model, the cockpit specification) + 1 new (ADR-0015). Existing backend tests adjusted deliberately: the turn-limit migration `Down_…`
+  test now also expects the later `AgentDirectHumanGuidance` column to be dropped; the guided-replay hosted test allows exactly the new
+  `DirectHumanGuidance` property on `ReviewCorrectionInvocationRequest` while still forbidding any authorization or authorized-guidance member;
+  and, for R3, five Claude adapter test classes (implementation, review correction, turn limit, process-evidence, token-usage) seed valid bounded
+  JSON object manifests instead of opaque text (assertions on the sent bytes follow).
+- Checks run on the **final tree** (after the R1–R4 corrections): `dotnet build DevalCopilot.slnx` 0 warnings, 0 errors; `api-client.ts` deleted
+  and regenerated by `dotnet build --no-incremental` byte-identical to the pre-correction client (SHA-256
+  `44afe84a4aa14ce6f9307f7a248dab4e5b31977eecd34b812da47ebf8475f44b`, was `7253732a…` at the parent; the move of the response type did not
+  change the client); sequential `dotnet test --no-build`: Domain 881/881 (was 839), Application 2729/2729 (was 2597), Infrastructure 924
+  passed + 3 skipped (the existing Windows-only/symlink/case-sensitivity skips) of 927 (was 872 + 3 of 875), Api 694/694 (was 646),
+  Architecture 9/9; frontend `npx vitest run` 103 files, 1394/1394 (was 1337), `npm run typecheck` clean, `npm run lint` 12 warnings (the
+  baseline) and 0 errors with none in a file this slice created, `npm run build` clean (usual chunk-size notice), `npm run test:harness`
+  19/19 (15 before this round plus the 4 retry regressions), `npm audit` 0 vulnerabilities; real-host Chromium `npx playwright test` with `reuseExistingServer: false`: 3/3 (manual intake with
+  reload, labelled simulation demo, and the new generated-client wire specification), no `devalcopilot-e2e-*` directory left (the browser runs
+  print SignalR "connection was stopped during negotiation" console lines on reload; their baseline was not separately measured);
+  `dotnet list package --vulnerable --include-transitive` reports none; `git diff --check` clean (only git's CRLF notice for the generated
+  client and the EF snapshot), no NUL byte and no trailing whitespace in the untracked files, a secret-pattern scan of the diff empty,
+  Provenance of these results: the frontend, browser, harness, audit, solution-build, and generated-client results were rerun on the final tree
+  after the second correction. The .NET test suites (Domain, Application, Infrastructure, Api, Architecture) and the formatter and
+  vulnerable-package results are RETAINED from the first correction round: no backend or backend-test file changed afterwards (the
+  second correction touched only `src/frontend/**/e2e` files and documentation), the solution rebuilt with 0 warnings and 0 errors, and the
+  regenerated client hash is unchanged.
+- Proof of the acceptance matrix (real SQLite files, deterministic doubles, no real provider): migration from the parent schema (historical
+  v1/v2 implementation and correction rows stay null and read `NotRecorded`, no artifacts or messages created, unrelated saves preserve even a
+  malformed out-of-band value, down drops only the column); both claims and both implementation forms, normalization (CRLF, NFD, trim),
+  null/omitted, invalid text refused with no read, evidence call, or seal; duplicates and lost races; rollback and orphan-manifest cleanup
+  after a commit race; exhaustion with and without an escalation and with an available authorization (nothing created or consumed, then an
+  unguided retry still returns the escalation or consumes the authorization once); both feeds; the dispatch gate including a populated tracked
+  context whose snapshot **or assignment tuple** is changed by another connection before the dispatch transaction (refused); malformed and
+  incompatible snapshots beside healthy siblings; the actual adapters refusing every disagreement before any process (zero starts); hosted
+  supervisors with the real adapters and a stdin-recording process double: exact accepted text once, unchanged source inputs, tool and
+  permission arguments and working directory, validated result persisted, sealed replay of an undispatched claim after a restart despite a
+  later request and a run change, a historical unguided implementation, and a historical authorized correction whose own `humanGuidance` is
+  intact while a guided request at exhaustion is refused; HTTP endpoint tests (authentication, shapes, no echo, 400/409/413-class refusals,
+  status/cockpit/evidence projections with the full correction lineage); projections for guided, unguided, legacy, malformed, incompatible,
+  and non-mutation attempts without throwing; and the generated TypeScript client over real HTTP (above).
+- Mutations and red/green evidence. Correction round, on the final code (each restored byte-identically, hash checked, then the affected suites
+  rerun green): using the tracked attempt's tuple instead of the fresh one at dispatch failed 20 of 68 dispatch-boundary tests (the 18
+  competing-assignment cases and the 2 pending-write cases); restoring the previous tolerant agreement check failed
+  20 of 48 actual-adapter tests and 7 of 31 manifest tests. The R2 assertions (the removed `NotProvided`) are compile-level regressions: the
+  previous classification cannot satisfy them. Retained from the first round (the code involved is unchanged since): disabling the exhaustion
+  refusal failed 3 of 5 Application exhaustion tests and the 2 Api tests covering it; making the manifest check always succeed failed 16 of 24
+  adapter tests and 6 of 14 hosted tests; replacing the fresh snapshot read with the tracked entity failed the 4 tracked-drift cases. Frontend
+  (each restored, checked by hash; retained from the first round): removing the source from the request lifetime owner failed 3 tests; removing
+  the draft-version check failed 2; removing the synchronous-duplicate guard failed 1; removing the editor's own identity check failed none (it
+  is redundant with the render-time reset and the lifetime, and was kept as defense in depth).
+- Formatter: `dotnet format DevalCopilot.slnx --verify-no-changes` is not clean — 153 findings in 17 files, the same totals as the recorded
+  baseline, none in a new file (final tree). The five record declarations where a parameter was appended carry no inline comment on it, which
+  keeps the totals at the baseline; five pre-existing findings sit on lines this change touched. The baseline findings were not fixed.
+- Limits and open risks: doubles and jsdom do not prove real-provider reliability or that a provider honors guidance (the recorded fact
+  states only what the host supplied); the sealed-manifest agreement is enforced at the invocation boundary, after dispatch was marked, so an
+  out-of-band snapshot change ends as a failed attempt that consumed its slot rather than a never-dispatched one, and no protection is claimed
+  against every hostile write after the dispatch boundary; a BLOB written out of band into the TEXT column is decoded as text by the driver and
+  judged by the same exact rule (the storage class is not distinguished, unlike the turn-limit columns); the strict agreement now also refuses
+  an unguided attempt whose sealed text is not a JSON object, which is the intended fail-closed behavior (every production manifest is a JSON
+  object; only test fixtures were opaque); the real-HTTP specification inserts attempt rows with raw SQL into the run-owned database, so it
+  proves wire serialization, revival, and error mapping, not that a provider ran; the 8 KiB body cap is new on the two existing endpoints; the
+  correction status resolves a current attempt only through its review lineage, so a bare attempt shows no attempt (existing behavior; the
+  status fact is proved with a full lineage); the frontend files were written by a delegated sub-agent and then reviewed and verified by the
+  executor; read-only fetching was not changed; a manual run can remain nonterminal; generic chat, scheduling, automatic advancement,
+  terminalization, pause/stop, budget overrides, fallback, account allowance, resume, Git publication, and CI remain out of scope. Not
+  Increment 4 completion; no next slice is selected here.
+
 ## Manual Agent run intake with durable execution-mode isolation (2026-10-01)
 
 - Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent

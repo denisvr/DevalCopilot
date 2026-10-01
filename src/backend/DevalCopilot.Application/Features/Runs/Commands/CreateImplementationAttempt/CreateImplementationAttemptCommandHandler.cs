@@ -4,6 +4,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -45,6 +46,18 @@ public sealed class CreateImplementationAttemptCommandHandler(
     public async Task<Result<CreateImplementationAttemptCommandResult>> HandleAsync(
         CreateImplementationAttemptCommand command, CancellationToken cancellationToken)
     {
+        // Supplied direct guidance is normalized (and refused if invalid) before any read or external work. The
+        // validator normally rejects it first; this keeps a direct handler call equally safe. Null stays unguided.
+        string? directGuidance = null;
+        if (command.Guidance is not null)
+        {
+            directGuidance = DirectHumanGuidance.Normalize(command.Guidance);
+            if (directGuidance is null)
+            {
+                return Result<CreateImplementationAttemptCommandResult>.Failure(DirectHumanGuidanceErrors.Invalid());
+            }
+        }
+
         var run = await dbContext.Runs.SingleOrDefaultAsync(candidate => candidate.Id == command.RunId, cancellationToken);
         if (run is null)
         {
@@ -195,7 +208,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             .ToListAsync(cancellationToken);
 
         var planValidation = await ValidateResolvedPlanAsync(
-            run, command.PlanProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
+            run, command.PlanProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, directGuidance, cancellationToken);
         if (planValidation.Error is { } error)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(error);
@@ -231,7 +244,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         // workspace is ever committed for it. The filtered unique index on (RunId WHERE Status =
         // 'Running') still backstops the commit itself.
         var lateValidation = await ValidateResolvedPlanAsync(
-            run, command.PlanProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
+            run, command.PlanProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, directGuidance, cancellationToken);
         Error? lateError = lateValidation.Error;
         if (lateError is null && !lateValidation.OrderedInputMessageIds!.SequenceEqual(orderedInputMessageIds))
         {
@@ -306,7 +319,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
             AgentPermissionProfile.WorkspaceEditOnly,
             AdapterContractVersion,
             agentBudgetSlot,
-            requestedTurnLimit.Value);
+            requestedTurnLimit.Value,
+            directGuidance);
         dbContext.Attempts.Add(attempt);
 
         var inputMessages = new List<AttemptInputMessage>(orderedInputMessageIds.Count);
@@ -463,12 +477,13 @@ public sealed class CreateImplementationAttemptCommandHandler(
         GitCheckpoint checkpoint,
         GitWorkspaceEvidenceResult evidence,
         IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
+        string? directHumanGuidance,
         CancellationToken cancellationToken)
     {
         try
         {
             return await ValidateResolvedPlanCoreAsync(
-                run, planProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
+                run, planProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, directHumanGuidance, cancellationToken);
         }
         catch (InvalidOperationException)
         {
@@ -487,6 +502,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         GitCheckpoint checkpoint,
         GitWorkspaceEvidenceResult evidence,
         IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
+        string? directHumanGuidance,
         CancellationToken cancellationToken)
     {
         var proposalMessage = await dbContext.CollaborationMessages
@@ -535,7 +551,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             && owningAttempt.AgentOutcome == AgentOutcome.Proposed)
         {
             return await ValidateAcceptedOriginalProposalAsync(
-                run, proposalMessage, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
+                run, proposalMessage, workspace, checkpoint, evidence, configuredVerificationCommands, directHumanGuidance, cancellationToken);
         }
 
         if (owningAttempt.AgentRole == AgentRole.Resolver
@@ -543,7 +559,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             && owningAttempt.AgentOutcome == AgentOutcome.Resolved)
         {
             return await ValidateResolvedRevisedProposalAsync(
-                run, proposalMessage, workspace, checkpoint, evidence, configuredVerificationCommands, cancellationToken);
+                run, proposalMessage, workspace, checkpoint, evidence, configuredVerificationCommands, directHumanGuidance, cancellationToken);
         }
 
         return ResolvedPlanValidation.Failed(
@@ -559,6 +575,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         GitCheckpoint checkpoint,
         GitWorkspaceEvidenceResult evidence,
         IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
+        string? directHumanGuidance,
         CancellationToken cancellationToken)
     {
         var reviewAttempt = await dbContext.Attempts
@@ -628,7 +645,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
             evidence.ChangedPaths,
             evidence.CompleteDiff,
             configuredVerificationCommands,
-            evidence.UntrackedFiles);
+            evidence.UntrackedFiles,
+            directHumanGuidance);
 
         return ResolvedPlanValidation.Succeeded(manifestJson, [proposalMessage.Id, acceptanceMessage.Id]);
     }
@@ -640,6 +658,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
         GitCheckpoint checkpoint,
         GitWorkspaceEvidenceResult evidence,
         IReadOnlyList<ImplementationContextManifestBuilder.VerificationCommandReference> configuredVerificationCommands,
+        string? directHumanGuidance,
         CancellationToken cancellationToken)
     {
         var eligibility = await EvaluateRevisionEligibilityAsync(run, revisedProposalMessage.Id, workspace, checkpoint, cancellationToken);
@@ -669,7 +688,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
             acceptance is null
                 ? null
                 : new ImplementationContextManifestBuilder.AcceptanceEvidence(acceptance.Summary, acceptance.StructuredContentJson),
-            untrackedFiles: evidence.UntrackedFiles);
+            untrackedFiles: evidence.UntrackedFiles,
+            directHumanGuidance: directHumanGuidance);
 
         var orderedInputMessageIds = new List<Guid> { revisedProposalMessage.Id };
         orderedInputMessageIds.AddRange(node.Decisions.Select(decision => decision.Id));

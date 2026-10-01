@@ -22,6 +22,7 @@ function status(overrides: Partial<ReviewCorrectionAttemptStatusResponse> = {}) 
 function renderAction(overrides: Partial<ComponentProps<typeof ReviewCorrectionAction>> = {}) {
   return render(
     <ReviewCorrectionAction
+      runId="run-1"
       reviewAttemptId={currentReviewId}
       reviewOutcome="ReviewChangesRequested"
       status={null}
@@ -99,6 +100,7 @@ describe('ReviewCorrectionAction', () => {
 
     rerender(
       <ReviewCorrectionAction
+        runId="run-1"
         reviewAttemptId={currentReviewId}
         reviewOutcome="ReviewChangesRequested"
         status={status({ status: 'Running', dispatchedAtUtc: new Date(), outcome: undefined })}
@@ -116,9 +118,10 @@ describe('ReviewCorrectionAction', () => {
 
   it('disables the request while status is loading or a request is in flight', () => {
     const { rerender } = renderAction({ status: null, statusLoading: true })
-    expect(screen.getByRole('button')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Request review correction' })).toBeDisabled()
     rerender(
       <ReviewCorrectionAction
+        runId="run-1"
         reviewAttemptId={currentReviewId}
         reviewOutcome="ReviewChangesRequested"
         status={null}
@@ -131,7 +134,7 @@ describe('ReviewCorrectionAction', () => {
         timeFit={{ reason: 'Fits' }}
       />,
     )
-    expect(screen.getByRole('button')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Requesting…' })).toBeDisabled()
   })
 
   it('offers the initial correction request without projecting a last attempt', () => {
@@ -158,6 +161,7 @@ describe('ReviewCorrectionAction', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Review correction status is unavailable.')
     rerender(
       <ReviewCorrectionAction
+        runId="run-1"
         reviewAttemptId={currentReviewId}
         reviewOutcome="ReviewChangesRequested"
         status={null}
@@ -176,7 +180,7 @@ describe('ReviewCorrectionAction', () => {
   it('does not let a correction belonging to another review suppress the current action', () => {
     const onRequest = vi.fn()
     renderAction({ status: status({ implementationReviewAttemptId: 'review-old' }), onRequest })
-    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByRole('button', { name: 'Request review correction' }))
     expect(onRequest).toHaveBeenCalledOnce()
   })
 

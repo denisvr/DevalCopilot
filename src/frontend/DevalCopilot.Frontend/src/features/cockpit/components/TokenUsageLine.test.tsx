@@ -78,6 +78,7 @@ const roleActions: Array<[string, (tokenUsage: TokenUsage) => ReactElement]> = [
     'Implementer',
     (tokenUsage) => (
       <ImplementationAction
+        runId="run-1"
         {...common}
         planProposalMessageId="proposal-1"
         status={new ImplementationAttemptStatusResponse({ ...base, planProposalMessageId: 'proposal-1', tokenUsage })}
@@ -98,6 +99,7 @@ const roleActions: Array<[string, (tokenUsage: TokenUsage) => ReactElement]> = [
     'ReviewCorrection',
     (tokenUsage) => (
       <ReviewCorrectionAction
+        runId="run-1"
         {...common}
         reviewAttemptId="review-1"
         reviewOutcome="ReviewChangesRequested"

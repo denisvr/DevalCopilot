@@ -2,6 +2,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -105,6 +106,44 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 Error.Conflict(
                     "agent_attempts.invalid_agent_contract",
                     "The attempt's turn-limit snapshot and assignment are not a valid, coherent combination."));
+        }
+
+        // The direct-guidance half of the same gate. The snapshot AND the complete assignment tuple it is judged
+        // against (response contract, role, provider, permission profile, adapter contract version) are read afresh and
+        // untracked in one statement from the database: a tracked Attempt may be stale, and an earlier projection or
+        // tracked fact confers no authority. Malformed text or an incompatible tuple is never dispatched, a snapshot that
+        // differs from the one the caller expected (drift between its projection and this commit) is refused, and an
+        // attempt that recorded guidance is not dispatched by a caller that did not state what it expected. Attempts with
+        // no recorded guidance and no stated expectation are unaffected. The tracked entity is not touched, so pending
+        // tracked writes are preserved.
+        var fresh = await dbContext.Attempts.AsNoTracking()
+            .Where(candidate => candidate.Id == attempt.Id)
+            .Select(candidate => new
+            {
+                candidate.AgentResponseContract,
+                candidate.AgentRole,
+                candidate.AgentProvider,
+                candidate.AgentPermissionProfile,
+                candidate.AgentAdapterContractVersion,
+                Guidance = EF.Property<string?>(candidate, Attempt.AgentDirectHumanGuidanceStorageProperty),
+            })
+            .SingleAsync(cancellationToken);
+        var guidanceReading = DirectHumanGuidance.Read(fresh.Guidance);
+        if (!ClaudeMutationAdapterContract.IsDirectGuidanceDispatchCoherent(
+                fresh.AgentResponseContract, fresh.AgentRole, fresh.AgentProvider, fresh.AgentPermissionProfile,
+                fresh.AgentAdapterContractVersion, guidanceReading))
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.Conflict(
+                    "agent_attempts.invalid_agent_contract",
+                    "The attempt's direct-guidance snapshot and assignment are not a valid, coherent combination."));
+        }
+
+        if (command.ExpectedDirectGuidance is { } expected
+                ? !string.Equals(expected.Text, guidanceReading.Text, StringComparison.Ordinal)
+                : guidanceReading.Text is not null)
+        {
+            return Result<DateTimeOffset>.Failure(DirectHumanGuidanceErrors.SnapshotMismatch());
         }
 
         if (attempt.Status != AttemptStatus.Running)

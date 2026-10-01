@@ -4,6 +4,8 @@ import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
+import { DirectGuidanceEditor } from './DirectGuidanceEditor'
+import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -11,13 +13,17 @@ import { TokenUsageLine } from './TokenUsageLine'
 const KNOWN_ADAPTER_CONTRACTS: readonly string[] = ['claude-implementation-v1', 'claude-implementation-v2']
 
 interface ImplementationActionProps {
+  /** With `planProposalMessageId`, the identity that owns the optional guidance draft. */
+  runId: string
   planProposalMessageId: string | null
   status: ImplementationAttemptStatusResponse | null
   statusLoading: boolean
   statusError: string | null
   requesting: boolean
   requestError: string | null
-  onRequest: () => void
+  /** Requests the implementation of the current plan; `guidance` is present only for the guided
+   * request. Resolves true only when the server accepted it and the submission is still current. */
+  onRequest: (guidance?: string) => Promise<boolean>
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
@@ -59,6 +65,7 @@ function phaseLabel(status: ImplementationAttemptStatusResponse): string {
  * role.
  */
 export function ImplementationAction({
+  runId,
   planProposalMessageId,
   status,
   statusLoading,
@@ -119,10 +126,23 @@ export function ImplementationAction({
           type="button"
           className="dc-implementation-request"
           disabled={requesting || statusLoading}
-          onClick={onRequest}
+          onClick={() => void onRequest()}
         >
           {requesting ? 'Requesting…' : 'Implement the resolved plan with Claude'}
         </button>
+      )}
+      {!isActive && canRequest && !globalClaimBlock && !timeFitBlocked && (
+        <DirectGuidanceEditor
+          runId={runId}
+          sourceId={planProposalMessageId}
+          label="Direct guidance for this implementation request"
+          formLabel="Implement with guidance"
+          submitLabel="Implement with guidance"
+          pendingLabel="Requesting with guidance…"
+          requesting={requesting}
+          statusLoading={statusLoading}
+          onSubmit={onRequest}
+        />
       )}
       {status && hasAttempt && (
         <p className="dc-implementation-assignment">
@@ -141,6 +161,9 @@ export function ImplementationAction({
           runRequest={status.runTurnLimitRequest}
           className="dc-implementation-turn-limit"
         />
+      )}
+      {status && (
+        <DirectGuidanceFact fact={hasAttempt ? status.directGuidance : null} className="dc-implementation-direct-guidance" />
       )}
       {status && hasAttempt && (
         <>

@@ -7,6 +7,7 @@ describe('ImplementationAction', () => {
   it('renders nothing when there is no eligible resolved plan yet', () => {
     const { container } = render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId={null}
         status={null}
         statusLoading={false}
@@ -26,6 +27,7 @@ describe('ImplementationAction', () => {
     const onRequest = vi.fn()
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={null}
         statusLoading={false}
@@ -45,6 +47,7 @@ describe('ImplementationAction', () => {
   it('shows a visibly-working pending state before dispatch, with no action button', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={
           new ImplementationAttemptStatusResponse({
@@ -72,6 +75,7 @@ describe('ImplementationAction', () => {
   it('withholds the request action once the current plan already reached a durable Implemented outcome, showing summary and changed files', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={
           new ImplementationAttemptStatusResponse({
@@ -106,6 +110,7 @@ describe('ImplementationAction', () => {
   it('shows bounded requested and observed assignment facts for an existing attempt', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={
           new ImplementationAttemptStatusResponse({
@@ -153,6 +158,7 @@ describe('ImplementationAction', () => {
   it('shows truthful Unknown values for a historical assignment with nullable facts', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={new ImplementationAttemptStatusResponse({
           hasAttempt: true,
@@ -185,6 +191,7 @@ describe('ImplementationAction', () => {
   it('does not render assignment or last-attempt identity when the backend says there is no attempt', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={new ImplementationAttemptStatusResponse({ hasAttempt: false, changedRelativePaths: [], artifacts: [] })}
         statusLoading={false}
@@ -205,6 +212,7 @@ describe('ImplementationAction', () => {
   it('does not display unknown backend assignment codes verbatim', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={new ImplementationAttemptStatusResponse({
           hasAttempt: true,
@@ -245,6 +253,7 @@ describe('ImplementationAction', () => {
   it('allows requesting a fresh implementation once a newer resolved plan supersedes an already-implemented one', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-2"
         status={
           new ImplementationAttemptStatusResponse({
@@ -278,6 +287,7 @@ describe('ImplementationAction', () => {
   ])('labels the %s terminal outcome safely and still allows a retry', (outcome, label) => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={
           new ImplementationAttemptStatusResponse({
@@ -307,6 +317,7 @@ describe('ImplementationAction', () => {
   it('disables the request button while a request is in flight', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={null}
         statusLoading={false}
@@ -325,6 +336,7 @@ describe('ImplementationAction', () => {
   it('offers the only supported implementation action without a provider selector', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={null}
         statusLoading={false}
@@ -344,6 +356,7 @@ describe('ImplementationAction', () => {
   it('surfaces a safe request-failure message without discarding the last known status', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={
           new ImplementationAttemptStatusResponse({
@@ -372,6 +385,7 @@ describe('ImplementationAction', () => {
   it('surfaces a safe status-read failure', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={null}
         statusLoading={false}
@@ -390,6 +404,7 @@ describe('ImplementationAction', () => {
   it('withholds the request and attributes the block to the global run-wide budget, never this role', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         planProposalMessageId="proposal-1"
         status={null}
         statusLoading={false}

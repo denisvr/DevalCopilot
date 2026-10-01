@@ -5,5 +5,6 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrection
 
 /// <summary>Claims one durable Implementer correction attempt for the exact completed
 /// implementation review identified by <paramref name="ImplementationReviewAttemptId"/>.</summary>
-public sealed record CreateReviewCorrectionAttemptCommand(Guid RunId, Guid ImplementationReviewAttemptId)
+public sealed record CreateReviewCorrectionAttemptCommand(
+    Guid RunId, Guid ImplementationReviewAttemptId, string? Guidance = null)
     : IManualTransactionCommand<Result<CreateReviewCorrectionAttemptCommandResult>>;

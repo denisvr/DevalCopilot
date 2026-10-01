@@ -35,7 +35,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "bounded manifest");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"bounded manifest\"}");
         var fake = new FakeProcessExecutionAdapter();
         var adapter = new ClaudeReviewCorrectionAdapter(fake, artifactStore);
 
@@ -68,7 +68,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "manifest");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest\"}");
         var fake = new FakeProcessExecutionAdapter
         {
             Output = JsonSerializer.Serialize(new { is_error = false, result = "{\"ok\":true}", session_id = (string?)null }),
@@ -91,7 +91,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
         {
             var runId = Guid.NewGuid();
             var attemptId = Guid.NewGuid();
-            var manifest = await SeedManifestAsync(runId, attemptId, "manifest");
+            var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest\"}");
             var fake = new FakeProcessExecutionAdapter
             {
                 Output = JsonSerializer.Serialize(new { is_error = false, result = "{}", session_id = sessionId }),
@@ -110,7 +110,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "manifest");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest\"}");
         var fake = new FakeProcessExecutionAdapter
         {
             Output = "{\"is_error\":false,\"result\":\"{}\",\"session_id\":1}",
@@ -128,7 +128,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "manifest");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest\"}");
         var fake = new FakeProcessExecutionAdapter
         {
             Result = new ProcessExecutionResult
@@ -156,7 +156,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "manifest");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest\"}");
         var target = Path.Combine(workspacePath, "real-launch-target");
         Directory.CreateDirectory(target);
         var sentinel = Path.Combine(target, "sentinel.txt");
@@ -186,7 +186,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var fake = new FakeProcessExecutionAdapter();
         var request = CreateRequest(runId, attemptId, manifest) with { RequestedClaudeModel = requestedClaudeModel, RequestedClaudeEffort = requestedClaudeEffort };
 
@@ -232,7 +232,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var fake = new FakeProcessExecutionAdapter();
         var request = CreateRequest(runId, attemptId, manifest) with { RequestedClaudeModel = malformed };
 
@@ -278,7 +278,7 @@ public sealed class ClaudeReviewCorrectionAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var fake = new FakeProcessExecutionAdapter();
         var manifestRequest = CreateRequest(runId, attemptId, manifest) with { RequestedClaudeModel = model, RequestedClaudeEffort = effort };
 

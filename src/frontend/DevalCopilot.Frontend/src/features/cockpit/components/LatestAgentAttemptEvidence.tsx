@@ -1,5 +1,6 @@
 import type { RunCockpitAgentAttemptResponse } from '../../../api/clients'
 import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
+import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -55,6 +56,7 @@ export function LatestAgentAttemptEvidence({ attempt }: LatestAgentAttemptEviden
         </p>
       )}
       <ClaudeTurnLimitFacts attemptFact={attempt.maxTurns} className="dc-latest-agent-attempt-turn-limit" />
+      <DirectGuidanceFact fact={attempt.directGuidance} className="dc-latest-agent-attempt-direct-guidance" />
       <ProcessEvidenceLine
         processExecution={attempt.processExecution}
         dispatchedAtUtc={attempt.dispatchedAtUtc}

@@ -24,4 +24,5 @@ public sealed record ImplementationInvocationRequest(
     string? RequestedClaudeModel = null,
     string? RequestedClaudeEffort = null,
     int? RequestedMaxTurns = null,
-    string? AdapterContractVersion = null);
+    string? AdapterContractVersion = null,
+    string? DirectHumanGuidance = null);

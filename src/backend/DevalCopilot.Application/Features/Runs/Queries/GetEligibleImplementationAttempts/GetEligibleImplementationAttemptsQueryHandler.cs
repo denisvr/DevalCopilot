@@ -64,6 +64,7 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                     RequestedClaudeModel = combined.attempt.AgentRequestedModel,
                     RequestedClaudeEffort = combined.attempt.AgentRequestedEffort,
                     StoredTurnLimit = EF.Property<string?>(combined.attempt, Attempt.AgentRequestedMaxTurnsStorageProperty),
+                    StoredDirectGuidance = EF.Property<string?>(combined.attempt, Attempt.AgentDirectHumanGuidanceStorageProperty),
                     HasWorkspaceEditProfile = combined.attempt.AgentPermissionProfile == AgentPermissionProfile.WorkspaceEditOnly,
                     AdapterContractVersion = combined.attempt.AgentAdapterContractVersion,
                 })
@@ -81,11 +82,15 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
             .Where(candidate =>
                 currentCheckpointByWorkspace.TryGetValue(candidate.GitWorkspaceId, out var currentCheckpointId)
                 && currentCheckpointId == candidate.GitCheckpointId)
-            .Select(candidate => (Candidate: candidate, TurnLimit: ClaudeMutationTurnLimit.Read(candidate.StoredTurnLimit)))
+            .Select(candidate => (Candidate: candidate, TurnLimit: ClaudeMutationTurnLimit.Read(candidate.StoredTurnLimit), Guidance: DirectHumanGuidance.Read(candidate.StoredDirectGuidance)))
             .Where(entry => ClaudeMutationAdapterContract.IsDispatchCoherent(
                 AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode,
                 entry.Candidate.HasWorkspaceEditProfile ? AgentPermissionProfile.WorkspaceEditOnly : null,
-                entry.Candidate.AdapterContractVersion, entry.TurnLimit))
+                entry.Candidate.AdapterContractVersion, entry.TurnLimit)
+                && ClaudeMutationAdapterContract.IsDirectGuidanceDispatchCoherent(
+                    AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentProvider.ClaudeCode,
+                    entry.Candidate.HasWorkspaceEditProfile ? AgentPermissionProfile.WorkspaceEditOnly : null,
+                    entry.Candidate.AdapterContractVersion, entry.Guidance))
             .OrderBy(entry => entry.Candidate.ClaimedAtUtc)
             .Select(entry => new EligibleImplementationAttempt(
                 entry.Candidate.Id,
@@ -103,7 +108,8 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                 entry.Candidate.RequestedClaudeModel,
                 entry.Candidate.RequestedClaudeEffort,
                 entry.TurnLimit.Value,
-                entry.Candidate.AdapterContractVersion))
+                entry.Candidate.AdapterContractVersion,
+                entry.Guidance.Text))
             .ToArray();
     }
 

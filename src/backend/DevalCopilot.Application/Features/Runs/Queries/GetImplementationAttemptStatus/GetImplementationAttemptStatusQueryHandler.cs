@@ -180,7 +180,8 @@ public sealed class GetImplementationAttemptStatusQueryHandler(IDevalCopilotDbCo
             configuredResumeEligibility,
             configuredBuiltInTools,
             ClaudeMutationTurnLimitFact.ForRunStored(runRequestedMaxTurns),
-            ClaudeMutationTurnLimitFact.ForAttempt(attempt)));
+            ClaudeMutationTurnLimitFact.ForAttempt(attempt),
+            DirectHumanGuidanceFact.ForAttempt(attempt)));
     }
 
     private static Result<ImplementationAttemptStatusQueryResult> InvalidAssignment() =>

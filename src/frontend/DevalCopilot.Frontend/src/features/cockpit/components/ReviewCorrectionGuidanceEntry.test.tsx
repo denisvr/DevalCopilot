@@ -26,6 +26,7 @@ type ActionProps = ComponentProps<typeof ReviewCorrectionAction>
 function actionElement(props: Partial<ActionProps> = {}, status: ReviewCorrectionAttemptStatusResponse | null = exhaustedStatus()) {
   return (
     <ReviewCorrectionAction
+      runId="run-1"
       reviewAttemptId="review-1"
       reviewOutcome="ReviewChangesRequested"
       status={status}

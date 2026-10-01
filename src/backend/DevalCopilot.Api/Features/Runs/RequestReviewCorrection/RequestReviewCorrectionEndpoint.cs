@@ -5,17 +5,25 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DevalCopilot.Api.Features.Runs.RequestReviewCorrection;
 
+/// <summary>
+/// Claims one ordinary review-correction attempt for a completed changes-requested review, or creates the human
+/// escalation at budget exhaustion. Optional short advisory direct human guidance (see ADR-0015) is accepted only within
+/// the ordinary correction budget; at exhaustion a request carrying guidance is refused and creates nothing.
+/// </summary>
 public sealed class RequestReviewCorrectionEndpoint(
     IApplicationMediator mediator, IResultProblemDetailsFactory problemDetails) : RunsBaseEndpoint
 {
+    private const int MaximumRequestBodyBytes = 8 * 1024;
+
     [HttpPost("{runId:guid}/agent-attempts/review-correction")]
+    [RequestSizeLimit(MaximumRequestBodyBytes)]
     public async Task<ActionResult<RequestReviewCorrectionResponse>> RequestReviewCorrection(
         [FromRoute] Guid runId,
         [FromBody] RequestReviewCorrectionRequest request,
         CancellationToken cancellationToken)
     {
         var result = await mediator.SendAsync(
-            new CreateReviewCorrectionAttemptCommand(runId, request.ImplementationReviewAttemptId), cancellationToken);
+            new CreateReviewCorrectionAttemptCommand(runId, request.ImplementationReviewAttemptId, request.Guidance), cancellationToken);
         if (result.IsFailure)
         {
             return problemDetails.CreateResponse(result, HttpContext);

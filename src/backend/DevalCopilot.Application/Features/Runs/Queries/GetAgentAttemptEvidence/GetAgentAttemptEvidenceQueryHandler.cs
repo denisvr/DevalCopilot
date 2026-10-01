@@ -77,6 +77,7 @@ public sealed class GetAgentAttemptEvidenceQueryHandler(IDevalCopilotDbContext d
             artifacts,
             ClaudeMutationTurnLimitFact.ForAttempt(attempt),
             lineage.SourceAttemptId,
-            lineage.SourceAttemptNumber));
+            lineage.SourceAttemptNumber,
+            DirectHumanGuidanceFact.ForAttempt(attempt)));
     }
 }

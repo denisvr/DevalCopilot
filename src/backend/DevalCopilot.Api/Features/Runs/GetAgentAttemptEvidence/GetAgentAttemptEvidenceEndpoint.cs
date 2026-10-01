@@ -1,5 +1,6 @@
 using Devalente.Shared.AspNetCore.Mvc;
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Api.Features.Runs.Contracts;
 using DevalCopilot.Api.Features.Runs.GetAgentAttemptStatus;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptEvidence;
 using Microsoft.AspNetCore.Mvc;
@@ -48,6 +49,7 @@ public sealed class GetAgentAttemptEvidenceEndpoint(
                 .ToArray(),
             ClaudeMutationTurnLimitResponse.FromDomain(value.MaxTurns),
             value.RepairSourceAttemptId,
-            value.RepairSourceAttemptNumber));
+            value.RepairSourceAttemptNumber,
+            DirectHumanGuidanceResponse.FromDomain(value.DirectGuidance)));
     }
 }

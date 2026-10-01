@@ -1,3 +1,5 @@
+using DevalCopilot.Api.Features.Runs.Contracts;
+
 namespace DevalCopilot.Api.Features.Runs.GetRunCockpit;
 
 /// <summary>The run's most recent Agent attempt. <c>Outcome</c> is the semantic classification;
@@ -17,4 +19,5 @@ public sealed record RunCockpitAgentAttemptResponse(
     AgentTokenUsageResponse TokenUsage,
     string? RequestedModel = null,
     string? RequestedEffort = null,
-    ClaudeMutationTurnLimitResponse? MaxTurns = null);
+    ClaudeMutationTurnLimitResponse? MaxTurns = null,
+    DirectHumanGuidanceResponse? DirectGuidance = null);

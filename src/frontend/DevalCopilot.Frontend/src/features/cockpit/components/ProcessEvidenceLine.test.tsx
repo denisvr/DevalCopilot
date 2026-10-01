@@ -86,6 +86,7 @@ const roleActions: Array<[string, (processExecution: ProcessExecution) => ReactE
     'Implementer',
     (processExecution) => (
       <ImplementationAction
+        runId="run-1"
         {...common}
         planProposalMessageId="proposal-1"
         status={new ImplementationAttemptStatusResponse({
@@ -112,6 +113,7 @@ const roleActions: Array<[string, (processExecution: ProcessExecution) => ReactE
     'ReviewCorrection',
     (processExecution) => (
       <ReviewCorrectionAction
+        runId="run-1"
         {...common}
         reviewAttemptId="review-1"
         reviewOutcome="ReviewChangesRequested"
@@ -163,6 +165,7 @@ describe('ProcessEvidenceLine', () => {
   it('distinguishes a clean exit from the semantic success it accompanies', () => {
     render(
       <ImplementationAction
+        runId="run-1"
         {...common}
         planProposalMessageId="proposal-1"
         status={new ImplementationAttemptStatusResponse({

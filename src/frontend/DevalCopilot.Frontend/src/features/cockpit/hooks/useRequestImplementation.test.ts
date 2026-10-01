@@ -26,7 +26,7 @@ describe('useRequestImplementation', () => {
     } as unknown as ReturnType<typeof requestImplementationClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestImplementation('run-1', onRequested))
+    const { result } = renderHook(() => useRequestImplementation('run-1', 'proposal-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -48,7 +48,7 @@ describe('useRequestImplementation', () => {
       requestImplementation: vi.fn().mockReturnValue(pending.promise),
     } as unknown as ReturnType<typeof requestImplementationClient>)
 
-    const { result } = renderHook(() => useRequestImplementation('run-1', vi.fn()))
+    const { result } = renderHook(() => useRequestImplementation('run-1', 'proposal-1', vi.fn()))
 
     expect(result.current.requesting).toBe(false)
 
@@ -80,7 +80,7 @@ describe('useRequestImplementation', () => {
     } as unknown as ReturnType<typeof requestImplementationClient>)
     const onRequested = vi.fn()
 
-    const { result } = renderHook(() => useRequestImplementation('run-1', onRequested))
+    const { result } = renderHook(() => useRequestImplementation('run-1', 'proposal-1', onRequested))
 
     let outcome!: boolean
     await act(async () => {
@@ -97,7 +97,7 @@ describe('useRequestImplementation', () => {
       requestImplementation: vi.fn().mockRejectedValue(new Error('ECONNRESET at 10.0.0.7:5432')),
     } as unknown as ReturnType<typeof requestImplementationClient>)
 
-    const { result } = renderHook(() => useRequestImplementation('run-1', vi.fn()))
+    const { result } = renderHook(() => useRequestImplementation('run-1', 'proposal-1', vi.fn()))
 
     await act(async () => {
       await result.current.request('run-1', 'proposal-1')
@@ -105,5 +105,75 @@ describe('useRequestImplementation', () => {
 
     expect(result.current.error).toBe('An implementation could not be requested for this run.')
     expect(result.current.error).not.toContain('10.0.0.7')
+  })
+
+  it('sends the guidance with the plan, and omits it for the plain request', async () => {
+    const operation = vi.fn().mockResolvedValue(new RequestImplementationResponse({ attemptId: 'a', attemptNumber: 1 }))
+    vi.mocked(requestImplementationClient).mockReturnValue({
+      requestImplementation: operation,
+    } as unknown as ReturnType<typeof requestImplementationClient>)
+    const { result } = renderHook(() => useRequestImplementation('run-1', 'proposal-1', vi.fn()))
+
+    await act(async () => {
+      await result.current.request('run-1', 'proposal-1', 'Prefer small steps.')
+      await result.current.request('run-1', 'proposal-1')
+    })
+
+    expect(operation.mock.calls[0][1]).toMatchObject({ planProposalMessageId: 'proposal-1', guidance: 'Prefer small steps.' })
+    expect(operation.mock.calls[1][1].toJSON()).toEqual({ planProposalMessageId: 'proposal-1' })
+  })
+
+  it('maps the invalid-guidance refusal to fixed copy without echoing the text or the server wording', async () => {
+    vi.mocked(requestImplementationClient).mockReturnValue({
+      requestImplementation: vi.fn().mockRejectedValue(
+        new ApiException(
+          'Bad Request',
+          400,
+          JSON.stringify({ errors: [{ code: 'agent_attempts.direct_guidance_invalid', detail: 'SERVER-WORDING SECRET-TEXT' }] }),
+          {},
+          null,
+        ),
+      ),
+    } as unknown as ReturnType<typeof requestImplementationClient>)
+    const { result } = renderHook(() => useRequestImplementation('run-1', 'proposal-1', vi.fn()))
+
+    await act(async () => {
+      expect(await result.current.request('run-1', 'proposal-1', 'SECRET-TEXT')).toBe(false)
+    })
+
+    expect(result.current.error).toMatch(/non-blank text of at most 600 characters/)
+    expect(result.current.error).not.toContain('SECRET-TEXT')
+    expect(result.current.error).not.toContain('SERVER-WORDING')
+  })
+
+  it('rejects a handler for a replaced plan and ignores its late completion, even within the same run', async () => {
+    const pending = deferred<RequestImplementationResponse>()
+    const operation = vi.fn().mockReturnValue(pending.promise)
+    const onRequested = vi.fn()
+    vi.mocked(requestImplementationClient).mockReturnValue({
+      requestImplementation: operation,
+    } as unknown as ReturnType<typeof requestImplementationClient>)
+    const { result, rerender } = renderHook(({ plan }) => useRequestImplementation('run-1', plan, onRequested), {
+      initialProps: { plan: 'plan-A' },
+    })
+    const oldRequest = result.current.request
+    let accepted!: Promise<boolean>
+    act(() => {
+      accepted = oldRequest('run-1', 'plan-A', 'guidance')
+    })
+
+    rerender({ plan: 'plan-B' })
+    expect(result.current.requesting).toBe(false)
+    await act(async () => {
+      expect(await oldRequest('run-1', 'plan-A', 'guidance')).toBe(false)
+    })
+    expect(operation).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      pending.resolve(new RequestImplementationResponse({ attemptId: 'a', attemptNumber: 1 }))
+      expect(await accepted).toBe(false)
+    })
+    expect(onRequested).not.toHaveBeenCalled()
+    expect(result.current.error).toBeNull()
   })
 })

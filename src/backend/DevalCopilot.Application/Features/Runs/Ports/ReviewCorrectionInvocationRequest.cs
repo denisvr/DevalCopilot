@@ -16,4 +16,5 @@ public sealed record ReviewCorrectionInvocationRequest(
     string? RequestedClaudeModel = null,
     string? RequestedClaudeEffort = null,
     int? RequestedMaxTurns = null,
-    string? AdapterContractVersion = null);
+    string? AdapterContractVersion = null,
+    string? DirectHumanGuidance = null);

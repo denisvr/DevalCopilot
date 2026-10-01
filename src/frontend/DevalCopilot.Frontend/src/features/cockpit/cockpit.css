@@ -904,3 +904,16 @@
   font-size: 0.8rem;
   color: var(--dc-warning-text);
 }
+
+/* Direct human guidance: the text is plain text; line breaks are preserved and long lines wrap. */
+.dc-direct-guidance-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dc-direct-guidance-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}

@@ -15,5 +15,5 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAt
 /// artifact, neither of which may run inside the mediator's ambient EF transaction — mirrors
 /// <c>CreateChallengeResolutionAttemptCommand</c> exactly.
 /// </summary>
-public sealed record CreateImplementationAttemptCommand(Guid RunId, Guid PlanProposalMessageId)
+public sealed record CreateImplementationAttemptCommand(Guid RunId, Guid PlanProposalMessageId, string? Guidance = null)
     : IManualTransactionCommand<Result<CreateImplementationAttemptCommandResult>>;

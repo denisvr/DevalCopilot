@@ -1,3 +1,4 @@
+using DevalCopilot.Api.Features.Runs.Contracts;
 using DevalCopilot.Api.Features.Runs.GetAgentAttemptStatus;
 
 namespace DevalCopilot.Api.Features.Runs.GetImplementationAttemptStatus;
@@ -78,4 +79,5 @@ public sealed record ImplementationAttemptStatusResponse(
     /// <summary>This attempt's own immutable turn-limit record: <c>Requested</c> with its number,
     /// <c>NotRequested</c> (a coherent version 2 attempt with none), <c>NotRecorded</c> (a legacy attempt), or
     /// <c>Unknown</c>. Null when there is no attempt.</summary>
-    ClaudeMutationTurnLimitResponse? AttemptTurnLimit);
+    ClaudeMutationTurnLimitResponse? AttemptTurnLimit,
+    DirectHumanGuidanceResponse? DirectGuidance);

@@ -4,11 +4,15 @@ import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
+import { DirectGuidanceEditor } from './DirectGuidanceEditor'
+import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { ReviewCorrectionGuidanceEntry } from './ReviewCorrectionGuidanceEntry'
 import { TokenUsageLine } from './TokenUsageLine'
 
 interface ReviewCorrectionActionProps {
+  /** With `reviewAttemptId`, the identity that owns the optional direct-guidance draft. */
+  runId: string
   reviewAttemptId: string | null
   reviewOutcome: string | null
   status: ReviewCorrectionAttemptStatusResponse | null
@@ -16,7 +20,9 @@ interface ReviewCorrectionActionProps {
   statusError: string | null
   requesting: boolean
   requestError: string | null
-  onRequest: () => void
+  /** Requests a correction (or creates the human escalation at exhaustion); `guidance` is present only
+   * for the guided request. Resolves true only when the server accepted it and the submission is still current. */
+  onRequest: (guidance?: string) => Promise<boolean>
   authorizing?: boolean
   authorizationError?: string | null
   onAuthorize?: () => void
@@ -55,6 +61,7 @@ function phaseLabel(status: ReviewCorrectionAttemptStatusResponse): string {
 }
 
 export function ReviewCorrectionAction({
+  runId,
   reviewAttemptId,
   reviewOutcome,
   status,
@@ -86,6 +93,10 @@ export function ReviewCorrectionAction({
   const canAuthorize = !isActive && budgetExhausted && hasCurrentEscalation && !hasAvailableAuthorization
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
   const anyBlock = Boolean(globalClaimBlock) || timeFitBlocked
+  // Direct guidance exists only within the ordinary budget: the editor is withheld at exhaustion and
+  // while an extra authorization is available. Display only: the server refuses a guided request at
+  // exhaustion regardless (agent_attempts.direct_guidance_unavailable).
+  const guidanceWithinOrdinaryBudget = !budgetExhausted && !hasAvailableAuthorization
   const configuredPermissionMode = status?.configuredPermissionMode === 'acceptEdits' ? 'acceptEdits' : 'Unknown'
   const configuredSessionPersistence = status?.configuredSessionPersistence === 'Disabled' ? 'Disabled' : 'Unknown'
   const configuredPermissionPrompts = status?.configuredPermissionPrompts === 'None' ? 'None' : 'Unknown'
@@ -107,9 +118,27 @@ export function ReviewCorrectionAction({
         </p>
       )}
       {!isActive && canRequest && !anyBlock && (
-        <button type="button" disabled={requesting || statusLoading} onClick={onRequest}>
+        <button type="button" disabled={requesting || statusLoading} onClick={() => void onRequest()}>
           {requesting ? 'Requesting…' : 'Request review correction'}
         </button>
+      )}
+      {!isActive && canRequest && !anyBlock && guidanceWithinOrdinaryBudget && (
+        <DirectGuidanceEditor
+          runId={runId}
+          sourceId={reviewAttemptId}
+          label="Direct guidance for this correction request"
+          formLabel="Request correction with guidance"
+          submitLabel="Request correction with guidance"
+          pendingLabel="Requesting with guidance…"
+          requesting={requesting}
+          statusLoading={statusLoading}
+          onSubmit={onRequest}
+        />
+      )}
+      {!isActive && !guidanceWithinOrdinaryBudget && (
+        <p className="dc-review-correction-guidance-unavailable">
+          Direct guidance is available only within the ordinary correction budget.
+        </p>
       )}
       {canCreateEscalation && globalClaimBlock && (
         // Creating an escalation still calls CreateReviewCorrectionAttempt, whose handler checks
@@ -129,7 +158,7 @@ export function ReviewCorrectionAction({
         </p>
       )}
       {canCreateEscalation && !anyBlock && (
-        <button type="button" disabled={requesting || statusLoading} onClick={onRequest}>
+        <button type="button" disabled={requesting || statusLoading} onClick={() => void onRequest()}>
           {requesting ? 'Creating…' : 'Create human escalation'}
         </button>
       )}
@@ -198,6 +227,9 @@ export function ReviewCorrectionAction({
           Configured resume eligibility: {configuredResumeEligibility} · Configured built-in tools:{' '}
           {configuredBuiltInTools}
         </p>
+      )}
+      {status && (
+        <DirectGuidanceFact fact={status.hasAttempt ? status.directGuidance : null} className="dc-review-correction-direct-guidance" />
       )}
       {status && (
         <ClaudeTurnLimitFacts

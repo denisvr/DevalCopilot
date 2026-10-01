@@ -51,7 +51,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var executablePath = CreateLaunchFile("fake-claude-impl-direct.exe");
 
         var fake = new FakeProcessExecutionAdapter();
@@ -106,7 +106,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var executablePath = CreateLaunchFile("fake-claude-impl-isolation.exe");
 
         var fake = new FakeProcessExecutionAdapter();
@@ -196,7 +196,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var missingExecutablePath = Path.Combine(_workspacePath, $"does-not-exist-{Guid.NewGuid():N}.exe");
 
         var fake = new FakeProcessExecutionAdapter();
@@ -216,7 +216,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var executablePath = CreateLaunchFile("fake-claude-impl-nonzero.exe");
 
         var fake = new FakeProcessExecutionAdapter
@@ -250,7 +250,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var executablePath = CreateLaunchFile("fake-claude-impl-result.exe");
 
         const string FinalResponseJson =
@@ -288,7 +288,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var fake = new FakeProcessExecutionAdapter();
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
@@ -337,7 +337,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var fake = new FakeProcessExecutionAdapter();
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,
@@ -385,7 +385,7 @@ public sealed class ClaudeImplementationAdapterTests : IDisposable
     {
         var runId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
-        var manifest = await SeedSealedManifestAsync(runId, attemptId, "manifest content");
+        var manifest = await SeedSealedManifestAsync(runId, attemptId, "{\"objective\":\"manifest content\"}");
         var fake = new FakeProcessExecutionAdapter();
         var request = new ImplementationInvocationRequest(
             runId, attemptId, _workspacePath, manifest.RelativePath, manifest.ByteLength, manifest.ContentHash,

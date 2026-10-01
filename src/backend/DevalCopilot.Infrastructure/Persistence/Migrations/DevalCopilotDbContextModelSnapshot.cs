@@ -859,6 +859,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("_agentDirectHumanGuidance")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("AgentDirectHumanGuidance");
+
                     b.Property<string>("_agentRequestedMaxTurns")
                         .HasColumnType("INTEGER")
                         .HasColumnName("AgentRequestedMaxTurns");

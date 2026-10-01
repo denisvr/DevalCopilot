@@ -1,5 +1,6 @@
 using Devalente.Shared.AspNetCore.Mvc;
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Api.Features.Runs.Contracts;
 using DevalCopilot.Api.Features.Runs.GetAgentAttemptStatus;
 using DevalCopilot.Application.Features.Runs.Queries.GetReviewCorrectionAttemptStatus;
 using Microsoft.AspNetCore.Mvc;
@@ -37,6 +38,7 @@ public sealed class GetReviewCorrectionAttemptStatusEndpoint(
             value.ConfiguredResumeEligibility,
             value.ConfiguredBuiltInTools,
             ClaudeMutationTurnLimitResponse.FromDomain(value.RunTurnLimitRequest),
-            ClaudeMutationTurnLimitResponse.FromDomain(value.AttemptTurnLimit)));
+            ClaudeMutationTurnLimitResponse.FromDomain(value.AttemptTurnLimit),
+            DirectHumanGuidanceResponse.FromDomain(value.DirectGuidance)));
     }
 }

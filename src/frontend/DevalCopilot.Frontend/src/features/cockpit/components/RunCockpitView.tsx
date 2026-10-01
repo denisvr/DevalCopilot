@@ -75,12 +75,11 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestChallengeResolution = useRequestChallengeResolution(runId, challengeResolutionAttemptStatus.refresh)
   const requestChallengeResolutionRepair = useRequestChallengeResolutionRepairAttempt(runId, challengeResolutionAttemptStatus.refresh)
   const implementationAttemptStatus = useImplementationAttemptStatus(runId, cockpit?.latestSequence)
-  const requestImplementation = useRequestImplementation(runId, implementationAttemptStatus.refresh)
   const codeReviewAttemptStatus = useCodeReviewAttemptStatus(runId, cockpit?.latestSequence)
   const requestCodeReview = useRequestCodeReview(runId, codeReviewAttemptStatus.refresh)
   const requestCodeReviewRepair = useRequestCodeReviewRepairAttempt(runId, codeReviewAttemptStatus.refresh)
   const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
-  const requestReviewCorrection = useRequestReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
+  const requestReviewCorrection = useRequestReviewCorrection(runId, codeReviewAttemptStatus.status?.attemptId ?? null, reviewCorrectionAttemptStatus.refresh)
   const authorizeReviewCorrection = useAuthorizeReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
   // The newest Planner root and its Resolver revisions, read from the loaded timeline. Display hints
   // only: the backend re-decides review, resolution, and implementation eligibility from durable
@@ -117,6 +116,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   // re-verifies this eligibility in full before acting on it — this only withholds a certainly
   // blocked action.
   const eligiblePlanProposalMessageId = selectImplementablePlanMessageId(planningLineage, reviewStatusHint)
+  const requestImplementation = useRequestImplementation(runId, eligiblePlanProposalMessageId, implementationAttemptStatus.refresh)
 
   if (loading && !cockpit) {
     return <p className="dc-empty-state">Loading run…</p>
@@ -291,14 +291,17 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             timeFit={challengeResolutionTimeFit}
           />
           <ImplementationAction
+            runId={runId}
             planProposalMessageId={eligiblePlanProposalMessageId}
             status={implementationAttemptStatus.status}
             statusLoading={implementationAttemptStatus.loading}
             statusError={implementationAttemptStatus.error}
             requesting={requestImplementation.requesting}
             requestError={requestImplementation.error}
-            onRequest={() =>
-              eligiblePlanProposalMessageId && void requestImplementation.request(runId, eligiblePlanProposalMessageId)
+            onRequest={(guidance) =>
+              eligiblePlanProposalMessageId
+                ? requestImplementation.request(runId, eligiblePlanProposalMessageId, guidance)
+                : Promise.resolve(false)
             }
             globalClaimBlock={globalClaimBlock}
             timeFit={implementationTimeFit}
@@ -327,6 +330,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             timeFit={codeReviewTimeFit}
           />
           <ReviewCorrectionAction
+            runId={runId}
             reviewAttemptId={codeReviewAttemptStatus.status?.attemptId ?? null}
             reviewOutcome={codeReviewAttemptStatus.status?.outcome ?? null}
             status={reviewCorrectionAttemptStatus.status}
@@ -346,9 +350,9 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               const escalationId = reviewCorrectionAttemptStatus.status?.escalationId
               return escalationId ? authorizeReviewCorrection.authorize(runId, escalationId, guidance) : false
             }}
-            onRequest={() => {
+            onRequest={(guidance) => {
               const reviewAttemptId = codeReviewAttemptStatus.status?.attemptId
-              if (reviewAttemptId) void requestReviewCorrection.request(runId, reviewAttemptId)
+              return reviewAttemptId ? requestReviewCorrection.request(runId, reviewAttemptId, guidance) : Promise.resolve(false)
             }}
           />
           </>

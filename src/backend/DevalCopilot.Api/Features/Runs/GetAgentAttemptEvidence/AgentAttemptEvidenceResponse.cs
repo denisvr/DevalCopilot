@@ -1,3 +1,4 @@
+using DevalCopilot.Api.Features.Runs.Contracts;
 using DevalCopilot.Api.Features.Runs.GetAgentAttemptStatus;
 
 namespace DevalCopilot.Api.Features.Runs.GetAgentAttemptEvidence;
@@ -30,4 +31,5 @@ public sealed record AgentAttemptEvidenceResponse(
     /// earlier Agent attempt of this run), else null. Lineage only, never a claim that the source was fixed.</summary>
     Guid? RepairSourceAttemptId = null,
     /// <summary>The proved source attempt's number, else null.</summary>
-    int? RepairSourceAttemptNumber = null);
+    int? RepairSourceAttemptNumber = null,
+    DirectHumanGuidanceResponse? DirectGuidance = null);

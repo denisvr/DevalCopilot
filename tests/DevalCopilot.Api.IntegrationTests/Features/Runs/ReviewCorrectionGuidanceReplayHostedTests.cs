@@ -86,10 +86,12 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests
             Assert.Contains(instructionMessageId.ToString(), manifest.Text, StringComparison.Ordinal);
             Assert.Contains("humanGuidanceBoundary", manifest.Text, StringComparison.Ordinal);
 
-            // The dispatch contract carries no guidance or authorization of its own.
+            // The dispatch contract carries no authorization and no authorized guidance of its own; its only guidance
+            // member is the attempt's separate direct-guidance snapshot, used to check the sealed manifest (ADR-0015).
             Assert.DoesNotContain(
                 typeof(ReviewCorrectionInvocationRequest).GetProperties(),
-                property => property.Name.Contains("Guidance", StringComparison.OrdinalIgnoreCase)
+                property => (property.Name.Contains("Guidance", StringComparison.OrdinalIgnoreCase)
+                        && property.Name != nameof(ReviewCorrectionInvocationRequest.DirectHumanGuidance))
                     || property.Name.Contains("Authorization", StringComparison.OrdinalIgnoreCase));
 
             adapter.Release();

@@ -87,7 +87,8 @@ public sealed record ImplementationAttemptStatusQueryResult(
     /// <summary>This attempt's own immutable turn-limit record by exact version-aware mapping: requested N, not
     /// requested (a coherent version 2 attempt with none), not recorded (a legacy version 1 attempt), or
     /// unknown. <see langword="null"/> when there is no attempt.</summary>
-    ClaudeMutationTurnLimitFact? AttemptTurnLimit = null)
+    ClaudeMutationTurnLimitFact? AttemptTurnLimit = null,
+    DirectHumanGuidanceFact? DirectGuidance = null)
 {
     public static readonly ImplementationAttemptStatusQueryResult NoAttempt =
         new(false, null, null, null, null, null, null, null, null, null, null, [], null, null, null, [], null, null);

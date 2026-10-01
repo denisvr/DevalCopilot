@@ -45,6 +45,8 @@
   Add a durable run-wide Agent invocation-time budget.
 - [ADR-0014](decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md):
   Add manual Agent run intake with durable execution-mode isolation.
+- [ADR-0015](decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md):
+  Add direct human guidance to explicit mutation requests.
 
 ## Product-specific architecture
 
@@ -87,6 +89,11 @@
   contracts. It is a provider-loop request beside the host timeout, never a measured count, a token, cost, or account
   ceiling, or a host-enforced limit (see
   [the protocol](architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts)).
+- The two explicit mutation requests (initial implementation and ordinary review correction) may carry optional bounded
+  direct human guidance, snapshotted immutably on the exact claimed attempt and sealed into its context beside a fixed
+  advisory boundary. It is advisory clarification only, available within the ordinary correction budget, and a fact of what
+  the host supplied, never of provider compliance (see
+  [the protocol](architecture/agent-collaboration-protocol.md#optional-direct-human-guidance-for-mutation-requests)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no
   account-usage threshold is enforced anywhere in the system. The one

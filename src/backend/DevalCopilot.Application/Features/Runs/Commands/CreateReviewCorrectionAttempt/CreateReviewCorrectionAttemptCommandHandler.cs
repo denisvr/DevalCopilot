@@ -5,6 +5,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
@@ -32,6 +33,18 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
     public async Task<Result<CreateReviewCorrectionAttemptCommandResult>> HandleAsync(
         CreateReviewCorrectionAttemptCommand command, CancellationToken cancellationToken)
     {
+        // Supplied direct guidance is normalized (and refused if invalid) before any read or external work. The
+        // validator normally rejects it first; this keeps a direct handler call equally safe. Null stays unguided.
+        string? directGuidance = null;
+        if (command.Guidance is not null)
+        {
+            directGuidance = DirectHumanGuidance.Normalize(command.Guidance);
+            if (directGuidance is null)
+            {
+                return Failure(DirectHumanGuidanceErrors.Invalid());
+            }
+        }
+
         var run = await dbContext.Runs.SingleOrDefaultAsync(candidate => candidate.Id == command.RunId, cancellationToken);
         if (run is null)
         {
@@ -186,6 +199,15 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         ReviewCorrectionAuthorizationInstruction.HumanGuidance? humanGuidance = null;
         if (correctionAttemptsUsed >= run.MaximumReviewCorrectionAttempts)
         {
+            // Direct guidance exists only within the ordinary correction budget. At exhaustion the whole request is
+            // refused, even when an extra authorization exists: no escalation is created, no authorization is read for
+            // consumption, and nothing is sealed or claimed. Existing no-guidance escalation and authorization flows
+            // below are unchanged.
+            if (directGuidance is not null)
+            {
+                return Failure(DirectHumanGuidanceErrors.UnavailableAtExhaustion());
+            }
+
             var escalation = await dbContext.ReviewCorrectionEscalations
                 .SingleOrDefaultAsync(candidate => candidate.RunId == run.Id && candidate.ImplementationReviewAttemptId == review.Id, cancellationToken);
             if (escalation is not null)
@@ -250,7 +272,8 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             evidence.ChangedPaths,
             evidence.CompleteDiff,
             humanGuidance is null ? null : new ReviewCorrectionContextManifestBuilder.Guidance(humanGuidance.MessageId, humanGuidance.Text),
-            evidence.UntrackedFiles);
+            evidence.UntrackedFiles,
+            directGuidance);
         if (Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             return Failure(Error.Failure("agent_attempts.context_manifest_too_large", "The context manifest exceeds its bound."));
@@ -311,7 +334,8 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             requestedClaude.Model,
             requestedClaude.Effort,
             agentBudgetSlot,
-            requestedTurnLimit.Value);
+            requestedTurnLimit.Value,
+            directGuidance);
         authorization?.Consume(attemptId, nowUtc);
         dbContext.Attempts.Add(attempt);
 

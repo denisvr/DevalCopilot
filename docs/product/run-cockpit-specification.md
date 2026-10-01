@@ -743,6 +743,45 @@ changes or the form unmounts, and is cleared after an accepted submit. See
 ["Bounded human guidance for one authorized review correction"](../architecture/agent-collaboration-protocol.md#bounded-human-guidance-for-one-authorized-review-correction)
 for the normalization, conflict, linkage, and manifest rules.
 
+### Optional direct guidance with an implementation or correction request
+
+Beside the unchanged "Implement the resolved plan with Claude" and "Request review correction" buttons, a form appears
+exactly where the plain button is offered (no active attempt, no global budget or time-fit block): "Implement with guidance"
+and "Request correction with guidance". Each has one multi-line field with a counter of the normalized length out of 600 and
+states that the text is sent with the request as advisory context and recorded with the attempt, cannot change the objective,
+permissions, tools, or budgets, is not a statement that the provider will follow it, and is **not screened for secrets**. The
+plain button never sends guidance and ignores the draft. The guided submit is enabled only for a valid, non-blank draft (not
+blank after trimming, at most 600 UTF-16 code units after Unicode form C and line-feed normalization, no control character
+except a line break), so blank or whitespace-only guidance is never sent; over-long and control-character drafts get a local
+message. The server stays authoritative for content and eligibility, and a refusal never echoes the draft: the two guidance
+refusals map to fixed text selected only by the problem code (`agent_attempts.direct_guidance_invalid`,
+`agent_attempts.direct_guidance_unavailable`).
+
+At correction-budget exhaustion, and while an unconsumed extra authorization exists, the correction form is not offered and the
+action says "Direct guidance is available only within the ordinary correction budget." The separate "Authorize one additional
+correction" and "Authorize with guidance" controls are unchanged. Availability in the UI never overrides the server gate: a
+guided request at exhaustion is still refused with a 409 and creates nothing.
+
+Drafts, busy and error state, handlers, and the request and refresh continuations are owned by the committed interaction
+lifetime of **run and source** (the plan proposal message for an implementation, the reviewed attempt for a correction).
+Replacing the source in the same run, switching runs, returning to an earlier run or source (a new identity), and unmounting
+all end the old lifetime, reset the draft during render without relying on a parent `key`, and reject a retained handler or a
+second synchronous submission of the same control. Every edit, including one that yields identical text, increments a draft
+version; after an accepted request that is still current, the draft is cleared only if it was not edited since it was sent, so
+a draft typed while the request or the status refresh is pending is never wiped. A request accepted for a replaced source or
+run remains a real server operation: its completion is ignored for UI state (never cancelled, retried, or read as a refusal) and
+becomes visible on that run's next status read. The draft lives only in component state and is never written to browser
+storage, cookies, or the URL.
+
+The latest Agent attempt, the implementation and review-correction status blocks, and the historical attempt evidence show that
+attempt's own immutable fact, labelled separately from any extra-correction authorization: **Provided** shows the accepted text
+as plain text (never markup) with line breaks preserved and the note that whether the provider followed it is not observed;
+**Not recorded** (no direct guidance was recorded; the neutral state of historical and new unguided attempts alike, shown as "none
+recorded" and never as "none was submitted"); and **Unknown** (recorded facts disagree or the stored value
+is invalid; never any text). Nothing is shown for an attempt outside the two Claude mutation paths or when there is no attempt.
+See ["Optional direct human guidance for mutation requests"](../architecture/agent-collaboration-protocol.md#optional-direct-human-guidance-for-mutation-requests)
+for the request, normalization, budget, snapshot, manifest, and dispatch rules.
+
 ### Run-isolated asynchronous controls
 
 Every asynchronous control that changes a run's Agent work or settings — the six ordinary requests (Planner,

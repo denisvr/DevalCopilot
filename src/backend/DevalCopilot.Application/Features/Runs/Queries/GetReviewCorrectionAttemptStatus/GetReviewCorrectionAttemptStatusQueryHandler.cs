@@ -171,7 +171,8 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandler(IDevalCopilotDb
             attempt.GetAgentProcessExecutionEvidence(), attempt.AgentTimeout, attempt.GetAgentTokenUsageEvidence(),
             configuredPermissionMode, configuredSessionPersistence, configuredPermissionPrompts,
             configuredResumeEligibility, configuredBuiltInTools,
-            ClaudeMutationTurnLimitFact.ForRun(run), ClaudeMutationTurnLimitFact.ForAttempt(attempt)));
+            ClaudeMutationTurnLimitFact.ForRun(run), ClaudeMutationTurnLimitFact.ForAttempt(attempt),
+            DirectHumanGuidanceFact.ForAttempt(attempt)));
     }
 
     private static Result<ReviewCorrectionAttemptStatusQueryResult> InvalidAssignment() =>

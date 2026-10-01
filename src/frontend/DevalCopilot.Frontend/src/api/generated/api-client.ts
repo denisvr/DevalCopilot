@@ -3484,6 +3484,7 @@ export interface IRequestReviewCorrectionResponse {
 
 export class RequestReviewCorrectionRequest implements IRequestReviewCorrectionRequest {
     implementationReviewAttemptId?: string;
+    guidance?: string | undefined;
 
     constructor(data?: IRequestReviewCorrectionRequest) {
         if (data) {
@@ -3497,6 +3498,7 @@ export class RequestReviewCorrectionRequest implements IRequestReviewCorrectionR
     init(_data?: any) {
         if (_data) {
             this.implementationReviewAttemptId = _data["implementationReviewAttemptId"];
+            this.guidance = _data["guidance"];
         }
     }
 
@@ -3510,12 +3512,14 @@ export class RequestReviewCorrectionRequest implements IRequestReviewCorrectionR
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["implementationReviewAttemptId"] = this.implementationReviewAttemptId;
+        data["guidance"] = this.guidance;
         return data;
     }
 }
 
 export interface IRequestReviewCorrectionRequest {
     implementationReviewAttemptId?: string;
+    guidance?: string | undefined;
 }
 
 export class RequestImplementationResponse implements IRequestImplementationResponse {
@@ -3560,6 +3564,7 @@ export interface IRequestImplementationResponse {
 
 export class RequestImplementationRequest implements IRequestImplementationRequest {
     planProposalMessageId?: string;
+    guidance?: string | undefined;
 
     constructor(data?: IRequestImplementationRequest) {
         if (data) {
@@ -3573,6 +3578,7 @@ export class RequestImplementationRequest implements IRequestImplementationReque
     init(_data?: any) {
         if (_data) {
             this.planProposalMessageId = _data["planProposalMessageId"];
+            this.guidance = _data["guidance"];
         }
     }
 
@@ -3586,12 +3592,14 @@ export class RequestImplementationRequest implements IRequestImplementationReque
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["planProposalMessageId"] = this.planProposalMessageId;
+        data["guidance"] = this.guidance;
         return data;
     }
 }
 
 export interface IRequestImplementationRequest {
     planProposalMessageId?: string;
+    guidance?: string | undefined;
 }
 
 export class RequestCodexPlanningRepairAttemptResponse implements IRequestCodexPlanningRepairAttemptResponse {
@@ -4443,6 +4451,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
     requestedModel?: string | undefined;
     requestedEffort?: string | undefined;
     maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 
     constructor(data?: IRunCockpitAgentAttemptResponse) {
         if (data) {
@@ -4467,6 +4476,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
             this.requestedModel = _data["requestedModel"];
             this.requestedEffort = _data["requestedEffort"];
             this.maxTurns = _data["maxTurns"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["maxTurns"]) : undefined as any;
+            this.directGuidance = _data["directGuidance"] ? DirectHumanGuidanceResponse.fromJS(_data["directGuidance"]) : undefined as any;
         }
     }
 
@@ -4491,6 +4501,7 @@ export class RunCockpitAgentAttemptResponse implements IRunCockpitAgentAttemptRe
         data["requestedModel"] = this.requestedModel;
         data["requestedEffort"] = this.requestedEffort;
         data["maxTurns"] = this.maxTurns ? this.maxTurns.toJSON() : undefined as any;
+        data["directGuidance"] = this.directGuidance ? this.directGuidance.toJSON() : undefined as any;
         return data;
     }
 }
@@ -4508,6 +4519,7 @@ export interface IRunCockpitAgentAttemptResponse {
     requestedModel?: string | undefined;
     requestedEffort?: string | undefined;
     maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 }
 
 export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {
@@ -4644,6 +4656,46 @@ export class ClaudeMutationTurnLimitResponse implements IClaudeMutationTurnLimit
 export interface IClaudeMutationTurnLimitResponse {
     state?: string;
     maxTurns?: number | undefined;
+}
+
+export class DirectHumanGuidanceResponse implements IDirectHumanGuidanceResponse {
+    state?: string;
+    text?: string | undefined;
+
+    constructor(data?: IDirectHumanGuidanceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.text = _data["text"];
+        }
+    }
+
+    static fromJS(data: any): DirectHumanGuidanceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new DirectHumanGuidanceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["text"] = this.text;
+        return data;
+    }
+}
+
+export interface IDirectHumanGuidanceResponse {
+    state?: string;
+    text?: string | undefined;
 }
 
 export class RunTokenUsageSummaryResponse implements IRunTokenUsageSummaryResponse {
@@ -5068,6 +5120,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
     configuredBuiltInTools?: string | undefined;
     runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
     attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 
     constructor(data?: IReviewCorrectionAttemptStatusResponse) {
         if (data) {
@@ -5113,6 +5166,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
             this.configuredBuiltInTools = _data["configuredBuiltInTools"];
             this.runTurnLimitRequest = _data["runTurnLimitRequest"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["runTurnLimitRequest"]) : undefined as any;
             this.attemptTurnLimit = _data["attemptTurnLimit"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["attemptTurnLimit"]) : undefined as any;
+            this.directGuidance = _data["directGuidance"] ? DirectHumanGuidanceResponse.fromJS(_data["directGuidance"]) : undefined as any;
         }
     }
 
@@ -5158,6 +5212,7 @@ export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionA
         data["configuredBuiltInTools"] = this.configuredBuiltInTools;
         data["runTurnLimitRequest"] = this.runTurnLimitRequest ? this.runTurnLimitRequest.toJSON() : undefined as any;
         data["attemptTurnLimit"] = this.attemptTurnLimit ? this.attemptTurnLimit.toJSON() : undefined as any;
+        data["directGuidance"] = this.directGuidance ? this.directGuidance.toJSON() : undefined as any;
         return data;
     }
 }
@@ -5192,6 +5247,7 @@ export interface IReviewCorrectionAttemptStatusResponse {
     configuredBuiltInTools?: string | undefined;
     runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
     attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 }
 
 export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
@@ -5332,6 +5388,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
     configuredBuiltInTools?: string | undefined;
     runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
     attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 
     constructor(data?: IImplementationAttemptStatusResponse) {
         if (data) {
@@ -5385,6 +5442,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
             this.configuredBuiltInTools = _data["configuredBuiltInTools"];
             this.runTurnLimitRequest = _data["runTurnLimitRequest"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["runTurnLimitRequest"]) : undefined as any;
             this.attemptTurnLimit = _data["attemptTurnLimit"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["attemptTurnLimit"]) : undefined as any;
+            this.directGuidance = _data["directGuidance"] ? DirectHumanGuidanceResponse.fromJS(_data["directGuidance"]) : undefined as any;
         }
     }
 
@@ -5438,6 +5496,7 @@ export class ImplementationAttemptStatusResponse implements IImplementationAttem
         data["configuredBuiltInTools"] = this.configuredBuiltInTools;
         data["runTurnLimitRequest"] = this.runTurnLimitRequest ? this.runTurnLimitRequest.toJSON() : undefined as any;
         data["attemptTurnLimit"] = this.attemptTurnLimit ? this.attemptTurnLimit.toJSON() : undefined as any;
+        data["directGuidance"] = this.directGuidance ? this.directGuidance.toJSON() : undefined as any;
         return data;
     }
 }
@@ -5476,6 +5535,7 @@ export interface IImplementationAttemptStatusResponse {
     configuredBuiltInTools?: string | undefined;
     runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
     attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {
@@ -6348,6 +6408,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
     maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
     repairSourceAttemptId?: string | undefined;
     repairSourceAttemptNumber?: number | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 
     constructor(data?: IAgentAttemptEvidenceResponse) {
         if (data) {
@@ -6381,6 +6442,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
             this.maxTurns = _data["maxTurns"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["maxTurns"]) : undefined as any;
             this.repairSourceAttemptId = _data["repairSourceAttemptId"];
             this.repairSourceAttemptNumber = _data["repairSourceAttemptNumber"];
+            this.directGuidance = _data["directGuidance"] ? DirectHumanGuidanceResponse.fromJS(_data["directGuidance"]) : undefined as any;
         }
     }
 
@@ -6414,6 +6476,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
         data["maxTurns"] = this.maxTurns ? this.maxTurns.toJSON() : undefined as any;
         data["repairSourceAttemptId"] = this.repairSourceAttemptId;
         data["repairSourceAttemptNumber"] = this.repairSourceAttemptNumber;
+        data["directGuidance"] = this.directGuidance ? this.directGuidance.toJSON() : undefined as any;
         return data;
     }
 }
@@ -6436,6 +6499,7 @@ export interface IAgentAttemptEvidenceResponse {
     maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
     repairSourceAttemptId?: string | undefined;
     repairSourceAttemptNumber?: number | undefined;
+    directGuidance?: DirectHumanGuidanceResponse | undefined;
 }
 
 export class CreateManualRunResponse implements ICreateManualRunResponse {

@@ -78,6 +78,13 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
             .HasColumnType("INTEGER")
             .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
 
+        // No default and no backfill: the direct-guidance snapshot is assigned only by the two mutation claims, in the
+        // same commit as the attempt. Mapped as a field-only property holding the exact stored text, so malformed text
+        // is judged by Attempt.ReadAgentDirectHumanGuidance and historical rows stay null (never inferred).
+        builder.Property<string?>(Attempt.AgentDirectHumanGuidanceStorageProperty)
+            .HasColumnName("AgentDirectHumanGuidance")
+            .HasColumnType("TEXT");
+
         builder.Property(attempt => attempt.AgentTimeout)
             .HasConversion(
                 timeout => timeout.HasValue ? (long?)timeout.Value.TotalMilliseconds : null,

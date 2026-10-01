@@ -141,6 +141,7 @@ export type {
   SetClaudeModelPreferenceResponse,
   SetClaudeMutationTurnLimitResponse,
   ClaudeMutationTurnLimitResponse,
+  DirectHumanGuidanceResponse,
   SetTokenWarningThresholdResponse,
   RunCockpitTokenWarningResponse,
   SetTokenStopThresholdResponse,

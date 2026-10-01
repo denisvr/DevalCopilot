@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 
 namespace DevalCopilot.Domain.Features.Runs;
@@ -15,7 +14,7 @@ namespace DevalCopilot.Domain.Features.Runs;
 /// </summary>
 public static class ReviewCorrectionGuidance
 {
-    public const int MaximumLength = 600;
+    public const int MaximumLength = BoundedGuidanceText.MaximumLength;
 
     public const string FixedInstruction = "Authorize one additional review-correction attempt.";
 
@@ -31,59 +30,11 @@ public static class ReviewCorrectionGuidance
     /// </summary>
     public static string? Normalize(string? raw)
     {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return null;
-        }
-
-        // Invalid UTF-16 (an unpaired surrogate) is rejected rather than silently replaced, so the
-        // persisted text is always exactly what was accepted.
-        for (var index = 0; index < raw.Length; index++)
-        {
-            if (char.IsHighSurrogate(raw[index]) && index + 1 < raw.Length && char.IsLowSurrogate(raw[index + 1]))
-            {
-                index++;
-            }
-            else if (char.IsSurrogate(raw[index]))
-            {
-                return null;
-            }
-        }
-
-        string normalized;
-        try
-        {
-            normalized = raw.Normalize(NormalizationForm.FormC)
-                .Replace("\r\n", "\n", StringComparison.Ordinal)
-                .Replace('\r', '\n')
-                .Trim();
-        }
-        catch (ArgumentException)
-        {
-            return null;
-        }
-
-        if (normalized.Length == 0 || normalized.Length > MaximumLength)
-        {
-            return null;
-        }
-
-        foreach (var character in normalized)
-        {
-            if (char.IsControl(character) && character != '\n')
-            {
-                return null;
-            }
-        }
+        var normalized = BoundedGuidanceText.Normalize(raw);
 
         // The default rationale is reserved for the bodyless authorization: accepting it as guidance
         // would persist bytes that read back as "no guidance" and drop the accepted text from the manifest.
-        if (string.Equals(normalized, DefaultRationale, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        return CollaborationMessageContentPolicy.IsSafeSummary(normalized) ? normalized : null;
+        return string.Equals(normalized, DefaultRationale, StringComparison.Ordinal) ? null : normalized;
     }
 
     /// <summary>Builds the HumanInstruction structured content for an accepted rationale (already

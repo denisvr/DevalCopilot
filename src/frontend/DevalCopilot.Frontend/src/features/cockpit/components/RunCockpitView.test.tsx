@@ -1087,7 +1087,7 @@ describe('RunCockpitView', () => {
       render(<RunCockpitView runId="run-1" />)
       fireEvent.click(screen.getByRole('button', { name: 'Implement the resolved plan with Claude' }))
 
-      expect(request).toHaveBeenCalledWith('run-1', 'first')
+      expect(request).toHaveBeenCalledWith('run-1', 'first', undefined)
     })
 
     it('keeps the Implementer request isolated per run while an older run completes late (real hook)', async () => {

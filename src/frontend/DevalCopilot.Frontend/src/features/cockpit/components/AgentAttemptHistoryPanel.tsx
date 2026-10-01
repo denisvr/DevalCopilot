@@ -4,6 +4,7 @@ import { useAgentAttemptEvidence } from '../hooks/useAgentAttemptEvidence'
 import { useAgentAttemptHistory } from '../hooks/useAgentAttemptHistory'
 import { AgentAttemptArtifactViewer } from './AgentAttemptArtifactViewer'
 import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
+import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ARTIFACT_PURPOSE_LABELS } from '../artifactPurposes'
 import { describeRepairLineage } from '../describeRepairLineage'
 
@@ -98,6 +99,7 @@ function AgentAttemptEvidenceBody({ runId, evidence }: { runId: string; evidence
         </ul>
       )}
       <ClaudeTurnLimitFacts attemptFact={evidence.maxTurns} />
+      <DirectGuidanceFact fact={evidence.directGuidance} />
       <AgentAttemptArtifactViewer runId={runId} attemptId={evidence.attemptId ?? ''} artifacts={artifacts} />
     </div>
   )

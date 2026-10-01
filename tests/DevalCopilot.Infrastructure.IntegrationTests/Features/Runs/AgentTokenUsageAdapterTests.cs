@@ -505,7 +505,7 @@ public sealed class AgentTokenUsageAdapterTests : IDisposable
         var attemptId = Guid.NewGuid();
         var partialPath = _artifactStore.GetPartialPath(runId, attemptId, ArtifactPurpose.AgentContextManifest);
         Directory.CreateDirectory(Path.GetDirectoryName(partialPath)!);
-        await File.WriteAllBytesAsync(partialPath, Encoding.UTF8.GetBytes("bounded manifest"));
+        await File.WriteAllBytesAsync(partialPath, Encoding.UTF8.GetBytes("{\"objective\":\"bounded manifest\"}"));
         var sealedFile = await _artifactStore.SealAsync(runId, attemptId, ArtifactPurpose.AgentContextManifest, CancellationToken.None);
         Assert.NotNull(sealedFile);
         return (runId, attemptId, sealedFile);

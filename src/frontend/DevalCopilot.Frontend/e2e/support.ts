@@ -65,3 +65,13 @@ export async function readRunSummaries(
     'Run summaries',
   )
 }
+
+/**
+ * Selects this specification's own fixture project and asserts the selection took effect. Registration does not select the new
+ * project and a reload selects the first project, so a specification must never rely on what the shared database already holds.
+ */
+export async function selectProject(page: Page, name: string) {
+  const chip = page.getByRole('button', { name: new RegExp(`^${name}`) })
+  await chip.click()
+  await expect(chip).toHaveAttribute('data-selected', 'true')
+}
