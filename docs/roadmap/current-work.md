@@ -12,7 +12,18 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   `3fe5f08cb648f3726e385d14be554ae4e1a4fda0` (`main`; `HEAD`, local `origin/main`, and live `refs/heads/main` matched it, nothing staged
   or untracked, and only the planner-owned `planner-handoff.md` modified at the start; the generated client SHA-256 matched
   `44afe84a4aa14ce6f9307f7a248dab4e5b31977eecd34b812da47ebf8475f44b`). Presented as an uncommitted, unstaged, unpushed diff for Codex's
-  GO/NO-GO; `planner-handoff.md` was not edited. This entry records the delivered SHA only after publication.
+  GO/NO-GO; `planner-handoff.md` was not edited.
+- Published delivery: `47e141cd50ba3d05b26bf76476f576c83650f57d` (parent `3fe5f08cb648f3726e385d14be554ae4e1a4fda0`) was committed with the reviewed slice
+  (83 files: 34 modified tracked including `planner-handoff.md` with Codex's GO, and 49 new; the staged inventory and `git diff --cached --check` were verified
+  first), pushed to `origin/main` as a normal fast-forward, and verified after `git fetch`: `HEAD`, local `origin/main` and live `refs/heads/main` all equal that
+  commit with a clean checkout. The full-suite results recorded below are the earlier pre-publication evidence on the identical tree. The post-publication reruns
+  against that commit were: a clean `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1` (0 warnings, 0 errors); Domain full 903/903;
+  filtered runs only, not repeats of the full suites: Application (authorization command, claim, query, downstream, manifest, CreateCodeReviewAttempt and
+  GetReviewCorrectionAttemptStatus filters) 207/207, Infrastructure (adapter and migration tests) 19/19, Api (hosted chain and endpoint tests) 20/20; Architecture
+  full 9/9; frontend full vitest 108 files 1470/1470, production build clean, lint 12 warnings (the baseline) and 0 errors; harness 19/19; full Chromium 5/5 with
+  `reuseExistingServer: false` and no leftover `devalcopilot-e2e-*` directory; generated-client SHA-256 unchanged
+  (`1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`); `git diff --check` clean; clean checkout. No skips in the reruns. The remaining
+  limitations below stand and no next slice is selected.
 - Delivered ([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)): a human may
   authorize exactly one initial implementation claim for the final (depth-two) Proposal of a completed second challenge round.
   `PlanningLineage.MaximumDepth`, `MaximumReviewableDepth` and `MaximumImplementableDepth` are unchanged and a third review or
