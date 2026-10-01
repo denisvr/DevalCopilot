@@ -8,6 +8,23 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
 ## Direct human guidance for mutation requests (2026-10-01)
 
+- Published delivery: `c57439ebec2463de900fa6d4fb66831952b4254c` (parent `371c3a6b81ddc65bc8de7057d8bd8ce2b388296e`) was committed with the
+  reviewed slice (116 files: 81 modified tracked including `planner-handoff.md` with Codex's GO, and 35 new; the staged inventory and
+  `git diff --cached --check` were verified before the commit), pushed to `origin/main` as a normal fast-forward, and verified with `git fetch
+  origin main` and `git ls-remote origin refs/heads/main`: local `HEAD`, local `origin/main`, and the live remote all matched that SHA with a
+  clean tree. Post-publication verification on that commit (`--no-build --no-restore` for tests, run sequentially after `dotnet build
+  DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1`, 0 warnings, 0 errors): Domain 881/881; Application filter
+  `DirectHumanGuidance` 99/99; Infrastructure filter `DirectHumanGuidance|AddDirectHumanGuidance` 52/52; Api filter
+  `DirectGuidance|DirectHumanGuidance|ReviewCorrectionGuidanceReplay` 36/36; Architecture 9/9; none skipped. Frontend: `npm run test:harness`
+  19/19, `npx vitest run` 103 files 1394/1394, `npm run build` clean (usual chunk-size notice), `npm run lint` 12 warnings (the baseline) and 0
+  errors, then `npx playwright test --reporter=line` 3/3 with `reuseExistingServer: false`; no `devalcopilot-e2e-*` directory remained;
+  `api-client.ts` SHA-256 stayed `44afe84a4aa14ce6f9307f7a248dab4e5b31977eecd34b812da47ebf8475f44b`; `git diff --check` and the checkout were
+  clean. Retained evidence, not rerun in this verification: the full Application (2729), Infrastructure (924 + 3 skipped), and Api (694) suites,
+  the formatter result (153 findings in 17 files, the recorded baseline), and the vulnerable-package result, all from the final reviewed tree
+  before publication. Limits are those listed in the delivery entry below (no real-provider reliability, the manifest agreement is checked
+  after dispatch is marked, raw-SQL fixture rows in the wire specification, unmeasured SignalR console-line baseline). This is not Increment 4
+  completion and no next slice is selected here.
+
 - Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent
   `371c3a6b81ddc65bc8de7057d8bd8ce2b388296e` (`main`; `HEAD`, local `origin/main`, and live `refs/heads/main` matched it, nothing staged or
   untracked, and only the planner-owned `planner-handoff.md` modified at the start; the generated client SHA-256 matched
