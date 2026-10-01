@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -78,7 +79,7 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
         var currentCheckpointByWorkspace = await GetCurrentCheckpointByWorkspaceAsync(
             candidates.Select(candidate => candidate.GitWorkspaceId), cancellationToken);
 
-        return candidates
+        var coherent = candidates
             .Where(candidate =>
                 currentCheckpointByWorkspace.TryGetValue(candidate.GitWorkspaceId, out var currentCheckpointId)
                 && currentCheckpointId == candidate.GitCheckpointId)
@@ -92,7 +93,22 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                     entry.Candidate.HasWorkspaceEditProfile ? AgentPermissionProfile.WorkspaceEditOnly : null,
                     entry.Candidate.AdapterContractVersion, entry.Guidance))
             .OrderBy(entry => entry.Candidate.ClaimedAtUtc)
-            .Select(entry => new EligibleImplementationAttempt(
+            .ToList();
+        var eligible = new List<EligibleImplementationAttempt>(coherent.Count);
+        foreach (var entry in coherent)
+        {
+            // The human plan-authorization half of eligibility (ADR-0016), proven from a fresh untracked snapshot of the
+            // attempt's own run: an authorized attempt needs exactly the grant it consumed and its exact ordered inputs; an
+            // ordinary one must hold none. A tampered, mismatched, or unreadable record is excluded here and never reaches
+            // a provider; the dispatch gate decides the same question again.
+            var planning = await PlanningImplementationAuthorizationAttempt.ClassifyFreshAsync(
+                dbContext, entry.Candidate.RunId, entry.Candidate.Id, cancellationToken);
+            if (planning.Form == PlanningImplementationAuthorizationEvidence.AttemptForm.Invalid)
+            {
+                continue;
+            }
+
+            eligible.Add(new EligibleImplementationAttempt(
                 entry.Candidate.Id,
                 entry.Candidate.RunId,
                 entry.Candidate.GitWorkspaceId,
@@ -109,8 +125,11 @@ public sealed class GetEligibleImplementationAttemptsQueryHandler(IDevalCopilotD
                 entry.Candidate.RequestedClaudeEffort,
                 entry.TurnLimit.Value,
                 entry.Candidate.AdapterContractVersion,
-                entry.Guidance.Text))
-            .ToArray();
+                entry.Guidance.Text,
+                PlanningImplementationAuthorizationAttempt.ToFact(planning)));
+        }
+
+        return eligible;
     }
 
     private async Task<Dictionary<Guid, Guid>> GetCurrentCheckpointByWorkspaceAsync(

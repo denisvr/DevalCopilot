@@ -89,6 +89,14 @@ public sealed class ClaudeImplementationAdapter(IProcessExecutionAdapter process
             return Failed();
         }
 
+        // The same agreement for the human plan authorization (ADR-0016): a sealed manifest that carries the authorized
+        // form must be expected by the attempt's durable facts, with exactly those identifiers and rationale, and an
+        // ordinary attempt's manifest must carry none. No process starts on a disagreement and nothing is reconstructed.
+        if (!PlanningImplementationAuthorizationManifest.Agrees(manifestWindow.Text, request.PlanningAuthorization))
+        {
+            return Failed();
+        }
+
         var arguments = new List<string>
         {
             "--print",

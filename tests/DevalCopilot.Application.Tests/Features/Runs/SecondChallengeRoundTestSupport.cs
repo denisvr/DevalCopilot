@@ -6,6 +6,7 @@ using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
+using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
@@ -31,6 +32,9 @@ internal static class SecondChallengeRoundTestSupport
         var workspace = GitWorkspace.Prepare(
             Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", Now);
         workspace.MarkReady();
+
+        // Checkpoint number 1 is reserved so a later result checkpoint recorded by a real handler gets number 2.
+        Assert.Equal(1, workspace.ReserveCheckpointNumber());
         var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, new string('a', 40), Fingerprint, []);
         var lease = RepositoryMutationLease.Acquire(
             Guid.NewGuid(), project.Id, workspace.Id, BitConverter.ToUInt64(Guid.NewGuid().ToByteArray(), 0),

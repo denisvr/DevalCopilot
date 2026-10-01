@@ -182,6 +182,14 @@ findings already authorize, is stored once on the exact claimed attempt and seal
 authority, attempt, or budget; at correction-budget exhaustion a request carrying guidance is refused, and the
 authorization flow above keeps its own separate guidance.
 
+A proposal lineage ends after its second challenge round in a human escalation, with no third automated round. A human
+may explicitly authorize exactly one initial implementation claim for that final plan
+([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)): a required, bounded
+reason is recorded as a `HumanInstruction`, no attempt, budget, or provider is involved, and the implementation is then
+requested separately through the ordinary explicit claim, which consumes the authorization once and keeps every existing
+lifecycle, workspace, budget, token-stop, and recovery gate. The resulting report is valid through verification, code review,
+ordinary correction, and re-review unchanged.
+
 ### Approval state
 
 `NotRequired`, `Pending`, `Approved`, `Rejected`, `Expired`, or `Consumed`.

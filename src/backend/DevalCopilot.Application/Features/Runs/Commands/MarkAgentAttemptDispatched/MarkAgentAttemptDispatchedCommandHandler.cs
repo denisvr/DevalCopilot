@@ -3,6 +3,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -274,6 +275,19 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         // very same plan and checkpoint in that window.
         if (attempt.AgentResponseContract == AgentResponseContract.ImplementationReport)
         {
+            // The human plan-authorization half of the same last gate (ADR-0016), judged from a fresh untracked
+            // snapshot, never from the tracked attempt or the feed's earlier projection. An authorized attempt must name
+            // exactly one coherent grant it consumed, with the exact ordered inputs, bound to its own starting
+            // checkpoint; an ordinary one must hold none; and the fact the caller expected must equal what is durable.
+            // Anything else is refused before a provider process could exist and leaves the attempt undispatched.
+            var planningClassification = await PlanningImplementationAuthorizationAttempt.ClassifyFreshAsync(
+                dbContext, attempt.RunId, attempt.Id, cancellationToken);
+            if (planningClassification.Form == PlanningImplementationAuthorizationEvidence.AttemptForm.Invalid
+                || !Equals(PlanningImplementationAuthorizationAttempt.ToFact(planningClassification), command.ExpectedPlanningAuthorization))
+            {
+                return Result<DateTimeOffset>.Failure(PlanningImplementationAuthorizationErrors.DispatchMismatch());
+            }
+
             var planProposalMessageId = await ImplementationInputIdentity.GetPlanProposalMessageIdAsync(dbContext, attempt.Id, cancellationToken);
             var alreadyImplemented = await ImplementationInputIdentity.HasCompetingSuccessfulImplementationAsync(
                 dbContext, attempt.RunId, attempt.Id, planProposalMessageId, attempt.AgentGitCheckpointId!.Value, cancellationToken);

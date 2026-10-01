@@ -22,7 +22,7 @@ const STAGE_TEXT: Record<string, string> = {
 /**
  * Shows where the newest proposal lineage stands after its first challenge round, and truthfully
  * states the end of the lineage: once a second challenge round is resolved there is no third review
- * and the final revised proposal is not implementable — a human decision (or a new planning request)
+ * and the final revised proposal is implementable only through one explicit human authorization — a human decision (or a new planning request)
  * is needed, and the escalation record is never an approval. Renders nothing for a lineage with no
  * revision. Purely a display of what the loaded timeline and the latest review status show; the
  * backend decides every eligibility.
@@ -39,7 +39,8 @@ export function PlanningLineageSummary({ lineage, review }: PlanningLineageSumma
         <>
           <p className="dc-planning-lineage-status">
             The second challenge round is resolved. There is no further review or automatic resolution, and the final
-            revised proposal cannot be implemented through this lineage.
+            revised proposal cannot be implemented through this lineage without an explicit human authorization, which
+            permits at most one implementation claim of it.
           </p>
           {lineage.escalation ? (
             <p className="dc-planning-lineage-escalation" role="status">

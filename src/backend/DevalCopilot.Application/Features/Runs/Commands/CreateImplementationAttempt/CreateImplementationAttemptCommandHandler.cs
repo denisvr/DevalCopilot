@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
@@ -10,6 +11,7 @@ using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAttempt;
 
@@ -26,7 +28,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
     IDevalCopilotDbContext dbContext,
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IAttemptDurabilityProbe? attemptDurabilityProbe = null)
     : ICommandHandler<CreateImplementationAttemptCommand, Result<CreateImplementationAttemptCommandResult>>
 {
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
@@ -45,6 +48,85 @@ public sealed class CreateImplementationAttemptCommandHandler(
 
     public async Task<Result<CreateImplementationAttemptCommandResult>> HandleAsync(
         CreateImplementationAttemptCommand command, CancellationToken cancellationToken)
+    {
+        var sealedClaim = new AuthorizedClaimScope();
+        try
+        {
+            return await ClaimAsync(command, sealedClaim, cancellationToken);
+        }
+        catch (Exception) when (sealedClaim.IsArmed)
+        {
+            // Any exit that leaves an authorized claim's sealed manifest unresolved — the caller's cancellation or a raw
+            // provider failure at a late read, at the save, or at the commit — is settled from durable state, never from
+            // the exception, and then propagates unchanged.
+            await ReleaseAbandonedAuthorizedClaimAsync(sealedClaim);
+            throw;
+        }
+    }
+
+    /// <summary>What a human-authorized claim has put outside its transaction: the sealed manifest file (armed once it
+    /// exists), the explicit transaction, and the tracked entities, so an exit can release exactly those.</summary>
+    private sealed class AuthorizedClaimScope
+    {
+        public bool IsArmed { get; private set; }
+
+        public Guid RunId { get; private set; }
+
+        public Guid AttemptId { get; private set; }
+
+        public IDbContextTransaction? Transaction { get; set; }
+
+        public List<object> Tracked { get; } = [];
+
+        public void Arm(Guid runId, Guid attemptId)
+        {
+            RunId = runId;
+            AttemptId = attemptId;
+            IsArmed = true;
+        }
+    }
+
+    /// <summary>Rolls back and releases the uncommitted transaction, then asks an independent connection (with a token
+    /// that is never cancelled) whether the claim's attempt is durable. Only a definite "not persisted" deletes the sealed
+    /// file; a claim that committed keeps its manifest and its one spent grant, and an unanswered probe keeps the file.</summary>
+    private async Task<AttemptDurabilityCheckResult> ResolveAuthorizedDurabilityAsync(AuthorizedClaimScope claim)
+    {
+        if (claim.Transaction is { } transaction)
+        {
+            await RollbackBestEffortAsync(transaction);
+        }
+
+        return attemptDurabilityProbe is null
+            ? AttemptDurabilityCheckResult.Unresolved
+            : await attemptDurabilityProbe.CheckAsync(claim.AttemptId, CancellationToken.None);
+    }
+
+    private void DiscardOrphanedAuthorizedClaim(AuthorizedClaimScope claim)
+    {
+        artifactStore.DeleteOrphanedSealedFile(claim.RunId, claim.AttemptId, ArtifactPurpose.AgentContextManifest);
+        foreach (var entity in claim.Tracked)
+        {
+            dbContext.Entry(entity).State = EntityState.Detached;
+        }
+    }
+
+    private async Task ReleaseAbandonedAuthorizedClaimAsync(AuthorizedClaimScope claim)
+    {
+        try
+        {
+            if (await ResolveAuthorizedDurabilityAsync(claim) == AttemptDurabilityCheckResult.NotPersisted)
+            {
+                DiscardOrphanedAuthorizedClaim(claim);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // The caller's own failure stays the one that propagates; an unresolved release leaves the file in place.
+        }
+    }
+
+    private async Task<Result<CreateImplementationAttemptCommandResult>> ClaimAsync(
+        CreateImplementationAttemptCommand command, AuthorizedClaimScope sealedClaim, CancellationToken cancellationToken)
     {
         // Supplied direct guidance is normalized (and refused if invalid) before any read or external work. The
         // validator normally rejects it first; this keeps a direct handler call equally safe. Null stays unguided.
@@ -237,6 +319,56 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.Failure("agent_attempts.context_manifest_seal_failed", "The context manifest could not be sealed."));
         }
 
+        if (planValidation.Grant is not null)
+        {
+            sealedClaim.Arm(run.Id, attemptId);
+        }
+
+        // A human-authorized escalated plan (ADR-0016) commits through one short explicit transaction opened only now,
+        // after every external step: its first statement takes the database write lock, so the fresh untracked
+        // authority reads below (context, lineage, grant) and the single save that consumes the grant with the attempt
+        // are one atomic unit that no competing connection can interleave with. A disposed, uncommitted transaction
+        // rolls back, so every refusal path below consumes nothing. Ordinary claims keep their single guarded save.
+        var authorizedGrant = planValidation.Grant;
+        IDbContextTransaction? claimTransaction = null;
+        if (authorizedGrant is not null)
+        {
+            try
+            {
+                claimTransaction = await dbContext.BeginTransactionAsync(cancellationToken);
+            }
+            catch (DbException)
+            {
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+        }
+
+        sealedClaim.Transaction = claimTransaction;
+        await using var claimTransactionScope = claimTransaction;
+
+        if (authorizedGrant is not null)
+        {
+            Error? contextError;
+            try
+            {
+                contextError = await ConfirmAuthorizedClaimContextAsync(run, workspace, checkpoint, cancellationToken);
+            }
+            catch (DbException)
+            {
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (contextError is not null)
+            {
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(contextError);
+            }
+        }
+
         // The last read before the durable commit: the resolved plan's eligibility (including a
         // review that challenged it in the meantime), any competing implementation, and the run-wide
         // Running slot are decided again after the external work above. A plan that stopped being
@@ -246,7 +378,10 @@ public sealed class CreateImplementationAttemptCommandHandler(
         var lateValidation = await ValidateResolvedPlanAsync(
             run, command.PlanProposalMessageId, workspace, checkpoint, evidence, configuredVerificationCommands, directGuidance, cancellationToken);
         Error? lateError = lateValidation.Error;
-        if (lateError is null && !lateValidation.OrderedInputMessageIds!.SequenceEqual(orderedInputMessageIds))
+        if (lateError is null
+            && (!lateValidation.OrderedInputMessageIds!.SequenceEqual(orderedInputMessageIds)
+                || lateValidation.Grant?.Id != authorizedGrant?.Id
+                || (authorizedGrant is not null && !string.Equals(lateValidation.ManifestJson, manifestJson, StringComparison.Ordinal))))
         {
             lateError = Error.Conflict("agent_attempts.plan_changed", "The resolved plan's evidence changed while this claim was being prepared.");
         }
@@ -269,6 +404,28 @@ public sealed class CreateImplementationAttemptCommandHandler(
         {
             artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
             return Result<CreateImplementationAttemptCommandResult>.Failure(lateError);
+        }
+
+        // The grant is read tracked only now, inside the write-locked transaction, and spent in the very save that
+        // inserts the attempt: its consumed-by link is a concurrency token, so a second claim can never also spend it.
+        PlanningImplementationAuthorization? trackedGrant = null;
+        if (authorizedGrant is not null)
+        {
+            trackedGrant = await dbContext.PlanningImplementationAuthorizations
+                .SingleOrDefaultAsync(candidate => candidate.Id == authorizedGrant.Id, cancellationToken);
+            if (trackedGrant is null || !trackedGrant.IsAvailable)
+            {
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    PlanningImplementationAuthorizationErrors.ClaimConsumed());
+            }
+
+            if (nowUtc < trackedGrant.CreatedAtUtc)
+            {
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateImplementationAttemptCommandResult>.Failure(
+                    PlanningImplementationAuthorizationErrors.ClaimInvalid());
+            }
         }
 
         var attemptNumber = await dbContext.Attempts.Where(candidate => candidate.RunId == run.Id).CountAsync(cancellationToken) + 1;
@@ -322,6 +479,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             requestedTurnLimit.Value,
             directGuidance);
         dbContext.Attempts.Add(attempt);
+        trackedGrant?.Consume(attemptId, nowUtc);
 
         var inputMessages = new List<AttemptInputMessage>(orderedInputMessageIds.Count);
         for (var index = 0; index < orderedInputMessageIds.Count; index++)
@@ -346,20 +504,71 @@ public sealed class CreateImplementationAttemptCommandHandler(
             ArtifactRetentionPolicy.RetainUntilRunDeleted,
             nowUtc);
         dbContext.Artifacts.Add(manifestArtifact);
+        if (trackedGrant is not null)
+        {
+            sealedClaim.Tracked.Add(trackedGrant);
+            sealedClaim.Tracked.Add(attempt);
+            sealedClaim.Tracked.AddRange(inputMessages);
+            sealedClaim.Tracked.Add(manifestArtifact);
+        }
 
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (claimTransaction is not null)
+            {
+                await claimTransaction.CommitAsync(cancellationToken);
+            }
+        }
+        catch (DbException) when (claimTransaction is not null)
+        {
+            // The authorized claim's save or commit itself failed (for example a bounded lock wait elapsed), so whether it
+            // landed is unknown: the transaction is rolled back and released first, and only an independent connection's
+            // answer about what the database holds decides — never the exception and never this context's tracked entities.
+            var durability = await ResolveAuthorizedDurabilityAsync(sealedClaim);
+            if (durability == AttemptDurabilityCheckResult.Persisted)
+            {
+                return Result<CreateImplementationAttemptCommandResult>.Success(
+                    new CreateImplementationAttemptCommandResult(attemptId, attemptNumber));
+            }
+
+            if (durability == AttemptDurabilityCheckResult.Unresolved)
+            {
+                // Kept exactly as a committed claim's would be: it may still be referenced.
+                return Result<CreateImplementationAttemptCommandResult>.Failure(Error.Failure(
+                    "attempts.persistence_unresolved", "Whether the attempt was durably recorded could not be confirmed."));
+            }
+
+            DiscardOrphanedAuthorizedClaim(sealedClaim);
+            return Result<CreateImplementationAttemptCommandResult>.Failure(
+                Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
         }
         catch (DbUpdateException exception)
         {
-            // The exception means this DbContext's change tracker no longer reliably reflects
-            // what actually committed — the cause is never inferred from what this request
-            // attempted, only from a fresh, untracked read of what the database actually holds
-            // now.
-            var thisAttemptPersisted = await dbContext.Attempts
-                .AsNoTracking()
-                .AnyAsync(candidate => candidate.Id == attemptId, cancellationToken);
+            // The exception means this DbContext's change tracker no longer reliably reflects what actually committed — the
+            // cause is never inferred from what this request attempted, only from a fresh, untracked read of what the
+            // database actually holds now. An authorized claim's transaction is rolled back and released first and is then
+            // judged by the independent probe, so a rolled-back grant consumption is never mistaken for a claim.
+            if (claimTransaction is not null)
+            {
+                var durability = await ResolveAuthorizedDurabilityAsync(sealedClaim);
+                if (durability == AttemptDurabilityCheckResult.Persisted)
+                {
+                    return Result<CreateImplementationAttemptCommandResult>.Success(
+                        new CreateImplementationAttemptCommandResult(attemptId, attemptNumber));
+                }
+
+                if (durability == AttemptDurabilityCheckResult.Unresolved)
+                {
+                    return Result<CreateImplementationAttemptCommandResult>.Failure(Error.Failure(
+                        "attempts.persistence_unresolved", "Whether the attempt was durably recorded could not be confirmed."));
+                }
+            }
+
+            var thisAttemptPersisted = claimTransaction is null
+                && await dbContext.Attempts
+                    .AsNoTracking()
+                    .AnyAsync(candidate => candidate.Id == attemptId, cancellationToken);
             if (thisAttemptPersisted)
             {
                 return Result<CreateImplementationAttemptCommandResult>.Success(
@@ -374,6 +583,17 @@ public sealed class CreateImplementationAttemptCommandHandler(
             }
 
             dbContext.Artifacts.Remove(manifestArtifact);
+            if (trackedGrant is not null)
+            {
+                dbContext.Entry(trackedGrant).State = EntityState.Detached;
+                if (await dbContext.PlanningImplementationAuthorizations.AsNoTracking().AnyAsync(
+                        candidate => candidate.Id == trackedGrant.Id && candidate.ConsumedByAttemptId != null, cancellationToken))
+                {
+                    // A competing claim spent the grant first; this claim consumed nothing.
+                    return Result<CreateImplementationAttemptCommandResult>.Failure(
+                        PlanningImplementationAuthorizationErrors.ClaimConsumed());
+                }
+            }
 
             if (exception is DbUpdateConcurrencyException)
             {
@@ -668,6 +888,37 @@ public sealed class CreateImplementationAttemptCommandHandler(
         }
 
         var node = eligibility.Node!;
+        if (eligibility.Authorization is { } authorization)
+        {
+            // The human-authorized escalated plan: the final Proposal, every Decision of its second resolution in
+            // collaboration order, then the authorization message, with the distinct resolution-evidence form.
+            var authorizedManifest = ImplementationContextManifestBuilder.BuildForHumanAuthorizedEscalatedProposal(
+                run.ProjectId,
+                workspace.Id,
+                checkpoint.Id,
+                checkpoint.FingerprintSha256,
+                run.Objective,
+                revisedProposalMessage.Id,
+                revisedProposalMessage.Summary,
+                revisedProposalMessage.StructuredContentJson,
+                node.Decisions
+                    .Select(decision => new ImplementationContextManifestBuilder.DecisionEvidence(
+                        decision.InReplyToMessageId!.Value, decision.Summary, decision.StructuredContentJson))
+                    .ToArray(),
+                new ImplementationContextManifestBuilder.HumanAuthorizationEvidence(
+                    authorization.Grant.Id,
+                    authorization.Escalation.Id,
+                    authorization.Instruction.Id,
+                    authorization.Rationale),
+                evidence.ChangedPaths,
+                evidence.CompleteDiff,
+                configuredVerificationCommands,
+                untrackedFiles: evidence.UntrackedFiles,
+                directHumanGuidance: directHumanGuidance);
+            return ResolvedPlanValidation.SucceededAuthorized(
+                authorizedManifest, authorization.ExpectedInputMessageIds, authorization.Grant);
+        }
+
         var acceptance = eligibility.Acceptance;
         var manifestJson = ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
             run.ProjectId,
@@ -768,10 +1019,14 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 "The resolver's decision set is not a valid, complete, provider-observed set."));
         }
 
-        // A depth-two revision ended its lineage in a human escalation; it is never implementable.
+        // A depth-two revision ended its lineage in a human escalation. It is implementable only through the one explicit
+        // human exception (ADR-0016): a recorded, coherent, current, unconsumed grant for exactly this final Proposal.
+        // Without one it stays refused exactly as before; the automatic caps are not raised.
         if (node.Depth > PlanningLineage.MaximumImplementableDepth)
         {
-            return RevisionEligibility.Failed(PlanningLineage.ExhaustedError());
+            return node.Depth == PlanningLineage.MaximumDepth
+                ? EvaluateHumanAuthorization(snapshot, node, workspace, checkpoint)
+                : RevisionEligibility.Failed(PlanningLineage.ExhaustedError());
         }
 
         // A first revision may have received one optional critical review. Challenged blocks it
@@ -803,17 +1058,102 @@ public sealed class CreateImplementationAttemptCommandHandler(
             : RevisionEligibility.Succeeded(node, acceptance);
     }
 
-    private sealed record RevisionEligibility(PlanningLineage.Node? Node, CollaborationMessage? Acceptance, Error? Error)
+    /// <summary>
+    /// The single decision for a depth-two final plan, from one fresh untracked snapshot: no grant is the unchanged
+    /// exhaustion refusal; a grant that is not bound to the exact current workspace, checkpoint and fingerprint, or whose
+    /// lineage was superseded by a newer independent Planner Proposal, is stale; an incoherent recorded chain is invalid;
+    /// a spent grant is consumed; and a plan that somehow holds a review is incoherent evidence, never an implied plan.
+    /// </summary>
+    private static RevisionEligibility EvaluateHumanAuthorization(
+        ImplementerExecutionReportEligibility.Snapshot snapshot, PlanningLineage.Node node, GitWorkspace workspace, GitCheckpoint checkpoint)
+    {
+        var grants = snapshot.PlanningAuthorizations.Where(candidate => candidate.FinalProposalMessageId == node.Proposal.Id).ToArray();
+        if (grants.Length == 0)
+        {
+            return RevisionEligibility.Failed(PlanningLineage.ExhaustedError());
+        }
+
+        if (grants.Length != 1)
+        {
+            return RevisionEligibility.Failed(PlanningImplementationAuthorizationErrors.ClaimInvalid());
+        }
+
+        var grant = grants[0];
+        if (!PlanningImplementationAuthorizationEvidence.IsBoundTo(grant, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256)
+            || PlanningImplementationAuthorizationEvidence.IsSuperseded(snapshot, node))
+        {
+            return RevisionEligibility.Failed(PlanningImplementationAuthorizationErrors.ClaimStale());
+        }
+
+        if (PlanningImplementationAuthorizationEvidence.ValidateRecorded(snapshot, grant) is not { } recorded
+            || recorded.Final.Proposal.Id != node.Proposal.Id
+            || PlanningLineage.SuccessfulReviewsOf(snapshot, grant.RunId, node.Proposal.Id).Count != 0)
+        {
+            return RevisionEligibility.Failed(PlanningImplementationAuthorizationErrors.ClaimInvalid());
+        }
+
+        return grant.IsAvailable
+            ? RevisionEligibility.Authorized(node, recorded)
+            : RevisionEligibility.Failed(PlanningImplementationAuthorizationErrors.ClaimConsumed());
+    }
+
+    /// <summary>
+    /// The authorized claim's context, decided inside its write-locked transaction from fresh untracked reads: the stored
+    /// execution mode still admits Agent work (that statement is also what takes the write lock), the run is still
+    /// running, the workspace is ready with an active lease, and the claim's checkpoint and fingerprint are still the
+    /// workspace's current ones. A tracked entity loaded earlier confers none of this authority.
+    /// </summary>
+    private async Task<Error?> ConfirmAuthorizedClaimContextAsync(
+        Run run, GitWorkspace workspace, GitCheckpoint checkpoint, CancellationToken cancellationToken) =>
+        await PlanningImplementationAuthorizationContext.ConfirmAsync(
+            dbContext, run, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, cancellationToken) switch
+        {
+            null => null,
+            PlanningImplementationAuthorizationContext.Failure.ModeNotAdmitted => CurrentRunExecutionMode.NotAdmitted(),
+            PlanningImplementationAuthorizationContext.Failure.NotRunning =>
+                Error.Conflict("runs.not_running", "The run is not running and cannot start an implementation attempt."),
+            _ => Error.Conflict(
+                "agent_attempts.checkpoint_not_current", "The selected source checkpoint is no longer current for this workspace."),
+        };
+
+    private static async Task RollbackBestEffortAsync(IDbContextTransaction transaction)
+    {
+        try
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is DbException or InvalidOperationException or ObjectDisposedException)
+        {
+            // A disposed, uncommitted transaction rolls back on its own; this call only brings the release forward.
+        }
+    }
+
+    private sealed record RevisionEligibility(
+        PlanningLineage.Node? Node,
+        CollaborationMessage? Acceptance,
+        Error? Error,
+        PlanningImplementationAuthorizationEvidence.Recorded? Authorization = null)
     {
         public static RevisionEligibility Succeeded(PlanningLineage.Node node, CollaborationMessage? acceptance) => new(node, acceptance, null);
+
+        public static RevisionEligibility Authorized(PlanningLineage.Node node, PlanningImplementationAuthorizationEvidence.Recorded authorization) =>
+            new(node, null, null, authorization);
 
         public static RevisionEligibility Failed(Error error) => new(null, null, error);
     }
 
-    private sealed record ResolvedPlanValidation(string? ManifestJson, IReadOnlyList<Guid>? OrderedInputMessageIds, Error? Error)
+    private sealed record ResolvedPlanValidation(
+        string? ManifestJson,
+        IReadOnlyList<Guid>? OrderedInputMessageIds,
+        Error? Error,
+        PlanningImplementationAuthorization? Grant = null)
     {
         public static ResolvedPlanValidation Succeeded(string manifestJson, IReadOnlyList<Guid> orderedInputMessageIds) =>
             new(manifestJson, orderedInputMessageIds, null);
+
+        public static ResolvedPlanValidation SucceededAuthorized(
+            string manifestJson, IReadOnlyList<Guid> orderedInputMessageIds, PlanningImplementationAuthorization grant) =>
+            new(manifestJson, orderedInputMessageIds, null, grant);
 
         public static ResolvedPlanValidation Failed(Error error) => new(null, null, error);
     }

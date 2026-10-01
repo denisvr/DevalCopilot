@@ -105,7 +105,8 @@ public sealed class ImplementationSupervisor(
 
         var dispatched = await DispatchAsync(
             new MarkAgentAttemptDispatchedCommand(
-                attempt.RunId, attempt.AttemptId, new ExpectedDirectHumanGuidance(attempt.DirectHumanGuidance)),
+                attempt.RunId, attempt.AttemptId, new ExpectedDirectHumanGuidance(attempt.DirectHumanGuidance),
+                attempt.PlanningAuthorization),
             stoppingToken);
         if (dispatched.IsFailure)
         {
@@ -150,7 +151,8 @@ public sealed class ImplementationSupervisor(
                     attempt.RequestedClaudeEffort,
                     attempt.RequestedMaxTurns,
                     attempt.AdapterContractVersion,
-                    attempt.DirectHumanGuidance),
+                    attempt.DirectHumanGuidance,
+                    attempt.PlanningAuthorization),
                 stoppingToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

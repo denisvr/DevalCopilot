@@ -209,7 +209,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
 
         var validatedExecutionReport = executionReportValidation.Value!;
         var executionReportMessage = validatedExecutionReport.ExecutionReport;
-        var resolvedPlanMessage = validatedExecutionReport.OriginalProposal;
+        var resolvedPlanMessage = validatedExecutionReport.ImplementedPlan;
 
         var verificationValidation = await ValidateVerificationEvidenceAsync(run.ProjectId, checkpoint, cancellationToken);
         if (verificationValidation.Error is { } verificationError)

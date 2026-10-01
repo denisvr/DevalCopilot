@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useRunCockpit } from '../hooks/useRunCockpit'
 import { useCollaborationTimeline } from '../hooks/useCollaborationTimeline'
 import { useAgentAttemptStatus } from '../hooks/useAgentAttemptStatus'
@@ -11,6 +12,8 @@ import { useRequestChallengeResolution } from '../hooks/useRequestChallengeResol
 import { useRequestChallengeResolutionRepairAttempt } from '../hooks/useRequestChallengeResolutionRepairAttempt'
 import { useImplementationAttemptStatus } from '../hooks/useImplementationAttemptStatus'
 import { useRequestImplementation } from '../hooks/useRequestImplementation'
+import { usePlanningImplementationAuthorization } from '../hooks/usePlanningImplementationAuthorization'
+import { useAuthorizePlanningImplementation } from '../hooks/useAuthorizePlanningImplementation'
 import { useCodeReviewAttemptStatus } from '../hooks/useCodeReviewAttemptStatus'
 import { useRequestCodeReview } from '../hooks/useRequestCodeReview'
 import { useRequestCodeReviewRepairAttempt } from '../hooks/useRequestCodeReviewRepairAttempt'
@@ -23,6 +26,7 @@ import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDiscl
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import {
   derivePlanningLineage,
+  selectAuthorizedPlanMessageId,
   selectImplementablePlanMessageId,
   selectReviewableProposalMessageId,
 } from '../derivePlanningLineage'
@@ -41,6 +45,7 @@ import { CodexPlanningRepairAction } from './CodexPlanningRepairAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
 import { ClaudeCriticalReviewRepairAction } from './ClaudeCriticalReviewRepairAction'
 import { PlanningLineageSummary } from './PlanningLineageSummary'
+import { PlanningImplementationAuthorizationPanel } from './PlanningImplementationAuthorizationPanel'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ChallengeResolutionRepairAction } from './ChallengeResolutionRepairAction'
 import { ImplementationAction } from './ImplementationAction'
@@ -61,6 +66,10 @@ import { WorkflowRail } from './WorkflowRail'
 interface RunCockpitViewProps {
   runId: string
 }
+
+const AUTHORIZED_REQUEST_LABEL = 'Implement the human-authorized final plan with Claude'
+const AUTHORIZATION_SPENT_NOTE =
+  'The human authorization for this final plan was already used by an implementation claim. It cannot be reused, so no new implementation of this plan can be requested through it.'
 
 export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
@@ -116,7 +125,25 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   // re-verifies this eligibility in full before acting on it — this only withholds a certainly
   // blocked action.
   const eligiblePlanProposalMessageId = selectImplementablePlanMessageId(planningLineage, reviewStatusHint)
-  const requestImplementation = useRequestImplementation(runId, eligiblePlanProposalMessageId, implementationAttemptStatus.refresh)
+  // The explicit human decision on the final plan of a completed second challenge round (ADR-0016). The facts are the
+  // server's read of the escalation the loaded timeline shows; a plan is offered for implementation only when the server
+  // names that exact final revision with an Available (or already Consumed, to keep showing its claim) authorization.
+  // Provider review and resolution of the final revision stay unavailable whatever this says.
+  const planningEscalationId =
+    planningLineage.depth === 2 && !planningLineage.ambiguous && planningLineage.secondRevision
+      ? (planningLineage.escalation?.id ?? null)
+      : null
+  const planningAuthorization = usePlanningImplementationAuthorization(runId, planningEscalationId, cockpit?.latestSequence)
+  const authorizePlanning = useAuthorizePlanningImplementation(runId, planningEscalationId ?? '', planningAuthorization.refresh)
+  const authorizedPlanMessageId = selectAuthorizedPlanMessageId(planningLineage, planningAuthorization.authorization)
+  const refreshImplementationStatus = implementationAttemptStatus.refresh
+  const refreshAuthorization = planningAuthorization.refresh
+  const refreshAfterImplementationRequest = useCallback(() => {
+    refreshImplementationStatus()
+    refreshAuthorization()
+  }, [refreshImplementationStatus, refreshAuthorization])
+  const implementablePlanMessageId = eligiblePlanProposalMessageId ?? authorizedPlanMessageId
+  const requestImplementation = useRequestImplementation(runId, implementablePlanMessageId, refreshAfterImplementationRequest)
 
   if (loading && !cockpit) {
     return <p className="dc-empty-state">Loading run…</p>
@@ -266,6 +293,19 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
             timeFit={claudeCriticalReviewTimeFit}
           />
           <PlanningLineageSummary lineage={planningLineage} review={reviewStatusHint} />
+          {planningEscalationId && planningLineage.secondRevision && (
+            <PlanningImplementationAuthorizationPanel
+              runId={runId}
+              escalationMessageId={planningEscalationId}
+              timelineFinalProposalMessageId={planningLineage.secondRevision.id}
+              authorization={planningAuthorization.authorization}
+              loading={planningAuthorization.loading}
+              readError={planningAuthorization.error}
+              authorizing={authorizePlanning.authorizing}
+              authorizeError={authorizePlanning.error}
+              onAuthorize={(rationale) => authorizePlanning.authorize(runId, planningEscalationId, rationale)}
+            />
+          )}
           <ChallengeResolutionAction
             challengedReviewAttemptId={latestChallengedReviewAttemptId}
             reviewedProposalMessageId={latestChallengedReviewProposalId}
@@ -292,19 +332,25 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           />
           <ImplementationAction
             runId={runId}
-            planProposalMessageId={eligiblePlanProposalMessageId}
+            planProposalMessageId={implementablePlanMessageId}
             status={implementationAttemptStatus.status}
             statusLoading={implementationAttemptStatus.loading}
             statusError={implementationAttemptStatus.error}
             requesting={requestImplementation.requesting}
             requestError={requestImplementation.error}
             onRequest={(guidance) =>
-              eligiblePlanProposalMessageId
-                ? requestImplementation.request(runId, eligiblePlanProposalMessageId, guidance)
+              implementablePlanMessageId
+                ? requestImplementation.request(runId, implementablePlanMessageId, guidance)
                 : Promise.resolve(false)
             }
             globalClaimBlock={globalClaimBlock}
             timeFit={implementationTimeFit}
+            requestLabel={authorizedPlanMessageId ? AUTHORIZED_REQUEST_LABEL : undefined}
+            requestWithheldNote={
+              authorizedPlanMessageId && planningAuthorization.authorization?.state === 'Consumed'
+                ? AUTHORIZATION_SPENT_NOTE
+                : null
+            }
           />
           <CodeReviewAction
             executionReportMessageId={latestExecutionReportMessageId}

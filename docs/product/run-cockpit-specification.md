@@ -660,14 +660,17 @@ ambiguous chain only ever **withholds** an action and never grants one.
 - **Implementation action.** The original root is offered only after an Accepted review of exactly that root. The
   first revision is offered when its own review did not Challenge and is not running — with no second review it
   is the direct path; with an Accepted one it is the acceptance-bound path — and is withheld while the review
-  status is loading or failed, so a hidden Challenged review is never overlooked. It is never offered for a
-  second revision or an ambiguous chain.
+  status is loading or failed, so a hidden Challenged review is never overlooked. This automatic selection never
+  offers a second revision or an ambiguous chain; the second revision appears only through the explicit human
+  authorization described in
+  [Human decision on the final plan](#human-decision-on-the-final-plan).
 - **Lineage summary.** A short "Proposal lineage" region appears once a revision exists and states the stage in
   fixed text: an optional second review is available (and the revision may be implemented directly); the second
   review is running, accepted, or challenged (implementation blocked, one last resolution available), did not
   conclude, or its status is unavailable; and, at the end of the lineage, that the second challenge round is
   resolved, there is no further review or automatic resolution, the final revised proposal cannot be
-  implemented through the lineage, and a human decision is required. The escalation's own summary is shown as
+  implemented through the lineage without an explicit human authorization (which permits at most one implementation
+  claim of it), and a human decision is required. The escalation's own summary is shown as
   "Human decision required: …" with the statement that the record is not an approval; if the escalation is not
   in the loaded timeline the region says so instead of implying it exists. It never shows raw artifact text,
   and it never states that any plan was approved or implemented.
@@ -677,6 +680,46 @@ ambiguous chain only ever **withholds** an action and never grants one.
   longer selected, and the lineage is recomputed during render from the currently selected run's own timeline,
   so a previous run's lineage, escalation, or blocked state is never shown for the new run, even for one render
   frame.
+
+### Human decision on the final plan
+
+When the loaded lineage is one unambiguous chain ending in its second revision and that revision's host escalation, the
+cockpit adds a "Human decision on the final plan" region after the lineage summary, for a run whose execution mode admits
+Agent work ([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)). It reads
+the server's own facts for that escalation (`GET …/planning-escalations/{escalationMessageId}/implementation-authorization`,
+re-read whenever the run advances) and shows only what they say.
+
+- **Identity and consequence.** It names the final revised plan and the escalation (short identifiers) and the number and
+  identifiers of the second-round decisions the server returns. For an absent authorization it states the consequence: authorizing
+  records the human's decision and permits exactly one implementation claim of this plan; it does not start an implementation,
+  reserve any budget, or contact a provider; the implementation is requested separately and provider availability and budgets are
+  checked then; the claim spends the authorization even if the implementation later fails; it cannot be renewed or revoked.
+- **Decision form.** A required reason (at most 600 characters, no control characters except line breaks, advisory, recorded in the
+  timeline and sent to the Implementer as context, not screened for secrets) and one button, "Authorize one implementation claim".
+  A blank or visibly invalid reason is never sent; the server stays authoritative and its refusals map to fixed local copy by
+  problem code (never the submitted text or the server's own wording).
+- **States.** `Absent` shows the form; `Available` states that a human authorized exactly one claim, that no implementation has been
+  claimed with it, and the exact recorded reason; `Consumed` states that the authorization was used by an implementation claim and
+  cannot be reused whatever that attempt's outcome; `Stale` states that it no longer matches the run's current plan, checkpoint, or
+  fingerprint and is unusable; `Invalid` states that the recorded evidence could not be validated; an unrecognized state offers
+  nothing. While the facts are unread, or after a failed read, only a loading or "could not be read, so no decision is shown" line is
+  shown and no decision or implementation is offered: nothing is inferred from an earlier click or an earlier read. Facts belong to the
+  committed run-and-escalation lifetime and the exact read that fetched them: after switching to another run or escalation and back,
+  the earlier `Available`, `Consumed`, or unavailable record is not shown again, not even for one frame, and no implementation is
+  offered until a fresh read for the returned-to interaction supplies usable facts (a failed fresh read shows only the unavailable line).
+  While a newer read of the same interaction is pending, its last facts stay shown so an open form keeps its state. If the server
+  names a different final plan than the timeline shows, nothing is offered.
+- **Implementation, separately.** Only for an `Available` authorization naming exactly the timeline's final revision, the existing
+  implementation action is offered for that plan with the label "Implement the human-authorized final plan with Claude", keeping its
+  guidance editor, budget and time-fit blocks, status, and all other behavior. After `Consumed` the same action shows the plan's last
+  attempt and a fixed note that the authorization was used, and offers no request. A stale, invalid, absent, unread, or mismatched
+  authorization offers none. Provider review and resolution of the final revision remain unavailable in every state.
+- **Ownership.** The draft, its edit version, handlers, pending and error state, and the request and refresh continuations belong to
+  (run, escalation, final plan) and the mounted lifetime: switching the run, escalation, or final plan resets the draft during render
+  (A to B to A is a new interaction), a late accepted request stays a server operation but cannot update another interaction, mark it
+  busy, refresh it, or clear a newer draft, an unmount drops every continuation, a synchronous second submit while one is in flight is
+  ignored, and an accepted submission clears the draft only if it is still the same interaction, no newer submission began, and it was
+  not edited since (an edit yielding identical text counts). The draft is never written to browser storage or the URL.
 
 ### One manual Codex plan format repair
 

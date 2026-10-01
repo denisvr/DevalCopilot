@@ -1039,6 +1039,69 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("collaboration_messages", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningImplementationAuthorization", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CheckpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ConsumedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ConsumedByAttemptId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EscalationMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("FinalProposalMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FingerprintSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("HumanInstructionMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsumedByAttemptId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_implementation_authorizations_attempt_consumed")
+                        .HasFilter("\"ConsumedByAttemptId\" IS NOT NULL");
+
+                    b.HasIndex("EscalationMessageId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_implementation_authorizations_escalation");
+
+                    b.HasIndex("FinalProposalMessageId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_implementation_authorizations_final_proposal");
+
+                    b.HasIndex("HumanInstructionMessageId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_implementation_authorizations_instruction");
+
+                    b.HasIndex("RunId");
+
+                    b.ToTable("planning_implementation_authorizations", (string)null);
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.ReviewCorrectionAuthorization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1478,6 +1541,41 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("AttemptId")
                         .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningImplementationAuthorization", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("ConsumedByAttemptId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("EscalationMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("FinalProposalMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("HumanInstructionMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
                         .WithMany()

@@ -30,6 +30,10 @@ interface ImplementationActionProps {
   /** The advisory, candidate-specific time-fit result for THIS claim path — separate from, and
    * combined with, `globalClaimBlock`. See `deriveAgentClaimPathTimeFit`. */
   timeFit: AgentClaimPathTimeFit
+  /** Replaces the default request label, for the explicitly human-authorized final plan. */
+  requestLabel?: string
+  /** When set, no request is offered for this plan and the text states why (for example a spent authorization). */
+  requestWithheldNote?: string | null
 }
 
 function phaseLabel(status: ImplementationAttemptStatusResponse): string {
@@ -75,6 +79,8 @@ export function ImplementationAction({
   onRequest,
   globalClaimBlock,
   timeFit,
+  requestLabel,
+  requestWithheldNote,
 }: ImplementationActionProps) {
   if (!planProposalMessageId) {
     return null
@@ -85,7 +91,7 @@ export function ImplementationAction({
   const isActive = implementsCurrentPlan && status?.status === 'Running'
   const isSettledForCurrentPlan =
     implementsCurrentPlan && (status?.outcome === 'Implemented' || status?.outcome === 'InputAlreadyImplemented')
-  const canRequest = !isActive && !isSettledForCurrentPlan
+  const canRequest = !isActive && !isSettledForCurrentPlan && !requestWithheldNote
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
   const assignmentProvider = status?.provider === 'ClaudeCode'
     ? 'Claude Code'
@@ -111,6 +117,11 @@ export function ImplementationAction({
           Implementation {phaseLabel(status).toLowerCase()}…
         </p>
       )}
+      {!isActive && !isSettledForCurrentPlan && requestWithheldNote && (
+        <p className="dc-implementation-withheld" role="status">
+          {requestWithheldNote}
+        </p>
+      )}
       {!isActive && canRequest && globalClaimBlock && (
         <p className="dc-implementation-global-block" role="status">
           {describeGlobalAgentClaimBlock(globalClaimBlock)}
@@ -128,7 +139,7 @@ export function ImplementationAction({
           disabled={requesting || statusLoading}
           onClick={() => void onRequest()}
         >
-          {requesting ? 'Requesting…' : 'Implement the resolved plan with Claude'}
+          {requesting ? 'Requesting…' : (requestLabel ?? 'Implement the resolved plan with Claude')}
         </button>
       )}
       {!isActive && canRequest && !globalClaimBlock && !timeFitBlocked && (

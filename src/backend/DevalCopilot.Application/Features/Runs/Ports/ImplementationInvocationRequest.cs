@@ -1,3 +1,5 @@
+using DevalCopilot.Application.Features.Runs.Policies;
+
 namespace DevalCopilot.Application.Features.Runs.Ports;
 
 /// <summary>
@@ -25,4 +27,5 @@ public sealed record ImplementationInvocationRequest(
     string? RequestedClaudeEffort = null,
     int? RequestedMaxTurns = null,
     string? AdapterContractVersion = null,
-    string? DirectHumanGuidance = null);
+    string? DirectHumanGuidance = null,
+    PlanningImplementationAuthorizationFact? PlanningAuthorization = null);

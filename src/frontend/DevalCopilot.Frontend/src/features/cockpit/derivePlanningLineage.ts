@@ -191,3 +191,28 @@ export function deriveLineageStage(lineage: PlanningLineage, review: ReviewStatu
   }
   return 'reviewNotConcluded'
 }
+
+/** The server's authorization facts as far as plan selection needs them. */
+export interface PlanningAuthorizationHint {
+  state?: string | null
+  finalProposalMessageId?: string | null
+}
+
+/**
+ * The one final plan an explicit human authorization concerns, offered to the implementation action only from
+ * current server facts: the lineage must end in a second revision with its escalation, and the server must name that exact
+ * revision with an `Available` authorization (to request) or a `Consumed` one (to keep showing that claim's outcome).
+ * Stale, invalid, absent, unread, ambiguous, or mismatched facts select nothing, and nothing is inferred from a click.
+ */
+export function selectAuthorizedPlanMessageId(
+  lineage: PlanningLineage,
+  authorization: PlanningAuthorizationHint | null,
+): string | null {
+  if (!lineage.secondRevision || !lineage.escalation || lineage.ambiguous || !authorization) {
+    return null
+  }
+  if (authorization.finalProposalMessageId !== lineage.secondRevision.id) {
+    return null
+  }
+  return authorization.state === 'Available' || authorization.state === 'Consumed' ? lineage.secondRevision.id : null
+}

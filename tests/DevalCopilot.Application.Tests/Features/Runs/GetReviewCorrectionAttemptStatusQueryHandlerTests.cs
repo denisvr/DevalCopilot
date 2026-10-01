@@ -63,7 +63,9 @@ public sealed class GetReviewCorrectionAttemptStatusQueryHandlerTests : IAsyncLi
         Assert.Equal(few.Count, many.Count);
         Assert.Equal(expectedReportId, few.ReportId);
         Assert.Equal(expectedReportId, many.ReportId);
-        Assert.Equal(6, few.Count);
+        // Constant by construction (equal with few and many candidates). One more than before ADR-0016: the run snapshot
+        // now also reads the run's human planning-implementation authorizations (one bounded query, never per candidate).
+        Assert.Equal(7, few.Count);
     }
 
     [Fact]

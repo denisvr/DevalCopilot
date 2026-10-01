@@ -55,6 +55,8 @@ import {
   GetReviewCorrectionAttemptStatusEndpointClient,
   AuthorizeReviewCorrectionEndpointClient,
   AuthorizeReviewCorrectionWithGuidanceEndpointClient,
+  AuthorizePlanningImplementationEndpointClient,
+  GetPlanningImplementationAuthorizationEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -116,6 +118,8 @@ export const requestReviewCorrectionClient = () => new RequestReviewCorrectionEn
 export const reviewCorrectionAttemptStatusClient = () => new GetReviewCorrectionAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const authorizeReviewCorrectionClient = () => new AuthorizeReviewCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const authorizeReviewCorrectionWithGuidanceClient = () => new AuthorizeReviewCorrectionWithGuidanceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const authorizePlanningImplementationClient = () => new AuthorizePlanningImplementationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const planningImplementationAuthorizationClient = () => new GetPlanningImplementationAuthorizationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -179,6 +183,8 @@ export type {
   RequestReviewCorrectionResponse,
   ReviewCorrectionAttemptStatusResponse,
   AuthorizeReviewCorrectionResponse,
+  AuthorizePlanningImplementationResponse,
+  PlanningImplementationAuthorizationResponse,
   AgentProcessExecutionResponse,
   AgentTokenUsageResponse,
   RunCockpitAgentAttemptResponse,

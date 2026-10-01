@@ -2,6 +2,7 @@ using System.Text.Json;
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -96,6 +97,18 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
                 Error.Conflict(
                     "agent_attempts.starting_checkpoint_invalid",
                     "The attempt's starting checkpoint no longer exists, no longer belongs to its workspace, or no longer agrees with the attempt's own recorded starting fingerprint."));
+        }
+
+        // The human plan-authorization identity (ADR-0016), judged afresh from the durable records at the result boundary:
+        // an authorized attempt must still name exactly the one coherent grant it consumed, and an ordinary attempt none.
+        // A disagreement is corrupt state, never a provider outcome, so nothing is recorded and no ExecutionReport can be
+        // produced for it; restart reconciliation owns the unrecorded attempt exactly as for any other boundary failure.
+        var planningClassification = await PlanningImplementationAuthorizationAttempt.ClassifyFreshAsync(
+            dbContext, attempt.RunId, attempt.Id, cancellationToken);
+        if (planningClassification.Form == PlanningImplementationAuthorizationEvidence.AttemptForm.Invalid)
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(
+                PlanningImplementationAuthorizationErrors.ClaimInvalid());
         }
 
         // A present-but-malformed value is never treated the same as legitimately unavailable

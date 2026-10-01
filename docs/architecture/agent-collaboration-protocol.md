@@ -301,7 +301,10 @@ and recommended choice. It contains no hidden default action.
 ### Human instruction
 
 Records one human authorization replying to an Escalation: authorize one
-additional review-correction claim. It is HumanSubmitted, addressed to the
+additional review-correction claim, or, for the escalation that ends a proposal lineage, authorize one implementation claim
+of its final plan (see
+[Explicit human authorization of one escalated-plan implementation](#explicit-human-authorization-of-one-escalated-plan-implementation));
+the fixed instruction text distinguishes the two. It is HumanSubmitted, addressed to the
 Orchestrator, and carries the fixed authorization instruction plus either the
 fixed default rationale or, only for an explicit guided authorization, one
 bounded, normalized guidance text (see
@@ -2450,7 +2453,10 @@ ADR-0009's role-first authority are applied unchanged; nothing in an accepted AD
   `acceptance_not_valid`. If that review is `Challenged`, the revision is refused 409
   `agent_attempts.plan_challenged` — while its second resolution is pending or failed, and after it succeeded —
   so implementation never falls back to an earlier Proposal. A depth-two Proposal, with or without its
-  escalation, is refused `proposal_lineage_exhausted`. For a Proposal not owned by a Planner attempt, every lineage
+  escalation, is refused `proposal_lineage_exhausted` unless a human explicitly authorized exactly one claim of
+  that final plan (see
+  [Explicit human authorization of one escalated-plan implementation](#explicit-human-authorization-of-one-escalated-plan-implementation));
+  the automatic caps themselves are unchanged. For a Proposal not owned by a Planner attempt, every lineage
   refusal (exhausted, challenged, corrupt, unsupported pair, unreadable) is decided before Git capture or sealing;
   the original Planner path and every other refusal keep their existing position.
   The downstream review and correction workflows re-validate the implementation attempt's recorded input chain
@@ -2473,10 +2479,90 @@ ADR-0009's role-first authority are applied unchanged; nothing in an accepted AD
   identities), and the timeline carries the revised Proposals and the escalation with their reply links; the
   cockpit derives the lineage from those (see the
   [run cockpit specification](../product/run-cockpit-specification.md#optional-second-challenge-round)).
-- **Not included.** A third round, automatic claims, a generic workflow engine, a new human override or
-  authorization, provider-session resume, Claude account allowance, account-usage eligibility or thresholds,
-  model or effort inference, and new provider flags. Implementing an escalated plan needs a new explicit
-  planning request.
+- **Not included.** A third round, automatic claims, a generic workflow engine, a human override of the lineage
+  other than the one explicit authorization described next, provider-session resume, Claude account allowance,
+  account-usage eligibility or thresholds, model or effort inference, and new provider flags. Implementing an
+  escalated plan needs either that one explicit authorization or a new explicit planning request.
+
+### Explicit human authorization of one escalated-plan implementation
+
+A human may authorize exactly one initial implementation claim of the final (depth-two) Proposal of a completed second round
+([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)). It is a real human
+decision recorded as a `HumanInstruction`; it is not a provider Decision or Acceptance, it keeps the review and resolution caps
+and every budget unchanged (a depth-two Proposal stays neither reviewable nor resolvable, with or without a grant), and it is
+distinct from the review-correction authorization, which keeps its own table, factory, instruction, and semantics.
+
+- **Authorize.** `POST /api/runs/{runId}/planning-escalations/{escalationMessageId}/implementation-authorization` with body
+  `{ "rationale": "…" }` (at most 8 KiB). The final Proposal is derived from the persisted escalation. The rationale is
+  required and normalized by `PlanningImplementationInstruction.Normalize` (the shared `BoundedGuidanceText` policy: form C, LF,
+  trim, non-blank valid Unicode, at most 600 UTF-16 code units, no control character except LF, the best-effort summary
+  screen); invalid text is `400 planning_authorizations.rationale_invalid` from a validator (repeated by the handler) before any
+  read, never echoed. The response is identity only: `status`, `authorizationId`, `escalationMessageId`,
+  `finalProposalMessageId`, `humanInstructionMessageId`, and `latestEventSequence`.
+- **Source and context.** The escalation must be a host-constructed, attemptless, protocol-1.0 Orchestrator-to-Human
+  `Escalation` replying to a depth-two Proposal whose complete two-round lineage evaluates (all Challenges, Decisions, owners,
+  reply links, workspace, checkpoint, and fingerprint), be the only escalation replying to that Proposal, and equal the
+  canonical summary and content the second resolution writes (recomputed from the identifiers); the Planner root must own
+  exactly one Proposal. The run must be `Running` with a stored Agent-admitting execution mode, the latest workspace `Ready`
+  with an active lease, the latest checkpoint the lineage's, a fresh Git fingerprint equal to it, and no newer provider-observed
+  Planner Proposal (`planning_authorizations.source_stale`). An unknown, foreign, or non-escalation message is `404
+  source_not_found`; forged, ambiguous, or incoherent evidence is `409 source_invalid`; a non-current context is `409
+  context_not_current`. None repeats stored text.
+- **Record.** One `planning_implementation_authorizations` row (migration `AddPlanningImplementationAuthorization`, additive, no
+  backfill) binds the run, the escalation message, the final Proposal, and the exact workspace, starting checkpoint, and
+  fingerprint to one `HumanInstruction` (`HumanSubmitted`, attemptless, Human to Orchestrator, replying to the escalation,
+  summary "Human authorized one implementation claim for the final escalated plan.", content `{ "instruction": "Authorize one
+  implementation claim for the final escalated plan.", "rationale": "…" }`). The rationale is stored only in the message and
+  read back only in that exact canonical form. The relation owns the nullable `ConsumedByAttemptId` and `ConsumedAtUtc` (an EF
+  concurrency token), with unique indexes on the escalation, the final Proposal, the instruction message, and, filtered, the
+  consuming attempt. The commit is one short transaction opened after Git capture: its first statement is the atomic
+  execution-mode confirmation that takes the write lock, and the context, lineage snapshot, and any existing grant are read
+  afresh and untracked inside it, so another connection's earlier commit is seen. An identical retry returns the recorded
+  authorization and its event without another message or event; a different rationale is `409 rationale_conflict`; a stale
+  grant is `source_stale` and a consumed one `already_consumed`, never revived; an incoherent record is `409 recorded_invalid`.
+  There is no renewal, revocation, second grant, or delete. Nothing here claims an attempt, reserves budget, seals a manifest,
+  or starts a provider.
+- **Read.** `GET` on the same path reports `state`: `Absent` (a valid current source with no grant), `Available` (recorded,
+  coherent, unconsumed, bound to the checkpoint current in the database), `Consumed` (with the consuming attempt and time),
+  `Stale` (the source or grant no longer matches the current lineage, checkpoint, fingerprint, or a newer Planner root replaced
+  the lineage), or `Invalid` (incoherent, forged, ambiguous, or unreadable evidence), plus the final Proposal, the ordered
+  second-round Decision identifiers, and, only for a validated record, the authorization and instruction identifiers, the exact
+  reason, and the times. It performs no Git work, never claims provider readiness or remaining budget, and writes nothing.
+- **Claim.** `POST …/agent-attempts/implementation` keeps its body and recognizes only the specifically authorized final
+  Proposal. An unauthorized depth-two Proposal is refused `proposal_lineage_exhausted` exactly as before, before any external
+  work. Eligibility is decided before the provider probe and Git capture and again after manifest sealing inside a short
+  transaction (same write-lock discipline), which also re-reads the run, execution mode, workspace, lease, and checkpoint. The
+  grant is bound to the current workspace, checkpoint, and fingerprint, unconsumed, coherent, and not superseded
+  (`agent_attempts.planning_authorization_stale`, `…_consumed`, `…_invalid`). The grant is consumed in the very save that inserts
+  the Attempt, its ordered inputs (final Proposal, every Decision of the second resolution in collaboration order, then the
+  authorization `HumanInstruction`), the manifest artifact, and the ordinary budget reservation; a refusal, a lost race (the
+  consumed-by link is a concurrency token), or a failed save or commit consumes nothing and deletes the orphaned sealed
+  manifest. Cancellation or a raw failure at any point after sealing is settled from durable state: the transaction is rolled back and
+  released, an independent probe with a token that is never cancelled decides, and only a definite non-commit deletes the manifest (a
+  committed claim keeps it and its one spent grant; an unanswered probe keeps it as `attempts.persistence_unresolved`). A committed claim spends its grant for good, even if its attempt later fails, is interrupted, or is never dispatched.
+  No earlier revision is promoted, no Acceptance is invented, and a review of the final plan makes the record invalid.
+- **Sealed manifest.** The distinct `resolutionEvidence.form` is `humanAuthorizedEscalatedProposal`: the complete ordered
+  `decisions` and a `humanAuthorization` object with exactly `authorizationId`, `escalationMessageId`,
+  `humanInstructionMessageId`, the fixed `instruction`, and the `rationale`, under a fixed host-authored
+  `humanPlanAuthorizationBoundary` placed before the untrusted-evidence boundary. The 32 KiB ceiling is kept by shrinking
+  repository evidence only; authority evidence and human text are never truncated, and evidence that cannot fit is refused whole
+  before sealing. Direct guidance is unaffected. Every earlier form is byte-identical to before.
+- **Dispatch, adapter, and result.** The eligibility feed excludes, and the dispatch gate (`MarkAgentAttemptDispatched`)
+  refuses with `agent_attempts.planning_authorization_mismatch`, an attempt whose consumed grant, source, consumption owner, or
+  exact ordered inputs do not match the durable facts read afresh (an authorized attempt needs exactly the one grant it
+  consumed; an ordinary one holds none; the supervisor's projected fact must equal the durable one). The invocation request
+  carries the bounded fact solely so the Claude implementation adapter can require the sealed manifest to agree before any
+  process starts; no flag, tool, permission, output schema, or contract version changed. Result recording re-checks the same
+  identity. Restart replay dispatches the same consumed grant's immutable sealed manifest and consumes nothing again.
+- **Downstream chain.** The ExecutionReport replies to the final Proposal. `ImplementerExecutionReportEligibility` validates the
+  authorized form against the implementation's own starting checkpoint (not the result checkpoint), requires the report's reply
+  target to be the first input, and resolves the original proposal for the chain as the actual Planner root across both
+  revisions, so verification selection, CodeReviewer, ordinary correction (ADR-0010's exact inputs, replies, and separate
+  extra-correction authorization), and re-review work unchanged. A later independent Planner Proposal never invalidates an
+  already authorized and claimed implementation. The chain result keeps the root as the historical lineage and reply identity and also
+  carries the implemented final Proposal as a separate `ImplementedPlan`; the initial code review, its format repair, and the correction
+  re-review use that final Proposal as `resolvedPlan` (identifier, summary, and content), so a review never judges superseded scope.
+  Earlier plan forms keep the root as their review target and their manifest bytes.
 
 ### Bounded untracked-file previews in Agent manifests
 

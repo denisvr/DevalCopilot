@@ -1343,6 +1343,112 @@ export class GetProcessAttemptOutputEndpointClient {
     }
 }
 
+export class GetPlanningImplementationAuthorizationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getPlanningImplementationAuthorization(runId: string, escalationMessageId: string): Promise<PlanningImplementationAuthorizationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/planning-escalations/{escalationMessageId}/implementation-authorization";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (escalationMessageId === undefined || escalationMessageId === null)
+            throw new globalThis.Error("The parameter 'escalationMessageId' must be defined.");
+        url_ = url_.replace("{escalationMessageId}", encodeURIComponent("" + escalationMessageId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetPlanningImplementationAuthorization(_response);
+        });
+    }
+
+    protected processGetPlanningImplementationAuthorization(response: Response): Promise<PlanningImplementationAuthorizationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PlanningImplementationAuthorizationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PlanningImplementationAuthorizationResponse>(null as any);
+    }
+}
+
+export class AuthorizePlanningImplementationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    authorizePlanningImplementation(runId: string, escalationMessageId: string, request: AuthorizePlanningImplementationRequest): Promise<AuthorizePlanningImplementationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/planning-escalations/{escalationMessageId}/implementation-authorization";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (escalationMessageId === undefined || escalationMessageId === null)
+            throw new globalThis.Error("The parameter 'escalationMessageId' must be defined.");
+        url_ = url_.replace("{escalationMessageId}", encodeURIComponent("" + escalationMessageId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAuthorizePlanningImplementation(_response);
+        });
+    }
+
+    protected processAuthorizePlanningImplementation(response: Response): Promise<AuthorizePlanningImplementationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = AuthorizePlanningImplementationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AuthorizePlanningImplementationResponse>(null as any);
+    }
+}
+
 export class GetCollaborationTimelineEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5354,6 +5460,90 @@ export interface IGetProcessAttemptOutputResponse {
     truncated?: boolean | undefined;
 }
 
+export class PlanningImplementationAuthorizationResponse implements IPlanningImplementationAuthorizationResponse {
+    runId?: string;
+    escalationMessageId?: string;
+    state?: string;
+    finalProposalMessageId?: string | undefined;
+    orderedDecisionMessageIds?: string[];
+    authorizationId?: string | undefined;
+    humanInstructionMessageId?: string | undefined;
+    rationale?: string | undefined;
+    authorizedAtUtc?: Date | undefined;
+    consumedByAttemptId?: string | undefined;
+    consumedAtUtc?: Date | undefined;
+
+    constructor(data?: IPlanningImplementationAuthorizationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.escalationMessageId = _data["escalationMessageId"];
+            this.state = _data["state"];
+            this.finalProposalMessageId = _data["finalProposalMessageId"];
+            if (Array.isArray(_data["orderedDecisionMessageIds"])) {
+                this.orderedDecisionMessageIds = [] as any;
+                for (let item of _data["orderedDecisionMessageIds"])
+                    this.orderedDecisionMessageIds!.push(item);
+            }
+            this.authorizationId = _data["authorizationId"];
+            this.humanInstructionMessageId = _data["humanInstructionMessageId"];
+            this.rationale = _data["rationale"];
+            this.authorizedAtUtc = _data["authorizedAtUtc"] ? new Date(_data["authorizedAtUtc"].toString()) : undefined as any;
+            this.consumedByAttemptId = _data["consumedByAttemptId"];
+            this.consumedAtUtc = _data["consumedAtUtc"] ? new Date(_data["consumedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): PlanningImplementationAuthorizationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new PlanningImplementationAuthorizationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["escalationMessageId"] = this.escalationMessageId;
+        data["state"] = this.state;
+        data["finalProposalMessageId"] = this.finalProposalMessageId;
+        if (Array.isArray(this.orderedDecisionMessageIds)) {
+            data["orderedDecisionMessageIds"] = [];
+            for (let item of this.orderedDecisionMessageIds)
+                data["orderedDecisionMessageIds"].push(item);
+        }
+        data["authorizationId"] = this.authorizationId;
+        data["humanInstructionMessageId"] = this.humanInstructionMessageId;
+        data["rationale"] = this.rationale;
+        data["authorizedAtUtc"] = this.authorizedAtUtc ? this.authorizedAtUtc.toISOString() : undefined as any;
+        data["consumedByAttemptId"] = this.consumedByAttemptId;
+        data["consumedAtUtc"] = this.consumedAtUtc ? this.consumedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IPlanningImplementationAuthorizationResponse {
+    runId?: string;
+    escalationMessageId?: string;
+    state?: string;
+    finalProposalMessageId?: string | undefined;
+    orderedDecisionMessageIds?: string[];
+    authorizationId?: string | undefined;
+    humanInstructionMessageId?: string | undefined;
+    rationale?: string | undefined;
+    authorizedAtUtc?: Date | undefined;
+    consumedByAttemptId?: string | undefined;
+    consumedAtUtc?: Date | undefined;
+}
+
 export class ImplementationAttemptStatusResponse implements IImplementationAttemptStatusResponse {
     hasAttempt?: boolean;
     attemptId?: string | undefined;
@@ -6668,6 +6858,98 @@ export class AuthorizeReviewCorrectionWithGuidanceRequest implements IAuthorizeR
 
 export interface IAuthorizeReviewCorrectionWithGuidanceRequest {
     guidance?: string;
+}
+
+export class AuthorizePlanningImplementationResponse implements IAuthorizePlanningImplementationResponse {
+    status?: string;
+    authorizationId?: string;
+    escalationMessageId?: string;
+    finalProposalMessageId?: string;
+    humanInstructionMessageId?: string;
+    latestEventSequence?: number | undefined;
+
+    constructor(data?: IAuthorizePlanningImplementationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.authorizationId = _data["authorizationId"];
+            this.escalationMessageId = _data["escalationMessageId"];
+            this.finalProposalMessageId = _data["finalProposalMessageId"];
+            this.humanInstructionMessageId = _data["humanInstructionMessageId"];
+            this.latestEventSequence = _data["latestEventSequence"];
+        }
+    }
+
+    static fromJS(data: any): AuthorizePlanningImplementationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AuthorizePlanningImplementationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["authorizationId"] = this.authorizationId;
+        data["escalationMessageId"] = this.escalationMessageId;
+        data["finalProposalMessageId"] = this.finalProposalMessageId;
+        data["humanInstructionMessageId"] = this.humanInstructionMessageId;
+        data["latestEventSequence"] = this.latestEventSequence;
+        return data;
+    }
+}
+
+export interface IAuthorizePlanningImplementationResponse {
+    status?: string;
+    authorizationId?: string;
+    escalationMessageId?: string;
+    finalProposalMessageId?: string;
+    humanInstructionMessageId?: string;
+    latestEventSequence?: number | undefined;
+}
+
+export class AuthorizePlanningImplementationRequest implements IAuthorizePlanningImplementationRequest {
+    rationale?: string;
+
+    constructor(data?: IAuthorizePlanningImplementationRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.rationale = _data["rationale"];
+        }
+    }
+
+    static fromJS(data: any): AuthorizePlanningImplementationRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new AuthorizePlanningImplementationRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["rationale"] = this.rationale;
+        return data;
+    }
+}
+
+export interface IAuthorizePlanningImplementationRequest {
+    rationale?: string;
 }
 
 export class UpdateVerificationCommandRequest implements IUpdateVerificationCommandRequest {

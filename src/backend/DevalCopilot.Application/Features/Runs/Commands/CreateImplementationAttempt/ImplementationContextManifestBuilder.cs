@@ -103,6 +103,64 @@ internal static class ImplementationContextManifestBuilder
             resolutionEvidence, changedPaths, completeDiff, configuredVerificationCommands, untrackedFiles, directHumanGuidance);
     }
 
+    /// <summary>The identifiers and exact rationale of the human authorization that permits this one claim (ADR-0016).</summary>
+    internal sealed record HumanAuthorizationEvidence(
+        Guid AuthorizationId, Guid EscalationMessageId, Guid HumanInstructionMessageId, string Rationale);
+
+    /// <summary>
+    /// The manifest of a human-authorized escalated final plan: the final Proposal, every Decision of its second
+    /// resolution in collaboration order, and the exact authorization, framed by a fixed host boundary. No earlier
+    /// revision is promoted and no Acceptance is invented. Authority evidence and human text are never truncated; only
+    /// repository change evidence is fitted to the manifest ceiling.
+    /// </summary>
+    public static string BuildForHumanAuthorizedEscalatedProposal(
+        Guid projectId,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        string runObjective,
+        Guid finalProposalMessageId,
+        string finalProposalSummary,
+        string finalProposalStructuredContentJson,
+        IReadOnlyList<DecisionEvidence> orderedDecisions,
+        HumanAuthorizationEvidence authorization,
+        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
+        string? completeDiff,
+        IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
+        string? directHumanGuidance = null)
+    {
+        var decisions = orderedDecisions
+            .Select(decision => new
+            {
+                challengeMessageId = decision.ChallengeMessageId,
+                summary = decision.Summary,
+                structuredContent = Deserialize(decision.StructuredContentJson),
+            })
+            .ToArray();
+
+        // Property order is the serialized order. The member names are fixed by PlanningImplementationAuthorizationManifest.
+        var resolutionEvidence = new Dictionary<string, object?>
+        {
+            ["form"] = PlanningImplementationAuthorizationManifest.FormName,
+            ["decisions"] = decisions,
+            [PlanningImplementationAuthorizationManifest.HumanAuthorizationProperty] = new Dictionary<string, object?>
+            {
+                ["authorizationId"] = authorization.AuthorizationId,
+                ["escalationMessageId"] = authorization.EscalationMessageId,
+                ["humanInstructionMessageId"] = authorization.HumanInstructionMessageId,
+                ["instruction"] = PlanningImplementationInstruction.FixedInstruction,
+                ["rationale"] = authorization.Rationale,
+            },
+        };
+
+        return Build(
+            projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
+            finalProposalMessageId, finalProposalSummary, finalProposalStructuredContentJson,
+            resolutionEvidence, changedPaths, completeDiff, configuredVerificationCommands, untrackedFiles,
+            directHumanGuidance, humanPlanAuthorized: true);
+    }
+
     private static string Build(
         Guid projectId,
         Guid gitWorkspaceId,
@@ -117,11 +175,12 @@ internal static class ImplementationContextManifestBuilder
         string? completeDiff,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles,
-        string? directHumanGuidance) =>
+        string? directHumanGuidance,
+        bool humanPlanAuthorized = false) =>
         ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             proposalMessageId, proposalSummary, proposalStructuredContentJson, resolutionEvidence,
-            configuredVerificationCommands, directHumanGuidance, changeEvidence));
+            configuredVerificationCommands, directHumanGuidance, humanPlanAuthorized, changeEvidence));
 
     private static string Serialize(
         Guid projectId,
@@ -135,6 +194,7 @@ internal static class ImplementationContextManifestBuilder
         object resolutionEvidence,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
         string? directHumanGuidance,
+        bool humanPlanAuthorized,
         Dictionary<string, object?> changeEvidence)
     {
         // Insertion order is the serialized order: an unguided document is byte-identical to the former
@@ -166,6 +226,12 @@ internal static class ImplementationContextManifestBuilder
         };
 
         DirectHumanGuidanceManifest.AddTo(document, directHumanGuidance);
+
+        if (humanPlanAuthorized)
+        {
+            document[PlanningImplementationAuthorizationManifest.BoundaryProperty] =
+                PlanningImplementationAuthorizationManifest.Boundary;
+        }
 
         // Everything under 'resolvedPlan' and 'changeEvidence' below is untrusted evidence
         // the configured providers produced, and repository-derived diff evidence — never a

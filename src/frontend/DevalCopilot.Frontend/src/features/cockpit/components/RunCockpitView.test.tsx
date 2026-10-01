@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { processAttemptOutputClient, requestCodeReviewClient, requestImplementationClient, requestCodeReviewRepairAttemptClient, setClaudeModelPreferenceClient, setClaudeMutationTurnLimitClient } from '../../../api/clients'
+import { planningImplementationAuthorizationClient, processAttemptOutputClient, requestCodeReviewClient, requestImplementationClient, requestCodeReviewRepairAttemptClient, setClaudeModelPreferenceClient, setClaudeMutationTurnLimitClient } from '../../../api/clients'
 import {
   AgentAttemptStatusResponse,
   AgentClaimPathTimeFitResponse,
@@ -12,6 +12,7 @@ import {
   CodeReviewAttemptStatusResponse,
   ClaudeMutationTurnLimitResponse,
   GetRunCockpitResponse,
+  PlanningImplementationAuthorizationResponse,
   ParticipantIdentityResponse,
   ReviewCorrectionAttemptStatusResponse,
   RunCockpitAgentAttemptResponse,
@@ -36,6 +37,8 @@ import * as useRequestCodeReviewModule from '../hooks/useRequestCodeReview'
 import * as useReviewCorrectionAttemptStatusModule from '../hooks/useReviewCorrectionAttemptStatus'
 import * as useRequestReviewCorrectionModule from '../hooks/useRequestReviewCorrection'
 import * as useAuthorizeReviewCorrectionModule from '../hooks/useAuthorizeReviewCorrection'
+import * as usePlanningImplementationAuthorizationModule from '../hooks/usePlanningImplementationAuthorization'
+import * as useAuthorizePlanningImplementationModule from '../hooks/useAuthorizePlanningImplementation'
 import * as useRequestClaudeCriticalReviewRepairAttemptModule from '../hooks/useRequestClaudeCriticalReviewRepairAttempt'
 import * as useRequestChallengeResolutionRepairAttemptModule from '../hooks/useRequestChallengeResolutionRepairAttempt'
 import * as useRequestCodeReviewRepairAttemptModule from '../hooks/useRequestCodeReviewRepairAttempt'
@@ -61,8 +64,11 @@ vi.mock('../hooks/useRequestCodeReview')
 vi.mock('../hooks/useReviewCorrectionAttemptStatus')
 vi.mock('../hooks/useRequestReviewCorrection')
 vi.mock('../hooks/useAuthorizeReviewCorrection')
+vi.mock('../hooks/usePlanningImplementationAuthorization')
+vi.mock('../hooks/useAuthorizePlanningImplementation')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
+  planningImplementationAuthorizationClient: vi.fn(),
   setClaudeModelPreferenceClient: vi.fn(),
   setClaudeMutationTurnLimitClient: vi.fn(),
   requestCodeReviewClient: vi.fn(),
@@ -110,6 +116,12 @@ const useReviewCorrectionAttemptStatusMock = vi.mocked(
 )
 const useRequestReviewCorrectionMock = vi.mocked(useRequestReviewCorrectionModule.useRequestReviewCorrection)
 const useAuthorizeReviewCorrectionMock = vi.mocked(useAuthorizeReviewCorrectionModule.useAuthorizeReviewCorrection)
+const usePlanningImplementationAuthorizationMock = vi.mocked(
+  usePlanningImplementationAuthorizationModule.usePlanningImplementationAuthorization,
+)
+const useAuthorizePlanningImplementationMock = vi.mocked(
+  useAuthorizePlanningImplementationModule.useAuthorizePlanningImplementation,
+)
 
 function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineCard> = {}): CollaborationTimelineCard {
   return {
@@ -222,6 +234,12 @@ beforeEach(() => {
     request: vi.fn(),
   })
   useAuthorizeReviewCorrectionMock.mockReturnValue({
+    authorizing: false,
+    error: null,
+    authorize: vi.fn().mockResolvedValue(true),
+  })
+  usePlanningImplementationAuthorizationMock.mockReturnValue({ authorization: null, loading: false, error: null, refresh: vi.fn() })
+  useAuthorizePlanningImplementationMock.mockReturnValue({
     authorizing: false,
     error: null,
     authorize: vi.fn().mockResolvedValue(true),
@@ -1209,6 +1227,283 @@ describe('RunCockpitView', () => {
       expect(screen.queryByLabelText('Proposal lineage')).not.toBeInTheDocument()
       fireEvent.click(screen.getByRole('button', { name: 'Request Claude review' }))
       expect(request).toHaveBeenCalledWith('run-2', 'other-root')
+    })
+
+    describe('Human authorization of the final plan', () => {
+      const exhausted = [rootCard, firstRevision, secondRevision, escalationCard]
+      const authorizedLabel = 'Implement the human-authorized final plan with Claude'
+
+      function arrangeFacts(state: string | null, overrides: Partial<ConstructorParameters<typeof PlanningImplementationAuthorizationResponse>[0]> = {}) {
+        arrange(exhausted, { reviewed: 'first', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'first' })
+        const authorize = vi.fn().mockResolvedValue(true)
+        const refresh = vi.fn()
+        usePlanningImplementationAuthorizationMock.mockReturnValue({
+          authorization:
+            state === null
+              ? null
+              : new PlanningImplementationAuthorizationResponse({
+                  runId: 'run-1',
+                  escalationMessageId: 'escalation',
+                  state,
+                  finalProposalMessageId: 'second',
+                  orderedDecisionMessageIds: ['decision-1', 'decision-2'],
+                  authorizationId: state === 'Absent' ? undefined : 'authorization-1',
+                  rationale: state === 'Absent' ? undefined : 'Reviewed both rounds.',
+                  ...overrides,
+                }),
+          loading: false,
+          error: null,
+          refresh,
+        })
+        useAuthorizePlanningImplementationMock.mockReturnValue({ authorizing: false, error: null, authorize })
+        return { authorize, refresh }
+      }
+
+      it('binds the hooks to the loaded escalation and offers nothing before the facts are read', () => {
+        arrangeFacts(null)
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(usePlanningImplementationAuthorizationMock).toHaveBeenLastCalledWith('run-1', 'escalation', runningCockpit.latestSequence)
+        expect(useAuthorizePlanningImplementationMock).toHaveBeenLastCalledWith('run-1', 'escalation', expect.any(Function))
+        expect(screen.getByLabelText('Human decision on the final plan')).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Authorize one implementation claim' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+      })
+
+      it('shows the decision form for an absent authorization and sends the reason for exactly that escalation', () => {
+        const { authorize } = arrangeFacts('Absent')
+
+        render(<RunCockpitView runId="run-1" />)
+
+        const region = screen.getByLabelText('Human decision on the final plan')
+        expect(region).toHaveTextContent(/exactly one implementation claim/)
+        expect(region).toHaveTextContent(/does not start an implementation/)
+        expect(region).toHaveTextContent(/2 second-round decisions/)
+        expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+        fireEvent.change(screen.getByLabelText(/Your reason for authorizing this final plan/), { target: { value: 'I accept it.' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Authorize one implementation claim' }))
+
+        expect(authorize).toHaveBeenCalledWith('run-1', 'escalation', 'I accept it.')
+      })
+
+      it('offers the implementation separately and only for the exact authorized final plan', () => {
+        arrangeFacts('Available')
+        const request = vi.fn().mockResolvedValue(true)
+        useRequestImplementationMock.mockReturnValue({ requesting: false, error: null, request })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/Authorized by a human/)
+        expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/Recorded reason: Reviewed both rounds\./)
+        expect(screen.queryByRole('button', { name: 'Authorize one implementation claim' })).not.toBeInTheDocument()
+        expect(useRequestImplementationMock).toHaveBeenLastCalledWith('run-1', 'second', expect.any(Function))
+        fireEvent.click(screen.getByRole('button', { name: authorizedLabel }))
+        expect(request).toHaveBeenCalledWith('run-1', 'second', undefined)
+        expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+      })
+
+      it('keeps provider review and resolution of the final revision unavailable whatever the authorization says', () => {
+        for (const state of ['Absent', 'Available', 'Consumed', 'Stale', 'Invalid']) {
+          arrangeFacts(state)
+          const { unmount } = render(<RunCockpitView runId="run-1" />)
+
+          expect(screen.queryByRole('button', { name: /Request Claude review/ }), state).not.toBeInTheDocument()
+          expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' }), state).not.toBeInTheDocument()
+          unmount()
+        }
+      })
+
+      it('shows a consumed authorization truthfully and withholds any new request', () => {
+        arrangeFacts('Consumed', { consumedByAttemptId: 'attempt-9' })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/used by an implementation claim and cannot be reused/)
+        expect(screen.getByText(/was already used by an implementation claim\. It cannot be reused/)).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Authorize one implementation claim' })).not.toBeInTheDocument()
+      })
+
+      it.each([
+        ['Stale', /no longer matches the run.s current plan, checkpoint, or fingerprint/],
+        ['Invalid', /could not be validated, so it is not usable/],
+      ])('shows a %s authorization as unusable with no action', (state, expected) => {
+        arrangeFacts(state)
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(expected)
+        expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Authorize one implementation claim' })).not.toBeInTheDocument()
+      })
+
+      it('offers nothing when the server names a different final plan than the timeline', () => {
+        arrangeFacts('Available', { finalProposalMessageId: 'other-plan' })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/names a different final plan/)
+        expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+      })
+
+      it('shows a failed read honestly and offers no decision or request', () => {
+        arrangeFacts(null)
+        usePlanningImplementationAuthorizationMock.mockReturnValue({
+          authorization: null,
+          loading: false,
+          error: 'The authorization status could not be read, so no decision is shown. Nothing is assumed from earlier actions.',
+          refresh: vi.fn(),
+        })
+
+        render(<RunCockpitView runId="run-1" />)
+
+        expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/could not be read, so no decision is shown/)
+        expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Authorize one implementation claim' })).not.toBeInTheDocument()
+      })
+
+      it('renders no authorization panel without the escalation, for an ambiguous chain, or before the second revision', () => {
+        arrange([rootCard, firstRevision, secondRevision], { reviewed: 'first', outcome: 'Challenged' }, { outcome: 'Resolved', original: 'first' })
+        const { rerender } = render(<RunCockpitView runId="run-1" />)
+        expect(screen.queryByLabelText('Human decision on the final plan')).not.toBeInTheDocument()
+        expect(usePlanningImplementationAuthorizationMock).toHaveBeenLastCalledWith('run-1', null, runningCockpit.latestSequence)
+
+        arrange([...exhausted, { ...secondRevision, id: 'second-b', sequence: 22 }], { reviewed: 'first', outcome: 'Challenged' })
+        rerender(<RunCockpitView runId="run-1" />)
+        expect(screen.queryByLabelText('Human decision on the final plan')).not.toBeInTheDocument()
+
+        arrange([rootCard, firstRevision], { reviewed: 'root', outcome: 'Challenged' })
+        rerender(<RunCockpitView runId="run-1" />)
+        expect(screen.queryByLabelText('Human decision on the final plan')).not.toBeInTheDocument()
+      })
+
+      describe('with the real authorization read (committed lifetimes)', () => {
+        type Reads = Array<{
+          run: string
+          escalation: string
+          resolve: (value: PlanningImplementationAuthorizationResponse) => void
+          reject: (reason: unknown) => void
+        }>
+
+        const available = (run: string) =>
+          new PlanningImplementationAuthorizationResponse({
+            runId: run,
+            escalationMessageId: 'escalation',
+            state: 'Available',
+            finalProposalMessageId: 'second',
+            orderedDecisionMessageIds: ['decision-1'],
+            authorizationId: 'authorization-1',
+            rationale: 'Reviewed both rounds.',
+          })
+
+        async function arrangeRealRead() {
+          arrangeFacts(null)
+          const actual = await vi.importActual<typeof import('../hooks/usePlanningImplementationAuthorization')>(
+            '../hooks/usePlanningImplementationAuthorization',
+          )
+          usePlanningImplementationAuthorizationMock.mockImplementation(actual.usePlanningImplementationAuthorization)
+          const reads: Reads = []
+          vi.mocked(planningImplementationAuthorizationClient).mockReturnValue({
+            getPlanningImplementationAuthorization: (run: string, escalation: string) =>
+              new Promise<PlanningImplementationAuthorizationResponse>((resolve, reject) => {
+                reads.push({ run, escalation, resolve, reject })
+              }),
+          } as never)
+          const request = vi.fn().mockResolvedValue(true)
+          useRequestImplementationMock.mockReturnValue({ requesting: false, error: null, request })
+          return { reads, request }
+        }
+
+        const settle = async (action: () => void) => {
+          await act(async () => {
+            action()
+            await Promise.resolve()
+          })
+        }
+
+        it('withholds the implementation on returning to an earlier run until the replacement read supplies usable facts', async () => {
+          const { reads } = await arrangeRealRead()
+          const { rerender } = render(<RunCockpitView runId="run-1" />)
+          await settle(() => reads[0].resolve(available('run-1')))
+          expect(screen.getByRole('button', { name: authorizedLabel })).toBeInTheDocument()
+
+          rerender(<RunCockpitView runId="run-2" />)
+          expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+          rerender(<RunCockpitView runId="run-1" />)
+
+          expect(reads).toHaveLength(3)
+          expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+          expect(screen.getByLabelText('Human decision on the final plan')).not.toHaveTextContent(/Authorized by a human/)
+          expect(useRequestImplementationMock).toHaveBeenLastCalledWith('run-1', null, expect.any(Function))
+
+          // Obsolete completions of the earlier lifetimes change nothing.
+          await settle(() => reads[0].resolve(available('run-1')))
+          await settle(() => reads[1].resolve(available('run-2')))
+          expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+
+          await settle(() => reads[2].resolve(available('run-1')))
+          expect(screen.getByRole('button', { name: authorizedLabel })).toBeInTheDocument()
+          expect(useRequestImplementationMock).toHaveBeenLastCalledWith('run-1', 'second', expect.any(Function))
+        })
+
+        it('shows an unavailable read, not the earlier Available facts, when the replacement read fails', async () => {
+          const { reads } = await arrangeRealRead()
+          const { rerender } = render(<RunCockpitView runId="run-1" />)
+          await settle(() => reads[0].resolve(available('run-1')))
+          rerender(<RunCockpitView runId="run-2" />)
+          rerender(<RunCockpitView runId="run-1" />)
+
+          await settle(() => reads[2].reject(new Error('offline')))
+
+          expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/could not be read, so no decision is shown/)
+          expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+          expect(screen.queryByRole('button', { name: 'Authorize one implementation claim' })).not.toBeInTheDocument()
+        })
+
+        it('does not resurrect an earlier Consumed state after an A to B to A round trip', async () => {
+          const { reads } = await arrangeRealRead()
+          const { rerender } = render(<RunCockpitView runId="run-1" />)
+          await settle(() =>
+            reads[0].resolve(
+              new PlanningImplementationAuthorizationResponse({
+                runId: 'run-1',
+                escalationMessageId: 'escalation',
+                state: 'Consumed',
+                finalProposalMessageId: 'second',
+                orderedDecisionMessageIds: ['decision-1'],
+                authorizationId: 'authorization-1',
+                consumedByAttemptId: 'attempt-9',
+              }),
+            ),
+          )
+          expect(screen.getByLabelText('Human decision on the final plan')).toHaveTextContent(/used by an implementation claim/)
+
+          rerender(<RunCockpitView runId="run-2" />)
+          rerender(<RunCockpitView runId="run-1" />)
+
+          expect(screen.getByLabelText('Human decision on the final plan')).not.toHaveTextContent(/used by an implementation claim/)
+          expect(screen.queryByRole('button', { name: authorizedLabel })).not.toBeInTheDocument()
+        })
+      })
+
+      it('refreshes both the implementation status and the authorization after an implementation request is accepted', () => {
+        const { refresh } = arrangeFacts('Available')
+        const implementationRefresh = vi.fn()
+        useImplementationAttemptStatusMock.mockReturnValue({ status: null, loading: false, error: null, refresh: implementationRefresh })
+        let onRequested: (() => void) | undefined
+        useRequestImplementationMock.mockImplementation((_run, _plan, callback) => {
+          onRequested = callback
+          return { requesting: false, error: null, request: vi.fn().mockResolvedValue(true) }
+        })
+
+        render(<RunCockpitView runId="run-1" />)
+        onRequested?.()
+
+        expect(implementationRefresh).toHaveBeenCalledOnce()
+        expect(refresh).toHaveBeenCalledOnce()
+      })
     })
   })
 

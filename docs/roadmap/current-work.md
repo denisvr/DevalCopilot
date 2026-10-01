@@ -6,6 +6,144 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
+## Explicit human authorization of one escalated-plan implementation (2026-10-01)
+
+- Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent
+  `3fe5f08cb648f3726e385d14be554ae4e1a4fda0` (`main`; `HEAD`, local `origin/main`, and live `refs/heads/main` matched it, nothing staged
+  or untracked, and only the planner-owned `planner-handoff.md` modified at the start; the generated client SHA-256 matched
+  `44afe84a4aa14ce6f9307f7a248dab4e5b31977eecd34b812da47ebf8475f44b`). Presented as an uncommitted, unstaged, unpushed diff for Codex's
+  GO/NO-GO; `planner-handoff.md` was not edited. This entry records the delivered SHA only after publication.
+- Delivered ([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)): a human may
+  authorize exactly one initial implementation claim for the final (depth-two) Proposal of a completed second challenge round.
+  `PlanningLineage.MaximumDepth`, `MaximumReviewableDepth` and `MaximumImplementableDepth` are unchanged and a third review or
+  resolution stays refused with and without a grant. **Operations**: protected `POST` and `GET
+  /api/runs/{runId}/planning-escalations/{escalationMessageId}/implementation-authorization` (body only `{ rationale }`, 8 KiB cap,
+  the shared 600-code-unit normalized-text policy, `400 planning_authorizations.rationale_invalid` from a validator repeated by the
+  handler, never echoed). **Source**: a host-constructed, attemptless, protocol-1.0 Orchestrator-to-Human escalation that is the only
+  escalation replying to a complete coherent two-round lineage's final Proposal and equals the canonical summary and content the second
+  resolution writes (`PlanningEscalation.BuildStructuredContentJson`, now shared); current run, stored mode, workspace, active lease,
+  checkpoint and a fresh Git fingerprint; no newer provider-observed Planner Proposal. **Record**: table
+  `planning_implementation_authorizations` (migration `AddPlanningImplementationAuthorization`, additive, no backfill) binding run,
+  escalation, final Proposal, workspace, starting checkpoint and fingerprint to one canonical `HumanInstruction`
+  (`CollaborationMessage.RecordPlanningImplementationAuthorization`, own summary and fixed instruction; the review-correction factory and
+  authorization are untouched), with unique indexes on the escalation, the final Proposal, the instruction message and (filtered) the
+  consuming attempt, and `ConsumedByAttemptId` as the EF concurrency token. The authorization is one short transaction after the Git
+  capture whose first statement (the atomic execution-mode confirmation) takes the write lock, with every authority read afresh and
+  untracked inside it; identical retries reuse the record without another message or event, a different rationale is `409
+  rationale_conflict`, stale and consumed grants are never revived. **Claim**: the existing `POST …/agent-attempts/implementation`
+  (body unchanged) recognizes only the authorized final Proposal, validates before external work, and again inside a short transaction
+  opened after manifest sealing (mode confirmation, fresh run/workspace/lease/checkpoint/fingerprint, lineage and grant reads), and
+  consumes the grant in the same save as the Attempt, its ordered inputs (final Proposal, every second-round Decision in collaboration
+  order, the authorization `HumanInstruction`), the manifest artifact and the ordinary budget reservation; refusals, lost races, a failed
+  save or commit consume nothing and delete the orphan manifest; a committed claim spends the grant permanently. **Manifest**: the
+  distinct form `humanAuthorizedEscalatedProposal` (complete decisions and the exact `humanAuthorization` identifiers and rationale)
+  behind a fixed `humanPlanAuthorizationBoundary`; the 32 KiB ceiling shrinks repository evidence only and evidence that cannot fit is
+  refused whole before sealing; earlier forms are byte-identical (their member order is pinned by a test). **Dispatch**: the eligibility
+  feed excludes, and the fresh dispatch gate refuses (`agent_attempts.planning_authorization_mismatch`), an attempt whose consumed grant,
+  source, consumption owner or exact inputs disagree with the durable facts (`PlanningImplementationAuthorizationEvidence.ClassifyAttempt`
+  over a fresh untracked snapshot); the supervisor's projected `PlanningImplementationAuthorizationFact` rides the internal request
+  solely for the Claude adapter's sealed-form agreement (`PlanningImplementationAuthorizationManifest.Agrees`) before any process; result
+  recording re-checks the identity. No provider flag, tool, permission, output schema or contract version changed. **Downstream**:
+  `ImplementerExecutionReportEligibility` validates the authorized chain against the implementation's starting checkpoint and returns the
+  actual Planner root across both revisions as the original proposal (the report must reply to the first input) and, separately, the
+  implemented final Proposal as `ImplementedPlan`; verification, CodeReviewer, ordinary correction and re-review run unchanged, with
+  the initial review, its format repair and the correction re-review judging the final Proposal (identifier and content), never the
+  root or the first revision. **Cockpit**: `PlanningImplementationAuthorizationPanel` and
+  `PlanningAuthorizationForm` after the lineage summary (server-read states Absent/Available/Consumed/Stale/Invalid with the exact recorded
+  reason; nothing inferred from a click; failed reads show only an honest unavailable line), the existing implementation action offered
+  separately and only for the exact final plan with an Available authorization (`selectAuthorizedPlanMessageId`, label and withheld note
+  props on `ImplementationAction`), ownership by run, escalation and final plan with the existing owned-flow/run-scoped-action primitives.
+  The TypeScript client was regenerated by the build, not edited.
+- Review correction round (Codex NO-GO R1-R3, same slice, still uncommitted): **R1** the code-review target of an authorized chain was
+  the Planner root; `ImplementerExecutionReportEligibility.Result.ImplementedPlan` now carries the final Proposal through the
+  authorized report and the whole correction chain (`CreateCodeReviewAttempt` uses it as `resolvedPlan`), while `OriginalProposal`
+  stays the root for lineage and ADR-0010 reply identities and every earlier plan form keeps its review target and manifest bytes. The
+  hosted chain now seeds substantively different root, first-revision and final plans, makes the review adapter capture the sealed
+  manifest it is handed, and asserts the final plan's identifier and content (and the absence of the superseded plans' text) in the
+  initial review, a manual format repair and the correction re-review, plus the correction evidence and the root-replying correction
+  report. **R2** `usePlanningImplementationAuthorization` gave settled facts and request tokens reusable identities; it now tags every
+  settled read with a committed, never-reused identity lifetime and read id (created during render when the run, escalation, sequence or
+  refresh changes), so a return to an earlier run or escalation awaits a fresh read and an earlier Available, Consumed or error record
+  never authorizes it, while a same-identity refresh still keeps its last facts (the open form keeps its state). Controlled-promise hook
+  and real-cockpit regressions cover run and escalation A to B to A, earlier Available, Consumed and error, pending and failed
+  replacement reads, obsolete completions and a null round trip. **R3** the authorized claim's post-seal exits left orphan manifests on
+  cancellation. `HandleAsync` now wraps the claim in a scope armed once an authorized manifest is sealed; any exception after that
+  (late read, save, commit, cancellation) rolls the transaction back and releases it, asks an independent connection with a never-cancelled
+  token (`IAttemptDurabilityProbe`, an optional constructor parameter that DI resolves from the existing registration) whether the attempt
+  is durable, deletes the manifest only for a definite non-commit, and keeps it for a committed claim (one spent grant) or an unanswered probe
+  (`attempts.persistence_unresolved`). The save/commit failure branches of the authorized claim use the same probe instead of a read on the
+  claim's own context. Regressions: cancellation at begin, a late read, before save, after save and before commit remove the orphan and
+  consume nothing; cancellation after commit keeps the manifest and exactly one consumed grant; commit failures with a failing rollback settle
+  from durable state; a raw late-read failure; an unanswered probe keeps the file.
+- Existing tests adjusted deliberately: `GetReviewCorrectionAttemptStatusQueryHandlerTests` fixed query count 6 to 7 (the shared run
+  snapshot now reads the run's authorizations in one bounded query, not per candidate); `SecondChallengeRoundTestSupport.SeedSceneAsync`
+  now reserves checkpoint number 1 on the workspace (so a real handler's result checkpoint is number 2); `FaultInjectingDbContext` forwards the
+  new set; the claim-handler test helper passes an optional durability probe; `RunCockpitView.test.tsx` mocks the two new hooks beside the others. The lineage summary copy keeps its "cannot be implemented
+  through this lineage" sentence and adds "without an explicit human authorization, which permits at most one implementation claim of it".
+- Inventory (the working tree against the parent, excluding `planner-handoff.md`): 33 modified tracked and 49 new files. Backend source: 17 modified
+  (`IDevalCopilotDbContext`, `DevalCopilotDbContext`, the EF model snapshot, `CollaborationMessage`, `ImplementationSupervisor`,
+  `CreateImplementationAttemptCommandHandler`, `CreateCodeReviewAttemptCommandHandler`, `ImplementationContextManifestBuilder`, `MarkAgentAttemptDispatchedCommand` and handler,
+  `RecordImplementationResultCommandHandler`, `ImplementerExecutionReportEligibility`, `PlanningEscalation`, `ImplementationInvocationRequest`,
+  `EligibleImplementationAttempt` and its query handler, `ClaudeImplementationAdapter`) and 24 new (Domain 2: `PlanningImplementationAuthorization`,
+  `PlanningImplementationInstruction`; Application 14: the command, handler, validator and result, the query, handler, result and state, five Policies
+  `PlanningImplementationAuthorizationEvidence`/`Context`/`Attempt`/`Fact`/`Manifest`, and `Errors/PlanningImplementationAuthorizationErrors`;
+  Api 5: two endpoints, request and two responses; Infrastructure 3: the entity configuration, the migration and its designer). Tests: 3 modified and 11 new
+  (Domain 1; Application 6: support, command, query, claim, downstream and manifest tests; Infrastructure 2: migration and adapter tests; Api 2: endpoint and
+  hosted-chain tests). Frontend: 7 modified (`clients.ts`, the regenerated `api-client.ts`, `ImplementationAction`, `PlanningLineageSummary`, `RunCockpitView`
+  and its test, `derivePlanningLineage`) and 13 new (the panel, form, two hooks, failure mapper, three unit tests plus the ownership test, and three Playwright files:
+  the fixture, the wire specification and the UI specification). Documentation: 6 modified (this file, the decision index, the engineering context, the protocol,
+  the workflow model, the cockpit specification) and 1 new (ADR-0016).
+- Checks run on the **final tree**: `dotnet build DevalCopilot.slnx` 0 warnings, 0 errors; `api-client.ts` deleted and regenerated by `dotnet build
+  --no-incremental` byte-identical (SHA-256 `1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`, was `44afe84a…` at the parent);
+  sequential `dotnet test --no-build`: Domain 903/903 (was 881), Application 2881/2881 (was 2729), Infrastructure 943 passed + 3 skipped (the existing
+  Windows-only/symlink skips) of 946 (was 924 + 3), Api 714/714 (was 694), Architecture 9/9; frontend `npx vitest run` 108 files, 1470/1470 (was 103
+  files, 1394), `npm run typecheck` clean, `npm run lint` 12 warnings (the baseline) and 0 errors with none in a file this slice created, `npm run build`
+  clean (usual chunk-size notice), `npm run test:harness` 19/19, `npm audit` 0 vulnerabilities, real-host Chromium `npx playwright test` with
+  `reuseExistingServer: false`: 5/5 (manual intake, simulation, the direct-guidance wire specification, the new authorization wire specification over the
+  generated client, and the new authorization UI specification), no `devalcopilot-e2e-*` directory left; `dotnet list package --vulnerable
+  --include-transitive` none; `dotnet format DevalCopilot.slnx --verify-no-changes`: 153 findings in 17 files, identical to the parent's recorded baseline and
+  none in a file this slice created; `git diff --check` clean (only git's CRLF notice for the generated client), a node check of the 49 untracked and 34
+  modified files (the planner record included) found no NUL, no trailing whitespace and no carriage return in an untracked file (EF writes CRLF; the migration, designer and snapshot were
+  normalized to LF, the repository's `eol=lf`), a secret-pattern scan of the diff found only the intentionally fictitious test sentinels, and the local
+  Markdown links of the changed documents resolve.
+- Proof of the acceptance matrix (real file-backed SQLite, deterministic doubles, no real provider): migration from the parent schema with a historical
+  depth-two escalation and review-correction authorization preserved and no grant fabricated, unique-index and consumption-concurrency backstops, and
+  reversal dropping only the table; source and provenance validation (unknown, foreign, non-escalation, forged summary/content/recipient/actor/reply/attempt/
+  protocol, ambiguous second escalation, depth-one source, missing decision, duplicated root), newer-root and checkpoint staleness, fingerprint and
+  run/workspace/lease/mode gates, normalization and the 600 boundary, idempotency, conflicting rationale, consumed and stale retries, corrupted record,
+  four concurrent identical requests recording one authorization; populated-context seam tests committing a competing planner root, checkpoint, lifecycle,
+  mode, lease, identical or conflicting authorization, instruction tampering, or a competing claim from another connection before BEGIN (authorization and
+  claim) with fresh reads proven, capture-before-begin ordering, a failed save, and a commit that failed after or before landing; single consumption by
+  four simultaneous claims, a lost race at seal time, rollback with orphan cleanup, seven existing hard gates leaving the grant unconsumed, a failed
+  attempt still spending the grant, and evidence too large for the manifest refused whole; tampered grants and inputs (wrong consumption owner, unconsumed
+  grant, missing/extra/reordered input, changed instruction, grant checkpoint) excluded by the feed, refused by the dispatch gate (including from a populated
+  context), refused at result recording, and invalidating the report chain, with 14 adapter cases and 4 hosted cases starting no process; depth-two
+  review and resolution refused with and without a grant. The hosted deterministic chain (real supervisors, mediator, EF pipeline and Claude adapters;
+  doubles only at the process and Codex-review boundaries) proves production-written second resolution, authorization, explicit claim, exact ordered inputs, the
+  implementation's stdin, unchanged tools/permission arguments, checkpoint and ExecutionReport replying to the final plan, local verification, code review
+  (its manifest names the final plan, in the initial review, a format repair and the re-review), ordinary correction (inputs, revision-response and report replies to the actual root) and re-review to approval, the
+  budget slot, and a restart replay of an undispatched claim with the same sealed bytes and one consumed grant. Frontend: controlled-promise ownership across
+  A to B to A, run/escalation/final-plan replacement, unmount, synchronous duplicates, edits during the request and during the refresh, late acceptance and late
+  rejection of an ended interaction, an accepted request whose refresh fails, stale reads, and per-code refusal copy; and the cockpit states for every
+  authorization state.
+- Focused red/green mutations, each restored and re-run green: `IsSuperseded` always false (6 tests red: authorization, claim, query and seam freshness);
+  an unauthorized depth-two plan treated as eligible (3 red); the grant not consumed in the claim save (the claim, downstream, feed and chain tests red) and the
+  last ordered input dropped (red likewise); `MaximumReviewableDepth` raised to 2 (4 red: depth-two review and resolution); the original proposal returned as the
+  depth-one parent instead of the Planner root (1 red); the form clearing a draft without the ownership check (2 red) and without the identity reset (3 red); correction round: code review given the root instead
+  of the implemented plan (the hosted chain red), the authorization read hook restored to its reusable identities (4 hook and 2 real-cockpit tests red), the
+  post-seal cleanup disabled (5 cancellation and late-exit regressions red) and the cleanup deleting a committed claim's manifest (1 red).
+- Remaining limitations and risks: Process doubles prove reachability and sealed-form agreement, not real-provider reliability; no real provider ran. The
+  manifest agreement is checked after the dispatch marker is committed (as for direct guidance), so an out-of-band change ends as a failed attempt that consumed
+  its slot and grant. `Available` means recorded, coherent, unconsumed and bound to the database's current checkpoint; the claim still re-checks the live fingerprint
+  and every other gate. Observed, deliberately unchanged: an ordinary first-revision (depth-one) implementation still resolves its report chain to the Planner root, so its code
+  review targets the root exactly as before this slice (earlier plan forms keep their behavior and bytes); only the authorized final plan now reviews the plan
+  it implemented, and the planner may want the depth-one case revisited separately. The host's escalation text
+  ("not implementable through this lineage") predates this decision and is not rewritten; the cockpit panel states the new option. The Playwright specifications create
+  attempt, input and message rows with raw SQL (the public operations need a provider) and never request an implementation, because the smoke host could otherwise start a
+  real Claude; the canonical escalation JSON is reproduced in the fixture from the documented contract. The authorization row is not removed with its run by a deletion
+  operation because none exists (the run cascade exists as for the other relations). SignalR "connection was stopped during negotiation" console lines appear in browser
+  runs as before (their baseline was not separately measured). This is not Increment 4 completion and no next slice is selected here.
+
 ## Direct human guidance for mutation requests (2026-10-01)
 
 - Published delivery: `c57439ebec2463de900fa6d4fb66831952b4254c` (parent `371c3a6b81ddc65bc8de7057d8bd8ce2b388296e`) was committed with the

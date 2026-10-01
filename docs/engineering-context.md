@@ -47,6 +47,8 @@
   Add manual Agent run intake with durable execution-mode isolation.
 - [ADR-0015](decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md):
   Add direct human guidance to explicit mutation requests.
+- [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md):
+  Add explicit human authorization of one escalated-plan implementation.
 
 ## Product-specific architecture
 
@@ -94,6 +96,12 @@
   advisory boundary. It is advisory clarification only, available within the ordinary correction budget, and a fact of what
   the host supplied, never of provider compliance (see
   [the protocol](architecture/agent-collaboration-protocol.md#optional-direct-human-guidance-for-mutation-requests)).
+- A completed second challenge round ends a proposal lineage in a human escalation. A human may explicitly authorize exactly
+  one initial implementation claim for that final plan with a required, bounded reason; authorizing and requesting the
+  implementation are separate operations, the grant is consumed atomically by the ordinary explicit claim (and stays spent
+  even if the attempt fails), and no automatic review or resolution cap, budget, or execution gate is raised or bypassed (see
+  [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md) and
+  [the protocol](architecture/agent-collaboration-protocol.md#explicit-human-authorization-of-one-escalated-plan-implementation)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no
   account-usage threshold is enforced anywhere in the system. The one

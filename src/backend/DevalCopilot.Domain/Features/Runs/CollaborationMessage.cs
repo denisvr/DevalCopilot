@@ -132,6 +132,32 @@ public sealed class CollaborationMessage
             authorValidation: () => { });
     }
 
+    /// <summary>Records the HumanInstruction of the explicit authorization of one implementation claim for an
+    /// escalated final plan (ADR-0016). Same envelope as <see cref="RecordHumanInstruction"/>, replying to the
+    /// planning escalation, with its own fixed summary; the review-correction factory is unchanged.</summary>
+    public static CollaborationMessage RecordPlanningImplementationAuthorization(
+        Guid id,
+        Guid runId,
+        Guid escalationMessageId,
+        string structuredContentJson,
+        DateTimeOffset occurredAtUtc)
+    {
+        return RecordCore(
+            id,
+            runId,
+            null,
+            ProtocolVersionOne,
+            ParticipantIdentity.ForHuman(),
+            ParticipantIdentity.ForOrchestrator(),
+            CollaborationMessageType.HumanInstruction,
+            escalationMessageId,
+            PlanningImplementationInstruction.Summary,
+            structuredContentJson,
+            CollaborationMessageProvenance.HumanSubmitted,
+            occurredAtUtc,
+            authorValidation: () => { });
+    }
+
     /// <summary>
     /// The shared envelope validation and construction both <see cref="Record"/> and
     /// <see cref="RecordAgent"/> use — common pre-author validations (identifiers, participant/type/

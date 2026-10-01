@@ -15,20 +15,20 @@ internal static class PlanningEscalation
 {
     public const string Summary = "The second challenge-resolution round is complete and needs a human decision.";
 
-    public static CollaborationMessage Record(
-        Guid runId,
+    /// <summary>The one canonical structured content of the escalation for these durable identifiers. A human
+    /// implementation authorization recomputes it to prove the escalation it answers is exactly this record.</summary>
+    public static string BuildStructuredContentJson(
         Guid rootProposalId,
         Guid firstRevisionProposalId,
         Guid secondRevisionProposalId,
-        IReadOnlyList<Guid> resolvedChallengeIds,
-        DateTimeOffset occurredAtUtc)
+        IReadOnlyList<Guid> resolvedChallengeIds)
     {
         var evidence =
             $"Root proposal {rootProposalId}; first revision {firstRevisionProposalId}; "
             + $"second revision {secondRevisionProposalId}; {resolvedChallengeIds.Count} second-round challenge(s) "
             + $"each decided once: {string.Join(", ", resolvedChallengeIds)}.";
 
-        var structuredContentJson = JsonSerializer.Serialize(new
+        return JsonSerializer.Serialize(new
         {
             unresolvedDecision =
                 "The second and final challenge-resolution round produced a revised proposal that has no further automated review or resolution.",
@@ -40,6 +40,18 @@ internal static class PlanningEscalation
             recommendedChoice =
                 "Read the second-round decisions before starting any new planning request.",
         });
+    }
+
+    public static CollaborationMessage Record(
+        Guid runId,
+        Guid rootProposalId,
+        Guid firstRevisionProposalId,
+        Guid secondRevisionProposalId,
+        IReadOnlyList<Guid> resolvedChallengeIds,
+        DateTimeOffset occurredAtUtc)
+    {
+        var structuredContentJson = BuildStructuredContentJson(
+            rootProposalId, firstRevisionProposalId, secondRevisionProposalId, resolvedChallengeIds);
 
         return CollaborationMessage.Record(
             Guid.NewGuid(),

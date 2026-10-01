@@ -51,6 +51,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations => Set<ReviewCorrectionAuthorization>();
 
+    public DbSet<PlanningImplementationAuthorization> PlanningImplementationAuthorizations => Set<PlanningImplementationAuthorization>();
+
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
         Database.BeginTransactionAsync(cancellationToken);
 

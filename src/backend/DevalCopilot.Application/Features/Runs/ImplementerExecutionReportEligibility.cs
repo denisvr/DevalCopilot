@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -18,14 +19,26 @@ internal static class ImplementerExecutionReportEligibility
         CollaborationMessage OriginalProposal,
         CollaborationMessage? PreviousExecutionReport,
         IReadOnlyList<CollaborationMessage> OrderedFindings,
-        IReadOnlyList<CollaborationMessage> OrderedRevisionResponses);
+        IReadOnlyList<CollaborationMessage> OrderedRevisionResponses,
+        CollaborationMessage? ImplementedPlanOverride = null)
+    {
+        /// <summary>The plan the implementation actually followed and the code review must judge. It is the lineage root
+        /// (<see cref="OriginalProposal"/>) for every earlier form, and the distinct final Proposal for a human-authorized
+        /// escalated plan, whose root stays only the historical lineage and reply identity.</summary>
+        public CollaborationMessage ImplementedPlan => ImplementedPlanOverride ?? OriginalProposal;
+    }
 
     internal sealed class Snapshot(
         IReadOnlyList<Attempt> attempts,
         IReadOnlyList<CollaborationMessage> messages,
         IReadOnlyList<AttemptInputMessage> inputs,
-        IReadOnlyList<GitCheckpoint> checkpoints)
+        IReadOnlyList<GitCheckpoint> checkpoints,
+        IReadOnlyList<PlanningImplementationAuthorization>? planningAuthorizations = null)
     {
+        /// <summary>Every human planning-implementation authorization of the run, read untracked with the rest of the
+        /// snapshot; empty for a run that never recorded one.</summary>
+        public IReadOnlyList<PlanningImplementationAuthorization> PlanningAuthorizations { get; } = planningAuthorizations ?? [];
+
         public IReadOnlyDictionary<Guid, Attempt> AttemptsById { get; } = attempts.ToDictionary(attempt => attempt.Id);
 
         public IReadOnlyDictionary<Guid, CollaborationMessage> MessagesById { get; } =
@@ -71,7 +84,10 @@ internal static class ImplementerExecutionReportEligibility
         var checkpoints = await dbContext.GitCheckpoints.AsNoTracking()
             .Where(checkpoint => workspaceIds.Contains(checkpoint.WorkspaceId))
             .ToListAsync(cancellationToken);
-        return new Snapshot(attempts, messages, inputs, checkpoints);
+        var planningAuthorizations = await dbContext.PlanningImplementationAuthorizations.AsNoTracking()
+            .Where(authorization => authorization.RunId == runId)
+            .ToListAsync(cancellationToken);
+        return new Snapshot(attempts, messages, inputs, checkpoints, planningAuthorizations);
     }
 
     internal static Result? Resolve(
@@ -154,9 +170,20 @@ internal static class ImplementerExecutionReportEligibility
         if (contract == AgentResponseContract.ImplementationReport)
         {
             if (outcome != AgentOutcome.Implemented
-                || !IsValidImplementationInputChainSnapshot(snapshot, owner, orderedInputs, inputMessages!, runId, workspaceId))
+                || !IsValidImplementationInputChainSnapshot(
+                    snapshot, owner, orderedInputs, inputMessages!, runId, workspaceId, out var authorizedRoot))
             {
                 return null;
+            }
+
+            // A human-authorized escalated plan is the final of two revisions: the report replies to exactly that final
+            // Proposal (the first input), and the actual Planner root two levels up is the original proposal. The depth-one
+            // parent of the final plan is never the root.
+            if (authorizedRoot is not null)
+            {
+                return parent.Id == inputMessages[0]!.Id
+                    ? new Result(owner, executionReport, authorizedRoot, null, [], [], parent)
+                    : null;
             }
 
             var originalProposal = parent;
@@ -279,7 +306,7 @@ internal static class ImplementerExecutionReportEligibility
         }
 
         return new Result(owner, executionReport, previousChain.OriginalProposal, previousExecutionReport,
-            orderedFindings, orderedRevisionResponses);
+            orderedFindings, orderedRevisionResponses, previousChain.ImplementedPlanOverride);
     }
 
     private static bool IsValidImplementationInputChainSnapshot(
@@ -288,8 +315,19 @@ internal static class ImplementerExecutionReportEligibility
         IReadOnlyList<AttemptInputMessage> orderedInputs,
         IReadOnlyList<CollaborationMessage?> inputMessages,
         Guid runId,
-        Guid workspaceId)
+        Guid workspaceId,
+        out CollaborationMessage? authorizedRoot)
     {
+        authorizedRoot = null;
+
+        // A human planning-implementation grant is spent only by the exact authorized form, and that form holds no other
+        // shape: any mixture (a grant on an ordinary plan, an authorized-looking attempt without its grant) is invalid.
+        var classification = PlanningImplementationAuthorizationEvidence.ClassifyAttempt(snapshot, implementationAttempt);
+        if (classification.Form == PlanningImplementationAuthorizationEvidence.AttemptForm.Invalid)
+        {
+            return false;
+        }
+
         if (!HasExactContiguousInputSequence(orderedInputs)
             || orderedInputs.Count < 2
             || inputMessages.Count != orderedInputs.Count
@@ -354,8 +392,33 @@ internal static class ImplementerExecutionReportEligibility
         // implemented plan: a depth-two revision ended its lineage in a human escalation.
         var lineage = PlanningLineage.Evaluate(
             snapshot, runId, workspaceId, implementationAttempt.AgentGitCheckpointId!.Value, null, proposal.Id);
-        if (lineage.Node is not { Depth: PlanningLineage.MaximumImplementableDepth } node
+        if (lineage.Node is not { } node
             || !PlanningLineage.OwnsExactlyOneProposal(snapshot, node.Root.Owner))
+        {
+            return false;
+        }
+
+        // The one human exception to the depth-one limit (ADR-0016): the final of two revisions is a valid implemented
+        // plan only through its consumed, coherent authorization, with exactly final Proposal, second-round Decisions,
+        // and that authorization as ordered inputs and no review of the final plan. The grant is validated against this
+        // attempt's own starting checkpoint, never the later result checkpoint.
+        if (node.Depth == PlanningLineage.MaximumDepth)
+        {
+            if (classification.Form != PlanningImplementationAuthorizationEvidence.AttemptForm.Authorized
+                || classification.Recorded is not { } recorded
+                || recorded.Final.Proposal.Id != proposal.Id
+                || !orderedInputs.Select(input => input.CollaborationMessageId).SequenceEqual(recorded.ExpectedInputMessageIds)
+                || PlanningLineage.SuccessfulReviewsOf(snapshot, runId, proposal.Id).Count != 0)
+            {
+                return false;
+            }
+
+            authorizedRoot = node.Root.Proposal;
+            return true;
+        }
+
+        if (node.Depth != PlanningLineage.MaximumImplementableDepth
+            || classification.Form != PlanningImplementationAuthorizationEvidence.AttemptForm.Ordinary)
         {
             return false;
         }
