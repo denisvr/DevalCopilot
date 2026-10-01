@@ -13,6 +13,8 @@ namespace DevalCopilot.Application.Features.Runs;
 /// </summary>
 internal static class ImplementerExecutionReportEligibility
 {
+    /// <param name="OriginalProposal">The actual validated Planner root: the historical lineage identity and the reply target of every correction report.</param>
+    /// <param name="ImplementedPlan">The exact Proposal the initial implementation consumed as its sequence-zero input, which every code review of this chain judges.</param>
     internal sealed record Result(
         Attempt OwnerAttempt,
         CollaborationMessage ExecutionReport,
@@ -20,13 +22,7 @@ internal static class ImplementerExecutionReportEligibility
         CollaborationMessage? PreviousExecutionReport,
         IReadOnlyList<CollaborationMessage> OrderedFindings,
         IReadOnlyList<CollaborationMessage> OrderedRevisionResponses,
-        CollaborationMessage? ImplementedPlanOverride = null)
-    {
-        /// <summary>The plan the implementation actually followed and the code review must judge. It is the lineage root
-        /// (<see cref="OriginalProposal"/>) for every earlier form, and the distinct final Proposal for a human-authorized
-        /// escalated plan, whose root stays only the historical lineage and reply identity.</summary>
-        public CollaborationMessage ImplementedPlan => ImplementedPlanOverride ?? OriginalProposal;
-    }
+        CollaborationMessage ImplementedPlan);
 
     internal sealed class Snapshot(
         IReadOnlyList<Attempt> attempts,
@@ -171,32 +167,20 @@ internal static class ImplementerExecutionReportEligibility
         {
             if (outcome != AgentOutcome.Implemented
                 || !IsValidImplementationInputChainSnapshot(
-                    snapshot, owner, orderedInputs, inputMessages!, runId, workspaceId, out var authorizedRoot))
+                    snapshot, owner, orderedInputs, inputMessages!, runId, workspaceId, out var plannerRoot))
             {
                 return null;
             }
 
-            // A human-authorized escalated plan is the final of two revisions: the report replies to exactly that final
-            // Proposal (the first input), and the actual Planner root two levels up is the original proposal. The depth-one
-            // parent of the final plan is never the root.
-            if (authorizedRoot is not null)
-            {
-                return parent.Id == inputMessages[0]!.Id
-                    ? new Result(owner, executionReport, authorizedRoot, null, [], [], parent)
-                    : null;
-            }
-
-            var originalProposal = parent;
-            var proposalOwner = ResolveSnapshotOwningAttempt(snapshot, parent, runId, AgentRole.Planner)
-                ?? ResolveSnapshotOwningAttempt(snapshot, parent, runId, AgentRole.Resolver);
-            if (proposalOwner?.AgentRole == AgentRole.Resolver
-                && parent.InReplyToMessageId is { } originalProposalId
-                && snapshot.MessagesById.TryGetValue(originalProposalId, out var resolvedOriginalProposal))
-            {
-                originalProposal = resolvedOriginalProposal;
-            }
-
-            return new Result(owner, executionReport, originalProposal, null, [], []);
+            // The implemented plan is exactly the implementation's sequence-zero input, and an initial ExecutionReport must
+            // reply to it: authority comes from the whole validated input chain, never from an unrelated report reply. The
+            // actual Planner root (validated through the lineage, two levels up for an authorized final plan) stays the
+            // historical lineage identity and the reply identity of every later correction; malformed evidence never falls
+            // back to a root.
+            var implementedPlan = inputMessages[0]!;
+            return plannerRoot is not null && parent.Id == implementedPlan.Id
+                ? new Result(owner, executionReport, plannerRoot, null, [], [], implementedPlan)
+                : null;
         }
 
         if (outcome != AgentOutcome.CorrectionApplied
@@ -306,7 +290,7 @@ internal static class ImplementerExecutionReportEligibility
         }
 
         return new Result(owner, executionReport, previousChain.OriginalProposal, previousExecutionReport,
-            orderedFindings, orderedRevisionResponses, previousChain.ImplementedPlanOverride);
+            orderedFindings, orderedRevisionResponses, previousChain.ImplementedPlan);
     }
 
     private static bool IsValidImplementationInputChainSnapshot(
@@ -316,9 +300,9 @@ internal static class ImplementerExecutionReportEligibility
         IReadOnlyList<CollaborationMessage?> inputMessages,
         Guid runId,
         Guid workspaceId,
-        out CollaborationMessage? authorizedRoot)
+        out CollaborationMessage? plannerRoot)
     {
-        authorizedRoot = null;
+        plannerRoot = null;
 
         // A human planning-implementation grant is spent only by the exact authorized form, and that form holds no other
         // shape: any mixture (a grant on an ordinary plan, an authorized-looking attempt without its grant) is invalid.
@@ -376,7 +360,7 @@ internal static class ImplementerExecutionReportEligibility
             var acceptanceOutputs = snapshot.Messages
                 .Where(message => message.AttemptId == acceptanceOwner.Id)
                 .ToArray();
-            return acceptanceInputs.Count == 1
+            var acceptedRootChain = acceptanceInputs.Count == 1
                 && acceptanceInputs[0].Sequence == 0
                 && acceptanceInputs[0].CollaborationMessageId == proposal.Id
                 && acceptanceOutputs.Length == 1
@@ -384,6 +368,8 @@ internal static class ImplementerExecutionReportEligibility
                 && acceptanceOutputs[0].Type == CollaborationMessageType.Acceptance
                 && acceptanceOutputs[0].Provenance == CollaborationMessageProvenance.ProviderObserved
                 && acceptance.Sequence > proposal.Sequence;
+            plannerRoot = acceptedRootChain ? proposal : null;
+            return acceptedRootChain;
         }
 
         // A Resolver-owned plan is a lineage revision. Its whole chain (Resolver attempt, parent
@@ -413,7 +399,7 @@ internal static class ImplementerExecutionReportEligibility
                 return false;
             }
 
-            authorizedRoot = node.Root.Proposal;
+            plannerRoot = node.Root.Proposal;
             return true;
         }
 
@@ -434,6 +420,7 @@ internal static class ImplementerExecutionReportEligibility
         // Acceptance of an Accepted second review of that revision.
         if (remainingIds.SequenceEqual(expectedDecisionIds))
         {
+            plannerRoot = node.Root.Proposal;
             return true;
         }
 
@@ -444,10 +431,12 @@ internal static class ImplementerExecutionReportEligibility
         }
 
         var acceptedReviews = PlanningLineage.SuccessfulReviewsOf(snapshot, runId, proposal.Id);
-        return acceptedReviews.Count == 1
+        var exactAcceptance = acceptedReviews.Count == 1
             && PlanningLineage.FindExactAcceptance(
                 snapshot, acceptedReviews[0], runId, proposal.Id, workspaceId,
                 implementationAttempt.AgentGitCheckpointId!.Value, null)?.Id == remainingIds[^1];
+        plannerRoot = exactAcceptance ? node.Root.Proposal : null;
+        return exactAcceptance;
     }
 
     internal static Attempt? ResolveSnapshotOwningAttempt(

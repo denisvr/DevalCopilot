@@ -127,7 +127,7 @@ internal sealed class PlanningLineageSeeder(
             .ToArray();
         var revised = AddResolverMessage(
             resolver, CollaborationMessageType.Proposal, reviewedProposal.Id, "Revised ledger proposal.",
-            ProposalJson($"Revised ledger scope {number}"));
+            ProposalJson($"Revised ledger scope {number}", $"Revised steps unique to scope {number}"));
 
         return new Resolution(resolver, decisions, revised);
     }
@@ -164,10 +164,10 @@ internal sealed class PlanningLineageSeeder(
         return message;
     }
 
-    public static string ProposalJson(string scope) => JsonSerializer.Serialize(new
+    public static string ProposalJson(string scope, string steps = "Add the table then the query") => JsonSerializer.Serialize(new
     {
         scope,
-        implementationSteps = "Add the table then the query",
+        implementationSteps = steps,
         risks = "Unbounded content",
         verificationPlan = "Tests",
         escalationPoints = "None expected",

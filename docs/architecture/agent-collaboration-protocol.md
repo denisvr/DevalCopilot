@@ -394,7 +394,8 @@ verification, review, or publication of those changes.
 
 Codex reviewing the implementation is also real today, bound to one durable
 attempt per requested review of one specific Execution report. Codex receives
-that report, the resolved plan it claims to satisfy, fresh bounded Git
+that report, the exact plan the implementation consumed (the implemented Proposal;
+[ADR-0017](../decisions/0017-review-the-implemented-plan-through-correction.md)), fresh bounded Git
 evidence for its exact result checkpoint, and the exact status of every
 currently enabled verification command's latest execution against that
 checkpoint — every one of which must already be Passed, or the review is
@@ -2562,7 +2563,11 @@ distinct from the review-correction authorization, which keeps its own table, fa
   already authorized and claimed implementation. The chain result keeps the root as the historical lineage and reply identity and also
   carries the implemented final Proposal as a separate `ImplementedPlan`; the initial code review, its format repair, and the correction
   re-review use that final Proposal as `resolvedPlan` (identifier, summary, and content), so a review never judges superseded scope.
-  Earlier plan forms keep the root as their review target and their manifest bytes.
+  This applies to every ordinary form as well ([ADR-0017](../decisions/0017-review-the-implemented-plan-through-correction.md)):
+  each initial ExecutionReport must reply to the implementation's sequence-zero input, the Planner root is derived through the
+  validated lineage (never from the report's reply), `ImplementedPlan` is carried unchanged through every valid correction link,
+  and correction reports keep replying to the root. The change is forward only: a review already sealed before it replays its
+  existing bytes (an older manifest may name the root), history is never rewritten, and no approval is revoked.
 
 ### Bounded untracked-file previews in Agent manifests
 

@@ -162,6 +162,7 @@ internal sealed class RepairTestScene
     /// <summary>The chain a CodeReviewer source reviews, and the checkpoint that review is bound to.</summary>
     public sealed record ImplementationScene(
         CollaborationMessage ResolvedPlan,
+        CollaborationMessage OriginalPlan,
         CollaborationMessage ExecutionReport,
         GitCheckpoint ReviewCheckpoint,
         string ReviewFingerprint,
@@ -171,15 +172,40 @@ internal sealed class RepairTestScene
     public sealed record VerificationScene(
         IReadOnlyList<VerificationCommand> Commands, IReadOnlyList<VerificationExecution> Executions);
 
-    /// <summary>A completed initial implementation: a Planner Proposal, an accepting review, an Implementer
-    /// attempt whose result checkpoint (number 2) is the workspace's current one, and its ExecutionReport.</summary>
-    public ImplementationScene AddInitialImplementation()
+    /// <summary>The supported initial-implementation plan forms: the Accepted Planner root, a first Resolver revision
+    /// with its Decisions, and that revision with its exact optional Acceptance.</summary>
+    public enum PlanForm
+    {
+        AcceptedRoot,
+        FirstRevision,
+        AcceptedFirstRevision,
+    }
+
+    /// <summary>A completed initial implementation: the implemented Proposal with its form's exact ordered inputs, an
+    /// Implementer attempt whose result checkpoint (number 2) is the workspace's current one, and its ExecutionReport
+    /// replying to the first input. <c>ResolvedPlan</c> is the implemented Proposal and <c>OriginalPlan</c> the Planner root.</summary>
+    public ImplementationScene AddInitialImplementation(PlanForm form = PlanForm.AcceptedRoot)
     {
         var resultCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), Workspace.Id, 2, Now, new string('b', 40), ResultFingerprint, []);
         Db.GitCheckpoints.Add(resultCheckpoint);
 
-        var (_, resolvedPlan) = Lineage.AddRoot();
-        var acceptance = Lineage.AddReview(resolvedPlan, AgentOutcome.Accepted);
+        var (_, root) = Lineage.AddRoot();
+        var resolvedPlan = root;
+        var extraInputs = new List<CollaborationMessage>();
+        if (form == PlanForm.AcceptedRoot)
+        {
+            extraInputs.Add(Lineage.AddReview(root, AgentOutcome.Accepted).Outputs[0]);
+        }
+        else
+        {
+            var round = Lineage.AddChallengedRound(root, 2).Resolution;
+            resolvedPlan = round.RevisedProposal;
+            extraInputs.AddRange(round.Decisions);
+            if (form == PlanForm.AcceptedFirstRevision)
+            {
+                extraInputs.Add(Lineage.AddReview(resolvedPlan, AgentOutcome.Accepted).Outputs[0]);
+            }
+        }
 
         var implementerNumber = Lineage.ReserveAttemptNumber();
         var implementer = Attempt.ClaimAgentImplementation(
@@ -189,7 +215,11 @@ internal sealed class RepairTestScene
         implementer.CompleteImplementation(AgentOutcome.Implemented, resultCheckpoint.Id, Now, processEvidence: TestProcessEvidence.CleanExit);
         Db.Attempts.Add(implementer);
         Db.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), implementer.Id, resolvedPlan.Id, sequence: 0));
-        Db.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), implementer.Id, acceptance.Outputs[0].Id, sequence: 1));
+        for (var index = 0; index < extraInputs.Count; index++)
+        {
+            Db.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), implementer.Id, extraInputs[index].Id, sequence: index + 1));
+        }
+
         var report = CollaborationMessage.Record(
             Guid.NewGuid(), Run.Id, implementer.Id, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Implementer, AgentProvider.ClaudeCode),
@@ -198,15 +228,15 @@ internal sealed class RepairTestScene
             JsonSerializer.Serialize(new { completedWork = "Added table and query.", verification = "dotnet test" }),
             CollaborationMessageProvenance.ProviderObserved, Now);
         Db.CollaborationMessages.Add(report);
-        return new ImplementationScene(resolvedPlan, report, resultCheckpoint, ResultFingerprint, implementerNumber);
+        return new ImplementationScene(resolvedPlan, root, report, resultCheckpoint, ResultFingerprint, implementerNumber);
     }
 
     /// <summary>A completed initial implementation, a ChangesRequested review of it, and a successfully applied
     /// correction whose corrected checkpoint (number 3) is now the workspace's current one; the returned
     /// report is the correction's ExecutionReport.</summary>
-    public ImplementationScene AddCorrectedImplementation()
+    public ImplementationScene AddCorrectedImplementation(PlanForm form = PlanForm.AcceptedRoot)
     {
-        var initial = AddInitialImplementation();
+        var initial = AddInitialImplementation(form);
         var correctedCheckpoint = GitCheckpoint.Capture(Guid.NewGuid(), Workspace.Id, 3, Now, new string('c', 40), CorrectedFingerprint, []);
         Db.GitCheckpoints.Add(correctedCheckpoint);
 
@@ -241,11 +271,11 @@ internal sealed class RepairTestScene
             JsonSerializer.Serialize(new { disposition = "Addressed", evidence = "The filter was added.", resultingSourceChanges = "Added the filter." }),
             Now);
         var correctedReport = CollaborationMessage.RecordAgent(
-            correction, Guid.NewGuid(), initial.ResolvedPlan.Actor, CollaborationMessageType.ExecutionReport, initial.ResolvedPlan.Id,
+            correction, Guid.NewGuid(), initial.ResolvedPlan.Actor, CollaborationMessageType.ExecutionReport, initial.OriginalPlan.Id,
             "Applied the review correction.",
             JsonSerializer.Serialize(new { completedWork = "Added the filter.", verification = "dotnet test" }), Now);
         Db.CollaborationMessages.AddRange(revisionResponse, correctedReport);
-        return new ImplementationScene(initial.ResolvedPlan, correctedReport, correctedCheckpoint, CorrectedFingerprint, correctionNumber);
+        return new ImplementationScene(initial.ResolvedPlan, initial.OriginalPlan, correctedReport, correctedCheckpoint, CorrectedFingerprint, correctionNumber);
     }
 
     /// <summary>Enabled verification commands (numbered from 1) and one Passed execution each, bound to the

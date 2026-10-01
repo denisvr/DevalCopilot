@@ -399,7 +399,7 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task A_historical_first_revision_plan_chain_and_its_root_are_unchanged()
+    public async Task A_historical_first_revision_plan_chain_keeps_its_root_and_reviews_the_revision()
     {
         await using var dbContext = _fixture.CreateContext();
         var scene = await SeedSceneAsync(dbContext);
@@ -433,8 +433,9 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
 
         Assert.NotNull(chain);
         Assert.Equal(root.Id, chain.OriginalProposal.Id);
-        // Earlier forms keep their review target exactly: the implemented plan is the unchanged original proposal.
-        Assert.Equal(chain.OriginalProposal.Id, chain.ImplementedPlan.Id);
+        // ADR-0017: an ordinary first revision is reviewed as the revised Proposal it implemented; the root stays the lineage identity.
+        Assert.Equal(first.RevisedProposal.Id, chain.ImplementedPlan.Id);
+        Assert.NotEqual(chain.OriginalProposal.Id, chain.ImplementedPlan.Id);
         Assert.Empty(dbContext.PlanningImplementationAuthorizations);
     }
 }

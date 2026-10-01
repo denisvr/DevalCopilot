@@ -48,7 +48,10 @@
 - [ADR-0015](decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md):
   Add direct human guidance to explicit mutation requests.
 - [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md):
-  Add explicit human authorization of one escalated-plan implementation.
+  Add explicit human authorization of one escalated-plan implementation (its preservation of the ordinary
+  first-revision review target is narrowly superseded by ADR-0017).
+- [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md):
+  Review the implemented plan through correction.
 
 ## Product-specific architecture
 
@@ -102,6 +105,11 @@
   even if the attempt fails), and no automatic review or resolution cap, budget, or execution gate is raised or bypassed (see
   [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md) and
   [the protocol](architecture/agent-collaboration-protocol.md#explicit-human-authorization-of-one-escalated-plan-implementation)).
+- Every newly claimed code review, its manual format repair, and re-reviews throughout the ordinary correction chain judge
+  the exact Proposal the initial implementation consumed (the root, the revision, or the authorized final plan), while the
+  Planner root remains the lineage identity and correction reply target. The change is forward only: a review sealed earlier
+  replays its existing bytes, and history is never rewritten (see
+  [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no
   account-usage threshold is enforced anywhere in the system. The one

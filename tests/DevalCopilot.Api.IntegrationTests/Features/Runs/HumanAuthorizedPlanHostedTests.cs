@@ -48,7 +48,7 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
     private const string Rationale = "SENTINEL-PLAN-AUTH I reviewed both rounds and accept the final plan.";
 
     private static readonly string Head = new('a', 40);
-    private static readonly string[] Fingerprints = [new('a', 64), new('c', 64), new('d', 64)];
+    private static readonly string[] Fingerprints = [new('a', 64), new('c', 64), new('d', 64), new('e', 64), new('f', 64)];
 
     private static readonly string ProposalJson = JsonSerializer.Serialize(new
     {
@@ -305,7 +305,10 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         },
     });
 
-    private async Task<Lineage> SeedEscalatedLineageAsync(Host host, int maximumAgentAttempts = 16)
+    private sealed record Seeded(Guid RunId, Guid WorkspaceId, Guid ProjectId, Guid RootId);
+
+    /// <summary>A production-written run with one Planner root Proposal, a ready workspace, lease and both providers observed.</summary>
+    private async Task<Seeded> SeedRootAsync(Host host, int maximumAgentAttempts, TimeSpan? maximumAgentInvocationTime = null)
     {
         await using var scope = host.Provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -316,7 +319,7 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         db.Projects.Add(project);
         var run = Run.RecordIntent(
             Guid.NewGuid(), project.Id, project.ReserveExecutionNumber(), "Implement the ledger table and its query", now,
-            maximumAgentAttempts: maximumAgentAttempts);
+            maximumAgentAttempts: maximumAgentAttempts, maximumAgentInvocationTime: maximumAgentInvocationTime);
         run.Claim(now);
         db.Runs.Add(run);
         var workspace = GitWorkspace.Prepare(
@@ -348,16 +351,26 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         var root = await db.CollaborationMessages.SingleAsync(
             message => message.AttemptId == planning.Value.AttemptId && message.Type == CollaborationMessageType.Proposal);
 
-        var first = await ReviewAndResolveAsync(mediator, db, run.Id, root.Id, 2, "First revised scope");
-        var second = await ReviewAndResolveAsync(mediator, db, run.Id, first.RevisedId, 2, "Second revised scope");
+        return new Seeded(run.Id, workspace.Id, project.Id, root.Id);
+    }
+
+    private async Task<Lineage> SeedEscalatedLineageAsync(Host host, int maximumAgentAttempts = 16)
+    {
+        var seeded = await SeedRootAsync(host, maximumAgentAttempts);
+        await using var scope = host.Provider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+
+        var first = await ReviewAndResolveAsync(mediator, db, seeded.RunId, seeded.RootId, 2, "First revised scope");
+        var second = await ReviewAndResolveAsync(mediator, db, seeded.RunId, first.RevisedId, 2, "Second revised scope");
         var escalation = await db.CollaborationMessages.SingleAsync(
-            message => message.RunId == run.Id && message.Type == CollaborationMessageType.Escalation);
+            message => message.RunId == seeded.RunId && message.Type == CollaborationMessageType.Escalation);
         Assert.Equal(second.RevisedId, escalation.InReplyToMessageId);
         var decisions = await db.CollaborationMessages
             .Where(message => message.AttemptId == second.ResolverAttemptId && message.Type == CollaborationMessageType.Decision)
             .OrderBy(message => message.Sequence).Select(message => message.Id).ToListAsync();
 
-        return new Lineage(run.Id, workspace.Id, project.Id, root.Id, first.RevisedId, second.RevisedId, escalation.Id, second.ChallengeIds, decisions);
+        return new Lineage(seeded.RunId, seeded.WorkspaceId, seeded.ProjectId, seeded.RootId, first.RevisedId, second.RevisedId, escalation.Id, second.ChallengeIds, decisions);
     }
 
     private sealed record Round(Guid ResolverAttemptId, Guid RevisedId, List<Guid> ChallengeIds);
@@ -633,6 +646,249 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         Assert.DoesNotContain(RootPlanSummary, text, StringComparison.Ordinal);
         Assert.DoesNotContain(RootPlanSteps, text, StringComparison.Ordinal);
         Assert.Equal(expectedRepair, manifest.TryGetProperty("formatRepairNotice", out _));
+    }
+
+    // ---- Implemented-plan identity of ordinary plans (ADR-0017) ------------------------------------------------------
+
+    private static readonly string AcceptJson = JsonSerializer.Serialize(new
+    {
+        decision = "accept",
+        summary = "Sound and complete.",
+        rationale = "The proposal is feasible as written.",
+    });
+
+    private static async Task AcceptAsync(IApplicationMediator mediator, Guid runId, Guid proposalId)
+    {
+        var claim = await mediator.SendAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalId), CancellationToken.None);
+        Assert.True(claim.IsSuccess);
+        Assert.True((await mediator.SendAsync(new MarkAgentAttemptDispatchedCommand(runId, claim.Value.AttemptId), CancellationToken.None)).IsSuccess);
+        var review = ClaudeCriticalReviewResponseParser.TryParse(AcceptJson);
+        Assert.NotNull(review);
+        Assert.True((await mediator.SendAsync(
+            new RecordClaudeCriticalReviewResultCommand(
+                runId, claim.Value.AttemptId, AgentOutcome.Accepted, Fingerprints[0], [], review, null,
+                ProcessEvidence: TestProcessEvidence.ReportedCleanExit),
+            CancellationToken.None)).IsSuccess);
+    }
+
+    /// <summary>The ordinary lineages, written by production commands: the plan the implementation will consume is
+    /// <c>FinalId</c> — the Planner root (accepted), or its first Resolver revision (optionally Accepted by its own review).</summary>
+    private async Task<Lineage> SeedOrdinaryAsync(Host host, bool revised, bool acceptPlan)
+    {
+        var seeded = await SeedRootAsync(host, 24, TimeSpan.FromHours(24));
+        await using var scope = host.Provider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+        if (!revised)
+        {
+            await AcceptAsync(mediator, seeded.RunId, seeded.RootId);
+            return new Lineage(seeded.RunId, seeded.WorkspaceId, seeded.ProjectId, seeded.RootId, seeded.RootId, seeded.RootId, Guid.Empty, [], []);
+        }
+
+        var round = await ReviewAndResolveAsync(mediator, db, seeded.RunId, seeded.RootId, 2, "First revised scope");
+        if (acceptPlan)
+        {
+            await AcceptAsync(mediator, seeded.RunId, round.RevisedId);
+        }
+
+        var decisions = await db.CollaborationMessages
+            .Where(message => message.AttemptId == round.ResolverAttemptId && message.Type == CollaborationMessageType.Decision)
+            .OrderBy(message => message.Sequence).Select(message => message.Id).ToListAsync();
+        return new Lineage(
+            seeded.RunId, seeded.WorkspaceId, seeded.ProjectId, seeded.RootId, round.RevisedId, round.RevisedId, Guid.Empty, round.ChallengeIds, decisions);
+    }
+
+    private async Task<(Guid AttemptId, CollaborationMessage Report)> ImplementAsync(Host host, Lineage lineage)
+    {
+        var attemptId = await ClaimAsync(host, lineage);
+        host.Process.FinalResponse = ImplementationReport(["src/Foo.cs"]);
+        await RunSupervisorAsync(ImplementationSupervisorFor(host), host, attemptId, expectTerminal: true);
+        Assert.Equal(AgentOutcome.Implemented, await InDbAsync(host, db => db.Attempts.Where(a => a.Id == attemptId).Select(a => a.AgentOutcome).SingleAsync()));
+        var report = await InDbAsync(host, db => db.CollaborationMessages.AsNoTracking().SingleAsync(
+            m => m.AttemptId == attemptId && m.Type == CollaborationMessageType.ExecutionReport));
+        return (attemptId, report);
+    }
+
+    private async Task<Guid> ReviewAsync(Host host, Lineage lineage, Guid reportId, string response, AgentOutcome expected, Guid? repairOf = null)
+    {
+        var claim = await SendAsync(host, repairOf is { } source
+            ? CreateCodeReviewAttemptCommand.ForRepair(lineage.RunId, source)
+            : new CreateCodeReviewAttemptCommand(lineage.RunId, reportId));
+        Assert.True(claim.IsSuccess, claim.IsFailure ? claim.Errors[0].Code : null);
+        host.Review.FinalResponseJson = response;
+        await RunSupervisorAsync(ReviewSupervisorFor(host), host, claim.Value.AttemptId, expectTerminal: true);
+        Assert.Equal(expected, await InDbAsync(host, db => db.Attempts.Where(a => a.Id == claim.Value.AttemptId).Select(a => a.AgentOutcome).SingleAsync()));
+        return claim.Value.AttemptId;
+    }
+
+    /// <summary>What the review adapter actually received names the implemented plan — identifier, summary and structured
+    /// content — and none of the other plans' text.</summary>
+    private async Task AssertReviewedPlanAsync(Host host, Guid reviewAttemptId, Guid planId, string expectedSteps, params string[] absentText)
+    {
+        var text = host.Review.ReceivedManifests.Single(m => m.AttemptId == reviewAttemptId).Text;
+        var manifest = JsonSerializer.Deserialize<JsonElement>(text);
+        var plan = manifest.GetProperty("resolvedPlan");
+        var message = await InDbAsync(host, db => db.CollaborationMessages.AsNoTracking().SingleAsync(m => m.Id == planId));
+        Assert.Equal(planId, plan.GetProperty("messageId").GetGuid());
+        Assert.Equal(message.Summary, plan.GetProperty("summary").GetString());
+        Assert.Equal(expectedSteps, plan.GetProperty("structuredContent").GetProperty("implementationSteps").GetString());
+        foreach (var absent in absentText)
+        {
+            Assert.DoesNotContain(absent, text, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task An_ordinary_first_revision_is_reviewed_repaired_corrected_twice_and_re_reviewed_as_the_implemented_revision()
+    {
+        await using var host = BuildHost();
+        var lineage = await SeedOrdinaryAsync(host, revised: true, acceptPlan: false);
+        const string revisedSteps = "Steps unique to [First revised scope]";
+        string[] superseded = [RootPlanSummary, RootPlanSteps, lineage.RootId.ToString()];
+
+        var (implementationId, report) = await ImplementAsync(host, lineage);
+        Assert.Equal(lineage.FinalId, report.InReplyToMessageId);
+        Assert.Equal(
+            lineage.SecondDecisionIds.Prepend(lineage.FinalId),
+            await InDbAsync(host, db => db.AttemptInputMessages.Where(m => m.AttemptId == implementationId)
+                .OrderBy(m => m.Sequence).Select(m => m.CollaborationMessageId).ToListAsync()));
+        await SeedPassedVerificationAsync(host, lineage, executionNumber: 1);
+
+        // The first review answers in an unusable shape; the manual repair then reviews the same report.
+        var invalidReview = await ReviewAsync(host, lineage, report.Id, "not a review", AgentOutcome.InvalidStructuredOutput);
+        var repair = await ReviewAsync(host, lineage, report.Id, ChangesRequestedJson(), AgentOutcome.ReviewChangesRequested, repairOf: invalidReview);
+        await AssertReviewedPlanAsync(host, invalidReview, lineage.FinalId, revisedSteps, superseded);
+        await AssertReviewedPlanAsync(host, repair, lineage.FinalId, revisedSteps, superseded);
+        var finding = await InDbAsync(host, db => db.CollaborationMessages.AsNoTracking().SingleAsync(
+            m => m.AttemptId == repair && m.Type == CollaborationMessageType.ReviewFinding));
+
+        // First correction: replies keep the root and the findings; the correction manifest carries no plan.
+        var correction = await SendAsync(host, new CreateReviewCorrectionAttemptCommand(lineage.RunId, repair));
+        var correctionClaim = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(correction.Value);
+        host.Process.FinalResponse = CorrectionResponse(finding.Id);
+        await RunSupervisorAsync(CorrectionSupervisorFor(host), host, correctionClaim.AttemptId, expectTerminal: true);
+        var correctionStdin = StdinOf(host.Process.Requests.Last());
+        Assert.DoesNotContain(revisedSteps, correctionStdin, StringComparison.Ordinal);
+        Assert.DoesNotContain(RootPlanSteps, correctionStdin, StringComparison.Ordinal);
+        Assert.Equal(
+            [report.Id, finding.Id],
+            await InDbAsync(host, db => db.AttemptInputMessages.Where(m => m.AttemptId == correctionClaim.AttemptId)
+                .OrderBy(m => m.Sequence).Select(m => m.CollaborationMessageId).ToListAsync()));
+        var report2 = await InDbAsync(host, db => db.CollaborationMessages.AsNoTracking().SingleAsync(
+            m => m.AttemptId == correctionClaim.AttemptId && m.Type == CollaborationMessageType.ExecutionReport));
+        Assert.Equal(lineage.RootId, report2.InReplyToMessageId);
+        var response = await InDbAsync(host, db => db.CollaborationMessages.AsNoTracking().SingleAsync(
+            m => m.AttemptId == correctionClaim.AttemptId && m.Type == CollaborationMessageType.RevisionResponse));
+        Assert.Equal(finding.Id, response.InReplyToMessageId);
+
+        await SeedPassedVerificationAsync(host, lineage, executionNumber: 2);
+        var reReview1 = await ReviewAsync(host, lineage, report2.Id, ChangesRequestedJson(), AgentOutcome.ReviewChangesRequested);
+        await AssertReviewedPlanAsync(host, reReview1, lineage.FinalId, revisedSteps, superseded);
+        var finding2 = await InDbAsync(host, db => db.CollaborationMessages.AsNoTracking().SingleAsync(
+            m => m.AttemptId == reReview1 && m.Type == CollaborationMessageType.ReviewFinding));
+
+        // A second correction link (within the ordinary correction budget): the plan identity and the replies are unchanged.
+        var second = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(
+            (await SendAsync(host, new CreateReviewCorrectionAttemptCommand(lineage.RunId, reReview1))).Value);
+        host.Process.FinalResponse = CorrectionResponse(finding2.Id);
+        await RunSupervisorAsync(CorrectionSupervisorFor(host), host, second.AttemptId, expectTerminal: true);
+        var report3 = await InDbAsync(host, db => db.CollaborationMessages.AsNoTracking().SingleAsync(
+            m => m.AttemptId == second.AttemptId && m.Type == CollaborationMessageType.ExecutionReport));
+        Assert.Equal(lineage.RootId, report3.InReplyToMessageId);
+        Assert.Equal(
+            [report2.Id, finding2.Id],
+            await InDbAsync(host, db => db.AttemptInputMessages.Where(m => m.AttemptId == second.AttemptId)
+                .OrderBy(m => m.Sequence).Select(m => m.CollaborationMessageId).ToListAsync()));
+
+        await SeedPassedVerificationAsync(host, lineage, executionNumber: 3);
+        var invalidReReview = await ReviewAsync(host, lineage, report3.Id, "not a review", AgentOutcome.InvalidStructuredOutput);
+        var reReviewRepair = await ReviewAsync(host, lineage, report3.Id, ApprovedJson(), AgentOutcome.ReviewApproved, repairOf: invalidReReview);
+        await AssertReviewedPlanAsync(host, invalidReReview, lineage.FinalId, revisedSteps, superseded);
+        await AssertReviewedPlanAsync(host, reReviewRepair, lineage.FinalId, revisedSteps, superseded);
+        var repairManifest = JsonSerializer.Deserialize<JsonElement>(host.Review.ReceivedManifests.Single(m => m.AttemptId == reReviewRepair).Text);
+        Assert.True(repairManifest.TryGetProperty("formatRepairNotice", out _));
+        Assert.Equal(report2.Id, repairManifest.GetProperty("correctionEvidence").GetProperty("previousExecutionReport").GetProperty("messageId").GetGuid());
+        Assert.Equal(5, host.Review.InvocationCount);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task An_accepted_root_and_an_accepted_first_revision_are_reviewed_as_the_exact_plan_they_implemented(bool revised, bool accepted)
+    {
+        await using var host = BuildHost();
+        var lineage = await SeedOrdinaryAsync(host, revised, accepted);
+        var (implementationId, report) = await ImplementAsync(host, lineage);
+        Assert.Equal(lineage.FinalId, report.InReplyToMessageId);
+        var inputs = await InDbAsync(host, db => db.AttemptInputMessages.Where(m => m.AttemptId == implementationId)
+            .OrderBy(m => m.Sequence).Select(m => m.CollaborationMessageId).ToListAsync());
+        Assert.Equal(lineage.FinalId, inputs[0]);
+        Assert.Equal(revised ? lineage.SecondDecisionIds.Count + 2 : 2, inputs.Count);
+        await SeedPassedVerificationAsync(host, lineage, executionNumber: 1);
+
+        var review = await ReviewAsync(host, lineage, report.Id, ApprovedJson(), AgentOutcome.ReviewApproved);
+
+        if (revised)
+        {
+            await AssertReviewedPlanAsync(host, review, lineage.FinalId, "Steps unique to [First revised scope]", RootPlanSummary, RootPlanSteps);
+        }
+        else
+        {
+            await AssertReviewedPlanAsync(host, review, lineage.RootId, RootPlanSteps);
+        }
+    }
+
+    [Fact]
+    public async Task An_older_root_target_sealed_review_replays_its_exact_bytes_after_a_restart()
+    {
+        Lineage lineage;
+        Guid reviewAttemptId;
+        string oldManifestText;
+        await using (var first = BuildHost())
+        {
+            lineage = await SeedOrdinaryAsync(first, revised: true, acceptPlan: false);
+            var (_, report) = await ImplementAsync(first, lineage);
+            await SeedPassedVerificationAsync(first, lineage, executionNumber: 1);
+            var claim = await SendAsync(first, new CreateCodeReviewAttemptCommand(lineage.RunId, report.Id));
+            Assert.True(claim.IsSuccess, claim.IsFailure ? claim.Errors[0].Code : null);
+            reviewAttemptId = claim.Value.AttemptId;
+
+            // Fabricate what a review claimed before ADR-0017 sealed: the same manifest naming the root as its plan.
+            var root = await InDbAsync(first, db => db.CollaborationMessages.AsNoTracking().SingleAsync(m => m.Id == lineage.RootId));
+            var artifact = await InDbAsync(first, db => db.Artifacts.AsNoTracking().SingleAsync(
+                a => a.AttemptId == reviewAttemptId && a.Purpose == ArtifactPurpose.AgentContextManifest));
+            var manifest = System.Text.Json.Nodes.JsonNode.Parse((await ReadManifestAsync(first, reviewAttemptId)).GetRawText())!.AsObject();
+            manifest["resolvedPlan"] = new System.Text.Json.Nodes.JsonObject
+            {
+                ["messageId"] = root.Id,
+                ["summary"] = root.Summary,
+                ["structuredContent"] = System.Text.Json.Nodes.JsonNode.Parse(root.StructuredContentJson),
+            };
+            oldManifestText = manifest.ToJsonString();
+            var bytes = Encoding.UTF8.GetBytes(oldManifestText);
+            var sealedPath = Path.Combine(_artifactRoot, artifact.RelativeStoragePath);
+            File.SetAttributes(sealedPath, FileAttributes.Normal);
+            await File.WriteAllBytesAsync(sealedPath, bytes);
+            var hash = "sha256:" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes));
+            await using var scope = first.Provider.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            await db.Artifacts.Where(a => a.Id == artifact.Id).ExecuteUpdateAsync(set => set
+                .SetProperty(a => a.ContentHash, hash).SetProperty(a => a.ByteLength, (long)bytes.Length));
+        }
+
+        SqliteConnection.ClearPool(new SqliteConnection($"Data Source={_databasePath}"));
+        await using var restarted = BuildHost();
+        restarted.Evidence.Stage = 1;
+        restarted.Review.FinalResponseJson = ApprovedJson();
+
+        await RunSupervisorAsync(ReviewSupervisorFor(restarted), restarted, reviewAttemptId, expectTerminal: true);
+
+        var received = Assert.Single(restarted.Review.ReceivedManifests);
+        Assert.Equal(reviewAttemptId, received.AttemptId);
+        Assert.Equal(oldManifestText, received.Text);
+        Assert.Equal(lineage.RootId, JsonSerializer.Deserialize<JsonElement>(received.Text).GetProperty("resolvedPlan").GetProperty("messageId").GetGuid());
+        Assert.Equal(AgentOutcome.ReviewApproved, await InDbAsync(restarted, db => db.Attempts.Where(a => a.Id == reviewAttemptId).Select(a => a.AgentOutcome).SingleAsync()));
+        Assert.Equal(1, await InDbAsync(restarted, db => db.Attempts.CountAsync(a => a.AgentRole == AgentRole.CodeReviewer)));
     }
 
     private async Task<JsonElement> ReadManifestAsync(Host host, Guid attemptId)

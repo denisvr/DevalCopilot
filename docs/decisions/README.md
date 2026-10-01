@@ -22,6 +22,8 @@ supersedes it.
 - [ADR-0014: Add manual Agent run intake with durable execution-mode isolation](0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)
 - [ADR-0015: Add direct human guidance to explicit mutation requests](0015-add-direct-human-guidance-to-explicit-mutation-requests.md)
 - [ADR-0016: Add explicit human authorization of one escalated-plan implementation](0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)
+  (its preservation of the ordinary first-revision review target is narrowly superseded by ADR-0017)
+- [ADR-0017: Review the implemented plan through correction](0017-review-the-implemented-plan-through-correction.md)
 
 ## Status values
 

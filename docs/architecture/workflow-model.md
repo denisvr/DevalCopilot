@@ -112,6 +112,9 @@ attempt never rolls back or discards whatever the worktree already holds;
 when the worktree may have changed without a verified, trustworthy result to
 show for it, the workspace is flagged `NeedsAttention` instead of being
 silently retried.
+Every newly claimed review of that result (including format repairs and re-reviews of corrected checkpoints) judges the exact
+implemented Proposal, not the superseded Planner root
+([ADR-0017](../decisions/0017-review-the-implemented-plan-through-correction.md)).
 
 ### `LocalVerify` → `Review["Codex review"]` boundary
 
