@@ -1,44 +1,60 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import {
   projectCheckpointReviewsClient,
   recordCheckpointReviewClient,
   RecordCheckpointReviewRequest,
 } from '../../../api/clients'
 import type { CheckpointReviewResponse } from '../../../api/clients'
+import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
 
+interface ReviewsFrame {
+  reviews: CheckpointReviewResponse[]
+  error: string | null
+  saving: boolean
+}
+
+function createFrame(): ReviewsFrame {
+  return { reviews: [], error: null, saving: false }
+}
+
+/** Review evidence and the pending decision belong to the current project's lifetime. A decision
+ * the server already accepted stays real when the project changes meanwhile, but its continuation
+ * then neither refreshes, reports, nor resolves true for the replacement. */
 export function useProjectCheckpointReviews(projectId: string | null) {
-  const [reviews, setReviews] = useState<CheckpointReviewResponse[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const owner = useOwnedLifetime(projectId)
+  const [frame, commit] = useOwnedState(owner, createFrame)
 
   const refresh = useCallback(async () => {
-    if (!projectId) {
-      setReviews([])
+    if (!projectId || !owner.isActive()) {
       return []
     }
 
+    const isCurrent = owner.begin('read')
     try {
       const next = await projectCheckpointReviewsClient().getProjectCheckpointReviews(projectId)
-      setReviews(next)
-      setError(null)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, reviews: next, error: null }))
+      }
       return next
     } catch {
-      setError('Review evidence could not be loaded.')
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, error: 'Review evidence could not be loaded.' }))
+      }
       return []
     }
-  }, [projectId])
+  }, [owner, projectId, commit])
 
   useEffect(() => {
     queueMicrotask(() => void refresh())
   }, [refresh])
 
   const record = useCallback(async (checkpointId: string, executionId: string | undefined, decision: string, actorKind = 'Human') => {
-    if (!projectId) {
+    if (!projectId || !owner.isActive()) {
       return false
     }
 
-    setSaving(true)
-    setError(null)
+    const isCurrent = owner.begin('record')
+    commit((previous) => ({ ...previous, saving: true, error: null }))
     try {
       await recordCheckpointReviewClient().recordCheckpointReview(
         projectId,
@@ -49,15 +65,22 @@ export function useProjectCheckpointReviews(projectId: string | null) {
           decision,
         }),
       )
+      if (!isCurrent()) {
+        return false
+      }
       await refresh()
-      return true
+      return isCurrent()
     } catch {
-      setError('This review decision could not be recorded.')
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, error: 'This review decision could not be recorded.' }))
+      }
       return false
     } finally {
-      setSaving(false)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, saving: false }))
+      }
     }
-  }, [projectId, refresh])
+  }, [owner, projectId, commit, refresh])
 
-  return { reviews, error, saving, refresh, record }
+  return { ...frame, refresh, record }
 }

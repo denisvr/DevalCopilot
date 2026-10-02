@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { ApiException, ConfigureVerificationCommandRequest, UpdateVerificationCommandRequest } from '../../../api/generated/api-client'
 import {
   configureVerificationCommandClient,
@@ -7,6 +7,7 @@ import {
   updateVerificationCommandClient,
 } from '../../../api/clients'
 import type { VerificationCommandResponse } from '../../../api/clients'
+import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
 
 const GENERIC_MESSAGE = 'This verification configuration request could not be completed.'
 
@@ -31,100 +32,123 @@ export interface VerificationCommandDraft {
   timeoutSeconds: number
   isEnabled: boolean
 }
+interface CommandsFrame {
+  commands: VerificationCommandResponse[]
+  loading: boolean
+  saving: boolean
+  error: string | null
+}
+
+function createFrame(projectId: string | null): CommandsFrame {
+  return { commands: [], loading: projectId !== null, saving: false, error: null }
+}
 
 /** Keeps command recipes in the API/database only. It never treats text as a shell command:
- * arguments remain a literal array all the way to the generated MVC client. */
+ * arguments remain a literal array all the way to the generated MVC client.
+ *
+ * The list, errors and pending flag belong to the current project's lifetime. A configure, update
+ * or remove that the server already accepted stays real when the project changes meanwhile, but its
+ * continuation then neither refreshes, reports, nor resolves true for the replacement. */
 export function useProjectVerificationCommands(projectId: string | null) {
-  const [commands, setCommands] = useState<VerificationCommandResponse[]>([])
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const owner = useOwnedLifetime(projectId)
+  const [frame, commit] = useOwnedState(owner, createFrame)
 
   const refresh = useCallback(async () => {
-    if (!projectId) {
-      setCommands([])
+    if (!projectId || !owner.isActive()) {
       return
     }
 
-    setLoading(true)
+    const isCurrent = owner.begin('read')
+    commit((previous) => ({ ...previous, loading: true }))
     try {
-      setCommands(await projectVerificationCommandsClient().getProjectVerificationCommands(projectId))
+      const next = await projectVerificationCommandsClient().getProjectVerificationCommands(projectId)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, commands: next }))
+      }
     } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, error: extractSafeErrorDetail(caught) }))
+      }
     } finally {
-      setLoading(false)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, loading: false }))
+      }
     }
-  }, [projectId])
+  }, [owner, projectId, commit])
 
   useEffect(() => {
     queueMicrotask(() => void refresh())
   }, [refresh])
 
-  const configure = useCallback(async (draft: VerificationCommandDraft) => {
-    if (!projectId) {
-      return false
-    }
+  // Runs one write bound to this project's lifetime. Resolves true only when the server accepted it
+  // and the lifetime is still the current, newest write of it.
+  const save = useCallback(
+    async (execute: (id: string) => Promise<unknown>) => {
+      if (!projectId || !owner.isActive()) {
+        return false
+      }
 
-    setSaving(true)
-    setError(null)
-    try {
-      await configureVerificationCommandClient().configureVerificationCommand(
-        projectId,
-        new ConfigureVerificationCommandRequest(draft),
+      const isCurrent = owner.begin('save')
+      commit((previous) => ({ ...previous, saving: true, error: null }))
+      try {
+        await execute(projectId)
+        if (!isCurrent()) {
+          return false
+        }
+        await refresh()
+        return isCurrent()
+      } catch (caught: unknown) {
+        if (isCurrent()) {
+          commit((previous) => ({ ...previous, error: extractSafeErrorDetail(caught) }))
+        }
+        return false
+      } finally {
+        if (isCurrent()) {
+          commit((previous) => ({ ...previous, saving: false }))
+        }
+      }
+    },
+    [owner, projectId, commit, refresh],
+  )
+
+  const configure = useCallback(
+    (draft: VerificationCommandDraft) =>
+      save((id) =>
+        configureVerificationCommandClient().configureVerificationCommand(id, new ConfigureVerificationCommandRequest(draft)),
+      ),
+    [save],
+  )
+
+  const update = useCallback(
+    async (command: VerificationCommandResponse, isEnabled: boolean) => {
+      const verificationCommandId = command.verificationCommandId
+      if (!verificationCommandId) {
+        return
+      }
+
+      await save((id) =>
+        updateVerificationCommandClient().updateVerificationCommand(
+          id,
+          verificationCommandId,
+          new UpdateVerificationCommandRequest({
+            name: command.name ?? '',
+            executablePath: command.executablePath ?? '',
+            arguments: command.arguments ?? [],
+            timeoutSeconds: command.timeoutSeconds ?? 60,
+            isEnabled,
+          }),
+        ),
       )
-      await refresh()
-      return true
-    } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
-      return false
-    } finally {
-      setSaving(false)
-    }
-  }, [projectId, refresh])
+    },
+    [save],
+  )
 
-  const update = useCallback(async (command: VerificationCommandResponse, isEnabled: boolean) => {
-    if (!projectId || !command.verificationCommandId) {
-      return
-    }
+  const remove = useCallback(
+    async (verificationCommandId: string) => {
+      await save((id) => deleteVerificationCommandClient().deleteVerificationCommand(id, verificationCommandId))
+    },
+    [save],
+  )
 
-    setSaving(true)
-    setError(null)
-    try {
-      await updateVerificationCommandClient().updateVerificationCommand(
-        projectId,
-        command.verificationCommandId,
-        new UpdateVerificationCommandRequest({
-          name: command.name ?? '',
-          executablePath: command.executablePath ?? '',
-          arguments: command.arguments ?? [],
-          timeoutSeconds: command.timeoutSeconds ?? 60,
-          isEnabled,
-        }),
-      )
-      await refresh()
-    } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
-    } finally {
-      setSaving(false)
-    }
-  }, [projectId, refresh])
-
-  const remove = useCallback(async (verificationCommandId: string) => {
-    if (!projectId) {
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    try {
-      await deleteVerificationCommandClient().deleteVerificationCommand(projectId, verificationCommandId)
-      await refresh()
-    } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
-    } finally {
-      setSaving(false)
-    }
-  }, [projectId, refresh])
-
-  return { commands, loading, saving, error, configure, update, remove }
+  return { ...frame, configure, update, remove }
 }

@@ -6,6 +6,99 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
+## Atomic project/run switching for cockpit and workspace evidence (2026-10-02)
+
+- Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent
+  `fbadc4e6b25e5015988b368f456b7a817ee06dd3` (`main`; `HEAD`, local `origin/main` and live `refs/heads/main` matched it, nothing staged or
+  untracked, only the planner-owned `planner-handoff.md` modified at the start; the generated client SHA-256 matched
+  `1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`). Presented as an uncommitted, unstaged, unpushed diff for Codex's
+  GO/NO-GO; `planner-handoff.md` was not edited (its content and CRLF line endings were preserved). Frontend only: no backend production or test,
+  HTTP contract, generated client, schema, migration, dependency, provider or workflow change.
+- Delivered behavior: selecting another project or run now shows, in the very frame that commits the selection, only that selection's own loading
+  or error state. A small feature-owned utility (`useOwnedLifetime`: an `OwnedLifetime` created per committed owner key, ended in a layout-effect
+  cleanup, so a return to an earlier key is a new lifetime, plus `useOwnedState`, which exposes a state frame only to the lifetime that wrote it and
+  lets a continuation write only while its lifetime is active) now backs the six scoped hooks.
+  - `useRunCockpit`: snapshot, event cards, connection, loading, error and sync error belong to the selection lifetime (A to B to A, `null`,
+    unmount). A cockpit answer naming another run is refused with a fixed error and never becomes the selection's cockpit. The per-run catch-up state,
+    cursor, coalescing, post-connect/reconnect catch-up and refresh waiters are unchanged; `refresh` is now bound to its lifetime, so a retained
+    callback of the previous run resolves false and starts no request. Because the cockpit and cards are no longer inherited, the downstream hooks
+    never receive the previous run's `latestSequence` or process attempt id.
+  - `useProjectWorkspace`, `useProjectGitEvidence`, `useProjectVerificationCommands`, `useProjectVerificationExecutions`,
+    `useProjectCheckpointReviews`: metadata, lists, errors and pending flags belong to the project lifetime (nothing is owned for a `null` project, or
+    for evidence that is disabled). Overlapping reads are ordered per lifetime, so an older answer never overwrites a newer one, nor clears its pending
+    flag or error. Git evidence additionally owns the inspected files and diff by the exact checkpoint: a newer checkpoint drops them, a late inspection
+    of an older checkpoint is discarded, an inspection failure stays on its checkpoint, and the inspecting flag belongs to the checkpoint being
+    inspected. The execution polling chain ends with its lifetime and is still bounded to while an execution is `Running`.
+  - Accepted operations stay real: preparation, identity recheck, checkpoint capture, command configure/update/remove, verification start and review
+    decision are sent exactly as before, with the same project, command, checkpoint and execution identifiers and the literal argument array. Their
+    continuations are guarded: a handler retained from a replaced lifetime starts no request, and an obsolete completion neither refreshes, reports,
+    clears a flag nor resolves true (`configure` and `record` resolve false then). Nothing is undone or retried.
+  - Components: `VerificationCommandsPanel` keeps its form draft, pending start, start message and selected output in project-owned state; a saved
+    draft is cleared only when it is still the draft that was saved. `CheckpointReviewPanel` keeps the reviewer and chosen verification evidence in
+    project-owned state, the evidence choice additionally tied to its checkpoint. `useVerificationExecutionOutput` owns text, final flag and error by
+    project, execution, stream and enabled state, so another execution starts from empty text in its first frame. `App` keys `CandidateWorkspacePanel`
+    by project and `RunCockpitView` by run, and `CandidateWorkspacePanel` keys its three sub-panels by project; the keys are an additional reset, not a
+    substitute for the lifetime guards. Bare-hook and RunCockpitView regressions run without App's selection keys; CandidateWorkspacePanel regressions exercise its keyed child composition.
+  - Correction round (Codex NO-GO R1-R3, same slice): (R1) the command draft carries a version that advances on every edit, even one that yields identical
+    values; a successful save clears the form only if the version is still the one it sent (an edit and a restore to the saved values keeps the draft), and
+    only for its own project lifetime. (R2) execution polling is governed only by the newest accepted read of the project lifetime: a Running answer, from
+    the initial read or a refresh, starts or restarts the single one-second chain; a terminal, empty or failed answer ends it; a superseded answer can neither
+    start nor keep it alive; replacement and unmount clear it. (R3) every catch-up entry point (refresh, notification, reconnect, post-connect, the loop after
+    each await) first requires the lifetime to be active, because the owner ends in the replacement commit's layout cleanup, before the passive cleanup that
+    retires the generation; a discarded refresh resolves false and a waiter is released truthfully. The scoped verification-output polling applies the same
+    rule before and after each read.
+  - Behavior notes for review: a `null` selection reports `loading: false`; the initial read of the workspace and verification-execution hooks starts directly in the
+    effect, while the evidence, command and review hooks still start theirs in a microtask (as before), so for those a selection replaced before it runs requests nothing; read errors keep their existing same-owner clearing behavior; the
+    cockpit's cards restart with the cursor if React Strict Mode re-runs the effect of the same lifetime.
+- Inventory (against the parent, excluding `planner-handoff.md`): production, 11 modified (`App`, `CandidateWorkspacePanel`, `CheckpointReviewPanel`,
+  `VerificationCommandsPanel`, `useRunCockpit`, `useProjectWorkspace`, `useProjectGitEvidence`, `useProjectVerificationCommands`,
+  `useProjectVerificationExecutions`, `useProjectCheckpointReviews`, `useVerificationExecutionOutput`) and 1 new (`useOwnedLifetime`); tests, 6 new
+  (`useRunCockpit.selection.test`, `projectOwnership.test`, `layoutBoundary.test`, `ProjectSelectionOwnership.test`, `RunCockpitSelectionOwnership.test` and the Chromium
+  `e2e/project-selection.spec.ts`); documentation, 2 modified (this file and the run cockpit specification, whose switcher section now states the
+  per-frame ownership rule). No existing test was changed.
+- Checks run on the **final tree** (all fresh, none retained): `npx vitest run` 113 files, 1531/1531 (was 108 files, 1470; +61 tests in 5 files: 11
+  run-selection hook, 33 project/output/polling hook, 2 layout-boundary, 12 project-panel and 3 run-view tests); `npm run typecheck` (`tsc -b`) clean; `npm run build` clean (the existing chunk-size
+  notice only); `npm run lint` 10 warnings and 0 errors (the recorded baseline was 12; the remaining ones are existing `set-state-in-effect`/`purity`
+  findings in files this slice did not touch); `npm audit` 0 vulnerabilities; `npm run test:harness` 19/19; the full Chromium suite
+  (`npx playwright test`, real host in the `PlaywrightSmoke` environment, `reuseExistingServer: false`) 6/6, and the new specification alone passed 6 consecutive
+  runs after two flakes were fixed in its own fixture (see below); `dotnet build DevalCopilot.slnx --no-incremental -m:1` 0 warnings, 0 errors with
+  `api-client.ts` deleted first and regenerated byte-identical (SHA-256 `1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`, no change in Git);
+  `git diff --check` clean (only Git's CRLF notice for the planner-owned file); every changed and new file other than the preserved CRLF planner-owned `planner-handoff.md` was checked for NUL, trailing whitespace and
+  carriage returns (none; the planner file keeps its CRLF endings and was not otherwise inspected for whitespace); the added documentation contains no new relative links. Backend test suites, `dotnet format` and the vulnerable-package scan were
+  not repeated because no backend or package file changed; the recorded results of the previous delivery for them are retained and unverified here.
+- Correction-round proof (fresh): the R1-R3 regressions were written first and were red against the pre-correction tree (the restored-draft case; the two polling
+  reproductions and the obsolete-Running case; the layout-effect refresh/notification/reconnect case giving requests [A, A, B] instead of [A, B]; the output timer
+  firing before passive cleanup), then green after the fix, together with unchanged-draft success, a single bounded chain, and stop on replacement and unmount.
+  The full final-tree results above were re-run after the correction (the solution build and client hash after the last production edit; the later edits were tests only).
+- Proof: the regressions were written before the production change and run against the parent's production files. The three confirmed failures reproduced
+  red: after A loaded, the pending B still exposed A's cockpit; A to `null` still exposed A's cockpit; and Git evidence for B followed by A's late answer
+  ended at A's checkpoint (`expected 'checkpoint-a' to be 'checkpoint-b'`). Against the parent, 33 of the 48 hook and component tests written by then were red (the rest
+  assert unchanged same-owner behavior and so pass on both), and later runs reproduced red for the run-view specification (2 of 3) and the Chromium
+  specification. Committed frames are observed, not eventual state: the hook tests record every render; the component tests record `document.body`
+  text from a `Profiler` after every commit of the subtree (including the commits of state updates), so a frame that shows the previous selection cannot hide
+  behind a later correct one; the Chromium specification adds a `MutationObserver` that fails on any mutation showing A's objective while B is selected.
+  Coverage: A to B to A, `null`, disabled evidence, unmount/remount, stale success and failure of every project hook and of the cockpit, stale notifications,
+  reconnects, refresh callbacks and waiters, older/newer overlapping reads (including B answering before the older A), a response naming another run, C1 to C2
+  during inspection (hook and visible panel), exact request identifiers and literal arguments (workspace, evidence, files and diff, claim, configure, update,
+  remove, record, output offsets), an accepted preparation/capture/configure/claim/record that completes after the selection changed (no report, refresh,
+  pending flag, draft clearing or message for the replacement), a retained handler starting no work, drafts, selected output and chosen evidence not
+  carried over, a typed-while-saving draft kept, and same-owner success, coalesced catch-up, deduplication and recoverable failure still working. Materially
+  different project, run, checkpoint, command, execution and review identifiers are used throughout.
+- Chromium regression (`e2e/project-selection.spec.ts`): two owned fixture repositories registered through the public operation, each with its own manual
+  run and distinct objective, selected explicitly. `page.route` forwards the page's real authenticated `GET /api/runs/{id}/cockpit` to the host and only holds
+  (or, for the failure case, replaces) its delivery. While B is outstanding the page shows `Loading run…` and none of A's heading, stage, workflow rail or
+  Codex planning action; a returning A held while B is shown and released late changes nothing; a failing B shows no A evidence; recovery shows B's own
+  cockpit. Fixture isolation, the owned root and cleanup are the existing ones. Two flakes were fixed in the specification itself, not in the assertions
+  about A and B: the held-request count is now "at least one" (Strict Mode and a catch-up can issue two requests), and the held answer is buffered before it is
+  delivered (a fetched response could be disposed when the page had dropped the request).
+- Remaining limitations and risks: no real provider and no native Tauri shell were involved; the Chromium run uses the Vite dev server in Strict Mode, not
+  the packaged shell. The other read hooks of the cockpit (agent attempt status, timeline, evidence drill-downs and so on) were deliberately not rewritten and keep
+  their earlier per-run contracts; the run view's reset on selection also relies on them and on the `RunCockpitView` key. `WorkspaceEvidencePanel`, `VerificationCommandsPanel`
+  and `CheckpointReviewPanel` each still hold their own independent evidence read of the same project (as before), so they can show different recorded checkpoint snapshots after a capture until
+  each next reads. The Chromium observer is a `MutationObserver` batch check beside the explicit assertions, not a per-commit hook. SignalR connection console lines
+  still appear in browser runs. This is not Increment 4 completion and no next slice is selected here.
+- Not published: this entry describes an uncommitted working tree; no commit, push or publication SHA is claimed.
+
 ## Implemented-plan identity through review and correction (2026-10-01)
 
 - Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent

@@ -1,38 +1,45 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { verificationExecutionOutputClient } from '../../../api/clients'
+import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
 
 export type VerificationOutputStream = 'stdout' | 'stderr'
 
+interface OutputFrame {
+  text: string
+  isFinal: boolean
+  error: string | null
+}
+
+function createFrame(): OutputFrame {
+  return { text: '', isFinal: false, error: null }
+}
+
+/** Output belongs to exactly one project, execution, stream and enabled state: a different one
+ * starts from empty text in the very render that selects it, and a chunk or failure that was
+ * requested for an earlier one can no longer be shown. */
 export function useVerificationExecutionOutput(
   projectId: string,
   executionId: string | null,
   stream: VerificationOutputStream,
   enabled: boolean,
 ) {
-  const [text, setText] = useState('')
-  const [isFinal, setIsFinal] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const owner = useOwnedLifetime(executionId && enabled ? JSON.stringify([projectId, executionId, stream]) : null)
+  const [frame, commit] = useOwnedState(owner, createFrame)
 
   useEffect(() => {
-    let cancelled = false
-    let timer: ReturnType<typeof setTimeout> | undefined
-    queueMicrotask(() => {
-      if (!cancelled) {
-        setText('')
-        setIsFinal(false)
-        setError(null)
-      }
-    })
-
     if (!executionId || !enabled) {
-      return () => {
-        cancelled = true
-      }
+      return
     }
 
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     let offset = 0
 
     async function readNext() {
+      // A timer can fire after the owner ended but before this effect is cleaned up.
+      if (cancelled || !owner.isActive()) {
+        return
+      }
       try {
         const result = await verificationExecutionOutputClient().getVerificationExecutionOutput(
           projectId,
@@ -41,24 +48,24 @@ export function useVerificationExecutionOutput(
           offset,
           16 * 1024,
         )
-        if (cancelled) {
+        if (cancelled || !owner.isActive()) {
           return
         }
 
         if (result.text) {
-          setText(previous => previous + result.text)
+          commit((previous) => ({ ...previous, text: previous.text + result.text }))
         }
         offset = result.nextOffset ?? offset
         const caughtUp = (result.isFinal ?? false) && !result.text
         if (caughtUp) {
-          setIsFinal(true)
+          commit((previous) => ({ ...previous, isFinal: true }))
           return
         }
 
         timer = setTimeout(() => void readNext(), 250)
       } catch {
         if (!cancelled) {
-          setError('This verification output could not be loaded.')
+          commit((previous) => ({ ...previous, error: 'This verification output could not be loaded.' }))
         }
       }
     }
@@ -70,7 +77,7 @@ export function useVerificationExecutionOutput(
         clearTimeout(timer)
       }
     }
-  }, [enabled, executionId, projectId, stream])
+  }, [enabled, executionId, projectId, stream, owner, commit])
 
-  return { text, isFinal, error }
+  return frame
 }

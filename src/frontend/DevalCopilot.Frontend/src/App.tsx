@@ -108,7 +108,7 @@ export default function App() {
 
       {selectedProject ? <ProjectBaselineSummary project={selectedProject} /> : null}
 
-      {selectedProject?.projectId ? <CandidateWorkspacePanel projectId={selectedProject.projectId} /> : null}
+      {selectedProject?.projectId ? <CandidateWorkspacePanel key={selectedProject.projectId} projectId={selectedProject.projectId} /> : null}
 
       {selectedProject ? (
         <CapabilityReadinessStrip
@@ -135,7 +135,7 @@ export default function App() {
       ) : null}
 
       {selectedProject?.runId ? (
-        <RunCockpitView runId={selectedProject.runId} />
+        <RunCockpitView key={selectedProject.runId} runId={selectedProject.runId} />
       ) : selectedProject ? (
         <p className="dc-empty-state">{selectedProject.projectName} has no run yet.</p>
       ) : (

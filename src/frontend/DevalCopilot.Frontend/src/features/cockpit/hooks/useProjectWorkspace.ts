@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import { ApiException } from '../../../api/generated/api-client'
 import { prepareWorkspaceClient, projectWorkspaceClient, recheckPhysicalIdentityClient } from '../../../api/clients'
 import type { GetProjectWorkspaceResponse } from '../../../api/clients'
+import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
 
 interface UseProjectWorkspaceResult {
   workspace: GetProjectWorkspaceResponse | null
@@ -32,70 +33,102 @@ function extractSafeErrorDetail(caught: unknown): string {
   }
 }
 
+interface WorkspaceFrame {
+  workspace: GetProjectWorkspaceResponse | null
+  loading: boolean
+  preparing: boolean
+  rechecking: boolean
+  error: string | null
+}
+
+function createFrame(projectId: string | null): WorkspaceFrame {
+  return { workspace: null, loading: projectId !== null, preparing: false, rechecking: false, error: null }
+}
+
 /** Loads a project's current candidate-workspace state and exposes the two bounded, explicit
  * actions available on it: requesting preparation, and rechecking physical identity when it is
- * blocking preparation. Neither action ever retries automatically. */
+ * blocking preparation. Neither action ever retries automatically.
+ *
+ * Everything exposed belongs to the current project's lifetime: another project, none, or a
+ * return to an earlier one starts from an empty loading frame, and a read, action or handler of
+ * a replaced lifetime can no longer change state, refresh, or start work. An already accepted
+ * server operation is neither undone nor retried. */
 export function useProjectWorkspace(projectId: string | null): UseProjectWorkspaceResult {
-  const [workspace, setWorkspace] = useState<GetProjectWorkspaceResponse | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [preparing, setPreparing] = useState(false)
-  const [rechecking, setRechecking] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const owner = useOwnedLifetime(projectId)
+  const [frame, commit] = useOwnedState(owner, createFrame)
 
   const refresh = useCallback(async () => {
-    if (!projectId) {
-      setWorkspace(null)
+    if (!projectId || !owner.isActive()) {
       return
     }
 
-    setLoading(true)
+    const isCurrent = owner.begin('read')
+    commit((previous) => ({ ...previous, loading: true }))
     try {
       const response = await projectWorkspaceClient().getProjectWorkspace(projectId)
-      setWorkspace(response)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, workspace: response }))
+      }
     } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, error: extractSafeErrorDetail(caught) }))
+      }
     } finally {
-      setLoading(false)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, loading: false }))
+      }
     }
-  }, [projectId])
+  }, [owner, projectId, commit])
 
   useEffect(() => {
     void refresh()
   }, [refresh])
 
   const prepare = useCallback(async () => {
-    if (!projectId) {
+    if (!projectId || !owner.isActive()) {
       return
     }
 
-    setPreparing(true)
-    setError(null)
+    const isCurrent = owner.begin('prepare')
+    commit((previous) => ({ ...previous, preparing: true, error: null }))
     try {
       await prepareWorkspaceClient().prepareRepositoryWorkspace(projectId)
-      await refresh()
+      if (isCurrent()) {
+        await refresh()
+      }
     } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, error: extractSafeErrorDetail(caught) }))
+      }
     } finally {
-      setPreparing(false)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, preparing: false }))
+      }
     }
-  }, [projectId, refresh])
+  }, [owner, projectId, commit, refresh])
 
   const recheckIdentity = useCallback(async () => {
-    if (!projectId) {
+    if (!projectId || !owner.isActive()) {
       return
     }
 
-    setRechecking(true)
-    setError(null)
+    const isCurrent = owner.begin('recheck')
+    commit((previous) => ({ ...previous, rechecking: true, error: null }))
     try {
       await recheckPhysicalIdentityClient().recheckProjectPhysicalIdentity(projectId)
-      await refresh()
+      if (isCurrent()) {
+        await refresh()
+      }
     } catch (caught: unknown) {
-      setError(extractSafeErrorDetail(caught))
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, error: extractSafeErrorDetail(caught) }))
+      }
     } finally {
-      setRechecking(false)
+      if (isCurrent()) {
+        commit((previous) => ({ ...previous, rechecking: false }))
+      }
     }
-  }, [projectId, refresh])
+  }, [owner, projectId, commit, refresh])
 
-  return { workspace, loading, preparing, rechecking, error, prepare, recheckIdentity }
+  return { ...frame, prepare, recheckIdentity }
 }

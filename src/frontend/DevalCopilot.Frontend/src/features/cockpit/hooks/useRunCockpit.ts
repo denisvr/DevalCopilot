@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { GetRunCockpitResponse, RunEventResponse } from '../../../api/clients'
 import { runCockpitClient, runEventsClient } from '../../../api/clients'
 import { createRunNotificationConnection, type RunAdvancedNotification } from '../../../api/runNotifications'
@@ -6,6 +6,7 @@ import type { CollaborationCard, ConnectionState } from '../types'
 import { parseEventSummary } from '../parseEventSummary'
 import { toParticipantIdentity } from '../participantIdentity'
 import { toUtcText } from '../utcText'
+import { useOwnedLifetime, useOwnedState, type OwnedLifetime } from './useOwnedLifetime'
 
 interface UseRunCockpitResult {
   cockpit: GetRunCockpitResponse | null
@@ -51,12 +52,30 @@ interface CatchUpState {
 }
 
 interface ActiveCatchUp {
+  owner: OwnedLifetime
   runId: string
   generation: number
   state: CatchUpState
 }
 
 const REFRESH_FAILURE_MESSAGE = 'The cockpit could not be refreshed after your change.'
+const WRONG_RUN_MESSAGE = 'The host answered with a different run than the one selected.'
+
+// Everything the hook exposes about one selection. It belongs to that selection's lifetime only: a
+// frame written for any other lifetime is never shown, so the committed render of a new selection
+// starts from the loading state instead of from the previous run's snapshot.
+interface CockpitFrame {
+  cockpit: GetRunCockpitResponse | null
+  cards: CollaborationCard[]
+  connection: ConnectionState
+  loading: boolean
+  error: string | null
+  syncError: string | null
+}
+
+function createFrame(runId: string | null): CockpitFrame {
+  return { cockpit: null, cards: [], connection: 'connecting', loading: runId !== null, error: null, syncError: null }
+}
 
 function toCard(event: RunEventResponse): CollaborationCard {
   return {
@@ -87,14 +106,15 @@ function toMessage(caught: unknown): string {
  * current through SignalR notifications. SignalR only announces that state advanced;
  * every refresh re-queries the authoritative API by sequence cursor, so a missed or
  * duplicated notification cannot create duplicate cards or stale-looking success.
+ *
+ * Everything exposed belongs to the committed selection lifetime. Selecting another run (or
+ * none), returning to an earlier one, and unmounting each end the previous lifetime: its
+ * snapshot, cards, connection and errors are never shown for the new selection, and its late
+ * responses, notifications, refresh callbacks and waiters can no longer change anything.
  */
 export function useRunCockpit(runId: string | null): UseRunCockpitResult {
-  const [cockpit, setCockpit] = useState<GetRunCockpitResponse | null>(null)
-  const [cards, setCards] = useState<CollaborationCard[]>([])
-  const [connection, setConnection] = useState<ConnectionState>('connecting')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [syncError, setSyncError] = useState<string | null>(null)
+  const owner = useOwnedLifetime(runId)
+  const [frame, commit] = useOwnedState(owner, createFrame)
   // Identifies the current effect run. Bumped both when a newer run starts AND in this
   // effect's own cleanup (see below), so a plain unmount — where no newer generation is
   // ever created — still invalidates the generation immediately, rather than leaving it
@@ -118,6 +138,15 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
       refresh = false,
       waiter?: (ok: boolean) => void,
     ) => {
+      // The owner ends in the layout-effect cleanup of the commit that replaces it, before the passive
+      // cleanup that retires the generation: an entry point reached in between (a consumer's layout
+      // effect, a late notification) must already find the lifetime over.
+      const isLive = () => owner.isActive() && generationRef.current === generation
+      if (!isLive()) {
+        waiter?.(false)
+        return
+      }
+
       if (waiter) {
         state.waiters.push(waiter)
       }
@@ -144,41 +173,49 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
             runEventsClient().getRunEvents(currentRunId, state.cursor),
           ])
 
-          if (generationRef.current !== generation) {
+          if (!isLive()) {
             return
           }
 
-          setLoading(false)
-          setCockpit(nextCockpit)
-          if (nextEvents.length > 0) {
-            state.cursor = Math.max(state.cursor, ...nextEvents.map((event) => event.sequence ?? 0))
-            setCards((previous) => mergeBySequence(previous, nextEvents))
+          // A response that names another run is never this selection's cockpit.
+          if (nextCockpit.runId !== currentRunId) {
+            throw new Error(WRONG_RUN_MESSAGE)
           }
 
-          if (currentMarksLive) {
-            setConnection('live')
-            setSyncError(null)
-          } else if (currentRefresh) {
-            setSyncError(null)
-          } else {
-            setError(null)
+          if (nextEvents.length > 0) {
+            state.cursor = Math.max(state.cursor, ...nextEvents.map((event) => event.sequence ?? 0))
           }
+          const live = currentMarksLive
+          const refreshed = currentRefresh
+          commit((previous) => ({
+            ...previous,
+            loading: false,
+            cockpit: nextCockpit,
+            cards: nextEvents.length > 0 ? mergeBySequence(previous.cards, nextEvents) : previous.cards,
+            ...(live
+              ? { connection: 'live' as const, syncError: null }
+              : refreshed
+                ? { syncError: null }
+                : { error: null }),
+          }))
 
           currentMarksLive = state.pendingMarksLive
           currentRefresh = state.pendingRefresh
-        } while (state.pending && generationRef.current === generation)
-        succeeded = generationRef.current === generation
+        } while (state.pending && isLive())
+        succeeded = isLive()
       } catch (caught) {
-        if (generationRef.current === generation) {
-          setLoading(false)
-          if (currentMarksLive) {
-            setConnection('disconnected')
-            setSyncError(toMessage(caught))
-          } else if (currentRefresh) {
-            setSyncError(REFRESH_FAILURE_MESSAGE)
-          } else {
-            setError(toMessage(caught))
-          }
+        if (isLive()) {
+          const live = currentMarksLive
+          const refreshed = currentRefresh
+          commit((previous) => ({
+            ...previous,
+            loading: false,
+            ...(live
+              ? { connection: 'disconnected' as const, syncError: toMessage(caught) }
+              : refreshed
+                ? { syncError: REFRESH_FAILURE_MESSAGE }
+                : { error: toMessage(caught) }),
+          }))
         }
       } finally {
         state.inFlight = false
@@ -186,7 +223,7 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
         waiters.forEach((resolve) => resolve(succeeded))
       }
     },
-    [],
+    [commit, owner],
   )
 
   useEffect(() => {
@@ -203,12 +240,17 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
       pendingRefresh: false,
       waiters: [],
     }
-    activeRef.current = { runId, generation, state: catchUpState }
-    setLoading(true)
-    setError(null)
-    setSyncError(null)
-    setCards([])
-    setConnection('connecting')
+    activeRef.current = { owner, runId, generation, state: catchUpState }
+    // A fresh lifetime already starts from the loading frame; a second effect run of the same
+    // lifetime (React Strict Mode) restarts the cursor, so the timeline restarts with it.
+    commit((previous) => ({
+      ...previous,
+      cards: [],
+      connection: 'connecting',
+      loading: previous.cockpit === null,
+      error: null,
+      syncError: null,
+    }))
 
     void fetchCatchUp(runId, generation, catchUpState, false)
 
@@ -225,7 +267,7 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
     })
     hubConnection.onreconnecting(() => {
       if (generationRef.current === generation) {
-        setConnection('reconnecting')
+        commit((previous) => ({ ...previous, connection: 'reconnecting' }))
       }
     })
     hubConnection.onreconnected(() => {
@@ -235,7 +277,7 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
     })
     hubConnection.onclose(() => {
       if (generationRef.current === generation) {
-        setConnection('disconnected')
+        commit((previous) => ({ ...previous, connection: 'disconnected' }))
       }
     })
 
@@ -254,7 +296,7 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
       })
       .catch(() => {
         if (generationRef.current === generation) {
-          setConnection('disconnected')
+          commit((previous) => ({ ...previous, connection: 'disconnected' }))
         }
       })
 
@@ -272,18 +314,20 @@ export function useRunCockpit(runId: string | null): UseRunCockpitResult {
       catchUpState.waiters.splice(0).forEach((resolve) => resolve(false))
       void hubConnection.stop()
     }
-  }, [runId, fetchCatchUp])
+  }, [runId, owner, commit, fetchCatchUp])
 
+  // Bound to this selection's lifetime: a callback retained from an earlier selection (a save
+  // continuation of the previous run) can neither refresh nor wait on the current one.
   const refresh = useCallback(() => {
     const active = activeRef.current
-    if (!active || generationRef.current !== active.generation) {
+    if (!active || active.owner !== owner || generationRef.current !== active.generation) {
       return Promise.resolve(false)
     }
 
     return new Promise<boolean>((resolve) => {
       void fetchCatchUp(active.runId, active.generation, active.state, false, true, resolve)
     })
-  }, [fetchCatchUp])
+  }, [fetchCatchUp, owner])
 
-  return { cockpit, cards, connection, loading, error, syncError, refresh }
+  return { ...frame, refresh }
 }

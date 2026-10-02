@@ -53,6 +53,19 @@ Selecting an item changes the entire cockpit atomically to that run. Data from
 two runs must never be visually combined. A loading or stale state remains
 visible until the selected run projection catches up.
 
+Atomic means each committed frame, not only the settled state. The frame that selects another project or run shows that
+selection's own loading state or its own error, and never the previous selection's header, stages, event cards, connection
+or sync status, paths, checkpoints, diffs, command and verification recipes, execution and review lists, drafts, selected
+output, or action targets. This holds for a null selection and for a return to an earlier one (each selection is a new
+lifetime), and an answer that names another run is refused rather than shown. The project-level candidate-workspace evidence
+follows the same rule: metadata, errors and pending flags belong to the selected project, and inspected files and diff
+additionally belong to the exact checkpoint inspected, so a newer checkpoint never shows or accepts an older checkpoint's.
+Overlapping reads are ordered, so an older answer never overwrites a newer one. A request the host already accepted
+(workspace preparation, an identity recheck, a checkpoint capture, a verification command change, a verification start or a
+review decision) stays real when the selection changes; its late completion neither reports on, refreshes, nor clears a draft
+or pending operation of the replacement, and a handler retained from the earlier selection starts no work for the new one.
+The loading, refresh, catch-up coalescing and error-recovery behavior of an unchanged selection is not affected.
+
 `Execution 18` identifies the eighteenth durable run for that project. It is
 not a message, interaction, attempt, or event count.
 

@@ -1,10 +1,22 @@
-import { useState } from 'react'
 import { useProjectCheckpointReviews } from '../hooks/useProjectCheckpointReviews'
 import { useProjectGitEvidence } from '../hooks/useProjectGitEvidence'
 import { useProjectVerificationExecutions } from '../hooks/useProjectVerificationExecutions'
+import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
 
 interface CheckpointReviewPanelProps {
   projectId: string
+}
+
+// The reviewer's local choices belong to the current project's lifetime, and the chosen verification
+// evidence additionally to the checkpoint it was chosen for: another project or a newer checkpoint
+// starts from the default choice instead of inheriting a stale target.
+interface ReviewChoices {
+  selection: { checkpointId: string; executionId: string } | null
+  actorKind: string
+}
+
+function createChoices(): ReviewChoices {
+  return { selection: null, actorKind: 'Human' }
 }
 
 function decisionLabel(decision: string | undefined): string {
@@ -30,8 +42,9 @@ export function CheckpointReviewPanel({ projectId }: CheckpointReviewPanelProps)
   const { evidence } = useProjectGitEvidence(projectId, true)
   const { executions } = useProjectVerificationExecutions(projectId)
   const { reviews, error, saving, record } = useProjectCheckpointReviews(projectId)
-  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null)
-  const [actorKind, setActorKind] = useState('Human')
+  const lifetime = useOwnedLifetime(projectId)
+  const [{ selection, actorKind }, commit] = useOwnedState(lifetime, createChoices)
+  const selectedExecutionId = selection && selection.checkpointId === evidence?.checkpointId ? selection.executionId : null
   const eligibleExecutions = executions.filter(execution =>
     execution.gitCheckpointId === evidence?.checkpointId
     && execution.checkpointFingerprintSha256 === evidence?.fingerprintSha256
@@ -63,14 +76,14 @@ export function CheckpointReviewPanel({ projectId }: CheckpointReviewPanelProps)
           {eligibleExecutions.length > 1 ? (
             <label>
               Verification evidence
-              <select aria-label="Verification evidence" value={currentExecution.verificationExecutionId ?? ''} onChange={event => setSelectedExecutionId(event.target.value)}>
+              <select aria-label="Verification evidence" value={currentExecution.verificationExecutionId ?? ''} onChange={event => evidence?.checkpointId && commit(previous => ({ ...previous, selection: { checkpointId: evidence.checkpointId!, executionId: event.target.value } }))}>
                 {eligibleExecutions.map(execution => <option key={execution.verificationExecutionId} value={execution.verificationExecutionId}>{`#${execution.executionNumber} · ${execution.status}`}</option>)}
               </select>
             </label>
           ) : null}
           <label>
             Reviewer
-            <select aria-label="Reviewer" value={actorKind} onChange={event => setActorKind(event.target.value)}>
+            <select aria-label="Reviewer" value={actorKind} onChange={event => commit(previous => ({ ...previous, actorKind: event.target.value }))}>
               <option value="Human">Human</option>
               <option value="FutureAgent">Future agent</option>
             </select>

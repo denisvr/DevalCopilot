@@ -65,9 +65,9 @@ export function CandidateWorkspacePanel({ projectId }: CandidateWorkspacePanelPr
         </div>
       ) : null}
 
-      <WorkspaceEvidencePanel projectId={projectId} workspaceReady={workspace.state === 'Ready'} />
-      <VerificationCommandsPanel projectId={projectId} />
-      <CheckpointReviewPanel projectId={projectId} />
+      <WorkspaceEvidencePanel key={`evidence:${projectId}`} projectId={projectId} workspaceReady={workspace.state === 'Ready'} />
+      <VerificationCommandsPanel key={`commands:${projectId}`} projectId={projectId} />
+      <CheckpointReviewPanel key={`reviews:${projectId}`} projectId={projectId} />
 
       {!needsIdentityRecheck && workspace.state === 'Blocked' ? (
         <div className="dc-candidate-workspace-blocked">

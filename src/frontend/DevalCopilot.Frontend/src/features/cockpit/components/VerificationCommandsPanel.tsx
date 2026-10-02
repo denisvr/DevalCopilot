@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useProjectVerificationCommands } from '../hooks/useProjectVerificationCommands'
 import { useProjectGitEvidence } from '../hooks/useProjectGitEvidence'
 import { useProjectVerificationExecutions } from '../hooks/useProjectVerificationExecutions'
+import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
 import type { VerificationExecutionResponse } from '../../../api/clients'
 import { claimVerificationExecutionClient, ClaimVerificationExecutionRequest } from '../../../api/clients'
 import { VerificationExecutionOutputViewer } from './VerificationExecutionOutputViewer'
@@ -12,6 +12,36 @@ interface VerificationCommandsPanelProps {
 }
 
 const DEFAULT_TIMEOUT_SECONDS = 300
+
+type OutputSelection = { executionId: string; stream: 'stdout' | 'stderr' }
+
+// The panel's own interaction state. It belongs to the current project's lifetime: another project
+// (or a return to an earlier one) starts with an empty form, no selected output and no pending
+// start, whatever the previous project's handlers are still doing.
+interface PanelState {
+  runningCommandId: string | null
+  runMessage: string | null
+  selectedOutput: OutputSelection | null
+  name: string
+  executablePath: string
+  argumentsText: string
+  timeoutSeconds: number
+  // Advances on every edit of the draft, even one that yields identical values, so a save can only clear the very draft it sent.
+  draftVersion: number
+}
+
+function createPanelState(): PanelState {
+  return {
+    runningCommandId: null,
+    runMessage: null,
+    selectedOutput: null,
+    name: '',
+    executablePath: '',
+    argumentsText: '',
+    timeoutSeconds: DEFAULT_TIMEOUT_SECONDS,
+    draftVersion: 0,
+  }
+}
 
 function outputCaptureDescription(execution: VerificationExecutionResponse, stream: 'stdout' | 'stderr') {
   const outcome = stream === 'stdout' ? execution.standardOutputCaptureOutcome : execution.standardErrorCaptureOutcome
@@ -27,16 +57,13 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
   const { commands, loading, saving, error, configure, update, remove } = useProjectVerificationCommands(projectId)
   const { evidence } = useProjectGitEvidence(projectId, true)
   const { executions, error: executionError, refresh: refreshExecutions } = useProjectVerificationExecutions(projectId)
-  const [runningCommandId, setRunningCommandId] = useState<string | null>(null)
-  const [runMessage, setRunMessage] = useState<string | null>(null)
-  const [selectedOutput, setSelectedOutput] = useState<{ executionId: string; stream: 'stdout' | 'stderr' } | null>(null)
-  const [name, setName] = useState('')
-  const [executablePath, setExecutablePath] = useState('')
-  const [argumentsText, setArgumentsText] = useState('')
-  const [timeoutSeconds, setTimeoutSeconds] = useState(DEFAULT_TIMEOUT_SECONDS)
+  const lifetime = useOwnedLifetime(projectId)
+  const [panel, commit] = useOwnedState(lifetime, createPanelState)
+  const { runningCommandId, runMessage, selectedOutput, name, executablePath, argumentsText, timeoutSeconds, draftVersion } = panel
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const submittedVersion = draftVersion
     const created = await configure({
       name,
       executablePath,
@@ -44,34 +71,50 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
       timeoutSeconds,
       isEnabled: true,
     })
+    // Only the draft version that was actually sent is cleared, and only for the project it was sent for.
     if (created) {
-      setName('')
-      setExecutablePath('')
-      setArgumentsText('')
-      setTimeoutSeconds(DEFAULT_TIMEOUT_SECONDS)
+      commit(previous =>
+        previous.draftVersion === submittedVersion
+          ? { ...previous, name: '', executablePath: '', argumentsText: '', timeoutSeconds: DEFAULT_TIMEOUT_SECONDS, draftVersion: previous.draftVersion + 1 }
+          : previous,
+      )
     }
   }
 
   async function run(commandId: string | undefined) {
-    if (!commandId || !evidence?.checkpointId) {
-      setRunMessage('Capture a current source checkpoint before running verification.')
+    if (!lifetime.isActive()) {
       return
     }
 
-    setRunningCommandId(commandId)
-    setRunMessage(null)
+    if (!commandId || !evidence?.checkpointId) {
+      commit(previous => ({ ...previous, runMessage: 'Capture a current source checkpoint before running verification.' }))
+      return
+    }
+
+    const isCurrent = lifetime.begin('run')
+    commit(previous => ({ ...previous, runningCommandId: commandId, runMessage: null }))
     try {
       const execution = await claimVerificationExecutionClient().claimVerificationExecution(
         projectId,
         commandId,
         new ClaimVerificationExecutionRequest({ gitCheckpointId: evidence.checkpointId }),
       )
+      // An accepted claim stays real; only a continuation of the current project may report on it.
+      if (!isCurrent()) {
+        return
+      }
       await refreshExecutions()
-      setRunMessage(`Verification #${execution.executionNumber} is pending.`)
+      if (isCurrent()) {
+        commit(previous => ({ ...previous, runMessage: `Verification #${execution.executionNumber} is pending.` }))
+      }
     } catch {
-      setRunMessage('This verification could not be started.')
+      if (isCurrent()) {
+        commit(previous => ({ ...previous, runMessage: 'This verification could not be started.' }))
+      }
     } finally {
-      setRunningCommandId(null)
+      if (isCurrent()) {
+        commit(previous => ({ ...previous, runningCommandId: null }))
+      }
     }
   }
 
@@ -94,7 +137,7 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
           const isRunning = execution?.status === 'Running'
           const statusLabel = isRunning ? (execution?.isDispatched ? 'Running' : 'Pending') : execution?.status
           const canInspectOutput = execution && execution.status !== 'Running'
-          const outputSelection = selectedOutput?.executionId === execution?.verificationExecutionId ? selectedOutput : null
+          const outputSelection = selectedOutput && selectedOutput.executionId === execution?.verificationExecutionId ? selectedOutput : null
           return (
         <div className="dc-verification-command" key={command.verificationCommandId} data-enabled={command.isEnabled === true}>
           <div>
@@ -118,17 +161,17 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
             <div className="dc-verification-output-actions">
               {execution.hasStandardOutput ? (
                 <>
-                  <button type="button" className="dc-button" onClick={() => setSelectedOutput({ executionId: execution.verificationExecutionId!, stream: 'stdout' })}>Inspect stdout</button>
+                  <button type="button" className="dc-button" onClick={() => commit(previous => ({ ...previous, selectedOutput: { executionId: execution.verificationExecutionId!, stream: 'stdout' } }))}>Inspect stdout</button>
                   <span data-testid={`verification-output-status-${execution.verificationExecutionId}-stdout`}>{outputCaptureDescription(execution, 'stdout')}</span>
                 </>
               ) : null}
               {execution.hasStandardError ? (
                 <>
-                  <button type="button" className="dc-button" onClick={() => setSelectedOutput({ executionId: execution.verificationExecutionId!, stream: 'stderr' })}>Inspect stderr</button>
+                  <button type="button" className="dc-button" onClick={() => commit(previous => ({ ...previous, selectedOutput: { executionId: execution.verificationExecutionId!, stream: 'stderr' } }))}>Inspect stderr</button>
                   <span data-testid={`verification-output-status-${execution.verificationExecutionId}-stderr`}>{outputCaptureDescription(execution, 'stderr')}</span>
                 </>
               ) : null}
-              {outputSelection ? <VerificationExecutionOutputViewer projectId={projectId} executionId={execution.verificationExecutionId!} stream={outputSelection.stream} /> : null}
+              {outputSelection ? <VerificationExecutionOutputViewer key={`${projectId}:${outputSelection.executionId}:${outputSelection.stream}`} projectId={projectId} executionId={execution.verificationExecutionId!} stream={outputSelection.stream} /> : null}
             </div>
           ) : null}
         </div>
@@ -137,12 +180,12 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
       ))}
 
       <form className="dc-verification-command-form" onSubmit={event => void submit(event)}>
-        <input aria-label="Verification command name" required maxLength={200} value={name} onChange={event => setName(event.target.value)} placeholder="Command name" />
-        <input aria-label="Verification executable path" required maxLength={1024} value={executablePath} onChange={event => setExecutablePath(event.target.value)} placeholder="Absolute executable path" />
-        <textarea aria-label="Verification arguments" value={argumentsText} onChange={event => setArgumentsText(event.target.value)} placeholder="One literal argument per line" />
+        <input aria-label="Verification command name" required maxLength={200} value={name} onChange={event => commit(previous => ({ ...previous, name: event.target.value, draftVersion: previous.draftVersion + 1 }))} placeholder="Command name" />
+        <input aria-label="Verification executable path" required maxLength={1024} value={executablePath} onChange={event => commit(previous => ({ ...previous, executablePath: event.target.value, draftVersion: previous.draftVersion + 1 }))} placeholder="Absolute executable path" />
+        <textarea aria-label="Verification arguments" value={argumentsText} onChange={event => commit(previous => ({ ...previous, argumentsText: event.target.value, draftVersion: previous.draftVersion + 1 }))} placeholder="One literal argument per line" />
         <label>
           Timeout (seconds)
-          <input aria-label="Verification timeout seconds" type="number" min="1" max="900" value={timeoutSeconds} onChange={event => setTimeoutSeconds(Number(event.target.value))} />
+          <input aria-label="Verification timeout seconds" type="number" min="1" max="900" value={timeoutSeconds} onChange={event => commit(previous => ({ ...previous, timeoutSeconds: Number(event.target.value), draftVersion: previous.draftVersion + 1 }))} />
         </label>
         <button type="submit" className="dc-button" data-variant="primary" disabled={saving}>{saving ? 'Saving…' : 'Add command'}</button>
       </form>
