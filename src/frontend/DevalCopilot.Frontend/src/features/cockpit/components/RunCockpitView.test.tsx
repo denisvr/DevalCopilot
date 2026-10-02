@@ -20,6 +20,8 @@ import {
   RunCockpitTokenWarningResponse,
   RunCockpitProviderTokenUsageEntryResponse,
   RunTokenUsageSummaryResponse,
+  VerificationDiagnosisMemberResponse,
+  VerificationDiagnosisStatusResponse,
 } from '../../../api/generated/api-client'
 import * as useRunCockpitModule from '../hooks/useRunCockpit'
 import * as useCollaborationTimelineModule from '../hooks/useCollaborationTimeline'
@@ -42,6 +44,9 @@ import * as useAuthorizePlanningImplementationModule from '../hooks/useAuthorize
 import * as useRequestClaudeCriticalReviewRepairAttemptModule from '../hooks/useRequestClaudeCriticalReviewRepairAttempt'
 import * as useRequestChallengeResolutionRepairAttemptModule from '../hooks/useRequestChallengeResolutionRepairAttempt'
 import * as useRequestCodeReviewRepairAttemptModule from '../hooks/useRequestCodeReviewRepairAttempt'
+import * as useVerificationDiagnosisStatusModule from '../hooks/useVerificationDiagnosisStatus'
+import * as useRequestVerificationDiagnosisModule from '../hooks/useRequestVerificationDiagnosis'
+import * as useRequestDiagnosisCorrectionModule from '../hooks/useRequestDiagnosisCorrection'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -64,6 +69,9 @@ vi.mock('../hooks/useRequestCodeReview')
 vi.mock('../hooks/useReviewCorrectionAttemptStatus')
 vi.mock('../hooks/useRequestReviewCorrection')
 vi.mock('../hooks/useAuthorizeReviewCorrection')
+vi.mock('../hooks/useVerificationDiagnosisStatus')
+vi.mock('../hooks/useRequestVerificationDiagnosis')
+vi.mock('../hooks/useRequestDiagnosisCorrection')
 vi.mock('../hooks/usePlanningImplementationAuthorization')
 vi.mock('../hooks/useAuthorizePlanningImplementation')
 vi.mock('../../../api/clients', () => ({
@@ -115,6 +123,9 @@ const useReviewCorrectionAttemptStatusMock = vi.mocked(
   useReviewCorrectionAttemptStatusModule.useReviewCorrectionAttemptStatus,
 )
 const useRequestReviewCorrectionMock = vi.mocked(useRequestReviewCorrectionModule.useRequestReviewCorrection)
+const useVerificationDiagnosisStatusMock = vi.mocked(useVerificationDiagnosisStatusModule.useVerificationDiagnosisStatus)
+const useRequestVerificationDiagnosisMock = vi.mocked(useRequestVerificationDiagnosisModule.useRequestVerificationDiagnosis)
+const useRequestDiagnosisCorrectionMock = vi.mocked(useRequestDiagnosisCorrectionModule.useRequestDiagnosisCorrection)
 const useAuthorizeReviewCorrectionMock = vi.mocked(useAuthorizeReviewCorrectionModule.useAuthorizeReviewCorrection)
 const usePlanningImplementationAuthorizationMock = vi.mocked(
   usePlanningImplementationAuthorizationModule.usePlanningImplementationAuthorization,
@@ -237,6 +248,22 @@ beforeEach(() => {
     authorizing: false,
     error: null,
     authorize: vi.fn().mockResolvedValue(true),
+  })
+  useVerificationDiagnosisStatusMock.mockReturnValue({
+    status: null,
+    loading: false,
+    error: null,
+    refresh: vi.fn(),
+  })
+  useRequestVerificationDiagnosisMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
+  })
+  useRequestDiagnosisCorrectionMock.mockReturnValue({
+    requesting: false,
+    error: null,
+    request: vi.fn(),
   })
   usePlanningImplementationAuthorizationMock.mockReturnValue({ authorization: null, loading: false, error: null, refresh: vi.fn() })
   useAuthorizePlanningImplementationMock.mockReturnValue({
@@ -2810,4 +2837,137 @@ describe('RunCockpitView execution mode', () => {
       expect(screen.getByText(/does not recognize/i)).toBeInTheDocument()
     },
   )
+})
+
+describe('RunCockpitView verification diagnosis', () => {
+  function mockRunning(executionMode = 'ManualAgent') {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, executionMode } as ConstructorParameters<
+        typeof GetRunCockpitResponse
+      >[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh: async () => true,
+    })
+  }
+
+  function mockDiagnosis(overrides: ConstructorParameters<typeof VerificationDiagnosisStatusResponse>[0], refresh = vi.fn()) {
+    useVerificationDiagnosisStatusMock.mockReturnValue({
+      status: new VerificationDiagnosisStatusResponse({ hasAttempt: false, ...overrides }),
+      loading: false,
+      error: null,
+      refresh,
+    })
+  }
+
+  it('renders the diagnosis section and binds the request to the host-named report', () => {
+    mockRunning()
+    mockDiagnosis({ diagnosableExecutionReportMessageId: 'report-9' })
+    const request = vi.fn().mockResolvedValue(true)
+    useRequestVerificationDiagnosisMock.mockReturnValue({ requesting: false, error: null, request })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    const diagnosis = screen.getByRole('region', { name: 'Verification diagnosis' })
+    fireEvent.click(within(diagnosis).getByRole('button', { name: 'Diagnose failed verification with Codex' }))
+    expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'report-9')
+    expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', 'report-9', expect.any(Function))
+  })
+
+  it('binds the correction request to the host-named diagnosis attempt', () => {
+    mockRunning()
+    mockDiagnosis({
+      hasAttempt: true,
+      attemptId: 'diagnosis-3',
+      attemptNumber: 3,
+      status: 'Completed',
+      outcome: 'DiagnosisFindingsRecorded',
+      findingCount: 2,
+      correctionApplicable: true,
+      maximumReviewCorrectionAttempts: 3,
+      reviewCorrectionAttemptsUsed: 1,
+      verification: [
+        new VerificationDiagnosisMemberResponse({ position: 1, commandName: 'unit', executionNumber: 4, status: 'Failed', exitCode: 1 }),
+      ],
+    })
+    const request = vi.fn().mockResolvedValue(true)
+    useRequestDiagnosisCorrectionMock.mockReturnValue({ requesting: false, error: null, request })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Correct the diagnosed findings with Claude' }))
+    expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'diagnosis-3')
+    expect(useRequestDiagnosisCorrectionMock).toHaveBeenCalledWith('run-1', 'diagnosis-3', expect.any(Function))
+  })
+
+  it('targets the ordinary code review at the corrected report the diagnosis status names', () => {
+    mockRunning()
+    mockDiagnosis({ reviewableExecutionReportMessageId: 'corrected-report' })
+    useReviewCorrectionAttemptStatusMock.mockReturnValue({
+      status: new ReviewCorrectionAttemptStatusResponse({ reviewableExecutionReportMessageId: 'ordinary-report' }),
+      loading: false,
+      error: null,
+      refresh: vi.fn(),
+    })
+    const request = vi.fn().mockResolvedValue(true)
+    useRequestCodeReviewMock.mockReturnValue({ requesting: false, error: null, request })
+
+    render(<RunCockpitView runId="run-1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Request code review' }))
+
+    expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'corrected-report')
+  })
+
+  it('keeps the ordinary review-correction report when the diagnosis status names none', () => {
+    mockRunning()
+    mockDiagnosis({ reviewableExecutionReportMessageId: undefined })
+    useReviewCorrectionAttemptStatusMock.mockReturnValue({
+      status: new ReviewCorrectionAttemptStatusResponse({ reviewableExecutionReportMessageId: 'ordinary-report' }),
+      loading: false,
+      error: null,
+      refresh: vi.fn(),
+    })
+    const request = vi.fn().mockResolvedValue(true)
+    useRequestCodeReviewMock.mockReturnValue({ requesting: false, error: null, request })
+
+    render(<RunCockpitView runId="run-1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Request code review' }))
+
+    expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'ordinary-report')
+  })
+
+  it('offers no code review target while neither status names a report, and keeps the ordinary sections in place', () => {
+    mockRunning()
+    mockDiagnosis({})
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.queryByRole('button', { name: 'Request code review' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Codex planning' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Verification diagnosis' })).toBeInTheDocument()
+  })
+
+  it('hides the diagnosis section when the run does not admit Agent actions', () => {
+    mockRunning('Simulated')
+    mockDiagnosis({ diagnosableExecutionReportMessageId: 'report-9' })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.queryByRole('region', { name: 'Verification diagnosis' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Diagnose failed verification with Codex' })).not.toBeInTheDocument()
+  })
+
+  it('passes the diagnosis status refresh to both request hooks', () => {
+    mockRunning()
+    const refresh = vi.fn()
+    mockDiagnosis({}, refresh)
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', null, refresh)
+    expect(useRequestDiagnosisCorrectionMock).toHaveBeenCalledWith('run-1', null, refresh)
+  })
 })

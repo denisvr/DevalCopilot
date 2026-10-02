@@ -230,8 +230,7 @@ internal static class ImplementerExecutionReportEligibility
             var findingOwner = ResolveSnapshotOwningAttempt(snapshot, finding, runId, AgentRole.CodeReviewer);
             if (findingOwner is null
                 || findingOwner.Status != AttemptStatus.Completed
-                || findingOwner.AgentResponseContract != AgentResponseContract.ImplementationReview
-                || findingOwner.AgentOutcome != AgentOutcome.ReviewChangesRequested
+                || !IsValidFindingSource(findingOwner)
                 || findingOwner.AgentGitWorkspaceId != workspaceId
                 || findingOwner.AgentGitCheckpointId != owner.AgentGitCheckpointId
                 || findingOwner.Id != findingAttemptId)
@@ -466,6 +465,13 @@ internal static class ImplementerExecutionReportEligibility
         && orderedInputs[0].Sequence == 0
         && orderedInputs.Select((input, index) => input.Sequence == index).All(isContiguous => isContiguous)
         && orderedInputs.Select(input => input.CollaborationMessageId).Distinct().Count() == orderedInputs.Count;
+
+    /// <summary>The two completed finding sources a correction may consume (ADR-0018 narrowly extends ADR-0010's): a
+    /// changes-requested implementation review, or a verification diagnosis that recorded findings.</summary>
+    internal static bool IsValidFindingSource(Attempt owner) =>
+        (owner.AgentResponseContract, owner.AgentOutcome) is
+            (AgentResponseContract.ImplementationReview, AgentOutcome.ReviewChangesRequested)
+            or (AgentResponseContract.VerificationDiagnosis, AgentOutcome.DiagnosisFindingsRecorded);
 
     private static bool IsValidProposalAttempt(Attempt attempt) =>
         (attempt.AgentRole, attempt.AgentResponseContract, attempt.AgentOutcome) is

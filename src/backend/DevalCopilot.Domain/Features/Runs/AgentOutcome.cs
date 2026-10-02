@@ -186,4 +186,30 @@ public enum AgentOutcome
     /// workspace is always flagged NeedsAttention. Valid only for the Implementer + ReviewCorrection
     /// combination.</summary>
     CorrectionHeadChanged = 21,
+
+    /// <summary>A verification-diagnosis attempt produced one to ten structured findings against the current failed
+    /// verification of the exact ExecutionReport: they were parsed, validated, and appended to the collaboration ledger
+    /// atomically. No checkpoint review is recorded. Valid only for the CodeReviewer + VerificationDiagnosis
+    /// combination.</summary>
+    DiagnosisFindingsRecorded = 22,
+
+    /// <summary>A verification-diagnosis attempt concluded that the failure needs a human decision (for example an
+    /// environment, permission, or out-of-plan issue): exactly one bounded Escalation replying to the ExecutionReport was
+    /// parsed, validated, and appended. It grants no authority to change recipes, tools, permissions, or plan scope. Valid
+    /// only for the CodeReviewer + VerificationDiagnosis combination.</summary>
+    DiagnosisEscalated = 23,
+
+    /// <summary>Detected immediately before dispatch: another verification-diagnosis attempt already completed
+    /// successfully (<see cref="DiagnosisFindingsRecorded"/> or <see cref="DiagnosisEscalated"/>) for the exact same
+    /// ExecutionReport, checkpoint, and ordered verification-execution identity. The provider is never invoked for this
+    /// outcome. Valid only for the CodeReviewer + VerificationDiagnosis combination.</summary>
+    InputAlreadyDiagnosed = 24,
+
+    /// <summary>The verification evidence a diagnosis attempt was claimed against no longer holds: the enabled command
+    /// set, a command's latest checkpoint-bound execution, or the failed output the claim pinned changed, either before
+    /// dispatch (no provider process exists) or while the provider ran (the truthful process and artifact evidence is
+    /// retained, but no finding or escalation is recorded from the stale response). Distinct from
+    /// <see cref="SourceChanged"/>, which stays the Git-fingerprint classification. Valid only for the CodeReviewer +
+    /// VerificationDiagnosis combination.</summary>
+    VerificationEvidenceChanged = 25,
 }

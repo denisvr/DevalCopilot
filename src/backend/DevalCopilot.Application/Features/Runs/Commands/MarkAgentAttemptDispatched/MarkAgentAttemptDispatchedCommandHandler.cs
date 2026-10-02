@@ -1,12 +1,13 @@
-using Devalente.Shared.Cqrs;
-using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
+using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
+using Devalente.Shared.Cqrs;
+using Devalente.Shared.Results;
 using Microsoft.EntityFrameworkCore;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched;
@@ -55,6 +56,15 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     /// another ReviewCorrection attempt completed the exact same ordered input identity from the
     /// exact same starting checkpoint while this attempt was waiting to dispatch.</summary>
     public const string InputAlreadyCorrectedCode = "agent_attempts.input_already_corrected";
+
+    /// <summary>The verification-diagnosis counterpart to <see cref="InputAlreadyCodeReviewedCode"/> (ADR-0018): another
+    /// diagnosis already completed successfully (findings or escalation) for the exact same report, checkpoint, and ordered
+    /// verification identity while this attempt was waiting to dispatch.</summary>
+    public const string InputAlreadyDiagnosedCode = "agent_attempts.input_already_diagnosed";
+
+    /// <summary>The enabled verification set, a latest execution, the pinned failed output, or the diagnosed report chain
+    /// changed after the diagnosis was claimed. The provider is never invoked.</summary>
+    public const string VerificationEvidenceChangedCode = "agent_attempts.verification_evidence_changed";
 
     /// <summary>A CriticalReviewer, Resolver, or CodeReviewer repair attempt whose source link or input
     /// identity is incoherent. Fails closed before any provider process; never echoes stored values.</summary>
@@ -302,6 +312,15 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
 
         if (attempt.AgentResponseContract == AgentResponseContract.ReviewCorrection)
         {
+            // A diagnosis-origin correction (ADR-0018) must still be exactly applicable at the last gate: its diagnosis, the
+            // complete ordered findings, and the verification evidence the diagnosis was produced against. An ordinary
+            // review-origin correction has no such origin and is unaffected.
+            if (await VerificationDiagnosisEligibility.FindOriginDiagnosisAsync(dbContext, attempt.Id, attempt.RunId, cancellationToken) is { } originDiagnosis
+                && !await VerificationDiagnosisEligibility.IsCorrectionSourceCurrentAsync(dbContext, attempt, originDiagnosis, cancellationToken))
+            {
+                return WorkspaceNoLongerEligible();
+            }
+
             var orderedInputMessageIds = await ReviewCorrectionInputIdentity.GetOrderedInputMessageIdsAsync(
                 dbContext, attempt.Id, cancellationToken);
             var alreadyCorrected = await ReviewCorrectionInputIdentity.HasCompetingSuccessfulCorrectionAsync(
@@ -326,7 +345,52 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         // lost applicability between the eligibility snapshot and this call — a competing review
         // attempt could have committed a successful ReviewApproved/ReviewChangesRequested result
         // for the very same input identity in that window.
-        if (attempt.AgentRole == AgentRole.CodeReviewer)
+        if (attempt.AgentResponseContract == AgentResponseContract.VerificationDiagnosis)
+        {
+            // The verification-diagnosis half of the same last gate (ADR-0018), judged from fresh untracked reads: the
+            // persisted tuple is exact, the exact input identity has no competing successful diagnosis, and the report chain,
+            // lifecycle, workspace, lease, current checkpoint, and the complete verification selection still equal what the
+            // claim pinned.
+            if (!VerificationDiagnosisPolicy.HasExactTuple(attempt))
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        "agent_attempts.invalid_agent_contract",
+                        "The attempt's role, provider, and response contract are not a valid, coherent combination."));
+            }
+
+            var diagnosedReportId = await VerificationDiagnosisInputIdentity.ReadPinnedExecutionReportIdAsync(dbContext, attempt.Id, cancellationToken);
+            var pinnedPairs = await VerificationDiagnosisInputIdentity.ReadPinnedPairsAsync(dbContext, attempt.Id, cancellationToken);
+            if (diagnosedReportId is null || pinnedPairs.Count == 0)
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        "agent_attempts.invalid_agent_contract",
+                        "The attempt's role, provider, and response contract are not a valid, coherent combination."));
+            }
+
+            if (await VerificationDiagnosisInputIdentity.HasCompetingSuccessfulDiagnosisAsync(
+                    dbContext, attempt.RunId, attempt.Id, diagnosedReportId.Value, pinnedPairs.Select(pair => pair.ExecutionId).ToArray(), cancellationToken))
+            {
+                return Result<DateTimeOffset>.Failure(
+                    Error.Conflict(
+                        InputAlreadyDiagnosedCode,
+                        "Another diagnosis already completed successfully for this exact report and verification identity."));
+            }
+
+            switch (await VerificationDiagnosisApplicability.EvaluateAsync(dbContext, attempt, cancellationToken))
+            {
+                case VerificationDiagnosisApplicability.Verdict.WorkspaceNoLongerEligible:
+                    return WorkspaceNoLongerEligible();
+                case VerificationDiagnosisApplicability.Verdict.VerificationEvidenceChanged:
+                    return Result<DateTimeOffset>.Failure(
+                        Error.Conflict(
+                            VerificationEvidenceChangedCode,
+                            "The verification evidence or the diagnosed report changed after this diagnosis was claimed."));
+            }
+        }
+
+        if (attempt.AgentResponseContract == AgentResponseContract.ImplementationReview)
         {
             var executionReportMessageId = await CodeReviewInputIdentity.GetExecutionReportMessageIdAsync(dbContext, attempt.Id, cancellationToken);
             var orderedVerificationExecutionIds = await CodeReviewInputIdentity.GetOrderedVerificationExecutionIdsAsync(

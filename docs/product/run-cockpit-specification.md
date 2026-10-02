@@ -781,6 +781,29 @@ is proved; otherwise they show nothing. See
 ["One manual format repair of the remaining read-only stages"](../architecture/agent-collaboration-protocol.md#one-manual-format-repair-of-the-remaining-read-only-stages)
 for the contract.
 
+### Diagnosis of failed local verification
+
+Beneath the review-correction controls, a section "Diagnosis of failed local verification (Codex, read-only)" states
+that it is **not a code review** and never approves anything. It is driven by its own status read
+(`GET /api/runs/{runId}/agent-attempts/verification-diagnosis`) and is offered only when the host reports a
+diagnosable current implementation report: every enabled verification command has a coherent latest execution on the
+current checkpoint and at least one failed. Otherwise the section names, in fixed copy, why a diagnosis cannot be
+requested (missing, still running, timed out or cancelled, source drifted, or nothing failed). "Diagnose failed
+verification" sends the report identity the host named; it is explicit, subject to the existing run-wide Agent
+budgets, active-attempt and global-block rules, and is refused when the identical report and verification were already
+diagnosed.
+
+A completed diagnosis shows its outcome, the pinned verification list in order (command name, execution number,
+status, exit code), and either the recorded finding count (the findings themselves appear in the collaboration
+timeline) or the bounded escalation. When the findings still apply to the current source, "Request correction from
+findings" sends the diagnosis attempt identity and is bounded by the one shared review-correction allowance. Where that
+allowance is exhausted, "Record human escalation" records one durable Orchestrator escalation and states that it
+grants no authority; there is no authorize control for this source. Later verification, a changed checkpoint, or a
+successful correction removes the correction control. After a correction the ordinary code review still requires a new
+passing verification of every enabled command. No copy claims approval, and no stage runs automatically. Requests
+use the generated clients and the run-scoped owned lifetimes, so a response for one run selection never updates
+another.
+
 ### Optional guidance with a review-correction authorization
 
 Where a review correction's budget is exhausted, its escalation exists, no authorization is available yet, and no

@@ -171,6 +171,13 @@ builder.Services.AddHostedService<ChallengeResolutionSupervisor>();
 builder.Services.AddSingleton<ICodexImplementationReviewAdapter, CodexImplementationReviewAdapter>();
 builder.Services.AddHostedService<ImplementationReviewSupervisor>();
 
+// Codex verification diagnosis (ADR-0018): a read-only Codex CodeReviewer path for the current failed local verification of an
+// exact ExecutionReport — its own adapter, supervisor, eligibility feed, and result-recording command, composed on the same
+// CodexProcessInvoker, IArtifactStore, and IGitWorkspaceEvidenceReader, never shared with the ordinary review supervisor and
+// never granted Git, process, network, or repository-mutation capability.
+builder.Services.AddSingleton<ICodexVerificationDiagnosisAdapter, CodexVerificationDiagnosisAdapter>();
+builder.Services.AddHostedService<VerificationDiagnosisSupervisor>();
+
 // Claude implementation: a dedicated adapter and supervisor, never the critical-review adapter
 // reused by changing flags — this role's tool allowlist and permission mode differ in kind
 // (mutating repository edits) from every other Claude usage in this protocol. Shares the same

@@ -102,6 +102,8 @@ public sealed class AgentAttemptContract
                 new HashSet<AgentOutcome> { AgentOutcome.ReviewApproved, AgentOutcome.ReviewChangesRequested }.ToFrozenSet()),
             new(AgentResponseContract.ReviewCorrection, AgentRole.Implementer, AgentEffectKind.WorkspaceMutating,
                 new HashSet<AgentOutcome> { AgentOutcome.CorrectionApplied }.ToFrozenSet()),
+            new(AgentResponseContract.VerificationDiagnosis, AgentRole.CodeReviewer, AgentEffectKind.ReadOnly,
+                new HashSet<AgentOutcome> { AgentOutcome.DiagnosisFindingsRecorded, AgentOutcome.DiagnosisEscalated }.ToFrozenSet()),
         ];
 
         return contracts.ToFrozenDictionary(contract => contract.ResponseContract);

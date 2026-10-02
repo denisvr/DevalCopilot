@@ -1,0 +1,3 @@
+namespace DevalCopilot.Application.Features.Runs.Commands.CreateVerificationDiagnosisAttempt;
+
+public sealed record CreateVerificationDiagnosisAttemptCommandResult(Guid AttemptId, int AttemptNumber);

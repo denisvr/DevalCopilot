@@ -115,6 +115,9 @@ silently retried.
 Every newly claimed review of that result (including format repairs and re-reviews of corrected checkpoints) judges the exact
 implemented Proposal, not the superseded Planner root
 ([ADR-0017](../decisions/0017-review-the-implemented-plan-through-correction.md)).
+A failed local verification can be turned into findings by an explicit read-only Codex diagnosis and then corrected by a separately
+requested Claude correction before verification is run again; the ordinary review still requires every enabled command to pass
+([ADR-0018](../decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md)).
 
 ### `LocalVerify` → `Review["Codex review"]` boundary
 

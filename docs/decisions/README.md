@@ -16,6 +16,7 @@ supersedes it.
 - [ADR-0008: Physical repository identity and tool-owned worktree ownership](0008-physical-repository-identity-and-tool-owned-worktree-ownership.md)
 - [ADR-0009: Separate agent roles, effects, and provider assignments](0009-separate-agent-roles-effects-and-provider-assignments.md)
 - [ADR-0010: Add a role-scoped review-correction response contract](0010-add-review-correction-response-contract.md)
+  (its changes-requested-review-only finding source is narrowly extended by ADR-0018)
 - [ADR-0011: Require administrator-provisioned policy before Gemini CLI execution](0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md)
 - [ADR-0012: Add a durable run-wide Agent claim budget](0012-add-a-durable-run-wide-agent-claim-budget.md)
 - [ADR-0013: Add a durable run-wide Agent invocation-time budget](0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
@@ -24,6 +25,7 @@ supersedes it.
 - [ADR-0016: Add explicit human authorization of one escalated-plan implementation](0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)
   (its preservation of the ordinary first-revision review target is narrowly superseded by ADR-0017)
 - [ADR-0017: Review the implemented plan through correction](0017-review-the-implemented-plan-through-correction.md)
+- [ADR-0018: Add explicit local verification failure diagnosis and bounded correction](0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md)
 
 ## Status values
 

@@ -421,7 +421,9 @@ Resolution's own exact-input-identity rule one level further down the
 protocol. A successful correction appends a new checkpoint and report, but
 re-review is an explicit user request only: the new checkpoint must first have
 fresh Passed verification, and no state transition automatically re-enters
-Execution from a changes-requested review.
+Execution from a changes-requested review. When the verification itself failed, the
+review is not claimable; the human may instead request an explicit read-only diagnosis of that failure
+(see [Explicit verification failure diagnosis](#explicit-verification-failure-diagnosis)).
 
 ## Authority matrix
 
@@ -2568,6 +2570,62 @@ distinct from the review-correction authorization, which keeps its own table, fa
   validated lineage (never from the report's reply), `ImplementedPlan` is carried unchanged through every valid correction link,
   and correction reports keep replying to the root. The change is forward only: a review already sealed before it replays its
   existing bytes (an older manifest may name the root), history is never rewritten, and no approval is revoked.
+
+### Explicit verification failure diagnosis
+
+[ADR-0018](../decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md) closes the gap between a failed local verification and the findings a correction needs, without touching the
+ordinary review's approval gate. A diagnosis is a separate response contract, `AgentResponseContract.VerificationDiagnosis`,
+owned by the existing `AgentRole.CodeReviewer`, `ReadOnly`, currently assigned to Codex through the unchanged
+`CodexProcessInvoker` (adapter contract `codex-verification-diagnosis-v1`, its own strict output schema). It never produces a
+`ReviewApproval` or any `CheckpointReview`, and the ordinary review's outcomes, input identity, eligibility feed, and status never
+include it.
+
+- **Operations.** `POST /api/runs/{runId}/agent-attempts/verification-diagnosis` with `{ "executionReportMessageId" }` claims a
+  diagnosis; `GET` the same path returns its bounded status (findings count, pinned verification list, correction, budget, and
+  escalation facts, and a display hint of whether the current verification is diagnosable). `POST
+  /api/runs/{runId}/agent-attempts/verification-diagnosis/correction` with `{ "verificationDiagnosisAttemptId" }` claims a correction or
+  records the diagnosis's one escalation; it accepts neither guidance nor an authorization. The ordinary
+  `review-correction` endpoint keeps its review-source contract. Nothing runs automatically.
+- **Eligibility.** A valid current initial or corrected Implementer `ExecutionReport` on the workspace's current checkpoint, a Ready
+  workspace with an active lease, and the host-derived complete verification selection: every enabled command's latest execution
+  bound to that checkpoint and fingerprint is terminal and coherent (`Passed`/`Exited`/0 or `Failed`/`Exited`/nonzero, with the
+  completion fingerprint equal to the checkpoint's) and at least one failed, and each failed execution has both sealed output rows.
+  Missing or running evidence, timeouts, cancellations, interruptions, source drift, process-start failures, contradictory data, and
+  malformed ownership are refused with fixed codes (`verification_diagnosis.*`). The actual implemented plan is resolved through the
+  validated lineage (revised and human-authorized final plans included).
+- **Evidence.** The sealed manifest holds the fixed instruction and failure-output notice before the untrusted-evidence boundary; the
+  implemented plan; the report; bounded Git evidence; each verification command's name, number, execution number, status, outcome, and
+  exit code (never an executable path, argument, storage path, or hash); and, for each failed execution, deterministic UTF-8 prefixes
+  of its redacted stdout and stderr read through `IArtifactStore.VerifyAndReadSealedAsync` (at most 2 KiB per stream and 12 KiB in
+  total, stepped down to fit the 32 KiB manifest bound). Each stream is labeled `notTruncated`, `truncated`, or `unknown` for the
+  capture and `complete`, `shortened`, `empty`, or `omittedByBudget` for the excerpt. A missing or unverifiable failed stream refuses
+  the claim. Redaction of captured output is best-effort and may miss sensitive text. Passed executions carry no excerpt.
+- **Pinning and fresh authority.** The report is the attempt's sequence-zero input and the ordered (command, execution) pairs are
+  `AttemptVerificationEvidence` rows, each carrying a nullable diagnosis-specific snapshot SHA-256 (versioned canonical text of the
+  command, execution, and both failed-output row facts; null and unchanged for ordinary review memberships; required and valid for a
+  diagnosis, otherwise fail closed) that is recomputed and compared at the claim seam, dispatch, result recording, and correction
+  authority. Result recording validates the requested semantic outcome's clean-exit proof before any drift downgrade. The claim re-reads every piece of authority untracked inside its short transaction after external
+  work; dispatch re-reads it again; the result recording re-reads it before recording. Eligibility drift before dispatch records
+  `WorkspaceNoLongerEligible`; changed enabled set, latest execution, failed output, or report chain records
+  `VerificationEvidenceChanged` (before dispatch with no provider, or after the provider ran with its truthful process and artifact
+  evidence and no finding or escalation); Git fingerprint drift stays `SourceChanged`.
+- **Result.** `DiagnosisFindingsRecorded` (one to ten `ReviewFinding` messages replying to the report), `DiagnosisEscalated` (one
+  bounded `Escalation` replying to the report; it grants no authority to change recipes, tools, permissions, or plan scope), or a
+  failure outcome. One successful diagnosis (either kind) is permitted per exact report, checkpoint, and ordered verification identity
+  (`InputAlreadyDiagnosed` otherwise); a failed invocation may be requested again explicitly. There is no automatic retry and no format
+  repair.
+- **Budgets.** A diagnosis consumes the run-wide Agent count, reserved invocation time, and Codex token stop with the code-review
+  timeout and profile and the current requested Codex model and effort.
+- **Correction.** The existing `ReviewCorrection` contract and hardened Claude adapter, with inputs exactly the previous report
+  followed by every finding in timeline order, a fixed source notice in the manifest (no raw logs and no plan input), the same run-wide
+  budgets and Claude token stop, the current Claude model, effort, and turn-limit requests, and the one shared correction allowance.
+  It requires the exact diagnosis and its complete findings to remain applicable with unchanged verification membership; a later
+  execution, a new checkpoint, or a successful correction invalidates the source, and dispatch re-checks it. At exhaustion one durable,
+  idempotent Orchestrator `Escalation` bound to the diagnosis is recorded in a `DiagnosisCorrectionEscalation` row with no attempt and no
+  grant; no extra-correction authorization exists for this source and the ordinary review's grants cannot be used for it. Both the
+  claim and the escalation re-read their authority untracked inside one short write-locked transaction.
+- **Re-review.** The corrected report's ordinary code review judges the implemented plan and still requires every enabled command's
+  latest execution for the new checkpoint to be Passed.
 
 ### Bounded untracked-file previews in Agent manifests
 

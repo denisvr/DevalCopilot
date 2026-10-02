@@ -16,6 +16,8 @@ public sealed class AttemptVerificationEvidenceConfiguration : IEntityTypeConfig
         builder.HasOne<VerificationCommand>().WithMany().HasForeignKey(evidence => evidence.VerificationCommandId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<VerificationExecution>().WithMany().HasForeignKey(evidence => evidence.VerificationExecutionId).OnDelete(DeleteBehavior.Restrict);
 
+        builder.Property(evidence => evidence.SnapshotSha256).HasMaxLength(AttemptVerificationEvidence.SnapshotDigestLength);
+
         // The claimed-set invariant's database backstop, mirroring AttemptInputMessageConfiguration
         // exactly: no attempt may record the same ordered position twice, the same command twice,
         // or the same execution twice — the primary defense is Application-level validation before

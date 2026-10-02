@@ -316,6 +316,106 @@ export class SetClaudeModelPreferenceEndpointClient {
     }
 }
 
+export class RequestVerificationDiagnosisEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestVerificationDiagnosis(runId: string, request: RequestVerificationDiagnosisRequest): Promise<RequestVerificationDiagnosisResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/verification-diagnosis";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestVerificationDiagnosis(_response);
+        });
+    }
+
+    protected processRequestVerificationDiagnosis(response: Response): Promise<RequestVerificationDiagnosisResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestVerificationDiagnosisResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestVerificationDiagnosisResponse>(null as any);
+    }
+}
+
+export class GetVerificationDiagnosisStatusEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getVerificationDiagnosisStatus(runId: string): Promise<VerificationDiagnosisStatusResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/verification-diagnosis";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetVerificationDiagnosisStatus(_response);
+        });
+    }
+
+    protected processGetVerificationDiagnosisStatus(response: Response): Promise<VerificationDiagnosisStatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = VerificationDiagnosisStatusResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VerificationDiagnosisStatusResponse>(null as any);
+    }
+}
+
 export class RequestReviewCorrectionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -513,6 +613,58 @@ export class GetImplementationAttemptStatusEndpointClient {
             });
         }
         return Promise.resolve<ImplementationAttemptStatusResponse>(null as any);
+    }
+}
+
+export class RequestDiagnosisCorrectionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestDiagnosisCorrection(runId: string, request: RequestDiagnosisCorrectionRequest): Promise<RequestDiagnosisCorrectionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/verification-diagnosis/correction";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestDiagnosisCorrection(_response);
+        });
+    }
+
+    protected processRequestDiagnosisCorrection(response: Response): Promise<RequestDiagnosisCorrectionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RequestDiagnosisCorrectionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RequestDiagnosisCorrectionResponse>(null as any);
     }
 }
 
@@ -3532,6 +3684,82 @@ export interface ISetClaudeModelPreferenceRequest {
     requestedEffort?: string | undefined;
 }
 
+export class RequestVerificationDiagnosisResponse implements IRequestVerificationDiagnosisResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+
+    constructor(data?: IRequestVerificationDiagnosisResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+        }
+    }
+
+    static fromJS(data: any): RequestVerificationDiagnosisResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestVerificationDiagnosisResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        return data;
+    }
+}
+
+export interface IRequestVerificationDiagnosisResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+}
+
+export class RequestVerificationDiagnosisRequest implements IRequestVerificationDiagnosisRequest {
+    executionReportMessageId?: string;
+
+    constructor(data?: IRequestVerificationDiagnosisRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.executionReportMessageId = _data["executionReportMessageId"];
+        }
+    }
+
+    static fromJS(data: any): RequestVerificationDiagnosisRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestVerificationDiagnosisRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["executionReportMessageId"] = this.executionReportMessageId;
+        return data;
+    }
+}
+
+export interface IRequestVerificationDiagnosisRequest {
+    executionReportMessageId?: string;
+}
+
 export class RequestReviewCorrectionResponse implements IRequestReviewCorrectionResponse {
     status?: string;
     attemptId?: string | undefined;
@@ -3706,6 +3934,98 @@ export class RequestImplementationRequest implements IRequestImplementationReque
 export interface IRequestImplementationRequest {
     planProposalMessageId?: string;
     guidance?: string | undefined;
+}
+
+export class RequestDiagnosisCorrectionResponse implements IRequestDiagnosisCorrectionResponse {
+    status?: string;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    escalationId?: string | undefined;
+    escalationMessageId?: string | undefined;
+    latestEventSequence?: number | undefined;
+
+    constructor(data?: IRequestDiagnosisCorrectionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.escalationId = _data["escalationId"];
+            this.escalationMessageId = _data["escalationMessageId"];
+            this.latestEventSequence = _data["latestEventSequence"];
+        }
+    }
+
+    static fromJS(data: any): RequestDiagnosisCorrectionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestDiagnosisCorrectionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["escalationId"] = this.escalationId;
+        data["escalationMessageId"] = this.escalationMessageId;
+        data["latestEventSequence"] = this.latestEventSequence;
+        return data;
+    }
+}
+
+export interface IRequestDiagnosisCorrectionResponse {
+    status?: string;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    escalationId?: string | undefined;
+    escalationMessageId?: string | undefined;
+    latestEventSequence?: number | undefined;
+}
+
+export class RequestDiagnosisCorrectionRequest implements IRequestDiagnosisCorrectionRequest {
+    verificationDiagnosisAttemptId?: string;
+
+    constructor(data?: IRequestDiagnosisCorrectionRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.verificationDiagnosisAttemptId = _data["verificationDiagnosisAttemptId"];
+        }
+    }
+
+    static fromJS(data: any): RequestDiagnosisCorrectionRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestDiagnosisCorrectionRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["verificationDiagnosisAttemptId"] = this.verificationDiagnosisAttemptId;
+        return data;
+    }
+}
+
+export interface IRequestDiagnosisCorrectionRequest {
+    verificationDiagnosisAttemptId?: string;
 }
 
 export class RequestCodexPlanningRepairAttemptResponse implements IRequestCodexPlanningRepairAttemptResponse {
@@ -4150,6 +4470,370 @@ export interface IRequestChallengeResolutionRepairAttemptResponse {
     attemptId?: string;
     attemptNumber?: number;
     repairSourceAttemptId?: string;
+}
+
+export class VerificationDiagnosisStatusResponse implements IVerificationDiagnosisStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    executionReportMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+    verification?: VerificationDiagnosisMemberResponse[];
+    findingCount?: number;
+    diagnosisEscalationMessageId?: string | undefined;
+    correctionApplicable?: boolean;
+    correctionAttemptId?: string | undefined;
+    correctionAttemptNumber?: number | undefined;
+    correctionStatus?: string | undefined;
+    correctionOutcome?: string | undefined;
+    reviewableExecutionReportMessageId?: string | undefined;
+    maximumReviewCorrectionAttempts?: number;
+    reviewCorrectionAttemptsUsed?: number;
+    correctionBudgetExhausted?: boolean;
+    correctionEscalationId?: string | undefined;
+    correctionEscalationMessageId?: string | undefined;
+    diagnosableExecutionReportMessageId?: string | undefined;
+    diagnosisUnavailableCode?: string | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
+
+    constructor(data?: IVerificationDiagnosisStatusResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.hasAttempt = _data["hasAttempt"];
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.executionReportMessageId = _data["executionReportMessageId"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["artifacts"])) {
+                this.artifacts = [] as any;
+                for (let item of _data["artifacts"])
+                    this.artifacts!.push(AgentAttemptArtifactMetadataResponse.fromJS(item));
+            }
+            if (Array.isArray(_data["verification"])) {
+                this.verification = [] as any;
+                for (let item of _data["verification"])
+                    this.verification!.push(VerificationDiagnosisMemberResponse.fromJS(item));
+            }
+            this.findingCount = _data["findingCount"];
+            this.diagnosisEscalationMessageId = _data["diagnosisEscalationMessageId"];
+            this.correctionApplicable = _data["correctionApplicable"];
+            this.correctionAttemptId = _data["correctionAttemptId"];
+            this.correctionAttemptNumber = _data["correctionAttemptNumber"];
+            this.correctionStatus = _data["correctionStatus"];
+            this.correctionOutcome = _data["correctionOutcome"];
+            this.reviewableExecutionReportMessageId = _data["reviewableExecutionReportMessageId"];
+            this.maximumReviewCorrectionAttempts = _data["maximumReviewCorrectionAttempts"];
+            this.reviewCorrectionAttemptsUsed = _data["reviewCorrectionAttemptsUsed"];
+            this.correctionBudgetExhausted = _data["correctionBudgetExhausted"];
+            this.correctionEscalationId = _data["correctionEscalationId"];
+            this.correctionEscalationMessageId = _data["correctionEscalationMessageId"];
+            this.diagnosableExecutionReportMessageId = _data["diagnosableExecutionReportMessageId"];
+            this.diagnosisUnavailableCode = _data["diagnosisUnavailableCode"];
+            this.processExecution = _data["processExecution"] ? AgentProcessExecutionResponse.fromJS(_data["processExecution"]) : undefined as any;
+            this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
+            this.configuredCommandSandbox = _data["configuredCommandSandbox"];
+            this.configuredRolloutPersistence = _data["configuredRolloutPersistence"];
+        }
+    }
+
+    static fromJS(data: any): VerificationDiagnosisStatusResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new VerificationDiagnosisStatusResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["hasAttempt"] = this.hasAttempt;
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["executionReportMessageId"] = this.executionReportMessageId;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.artifacts)) {
+            data["artifacts"] = [];
+            for (let item of this.artifacts)
+                data["artifacts"].push(item ? item.toJSON() : undefined as any);
+        }
+        if (Array.isArray(this.verification)) {
+            data["verification"] = [];
+            for (let item of this.verification)
+                data["verification"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["findingCount"] = this.findingCount;
+        data["diagnosisEscalationMessageId"] = this.diagnosisEscalationMessageId;
+        data["correctionApplicable"] = this.correctionApplicable;
+        data["correctionAttemptId"] = this.correctionAttemptId;
+        data["correctionAttemptNumber"] = this.correctionAttemptNumber;
+        data["correctionStatus"] = this.correctionStatus;
+        data["correctionOutcome"] = this.correctionOutcome;
+        data["reviewableExecutionReportMessageId"] = this.reviewableExecutionReportMessageId;
+        data["maximumReviewCorrectionAttempts"] = this.maximumReviewCorrectionAttempts;
+        data["reviewCorrectionAttemptsUsed"] = this.reviewCorrectionAttemptsUsed;
+        data["correctionBudgetExhausted"] = this.correctionBudgetExhausted;
+        data["correctionEscalationId"] = this.correctionEscalationId;
+        data["correctionEscalationMessageId"] = this.correctionEscalationMessageId;
+        data["diagnosableExecutionReportMessageId"] = this.diagnosableExecutionReportMessageId;
+        data["diagnosisUnavailableCode"] = this.diagnosisUnavailableCode;
+        data["processExecution"] = this.processExecution ? this.processExecution.toJSON() : undefined as any;
+        data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
+        data["configuredCommandSandbox"] = this.configuredCommandSandbox;
+        data["configuredRolloutPersistence"] = this.configuredRolloutPersistence;
+        return data;
+    }
+}
+
+export interface IVerificationDiagnosisStatusResponse {
+    hasAttempt?: boolean;
+    attemptId?: string | undefined;
+    attemptNumber?: number | undefined;
+    executionReportMessageId?: string | undefined;
+    status?: string | undefined;
+    outcome?: string | undefined;
+    claimedAtUtc?: Date | undefined;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+    artifacts?: AgentAttemptArtifactMetadataResponse[];
+    verification?: VerificationDiagnosisMemberResponse[];
+    findingCount?: number;
+    diagnosisEscalationMessageId?: string | undefined;
+    correctionApplicable?: boolean;
+    correctionAttemptId?: string | undefined;
+    correctionAttemptNumber?: number | undefined;
+    correctionStatus?: string | undefined;
+    correctionOutcome?: string | undefined;
+    reviewableExecutionReportMessageId?: string | undefined;
+    maximumReviewCorrectionAttempts?: number;
+    reviewCorrectionAttemptsUsed?: number;
+    correctionBudgetExhausted?: boolean;
+    correctionEscalationId?: string | undefined;
+    correctionEscalationMessageId?: string | undefined;
+    diagnosableExecutionReportMessageId?: string | undefined;
+    diagnosisUnavailableCode?: string | undefined;
+    processExecution?: AgentProcessExecutionResponse | undefined;
+    tokenUsage?: AgentTokenUsageResponse | undefined;
+    configuredCommandSandbox?: string | undefined;
+    configuredRolloutPersistence?: string | undefined;
+}
+
+export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+
+    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.purpose = _data["purpose"];
+            this.byteLength = _data["byteLength"];
+            this.truncated = _data["truncated"];
+            this.captureOutcome = _data["captureOutcome"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptArtifactMetadataResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["purpose"] = this.purpose;
+        data["byteLength"] = this.byteLength;
+        data["truncated"] = this.truncated;
+        data["captureOutcome"] = this.captureOutcome;
+        return data;
+    }
+}
+
+export interface IAgentAttemptArtifactMetadataResponse {
+    purpose?: string;
+    byteLength?: number;
+    truncated?: boolean | undefined;
+    captureOutcome?: string;
+}
+
+export class VerificationDiagnosisMemberResponse implements IVerificationDiagnosisMemberResponse {
+    position?: number;
+    commandName?: string;
+    executionNumber?: number;
+    status?: string;
+    exitCode?: number | undefined;
+
+    constructor(data?: IVerificationDiagnosisMemberResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.position = _data["position"];
+            this.commandName = _data["commandName"];
+            this.executionNumber = _data["executionNumber"];
+            this.status = _data["status"];
+            this.exitCode = _data["exitCode"];
+        }
+    }
+
+    static fromJS(data: any): VerificationDiagnosisMemberResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new VerificationDiagnosisMemberResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["position"] = this.position;
+        data["commandName"] = this.commandName;
+        data["executionNumber"] = this.executionNumber;
+        data["status"] = this.status;
+        data["exitCode"] = this.exitCode;
+        return data;
+    }
+}
+
+export interface IVerificationDiagnosisMemberResponse {
+    position?: number;
+    commandName?: string;
+    executionNumber?: number;
+    status?: string;
+    exitCode?: number | undefined;
+}
+
+export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    durationMilliseconds?: number | undefined;
+    timeoutMilliseconds?: number | undefined;
+
+    constructor(data?: IAgentProcessExecutionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.outcome = _data["outcome"];
+            this.exitCode = _data["exitCode"];
+            this.durationMilliseconds = _data["durationMilliseconds"];
+            this.timeoutMilliseconds = _data["timeoutMilliseconds"];
+        }
+    }
+
+    static fromJS(data: any): AgentProcessExecutionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentProcessExecutionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["outcome"] = this.outcome;
+        data["exitCode"] = this.exitCode;
+        data["durationMilliseconds"] = this.durationMilliseconds;
+        data["timeoutMilliseconds"] = this.timeoutMilliseconds;
+        return data;
+    }
+}
+
+export interface IAgentProcessExecutionResponse {
+    outcome?: string | undefined;
+    exitCode?: number | undefined;
+    durationMilliseconds?: number | undefined;
+    timeoutMilliseconds?: number | undefined;
+}
+
+export class AgentTokenUsageResponse implements IAgentTokenUsageResponse {
+    inputTokens?: number | undefined;
+    outputTokens?: number | undefined;
+    cacheCreationInputTokens?: number | undefined;
+    cacheReadInputTokens?: number | undefined;
+
+    constructor(data?: IAgentTokenUsageResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.inputTokens = _data["inputTokens"];
+            this.outputTokens = _data["outputTokens"];
+            this.cacheCreationInputTokens = _data["cacheCreationInputTokens"];
+            this.cacheReadInputTokens = _data["cacheReadInputTokens"];
+        }
+    }
+
+    static fromJS(data: any): AgentTokenUsageResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentTokenUsageResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["inputTokens"] = this.inputTokens;
+        data["outputTokens"] = this.outputTokens;
+        data["cacheCreationInputTokens"] = this.cacheCreationInputTokens;
+        data["cacheReadInputTokens"] = this.cacheReadInputTokens;
+        return data;
+    }
+}
+
+export interface IAgentTokenUsageResponse {
+    inputTokens?: number | undefined;
+    outputTokens?: number | undefined;
+    cacheCreationInputTokens?: number | undefined;
+    cacheReadInputTokens?: number | undefined;
 }
 
 export class SealedAgentArtifactWindowResponse implements ISealedAgentArtifactWindowResponse {
@@ -4626,102 +5310,6 @@ export interface IRunCockpitAgentAttemptResponse {
     requestedEffort?: string | undefined;
     maxTurns?: ClaudeMutationTurnLimitResponse | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
-}
-
-export class AgentProcessExecutionResponse implements IAgentProcessExecutionResponse {
-    outcome?: string | undefined;
-    exitCode?: number | undefined;
-    durationMilliseconds?: number | undefined;
-    timeoutMilliseconds?: number | undefined;
-
-    constructor(data?: IAgentProcessExecutionResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.outcome = _data["outcome"];
-            this.exitCode = _data["exitCode"];
-            this.durationMilliseconds = _data["durationMilliseconds"];
-            this.timeoutMilliseconds = _data["timeoutMilliseconds"];
-        }
-    }
-
-    static fromJS(data: any): AgentProcessExecutionResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new AgentProcessExecutionResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["outcome"] = this.outcome;
-        data["exitCode"] = this.exitCode;
-        data["durationMilliseconds"] = this.durationMilliseconds;
-        data["timeoutMilliseconds"] = this.timeoutMilliseconds;
-        return data;
-    }
-}
-
-export interface IAgentProcessExecutionResponse {
-    outcome?: string | undefined;
-    exitCode?: number | undefined;
-    durationMilliseconds?: number | undefined;
-    timeoutMilliseconds?: number | undefined;
-}
-
-export class AgentTokenUsageResponse implements IAgentTokenUsageResponse {
-    inputTokens?: number | undefined;
-    outputTokens?: number | undefined;
-    cacheCreationInputTokens?: number | undefined;
-    cacheReadInputTokens?: number | undefined;
-
-    constructor(data?: IAgentTokenUsageResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.inputTokens = _data["inputTokens"];
-            this.outputTokens = _data["outputTokens"];
-            this.cacheCreationInputTokens = _data["cacheCreationInputTokens"];
-            this.cacheReadInputTokens = _data["cacheReadInputTokens"];
-        }
-    }
-
-    static fromJS(data: any): AgentTokenUsageResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new AgentTokenUsageResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["inputTokens"] = this.inputTokens;
-        data["outputTokens"] = this.outputTokens;
-        data["cacheCreationInputTokens"] = this.cacheCreationInputTokens;
-        data["cacheReadInputTokens"] = this.cacheReadInputTokens;
-        return data;
-    }
-}
-
-export interface IAgentTokenUsageResponse {
-    inputTokens?: number | undefined;
-    outputTokens?: number | undefined;
-    cacheCreationInputTokens?: number | undefined;
-    cacheReadInputTokens?: number | undefined;
 }
 
 export class ClaudeMutationTurnLimitResponse implements IClaudeMutationTurnLimitResponse {
@@ -5354,54 +5942,6 @@ export interface IReviewCorrectionAttemptStatusResponse {
     runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
     attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
-}
-
-export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
-
-    constructor(data?: IAgentAttemptArtifactMetadataResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.purpose = _data["purpose"];
-            this.byteLength = _data["byteLength"];
-            this.truncated = _data["truncated"];
-            this.captureOutcome = _data["captureOutcome"];
-        }
-    }
-
-    static fromJS(data: any): AgentAttemptArtifactMetadataResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new AgentAttemptArtifactMetadataResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["purpose"] = this.purpose;
-        data["byteLength"] = this.byteLength;
-        data["truncated"] = this.truncated;
-        data["captureOutcome"] = this.captureOutcome;
-        return data;
-    }
-}
-
-export interface IAgentAttemptArtifactMetadataResponse {
-    purpose?: string;
-    byteLength?: number;
-    truncated?: boolean | undefined;
-    captureOutcome?: string;
 }
 
 export class GetProcessAttemptOutputResponse implements IGetProcessAttemptOutputResponse {

@@ -52,6 +52,8 @@
   first-revision review target is narrowly superseded by ADR-0017).
 - [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md):
   Review the implemented plan through correction.
+- [ADR-0018](decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md):
+  Add explicit local verification failure diagnosis and bounded correction (it narrowly extends ADR-0010's eligible finding source).
 
 ## Product-specific architecture
 
@@ -110,6 +112,12 @@
   Planner root remains the lineage identity and correction reply target. The change is forward only: a review sealed earlier
   replays its existing bytes, and history is never rewritten (see
   [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md)).
+- A human may explicitly request a read-only Codex diagnosis of the current failed local verification of an exact ExecutionReport. It
+  yields one to ten findings or one bounded escalation, never an approval, and may then separately request a Claude correction of
+  those findings through the existing correction contract and its one shared allowance. Verification is rerun explicitly and an
+  ordinary code review still requires every enabled command to be Passed (see
+  [ADR-0018](decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md) and
+  [the protocol](architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no
   account-usage threshold is enforced anywhere in the system. The one

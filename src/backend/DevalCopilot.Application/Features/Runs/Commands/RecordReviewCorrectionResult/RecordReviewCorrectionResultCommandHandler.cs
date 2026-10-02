@@ -185,9 +185,8 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             if (finding.Provenance != CollaborationMessageProvenance.ProviderObserved
                 || finding.InReplyToMessageId != orderedInputs[0]
                 || findingOwner is null
-                || findingOwner.AgentResponseContract != AgentResponseContract.ImplementationReview
+                || !ImplementerExecutionReportEligibility.IsValidFindingSource(findingOwner)
                 || findingOwner.Status != AttemptStatus.Completed
-                || findingOwner.AgentOutcome != AgentOutcome.ReviewChangesRequested
                 || findingOwner.AgentGitWorkspaceId != workspace.Id
                 || findingOwner.AgentGitCheckpointId != startingCheckpoint.Id)
             {

@@ -51,6 +51,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations { get; }
 
+    DbSet<DiagnosisCorrectionEscalation> DiagnosisCorrectionEscalations { get; }
+
     DbSet<PlanningImplementationAuthorization> PlanningImplementationAuthorizations { get; }
 
     /// <summary>

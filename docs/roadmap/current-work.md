@@ -6,6 +6,83 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
+## Local verification failure diagnosis and bounded correction (2026-10-02)
+
+- Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent
+  `dc705798f427dcae47cf30fd582a5d680bf55c89` (`main`; `HEAD`, local `origin/main` and live `refs/heads/main` matched it, nothing staged or
+  untracked, only the planner-owned `planner-handoff.md` modified; generated client baseline SHA-256
+  `1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`). Presented as an uncommitted, unstaged, unpushed diff for Codex's GO/NO-GO, after one NO-GO correction round (R1-R5, below).
+  `planner-handoff.md` was not edited by the executor (content and CRLF endings preserved). No publication is claimed.
+- Delivered behavior ([ADR-0018](../decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md), a narrow extension of
+  ADR-0010's eligible finding source; ADR-0017's distinction between the implemented plan and the Planner root is kept):
+  - A closed `VerificationDiagnosis` contract (CodeReviewer, ReadOnly, currently Codex, adapter `codex-verification-diagnosis-v1`) whose only
+    valid answers are one to ten `ReviewFinding`s or exactly one bounded `Escalation`, each replying to the exact `ExecutionReport`; it never
+    approves and records no `CheckpointReview`. Enum members were appended (`AgentResponseContract.VerificationDiagnosis`, outcomes
+    `DiagnosisFindingsRecorded`, `DiagnosisEscalated`, `InputAlreadyDiagnosed`, `VerificationEvidenceChanged`). It reuses `CodexProcessInvoker`;
+    no CLI permission, tool, flag, authentication or session behavior changed.
+  - `POST /api/runs/{runId}/agent-attempts/verification-diagnosis` (run + report) derives the complete latest-execution selection of every enabled
+    command (coherent Passed/Exited/0 or Failed/Exited/nonzero, at least one failure) and persists ordered `AttemptVerificationEvidence`. The sealed manifest
+    carries the implemented plan, report, bounded Git evidence, verification metadata and verified redacted failure excerpts (`IArtifactStore`
+    verification, at most 2 KiB per stream and 12 KiB in total, truncation/shortening/empty/budget omission labeled separately; invalid UTF-8 is
+    still capped per stream), with fixed instructions before the untrusted boundary and no executable path, argument, storage path or hash.
+  - Each diagnosis membership row carries a nullable, versioned snapshot SHA-256 (command, execution, and both failed-output row facts; ordinary review rows keep null; a diagnosis row without a valid digest fails closed) that is compared at the claim seam, dispatch, result recording, and correction authority. Authority is re-read untracked in the claim transaction, at dispatch and before result recording; drift ends as `VerificationEvidenceChanged`
+    (retaining process and artifact evidence, recording no finding or escalation). One successful diagnosis per exact identity; failed invocations may be explicitly retried within the existing budgets, with no automatic retry or diagnosis format repair.
+  - `POST .../verification-diagnosis/correction` (diagnosis attempt, canonical `CreateDiagnosisCorrectionAttemptCommandResult` with the same HTTP variants) uses the existing Implementer/ReviewCorrection contract and Claude adapter with
+    inputs `[report, every finding in timeline order]` and a fixed source notice. It shares the run-wide budgets and the one ReviewCorrection
+    allowance; the claim and the exhaustion escalation each re-read lifecycle, workspace, lease, checkpoint, the exact diagnosis/findings/snapshot, the run-wide gates and the allowance untracked inside one short write-locked transaction after the Git/artifact work. At exhaustion one idempotent Orchestrator escalation (`diagnosis_correction_escalations`, unique per diagnosis, migration
+    `AddDiagnosisCorrectionEscalation`) is recorded with no attempt and no grant, and ordinary grants cannot authorize it. Its text names manual review and an
+    explicit human decision and offers no supported continuation. The ordinary correction endpoint and the Passed approval gate are unchanged.
+  - `GET .../verification-diagnosis` status, a `VerificationDiagnosisSupervisor`, and cockpit diagnosis/findings/escalation/correction controls with
+    fixed English copy (`provider_not_observed` means the provider runtime is not currently observed as available, distinct from a report without
+    provider provenance; the three real token-stop codes have fixed copy; other problems fall back to the server's detail, then a generic sentence).
+- Correction round (Codex NO-GO R1-R5), all within this slice:
+  - R1 atomic correction authority: `CreateDiagnosisCorrectionAttemptCommandHandler` now opens a real transaction (new `IAttemptDurabilityProbe` dependency) after the Git/artifact
+    work, takes the write lock (guarded no-op writes of execution mode and token-stop policy), reads the Claude model/effort/turn-limit guards, and re-reads lifecycle, workspace,
+    lease, current checkpoint, run-wide gates, the diagnosis with its findings and verification snapshot, the allowance, the Claude runtime and competing corrections untracked
+    inside it before inserting, saving and committing; the exhaustion escalation does the same in its own transaction. Cancellation, commit-ambiguity (probe / escalation
+    re-read), idempotency and orphan-manifest cleanup are preserved. The permissive "claim may succeed, dispatch then refuses" test was removed (a competing writer can no longer commit
+    inside the save); replaced by populated-tracker seam tests (8 drifts x claim and x exhausted escalation, a competing claim, a committed claim, and the dispatch refusal for drift
+    after a completed claim).
+  - R2 process evidence: `RecordVerificationDiagnosisResult` validates the requested semantic outcome's clean-exit proof before any drift reclassification (missing, nonzero,
+    timed-out, cancelled evidence is refused without mutation for findings and escalation even with simultaneous verification and Git drift; a valid clean exit is still downgraded).
+  - R3 status lifetime: `useVerificationDiagnosisStatus` now uses `useOwnedLifetime`/`useOwnedState` with a lifetime-bound refresh and ordered reads (8 new tests; 3 red against the
+    previous hook: A-B-A resurrection, previous-run error in a frame, retained refresh issuing a request).
+  - R4 snapshot integrity: `AttemptVerificationEvidence.SnapshotSha256` (nullable, <=64) with `RecordDiagnosisSnapshot`; `VerificationDiagnosisSnapshot` (version 1 canonical
+    text, never sent to a provider); compared in `Selection.SameAs` (claim seam) and `VerificationDiagnosisApplicability` (dispatch, recording, correction authority and status).
+    The unpublished migration `AddDiagnosisCorrectionEscalation` was regenerated (new timestamp, LF) to add the column; ADR-0018 and the protocol document were updated. The
+    Chromium raw-SQL fixture reproduces the digest. 38 new tests change 11 facts (output hash/length/path/truncation/capture, execution exit code/workspace/timeout, command
+    name/timeout) with identical identifiers and require refusal at the seam, dispatch, applicability and correction authority, plus 3 fail-closed digest cases.
+  - R5 ownership: the shared diagnosis policies/schema/evidence (`Applicability`, `Eligibility`, `Evidence`, `InputIdentity`, `OutputSchema`, new `Snapshot`) moved to
+    `Features/Runs/Policies/VerificationDiagnosis`; the operation-internal `ReportValidation` and `FailureExcerpts` moved into `CreateVerificationDiagnosisAttempt`; matching
+    namespaces; `CreateDiagnosisCorrectionAttemptCommandResult` is the operation's own result. Older feature-root types were not moved. `InternalsVisibleTo` for
+    `DevalCopilot.Api.IntegrationTests` was added so the API seed can compute the same digest.
+  - Red/green evidence: R2 8/8 red with the guard disabled, green restored; R4 27/38 red with the digest comparison disabled, green restored; R1 10/19 red with the in-transaction
+    applicability disabled, green restored; R3 3 red against the old hook.
+- Changed files: 32 tracked files modified (including the planner-owned `planner-handoff.md` and this record) and 93 untracked, 125 in all (`git status --short`); highlights are
+  Domain `Attempt`/contract/outcome/escalation/policy/`AttemptVerificationEvidence`, Application `Features/Runs/Policies/VerificationDiagnosis/*`, `CreateVerificationDiagnosisAttempt`
+  (with its report validation and excerpts), `CreateDiagnosisCorrectionAttempt`, `RecordVerificationDiagnosisResult`, dispatch refusal, two query folders and the dispatch/eligibility extensions,
+  Infrastructure adapter/configuration/regenerated migration/snapshot, three Api endpoint folders and the supervisor, the regenerated `api-client.ts`
+  (SHA-256 `bd99dc6a31e0f72fc6051730165b1565c33a95f0f41c602425c28720b286994d`, unchanged by the correction round), frontend hooks/components/failure map/tests, two Chromium specs and a fixture,
+  ADR-0018, and the protocol/workflow/cockpit/engineering-context documents.
+- Checks actually run against the final corrected tree (normal solution build, then sequential `--no-build` suites; `--no-incremental -m:1` rebuild reproduced the client byte-identical):
+  Domain 952/952, Application 3463/3463, Infrastructure 956 passed + 3 skipped (existing skips) of 959, Api 744/744, Architecture 9/9; frontend `npx vitest run` 118 files, 1635/1635,
+  `tsc -b` clean, `npm run build` clean, oxlint 10 warnings (the baseline), 0 errors, `npm run test:harness` 19/19, `npm audit` 0 vulnerabilities; full Chromium 8/8 on two consecutive
+  runs (one earlier run of the same tree failed `project-selection.spec.ts` once; it passed alone and in both full reruns, and I did not isolate the cause, so treat it as an unexplained flake);
+  `dotnet list package --vulnerable --include-transitive` none; `dotnet format --verify-no-changes` 153 findings, identical to the recorded baseline and none in a file this slice created or
+  changed; `git diff --check` clean (only Git's CRLF notices); a node check of every untracked file found no NUL, carriage return or trailing whitespace; local Markdown links of the changed
+  documents (175 in 8 files) resolve; `planner-handoff.md` SHA-256 `f325ee3d7acae00e5c9da5e3d1cf9feb28cea654ea15eb0cffd7d60a801274e1` unchanged.
+- Proof (earlier, retained): discriminating mutations by the test author (oldest-instead-of-latest execution, tracked report read, revalidation skipped, dispatch drift check removed,
+  record-time applicability removed, allowance ignored, finding-source alternative removed), each red then restored. A hosted process-double journey (production-written planning,
+  implementation, real failed verification with sealed output, diagnosis, correction, new Passed verification, ordinary approval) also covers a revised plan, diagnosing a corrected
+  report, shared-allowance escalation, escalation, retry after an invalid answer, drift before dispatch and during the provider call, and restart replay. Endpoint tests and the wire spec
+  use raw-SQL fixtures and are labeled as such; they are not production-written evidence.
+- Limits and open risks: process doubles prove reachability and sealed-form agreement, never real-provider reliability; no real provider was invoked. Redaction of excerpts is best
+  effort. The snapshot digest proves the stored facts are unchanged; it does not prove the sealed output files on disk (those are verified by `IArtifactStore` at claim). A diagnosis
+  membership created by a raw-SQL writer without the digest is refused (fail closed) by design. The correction escalation's commit-ambiguity classification re-reads the escalation
+  row on the same connection and reports `attempts.persistence_unresolved` if that read also fails. The unexplained single Chromium flake noted above. Explicitly out of scope and unchanged:
+  session persistence/resume/compaction, allowance thresholds, new providers, Gemini/fallback, permission changes, recipe mutation, ambiguous-process and no-change recovery, lifecycle
+  completion, scheduling, publication. No next slice is selected.
+
 ## Atomic project/run switching for cockpit and workspace evidence (2026-10-02)
 
 - Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent

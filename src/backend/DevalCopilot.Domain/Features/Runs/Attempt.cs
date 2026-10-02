@@ -533,6 +533,70 @@ public sealed class Attempt
     }
 
     /// <summary>
+    /// Claims a Codex verification-diagnosis Agent attempt (ADR-0018) — a durable, real, read-only invocation diagnosing the
+    /// current failed local verification of one exact, already-completed Claude implementation result. It carries the
+    /// CodeReviewer role and the <see cref="Runs.AgentResponseContract.VerificationDiagnosis"/> contract, the same
+    /// read-only permission profile as an ordinary code review, and its own fixed adapter contract; it is never a format
+    /// repair. The exact ordered input identity (the ExecutionReport as the sequence-0 <see cref="AttemptInputMessage"/> and the
+    /// ordered claimed executions as <see cref="AttemptVerificationEvidence"/> rows) is recorded separately, immediately after
+    /// this call.
+    /// </summary>
+    public static Attempt ClaimAgentVerificationDiagnosis(
+        Guid id,
+        Guid runId,
+        int attemptNumber,
+        Guid gitWorkspaceId,
+        Guid gitCheckpointId,
+        string checkpointFingerprintSha256,
+        Guid contextManifestArtifactId,
+        TimeSpan timeout,
+        int maxBytesPerStream,
+        int maxTotalCapturedBytes,
+        DateTimeOffset claimedAtUtc,
+        string? requestedModel,
+        string? requestedEffort,
+        int agentBudgetSlot)
+    {
+        ValidateAgentClaimArguments(
+            attemptNumber, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, contextManifestArtifactId,
+            timeout, maxBytesPerStream, maxTotalCapturedBytes, agentBudgetSlot);
+        ValidateAssignmentIdentifier(requestedModel, nameof(requestedModel));
+        ValidateAssignmentIdentifier(requestedEffort, nameof(requestedEffort));
+        ValidateRequestedAssignmentPair(requestedModel, requestedEffort);
+
+        var contract = AgentAttemptContract.For(Runs.AgentResponseContract.VerificationDiagnosis);
+
+        return new Attempt
+        {
+            Id = id,
+            RunId = runId,
+            AttemptNumber = attemptNumber,
+            Kind = AttemptKind.Agent,
+            Status = AttemptStatus.Running,
+            ClaimedAtUtc = claimedAtUtc,
+            AgentProvider = Runs.AgentProvider.Codex,
+            AgentRole = contract.Role,
+            AgentProtocolVersion = CollaborationMessage.ProtocolVersionOne,
+            // The real Findings-or-Escalation union is represented by AgentResponseContract; this placeholder names the
+            // primary message type, exactly like the ordinary code review's.
+            AgentExpectedMessageType = CollaborationMessageType.ReviewFinding,
+            AgentResponseContract = contract.ResponseContract,
+            AgentGitWorkspaceId = gitWorkspaceId,
+            AgentGitCheckpointId = gitCheckpointId,
+            AgentCheckpointFingerprintSha256 = checkpointFingerprintSha256,
+            AgentContextManifestArtifactId = contextManifestArtifactId,
+            AgentTimeout = timeout,
+            AgentMaxBytesPerStream = maxBytesPerStream,
+            AgentMaxTotalCapturedBytes = maxTotalCapturedBytes,
+            AgentRequestedModel = requestedModel,
+            AgentRequestedEffort = requestedEffort,
+            AgentPermissionProfile = Runs.AgentPermissionProfile.ReadOnly,
+            AgentAdapterContractVersion = VerificationDiagnosisPolicy.AdapterContractVersion,
+            AgentBudgetSlot = agentBudgetSlot,
+        };
+    }
+
+    /// <summary>
     /// Claims the default Claude Code initial implementation Agent attempt — a durable, real invocation
     /// implementing one exact, already-resolved plan (an accepted original Proposal or a
     /// resolved revised Proposal) inside the owned worktree. The assignment overload fixes
@@ -1770,7 +1834,9 @@ public sealed class Attempt
             or Runs.AgentOutcome.Resolved
             or Runs.AgentOutcome.Implemented
             or Runs.AgentOutcome.ReviewApproved
-            or Runs.AgentOutcome.ReviewChangesRequested)
+            or Runs.AgentOutcome.ReviewChangesRequested
+            or Runs.AgentOutcome.DiagnosisFindingsRecorded
+            or Runs.AgentOutcome.DiagnosisEscalated)
         {
             throw new InvalidOperationException(
                 $"{outcome} is not a valid terminal outcome for a ReviewCorrection attempt.");

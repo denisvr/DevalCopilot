@@ -16,6 +16,7 @@ public sealed class AgentAttemptContractTests
     [InlineData(AgentResponseContract.ImplementationReport, AgentRole.Implementer, AgentEffectKind.WorkspaceMutating)]
     [InlineData(AgentResponseContract.ImplementationReview, AgentRole.CodeReviewer, AgentEffectKind.ReadOnly)]
     [InlineData(AgentResponseContract.ReviewCorrection, AgentRole.Implementer, AgentEffectKind.WorkspaceMutating)]
+    [InlineData(AgentResponseContract.VerificationDiagnosis, AgentRole.CodeReviewer, AgentEffectKind.ReadOnly)]
     public void For_returns_the_exact_response_contract_role_and_effect(
         AgentResponseContract responseContract, AgentRole expectedRole, AgentEffectKind expectedEffect)
     {
@@ -60,6 +61,22 @@ public sealed class AgentAttemptContractTests
 
         Assert.Equal(new HashSet<AgentOutcome> { AgentOutcome.Implemented }, completedOutcomes);
         Assert.DoesNotContain(AgentOutcome.NoChangesProduced, completedOutcomes);
+    }
+
+    /// <summary>ADR-0018: a verification diagnosis completes only with findings or an escalation. It can never complete as an
+    /// approval, and an ordinary review's outcomes never complete a diagnosis.</summary>
+    [Fact]
+    public void For_returns_exactly_the_findings_and_escalation_outcomes_as_completed_for_VerificationDiagnosis()
+    {
+        var completedOutcomes = AgentAttemptContract.For(AgentResponseContract.VerificationDiagnosis).CompletedOutcomes;
+
+        Assert.Equal(
+            new HashSet<AgentOutcome> { AgentOutcome.DiagnosisFindingsRecorded, AgentOutcome.DiagnosisEscalated },
+            completedOutcomes);
+        Assert.DoesNotContain(AgentOutcome.ReviewApproved, completedOutcomes);
+        Assert.DoesNotContain(AgentOutcome.ReviewChangesRequested, completedOutcomes);
+        Assert.DoesNotContain(AgentOutcome.VerificationEvidenceChanged, completedOutcomes);
+        Assert.DoesNotContain(AgentOutcome.InputAlreadyDiagnosed, completedOutcomes);
     }
 
     [Fact]
@@ -167,6 +184,7 @@ public sealed class AgentAttemptContractTests
             {
                 AgentOutcome.Proposed, AgentOutcome.Accepted, AgentOutcome.Challenged, AgentOutcome.Resolved,
                 AgentOutcome.ReviewApproved, AgentOutcome.ReviewChangesRequested,
+                AgentOutcome.DiagnosisFindingsRecorded, AgentOutcome.DiagnosisEscalated,
             },
             completedOutcomes);
     }

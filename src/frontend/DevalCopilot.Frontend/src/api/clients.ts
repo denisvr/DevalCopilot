@@ -55,6 +55,9 @@ import {
   GetReviewCorrectionAttemptStatusEndpointClient,
   AuthorizeReviewCorrectionEndpointClient,
   AuthorizeReviewCorrectionWithGuidanceEndpointClient,
+  RequestVerificationDiagnosisEndpointClient,
+  GetVerificationDiagnosisStatusEndpointClient,
+  RequestDiagnosisCorrectionEndpointClient,
   AuthorizePlanningImplementationEndpointClient,
   GetPlanningImplementationAuthorizationEndpointClient,
 } from './generated/api-client'
@@ -118,6 +121,9 @@ export const requestReviewCorrectionClient = () => new RequestReviewCorrectionEn
 export const reviewCorrectionAttemptStatusClient = () => new GetReviewCorrectionAttemptStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const authorizeReviewCorrectionClient = () => new AuthorizeReviewCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const authorizeReviewCorrectionWithGuidanceClient = () => new AuthorizeReviewCorrectionWithGuidanceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestVerificationDiagnosisClient = () => new RequestVerificationDiagnosisEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const verificationDiagnosisStatusClient = () => new GetVerificationDiagnosisStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestDiagnosisCorrectionClient = () => new RequestDiagnosisCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const authorizePlanningImplementationClient = () => new AuthorizePlanningImplementationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const planningImplementationAuthorizationClient = () => new GetPlanningImplementationAuthorizationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
@@ -182,6 +188,10 @@ export type {
   CodeReviewAttemptStatusResponse,
   RequestReviewCorrectionResponse,
   ReviewCorrectionAttemptStatusResponse,
+  VerificationDiagnosisStatusResponse,
+  VerificationDiagnosisMemberResponse,
+  RequestVerificationDiagnosisResponse,
+  RequestDiagnosisCorrectionResponse,
   AuthorizeReviewCorrectionResponse,
   AuthorizePlanningImplementationResponse,
   PlanningImplementationAuthorizationResponse,
@@ -200,5 +210,7 @@ export {
   RequestImplementationRequest,
   RequestCodeReviewRequest,
   RequestReviewCorrectionRequest,
+  RequestVerificationDiagnosisRequest,
+  RequestDiagnosisCorrectionRequest,
   SetCodexAssignmentPreferenceRequest,
 } from './generated/api-client'

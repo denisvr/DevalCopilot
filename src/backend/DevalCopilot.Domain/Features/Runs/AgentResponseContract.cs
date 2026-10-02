@@ -50,4 +50,13 @@ public enum AgentResponseContract
     /// implemented Proposal, backed by an independently observed, immutable resulting
     /// <c>GitCheckpoint</c>.</summary>
     ReviewCorrection = 5,
+
+    /// <summary><see cref="AgentRole.CodeReviewer"/> + <see cref="VerificationDiagnosis"/> (ADR-0018). Codex is the
+    /// current provider assignment/provenance only, not semantic authority. A read-only diagnosis of the current
+    /// failed local verification of an exact ExecutionReport: the attempt's real output is either exactly one to ten
+    /// <see cref="CollaborationMessageType.ReviewFinding"/> messages or exactly one
+    /// <see cref="CollaborationMessageType.Escalation"/>, each replying to that same ExecutionReport — never both,
+    /// never zero, and never a <see cref="CollaborationMessageType.ReviewApproval"/> or an approved checkpoint
+    /// review.</summary>
+    VerificationDiagnosis = 6,
 }

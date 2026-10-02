@@ -22,6 +22,7 @@ public sealed class GetEligibleCodeReviewAttemptsQueryHandler(IDevalCopilotDbCon
                 attempt.Kind == AttemptKind.Agent
                 && attempt.AgentProvider == AgentProvider.Codex
                 && attempt.AgentRole == AgentRole.CodeReviewer
+                && attempt.AgentResponseContract == AgentResponseContract.ImplementationReview
                 && attempt.Status == AttemptStatus.Running
                 && attempt.AgentDispatchedAtUtc == null)
             .Join(

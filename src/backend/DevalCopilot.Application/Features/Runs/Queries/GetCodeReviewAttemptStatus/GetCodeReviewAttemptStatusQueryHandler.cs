@@ -35,7 +35,8 @@ public sealed class GetCodeReviewAttemptStatusQueryHandler(IDevalCopilotDbContex
             attempt = await dbContext.Attempts
                 .AsNoTracking()
                 .Where(candidate =>
-                    candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.CodeReviewer)
+                    candidate.RunId == query.RunId && candidate.Kind == AttemptKind.Agent && candidate.AgentRole == AgentRole.CodeReviewer
+                    && candidate.AgentResponseContract == AgentResponseContract.ImplementationReview)
                 .OrderByDescending(candidate => candidate.AttemptNumber)
                 .FirstOrDefaultAsync(cancellationToken);
         }

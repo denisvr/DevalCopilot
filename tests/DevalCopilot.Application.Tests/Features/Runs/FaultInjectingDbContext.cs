@@ -113,6 +113,8 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations => inner.ReviewCorrectionAuthorizations;
 
+    public DbSet<DiagnosisCorrectionEscalation> DiagnosisCorrectionEscalations => inner.DiagnosisCorrectionEscalations;
+
     public DbSet<PlanningImplementationAuthorization> PlanningImplementationAuthorizations => inner.PlanningImplementationAuthorizations;
 
     public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class => inner.Entry(entity);

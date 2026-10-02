@@ -240,7 +240,8 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
     {
         await using (var context = CreateContext())
         {
-            await context.Database.MigrateAsync();
+            // Stopped at this migration itself: a later migration (which drops its own table on Down) is not part of this proof.
+            await context.Database.GetService<IMigrator>().MigrateAsync("20261001185037_AddPlanningImplementationAuthorization");
             await SeedFreshAsync(context);
         }
 

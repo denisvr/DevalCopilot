@@ -20,6 +20,9 @@ import { useRequestCodeReviewRepairAttempt } from '../hooks/useRequestCodeReview
 import { useReviewCorrectionAttemptStatus } from '../hooks/useReviewCorrectionAttemptStatus'
 import { useRequestReviewCorrection } from '../hooks/useRequestReviewCorrection'
 import { useAuthorizeReviewCorrection } from '../hooks/useAuthorizeReviewCorrection'
+import { useVerificationDiagnosisStatus } from '../hooks/useVerificationDiagnosisStatus'
+import { useRequestVerificationDiagnosis } from '../hooks/useRequestVerificationDiagnosis'
+import { useRequestDiagnosisCorrection } from '../hooks/useRequestDiagnosisCorrection'
 import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDisclosure'
@@ -52,6 +55,7 @@ import { ImplementationAction } from './ImplementationAction'
 import { CodeReviewAction } from './CodeReviewAction'
 import { CodeReviewRepairAction } from './CodeReviewRepairAction'
 import { ReviewCorrectionAction } from './ReviewCorrectionAction'
+import { VerificationDiagnosisAction } from './VerificationDiagnosisAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
@@ -90,6 +94,24 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
   const requestReviewCorrection = useRequestReviewCorrection(runId, codeReviewAttemptStatus.status?.attemptId ?? null, reviewCorrectionAttemptStatus.refresh)
   const authorizeReviewCorrection = useAuthorizeReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
+  const verificationDiagnosisStatus = useVerificationDiagnosisStatus(runId, cockpit?.latestSequence)
+  // Both identifiers come from the host's own diagnosis status, never from the timeline: the report whose
+  // current verification can be diagnosed now, and the diagnosis whose findings can be corrected.
+  const diagnosableExecutionReportMessageId =
+    verificationDiagnosisStatus.status?.diagnosableExecutionReportMessageId ?? null
+  const verificationDiagnosisAttemptId = verificationDiagnosisStatus.status?.hasAttempt
+    ? (verificationDiagnosisStatus.status.attemptId ?? null)
+    : null
+  const requestVerificationDiagnosis = useRequestVerificationDiagnosis(
+    runId,
+    diagnosableExecutionReportMessageId,
+    verificationDiagnosisStatus.refresh,
+  )
+  const requestDiagnosisCorrection = useRequestDiagnosisCorrection(
+    runId,
+    verificationDiagnosisAttemptId,
+    verificationDiagnosisStatus.refresh,
+  )
   // The newest Planner root and its Resolver revisions, read from the loaded timeline. Display hints
   // only: the backend re-decides review, resolution, and implementation eligibility from durable
   // identity, so an unverifiable chain here withholds an action and never grants one.
@@ -104,11 +126,15 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   // this is only a display hint. A failed or active correction must never resurrect the stale
   // initial report, while a durable correction (including a competing InputAlreadyCorrected
   // result) makes the newest timeline report the next review candidate.
-  const latestExecutionReportMessageId = selectLatestExecutionReportMessageId(
-    reviewCorrectionAttemptStatus.status?.reviewableExecutionReportMessageId,
-    reviewCorrectionAttemptStatus.loading,
-    reviewCorrectionAttemptStatus.error,
-  )
+  // A diagnosis-origin correction that applied and is still current names the corrected report itself, which
+  // the ordinary code review then targets; otherwise the ordinary review-correction logic is unchanged.
+  const latestExecutionReportMessageId =
+    verificationDiagnosisStatus.status?.reviewableExecutionReportMessageId ??
+    selectLatestExecutionReportMessageId(
+      reviewCorrectionAttemptStatus.status?.reviewableExecutionReportMessageId,
+      reviewCorrectionAttemptStatus.loading,
+      reviewCorrectionAttemptStatus.error,
+    )
   // Only the latest Claude critical-review attempt's own Challenged outcome ever makes a
   // resolution requestable — never an older, since-superseded review, and never a review still
   // Running or one that settled as Accepted.
@@ -400,6 +426,25 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
               const reviewAttemptId = codeReviewAttemptStatus.status?.attemptId
               return reviewAttemptId ? requestReviewCorrection.request(runId, reviewAttemptId, guidance) : Promise.resolve(false)
             }}
+          />
+          <VerificationDiagnosisAction
+            status={verificationDiagnosisStatus.status}
+            statusLoading={verificationDiagnosisStatus.loading}
+            statusError={verificationDiagnosisStatus.error}
+            requesting={requestVerificationDiagnosis.requesting}
+            requestError={requestVerificationDiagnosis.error}
+            onRequest={() =>
+              diagnosableExecutionReportMessageId &&
+              void requestVerificationDiagnosis.request(runId, diagnosableExecutionReportMessageId)
+            }
+            correctionRequesting={requestDiagnosisCorrection.requesting}
+            correctionError={requestDiagnosisCorrection.error}
+            onRequestCorrection={() =>
+              verificationDiagnosisAttemptId && void requestDiagnosisCorrection.request(runId, verificationDiagnosisAttemptId)
+            }
+            globalClaimBlock={globalClaimBlock}
+            timeFit={codeReviewTimeFit}
+            correctionTimeFit={reviewCorrectionTimeFit}
           />
           </>
           ) : (

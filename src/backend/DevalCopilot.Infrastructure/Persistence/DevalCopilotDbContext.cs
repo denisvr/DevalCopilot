@@ -49,6 +49,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<ReviewCorrectionEscalation> ReviewCorrectionEscalations => Set<ReviewCorrectionEscalation>();
 
+    public DbSet<DiagnosisCorrectionEscalation> DiagnosisCorrectionEscalations => Set<DiagnosisCorrectionEscalation>();
+
     public DbSet<ReviewCorrectionAuthorization> ReviewCorrectionAuthorizations => Set<ReviewCorrectionAuthorization>();
 
     public DbSet<PlanningImplementationAuthorization> PlanningImplementationAuthorizations => Set<PlanningImplementationAuthorization>();

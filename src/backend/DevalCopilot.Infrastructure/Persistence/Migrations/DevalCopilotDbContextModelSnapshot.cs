@@ -928,6 +928,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<int>("Sequence")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("SnapshotSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("VerificationCommandId")
                         .HasColumnType("TEXT");
 
@@ -1037,6 +1041,36 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("collaboration_messages", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.DiagnosisCorrectionEscalation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CollaborationMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VerificationDiagnosisAttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollaborationMessageId");
+
+                    b.HasIndex("RunId");
+
+                    b.HasIndex("VerificationDiagnosisAttemptId")
+                        .IsUnique();
+
+                    b.ToTable("diagnosis_correction_escalations", (string)null);
                 });
 
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningImplementationAuthorization", b =>
@@ -1545,6 +1579,28 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
                         .WithMany()
                         .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.DiagnosisCorrectionEscalation", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("CollaborationMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("VerificationDiagnosisAttemptId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
