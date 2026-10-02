@@ -12,7 +12,7 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   `fbadc4e6b25e5015988b368f456b7a817ee06dd3` (`main`; `HEAD`, local `origin/main` and live `refs/heads/main` matched it, nothing staged or
   untracked, only the planner-owned `planner-handoff.md` modified at the start; the generated client SHA-256 matched
   `1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`). Presented as an uncommitted, unstaged, unpushed diff for Codex's
-  GO/NO-GO; `planner-handoff.md` was not edited (its content and CRLF line endings were preserved). Frontend only: no backend production or test,
+  GO/NO-GO (after one NO-GO correction round, R1-R3, below); `planner-handoff.md` was not edited by the executor (its content and CRLF line endings were preserved). Frontend only: no backend production or test,
   HTTP contract, generated client, schema, migration, dependency, provider or workflow change.
 - Delivered behavior: selecting another project or run now shows, in the very frame that commits the selection, only that selection's own loading
   or error state. A small feature-owned utility (`useOwnedLifetime`: an `OwnedLifetime` created per committed owner key, ended in a layout-effect
@@ -97,7 +97,16 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   and `CheckpointReviewPanel` each still hold their own independent evidence read of the same project (as before), so they can show different recorded checkpoint snapshots after a capture until
   each next reads. The Chromium observer is a `MutationObserver` batch check beside the explicit assertions, not a per-commit hook. SignalR connection console lines
   still appear in browser runs. This is not Increment 4 completion and no next slice is selected here.
-- Not published: this entry describes an uncommitted working tree; no commit, push or publication SHA is claimed.
+- Published delivery: `df7c97a2f4cc20b74d07898758d2749157e34836` (parent `fbadc4e6b25e5015988b368f456b7a817ee06dd3`) was committed with the reviewed
+  21-file slice (14 modified tracked files including `planner-handoff.md` with Codex's GO record and this file, and 7 new; the staged inventory matched the reviewed
+  file list and `git diff --cached --check` was clean first), pushed to `origin/main` as a normal fast-forward, and verified after `git fetch`: `HEAD`, local
+  `origin/main` and live `refs/heads/main` all equal that commit with a clean checkout. Post-publication checks against that commit, all run fresh:
+  `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1` 0 warnings, 0 errors, generated-client SHA-256 unchanged
+  (`1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`); `npx vitest run` 113 files, 1531/1531; `npm run build` (`tsc -b` and the production build) clean;
+  `npm run lint` 10 warnings and 0 errors; `npm run test:harness` 19/19; the full Chromium suite (`npx playwright test`, normal authentication,
+  `reuseExistingServer: false`) 6/6; `git diff --check` clean; clean checkout; no `devalcopilot-e2e-*` owned root left under the temp directory. Retained
+  pre-publication evidence, not repeated here: `npm audit` 0 vulnerabilities, the `--no-incremental` client regeneration, and the hygiene and link checks of the
+  reviewed tree; backend suites, `dotnet format` and the package scan were not run for this frontend-only change. No next slice is selected.
 
 ## Implemented-plan identity through review and correction (2026-10-01)
 
