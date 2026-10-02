@@ -1,6 +1,7 @@
-import { expect, test } from '@playwright/test'
-import type { Page, Route } from '@playwright/test'
+import { expect, test as base } from '@playwright/test'
+import type { Page } from '@playwright/test'
 import { TEST_LAUNCH_SECRET } from '../playwright.config'
+import { CockpitGate, provideCockpitGate } from './harness/cockpitGate'
 import { createFixtureRepository, injectTestSession, readRunSummaries, registerProjectViaUi, selectProject } from './support'
 
 // Two owned projects with their own manual runs, selected explicitly, against the real host and the real frontend over its
@@ -13,44 +14,14 @@ const BRAVO = 'Selection fixture bravo'
 const OBJECTIVE_ALPHA = 'Rotate the alpha signing keys before the audit'
 const OBJECTIVE_BRAVO = 'Compact the bravo archive index nightly'
 
-type CockpitMode = 'pass' | 'hold' | 'fail'
-
-class CockpitGate {
-  readonly modes = new Map<string, CockpitMode>()
-  readonly held = new Map<string, (() => void)[]>()
-
-  async handle(route: Route) {
-    const runId = new URL(route.request().url()).pathname.split('/')[3]
-    const mode = this.modes.get(runId) ?? 'pass'
-    if (mode === 'fail') {
-      await route.fulfill({ status: 500, contentType: 'application/json', body: '{"errors":[{"detail":"Injected cockpit failure."}]}' })
-      return
-    }
-    // The real, authenticated answer of the host; only its delivery can wait.
-    const response = await route.fetch()
-    const body = await response.body()
-    if (mode === 'hold') {
-      await new Promise<void>((release) => {
-        const waiting = this.held.get(runId) ?? []
-        waiting.push(release)
-        this.held.set(runId, waiting)
-      })
-    }
-    try {
-      await route.fulfill({ status: response.status(), headers: response.headers(), body })
-    } catch {
-      // The page already abandoned this request (the lifetime that asked for it ended), so nobody awaits the answer.
-    }
-  }
-
-  release(runId: string) {
-    this.held.get(runId)?.splice(0).forEach((release) => release())
-  }
-
-  heldCount(runId: string) {
-    return this.held.get(runId)?.length ?? 0
-  }
-}
+// The gate has an explicit shutdown lifecycle (see harness/cockpitGate.ts). It is provided as a fixture that depends on `page`, so
+// its teardown — release every hold, unregister interception, await the active handlers — runs before the page and context are
+// closed, whether the test passed or failed.
+const test = base.extend<{ gate: CockpitGate }>({
+  gate: async ({ page }, use) => {
+    await provideCockpitGate(page, use)
+  },
+})
 
 async function recordManualRun(page: Page, objective: string) {
   await page.getByRole('textbox', { name: 'Objective' }).fill(objective)
@@ -80,7 +51,7 @@ async function leaks(page: Page) {
   return page.evaluate(() => (window as unknown as { __leaks: string[] }).__leaks.length)
 }
 
-test('selecting another project never shows the previous run while its cockpit loads, fails or completes late', async ({ page }) => {
+test('selecting another project never shows the previous run while its cockpit loads, fails or completes late', async ({ page, gate }) => {
   test.setTimeout(120_000)
   await injectTestSession(page)
   await page.goto('/')
@@ -99,8 +70,7 @@ test('selecting another project never shows the previous run while its cockpit l
   expect(alphaRun).toBeTruthy()
   expect(bravoRun).toBeTruthy()
 
-  const gate = new CockpitGate()
-  await page.route('**/api/runs/*/cockpit', (route) => gate.handle(route))
+  await gate.attach(page)
 
   const headingAlpha = page.getByRole('heading', { name: OBJECTIVE_ALPHA })
   const headingBravo = page.getByRole('heading', { name: OBJECTIVE_BRAVO })

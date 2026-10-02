@@ -12,7 +12,7 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   `dc705798f427dcae47cf30fd582a5d680bf55c89` (`main`; `HEAD`, local `origin/main` and live `refs/heads/main` matched it, nothing staged or
   untracked, only the planner-owned `planner-handoff.md` modified; generated client baseline SHA-256
   `1f8ef46cc50871f0494d25838b63c0f37e6131ec4f6bef7aa44a126eeeee5bbb`). Presented as an uncommitted, unstaged, unpushed diff for Codex's GO/NO-GO, after one NO-GO correction round (R1-R5, below).
-  `planner-handoff.md` was not edited by the executor (content and CRLF endings preserved). No publication is claimed.
+  `planner-handoff.md` was not edited by the executor (content and CRLF endings preserved). The initial review made no publication claim; subsequent publication and corrective work are recorded below.
 - Delivered behavior ([ADR-0018](../decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md), a narrow extension of
   ADR-0010's eligible finding source; ADR-0017's distinction between the implemented plan and the Planner root is kept):
   - A closed `VerificationDiagnosis` contract (CodeReviewer, ReadOnly, currently Codex, adapter `codex-verification-diagnosis-v1`) whose only
@@ -76,10 +76,31 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   implementation, real failed verification with sealed output, diagnosis, correction, new Passed verification, ordinary approval) also covers a revised plan, diagnosing a corrected
   report, shared-allowance escalation, escalation, retry after an invalid answer, drift before dispatch and during the provider call, and restart replay. Endpoint tests and the wire spec
   use raw-SQL fixtures and are labeled as such; they are not production-written evidence.
+- Publication and post-publication status: the substantive slice was published as `0122ebac7e88771e074231fbcf906d0cfd683245` (parent
+  `dc705798f427dcae47cf30fd582a5d680bf55c89`; `HEAD`, local `origin/main` and live `refs/heads/main` verified equal, clean checkout). Post-publication checks on that commit:
+  solution build 0 warnings/0 errors; the filtered .NET suites (Domain 66/66, Application 549/549, Infrastructure 13/13, Api 26/26, each a filter, not a full suite) and the full
+  Architecture suite 9/9 passed; frontend vitest 118 files 1635/1635, build, lint (10 warnings, the baseline, 0 errors) and harness 19/19 passed; **the full Chromium run failed**
+  (7 passed, 1 failed): `project-selection.spec.ts:83` with `apiResponse.body: Response has been disposed`. That spec was not modified by the slice; it had also failed once in an earlier
+  full run of the pre-publication tree (2 of 5 full executor runs reported) and passed alone and in other full runs. Documentation closure of the slice is therefore not claimed and stays pending.
+- Post-publication fixture correction (uncommitted, accepted by Codex; publication pending and no corrective SHA exists yet): it addresses a demonstrated lifecycle gap: the spec's `CockpitGate` can leave route handlers (fetch/body work and held
+  answers) alive when Playwright disposed the context. The gate now lives in `e2e/harness/cockpitGate.ts` with an explicit shutdown lifecycle — stop new holds, release existing holds,
+  `page.unrouteAll({ behavior: 'wait' })`, await the handlers it started — provided to the spec as a fixture that depends on `page` so teardown runs before the page/context fixtures close,
+  also when an assertion fails. A hold is registered synchronously after a `closing` check, so a handler finishing its fetch/body after shutdown began never waits forever. Fetch/body
+  failures are recorded and rethrown by shutdown (no blanket catch, `ignoreErrors`, retry or sleep added); the pre-existing narrow catch around `route.fulfill` is unchanged.
+  Six deterministic harness regressions (`e2e/harness/cockpitGate.test.ts`, added to `npm run test:harness`, fake page/context with explicit ordering) cover releasing held work, shutdown
+  during fetch/body with a would-be late hold, the disposed-response failure when the context is closed first versus not when shutdown comes first, cleanup after a failing test body, a
+  genuine forwarding failure staying observable, and the injected failure mode. Red evidence: removing the closing check fails the late-hold test (timeout), removing the release fails
+  two tests (timeouts), and removing the shutdown from the fixture finally-path fails the cleanup test; all restored. The mechanism is established with Codex's independent real-HTTP
+  reproduction and the controlled-order fake; the exact event order of the historical failure was not reconstructed.
+- Correction runs (this tree only; backend suites were not repeated for a test-support-only change): `npm run test:harness` 25/25; `npx vitest run` 118 files 1635/1635; `npm run typecheck`
+  clean; `npm run lint` first reported one `react-hooks/rules-of-hooks` error for a parameter named `use` (renamed `provide`), then 10 warnings (baseline) and 0 errors; `npm run build`
+  clean; focused `project-selection.spec.ts` 1/1; harness 25/25 again, then one full Chromium run 8/8 (normal authentication, `reuseExistingServer: false`). One green full run does not
+  prove the earlier intermittent failure is gone. Generated-client SHA-256 unchanged (`bd99dc6a…994d`); `planner-handoff.md` untouched by the executor; no production, backend, provider,
+  generated-client, dependency or permission change.
 - Limits and open risks: process doubles prove reachability and sealed-form agreement, never real-provider reliability; no real provider was invoked. Redaction of excerpts is best
   effort. The snapshot digest proves the stored facts are unchanged; it does not prove the sealed output files on disk (those are verified by `IArtifactStore` at claim). A diagnosis
   membership created by a raw-SQL writer without the digest is refused (fail closed) by design. The correction escalation's commit-ambiguity classification re-reads the escalation
-  row on the same connection and reports `attempts.persistence_unresolved` if that read also fails. The unexplained single Chromium flake noted above. Explicitly out of scope and unchanged:
+  row on the same connection and reports `attempts.persistence_unresolved` if that read also fails. The intermittent `project-selection.spec.ts` Chromium failure above, whose fixture correction is awaiting publication; the teardown mechanism was reproduced, but the historical event order was not reconstructed. Explicitly out of scope and unchanged:
   session persistence/resume/compaction, allowance thresholds, new providers, Gemini/fallback, permission changes, recipe mutation, ambiguous-process and no-change recovery, lifecycle
   completion, scheduling, publication. No next slice is selected.
 
