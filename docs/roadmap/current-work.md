@@ -81,8 +81,8 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   solution build 0 warnings/0 errors; the filtered .NET suites (Domain 66/66, Application 549/549, Infrastructure 13/13, Api 26/26, each a filter, not a full suite) and the full
   Architecture suite 9/9 passed; frontend vitest 118 files 1635/1635, build, lint (10 warnings, the baseline, 0 errors) and harness 19/19 passed; **the full Chromium run failed**
   (7 passed, 1 failed): `project-selection.spec.ts:83` with `apiResponse.body: Response has been disposed`. That spec was not modified by the slice; it had also failed once in an earlier
-  full run of the pre-publication tree (2 of 5 full executor runs reported) and passed alone and in other full runs. Documentation closure of the slice is therefore not claimed and stays pending.
-- Post-publication fixture correction (uncommitted, accepted by Codex; publication pending and no corrective SHA exists yet): it addresses a demonstrated lifecycle gap: the spec's `CockpitGate` can leave route handlers (fetch/body work and held
+  full run of the pre-publication tree (2 of 5 full executor runs reported) and passed alone and in other full runs. Closure was therefore held until the fixture correction below was published and re-verified.
+- Post-publication fixture correction (accepted by Codex and published as `cf25429ddfd6c974b691297b070511cd5789063c`, parent `0122ebac7e88771e074231fbcf906d0cfd683245`; test support only): it addresses a demonstrated lifecycle gap: the spec's `CockpitGate` can leave route handlers (fetch/body work and held
   answers) alive when Playwright disposed the context. The gate now lives in `e2e/harness/cockpitGate.ts` with an explicit shutdown lifecycle — stop new holds, release existing holds,
   `page.unrouteAll({ behavior: 'wait' })`, await the handlers it started — provided to the spec as a fixture that depends on `page` so teardown runs before the page/context fixtures close,
   also when an assertion fails. A hold is registered synchronously after a `closing` check, so a handler finishing its fetch/body after shutdown began never waits forever. Fetch/body
@@ -92,15 +92,21 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   genuine forwarding failure staying observable, and the injected failure mode. Red evidence: removing the closing check fails the late-hold test (timeout), removing the release fails
   two tests (timeouts), and removing the shutdown from the fixture finally-path fails the cleanup test; all restored. The mechanism is established with Codex's independent real-HTTP
   reproduction and the controlled-order fake; the exact event order of the historical failure was not reconstructed.
-- Correction runs (this tree only; backend suites were not repeated for a test-support-only change): `npm run test:harness` 25/25; `npx vitest run` 118 files 1635/1635; `npm run typecheck`
+- Correction runs before publication (this tree only; backend suites were not repeated for a test-support-only change, so the backend evidence above is retained from the substantive publication): `npm run test:harness` 25/25; `npx vitest run` 118 files 1635/1635; `npm run typecheck`
   clean; `npm run lint` first reported one `react-hooks/rules-of-hooks` error for a parameter named `use` (renamed `provide`), then 10 warnings (baseline) and 0 errors; `npm run build`
   clean; focused `project-selection.spec.ts` 1/1; harness 25/25 again, then one full Chromium run 8/8 (normal authentication, `reuseExistingServer: false`). One green full run does not
   prove the earlier intermittent failure is gone. Generated-client SHA-256 unchanged (`bd99dc6a…994d`); `planner-handoff.md` untouched by the executor; no production, backend, provider,
   generated-client, dependency or permission change.
+- Corrective publication and post-publication checks: `HEAD`, local `origin/main` and live `refs/heads/main` were verified equal to the corrective commit `cf25429ddfd6c974b691297b070511cd5789063c` with a clean
+  checkout (the six reviewed files only). Run against that published commit from `src/frontend/DevalCopilot.Frontend`: `npm run test:harness` 25/25 (0 skipped); `npm run typecheck` clean;
+  `npm run lint` 10 warnings (the baseline) and 0 errors; `npm run build` clean (only the existing chunk-size notice); then one full Chromium run, `npx playwright test --reporter=line`, 8/8 with normal
+  authentication and `reuseExistingServer: false` (the original failed run is preserved above). Generated-client SHA-256 unchanged (`bd99dc6a…994d`); `git diff --check` clean apart from Git's CRLF
+  notices. The full vitest run (118 files, 1635/1635) and the backend suites are retained evidence from the earlier runs, not repeated for this test-support-only commit. Cleanup residue: only
+  ignored run-owned artifacts (`playwright-smoke.db*`, `test-results/`, build output); nothing tracked or untracked remained.
 - Limits and open risks: process doubles prove reachability and sealed-form agreement, never real-provider reliability; no real provider was invoked. Redaction of excerpts is best
   effort. The snapshot digest proves the stored facts are unchanged; it does not prove the sealed output files on disk (those are verified by `IArtifactStore` at claim). A diagnosis
   membership created by a raw-SQL writer without the digest is refused (fail closed) by design. The correction escalation's commit-ambiguity classification re-reads the escalation
-  row on the same connection and reports `attempts.persistence_unresolved` if that read also fails. The intermittent `project-selection.spec.ts` Chromium failure above, whose fixture correction is awaiting publication; the teardown mechanism was reproduced, but the historical event order was not reconstructed. Explicitly out of scope and unchanged:
+  row on the same connection and reports `attempts.persistence_unresolved` if that read also fails. The intermittent `project-selection.spec.ts` Chromium failure above, whose fixture correction is published and was re-verified by one green full run (which cannot prove an intermittent failure is gone); the teardown mechanism was reproduced, but the historical event order was not reconstructed. Explicitly out of scope and unchanged:
   session persistence/resume/compaction, allowance thresholds, new providers, Gemini/fallback, permission changes, recipe mutation, ambiguous-process and no-change recovery, lifecycle
   completion, scheduling, publication. No next slice is selected.
 
