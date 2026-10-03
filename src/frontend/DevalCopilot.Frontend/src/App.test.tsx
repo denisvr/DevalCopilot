@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as useSessionStatusModule from './features/cockpit/hooks/useSessionStatus'
@@ -82,5 +82,58 @@ describe('App run intake availability', () => {
   it('treats a project with a run and no availability hint as blocked', async () => {
     await renderWithProject({ runId: 'run-1', lifecycle: 'Completed' })
     expect(screen.queryByRole('textbox', { name: 'Objective' })).toBeNull()
+  })
+})
+
+describe('App evidence refresh connection', () => {
+  async function renderTwoProjects() {
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => 'ready' }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [
+          { projectId: 'project-a', projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', capabilities: [] },
+          { projectId: 'project-b', projectName: 'Beta', runId: 'run-b', lifecycle: 'Running', capabilities: [] },
+        ],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({
+      CandidateWorkspacePanel: (props: { projectId: string; onEvidenceRefreshRequested?: () => void }) => (
+        <button type="button" onClick={props.onEvidenceRefreshRequested}>{`refresh ${props.projectId}`}</button>
+      ),
+    }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: { runId: string; evidenceRefreshGeneration?: number }) => (
+        <p>{`cockpit ${props.runId} generation ${props.evidenceRefreshGeneration}`}</p>
+      ),
+    }))
+    const { default: FreshApp } = await import('./App')
+    return render(<FreshApp />)
+  }
+
+  it('connects the workspace action to the selected project\'s run, and gives every project and run its own generation', async () => {
+    await renderTwoProjects()
+    expect(screen.getByText('cockpit run-a generation 0')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'refresh project-a' }))
+    fireEvent.click(screen.getByRole('button', { name: 'refresh project-a' }))
+    expect(screen.getByText('cockpit run-a generation 2')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+    expect(screen.getByText('cockpit run-b generation 0')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'refresh project-b' }))
+    expect(screen.getByText('cockpit run-b generation 1')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Alpha/ }))
+    expect(screen.getByText('cockpit run-a generation 0')).toBeInTheDocument()
   })
 })

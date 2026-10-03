@@ -3,6 +3,13 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <!-- The browser-journey host and provider fixture are separate executable projects with their own entry points; the default
+         recursive glob would otherwise compile them (and their generated files) into this test assembly. Only the host's two
+         self-contained file-system helpers are tested here, as source, against the real file system. -->
+    <Compile Remove="BrowserJourney\**\*.cs" />
+    <Compile Include="BrowserJourney\Host\OwnedRootGuard.cs;BrowserJourney\Host\FixtureInstaller.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
@@ -21,5 +28,7 @@
          output (including the native apphost) is copied alongside this test project's own
          output so the hosted-supervisor test can launch it as a real child process. -->
     <ProjectReference Include="..\DevalCopilot.Infrastructure.IntegrationTests\Fixtures\ProcessExecutionFixture\ProcessExecutionFixture.csproj" />
+    <!-- The browser journey's provider and verification doubles, exercised here as real child processes. -->
+    <ProjectReference Include="BrowserJourney\ProviderFixture\ProviderFixture.csproj" />
   </ItemGroup>
 </Project>

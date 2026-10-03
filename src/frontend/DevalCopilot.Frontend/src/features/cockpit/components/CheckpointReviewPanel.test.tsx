@@ -7,6 +7,8 @@ const record = vi.fn().mockResolvedValue(true)
 vi.mock('../hooks/useProjectGitEvidence', () => ({
   useProjectGitEvidence: () => ({
     evidence: { checkpointId: 'checkpoint-1', fingerprintSha256: 'a'.repeat(64) },
+    current: true,
+    loading: false,
   }),
 }))
 

@@ -2909,12 +2909,12 @@ export class ClaimVerificationExecutionEndpointClient {
     protected processClaimVerificationExecution(response: Response): Promise<ClaimVerificationExecutionResponse> {
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
-        if (status === 200) {
+        if (status === 202) {
             return response.text().then((_responseText) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = ClaimVerificationExecutionResponse.fromJS(resultData200);
-            return result200;
+            let result202: any = null;
+            let resultData202 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result202 = ClaimVerificationExecutionResponse.fromJS(resultData202);
+            return result202;
             });
         } else if (status !== 200 && status !== 204) {
             return response.text().then((_responseText) => {

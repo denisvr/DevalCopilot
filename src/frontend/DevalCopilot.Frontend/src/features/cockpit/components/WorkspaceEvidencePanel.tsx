@@ -3,6 +3,9 @@ import { useProjectGitEvidence } from '../hooks/useProjectGitEvidence'
 interface WorkspaceEvidencePanelProps {
   projectId: string
   workspaceReady: boolean
+  // Advanced by the project's owner to ask every checkpoint consumer to read again; `onCaptured` tells the owner a capture succeeded.
+  refreshGeneration?: number
+  onCaptured?: () => void
 }
 
 function abbreviate(value: string | undefined): string {
@@ -11,10 +14,12 @@ function abbreviate(value: string | undefined): string {
 
 /** Source evidence deliberately remains separate from workspace preparation: preparation
  * proves ownership; a checkpoint proves one observed content state. */
-export function WorkspaceEvidencePanel({ projectId, workspaceReady }: WorkspaceEvidencePanelProps) {
+export function WorkspaceEvidencePanel({ projectId, workspaceReady, refreshGeneration, onCaptured }: WorkspaceEvidencePanelProps) {
   const { evidence, changedFiles, completeDiff, loading, capturing, inspecting, error, capture, inspect } = useProjectGitEvidence(
     projectId,
     workspaceReady,
+    refreshGeneration,
+    onCaptured,
   )
 
   if (!workspaceReady) {

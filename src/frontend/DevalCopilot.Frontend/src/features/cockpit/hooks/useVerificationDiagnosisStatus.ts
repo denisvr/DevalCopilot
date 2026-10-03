@@ -22,14 +22,16 @@ interface Frame {
 
 const createFrame = (): Frame => ({ status: null, error: null, settledKey: null, refreshCount: 0 })
 
-const readKeyOf = (sequence: number | undefined, refreshCount: number) => JSON.stringify([sequence, refreshCount])
+const readKeyOf = (sequence: number | undefined, refreshCount: number, evidenceRefreshGeneration: number) =>
+  JSON.stringify([sequence, refreshCount, evidenceRefreshGeneration])
 
 /**
  * Reads the verification-failure diagnosis state for a run. Unlike the attempt-only status hooks
  * the response is kept even when the run has no diagnosis yet, because it also carries the
  * display hints for what could be diagnosed now. `latestEventSequence` re-triggers a fetch
  * whenever any run event advances, and `refresh` lets a caller force one immediately after a
- * request, since claiming an attempt does not itself emit a run event.
+ * request, since claiming an attempt does not itself emit a run event. `evidenceRefreshGeneration` is advanced by the project's
+ * explicit Refresh evidence action (a verification completes without any run event), and reads the status again the same way.
  *
  * Status, error and the pending read belong to the run's lifetime: the committed render of a new
  * run (or a return to an earlier one) derives a fresh loading state, older overlapping reads are
@@ -38,6 +40,7 @@ const readKeyOf = (sequence: number | undefined, refreshCount: number) => JSON.s
 export function useVerificationDiagnosisStatus(
   runId: string | null,
   latestEventSequence: number | undefined,
+  evidenceRefreshGeneration = 0,
 ): UseVerificationDiagnosisStatusResult {
   const owner = useOwnedLifetime(runId)
   const [frame, commit] = useOwnedState(owner, createFrame)
@@ -56,7 +59,7 @@ export function useVerificationDiagnosisStatus(
     }
 
     const isCurrent = owner.begin('read')
-    const readKey = readKeyOf(latestEventSequence, refreshCount)
+    const readKey = readKeyOf(latestEventSequence, refreshCount, evidenceRefreshGeneration)
 
     verificationDiagnosisStatusClient()
       .getVerificationDiagnosisStatus(runId)
@@ -75,12 +78,12 @@ export function useVerificationDiagnosisStatus(
           }))
         }
       })
-  }, [owner, commit, runId, latestEventSequence, refreshCount])
+  }, [owner, commit, runId, latestEventSequence, refreshCount, evidenceRefreshGeneration])
 
   return {
     status: frame.status,
     error: frame.error,
-    loading: runId !== null && frame.settledKey !== readKeyOf(latestEventSequence, refreshCount),
+    loading: runId !== null && frame.settledKey !== readKeyOf(latestEventSequence, refreshCount, evidenceRefreshGeneration),
     refresh,
   }
 }

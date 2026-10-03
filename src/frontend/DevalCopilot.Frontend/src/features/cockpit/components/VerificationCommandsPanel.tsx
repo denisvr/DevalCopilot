@@ -9,6 +9,8 @@ import { VerificationExecutionOutputViewer } from './VerificationExecutionOutput
 
 interface VerificationCommandsPanelProps {
   projectId: string
+  // Advanced by the project's owner when the current checkpoint metadata must be read again.
+  refreshGeneration?: number
 }
 
 const DEFAULT_TIMEOUT_SECONDS = 300
@@ -53,9 +55,9 @@ function outputCaptureDescription(execution: VerificationExecutionResponse, stre
   return truncated ? `${stream} captured · truncated` : `${stream} captured · truncation known`
 }
 
-export function VerificationCommandsPanel({ projectId }: VerificationCommandsPanelProps) {
+export function VerificationCommandsPanel({ projectId, refreshGeneration }: VerificationCommandsPanelProps) {
   const { commands, loading, saving, error, configure, update, remove } = useProjectVerificationCommands(projectId)
-  const { evidence } = useProjectGitEvidence(projectId, true)
+  const { evidence, current: evidenceCurrent, loading: evidenceLoading } = useProjectGitEvidence(projectId, true, refreshGeneration)
   const { executions, error: executionError, refresh: refreshExecutions } = useProjectVerificationExecutions(projectId)
   const lifetime = useOwnedLifetime(projectId)
   const [panel, commit] = useOwnedState(lifetime, createPanelState)
@@ -81,13 +83,16 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
     }
   }
 
+  // Run needs a checkpoint whose current metadata was read; during a pending or failed refresh it must not submit a stale one.
+  const canRun = Boolean(evidence?.checkpointId) && evidenceCurrent
+
   async function run(commandId: string | undefined) {
     if (!lifetime.isActive()) {
       return
     }
 
-    if (!commandId || !evidence?.checkpointId) {
-      commit(previous => ({ ...previous, runMessage: 'Capture a current source checkpoint before running verification.' }))
+    if (!commandId || !evidence?.checkpointId || !evidenceCurrent) {
+      commit(previous => ({ ...previous, runMessage: 'Capture or refresh a current source checkpoint before running verification.' }))
       return
     }
 
@@ -105,7 +110,7 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
       }
       await refreshExecutions()
       if (isCurrent()) {
-        commit(previous => ({ ...previous, runMessage: `Verification #${execution.executionNumber} is pending.` }))
+        commit(previous => ({ ...previous, runMessage: `Verification #${execution.executionNumber} was requested.` }))
       }
     } catch {
       if (isCurrent()) {
@@ -127,7 +132,12 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
         </div>
       </div>
 
-      {!evidence?.checkpointId ? <span className="dc-workspace-evidence-empty">Capture a current source checkpoint to enable Run.</span> : null}
+      {!evidenceCurrent ? (
+        <span className="dc-workspace-evidence-empty">
+          {evidenceLoading ? 'Reading the current source checkpoint…' : 'The current source checkpoint could not be refreshed. Use Refresh evidence to enable Run.'}
+        </span>
+      ) : null}
+      {evidenceCurrent && !evidence?.checkpointId ? <span className="dc-workspace-evidence-empty">Capture a current source checkpoint to enable Run.</span> : null}
 
       {loading ? <span className="dc-empty-state">Loading verification commands…</span> : null}
       {!loading && commands.length === 0 ? <span className="dc-workspace-evidence-empty">No verification commands configured.</span> : null}
@@ -150,7 +160,7 @@ export function VerificationCommandsPanel({ projectId }: VerificationCommandsPan
             <button type="button" className="dc-button" disabled={saving} onClick={() => void update(command, !command.isEnabled)}>
               {command.isEnabled ? 'Disable' : 'Enable'}
             </button>
-            <button type="button" className="dc-button" data-variant="primary" disabled={!command.isEnabled || !evidence?.checkpointId || runningCommandId !== null || isRunning} onClick={() => void run(command.verificationCommandId)}>
+            <button type="button" className="dc-button" data-variant="primary" disabled={!command.isEnabled || !canRun || runningCommandId !== null || isRunning} onClick={() => void run(command.verificationCommandId)}>
               {runningCommandId === command.verificationCommandId ? 'Starting…' : isRunning ? (execution?.isDispatched ? 'Running…' : 'Pending…') : 'Run'}
             </button>
             <button type="button" className="dc-button" disabled={saving || !command.verificationCommandId} onClick={() => void remove(command.verificationCommandId!)}>

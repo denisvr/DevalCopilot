@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- The fixture's own fixed copy of each served contract's response schema; see ResponseSchemas. -->
+    <EmbeddedResource Include="Schemas\*.schema.json" LogicalName="schemas/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

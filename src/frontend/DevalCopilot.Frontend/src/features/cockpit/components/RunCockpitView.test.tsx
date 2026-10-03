@@ -2874,7 +2874,7 @@ describe('RunCockpitView verification diagnosis', () => {
     const diagnosis = screen.getByRole('region', { name: 'Verification diagnosis' })
     fireEvent.click(within(diagnosis).getByRole('button', { name: 'Diagnose failed verification with Codex' }))
     expect(request).toHaveBeenCalledExactlyOnceWith('run-1', 'report-9')
-    expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', 'report-9', expect.any(Function))
+    expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', 'report-9', expect.any(Function), 0)
   })
 
   it('binds the correction request to the host-named diagnosis attempt', () => {
@@ -2967,7 +2967,20 @@ describe('RunCockpitView verification diagnosis', () => {
 
     render(<RunCockpitView runId="run-1" />)
 
-    expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', null, refresh)
+    expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', null, refresh, 0)
     expect(useRequestDiagnosisCorrectionMock).toHaveBeenCalledWith('run-1', null, refresh)
+  })
+
+  it('hands the evidence refresh generation to the verification-dependent status and request hooks, and to nothing else', () => {
+    mockRunning()
+
+    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={4} />)
+
+    expect(useVerificationDiagnosisStatusMock).toHaveBeenCalledWith('run-1', 2, 4)
+    expect(useCodeReviewAttemptStatusMock).toHaveBeenCalledWith('run-1', 2, 4)
+    expect(useRequestVerificationDiagnosisMock).toHaveBeenCalledWith('run-1', null, expect.any(Function), 4)
+    expect(useRequestCodeReviewMock).toHaveBeenCalledWith('run-1', expect.any(Function), 4)
+    expect(useAgentAttemptStatusMock).toHaveBeenCalledWith('run-1', 2)
+    expect(useReviewCorrectionAttemptStatusMock).toHaveBeenCalledWith('run-1', 2)
   })
 })

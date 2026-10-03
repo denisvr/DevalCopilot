@@ -20,13 +20,15 @@ const ownerOf = (runId: string, executionReportMessageId: string | null) => JSON
  * The request is bound to the interaction lifetime of `currentRunId` AND
  * `currentExecutionReportMessageId`: an obsolete completion, a foreign run or report, or a
  * duplicate of an in-flight submission never changes the current state. An accepted obsolete
- * request stays a real server operation. */
+ * request stays a real server operation. A refusal reported before the latest evidence refresh
+ * (`evidenceRefreshGeneration`) is no longer shown. */
 export function useRequestVerificationDiagnosis(
   currentRunId: string,
   currentExecutionReportMessageId: string | null,
   onRequested: () => void,
+  evidenceRefreshGeneration = 0,
 ): UseRequestVerificationDiagnosisResult {
-  const { busy, error, run } = useRunScopedAction(ownerOf(currentRunId, currentExecutionReportMessageId))
+  const { busy, error, run } = useRunScopedAction(ownerOf(currentRunId, currentExecutionReportMessageId), evidenceRefreshGeneration)
 
   const request = useCallback(
     (runId: string, executionReportMessageId: string) =>

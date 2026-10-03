@@ -1,0 +1,93 @@
+{
+  "type": "object",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "summary",
+        "rationale"
+      ],
+      "properties": {
+        "decision": {
+          "type": "string",
+          "const": "accept"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision",
+        "summary",
+        "challenges"
+      ],
+      "properties": {
+        "decision": {
+          "type": "string",
+          "const": "challenge"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "challenges": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "summary",
+              "disputedItem",
+              "materialImpact",
+              "reasoning",
+              "alternativeOrQuestion"
+            ],
+            "properties": {
+              "summary": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              },
+              "disputedItem": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 900
+              },
+              "materialImpact": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 900
+              },
+              "reasoning": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 900
+              },
+              "alternativeOrQuestion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 900
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

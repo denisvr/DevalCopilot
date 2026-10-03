@@ -5,6 +5,8 @@ import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
 
 interface CheckpointReviewPanelProps {
   projectId: string
+  // Advanced by the project's owner when the current checkpoint metadata must be read again.
+  refreshGeneration?: number
 }
 
 // The reviewer's local choices belong to the current project's lifetime, and the chosen verification
@@ -38,8 +40,8 @@ function staleReasonDescription(reason: string | undefined): string {
   }
 }
 
-export function CheckpointReviewPanel({ projectId }: CheckpointReviewPanelProps) {
-  const { evidence } = useProjectGitEvidence(projectId, true)
+export function CheckpointReviewPanel({ projectId, refreshGeneration }: CheckpointReviewPanelProps) {
+  const { evidence, current: evidenceCurrent, loading: evidenceLoading } = useProjectGitEvidence(projectId, true, refreshGeneration)
   const { executions } = useProjectVerificationExecutions(projectId)
   const { reviews, error, saving, record } = useProjectCheckpointReviews(projectId)
   const lifetime = useOwnedLifetime(projectId)
@@ -51,9 +53,11 @@ export function CheckpointReviewPanel({ projectId }: CheckpointReviewPanelProps)
     && execution.status !== 'Running',
   )
   const currentExecution = eligibleExecutions.find(execution => execution.verificationExecutionId === selectedExecutionId) ?? eligibleExecutions[0]
+  // A decision names the checkpoint it judged, so none is offered while its current metadata is being read or could not be read.
+  const canDecide = evidenceCurrent && !saving
   const canApprove = currentExecution?.status === 'Passed'
   async function submit(decision: string) {
-    if (evidence?.checkpointId && (decision === 'Pending' || currentExecution?.verificationExecutionId)) {
+    if (evidenceCurrent && evidence?.checkpointId && (decision === 'Pending' || currentExecution?.verificationExecutionId)) {
       await record(evidence.checkpointId, decision === 'Pending' ? undefined : currentExecution.verificationExecutionId, decision, actorKind)
     }
   }
@@ -67,7 +71,12 @@ export function CheckpointReviewPanel({ projectId }: CheckpointReviewPanelProps)
         </div>
       </div>
 
-      {!evidence?.checkpointId ? <span className="dc-workspace-evidence-empty">Capture a current source checkpoint before recording a review.</span> : null}
+      {!evidenceCurrent ? (
+        <span className="dc-workspace-evidence-empty">
+          {evidenceLoading ? 'Reading the current source checkpoint…' : 'The current source checkpoint could not be refreshed. Use Refresh evidence before recording a review.'}
+        </span>
+      ) : null}
+      {evidenceCurrent && !evidence?.checkpointId ? <span className="dc-workspace-evidence-empty">Capture a current source checkpoint before recording a review.</span> : null}
       {evidence?.checkpointId && !currentExecution ? (
         <span className="dc-workspace-evidence-empty">No terminal verification evidence is available. Pending may still be recorded for this checkpoint.</span>
       ) : null}
@@ -89,10 +98,10 @@ export function CheckpointReviewPanel({ projectId }: CheckpointReviewPanelProps)
             </select>
           </label>
           <div className="dc-verification-command-actions">
-          <button type="button" className="dc-button" disabled={saving} onClick={() => void submit('Pending')}>Pending</button>
-          <button type="button" className="dc-button" disabled={!currentExecution || saving} onClick={() => void submit('ChangesRequested')}>Changes requested</button>
-          <button type="button" className="dc-button" disabled={!currentExecution || saving} onClick={() => void submit('Escalated')}>Escalate</button>
-          <button type="button" className="dc-button" data-variant="primary" disabled={!canApprove || saving} onClick={() => void submit('Approved')}>Approve</button>
+          <button type="button" className="dc-button" disabled={!canDecide} onClick={() => void submit('Pending')}>Pending</button>
+          <button type="button" className="dc-button" disabled={!currentExecution || !canDecide} onClick={() => void submit('ChangesRequested')}>Changes requested</button>
+          <button type="button" className="dc-button" disabled={!currentExecution || !canDecide} onClick={() => void submit('Escalated')}>Escalate</button>
+          <button type="button" className="dc-button" data-variant="primary" disabled={!canApprove || !canDecide} onClick={() => void submit('Approved')}>Approve</button>
           </div>
         </>
       ) : null}

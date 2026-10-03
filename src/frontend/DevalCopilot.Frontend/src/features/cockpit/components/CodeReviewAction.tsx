@@ -80,7 +80,8 @@ export function CodeReviewAction({
     (status?.outcome === 'ReviewApproved' ||
       status?.outcome === 'ReviewChangesRequested' ||
       status?.outcome === 'InputAlreadyCodeReviewed')
-  const canRequest = !isActive && !isSettledForCurrentExecutionReport
+  // A failed status read never stands for "no review yet": the request is withheld until a read succeeds again.
+  const canRequest = !isActive && !isSettledForCurrentExecutionReport && !statusError
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
   const hasAttempt = status?.hasAttempt !== false
   const configuredCommandSandbox = status?.configuredCommandSandbox === 'read-only' ? 'read-only' : 'Unknown'

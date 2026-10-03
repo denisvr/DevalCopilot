@@ -1,0 +1,111 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "summary",
+    "decisions",
+    "revisedProposal"
+  ],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "decisions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "challengeMessageId",
+          "summary",
+          "resolution",
+          "rationale",
+          "resultingPlanChanges",
+          "nextAction"
+        ],
+        "properties": {
+          "challengeMessageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "partiallyAccepted",
+              "rejected"
+            ]
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 900
+          },
+          "resultingPlanChanges": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 900
+          },
+          "nextAction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 900
+          }
+        }
+      }
+    },
+    "revisedProposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "scope",
+        "implementationSteps",
+        "risks",
+        "verificationPlan",
+        "escalationPoints"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900
+        },
+        "implementationSteps": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900
+        },
+        "risks": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900
+        },
+        "verificationPlan": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900
+        },
+        "escalationPoints": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 900
+        }
+      }
+    }
+  }
+}

@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRunActionLifetime } from './useRunActionLifetime'
 
 interface ActionState {
   runId: string
   busy: boolean
   error: string | null
+  // The evidence refresh generation the message was reported under.
+  epoch: number
 }
 
 export interface RunScopedActionOptions {
@@ -39,9 +41,15 @@ export interface RunScopedAction {
  * interaction lifetime. Switching runs or unmounting ends the lifetime: the state is dropped, and
  * a completion that belongs to an ended lifetime is ignored after every asynchronous boundary.
  */
-export function useRunScopedAction(runId: string): RunScopedAction {
+export function useRunScopedAction(runId: string, epoch = 0): RunScopedAction {
   const lifetime = useRunActionLifetime(runId)
   const [state, setState] = useState<ActionState | null>(null)
+  // A message reported under an earlier epoch is obsolete (the host's evidence was re-read since): it is no longer shown, and a
+  // pending submission is never touched. Read at the moment a message is recorded, so the memoized `run` stays stable.
+  const epochRef = useRef(epoch)
+  useEffect(() => {
+    epochRef.current = epoch
+  }, [epoch])
 
   useEffect(
     () => () => {
@@ -56,12 +64,12 @@ export function useRunScopedAction(runId: string): RunScopedAction {
       if (!ticket) {
         return false
       }
-      setState({ runId: requestRunId, busy: true, error: null })
+      setState({ runId: requestRunId, busy: true, error: null, epoch: epochRef.current })
       try {
         await execute()
       } catch (caught: unknown) {
         if (ticket.isCurrent()) {
-          setState({ runId: requestRunId, busy: false, error: options.toMessage(caught) })
+          setState({ runId: requestRunId, busy: false, error: options.toMessage(caught), epoch: epochRef.current })
         }
         return false
       } finally {
@@ -70,7 +78,7 @@ export function useRunScopedAction(runId: string): RunScopedAction {
       if (!ticket.isCurrent()) {
         return false
       }
-      setState({ runId: requestRunId, busy: false, error: null })
+      setState({ runId: requestRunId, busy: false, error: null, epoch: epochRef.current })
       options.onSuccess?.()
       return true
     },
@@ -83,7 +91,7 @@ export function useRunScopedAction(runId: string): RunScopedAction {
         return
       }
       // A local message never releases a submission that is still pending for this run.
-      setState((current) => ({ runId, busy: current?.runId === runId ? current.busy : false, error: message }))
+      setState((current) => ({ runId, busy: current?.runId === runId ? current.busy : false, error: message, epoch: epochRef.current }))
     },
     [lifetime, runId],
   )
@@ -91,7 +99,7 @@ export function useRunScopedAction(runId: string): RunScopedAction {
   const belongsToCurrentRun = state?.runId === runId
   return {
     busy: belongsToCurrentRun ? state.busy : false,
-    error: belongsToCurrentRun ? state.error : null,
+    error: belongsToCurrentRun && state.epoch === epoch ? state.error : null,
     run,
     reportError,
     capture: lifetime.capture,

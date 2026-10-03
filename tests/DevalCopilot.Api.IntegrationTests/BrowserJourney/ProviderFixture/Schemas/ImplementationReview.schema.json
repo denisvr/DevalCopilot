@@ -1,0 +1,102 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "outcome",
+    "summary",
+    "rationale",
+    "residualRisks",
+    "findings"
+  ],
+  "properties": {
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "changesRequested"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "rationale": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "residualRisks": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "category",
+          "summary",
+          "evidence",
+          "requiredChange",
+          "affectedRelativePath"
+        ],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "correctness",
+              "security",
+              "standards",
+              "testCoverage",
+              "design"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 900
+          },
+          "requiredChange": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 900
+          },
+          "affectedRelativePath": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      }
+    }
+  }
+}

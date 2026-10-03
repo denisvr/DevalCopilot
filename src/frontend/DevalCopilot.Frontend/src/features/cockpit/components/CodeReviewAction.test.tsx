@@ -254,6 +254,24 @@ describe('CodeReviewAction', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Code review attempt status is unavailable.')
   })
 
+  it('withholds the request while the status read has failed, since a failed read is not "no review yet"', () => {
+    render(
+      <CodeReviewAction
+        executionReportMessageId="message-1"
+        status={null}
+        statusLoading={false}
+        statusError="Code review attempt status is unavailable."
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Request code review' })).not.toBeInTheDocument()
+  })
+
   it('withholds the request and attributes the block to the global run-wide budget, never this role', () => {
     render(
       <CodeReviewAction

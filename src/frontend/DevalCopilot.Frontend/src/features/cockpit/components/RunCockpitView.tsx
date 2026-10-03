@@ -69,13 +69,16 @@ import { WorkflowRail } from './WorkflowRail'
 
 interface RunCockpitViewProps {
   runId: string
+  /** Advanced by the project's explicit Refresh evidence action (owned with this run): the verification-dependent diagnosis and
+   * code-review status are read again through their existing reads. Verification completes without a run event. */
+  evidenceRefreshGeneration?: number
 }
 
 const AUTHORIZED_REQUEST_LABEL = 'Implement the human-authorized final plan with Claude'
 const AUTHORIZATION_SPENT_NOTE =
   'The human authorization for this final plan was already used by an implementation claim. It cannot be reused, so no new implementation of this plan can be requested through it.'
 
-export function RunCockpitView({ runId }: RunCockpitViewProps) {
+export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
   const collaborationTimeline = useCollaborationTimeline(runId, cockpit?.latestSequence)
   const agentAttemptStatus = useAgentAttemptStatus(runId, cockpit?.latestSequence)
@@ -88,13 +91,13 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   const requestChallengeResolution = useRequestChallengeResolution(runId, challengeResolutionAttemptStatus.refresh)
   const requestChallengeResolutionRepair = useRequestChallengeResolutionRepairAttempt(runId, challengeResolutionAttemptStatus.refresh)
   const implementationAttemptStatus = useImplementationAttemptStatus(runId, cockpit?.latestSequence)
-  const codeReviewAttemptStatus = useCodeReviewAttemptStatus(runId, cockpit?.latestSequence)
-  const requestCodeReview = useRequestCodeReview(runId, codeReviewAttemptStatus.refresh)
+  const codeReviewAttemptStatus = useCodeReviewAttemptStatus(runId, cockpit?.latestSequence, evidenceRefreshGeneration)
+  const requestCodeReview = useRequestCodeReview(runId, codeReviewAttemptStatus.refresh, evidenceRefreshGeneration)
   const requestCodeReviewRepair = useRequestCodeReviewRepairAttempt(runId, codeReviewAttemptStatus.refresh)
   const reviewCorrectionAttemptStatus = useReviewCorrectionAttemptStatus(runId, cockpit?.latestSequence)
   const requestReviewCorrection = useRequestReviewCorrection(runId, codeReviewAttemptStatus.status?.attemptId ?? null, reviewCorrectionAttemptStatus.refresh)
   const authorizeReviewCorrection = useAuthorizeReviewCorrection(runId, reviewCorrectionAttemptStatus.refresh)
-  const verificationDiagnosisStatus = useVerificationDiagnosisStatus(runId, cockpit?.latestSequence)
+  const verificationDiagnosisStatus = useVerificationDiagnosisStatus(runId, cockpit?.latestSequence, evidenceRefreshGeneration)
   // Both identifiers come from the host's own diagnosis status, never from the timeline: the report whose
   // current verification can be diagnosed now, and the diagnosis whose findings can be corrected.
   const diagnosableExecutionReportMessageId =
@@ -106,6 +109,7 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
     runId,
     diagnosableExecutionReportMessageId,
     verificationDiagnosisStatus.refresh,
+    evidenceRefreshGeneration,
   )
   const requestDiagnosisCorrection = useRequestDiagnosisCorrection(
     runId,
@@ -128,13 +132,20 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
   // result) makes the newest timeline report the next review candidate.
   // A diagnosis-origin correction that applied and is still current names the corrected report itself, which
   // the ordinary code review then targets; otherwise the ordinary review-correction logic is unchanged.
-  const latestExecutionReportMessageId =
-    verificationDiagnosisStatus.status?.reviewableExecutionReportMessageId ??
-    selectLatestExecutionReportMessageId(
-      reviewCorrectionAttemptStatus.status?.reviewableExecutionReportMessageId,
-      reviewCorrectionAttemptStatus.loading,
-      reviewCorrectionAttemptStatus.error,
-    )
+  // A failed diagnosis read is not validation of an older fallback report: the review-correction report is only the target when
+  // the diagnosis status was actually read and named none, so a diagnosis read error leaves no target at all.
+  const latestExecutionReportMessageId = verificationDiagnosisStatus.error
+    ? null
+    : (verificationDiagnosisStatus.status?.reviewableExecutionReportMessageId ??
+      selectLatestExecutionReportMessageId(
+        reviewCorrectionAttemptStatus.status?.reviewableExecutionReportMessageId,
+        reviewCorrectionAttemptStatus.loading,
+        reviewCorrectionAttemptStatus.error,
+      ))
+  // The ordinary review needs both reads: a failed code-review read is not "no previous review", and neither read pending or failed
+  // may leave the request available. The server stays authoritative for the eligibility itself.
+  const ordinaryReviewReadsSettled =
+    !codeReviewAttemptStatus.loading && !codeReviewAttemptStatus.error && !verificationDiagnosisStatus.loading && !verificationDiagnosisStatus.error
   // Only the latest Claude critical-review attempt's own Challenged outcome ever makes a
   // resolution requestable — never an older, since-superseded review, and never a review still
   // Running or one that settled as Accepted.
@@ -381,12 +392,14 @@ export function RunCockpitView({ runId }: RunCockpitViewProps) {
           <CodeReviewAction
             executionReportMessageId={latestExecutionReportMessageId}
             status={codeReviewAttemptStatus.status}
-            statusLoading={codeReviewAttemptStatus.loading}
+            statusLoading={codeReviewAttemptStatus.loading || verificationDiagnosisStatus.loading}
             statusError={codeReviewAttemptStatus.error}
             requesting={requestCodeReview.requesting || requestCodeReviewRepair.requesting}
             requestError={requestCodeReview.error}
             onRequest={() =>
-              latestExecutionReportMessageId && void requestCodeReview.request(runId, latestExecutionReportMessageId)
+              latestExecutionReportMessageId &&
+              ordinaryReviewReadsSettled &&
+              void requestCodeReview.request(runId, latestExecutionReportMessageId)
             }
             globalClaimBlock={globalClaimBlock}
             timeFit={codeReviewTimeFit}

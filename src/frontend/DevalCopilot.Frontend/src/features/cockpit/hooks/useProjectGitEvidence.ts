@@ -37,6 +37,9 @@ interface Inspection {
 
 interface EvidenceFrame {
   evidence: GetProjectGitEvidenceResponse | null
+  // The refresh generation whose read produced `evidence`, and whether the newest accepted read failed.
+  readGeneration: number | null
+  readFailed: boolean
   inspection: Inspection | null
   // The checkpoint whose inspection is in flight, and the one a failure belongs to (null: the
   // failure concerns the project's evidence as a whole).
@@ -47,7 +50,7 @@ interface EvidenceFrame {
 }
 
 function createFrame(projectId: string | null): EvidenceFrame {
-  return { evidence: null, inspection: null, inspectingCheckpointId: null, error: null, loading: projectId !== null, capturing: false }
+  return { evidence: null, readGeneration: null, readFailed: false, inspection: null, inspectingCheckpointId: null, error: null, loading: projectId !== null, capturing: false }
 }
 
 /** Keeps only bounded metadata and explicitly requested source text in component state. No
@@ -56,8 +59,17 @@ function createFrame(projectId: string | null): EvidenceFrame {
  * Evidence, its errors and pending flags belong to the current project's lifetime (nothing is
  * owned while the project is null or evidence is disabled); files and diff additionally belong to
  * the exact checkpoint inspected, so a newer checkpoint neither retains nor accepts the previous
- * checkpoint's. Older overlapping reads and every continuation of a replaced lifetime are ignored. */
-export function useProjectGitEvidence(projectId: string | null, enabled: boolean) {
+ * checkpoint's. Older overlapping reads and every continuation of a replaced lifetime are ignored.
+ *
+ * The project's owner may ask every consumer of the same evidence to read it again by advancing `refreshGeneration`, and learns
+ * of a successful capture through `onCaptured`. The evidence is `current` only once the read of the present generation has
+ * succeeded and no capture is in flight, so a consumer never submits a checkpoint while a refresh is pending or after it failed. */
+export function useProjectGitEvidence(
+  projectId: string | null,
+  enabled: boolean,
+  refreshGeneration = 0,
+  onCaptured?: () => void,
+) {
   const owner = useOwnedLifetime(enabled ? projectId : null)
   const [frame, commit] = useOwnedState(owner, createFrame)
   const evidence = frame.evidence
@@ -82,19 +94,22 @@ export function useProjectGitEvidence(projectId: string | null, enabled: boolean
         commit((previous) => ({
           ...previous,
           evidence: response,
+          readGeneration: refreshGeneration,
+          readFailed: false,
+          error: previous.error?.checkpointId === null ? null : previous.error,
           inspection: previous.inspection?.checkpointId === response.checkpointId ? previous.inspection : null,
         }))
       }
     } catch (caught: unknown) {
       if (isCurrent()) {
-        commit((previous) => ({ ...previous, error: { message: extractSafeErrorDetail(caught), checkpointId: null } }))
+        commit((previous) => ({ ...previous, readFailed: true, error: { message: extractSafeErrorDetail(caught), checkpointId: null } }))
       }
     } finally {
       if (isCurrent()) {
         commit((previous) => ({ ...previous, loading: false }))
       }
     }
-  }, [enabled, owner, projectId, commit])
+  }, [enabled, owner, projectId, commit, refreshGeneration])
 
   useEffect(() => {
     queueMicrotask(() => void refresh())
@@ -110,6 +125,7 @@ export function useProjectGitEvidence(projectId: string | null, enabled: boolean
     try {
       await captureGitWorkspaceCheckpointClient().captureGitWorkspaceCheckpoint(projectId)
       if (isCurrent()) {
+        onCaptured?.()
         await refresh()
       }
     } catch (caught: unknown) {
@@ -121,7 +137,7 @@ export function useProjectGitEvidence(projectId: string | null, enabled: boolean
         commit((previous) => ({ ...previous, capturing: false }))
       }
     }
-  }, [enabled, owner, projectId, commit, refresh])
+  }, [enabled, owner, projectId, commit, refresh, onCaptured])
 
   const inspect = useCallback(async () => {
     if (!projectId || !checkpointId || !owner.isActive() || committedCheckpointId.current !== checkpointId) {
@@ -165,6 +181,7 @@ export function useProjectGitEvidence(projectId: string | null, enabled: boolean
     changedFiles: inspection?.files ?? null,
     completeDiff: inspection?.diff ?? null,
     loading: frame.loading,
+    current: frame.readGeneration === refreshGeneration && !frame.loading && !frame.readFailed && !frame.capturing,
     capturing: frame.capturing,
     inspecting: checkpointId !== undefined && frame.inspectingCheckpointId === checkpointId,
     error,

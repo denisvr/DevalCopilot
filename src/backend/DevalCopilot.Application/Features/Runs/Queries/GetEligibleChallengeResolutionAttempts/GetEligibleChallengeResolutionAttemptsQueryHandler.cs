@@ -25,6 +25,7 @@ public sealed class GetEligibleChallengeResolutionAttemptsQueryHandler(IDevalCop
                 attempt.Kind == AttemptKind.Agent
                 && attempt.AgentProvider == AgentProvider.Codex
                 && attempt.AgentRole == AgentRole.Resolver
+                && attempt.AgentResponseContract == AgentResponseContract.ChallengeResolution
                 && attempt.Status == AttemptStatus.Running
                 && attempt.AgentDispatchedAtUtc == null)
             .Join(

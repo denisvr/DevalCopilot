@@ -280,7 +280,7 @@ describe('CandidateWorkspacePanel project selection ownership', () => {
     expect(world.claimVerificationExecution).toHaveBeenCalledTimes(1)
     const [projectId, commandId, request] = world.claimVerificationExecution.mock.calls[0]
     expect([projectId, commandId, request.gitCheckpointId]).toEqual(['project-b', 'command-b', 'checkpoint-b'])
-    expect(screen.getByText('Verification #77 is pending.')).toBeInTheDocument()
+    expect(screen.getByText('Verification #77 was requested.')).toBeInTheDocument()
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Approve' }))

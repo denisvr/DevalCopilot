@@ -123,6 +123,49 @@ describe('VerificationCommandsPanel', () => {
     expect(claimVerificationExecution.mock.calls[0][2].gitCheckpointId).toBe('checkpoint-1')
   })
 
+  it('reports an accepted claim as requested, never as a start failure or a pending claim that outlives its terminal result', async () => {
+    const command = new VerificationCommandResponse({
+      verificationCommandId: 'command-1',
+      commandNumber: 1,
+      name: 'Backend tests',
+      executablePath: String.raw`C:\Program Files\dotnet\dotnet.exe`,
+      arguments: ['test'],
+      timeoutSeconds: 300,
+      isEnabled: true,
+    })
+    const execution = (status: string, executionNumber: number) => new VerificationExecutionResponse({
+      verificationExecutionId: `execution-${executionNumber}`,
+      verificationCommandId: 'command-1',
+      executionNumber,
+      status,
+      isDispatched: true,
+      hasStandardOutput: false,
+      hasStandardError: false,
+    })
+    vi.mocked(projectVerificationCommandsClient).mockReturnValue({
+      getProjectVerificationCommands: vi.fn().mockResolvedValue([command]),
+    } as unknown as ReturnType<typeof projectVerificationCommandsClient>)
+    vi.mocked(projectGitEvidenceClient).mockReturnValue({
+      getProjectGitEvidence: vi.fn().mockResolvedValue(new GetProjectGitEvidenceResponse({ checkpointId: 'checkpoint-1' })),
+    } as unknown as ReturnType<typeof projectGitEvidenceClient>)
+    vi.mocked(projectVerificationExecutionsClient).mockReturnValue({
+      getProjectVerificationExecutions: vi.fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValue([execution('Failed', 1)]),
+    } as unknown as ReturnType<typeof projectVerificationExecutionsClient>)
+    const claimVerificationExecution = vi.fn().mockResolvedValue({ verificationExecutionId: 'execution-1', executionNumber: 1 })
+    vi.mocked(claimVerificationExecutionClient).mockReturnValue({ claimVerificationExecution } as unknown as ReturnType<typeof claimVerificationExecutionClient>)
+
+    render(<VerificationCommandsPanel projectId="project-1" />)
+
+    fireEvent.click(await screen.findByText('Run'))
+
+    expect(await screen.findByText('Last run: Failed')).toBeInTheDocument()
+    expect(screen.getByText('Verification #1 was requested.')).toBeInTheDocument()
+    expect(screen.queryByText(/is pending/)).not.toBeInTheDocument()
+    expect(screen.queryByText('This verification could not be started.')).not.toBeInTheDocument()
+  })
+
   it('labels recovered output as host-interrupted with unknown truncation', async () => {
     const command = new VerificationCommandResponse({
       verificationCommandId: 'command-1',

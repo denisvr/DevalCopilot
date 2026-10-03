@@ -23,8 +23,10 @@ public sealed class GetEligibleAgentAttemptsQueryHandler(IDevalCopilotDbContext 
         // (a correlated "current per workspace" comparison is awkward to express as a single
         // translatable join). Joined against Artifacts for the sealed context-manifest metadata
         // recorded at claim time.
-        // Codex-only: this handler feeds AgentAttemptSupervisor, which only ever knows how to
-        // invoke ICodexPlanningAdapter. A ClaudeCode critical-review attempt is claimed and
+        // Codex planning only (Planner role, Proposal contract): this handler feeds AgentAttemptSupervisor, which only ever knows how to
+        // invoke ICodexPlanningAdapter and parse a Proposal. The other Codex roles (Resolver, ordinary code review, verification
+        // diagnosis) have their own feeds and supervisors; without the role and contract filter this supervisor could dispatch one of
+        // their attempts with the wrong adapter and schema. A ClaudeCode critical-review attempt is claimed and
         // dispatched by the entirely separate ClaudeCriticalReviewSupervisor/
         // GetEligibleClaudeCriticalReviewAttemptsQuery pair — without this filter, a claimed
         // critical-review attempt would be handed to this supervisor and it would try to invoke
@@ -34,6 +36,8 @@ public sealed class GetEligibleAgentAttemptsQueryHandler(IDevalCopilotDbContext 
             .Where(attempt =>
                 attempt.Kind == AttemptKind.Agent
                 && attempt.AgentProvider == AgentProvider.Codex
+                && attempt.AgentRole == AgentRole.Planner
+                && attempt.AgentResponseContract == AgentResponseContract.Proposal
                 && attempt.Status == AttemptStatus.Running
                 && attempt.AgentDispatchedAtUtc == null)
             .Join(

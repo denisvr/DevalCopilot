@@ -10,6 +10,7 @@ public sealed class ClaimVerificationExecutionEndpoint(
     IResultProblemDetailsFactory problemDetails) : ProjectsBaseEndpoint
 {
     [HttpPost("{projectId:guid}/verification-commands/{verificationCommandId:guid}/executions")]
+    [ProducesResponseType<ClaimVerificationExecutionResponse>(StatusCodes.Status202Accepted)]
     public async Task<ActionResult<ClaimVerificationExecutionResponse>> ClaimVerificationExecution(
         Guid projectId,
         Guid verificationCommandId,

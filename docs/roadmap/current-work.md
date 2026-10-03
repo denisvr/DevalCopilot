@@ -6,6 +6,155 @@ local `origin/main`, and staged/unstaged/untracked changes before editing.
 See the [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md),
 and accepted [ADRs](../decisions/README.md) for their respective contracts.
 
+## Browser-driven local collaboration proof (2026-10-02)
+
+- Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent
+  `4748b83a618f9be761c2c1f47352364d2f9471c1` (`main`; `HEAD`, local `origin/main` and live `refs/heads/main` matched it; nothing staged or untracked; only the
+  planner-owned `planner-handoff.md` modified at the start, SHA-256 `c412a46f…475c`, later `0dda395f…6fae` after the planner's continuation decision, finally
+  `79e8a86d62ac4c58d944a2f7f3088db217207e4c30892bb6c306c66aa1c70498` after the first NO-GO review, `3f848b28ae89f0fcf37134621073a5cad0c621e559fe1c73088bc74041b19e18` after the second (R6) and `af441ab2d1aee1d874859520c19286e83b360375241cad76ec53786d5559d645` after the third (R6-A/R6-B), byte-identical at the end of the round; generated client SHA-256
+  `bd99dc6a31e0f72fc6051730165b1565c33a95f0f41c602425c28720b286994d` until the authorized R1 regeneration, then `8234339faa80672512ab3e81c28ccd2166342716fed4d8435304424a83771bd6`).
+  Presented as an uncommitted, unstaged, unpushed diff for Codex's GO/NO-GO (the first presentation received a NO-GO with five corrections R1–R5, recorded below);
+  `planner-handoff.md` was not edited by the executor. No publication is claimed.
+- Changed files: 29 tracked files modified and 48 untracked at the end of R6-A/R6-B (R6-A/R6-B added `CodeReviewAction.tsx` and its test, rewrote `useCodeReviewAttemptStatus.ts` and added its ownership test; R6 had 27 and 47: it added `App.tsx` and its test, `RunCockpitView.tsx` and its test, the diagnosis-status, code-review-status, run-scoped-action and two request hooks, plus the new connection hook and its three test files, all frontend; the R1–R5 inventory follows). The R1–R5 inventory was 18 tracked files modified (the planner-owned `planner-handoff.md`, this record, `DevalCopilot.slnx` with the two fixture projects, `package.json` scripts, the
+  two eligibility handlers, the verification-claim endpoint and the generated client (R1), the candidate-workspace, source-evidence, verification-commands and checkpoint-review
+  components with the git-evidence hook and the two component tests that follow their contracts (R2), and the Api test project file and its lock file) and 43 untracked (the host and
+  fixture projects with their lock files and the seven fixture-owned schema copies, the journey configuration, specification and helpers, the cleanup and registration-retry helpers and the
+  harness test, and the routing, hosted-routing, fixture-contract, host-destination, client-contract, evidence-refresh and hook-refresh tests); `git status --short` is authoritative (`git diff --name-only` and `git ls-files --others --exclude-standard` count the files).
+- What it proves and does not: ONE explicit manual journey through the rendered controls of the production frontend, over the real generated client, MVC
+  authentication, mediator, SQLite, every normal supervisor, the real provider adapters, `ChildProcessExecutionAdapter`, Git/worktree evidence and artifact stores.
+  Only the external executables are deterministic doubles. It proves the assembled local workflow for this chain, not real-provider reliability, and not completion of
+  Increment 4. Approval is shown not to be run-lifecycle completion.
+- Delivered test architecture (all under `tests/` and `src/frontend/.../e2e`; no shipped executable, dependency or version added):
+  - `tests/DevalCopilot.Api.IntegrationTests/BrowserJourney/Host` (`BrowserJourneyHost`): an executable on `WebApplicationFactory<Program>` with real Kestrel
+    (`UseKestrel`) and normal `Program` composition (authentication, CORS, SignalR, migrations, reconciliation, capability discovery, all supervisors). It differs only in
+    disposable SQLite, an ephemeral launch secret, and three registrations pointing at one verified disposable root (`WorkspaceRootPathProvider(root)`, one
+    `FilesystemArtifactStore(root)` for both artifact ports). It verifies the root against its ownership token, installs the fixture under three names, requires the owned
+    `bin` first on its own PATH, and writes a read-only verdict that the actual provider launch targets are the owned doubles before any agent request. `Program` reads the CORS
+    origin and listen address while it builds, so those two reach it as process environment values.
+  - `.../BrowserJourney/ProviderFixture`: one executable run as `codex.exe`, `claude.exe` and `verify.exe`. It derives every trusted path from its own location (an owned
+    root with the harness marker), accepts only the adapters' fixed argv/schema/stdin contracts (anything else exits 64), edits only `src/Feature.cs` in an owned, alias-checked
+    worktree (exit 65 otherwise), refuses a plan that is not the revised Proposal (exit 66), and logs only allowlisted facts (role, kind, contract, identities). The
+    verification executable passes only when the file holds the corrected statement; there is no call counter.
+  - `playwright.journey.config.ts`, `e2e/collaboration.journey.ts`, `e2e/journey/*`: normal authentication, `reuseExistingServer: false`, an in-memory secret, the owned-root
+    cleanup also after a failed run, journey-local helpers (it never imports `playwright.config.ts`, so no second root or secret). `npm run test:e2e:all` runs the existing
+    eight-spec suite and then the journey, stopping on the first failure.
+- Production exception (authorized by the planner after the first stop): the Codex PLANNING eligibility feed (`GetEligibleAgentAttemptsQueryHandler`) filtered only on
+  provider, so `AgentAttemptSupervisor` could claim, dispatch and parse as a Proposal any undispatched Codex attempt, including a valid Resolver attempt. It now requires
+  `AgentRole.Planner` and `AgentResponseContract.Proposal`; `GetEligibleChallengeResolutionAttemptsQueryHandler` additionally requires
+  `AgentResponseContract.ChallengeResolution`. Every other gate, ordering and projection is unchanged; the ordinary-review and diagnosis feeds already distinguished their
+  contracts. This is a routing defect, not a malformed provider response. Earlier executor evidence (not rerun here): with the unfixed predicates the resolution step
+  failed in 8 of 9 browser runs, and temporary markers showed the planning supervisor processing the Resolver attempt in the runs that were instrumented.
+- Routing regressions: `CodexAgentFeedRoutingTests` (real SQLite; 12 cases) prove each of the four Codex feeds selects exactly its own partition (ordinary and format-repair
+  attempts of each family stay eligible), the Resolver feed needs its exact contract, and incoherent, null and unknown role/contract values enter no feed and break no healthy
+  sibling. `CodexSupervisorRoutingHostedTests` runs the planning and resolution supervisors together with the real feeds, mediator, dispatch and recording commands and a
+  counting provider boundary: an observing mediator counts completed planning-feed reads, so the planning supervisor is given a genuine pre-dispatch opportunity (three reads)
+  while a valid Resolver is undispatched; it neither consumes nor invokes it, and the resolution supervisor then completes it exactly once. Red/green: 12 of 12 Application
+  cases failed against the unfixed predicates and pass with the fix; removing only the planning partition fails the hosted test (planning feed offered the Resolver) and the
+  Application cases.
+- Journey regressions: `ProviderFixtureContractTests` (17, real child processes started with a cleared environment) cover the closed Codex/Claude/verification contracts and
+  unsupported invocations, the extra-flag and weaker-sandbox refusals, ownership and alias refusal (executable outside an owned root, non-worktree working directory, result path
+  outside the artifact tree, a directory junction), the Planner-root/no-plan refusals for implementation, diagnosis and review, verification failing without the correction
+  edit however often it runs and passing only after it, and the allowlisted log. Mutations that make verification pass regardless, accept the root plan, or ignore reparse points
+  each fail exactly one of them. `journeyHarness.test.ts` (node) covers the plan-identity judge (a Planner-root substitution for the revised Proposal is detected in each
+  plan-bearing stage), cleanup of the owned root after a failing run (and no deletion of a wrong-token root or prefix-matching sibling), and the disposable repository.
+- The journey asserts, in order, with every mutation from a rendered control: registration/selection, physical-identity recheck, real worktree preparation and checkpoint, the
+  verification recipe and a ManualAgent objective; Codex plan, Claude challenge, Codex resolution (revised Proposal differing from the root), Claude implementation (defect
+  introduced in the real candidate file), explicit verification (real failed process, captured and sealed stderr inspected on the page), a refused ordinary review (HTTP 409 from the
+  server's Passed gate, no attempt created), Codex diagnosis (findings inspected), explicit diagnosis-origin correction, fresh verification Passed on the corrected checkpoint, and
+  ordinary review approval; then a reload keeps the results attached to the same run. It reads back: attempts and contracts after each step (no automatic advancement), the
+  implemented Proposal rather than the Planner root in implementation, diagnosis and review, exact report/finding/revision-response lineage, three distinct checkpoints and
+  fingerprints with verification bound to the checkpoint it judged, seven Agent claims within the unchanged 16, 90 minutes reserved of the unchanged 120, one spent shared
+  correction slot, no Git commit in the worktree and the original repository's HEAD, status and files unchanged, and the launch secret absent from the page, storage and files.
+- NO-GO correction round (2026-10-03), five bounded corrections on the same diff; each regression was written first and shown red against the unfixed code, then green:
+  - R1 verification acceptance contract. `ClaimVerificationExecutionEndpoint` now declares `[ProducesResponseType<ClaimVerificationExecutionResponse>(StatusCodes.Status202Accepted)]`; the runtime
+    `Accepted`/202, DTOs, authentication and claim behavior are unchanged. The client was regenerated by the normal solution build only, never edited: the exact delta is one operation, 5 lines
+    (`status === 200` → `status === 202` and its `result200`/`resultData200` locals), new SHA-256 `8234339faa80672512ab3e81c28ccd2166342716fed4d8435304424a83771bd6`, reproduced after
+    deleting the file and rebuilding. Red: `claimVerificationExecutionContract.test.ts` (the generated client given a 202 JSON answer threw "An unexpected server error occurred.") and the panel
+    test (the accepted claim reported "is pending."); green after regeneration and the wording change to "Verification #N was requested." (no pending claim outlives a terminal result). A
+    refusal still rejects as an API exception. The journey proves success over real authenticated HTTP: the rendered Run observes a 202 and then "Last run: Failed" / "Last run: Passed" without a reload
+    and without "This verification could not be started.".
+  - R2 explicit current-evidence refresh. `CandidateWorkspacePanel` owns a project-lifetime refresh generation (`useOwnedLifetime`/`useOwnedState`, so another project or a return to an earlier one starts at zero)
+    and a rendered "Refresh evidence" button (Ready/NeedsAttention workspace; R6 extends it to the run, below). The generation is passed as a prop to Source evidence, Verification commands and Checkpoint review, which re-read the existing GET through
+    `useProjectGitEvidence`; a successful explicit capture reports `onCaptured` so the same consumers refresh. The hook exposes `current` (the read of the present generation succeeded, none pending, no capture in
+    flight), and Run and every review decision are disabled, and refuse to submit, while it is false (pending or failed refresh; the previous metadata stays visible). A successful read clears the previous
+    evidence-wide error. No remounting, global event bus, cache, polling or automatic stage progression; drafts, the reviewer choice and an inspection of an unchanged checkpoint survive a refresh; an inspection
+    requested for a replaced checkpoint is dropped. Red: 9 of 9 `CandidateWorkspaceEvidenceRefresh.test.tsx` cases failed on the old code (no action; capture left Verification on the old checkpoint); green: they
+    pass with 4 hook-level cases (`useProjectGitEvidenceRefresh.test.tsx`) covering initial capture, refresh after implementation/correction, pending and failed refresh, overlapping reads, stale inspection and project A→B→A.
+    Mutations (Run ignoring `current`; the generation not distinguishing a read) each fail a case.
+  - R3 registration retry. The retry decision moved to `e2e/harness/registrationRetry.ts` behind a driver, used by `journeySupport.registerProject` over the rendered form and the observed POST: only HTTP 409
+    whose first error is exactly `projects.git_unavailable` is submitted again (the same name and path, the repository built once by the journey), within 30 attempts; an accepted answer is confirmed once and never
+    resubmitted however late it renders; every other refusal, transport failure and rendering failure surfaces at once with a fixed message that carries no response, request or page text. Six `journeyHarness.test.ts`
+    cases (known refusal then success, unrelated refusals, transport failure, accepted-but-delayed and never-rendered, exhaustion); a mutation that retries everything fails five of them. The old Playwright-bound loop had
+    no seam, so its red evidence is the legacy behavior reproduced behind the same driver.
+  - R4 fixture schema validation. The doubles read the supplied schema (Codex: the invocation-owned scratch file, read-only and bounded; Claude: the inline argument), refuse anything above 16 KiB, that is not JSON,
+    not an object or not structurally equal to the fixture's own copy of the selected role's contract (`ProviderFixture/Schemas/*.schema.json`, embedded; object property order and string-array order ignored; no dependency or generic
+    schema engine; the copies were captured from the adapters' schemas once and are not read from the production builders at run time), before any edit, final response or log write, with fixed messages that never echo
+    the schema. 12 Codex and 11 Claude refusal cases (empty, whitespace, non-JSON, array, `{}`, oversized, wrong contract, open `additionalProperties`, dropped required/property, widened bound/enum), a missing or directory
+    schema file, and acceptance of the actual adapter schema of all seven contracts in original and reversed property order. Tests no longer use `{}` as a success schema. Red: 26 of 55 fixture-contract cases failed on the unfixed
+    fixture (after correcting two test-setup flaws in the first red run, which showed 28); green 55/55. A production schema change now fails the fixture contract tests by design.
+  - R5 writable-path isolation. Every writable destination is checked for a reparse point on the leaf and on every existing ancestor beneath the owned root, and refused when it is an existing directory, before it is created,
+    appended or copied: the invocation log (including the version probes), final-response sinks (leaf and ancestors), the candidate file (already checked on every segment), and, in the host, the layout directories, the installed
+    binaries (all destinations before the first copy) and the launch-target verdict (`OwnedRootGuard.RequirePlainDestination`/`WriteFixtureStateFileAsync`, reusing the fixture's `OwnedLocation` alias check). Real-process regressions
+    use real directory junctions and assert exit code 65 with the outside sentinel directory unchanged, plus a normal-path success; host regressions run on the real file system (the two small host helper files are compiled into the Api test
+    assembly). Red: 8 of 9 host cases and 6 of the new fixture alias cases failed before; green after. Limits: only reparse points are detected (a hard link to an outside file is not), and Windows path semantics are assumed.
+  - R6 run-status refresh without a reload (second NO-GO, 2026-10-03). The Verification diagnosis panel and the Code review request read their run-scoped status from the host only when a run event advances or one of their own requests refreshes it,
+    and a completed verification is project-scoped and emits no run event, so after a failed verification the diagnosis control was absent until a reload. `Refresh evidence` now also reaches the selected run through one narrow connection:
+    `useEvidenceRefreshConnection(projectId, runId)` (in `App`) owns a generation per committed project AND run lifetime (`useOwnedLifetime`/`useOwnedState`; another project or run, A→B→A and unmount start or end it, and a retained callback
+    does nothing); `CandidateWorkspacePanel` tells it once per explicit refresh (`onEvidenceRefreshRequested`, not for a capture or a mount); `RunCockpitView` receives the generation (`evidenceRefreshGeneration`) and hands it only to
+    `useVerificationDiagnosisStatus` and `useCodeReviewAttemptStatus`, which read their existing GETs again when it advances and report loading in the very render that carries it, and to the two request hooks, whose reported refusals are
+    not shown once the evidence was re-read (`useRunScopedAction` epoch; a pending submission, a draft and an accepted operation are untouched). The code-review request is also unavailable while the diagnosis status that names its report is
+    loading. A pending refresh keeps the previous status visible with its requests disabled; a failed one drops it with a safe message and offers nothing. No run event or sequence is manufactured, no eligibility is derived from local verification rows,
+    nothing is requested automatically, and there is no remount, bus, cache, polling, backend change, new endpoint or dependency; the five other run status hooks keep their signatures.
+    Red: `useEvidenceRefreshConnection.test.tsx` (module absent), `runStatusEvidenceRefresh.test.tsx` (4 of 5 failed: no read for a new generation, a loading gap in the first frame, no safe failure) and `RunEvidenceRefreshComposition.test.tsx` (9 cases over the real
+    `CandidateWorkspacePanel` + `RunCockpitView` + connection: 7 of 9 failed, the other two being ownership cases that hold by construction), `App.test.tsx` and the panel notification case; green after the change: failed verification → Refresh evidence → the
+    diagnosis is offered from the fresh status (reads only: no diagnosis, correction, review, claim or capture request); passed verification → Refresh evidence → the obsolete refusal goes and the review request is offered but never made; pending and
+    failed refresh; overlapping reads; same-project run replacement, A→B→A, stale callbacks and unmount; drafts, the mounted subtree and an accepted pending request preserved. Mutations (refusal not expiring, review loading not derived from the generation,
+    ownership keyed by project only) each fail a case. At journey level, pointing `App` at a constant generation makes the journey fail at the diagnosis control after a 30 s wait. The journey now clicks Refresh evidence after each terminal verification and
+    asserts the run's current display before the next explicit request; the diagnosis reload is gone and only the final persistence reload remains. Seven explicit Agent claims, Failed then Passed verification, the refused review on Failed, checkpoint counts (2 then 3)
+    and all supervisors are unchanged. `RecordCheckpointReview` (201 against a client that accepts only 200) is deferred and untouched.
+  - R6-A partial refresh failures (third review, 2026-10-03). The first R6 failure test rejected both reads and left the review-correction fallback empty, which hid two cases: (1) diagnosis succeeds and only the code-review read fails: the safe error
+    showed but Request code review stayed enabled; (2) only the diagnosis read fails, the review read succeeds and `reviewCorrectionAttemptStatus` names a reviewable report: the null diagnosis result revived that fallback report and enabled the request.
+    Now the ordinary-review target is `null` whenever the diagnosis read failed (the review-correction report is the fallback only when the diagnosis status was actually read and named none, so the legitimate historical targeting is kept),
+    `CodeReviewAction` withholds the request while its status read has failed (a failed read is not "no review yet"), and the request handler itself refuses unless both reads are settled and neither failed. Safe messages remain and a successful explicit
+    refresh recovers. Server authority and the fallback are otherwise unchanged; no eligibility is derived from local verification rows. Red on the submitted tree: 3 of the 4 new composition cases failed (code-review read alone; diagnosis read alone with a
+    populated fallback; both reads with a populated fallback; the fourth, the legitimate fallback still targeting `fallback-report`, passes as a control), with refresh itself asserted to send no diagnosis, correction, review, claim or capture request in each;
+    green after. Removing the three guards restores exactly those three failures. A `CodeReviewAction` case pins the withheld request.
+  - R6-B run-lifetime ownership of `useCodeReviewAttemptStatus` (third review). Its `refresh` was bound to nothing: read A, retain refresh, switch to B and settle, call it, and the reads were [A, B, B] (and [A, B, A, A] across A→B→A). The hook was rewritten on the
+    existing `useOwnedLifetime`/`useOwnedState` pattern already used by `useVerificationDiagnosisStatus` (same public signature and result): status, error, the refresh count and the pending read belong to the committed run lifetime, the read key
+    (event sequence, refresh count, evidence generation) derives loading in the very render that carries it, `refresh` retained from a replaced or unmounted lifetime starts no request, and only the newest read of the current lifetime commits. Failed reads
+    still mask the status with the same safe message. The other status hooks were not migrated. Red on the submitted tree: the two retained-callback cases failed with [A, B, B] and [A, B, A, A]; 7 cases in `useCodeReviewAttemptStatusOwnership.test.tsx`
+    now pin current refresh, old callbacks inert after replacement, A→B→A and unmount, late and overlapping answers, first-frame loading per evidence generation, and no run. The 14 earlier hook tests pass unchanged. A side effect: the rewrite removes the
+    hook's `react(set-state-in-effect)` lint warning, so lint reports 9 warnings instead of 10.
+- Findings returned to the planner, not changed (no other production change is authorized): (1) R1/R2 resolve the two earlier UI observations (the accepted claim shown as a failure; Source evidence stale after a mutation); R6 resolves the run-scoped
+  diagnosis/review staleness after a completed verification that the first round had to leave as one reload. (2) The same defect class exists for the manual `RecordCheckpointReview` operation (`Created`/201 against a generated client that accepts only 200); it is
+  unused by the journey and untouched (deferred by the planner). (3) The other run-scoped status hooks (planning, critical review, resolution, implementation, review correction) keep their own refresh and ownership rules and are not driven by Refresh evidence; only the code-review and diagnosis hooks follow the run lifetime pattern. (4) Fixture-environment
+  causes found and handled in the fixture, not in product code: a machine-wide `core.autocrlf` makes the host's cleared-environment Git report CRLF worktree files as changed (the journey repository sets it false locally), and the host must receive the CORS origin
+  and listen address as environment values.
+- Checks, first presentation (before the NO-GO; retained, superseded by the final-tree results below): Domain 952, Application 3475, Infrastructure 956 + 3 skips, Api 762, Architecture 9, vitest 1635, harness 32, existing Chromium suite 8/8 then the
+  journey 1/1, with the client byte-identical to the old hash; the failed and blocked evidence above is retained, not rerun.
+- Checks of the R1–R5 round (superseded by the R6 final-tree frontend results below where they overlap; the backend results are RETAINED because no backend, backend-test or dependency file changed after them, verified by file timestamps) (Windows; sequential, `--no-build` after one normal `dotnet build DevalCopilot.slnx`, 0 warnings/0 errors, which regenerated `api-client.ts` to the new hash, reproduced after deleting the file):
+  Domain 952/952; Application 3475/3475; Infrastructure 956 passed + 3 existing skips of 959; Api 809/809 (762 earlier + 47 net new: the fixture-contract suite grew to 55 cases and 9 host-destination cases were added); Architecture 9/9; frontend `npx vitest run` 121 files,
+  1651/1651; `npm run typecheck` clean; `npm run lint` 10 warnings (the baseline), 0 errors; `npm run build` clean; `npm audit` 0 vulnerabilities; `npm run test:harness` 38/38 (0 skipped); `npm run test:e2e:all`: the existing Chromium suite 8/8 then the
+  journey 1/1 (at that time the journey kept one intermediate reload before the diagnosis step, since removed by R6); `dotnet format --verify-no-changes` 153 findings, identical to the recorded baseline, none in a
+  changed file; `dotnet list package --vulnerable --include-transitive` none; `git diff --check` clean apart from Git's CRLF notices; no NUL and no trailing whitespace in any new file; the planner record's SHA-256 is unchanged. Earlier focused red/green runs: see each
+  correction above. A passing run does not prove reliability.
+- Checks of the first R6 round (superseded by the R6-A/R6-B final-tree frontend results below where they overlap; RETAINED backend results are unchanged) (Windows; sequential): normal `dotnet build DevalCopilot.slnx` 0 warnings/0 errors with `api-client.ts` at the verified `8234339f…771bd6` (unchanged); affected frontend checks first (the new connection, status-hook,
+  composition, App and panel suites); then full frontend `npx vitest run` 124 files, 1673/1673 (1651 + 22 new); `npm run typecheck` clean; `npm run lint` 10 warnings (baseline), 0 errors; `npm run build` clean; `npm audit` 0 vulnerabilities; `npm run test:harness` 38/38;
+  `npm run test:e2e:all`: the existing Chromium suite 8/8, then the journey 1/1 with no intermediate reload (the final persistence reload only); `git diff --check` clean apart from Git's CRLF notices; no NUL and no trailing whitespace in any new file; the planner record
+  (`3f848b28…19e18`) and the generated client are byte-identical to the preflight. RETAINED from the R1–R5 round, not rerun, because no backend, backend-test, project-file or dependency file changed since (find by timestamp against the suite log: none): Domain 952/952,
+  Application 3475/3475, Infrastructure 956 + 3 existing skips, Api 809/809, Architecture 9/9, `dotnet format --verify-no-changes` 153 findings (the baseline), `dotnet list package --vulnerable --include-transitive` none. A passing run does not prove reliability.
+- Checks actually run on the final combined tree after R6-A/R6-B (Windows; sequential): normal `dotnet build DevalCopilot.slnx` 0 warnings/0 errors with `api-client.ts` at the verified `8234339f…771bd6` (unchanged); affected checks first (the composition, code-review
+  ownership, status-hook, connection and `CodeReviewAction` suites, then all cockpit and App tests); full frontend `npx vitest run` 125 files, 1684/1684 (1673 + 11 new: 7 ownership, 3 net composition, 1 `CodeReviewAction`); `npm run typecheck` clean; `npm run lint`
+  9 warnings (one fewer than the baseline 10, see R6-B), 0 errors; `npm run build` clean; `npm audit` 0 vulnerabilities; `npm run test:harness` 38/38; `npm run test:e2e:all`: the existing Chromium suite 8/8, then the journey 1/1 with the final persistence reload as the
+  only reload; `git diff --check` clean apart from Git's CRLF notices; no trailing whitespace in any new file; the planner record (`af441ab2…d645`) and the generated client are byte-identical to the preflight. RETAINED from the R1–R5 round, not rerun, because no backend,
+  backend-test, project-file or dependency file changed since (find by timestamp against that suite log: none): Domain 952/952, Application 3475/3475, Infrastructure 956 + 3 existing skips, Api 809/809, Architecture 9/9, `dotnet format --verify-no-changes` 153 findings
+  (the baseline), `dotnet list package --vulnerable --include-transitive` none. A passing run does not prove reliability.
+- Limits and open risks: doubles prove reachability and agreement with the adapters' contracts, never real-provider reliability, authentication, or session behavior; the version,
+  model, session and usage values they emit are fixture reports. The journey is one chain, not a permutation matrix. The 201 of the manual review record (finding (2)) remains a deferred product question. Refresh evidence is explicit: nothing refreshes the run's diagnosis or review status automatically when a verification completes, and the other run-scoped status hooks are not driven by it (finding (3)). A
+  stale `devalcopilot-e2e-*` root from an earlier, killed run of the existing suite was already present in the temp directory and was left untouched. Not selected or implemented:
+  session persistence/resume/compaction, account allowance, new providers, recipe or permission changes, ambiguous-process and no-change recovery, lifecycle completion, scheduling,
+  publication. No next slice is selected.
+
 ## Local verification failure diagnosis and bounded correction (2026-10-02)
 
 - Scope and parent: the substantive change for the selected Increment 4 slice, prepared on parent

@@ -37,9 +37,14 @@ function extractSafeErrorDetail(caught: unknown): string {
 /** Requests one durable Codex code-review attempt of a specific implementation ExecutionReport
  * message, then triggers the caller's own status refresh.
  * The request is bound to `currentRunId`'s interaction lifetime: an obsolete completion, a
- * foreign `runId`, or a duplicate of an in-flight submission never changes the current state. */
-export function useRequestCodeReview(currentRunId: string, onRequested: () => void): UseRequestCodeReviewResult {
-  const { busy, error, run } = useRunScopedAction(currentRunId)
+ * foreign `runId`, or a duplicate of an in-flight submission never changes the current state.
+ * A refusal reported before the latest evidence refresh (`evidenceRefreshGeneration`) is no longer shown. */
+export function useRequestCodeReview(
+  currentRunId: string,
+  onRequested: () => void,
+  evidenceRefreshGeneration = 0,
+): UseRequestCodeReviewResult {
+  const { busy, error, run } = useRunScopedAction(currentRunId, evidenceRefreshGeneration)
 
   const request = useCallback(
     (runId: string, executionReportMessageId: string) =>

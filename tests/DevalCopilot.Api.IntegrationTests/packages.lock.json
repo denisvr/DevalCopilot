@@ -652,6 +652,9 @@
       "processexecutionfixture": {
         "type": "Project"
       },
+      "providerfixture": {
+        "type": "Project"
+      },
       "Devalente.Shared.AspNetCore.Mvc": {
         "type": "CentralTransitive",
         "requested": "[0.2.0, )",

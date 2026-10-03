@@ -7,6 +7,7 @@ import { ProjectBaselineSummary } from './features/cockpit/components/ProjectBas
 import { ProjectSwitcher } from './features/cockpit/components/ProjectSwitcher'
 import { RunIntakeForm } from './features/cockpit/components/RunIntakeForm'
 import { RunCockpitView } from './features/cockpit/components/RunCockpitView'
+import { useEvidenceRefreshConnection } from './features/cockpit/hooks/useEvidenceRefreshConnection'
 import { useHostCapabilityRefresh } from './features/cockpit/hooks/useHostCapabilityRefresh'
 import { useProjectSummaries } from './features/cockpit/hooks/useProjectSummaries'
 import { useProviderRuntimePreflight } from './features/cockpit/hooks/useProviderRuntimePreflight'
@@ -60,6 +61,10 @@ export default function App() {
   }, [refresh, refreshProviderRuntimes])
   const { refreshingCapability, requestRefresh } = useHostCapabilityRefresh(refreshReadiness)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const selectedProject = projects.find((project) => project.projectId === selectedProjectId) ?? projects[0] ?? null
+  // The Refresh evidence action of the selected project and the verification-dependent status of its current run share one
+  // connection owned by that project and run.
+  const evidenceRefresh = useEvidenceRefreshConnection(selectedProject?.projectId ?? null, selectedProject?.runId ?? null)
 
   if (sessionStatus === 'idle' || sessionStatus === 'initializing') {
     return <StartingState />
@@ -72,8 +77,6 @@ export default function App() {
   if (sessionStatus === 'disconnected') {
     return <DisconnectedRecoveryState />
   }
-
-  const selectedProject = projects.find((project) => project.projectId === selectedProjectId) ?? projects[0] ?? null
 
   // The server's availability hint: true for a project with no run, or when every run is terminal.
   // A project with a run and no explicit hint is treated as blocked; the server re-checks anyway.
@@ -108,7 +111,11 @@ export default function App() {
 
       {selectedProject ? <ProjectBaselineSummary project={selectedProject} /> : null}
 
-      {selectedProject?.projectId ? <CandidateWorkspacePanel key={selectedProject.projectId} projectId={selectedProject.projectId} /> : null}
+      {selectedProject?.projectId ? <CandidateWorkspacePanel
+          key={selectedProject.projectId}
+          projectId={selectedProject.projectId}
+          onEvidenceRefreshRequested={evidenceRefresh.request}
+        /> : null}
 
       {selectedProject ? (
         <CapabilityReadinessStrip
@@ -135,7 +142,11 @@ export default function App() {
       ) : null}
 
       {selectedProject?.runId ? (
-        <RunCockpitView key={selectedProject.runId} runId={selectedProject.runId} />
+        <RunCockpitView
+          key={selectedProject.runId}
+          runId={selectedProject.runId}
+          evidenceRefreshGeneration={evidenceRefresh.generation}
+        />
       ) : selectedProject ? (
         <p className="dc-empty-state">{selectedProject.projectName} has no run yet.</p>
       ) : (
