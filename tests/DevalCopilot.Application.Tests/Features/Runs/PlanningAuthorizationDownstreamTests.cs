@@ -29,10 +29,11 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
 
     public Task DisposeAsync() => _fixture.DisposeAsync();
 
-    private async Task<(EscalatedLineage Lineage, Guid AttemptId, Guid AuthorizationId, Guid InstructionId)> ClaimedAsync()
+    private async Task<(EscalatedLineage Lineage, Guid AttemptId, Guid AuthorizationId, Guid InstructionId)> ClaimedAsync(
+        EscalationForm form = EscalationForm.Writer)
     {
         await using var dbContext = _fixture.CreateContext();
-        var lineage = await SeedEscalatedLineageAsync(dbContext, secondChallengeCount: 2);
+        var lineage = await SeedEscalatedLineageAsync(dbContext, secondChallengeCount: 2, form: form);
         var authorization = await AuthorizeAsync(dbContext, lineage);
         var claim = await ClaimAsync(dbContext, lineage);
         Assert.True(claim.IsSuccess, claim.IsFailure ? claim.Errors[0].Code : null);
@@ -71,10 +72,11 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
 
     // ---- Eligibility feed ---------------------------------------------------------------------------------------
 
-    [Fact]
-    public async Task The_feed_projects_the_consumed_authorization_for_a_coherent_attempt()
+    [Theory]
+    [MemberData(nameof(HistoricalAndCurrentForms))]
+    public async Task The_feed_projects_the_consumed_authorization_for_a_coherent_attempt(EscalationForm form)
     {
-        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync();
+        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync(form);
         await using var dbContext = _fixture.CreateContext();
 
         var eligible = await new GetEligibleImplementationAttemptsQueryHandler(dbContext).HandleAsync(
@@ -162,10 +164,11 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
 
     private sealed record Result(bool Succeeded, string? Code);
 
-    [Fact]
-    public async Task The_dispatch_gate_accepts_exactly_the_durable_authorization()
+    [Theory]
+    [MemberData(nameof(HistoricalAndCurrentForms))]
+    public async Task The_dispatch_gate_accepts_exactly_the_durable_authorization(EscalationForm form)
     {
-        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync();
+        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync(form);
         await using var dbContext = _fixture.CreateContext();
 
         var result = await DispatchAsync(dbContext, lineage, attemptId, Fact(lineage, authorizationId, instructionId));
@@ -293,10 +296,14 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
 
     // ---- The ExecutionReport chain ------------------------------------------------------------------------------
 
-    [Fact]
-    public async Task A_successful_authorized_implementation_makes_a_valid_report_chain_rooted_at_the_actual_planner_root()
+    public static TheoryData<EscalationForm> HistoricalAndCurrentForms => new() { EscalationForm.Legacy, EscalationForm.Current };
+
+    [Theory]
+    [MemberData(nameof(HistoricalAndCurrentForms))]
+    public async Task A_successful_authorized_implementation_makes_a_valid_report_chain_rooted_at_the_actual_planner_root(
+        EscalationForm form)
     {
-        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync();
+        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync(form);
         var reportId = await RecordSuccessAsync(lineage, attemptId, authorizationId, instructionId);
         await using var dbContext = _fixture.CreateContext();
         var report = await dbContext.CollaborationMessages.AsNoTracking().SingleAsync(message => message.Id == reportId);
@@ -319,10 +326,11 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
         Assert.Null(chain.PreviousExecutionReport);
     }
 
-    [Fact]
-    public async Task The_chain_validates_consent_against_the_starting_checkpoint_not_the_later_result_checkpoint()
+    [Theory]
+    [MemberData(nameof(HistoricalAndCurrentForms))]
+    public async Task The_chain_validates_consent_against_the_starting_checkpoint_not_the_later_result_checkpoint(EscalationForm form)
     {
-        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync();
+        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync(form);
         var reportId = await RecordSuccessAsync(lineage, attemptId, authorizationId, instructionId);
         await using var dbContext = _fixture.CreateContext();
         var grant = await GrantAsync(dbContext, lineage.RunId);
@@ -342,10 +350,11 @@ public sealed class PlanningAuthorizationDownstreamTests : IAsyncLifetime
             dbContext, report, lineage.RunId, lineage.Scene.Workspace.Id, attempt.AgentResultGitCheckpointId!.Value, CancellationToken.None);
     }
 
-    [Fact]
-    public async Task A_later_independent_planner_proposal_does_not_invalidate_the_historical_chain()
+    [Theory]
+    [MemberData(nameof(HistoricalAndCurrentForms))]
+    public async Task A_later_independent_planner_proposal_does_not_invalidate_the_historical_chain(EscalationForm form)
     {
-        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync();
+        var (lineage, attemptId, authorizationId, instructionId) = await ClaimedAsync(form);
         var reportId = await RecordSuccessAsync(lineage, attemptId, authorizationId, instructionId);
         await using var dbContext = _fixture.CreateContext();
         SeederFor(dbContext, lineage.Scene, lineage.Seeder.NextAttemptNumber + 10).AddRoot();

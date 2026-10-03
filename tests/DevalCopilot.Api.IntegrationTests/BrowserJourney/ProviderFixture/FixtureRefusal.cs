@@ -7,6 +7,7 @@ public sealed class FixtureRefusal(int exitCode, string reason) : Exception(reas
     public const int UnsupportedInvocation = 64;
     public const int OwnershipRefused = 65;
     public const int PlanIdentityRefused = 66;
+    public const int AuthorizationRefused = 67;
 
     public int ExitCode { get; } = exitCode;
 }

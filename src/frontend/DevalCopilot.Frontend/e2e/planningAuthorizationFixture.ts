@@ -39,7 +39,11 @@ export interface PlanningAuthorizationFixture {
 
 const NOW = '2026-10-01 12:00:00+00:00'
 
-/** The host's canonical escalation content for these durable identifiers (see PlanningEscalation in the Application layer). */
+/**
+ * The ORIGINAL canonical escalation content (written before ADR-0020) for these durable identifiers, kept on purpose: this seeded record
+ * plays a historical escalation, which the host must keep recognizing as an authorization source. The current wording is exercised
+ * end to end by the escalated native-double journey, which records its escalation through the production writer.
+ */
 function canonicalEscalationContent(rootId: string, firstId: string, secondId: string, challengeIds: string[]): string {
   return JSON.stringify({
     unresolvedDecision:

@@ -50,7 +50,8 @@
   correction by ADR-0019).
 - [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md):
   Add explicit human authorization of one escalated-plan implementation (its preservation of the ordinary
-  first-revision review target is narrowly superseded by ADR-0017).
+  first-revision review target is narrowly superseded by ADR-0017, and its single-source-text-form requirement by
+  ADR-0020).
 - [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md):
   Review the implemented plan through correction.
 - [ADR-0018](decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md):
@@ -58,6 +59,9 @@
 - [ADR-0019](decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md):
   Add direct human guidance to diagnosis-origin corrections (it narrowly extends ADR-0015's request scope and ADR-0018's
   correction request).
+- [ADR-0020](decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md):
+  Correct the escalation explanation and accept its two canonical forms (it narrowly supersedes ADR-0016's
+  single-source-text-form requirement).
 
 ## Product-specific architecture
 
@@ -109,8 +113,12 @@
 - A completed second challenge round ends a proposal lineage in a human escalation. A human may explicitly authorize exactly
   one initial implementation claim for that final plan with a required, bounded reason; authorizing and requesting the
   implementation are separate operations, the grant is consumed atomically by the ordinary explicit claim (and stays spent
-  even if the attempt fails), and no automatic review or resolution cap, budget, or execution gate is raised or bypassed (see
-  [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md) and
+  even if the attempt fails), and no automatic review or resolution cap, budget, or execution gate is raised or bypassed. The
+  escalation record itself states those options in fixed text and selects, grants, and approves nothing; it is recognized as a
+  source only when its content is ordinal-equal to one of two complete canonical serializations, the current one or the original
+  one that earlier records keep (see
+  [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md),
+  [ADR-0020](decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md), and
   [the protocol](architecture/agent-collaboration-protocol.md#explicit-human-authorization-of-one-escalated-plan-implementation)).
 - Every newly claimed code review, its manual format repair, and re-reviews throughout the ordinary correction chain judge
   the exact Proposal the initial implementation consumed (the root, the revision, or the authorized final plan), while the

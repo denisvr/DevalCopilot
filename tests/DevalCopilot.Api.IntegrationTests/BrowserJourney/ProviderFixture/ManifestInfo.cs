@@ -8,8 +8,15 @@ namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 /// </summary>
 public sealed class ManifestInfo
 {
+    /// <summary>The Planner root Proposal.</summary>
     public const string RootPlanMarker = "ROOT-PLAN";
+
+    /// <summary>The first Resolver revision: the plan of the ordinary journey, and the intermediate revision of the escalated one.</summary>
     public const string RevisedPlanMarker = "REVISED-PLAN";
+
+    /// <summary>The second and final Resolver revision of an escalated lineage.</summary>
+    public const string FinalPlanMarker = "FINAL-PLAN";
+
     public const string VerificationFailureMarker = "TOTAL-NOT-SUM";
 
     private ManifestInfo(string raw, JsonElement root, string contract)
@@ -62,38 +69,95 @@ public sealed class ManifestInfo
     {
         foreach (var name in new[] { "resolvedPlan", "implementedPlan" })
         {
-            if (!Root.TryGetProperty(name, out var plan) || plan.ValueKind != JsonValueKind.Object)
+            if (ReadProposal(name) is { } plan)
             {
-                continue;
-            }
-
-            var idProperty = plan.TryGetProperty("proposalMessageId", out var proposalId) ? proposalId
-                : plan.TryGetProperty("messageId", out var messageId) ? messageId
-                : default;
-            if (idProperty.ValueKind == JsonValueKind.String
-                && Guid.TryParse(idProperty.GetString(), out var id)
-                && plan.TryGetProperty("structuredContent", out var content)
-                && content.TryGetProperty("implementationSteps", out var steps)
-                && steps.ValueKind == JsonValueKind.String)
-            {
-                return (id, steps.GetString()!);
+                return plan;
             }
         }
 
         throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The manifest carries no plan to implement or judge.");
     }
 
-    /// <summary>The plan must be the revised Proposal; the Planner root, or any other plan, is refused so a substitution fails loudly.</summary>
-    public (Guid MessageId, string Marker) RequireRevisedPlan()
+    /// <summary>The Proposal a review reviews (<c>reviewedProposal</c>) or a resolution resolves (<c>originalProposal</c>).</summary>
+    public (Guid MessageId, string Steps) ProposalUnder(string property) =>
+        ReadProposal(property)
+        ?? throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The manifest carries no proposal under this stage.");
+
+    private (Guid MessageId, string Steps)? ReadProposal(string name)
+    {
+        if (!Root.TryGetProperty(name, out var plan) || plan.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var idProperty = plan.TryGetProperty("proposalMessageId", out var proposalId) ? proposalId
+            : plan.TryGetProperty("messageId", out var messageId) ? messageId
+            : default;
+        if (idProperty.ValueKind == JsonValueKind.String
+            && Guid.TryParse(idProperty.GetString(), out var id)
+            && plan.TryGetProperty("structuredContent", out var content)
+            && content.TryGetProperty("implementationSteps", out var steps)
+            && steps.ValueKind == JsonValueKind.String)
+        {
+            return (id, steps.GetString()!);
+        }
+
+        return null;
+    }
+
+    /// <summary>The plan a diagnosis or review judges must be the first or the final revision; the Planner root, an ambiguous
+    /// plan, or any other, is refused so a substitution fails loudly. Which of the two is asserted by the journey itself.</summary>
+    public (Guid MessageId, string Marker) RequireRevisionPlan()
     {
         var (id, steps) = Plan();
         var marker = ClassifyPlan(steps);
-        if (marker != RevisedPlanMarker)
+        if (marker is not (RevisedPlanMarker or FinalPlanMarker))
+        {
+            throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The plan in the manifest is not a revised Proposal.");
+        }
+
+        return (id, marker);
+    }
+
+    /// <summary>A proposal under review or resolution must be the root (round one) or the first revision (round two) and nothing else.
+    /// The final revision is never reviewed or resolved again, so it is refused here.</summary>
+    public (Guid MessageId, string Marker) RequireRoundProposal(string property)
+    {
+        var (id, steps) = ProposalUnder(property);
+        var marker = ClassifyPlan(steps);
+        if (marker is not (RootPlanMarker or RevisedPlanMarker))
+        {
+            throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The proposal in the manifest is not served by any challenge round.");
+        }
+
+        return (id, marker);
+    }
+
+    /// <summary>
+    /// The plan an implementation is asked to implement. The ordinary form must name the first revision and carry no authorization;
+    /// the human-authorized form must name the final revision and pass <see cref="HumanAuthorizedPlan"/> in full. Any other
+    /// combination is refused here, before the caller edits anything, writes anything, or logs a successful invocation.
+    /// </summary>
+    public (Guid MessageId, string Marker, HumanAuthorizedPlan.Facts? Authorization) RequireImplementablePlan()
+    {
+        var (id, steps) = Plan();
+        var marker = ClassifyPlan(steps);
+        if (HumanAuthorizedPlan.IsAuthorizedForm(this))
+        {
+            if (marker != FinalPlanMarker)
+            {
+                throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "An authorized implementation must name the final revision.");
+            }
+
+            return (id, marker, HumanAuthorizedPlan.Require(this, id));
+        }
+
+        if (marker != RevisedPlanMarker || HumanAuthorizedPlan.CarriesAnyAuthorization(this))
         {
             throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The plan in the manifest is not the revised Proposal.");
         }
 
-        return (id, marker);
+        return (id, marker, null);
     }
 
     /// <summary>The fixture's own copy of the host's fixed direct-guidance boundary (not read from production at run time): a manifest
@@ -163,10 +227,14 @@ public sealed class ManifestInfo
         return (text, string.Equals(boundary, DirectGuidanceBoundary, StringComparison.Ordinal));
     }
 
-    public static string ClassifyPlan(string steps) =>
-        steps.Contains(RevisedPlanMarker, StringComparison.Ordinal) && !steps.Contains(RootPlanMarker, StringComparison.Ordinal)
-            ? RevisedPlanMarker
-            : steps.Contains(RootPlanMarker, StringComparison.Ordinal) ? RootPlanMarker : "other";
+    /// <summary>The one plan marker the steps carry; text with none, or with more than one, is not a plan this fixture recognizes.</summary>
+    public static string ClassifyPlan(string steps)
+    {
+        var found = new[] { RootPlanMarker, RevisedPlanMarker, FinalPlanMarker }
+            .Where(marker => steps.Contains(marker, StringComparison.Ordinal))
+            .ToArray();
+        return found.Length == 1 ? found[0] : "other";
+    }
 
     public IReadOnlyList<Guid> MessageIds(string arrayProperty)
     {

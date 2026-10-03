@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createJourneyRepository, repositorySnapshot } from '../journey/journeyEnv.ts'
+import { createJourneyRepository, markInvocations, readInvocationLogText, readInvocations, repositorySnapshot } from '../journey/journeyEnv.ts'
 import { normalizeGuidance, sha256Hex } from '../journey/guidance.ts'
-import { planIdentityProblems } from '../journey/planIdentity.ts'
+import { ESCALATED_STAGE_SEQUENCE, escalatedLineageProblems, planIdentityProblems } from '../journey/planIdentity.ts'
+import type { EscalatedLineage } from '../journey/planIdentity.ts'
+import { JourneyData } from '../journey/journeyDb.ts'
 import { registerWithReadinessRetry } from './registrationRetry.ts'
 import type { RegistrationAnswer, RegistrationDriver } from './registrationRetry.ts'
 import type { InvocationEntry } from '../journey/journeyEnv.ts'
@@ -259,5 +262,285 @@ describe('the journey guidance helpers', () => {
   it('hashes the exact UTF-8 text, so the double\'s logged hash can be compared without ever logging the text', () => {
     assert.equal(sha256Hex('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
     assert.notEqual(sha256Hex('abc'), sha256Hex('abc '))
+  })
+})
+
+// ---- the escalated journey: three plans, two rounds, one authorization ----------------------------------------------------------
+
+const E_ROOT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const E_FIRST = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+const E_FINAL = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+const E_REPORT = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
+const E_CHALLENGE_1 = '11111111-1111-1111-1111-111111111111'
+const E_CHALLENGE_2 = '22222222-2222-2222-2222-222222222222'
+const RATIONALE_SHA = sha256Hex('I accept the final plan.')
+const escalated: EscalatedLineage = {
+  rootId: E_ROOT,
+  firstRevisionId: E_FIRST,
+  finalId: E_FINAL,
+  firstChallengeIds: [E_CHALLENGE_1],
+  secondChallengeIds: [E_CHALLENGE_2],
+  authorization: {
+    authorizationId: '33333333-3333-3333-3333-333333333333',
+    escalationMessageId: '44444444-4444-4444-4444-444444444444',
+    instructionMessageId: '55555555-5555-5555-5555-555555555555',
+    rationaleSha256: RATIONALE_SHA,
+  },
+}
+
+function healthyEscalated(): InvocationEntry[] {
+  return [
+    { role: 'codex', kind: 'probe' },
+    { role: 'codex', kind: 'exec', contract: 'Proposal' },
+    { role: 'claude', kind: 'print', contract: 'CriticalReview', planMessageId: E_ROOT, planMarker: 'ROOT-PLAN' },
+    { role: 'codex', kind: 'exec', contract: 'ChallengeResolution', planMessageId: E_ROOT, planMarker: 'ROOT-PLAN', challengeCount: 1 },
+    { role: 'claude', kind: 'probe' },
+    { role: 'claude', kind: 'print', contract: 'CriticalReview', planMessageId: E_FIRST, planMarker: 'REVISED-PLAN' },
+    { role: 'codex', kind: 'exec', contract: 'ChallengeResolution', planMessageId: E_FIRST.toUpperCase(), planMarker: 'REVISED-PLAN', challengeCount: 1 },
+    {
+      role: 'claude',
+      kind: 'print',
+      contract: 'ImplementationReport',
+      planMessageId: E_FINAL,
+      planMarker: 'FINAL-PLAN',
+      authorizationId: escalated.authorization.authorizationId,
+      escalationMessageId: escalated.authorization.escalationMessageId,
+      instructionMessageId: escalated.authorization.instructionMessageId,
+      rationaleSha256: RATIONALE_SHA,
+      decisionCount: 1,
+      decisionChallengeIds: E_CHALLENGE_2,
+    },
+    { role: 'verify', kind: 'check', outcome: 'failed' },
+    { role: 'codex', kind: 'exec', contract: 'VerificationDiagnosis', planMessageId: E_FINAL, planMarker: 'FINAL-PLAN', reportMessageId: E_REPORT },
+    { role: 'claude', kind: 'print', contract: 'ReviewCorrection', findingCount: 1, reportMessageId: E_REPORT },
+    { role: 'verify', kind: 'check', outcome: 'passed' },
+    { role: 'codex', kind: 'exec', contract: 'ImplementationReview', planMessageId: E_FINAL, planMarker: 'FINAL-PLAN', reportMessageId: E_REPORT },
+  ]
+}
+
+const withEntry = (entries: InvocationEntry[], index: number, change: Partial<InvocationEntry>) =>
+  entries.map((entry, position) => (position === index ? { ...entry, ...change } : entry))
+const indexOfContract = (entries: InvocationEntry[], contract: string, occurrence = 0) =>
+  entries.map((entry, position) => ({ entry, position })).filter(({ entry }) => entry.contract === contract)[occurrence].position
+
+describe('the escalated-lineage judge', () => {
+  it('accepts the complete escalated journey, whatever the GUID casing, ignoring capability probes', () => {
+    assert.deepEqual(escalatedLineageProblems(healthyEscalated(), escalated), [])
+    assert.equal(healthyEscalated().filter((entry) => entry.kind !== 'probe').length, ESCALATED_STAGE_SEQUENCE.length)
+  })
+
+  it('detects the Planner root substituted for the final plan in each plan-bearing stage', () => {
+    for (const contract of ['ImplementationReport', 'VerificationDiagnosis', 'ImplementationReview']) {
+      const entries = healthyEscalated()
+      const problems = escalatedLineageProblems(withEntry(entries, indexOfContract(entries, contract), { planMessageId: E_ROOT, planMarker: 'ROOT-PLAN' }), escalated)
+      assert.match(problems.join(' | '), /Planner root instead of the revised Proposal/, contract)
+    }
+  })
+
+  it('detects the intermediate first revision substituted for the final plan in each plan-bearing stage', () => {
+    for (const contract of ['ImplementationReport', 'VerificationDiagnosis', 'ImplementationReview']) {
+      const entries = healthyEscalated()
+      const problems = escalatedLineageProblems(withEntry(entries, indexOfContract(entries, contract), { planMessageId: E_FIRST, planMarker: 'REVISED-PLAN' }), escalated)
+      assert.match(problems.join(' | '), /intermediate revision instead of the implemented Proposal/, contract)
+      assert.match(problems.join(' | '), /did not see the revised plan's content/, contract)
+    }
+  })
+
+  it('detects a final plan whose identity is right but whose content is not the final plan, and the reverse', () => {
+    const entries = healthyEscalated()
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, indexOfContract(entries, 'VerificationDiagnosis'), { planMarker: 'REVISED-PLAN' }), escalated).join(' | '),
+      /did not see the revised plan's content/,
+    )
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, indexOfContract(entries, 'ImplementationReview'), { planMessageId: '99999999-9999-9999-9999-999999999999' }), escalated).join(' | '),
+      /neither the revised Proposal nor the Planner root/,
+    )
+  })
+
+  it('detects a missing stage, an extra implementation, a repeated review and a reordered sequence', () => {
+    const entries = healthyEscalated()
+    for (const contract of ['CriticalReview', 'ChallengeResolution', 'ImplementationReport', 'VerificationDiagnosis', 'ReviewCorrection', 'ImplementationReview']) {
+      const without = entries.filter((_, position) => position !== indexOfContract(entries, contract, contract === 'CriticalReview' || contract === 'ChallengeResolution' ? 1 : 0))
+      assert.match(escalatedLineageProblems(without, escalated).join(' | '), /stage sequence/, contract)
+    }
+    const implementation = entries.find((entry) => entry.contract === 'ImplementationReport')!
+    assert.match(escalatedLineageProblems([...entries, implementation], escalated).join(' | '), /stage sequence/)
+    const reordered = [...entries]
+    const [first, second] = [indexOfContract(entries, 'VerificationDiagnosis'), indexOfContract(entries, 'ReviewCorrection')]
+    ;[reordered[first], reordered[second]] = [reordered[second], reordered[first]]
+    assert.match(escalatedLineageProblems(reordered, escalated).join(' | '), /stage sequence/)
+  })
+
+  it('detects a verification that was not Failed and then Passed', () => {
+    const entries = healthyEscalated()
+    const passedFirst = entries.map((entry) => (entry.contract === undefined && entry.role === 'verify' ? { ...entry, outcome: entry.outcome === 'failed' ? 'passed' : 'failed' } : entry))
+    assert.match(escalatedLineageProblems(passedFirst, escalated).join(' | '), /stage sequence/)
+  })
+
+  it('detects each round working on the wrong proposal or the wrong number of challenges', () => {
+    const entries = healthyEscalated()
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, indexOfContract(entries, 'CriticalReview', 1), { planMessageId: E_ROOT, planMarker: 'ROOT-PLAN' }), escalated).join(' | '),
+      /second round review did not work on its own proposal/,
+    )
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, indexOfContract(entries, 'ChallengeResolution', 0), { planMessageId: E_FIRST, planMarker: 'REVISED-PLAN' }), escalated).join(' | '),
+      /first round resolution did not work on its own proposal/,
+    )
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, indexOfContract(entries, 'ChallengeResolution', 1), { challengeCount: 2 }), escalated).join(' | '),
+      /second round resolution did not receive exactly its own challenges/,
+    )
+  })
+
+  it('detects an authorization fact that differs from the recorded one, or that reached any other stage', () => {
+    const entries = healthyEscalated()
+    const implementation = indexOfContract(entries, 'ImplementationReport')
+    const changes: Partial<InvocationEntry>[] = [
+      { authorizationId: '99999999-9999-9999-9999-999999999999' },
+      { escalationMessageId: '99999999-9999-9999-9999-999999999999' },
+      { instructionMessageId: '99999999-9999-9999-9999-999999999999' },
+      { rationaleSha256: sha256Hex('another reason') },
+      { authorizationId: undefined },
+    ]
+    for (const change of changes) {
+      assert.match(escalatedLineageProblems(withEntry(entries, implementation, change), escalated).join(' | '), /exactly the recorded human authorization/, JSON.stringify(change))
+    }
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, implementation, { decisionCount: 2 }), escalated).join(' | '),
+      /exactly the ordered second-round decisions/,
+    )
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, implementation, { decisionChallengeIds: E_CHALLENGE_1 }), escalated).join(' | '),
+      /exactly the ordered second-round decisions/,
+    )
+    assert.match(
+      escalatedLineageProblems(withEntry(entries, indexOfContract(entries, 'ImplementationReview'), { rationaleSha256: RATIONALE_SHA }), escalated).join(' | '),
+      /reached a stage other than the implementation/,
+    )
+  })
+
+  it('refuses to discriminate when two of the three plans are the same message', () => {
+    const entries = healthyEscalated()
+    assert.match(escalatedLineageProblems(entries, { ...escalated, firstRevisionId: E_FINAL }).join(' | '), /three distinct messages/)
+    assert.match(escalatedLineageProblems(entries, { ...escalated, rootId: E_FIRST }).join(' | '), /three distinct messages/)
+  })
+})
+
+describe('the journey data scope and the invocation interval', () => {
+  const owned = createOwnedRoot()
+  created.push(owned.root)
+
+  function withOwnedRoot<T>(run: () => T): T {
+    const previous = { root: process.env[ROOT_ENV], token: process.env[TOKEN_ENV] }
+    process.env[ROOT_ENV] = owned.root
+    process.env[TOKEN_ENV] = owned.token
+    try {
+      return run()
+    } finally {
+      process.env[ROOT_ENV] = previous.root
+      process.env[TOKEN_ENV] = previous.token
+    }
+  }
+
+  function seedTwoJourneys(firstProject: string, secondProject: string) {
+    mkdirSync(join(owned.root, 'db'), { recursive: true })
+    const db = new DatabaseSync(join(owned.root, 'db', 'journey.db'))
+    db.exec(`
+      create table projects (Id text, Name text);
+      create table runs (Id text, ProjectId text, MaximumAgentAttempts integer, MaximumReviewCorrectionAttempts integer, Lifecycle text);
+      create table git_workspaces (Id text, ProjectId text, WorkspacePath text);
+      create table git_checkpoints (Id text, WorkspaceId text, CheckpointNumber integer, HeadCommitSha text, FingerprintSha256 text);
+      create table attempts (Id text, RunId text, AttemptNumber integer, AgentRole text, AgentResponseContract text, AgentOutcome text, Status text, AgentBudgetSlot integer, AgentDirectHumanGuidance text);
+      create table collaboration_messages (Id text, RunId text, AttemptId text, Type text, InReplyToMessageId text, Summary text, Sequence integer, StructuredContentJson text, Provenance text);
+      create table attempt_input_messages (AttemptId text, CollaborationMessageId text, Sequence integer);
+      create table verification_executions (Id text, ProjectId text, ExecutionNumber integer, Status text, ExitCode integer, GitCheckpointId text, CompletionFingerprintSha256 text);
+      create table checkpoint_reviews (Id text, ProjectId text, GitCheckpointId text, CheckpointNumber integer, CheckpointFingerprintSha256 text, ActorKind text, Decision text, RecordedAtUtcTicks integer);
+      create table checkpoint_review_evidence (CheckpointReviewId text, VerificationExecutionId text, VerificationExecutionNumber integer, VerificationExecutionCheckpointFingerprintSha256 text, VerificationExecutionStatus text, VerificationExecutionExitCode integer);
+      create table planning_implementation_authorizations (Id text, RunId text, EscalationMessageId text, FinalProposalMessageId text, HumanInstructionMessageId text, ConsumedByAttemptId text);
+      create table artifacts (Id text, RunId text, AttemptId text, Purpose text, ContentHash text, ByteLength integer);
+    `)
+    for (const [index, name] of [firstProject, secondProject].entries()) {
+      const tag = `p${index}`
+      db.prepare('insert into projects values (?, ?)').run(tag, name)
+      db.prepare('insert into runs values (?, ?, 16, 2, ?)').run(`run-${tag}`, tag, 'Running')
+      db.prepare('insert into git_workspaces values (?, ?, ?)').run(`ws-${tag}`, tag, `C:\\root\\workspaces\\${tag}\\1`)
+      for (let number = 1; number <= index + 1; number += 1) {
+        db.prepare('insert into git_checkpoints values (?, ?, ?, ?, ?)').run(`cp-${tag}-${number}`, `ws-${tag}`, number, 'head', `fp-${tag}-${number}`)
+        db.prepare('insert into attempts values (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(`at-${tag}-${number}`, `run-${tag}`, number, 'Planner', 'Proposal', 'Proposed', 'Completed', number, null)
+        db.prepare('insert into collaboration_messages values (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(`m-${tag}-${number}`, `run-${tag}`, `at-${tag}-${number}`, 'Proposal', null, `Plan ${tag}`, number, '{}', 'ProviderObserved')
+        db.prepare('insert into attempt_input_messages values (?, ?, ?)').run(`at-${tag}-${number}`, `m-${tag}-${number}`, 0)
+        db.prepare('insert into verification_executions values (?, ?, ?, ?, ?, ?, ?)').run(`ex-${tag}-${number}`, tag, number, 'Passed', 0, `cp-${tag}-${number}`, `fp-${tag}-${number}`)
+        db.prepare('insert into checkpoint_reviews values (?, ?, ?, ?, ?, ?, ?, ?)').run(`rv-${tag}-${number}`, tag, `cp-${tag}-${number}`, number, `fp-${tag}-${number}`, 'Human', 'Approved', number)
+        db.prepare('insert into checkpoint_review_evidence values (?, ?, ?, ?, ?, ?)').run(`rv-${tag}-${number}`, `ex-${tag}-${number}`, number, `fp-${tag}-${number}`, 'Passed', 0)
+        db.prepare('insert into artifacts values (?, ?, ?, ?, ?, ?)').run(`ar-${tag}-${number}`, `run-${tag}`, `at-${tag}-${number}`, 'AgentContextManifest', 'hash', 10)
+      }
+      db.prepare('insert into planning_implementation_authorizations values (?, ?, ?, ?, ?, ?)').run(`gr-${tag}`, `run-${tag}`, 'esc', 'final', 'ins', null)
+    }
+    db.close()
+  }
+
+  it('reads only the rows of its own project, run and workspace, whichever journey was registered first', () => {
+    seedTwoJourneys('Ordinary journey', 'Escalated journey')
+    withOwnedRoot(() => {
+      const ordinary = new JourneyData('Ordinary journey')
+      const escalatedData = new JourneyData('Escalated journey')
+
+      assert.equal(ordinary.runId(), 'run-p0')
+      assert.equal(escalatedData.runId(), 'run-p1')
+      assert.equal(ordinary.workspace().Id, 'ws-p0')
+      assert.equal(escalatedData.workspace().WorkspacePath, String.raw`C:\root\workspaces\p1\1`)
+      assert.deepEqual(ordinary.attempts().map((row) => row.Id), ['at-p0-1'])
+      assert.deepEqual(escalatedData.attempts().map((row) => row.Id), ['at-p1-1', 'at-p1-2'])
+      assert.deepEqual(escalatedData.checkpoints().map((row) => row.Id), ['cp-p1-1', 'cp-p1-2'])
+      assert.deepEqual(ordinary.executions().map((row) => row.Id), ['ex-p0-1'])
+      assert.deepEqual(escalatedData.executions().map((row) => row.Id), ['ex-p1-1', 'ex-p1-2'])
+      assert.deepEqual(ordinary.messages().map((row) => row.Id), ['m-p0-1'])
+      assert.deepEqual(escalatedData.messages().map((row) => row.Id), ['m-p1-1', 'm-p1-2'])
+      assert.deepEqual(ordinary.checkpointReviews().map((row) => row.Id), ['rv-p0-1'])
+      assert.deepEqual(escalatedData.checkpointReviewEvidence().map((row) => row.CheckpointReviewId), ['rv-p1-1', 'rv-p1-2'])
+      assert.deepEqual(escalatedData.planningAuthorizations().map((row) => row.Id), ['gr-p1'])
+      assert.deepEqual(ordinary.manifestArtifacts().map((row) => row.AttemptId), ['at-p0-1'])
+      assert.deepEqual(escalatedData.inputsOf('at-p1-1').map((row) => row.CollaborationMessageId), ['m-p1-1'])
+      assert.deepEqual(ordinary.inputsOf('at-p1-1'), []) // another journey's attempt is never visible through this scope
+      assert.equal(ordinary.runLimits().MaximumAgentAttempts, 16)
+    })
+  })
+
+  it('fails loudly instead of guessing when a scope matches no project or more than one', () => {
+    withOwnedRoot(() => {
+      assert.throws(() => new JourneyData('No such journey').runId(), /exactly one row/)
+      const db = new DatabaseSync(join(owned.root, 'db', 'journey.db'))
+      db.prepare('insert into projects values (?, ?)').run('p9', 'Ordinary journey')
+      db.close()
+      assert.throws(() => new JourneyData('Ordinary journey').projectId(), /exactly one row/)
+    })
+  })
+
+  it('reads only the doubles\' log entries written after the journey began', () => {
+    const root = createOwnedRoot()
+    created.push(root.root)
+    const previous = { root: process.env[ROOT_ENV], token: process.env[TOKEN_ENV] }
+    process.env[ROOT_ENV] = root.root
+    process.env[TOKEN_ENV] = root.token
+    try {
+      assert.equal(markInvocations(), 0) // no log yet
+      mkdirSync(join(root.root, 'fixture'), { recursive: true })
+      const log = join(root.root, 'fixture', 'invocations.jsonl')
+      writeFileSync(log, `${JSON.stringify({ role: 'codex', kind: 'exec', contract: 'Proposal' })}\n${JSON.stringify({ role: 'verify', kind: 'check', outcome: 'failed' })}\n`)
+      const mark = markInvocations()
+      assert.equal(mark, 2)
+      assert.deepEqual(readInvocations(mark), [])
+      assert.equal(readInvocationLogText(mark), '')
+      appendFileSync(log, `${JSON.stringify({ role: 'claude', kind: 'print', contract: 'CriticalReview', planMarker: 'ROOT-PLAN' })}\n`)
+      assert.deepEqual(readInvocations(mark).map((entry) => entry.contract), ['CriticalReview'])
+      assert.match(readInvocationLogText(mark), /CriticalReview/)
+      assert.doesNotMatch(readInvocationLogText(mark), /Proposal/)
+      assert.deepEqual(readInvocations(0).map((entry) => entry.contract ?? entry.outcome), ['Proposal', 'failed', 'CriticalReview'])
+    } finally {
+      process.env[ROOT_ENV] = previous.root
+      process.env[TOKEN_ENV] = previous.token
+    }
   })
 })

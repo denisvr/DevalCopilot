@@ -83,23 +83,43 @@ export interface InvocationEntry {
   outcome?: string
   guidanceSha256?: string
   guidanceBoundary?: string
+  authorizationId?: string
+  escalationMessageId?: string
+  instructionMessageId?: string
+  rationaleSha256?: string
+  decisionCount?: number
+  decisionChallengeIds?: string
 }
 
-/** The doubles' invocation log exactly as written, for a check that something never appears in it. */
-export function readInvocationLogText(): string {
+function invocationLines(): string[] {
   const path = join(journeyRoot().root, 'fixture', 'invocations.jsonl')
-  return existsSync(path) ? readFileSync(path, 'utf8') : ''
+  return existsSync(path)
+    ? readFileSync(path, 'utf8')
+        .split('\n')
+        .filter((line) => line.length > 0)
+    : []
 }
 
-/** The doubles' allowlisted invocation evidence, in order (see the provider fixture's invocation log). */
-export function readInvocations(): InvocationEntry[] {
-  const path = join(journeyRoot().root, 'fixture', 'invocations.jsonl')
-  if (!existsSync(path)) {
-    return []
-  }
-  return readFileSync(path, 'utf8')
-    .split('\n')
-    .filter((line) => line.length > 0)
+/**
+ * The start of one journey's own interval of the doubles' append-only invocation log: the number of entries already written when the
+ * journey began (another journey that ran earlier, in this run or an earlier test of it, is before the mark and never read). The
+ * journeys of a run execute one after the other on the same host, so everything after the mark is this journey's.
+ */
+export type InvocationMark = number
+
+export function markInvocations(): InvocationMark {
+  return invocationLines().length
+}
+
+/** The invocation log text of the interval after the mark, exactly as written, for a check that something never appears in it. */
+export function readInvocationLogText(since: InvocationMark): string {
+  return invocationLines().slice(since).join('\n')
+}
+
+/** The doubles' allowlisted invocation evidence of the interval after the mark, in order (see the provider fixture's invocation log). */
+export function readInvocations(since: InvocationMark): InvocationEntry[] {
+  return invocationLines()
+    .slice(since)
     .map((line) => JSON.parse(line) as InvocationEntry)
 }
 

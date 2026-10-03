@@ -24,11 +24,13 @@ supersedes it.
 - [ADR-0015: Add direct human guidance to explicit mutation requests](0015-add-direct-human-guidance-to-explicit-mutation-requests.md)
   (its request scope is narrowly extended to the diagnosis-origin correction by ADR-0019)
 - [ADR-0016: Add explicit human authorization of one escalated-plan implementation](0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)
-  (its preservation of the ordinary first-revision review target is narrowly superseded by ADR-0017)
+  (its preservation of the ordinary first-revision review target is narrowly superseded by ADR-0017, and its
+  single-source-text-form requirement by ADR-0020)
 - [ADR-0017: Review the implemented plan through correction](0017-review-the-implemented-plan-through-correction.md)
 - [ADR-0018: Add explicit local verification failure diagnosis and bounded correction](0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md)
   (its correction request narrowly accepts optional direct human guidance under ADR-0019)
 - [ADR-0019: Add direct human guidance to diagnosis-origin corrections](0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md)
+- [ADR-0020: Correct the escalation explanation and accept its two canonical forms](0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)
 
 ## Status values
 

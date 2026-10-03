@@ -10,6 +10,24 @@ namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 /// </summary>
 public static class ResponseFactory
 {
+    /// <summary>The summary and content of the one Decision of the final (second) resolution. The authorized implementation checks
+    /// that the Decisions it was given are exactly these, so an earlier round's Decision can never stand in for them.</summary>
+    public const string FinalDecisionSummary = "Accept the operand-order challenge.";
+
+    private const string FinalDecisionResolution = "accepted";
+    private const string FinalDecisionRationale = "Naming that either operand order is acceptable removes the ambiguity.";
+    private const string FinalDecisionPlanChanges = "The plan now replaces only the return statement of Total.";
+    private const string FinalDecisionNextAction = "Implement the final plan once a human authorizes it.";
+
+    public static bool IsFinalDecisionContent(JsonElement content) =>
+        Text(content, "resolution") == FinalDecisionResolution
+        && Text(content, "rationale") == FinalDecisionRationale
+        && Text(content, "resultingPlanChanges") == FinalDecisionPlanChanges
+        && Text(content, "nextAction") == FinalDecisionNextAction;
+
+    private static string? Text(JsonElement content, string name) =>
+        content.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
     public static string RootProposal() => Serialize(new JsonObject
     {
         ["summary"] = "Rebuild the ledger total through a lookup table.",
@@ -20,6 +38,7 @@ public static class ResponseFactory
         ["escalationPoints"] = "None expected.",
     });
 
+    /// <summary>The first critical review, of the Planner root.</summary>
     public static string Challenge() => Serialize(new JsonObject
     {
         ["decision"] = "challenge",
@@ -34,7 +53,62 @@ public static class ResponseFactory
         }),
     });
 
-    public static string Resolution(IReadOnlyList<Guid> challengeIds)
+    /// <summary>The second critical review, of the first revision: a materially different concern from the first.</summary>
+    public static string SecondChallenge() => Serialize(new JsonObject
+    {
+        ["decision"] = "challenge",
+        ["summary"] = "The revised plan leaves the operand order unspecified.",
+        ["challenges"] = new JsonArray(new JsonObject
+        {
+            ["summary"] = "The revised plan never says whether operand order matters.",
+            ["disputedItem"] = "The step says only that Total returns the sum of its operands.",
+            ["materialImpact"] = "An implementer cannot tell whether reordering the operands is an acceptable edit.",
+            ["reasoning"] = "Integer addition does not depend on operand order, so the plan should say so and keep the edit to one statement.",
+            ["alternativeOrQuestion"] = "State that either operand order is acceptable and that only the return statement changes.",
+        }),
+    });
+
+    /// <summary>The first resolution, of the Planner root: the first revision.</summary>
+    public static string Resolution(IReadOnlyList<Guid> challengeIds) => Resolve(
+        challengeIds,
+        "Accept the challenge.",
+        "A lookup table would duplicate the real calculation.",
+        "The scope moves to the Feature file.",
+        "Implement the revised plan.",
+        new JsonObject
+        {
+            ["summary"] = "Implement the total in the Feature file.",
+            ["scope"] = "Make Total in src/Feature.cs add its two operands and touch no other file.",
+            ["implementationSteps"] = ManifestInfo.RevisedPlanMarker + ": edit src/Feature.cs so Total returns the sum of left and right.",
+            ["risks"] = "A wrong edit changes every total.",
+            ["verificationPlan"] = "Run the configured verification command against the edited file.",
+            ["escalationPoints"] = "None expected.",
+        });
+
+    /// <summary>The second and last resolution, of the first revision: the final revision, distinguishable from both earlier plans.</summary>
+    public static string FinalResolution(IReadOnlyList<Guid> challengeIds) => Resolve(
+        challengeIds,
+        FinalDecisionSummary,
+        FinalDecisionRationale,
+        FinalDecisionPlanChanges,
+        FinalDecisionNextAction,
+        new JsonObject
+        {
+            ["summary"] = "Implement the total as one return statement.",
+            ["scope"] = "Replace only the return statement of Total in src/Feature.cs with one that returns the sum, and touch no other file.",
+            ["implementationSteps"] = ManifestInfo.FinalPlanMarker + ": replace only the return statement of Total in src/Feature.cs so it returns left plus right.",
+            ["risks"] = "A wrong edit changes every total.",
+            ["verificationPlan"] = "Run the configured verification command against the single edited statement.",
+            ["escalationPoints"] = "None expected.",
+        });
+
+    private static string Resolve(
+        IReadOnlyList<Guid> challengeIds,
+        string summary,
+        string rationale,
+        string planChanges,
+        string nextAction,
+        JsonObject revisedProposal)
     {
         var decisions = new JsonArray();
         foreach (var id in challengeIds)
@@ -42,11 +116,11 @@ public static class ResponseFactory
             decisions.Add(new JsonObject
             {
                 ["challengeMessageId"] = id.ToString(),
-                ["summary"] = "Accept the challenge.",
+                ["summary"] = summary,
                 ["resolution"] = "accepted",
-                ["rationale"] = "A lookup table would duplicate the real calculation.",
-                ["resultingPlanChanges"] = "The scope moves to the Feature file.",
-                ["nextAction"] = "Implement the revised plan.",
+                ["rationale"] = rationale,
+                ["resultingPlanChanges"] = planChanges,
+                ["nextAction"] = nextAction,
             });
         }
 
@@ -54,23 +128,18 @@ public static class ResponseFactory
         {
             ["summary"] = "The challenge is accepted and the plan is narrowed.",
             ["decisions"] = decisions,
-            ["revisedProposal"] = new JsonObject
-            {
-                ["summary"] = "Implement the total in the Feature file.",
-                ["scope"] = "Make Total in src/Feature.cs add its two operands and touch no other file.",
-                ["implementationSteps"] = ManifestInfo.RevisedPlanMarker + ": edit src/Feature.cs so Total returns the sum of left and right.",
-                ["risks"] = "A wrong edit changes every total.",
-                ["verificationPlan"] = "Run the configured verification command against the edited file.",
-                ["escalationPoints"] = "None expected.",
-            },
+            ["revisedProposal"] = revisedProposal,
         });
     }
 
-    public static string ImplementationReport() => Serialize(new JsonObject
+    /// <summary>The report names the plan the implementation was given, so the recorded report is distinguishable per plan.</summary>
+    public static string ImplementationReport(string planMarker) => Serialize(new JsonObject
     {
         ["summary"] = "Implemented Total in the Feature file.",
         ["changedRelativePaths"] = new JsonArray(OwnedLocation.CandidateRelativePath),
-        ["implementationNotes"] = "Implemented the revised plan in the single named file.",
+        ["implementationNotes"] = planMarker == ManifestInfo.FinalPlanMarker
+            ? "Implemented the final plan in the single named file."
+            : "Implemented the revised plan in the single named file.",
         ["unexpectedDiscoveries"] = "None.",
         ["remainingRisks"] = "Local verification has not been run.",
         ["recommendedVerification"] = "Run the configured verification command.",
@@ -121,10 +190,13 @@ public static class ResponseFactory
         });
     }
 
-    public static string ReviewApproved() => Serialize(new JsonObject
+    /// <summary>The approval names the plan it judged, so the recorded approval is distinguishable per plan.</summary>
+    public static string ReviewApproved(string planMarker) => Serialize(new JsonObject
     {
         ["outcome"] = "approved",
-        ["summary"] = "The implementation matches the revised plan.",
+        ["summary"] = planMarker == ManifestInfo.FinalPlanMarker
+            ? "The implementation matches the final plan."
+            : "The implementation matches the revised plan.",
         ["rationale"] = "Total adds its operands and the local verification passed.",
         ["residualRisks"] = "None material.",
         ["findings"] = new JsonArray(),

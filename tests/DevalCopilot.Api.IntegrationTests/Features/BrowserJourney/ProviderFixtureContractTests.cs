@@ -14,7 +14,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.BrowserJourney;
 /// their ownership checks. A double that accepted an unfamiliar argument, edited outside an owned worktree, or passed without the
 /// correction edit would let the journey prove nothing, so each of those is pinned here.
 /// </summary>
-public sealed class ProviderFixtureContractTests : IDisposable
+public sealed partial class ProviderFixtureContractTests : IDisposable
 {
     private const int Unsupported = 64;
     private const int OwnershipRefused = 65;
@@ -158,9 +158,25 @@ public sealed class ProviderFixtureContractTests : IDisposable
     private static IEnumerable<string> MutatingClaude(string contract, params string[] extra) =>
         ClaudePrint(contract, "Read,Edit,Write,Glob,Grep", "acceptEdits", extra);
 
+    private static JsonObject ProposalUnder(string steps, Guid? id = null) => new()
+    {
+        ["messageId"] = (id ?? Guid.NewGuid()).ToString(),
+        ["structuredContent"] = new JsonObject { ["implementationSteps"] = steps },
+    };
+
     private static string Manifest(string contract, string? steps = null, object[]? findings = null)
     {
         var root = new JsonObject { ["expectedResponseContract"] = contract };
+        // The proposal a challenge round works on: the Planner root unless a test names another.
+        if (contract == "ChallengeResolution")
+        {
+            root["originalProposal"] = ProposalUnder(RootSteps);
+        }
+        else if (contract == "CriticalReview")
+        {
+            root["reviewedProposal"] = ProposalUnder(RootSteps);
+        }
+
         if (steps is not null)
         {
             root["resolvedPlan"] = new JsonObject
@@ -383,7 +399,7 @@ public sealed class ProviderFixtureContractTests : IDisposable
         Assert.DoesNotContain(_root, log, StringComparison.OrdinalIgnoreCase);
         foreach (var line in log.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            var allowed = new[] { "role", "kind", "contract", "planMessageId", "planMarker", "reportMessageId", "findingCount", "challengeCount", "changedPath", "outcome", "guidanceSha256", "guidanceBoundary" };
+            var allowed = new[] { "role", "kind", "contract", "planMessageId", "planMarker", "reportMessageId", "findingCount", "challengeCount", "changedPath", "outcome", "guidanceSha256", "guidanceBoundary", "authorizationId", "escalationMessageId", "instructionMessageId", "rationaleSha256", "decisionCount", "decisionChallengeIds" };
             Assert.All(JsonNode.Parse(line)!.AsObject().Select(property => property.Key), key => Assert.Contains(key, allowed));
         }
     }
@@ -396,6 +412,7 @@ public sealed class ProviderFixtureContractTests : IDisposable
         "ChallengeResolution" => new JsonObject
         {
             ["expectedResponseContract"] = contract,
+            ["originalProposal"] = ProposalUnder(RootSteps),
             ["challenges"] = new JsonArray(new JsonObject { ["messageId"] = Guid.NewGuid().ToString() }),
         }.ToJsonString(),
         "VerificationDiagnosis" => PlanBearingManifest(contract, "the failed output carries TOTAL-NOT-SUM"),

@@ -5,225 +5,236 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md), the
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Selected slice (2026-10-03): trustworthy explicit local verification
+## Selected slice (2026-10-03): an escalated final plan reaches a reviewed candidate
 
-### Current review decision (2026-10-03): GO for the complete corrected diff
+### Final review decision: GO for the reviewed 37-path snapshot
 
-- Codex accepts R1–R3 and gives publication GO for the complete corrected explicit-
-  local-verification slice: 26 modified tracked files and nine untracked files,
-  exactly 35, including this planner record and current-work.md. Claude publishes
-  in the same executor chat. No next slice is selected; Increment 4 remains open.
+- R1, R2 and R3 are accepted within this same selected slice. GO authorizes the
+  reviewed substantive commit and normal fast-forward publication on main, then
+  a separately bounded current-work-only factual closure after required checks.
+  It is not next-slice selection or Increment 4 completion. Material changes
+  after this GO return for review before commit/push.
 - Independently verified main, HEAD, local origin/main and live refs/heads/main at
-  4ec68bd9143d426ccb2a746732db4a6fa22e1b1d; empty index. The executor preserved
-  the preceding NO-GO at SHA-256
-  61755ef9b5b217045bc86e14aaa51065a02f39f637d5cbe869c1aa2bd185fdf0.
-  Raw-file hash comparison proves that the correction changed only the panel,
-  cockpit specification and current-work entry, and added its ownership test.
-  Backend, backend tests, generated client and browser contracts are unchanged.
-- Claim transaction/fresh counter, dispatch snapshot/authority and guarded
-  SourceChanged agree with the selected architecture. Accept gitWorkspaceId on
-  both execution and Git evidence responses; the latter is a necessary additive
-  ownership projection. No blocking functional or architectural finding remains.
-- R1: a confirmed earlier workspace's Running fact remains visible as history but
-  no longer disables its recipe or labels its control Pending/Running. Unknown
-  ownership stays conservative; current-workspace Running still blocks every recipe.
-- R2: synchronous duplicate protection belongs to the committed lifetime and the
-  exact request. Unkeyed A-to-B-to-A can start its own request; A's obsolete finally
-  cannot release B's guard or refresh/report for B. Same-lifetime duplicates send once.
-- R3: the unknown-outcome boundary uses the generation current when the failure
-  becomes known. Earlier settled or pending refreshes cannot discharge it; only
-  a later explicit successful read does. Acknowledgment is recorded so a later
-  pending/failed read does not revive it. Accepted/refused outcomes remain truthful.
-- The executor's 16 permanent ownership cases failed 10/16 against the submitted
-  panel, with six positive controls, then passed. They cover the exact three
-  independently reproduced defects, including parent-key independence and obsolete
-  completion ordering. Preserve both this red/green evidence and earlier failures.
-- Fresh independent correction checks: full Vitest 1786/1786 in 132 files;
-  typecheck and production build clean; lint nine warnings/zero errors; harness
-  40/40; canonical test:e2e:all Chromium 11/11 and guided journey 1/1 after harness,
-  normal authentication/composition/all supervisors, no skips or reruns. The browser
-  command ran outside the sandbox for the known Windows Event Log requirement,
-  with no host or authentication bypass. SignalR negotiation and chunk notices remain.
-- Prior independent backend evidence is retained on the byte-identical backend:
-  solution build/NSwag zero warnings/errors, Application claim/seam/dispatch filter
-  94/94, Infrastructure transaction boundary 7/7, Api supervisor/endpoints 40/40,
-  Architecture 9/9. Full backend suites, audits and formatter comparison remain
-  separately labelled executor evidence. No formatter cleanliness or real-provider
-  reliability is claimed. Changed-file text hygiene and local file links are clean.
-- Generated api-client.ts SHA-256 remains
-  13c9d116ecc792e05e2652f470ceff3c73bfc574c2fb348157dc7d5440dac44a.
-  Codex edited only this planner record during re-review; implementation, tests
-  and current-work.md were unchanged. The publication prompt supplies final
-  planner/current-work hashes and the exact reviewed inventory.
-- GO covers one bounded publication sequence: verify this baseline, empty index,
-  exact 35-file inventory and supplied hashes; stage only those reviewed paths,
-  inspect staged diff/hygiene, commit with parent 4ec68bd, push main normally to
-  origin/main, fetch and verify HEAD, local origin/main and live refs/heads/main
-  equal the substantive SHA, with a clean checkout. Preserve this GO byte-for-byte.
-- Run the publication prompt's checks sequentially on that SHA. Stop on failure,
-  changed implementation/refs, a failed push or material change, and preserve the
-  evidence. No force push, amend, history reconciliation or unreviewed correction.
-- Only after all publication checks pass, make a separate factual closure touching
-  current-work.md alone: substantive SHA, verified publication, commands/results,
-  fresh versus retained evidence and remaining limits. Preserve earlier failures;
-  embed no closure self-SHA. Push normally and verify all three refs and clean tree
-  again; report both SHAs and parents. Material post-GO changes return for review.
-  This GO grants no next-slice work or Increment 4 completion.
-### Verified baseline and judgment
+  7cc361886eaf7bd6fad07292da401b98ff1c91a4, empty index, 28 modified tracked
+  files and 9 untracked files (37 paths). The executor preserved the R3 review
+  record at db9ebde79c70adf2ae30358082799cab022634463ce9bc377a6f54daf67ae83a.
+  The generated client remains at the baseline hash below. No publication has
+  occurred. A separate temporary SHA-256 manifest binds this GO to all 37 paths,
+  including this final planner edit; the publication prompt supplies its path.
+- The current escalation accurately describes durable claim consumption, accepts
+  only its corrected current form or the unchanged whole legacy serialization,
+  and leaves authority, budgets and persistence behavior intact. The new policy
+  and enum follow the required ownership/file organization. The native journey
+  carries the distinct final plan through explicit authorization, implementation,
+  failed verification, guided diagnosis correction, passed verification and
+  separate Agent/Human approvals, preserving ordinary and historical paths.
+- R3 removes the fulfill catch. Genuine failures are recorded, reach Playwright
+  and reject shutdown. The fake now models both callback and route settlement.
+  Actual Chromium regressions prove normal/cancelled delivery and the deliberately
+  injected failure. The diagnostic child uses Node's warning mode to retain the
+  intentionally rejected handler's stderr while printing its outcome; the parent
+  asserts that error, recorded count and rejected shutdown. This isolated
+  expected-failure experiment changes no normal fixture, parent runner, canonical
+  browser command, authentication or host composition, and adds no global observer.
+- Independent R3-tree checks: harness 58/58 including all 12 gate cases;
+  npm typecheck clean; strict standalone tsc over 12 changed/new e2e sources plus
+  the two relevant existing specs clean; lint 9 baseline warnings, no errors;
+  one canonical test:e2e:all execution after the harness passed: Chromium 11/11
+  then journeys 2/2, normal authentication/composition and all supervisors,
+  no failures, skips or reruns. The first reviewer standalone tsc invocation
+  lacked TypeScript 6's ignoreConfig option and returned TS5112; correcting that
+  command, with no repository change, produced the reported successful check.
+- Independent unchanged-backend evidence from the preceding re-review remains
+  applicable: build 0 warnings/0 errors, Application planning/authorization
+  197/197, hosted/fixture API 113/113 and Architecture 9/9. Executor full suites,
+  frontend Vitest/build, audits and formatter comparison remain separately
+  attributed in current-work.md; they were not rerun merely for R3.
+  Tracked diff and complete 37-path NUL/trailing-whitespace checks are clean;
+  209 local Markdown file links resolve (the reviewer did not recheck anchors).
+  The new browser run removed its own roots; only the two known older roots remain.
+- The original teardown timeout's historical cause/event order remains unknown;
+  its failed run and unchanged green rerun are preserved. Correcting a reproduced
+  mechanism and passing these checks does not promise the timeout cannot recur.
+  Doubles prove local contract agreement, not real-provider reliability. The
+  serial invocation interval, fixture visibility and displayed-summary limits
+  remain as documented. No historical row or sealed artifact is rewritten.
+- Publication is bound to the reviewed snapshot: verify refs, empty index, exact
+  inventory and raw hashes before staging; stage only the 37 approved paths;
+  commit with parent 7cc361886eaf7bd6fad07292da401b98ff1c91a4; push main normally;
+  fetch and verify local/live remote equality and clean checkout. Run the prompted
+  post-publication checks once. On divergence, push failure, material change or
+  failed check, stop and report rather than retrying into green or reconciling
+  history. Do not force-push, amend or rewrite published history.
+- Only after successful substantive publication and required checks, update this
+  slice's current-work.md entry with the delivered SHA, observed results and
+  fresh/retained evidence, preserving failures and limits. Commit that file alone
+  without embedding its own SHA, push normally and verify live remote equality
+  and a clean checkout again. Preserve this planner record during publication.
 
-- Codex independently verified main, HEAD, local origin/main and live
-  refs/heads/main at 4ec68bd9143d426ccb2a746732db4a6fa22e1b1d, with an empty
-  index and clean working tree before this selection. The preceding substantive
-  commit is f8408d7af722f432ee3fd3c419f95af735b475ce, parent b38947507e4fc018190152bfd69bef8b3a2fbe3f.
-  Closure 4ec68bd changes only current-work.md. All 21 files outside that factual
-  closure match the prior GO's raw-file hash manifest. Publication is verified;
-  the preceding GO is spent. Its reported post-publication checks are recorded
-  in current-work.md, separately from retained evidence.
-- Select exactly one bounded outcome: an explicit local verification request
-  creates one freshly eligible durable snapshot atomically, launches only after
-  a fresh single-use dispatch decision agrees with the process inputs, and shows
-  current execution evidence after the project's explicit refresh. Claude uses
-  one new executor chat; Codex retains architecture and acceptance. No commit/push
-  GO was granted by selection; the current review decision above governs publication.
-- The manual claim currently reads tracked authority, captures Git externally,
-  then saves without a transaction or commit-seam recheck. Dispatch checks only
-  execution status/marker; the supervisor launches from an earlier feed tuple.
-  The verification panel forwards the evidence-refresh generation to Git metadata
-  but omits it from its execution read and ignores that read's currency for Run.
-- Independent temporary file-backed SQLite probes reproduced both production
-  gaps: a second connection disabled the recipe during CaptureAsync and the
-  claim still succeeded; a released lease still allowed a durable dispatch
-  marker. Both corrected probes passed 2/2 as positive bug reproductions.
-  The first dispatch probe's final assertion mistakenly read a tracked entity,
-  not the updated database row; that was a probe error, not a product refusal.
-  Probe sources were restored byte-for-byte; the original handler class passed
-  6/6 and Git was clean before this planner edit.
-- This directly hardens the verification evidence consumed by diagnosis,
-  correction and approval. It is more valuable now than further context sampling
-  or another browser-only proof. The escalated-plan authorization journey/copy
-  remains a separate candidate; changing its canonical escalation text requires
-  historical compatibility because grants validate exact recorded content.
-  Account observations confer no threshold enforcement or invocation eligibility.
-  Claude allowance, provider resume and compaction remain unproven.
+### Decision and verified baseline
 
-### Objective, boundaries and exclusions
+- Select exactly one outcome: after two challenge rounds, the human can understand
+  the escalation, authorize one implementation of its exact final Proposal, and
+  carry that plan through verification, diagnosis, guided correction, ordinary
+  review and a separate manual checkpoint approval using the rendered cockpit.
+  Claude implements in one new executor chat; Codex owns architecture and review.
+  This selection is not commit/push GO and does not complete Increment 4.
+- Independently verified main, HEAD, local origin/main and live refs/heads/main at
+  7cc361886eaf7bd6fad07292da401b98ff1c91a4, with nothing staged, unstaged or
+  untracked before this edit. Substantive 4e58c031660602fb257b068ba1d7988b5643125e
+  has parent 4ec68bd9143d426ccb2a746732db4a6fa22e1b1d and exactly the 35 approved
+  manifest paths. All files outside the closure match the reviewed raw hashes;
+  the substantive current-work text also matches its approved hash. Closure
+  7cc36188 has parent 4e58c031 and changes current-work.md alone. Publication is
+  verified; the previous GO is spent and must not be replayed. Post-publication
+  checks are reported in current-work.md; no additional suite was rerun merely
+  for this selection.
+- ADR-0016 already permits one explicit implementation after the second round;
+  ADR-0017 preserves the exact implemented plan through correction and review;
+  ADR-0018/0019 permit diagnosis and optional guided correction. Backend hosted
+  tests cover authorized plans, but the existing authorization browser fixtures
+  insert lineage rows with SQL and never request implementation. The native
+  browser journey exercises only an ordinary first revision.
+- PlanningEscalation still writes "not implementable through this lineage" and
+  recommends a new planning request. PlanningImplementationAuthorizationEvidence
+  requires that whole canonical serialized content exactly. Changing only the
+  writer would invalidate historical escalations, grants and downstream chains.
+- This outcome closes a consequential human-decision branch and its misleading
+  product explanation together. Further context sampling has lower marginal
+  value here. Account thresholds need a separate policy for account binding,
+  freshness, missing evidence and invocation enforcement; the existing Codex
+  observation grants none of those. Current official App Server documentation
+  confirms the read method, not this host's guard:
+  [Codex App Server](https://learn.chatgpt.com/docs/app-server).
+  A documented [Claude resume flag](https://code.claude.com/docs/en/cli-reference)
+  is not proof of safe continuity under this host's stateless restricted profiles.
+  Claude allowance, provider-session resume and compaction remain unproven.
+  Increment 5 lifecycle, scheduling and publication authority are excluded.
 
-- Preserve the protected verification claim POST, its 202 response/body, recipe
-  configuration and selected-checkpoint policy in the
-  [workflow contract](../architecture/workflow-model.md#current-verification-configuration-and-execution-boundary).
-  A claim requires its project's latest workspace, Ready status, active owned
-  lease, an enabled owned recipe, no Running verification in that workspace and
-  fresh physical evidence matching the selected owned checkpoint. Do not add
-  a latest-checkpoint-number rule: an older selected checkpoint whose fingerprint
-  still matches remains eligible. Do not silently substitute another checkpoint,
-  workspace, recipe or invocation tuple.
-- Read initial authority untracked and perform Git capture outside transactions.
-  After capture, use the existing provider-neutral context boundary for a short
-  write-locked transaction; re-read all authority fresh, repeat the gates and
-  compare the exact recipe/source/ownership facts used before capture. Recipe
-  identity, name, executable, ordered literal arguments, timeout and enabled state,
-  workspace identity/path and checkpoint identity/number/fingerprint must agree.
-  Reserve the execution number from fresh Project state and atomically persist
-  the execution and counter. A populated tracker is not a fresh authority read.
-  No global tracking changes, generic repositories or persistence framework.
-- Serialized competing claims may create only one Running execution per workspace;
-  refusal or failure before durable commit leaves no execution or consumed number.
-  Reuse operation-owned Result/Problem Details codes where their meaning applies.
-  Preserve genuine request failures and durability uncertainty: a failure after a
-  durable commit cannot be reported as proof that nothing was recorded.
-- Treat the eligibility feed as a candidate list. Pass a bounded, operation-owned
-  expected snapshot to the final dispatch decision, carrying the identities and
-  exact invocation/source facts actually used for capture and process execution.
-  Re-read authority untracked under the existing short transactional boundary,
-  validate ownership, Ready/active lease/current workspace and agreement with the
-  execution/checkpoint snapshot, and conditionally commit the single-use marker.
-  No changed executable, arguments, timeout, workspace path or fingerprint may
-  authorize invocation using the stale feed. Duplicate dispatch invokes once.
-  Git, process and artifact I/O stay outside database transactions.
-- Preserve the claimed recipe's immutable snapshot after a successful claim:
-  subsequently editing or disabling the live recipe neither retargets nor cancels
-  that execution. Agreement is with the durable execution, not current recipe
-  settings. The dispatch comparison detects changes between candidate read and
-  decision; it is not cryptographic protection against all out-of-band tampering.
-  Guard pre-dispatch SourceChanged recording against the same expected snapshot
-  so obsolete observations cannot classify a different execution tuple.
-- Keep real fingerprint drift's existing SourceChanged semantics, process outcomes,
-  output sealing, protected output reads and restart reconciliation. Ownership or
-  snapshot refusal launches zero processes and leaves the undispatched claim
-  pending under existing semantics; invent no fingerprint, process outcome or
-  terminal status. No new cancel/retry/refund/recovery authority. Document that an
-  ineligible claim can remain pending and the filesystem is not frozen through
-  claim commit, dispatch commit or process start. No executor lease or scheduler.
-- Connect the existing refresh generation to the verification panel's execution
-  read. Run needs settled, successful source and execution reads for that generation
-  and no Running execution for the current workspace, including another recipe.
-  Add GitWorkspaceId to the existing execution query/response projection and
-  regenerate the client normally; do not infer workspace ownership from a recipe
-  or the selected checkpoint. An old workspace's Running fact must not block the
-  current workspace. This is an additive identity field, not a new endpoint.
-  Cached execution/output history may remain visible but must not claim currency.
-  Check the same conditions in the handler, not just the button. Preserve accepted
-  claims after owner replacement; a failed follow-up read cannot erase acceptance.
-  For an uncertain POST result, use fixed safe uncertainty copy and require an
-  explicit successful status refresh before another local submission. No automatic
-  retry, raw server-detail copy or invented success/refusal.
-- Preserve project lifetimes, retained-callback and A-to-B-to-A protection,
-  overlapping-read ordering, drafts, output identity and the single owned polling
-  chain. The explicit refresh issues reads only. Extend the existing guided
-  collaboration journey to confirm Failed then Passed in both verification and
-  review evidence after refresh, without intermediate reload or extra Agent claims.
-  Keep normal host composition, authentication, all supervisors, generated clients
-  and owned cleanup. No SQL workflow mutations or production test hooks.
-- Update the workflow/cockpit contracts and a commit-ready current-work entry.
-  This restores the existing local verification boundary. No migration, dependency,
-  provider contract, permission, budget, authorization or lifecycle change;
-  no global client/configuration change, historical rewrite or extra UI-hook sweep.
+### Product and compatibility boundaries
 
-### Stop gates and acceptance evidence
+- Preserve the separate protected authorization and implementation operations,
+  their request/response shapes, required bounded rationale, fixed HumanInstruction,
+  single permanent grant consumption, exact ordered inputs, all fresh authority
+  gates, immutable manifests and every existing budget and permission.
+- New escalations retain protocol 1.0, summary, participant/provenance/reply facts,
+  content field names and identifier-derived evidence. Their fixed options and
+  consequences must explain that a human may separately authorize exactly one
+  implementation of this exact final plan and then explicitly request it, or
+  request a new plan; the escalation itself chooses nothing and approves nothing.
+  A third critical review or resolution remains unavailable. Recommendation:
+  inspect the final Proposal and all second-round Decisions before choosing.
+- Establish one bounded compatibility rule at the existing Application-owned
+  escalation/source policy: recompute the entire legacy canonical serialization
+  and the entire new canonical serialization for the same verified identifiers
+  and ordered challenges, and accept only ordinal equality with one whole form.
+  Retain the legacy constants exactly. No semantic JSON relaxation, mixed form,
+  fuzzy text, arbitrary version, caller-selected source, or inference from time,
+  text, a CLI default or a successful click. All other source and grant checks
+  remain mandatory and unchanged.
+- Add ADR-0020 narrowly superseding ADR-0016's single-source-text-form requirement
+  with those two exact forms. Do not edit accepted ADR history. Update the index,
+  engineering context, workflow/protocol/cockpit contracts and the stale roadmap
+  paragraph that still describes every depth-two plan as unimplementable.
+  No historical message, grant, attempt, approval or sealed artifact is rewritten;
+  new records use only the new form. No schema, migration or dependency change.
+- Ordinary root/first-revision manifests and already sealed authorized manifests
+  keep their bytes and replay behavior. This is a source-text compatibility rule,
+  not a new grant, refund, renewal, revocation, extra correction or approval.
 
-- Stop on baseline/ref discrepancy or a need to change accepted authority rules,
-  schema, external process/provider contracts, permissions or recovery/lifecycle
-  semantics. Report the gap instead of weakening normal composition or broadening
-  scope. External capabilities beyond the preserved adapters require safe official
-  contracts; CLI defaults and Unknown-only scaffolding are not evidence.
-- Add regressions and prove red on the parent behavior, then green. Use real
-  file-backed SQLite with a populated long-lived context and another connection
-  committing during capture or immediately before BEGIN. Cover recipe changes,
-  workspace/path/status replacement, lease loss, checkpoint ownership/fingerprint
-  drift, a competing Running execution, fresh counter reservation and concurrent
-  claims. Refusals leave no partial rows/counter changes. Test rollback, cancellation
-  and bounded acquisition/save/commit failures through the real mediator boundary.
-  Prove capture is outside the transaction and preserve the older matching-
-  checkpoint positive case.
-- At dispatch, cover authority/snapshot changes after the feed and during capture,
-  each invocation field, ordered arguments and ownership, duplicate marker races,
-  failed capture, genuine SourceChanged and obsolete observations. Hosted tests
-  prove zero process calls on refusal and exactly one on success; a live recipe
-  change after claim still runs the original snapshot. Preserve result artifacts
-  and restart behavior. Mutation checks must fail when seam/dispatch guards vanish.
-- Prove protected real HTTP 202 and typed client resolution plus safe conflict
-  mapping. Frontend composition tests use real hooks and cover first-frame loading,
-  partial read failures/recovery, polling, another running recipe, explicit refresh,
-  retained callbacks, replacement/unmount, uncertain POST and accepted POST followed
-  by a failed read. No refresh or stale handler creates work.
-- Run affected checks first, then build/NSwag, sequential full backend suites and
-  Architecture, full frontend Vitest/typecheck/lint/build, harness and canonical
-  test:e2e:all after harness succeeds. Report actual commands/results/skips, client
-  hash, audits, formatter baseline comparison, links and tracked/untracked hygiene.
-  Distinguish fresh from retained evidence and preserve failures.
-- Return the complete unstaged, uncommitted, unpushed diff, unchanged planner
-  record and commit-ready current-work entry for Codex GO/NO-GO. Select no next
-  slice. A future GO uses one publication instruction covering the reviewed
-  substantive commit, normal fast-forward push, live-remote verification and a
-  separate tightly bounded current-work-only factual closure. Material changes
-  after GO return for review. Selection itself grants no publication authority.
+### Complete browser journey and fixture boundaries
 
-### Initial executor preflight
+- Add a second native-double browser journey under the existing journey harness:
+  manual intake and owned workspace/checkpoint; Planner root; first Challenge
+  and resolution; explicit second critical review with a materially distinct
+  second Challenge; second resolution and exactly one host escalation; a required
+  human reason and authorization; a separate implementation request; Failed
+  local verification; Codex diagnosis; one explicitly guided Claude correction;
+  Passed verification; ordinary Codex approval; explicit Human checkpoint
+  approval; one final persistence reload. No intermediate reload or auto-advance.
+- Produce three distinct Proposal identities and distinguishable substantive
+  content. Both resolutions decide exactly their own challenges in order.
+  Extend the existing fixture's closed manifest-derived response cases to
+  recognize root, first revision and final revision; no general scenario engine,
+  environment-driven provider bypass or workflow SQL seed. Unsupported plan/stage
+  combinations fail loudly. Preserve the original ordinary journey and its claims.
+- Strengthen the native fixture's authorized implementation case to validate the
+  fixed human-plan boundary, exact authorized form, final plan identity, required
+  authorization/instruction/source identifiers and complete ordered second-round
+  Decisions. Check before any file edit, output or successful invocation log.
+  This fixture proves what the production adapter supplied, never independently
+  grants authority. Keep current argv, schemas, confinement and alias checks.
+- Log only bounded allowlisted identity/count/hash facts needed to prove the
+  final plan and human authorization reached the adapter; never the rationale,
+  guidance, manifest, secret or transcript. The implementation, diagnosis and
+  ordinary review must show the final Proposal's identity and substantive content,
+  not the root or intermediate revision; correction reports still reply to the
+  Planner root and exact findings under the accepted correction contract.
+- Before authorization, show no implementation action for the final plan.
+  Authorization adds one HumanInstruction/relation and no claim, reservation,
+  provider invocation or approval. Its implementation consumes exactly that grant
+  once, and it remains Consumed through correction/review and the final reload.
+  No third round, grant reuse or implicit run completion is offered.
+- Expected successful sequence: nine Agent claims, slots 1 through 9, one shared
+  correction claim, 110 minutes reserved within the unchanged 120-minute ceiling
+  and 16-claim limit; two verification executions Failed then Passed; checkpoints
+  1, 2 and 3; distinct Agent and Human approvals of checkpoint 3.
+  Authorization and explicit evidence refreshes create none of those claims.
+  These counts derive from current AgentClaimPathPolicy, not modified budgets.
+- Browser workflow mutations use rendered controls and generated clients only;
+  read-only SQLite/log inspections supplement visible assertions. Make journey
+  evidence scoped to its own project/run/workspace and invocation interval.
+  Both journeys must coexist and pass in either order and alone without a shared
+  database reset or filename-order assumption. Keep normal Program composition,
+  authentication, all supervisors, verified native double destinations,
+  reuseExistingServer: false and current owned-root cleanup.
+- Production scope is the exact escalation writer/source compatibility policy
+  and its explanations. No new API or broad UI-hook sweep. If the complete
+  journey exposes a production behavior blocker beyond that scope, preserve the
+  reproduction and return it before making a workaround or unrelated fix.
 
-Expected branch main and HEAD 4ec68bd9143d426ccb2a746732db4a6fa22e1b1d.
-Local origin/main and live refs/heads/main must match. After this planner edit:
-no staged changes, only docs/roadmap/planner-handoff.md modified, no untracked files.
-Generated api-client.ts baseline SHA-256:
-35fabf7e14b14a3d314d1b73d1dffb96b4be8f6c82e84b02516b2e0f8f850903.
-Preserve this planner-owned record byte-for-byte. The complete English execution
-prompt is provided in chat, not duplicated here.
+### Acceptance evidence and stop gates
+
+- Write focused regressions before the compatibility change and show red/green.
+  Pin the old serialization independently of the changed writer. Prove both
+  canonical forms authorize and consume once when otherwise eligible; legacy
+  unconsumed and consumed grants remain valid; historical authorized manifests
+  replay exact sealed bytes after restart and remain valid through downstream
+  chains. Reject edited text, mixed forms, reordered/missing/foreign identifiers,
+  duplicate JSON members, forged authorship/provenance, extra escalations and
+  stale context without new claims, reservations or lost manifests.
+  Reuse existing detailed seam/race/budget tests rather than duplicating them.
+- Fixture contract tests must refuse missing/changed authorization boundaries or
+  facts and root/intermediate substitution before effects. Harness assertions
+  must detect root and intermediate plan substitution independently of the
+  doubles, missing stages and claim/authorization count changes. Mutation checks
+  target legacy support, exact-form matching and final-plan identity.
+- Run affected checks first. On the final production tree run build/NSwag,
+  sequential full backend suites and Architecture; frontend Vitest, typecheck,
+  lint/build, harness, then canonical test:e2e:all. Verify generated client stays
+  at its baseline hash. Run audits and formatter comparison; preserve the known
+  formatter baseline rather than claiming cleanliness. Check links, complete
+  tracked/untracked whitespace and NUL hygiene, inventories and owned cleanup.
+  Retain unchanged evidence only when its exact code/test/dependency inputs
+  remain unchanged, and label fresh versus retained evidence and all failures.
+- Stop on preflight discrepancy, a need for a third round or wider grant, schema/
+  migration, provider flags/profiles/schemas, permission, budget, scheduler,
+  lifecycle/recovery/publication change, real provider call or new external
+  capability. Do not disable a supervisor, seed the browser lineage, add a reload,
+  hide an error, retry into green or loosen historical validation to pass.
+- Return the complete unstaged, uncommitted, unpushed diff, a commit-ready
+  current-work.md entry, exact inventory and checks actually run for Codex
+  GO/NO-GO. Preserve this planner-owned record byte-for-byte. Select no next slice.
+  Only a future explicit GO will authorize one publication instruction covering
+  the reviewed substantive commit, normal fast-forward push, live verification
+  and a separate current-work-only factual closure. Material changes after GO
+  return for review.
+
+### Executor preflight after this planner edit
+
+Expected branch main and HEAD 7cc361886eaf7bd6fad07292da401b98ff1c91a4.
+Local origin/main and live refs/heads/main must match. Nothing staged;
+only docs/roadmap/planner-handoff.md modified; no untracked files.
+Generated api-client.ts SHA-256:
+13c9d116ecc792e05e2652f470ceff3c73bfc574c2fb348157dc7d5440dac44a.
+The complete English execution prompt is provided in chat, not duplicated here.

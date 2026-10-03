@@ -34,9 +34,16 @@ public static class CodexRole
                 response = ResponseFactory.RootProposal();
                 break;
             case "ChallengeResolution":
+                // The proposal being resolved decides the round: the root yields the first revision, the first revision yields the
+                // final one. The final revision is never resolved again, and no other proposal is served.
+                var (resolvedId, resolvedMarker) = manifest.RequireRoundProposal("originalProposal");
                 var challengeIds = manifest.MessageIds("challenges");
+                fields["planMessageId"] = resolvedId;
+                fields["planMarker"] = resolvedMarker;
                 fields["challengeCount"] = challengeIds.Count;
-                response = ResponseFactory.Resolution(challengeIds);
+                response = resolvedMarker == ManifestInfo.RootPlanMarker
+                    ? ResponseFactory.Resolution(challengeIds)
+                    : ResponseFactory.FinalResolution(challengeIds);
                 break;
             case "VerificationDiagnosis":
                 RecordPlan(manifest, fields);
@@ -49,13 +56,13 @@ public static class CodexRole
                 fields["findingCount"] = 1;
                 break;
             case "ImplementationReview":
-                RecordPlan(manifest, fields);
+                var reviewedMarker = RecordPlan(manifest, fields);
                 if (!manifest.Raw.Contains("Passed", StringComparison.Ordinal))
                 {
                     throw new FixtureRefusal(FixtureRefusal.PlanIdentityRefused, "The review input carries no passed verification.");
                 }
 
-                response = ResponseFactory.ReviewApproved();
+                response = ResponseFactory.ReviewApproved(reviewedMarker);
                 break;
             default:
                 throw new FixtureRefusal(FixtureRefusal.UnsupportedInvocation, "The manifest contract is not served by the Codex double.");
@@ -68,11 +75,12 @@ public static class CodexRole
         return 0;
     }
 
-    private static void RecordPlan(ManifestInfo manifest, Dictionary<string, object?> fields)
+    private static string RecordPlan(ManifestInfo manifest, Dictionary<string, object?> fields)
     {
-        var (planId, marker) = manifest.RequireRevisedPlan();
+        var (planId, marker) = manifest.RequireRevisionPlan();
         fields["planMessageId"] = planId;
         fields["planMarker"] = marker;
         fields["reportMessageId"] = manifest.ReportMessageId();
+        return marker;
     }
 }

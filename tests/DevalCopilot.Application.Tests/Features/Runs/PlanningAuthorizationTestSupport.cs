@@ -35,7 +35,8 @@ internal static class PlanningAuthorizationTestSupport
         int secondChallengeCount = 1,
         bool claudeObserved = true,
         int maximumAgentAttempts = 16,
-        bool seedCapabilities = true)
+        bool seedCapabilities = true,
+        EscalationForm form = EscalationForm.Writer)
     {
         var scene = await SeedSceneAsync(dbContext, claudeObserved, maximumAgentAttempts, seedCapabilities);
         var seeder = SeederFor(dbContext, scene);
@@ -46,13 +47,15 @@ internal static class PlanningAuthorizationTestSupport
         // Saved before the escalation is added: an attemptless row has no pending principal, so one shared save would
         // order it ahead of the attempt-owned messages. Production writes it after the resolver's attempt exists.
         await dbContext.SaveChangesAsync(CancellationToken.None);
-        var escalation = PlanningEscalation.Record(
-            scene.Run.Id,
-            root.Id,
-            first.RevisedProposal.Id,
-            second.RevisedProposal.Id,
-            secondReview.Outputs.Select(challenge => challenge.Id).ToArray(),
-            Now);
+        var challengeIds = secondReview.Outputs.Select(challenge => challenge.Id).ToArray();
+        var escalation = form == EscalationForm.Writer
+            ? PlanningEscalation.Record(
+                scene.Run.Id, root.Id, first.RevisedProposal.Id, second.RevisedProposal.Id, challengeIds, Now)
+            : PlanningEscalationForms.Record(
+                scene.Run.Id,
+                second.RevisedProposal.Id,
+                PlanningEscalationForms.Of(form, root.Id, first.RevisedProposal.Id, second.RevisedProposal.Id, challengeIds),
+                Now);
         dbContext.CollaborationMessages.Add(escalation);
         await dbContext.SaveChangesAsync(CancellationToken.None);
         return new EscalatedLineage(scene, root, first, secondReview, second, escalation, seeder);

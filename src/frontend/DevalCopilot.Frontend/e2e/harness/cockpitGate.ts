@@ -12,17 +12,17 @@ export type CockpitMode = 'pass' | 'hold' | 'fail'
 export interface GateResponse {
   status(): number
   headers(): Record<string, string>
-  body(): Promise<Buffer | Uint8Array>
+  body(): Promise<Buffer>
 }
 
 export interface GateRoute {
   request(): { url(): string }
   fetch(): Promise<GateResponse>
-  fulfill(options: { status: number; contentType?: string; headers?: Record<string, string>; body: Buffer | Uint8Array | string }): Promise<void>
+  fulfill(options: { status: number; contentType?: string; headers?: Record<string, string>; body: Buffer | string }): Promise<void>
 }
 
 export interface GatePage {
-  route(url: string, handler: (route: GateRoute) => Promise<void> | void): Promise<void>
+  route(url: string, handler: (route: GateRoute) => Promise<void> | void): Promise<unknown>
   unrouteAll(options?: { behavior?: 'wait' | 'ignoreErrors' | 'default' }): Promise<void>
 }
 
@@ -77,11 +77,13 @@ export class CockpitGate {
         this.held.set(runId, waiting)
       })
     }
-    try {
-      await route.fulfill({ status: response.status(), headers: response.headers(), body })
-    } catch {
-      // The page already abandoned this request (the lifetime that asked for it ended), so nobody awaits the answer.
-    }
+    // No catch here, on purpose. Playwright settles a route only when its handler returned AND the route was handled, and
+    // `unrouteAll({ behavior: 'wait' })` waits for both, except for a handler that throws, which settles at once. A fulfill that
+    // fails and is swallowed would return normally with the route still unhandled and leave shutdown pending forever. The failure
+    // therefore propagates: `handle` records it, Playwright's wait settles, and `shutdown` rethrows it. A request the page
+    // abandoned (cancelled, reloaded, navigated away or closed) is not such a failure: the installed Playwright fulfills it
+    // without error (see the real-Chromium scenarios in cockpitGate.test.ts), so no error class is excluded.
+    await route.fulfill({ status: response.status(), headers: response.headers(), body })
   }
 
   release(runId: string) {

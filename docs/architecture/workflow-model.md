@@ -230,7 +230,12 @@ plan or findings already authorize, is stored once on the exact claimed attempt 
 authority, attempt, or budget; at correction-budget exhaustion a request carrying guidance is refused, and the
 authorization flow above keeps its own separate guidance.
 
-A proposal lineage ends after its second challenge round in a human escalation, with no third automated round. A human
+A proposal lineage ends after its second challenge round in a human escalation, with no third automated round. The
+escalation record itself states the human's options in fixed text (inspect the final plan and the second-round decisions,
+then separately authorize one implementation of that exact plan and explicitly request it, or request a new plan) and
+selects, grants, and approves nothing; its two canonical serializations, the current one and the original one that earlier
+records keep, are both recognized as the source of an authorization
+([ADR-0020](../decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)). A human
 may explicitly authorize exactly one initial implementation claim for that final plan
 ([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)): a required, bounded
 reason is recorded as a `HumanInstruction`, no attempt, budget, or provider is involved, and the implementation is then

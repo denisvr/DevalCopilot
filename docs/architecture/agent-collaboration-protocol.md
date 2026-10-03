@@ -2443,9 +2443,19 @@ ADR-0009's role-first authority are applied unchanged; nothing in an accepted AD
   `collaboration.message_recorded` event (linked to the resolving attempt) as the newest event of that result.
   Its content is fixed text plus bounded identifiers and a count: the root, first-revision, and second-revision
   Proposal ids, and the ids of the second-round challenges each decided once. It never copies provider, artifact,
-  path, or credential text. It records that a human decision is needed; it does not approve, authorize, or
-  select anything, and it is never consulted by the review-correction authorization (which is keyed by its own
-  escalation table). A source-drift downgrade or any refusal records none of the set. Because a result can be
+  path, or credential text. It records that a human decision is needed and says, in its fixed `options`,
+  `consequences`, and `recommendedChoice` text, what that decision can be: inspect the final Proposal and the
+  second-round Decisions, then either separately authorize exactly one implementation of that exact plan and explicitly
+  request it (only a durably committed implementation claim consumes the authorization: a refused request or a claim that
+  definitely does not commit consumes nothing, and a committed claim stays consumed even if its execution later fails),
+  or request a new plan through a new explicit planning
+  request. It selects nothing, grants nothing, and approves nothing, a third critical review or resolution remains
+  unavailable, and it is never consulted by the review-correction authorization (which is keyed by its own escalation
+  table). Protocol 1.0, the summary, the five content field names, the identifier-derived `evidence` sentence, and the
+  participant, provenance, and reply facts are unchanged by [ADR-0020](../decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md),
+  which corrected only the explanatory text: escalations recorded earlier carry the original text, which said the final
+  revision was "not implementable through this lineage" and is kept recognizable (see the source rule under
+  [Explicit human authorization of one escalated-plan implementation](#explicit-human-authorization-of-one-escalated-plan-implementation)). A source-drift downgrade or any refusal records none of the set. Because a result can be
   recorded only for a `Running` attempt, and that state is what the save transitions, a second recording of the
   same attempt is refused and the escalation stays single.
 - **Implementation eligibility.** The accepted original Planner Proposal path is unchanged (an `Accepted`
@@ -2506,8 +2516,13 @@ distinct from the review-correction authorization, which keeps its own table, fa
   `finalProposalMessageId`, `humanInstructionMessageId`, and `latestEventSequence`.
 - **Source and context.** The escalation must be a host-constructed, attemptless, protocol-1.0 Orchestrator-to-Human
   `Escalation` replying to a depth-two Proposal whose complete two-round lineage evaluates (all Challenges, Decisions, owners,
-  reply links, workspace, checkpoint, and fingerprint), be the only escalation replying to that Proposal, and equal the
-  canonical summary and content the second resolution writes (recomputed from the identifiers); the Planner root must own
+  reply links, workspace, checkpoint, and fingerprint), be the only escalation replying to that Proposal, and carry the
+  canonical summary and exactly one of the two complete canonical content serializations ([ADR-0020](../decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)):
+  the current one the second resolution writes, or the original one that earlier records keep. Both are recomputed whole from the
+  verified identifiers and the ordered second-round Challenges and compared ordinally; there is no mixed form, no semantic JSON
+  equivalence (member order, whitespace, and escaping are part of the form), no other wording or version, and no caller-selected
+  form, and the original form is never written again. Every other source and grant check applies to either form unchanged, as
+  do the replay of already sealed manifests and the validity of historical grants and report chains; the Planner root must own
   exactly one Proposal. The run must be `Running` with a stored Agent-admitting execution mode, the latest workspace `Ready`
   with an active lease, the latest checkpoint the lineage's, a fresh Git fingerprint equal to it, and no newer provider-observed
   Planner Proposal (`planning_authorizations.source_stale`). An unknown, foreign, or non-escalation message is `404

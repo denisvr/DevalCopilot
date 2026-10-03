@@ -1,9 +1,13 @@
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { journeyRoot } from './journeyEnv'
+import { journeyRoot } from './journeyEnv.ts'
 
 // Read-only views of the owned database used to SUPPLEMENT what the page shows. Nothing here ever writes, and nothing in the journey
 // seeds or changes workflow state outside the rendered controls. The database is the host's own SQLite file under the owned root.
+//
+// Every journey of a run shares this one database and host. Each journey therefore reads ONLY the rows of its own project, its own run
+// and its own workspace (see JourneyData): no assertion depends on a table being otherwise empty, on row order across journeys, or on
+// which journey ran first.
 
 export interface AttemptRow {
   AttemptNumber: number
@@ -56,12 +60,28 @@ export interface MessageRow {
   InReplyToMessageId: string | null
   Summary: string
   Sequence: number
+  StructuredContentJson: string
+  Provenance: string
 }
 
 export interface InputRow {
   AttemptId: string
   CollaborationMessageId: string
   Sequence: number
+}
+
+export interface PlanningAuthorizationRow {
+  Id: string
+  EscalationMessageId: string
+  FinalProposalMessageId: string
+  HumanInstructionMessageId: string
+  ConsumedByAttemptId: string | null
+}
+
+export interface RunLimitsRow {
+  MaximumAgentAttempts: number
+  MaximumReviewCorrectionAttempts: number
+  Lifecycle: string
 }
 
 export function withJourneyDb<T>(read: (db: DatabaseSync) => T): T {
@@ -73,90 +93,117 @@ export function withJourneyDb<T>(read: (db: DatabaseSync) => T): T {
   }
 }
 
-export function attempts(): AttemptRow[] {
-  return withJourneyDb(
-    (db) =>
-      db
-        .prepare('select AttemptNumber, Id, AgentRole, AgentResponseContract, AgentOutcome, Status, AgentBudgetSlot from attempts order by AttemptNumber')
-        .all() as unknown as AttemptRow[],
-  )
-}
-
-/** The raw direct-guidance snapshot recorded on every attempt, by attempt number (null is the unguided snapshot). */
-export function directGuidanceByAttempt(): { AttemptNumber: number; AgentDirectHumanGuidance: string | null }[] {
-  return withJourneyDb(
-    (db) =>
-      db.prepare('select AttemptNumber, AgentDirectHumanGuidance from attempts order by AttemptNumber').all() as unknown as {
-        AttemptNumber: number
-        AgentDirectHumanGuidance: string | null
-      }[],
-  )
-}
-
-export function checkpoints(): CheckpointRow[] {
-  return withJourneyDb(
-    (db) =>
-      db.prepare('select CheckpointNumber, Id, HeadCommitSha, FingerprintSha256 from git_checkpoints order by CheckpointNumber').all() as unknown as CheckpointRow[],
-  )
-}
-
-export function executions(): ExecutionRow[] {
-  return withJourneyDb(
-    (db) =>
-      db
-        .prepare('select Id, ExecutionNumber, Status, ExitCode, GitCheckpointId, CompletionFingerprintSha256 from verification_executions order by ExecutionNumber')
-        .all() as unknown as ExecutionRow[],
-  )
-}
-
-export function checkpointReviews(): CheckpointReviewRow[] {
-  return withJourneyDb(
-    (db) =>
-      db
-        .prepare('select Id, GitCheckpointId, CheckpointNumber, CheckpointFingerprintSha256, ActorKind, Decision from checkpoint_reviews order by RecordedAtUtcTicks')
-        .all() as unknown as CheckpointReviewRow[],
-  )
-}
-
-export function checkpointReviewEvidence(): CheckpointReviewEvidenceRow[] {
-  return withJourneyDb(
-    (db) =>
-      db
-        .prepare(
-          'select CheckpointReviewId, VerificationExecutionId, VerificationExecutionNumber, VerificationExecutionCheckpointFingerprintSha256, VerificationExecutionStatus, VerificationExecutionExitCode from checkpoint_review_evidence order by VerificationExecutionNumber',
-        )
-        .all() as unknown as CheckpointReviewEvidenceRow[],
-  )
-}
-
-export function messages(): MessageRow[] {
-  return withJourneyDb(
-    (db) =>
-      db
-        .prepare('select Id, AttemptId, Type, InReplyToMessageId, Summary, Sequence from collaboration_messages order by Sequence')
-        .all() as unknown as MessageRow[],
-  )
-}
-
-export function inputsOf(attemptId: string): InputRow[] {
-  return withJourneyDb(
-    (db) =>
-      db
-        .prepare('select AttemptId, CollaborationMessageId, Sequence from attempt_input_messages where AttemptId = ? order by Sequence')
-        .all(attemptId) as unknown as InputRow[],
-  )
-}
-
-export function runLimits(): { MaximumAgentAttempts: number; MaximumReviewCorrectionAttempts: number; Lifecycle: string } {
-  return withJourneyDb(
-    (db) =>
-      db.prepare('select MaximumAgentAttempts, MaximumReviewCorrectionAttempts, Lifecycle from runs').get() as unknown as {
-        MaximumAgentAttempts: number
-        MaximumReviewCorrectionAttempts: number
-        Lifecycle: string
-      },
-  )
-}
-
 export const sameId = (left: string | null | undefined, right: string | null | undefined) =>
   left != null && right != null && left.toLowerCase() === right.toLowerCase()
+
+/**
+ * Read-only access to the rows of ONE journey: the project it registered by name, that project's single run, and the single workspace
+ * prepared for it. The identities are looked up on every call (they only exist once the rendered controls created them), so a journey
+ * can call these at any point after the run was recorded and never sees another journey's attempts, messages, checkpoints, executions
+ * or reviews, however many other journeys share the database.
+ */
+export class JourneyData {
+  readonly projectName: string
+
+  constructor(projectName: string) {
+    this.projectName = projectName
+  }
+
+  private one<T>(sql: string, ...parameters: (string | number)[]): T {
+    const row = withJourneyDb((db) => db.prepare(sql).all(...parameters)) as unknown as T[]
+    if (row.length !== 1) {
+      throw new Error(`Expected exactly one row for the journey scope, found ${row.length}.`)
+    }
+    return row[0]
+  }
+
+  private all<T>(sql: string, ...parameters: (string | number)[]): T[] {
+    return withJourneyDb((db) => db.prepare(sql).all(...parameters)) as unknown as T[]
+  }
+
+  projectId(): string {
+    return this.one<{ Id: string }>('select Id from projects where Name = ?', this.projectName).Id
+  }
+
+  runId(): string {
+    return this.one<{ Id: string }>('select Id from runs where ProjectId = ?', this.projectId()).Id
+  }
+
+  workspace(): { Id: string; WorkspacePath: string } {
+    return this.one<{ Id: string; WorkspacePath: string }>('select Id, WorkspacePath from git_workspaces where ProjectId = ?', this.projectId())
+  }
+
+  attempts(): AttemptRow[] {
+    return this.all<AttemptRow>(
+      'select AttemptNumber, Id, AgentRole, AgentResponseContract, AgentOutcome, Status, AgentBudgetSlot from attempts where RunId = ? order by AttemptNumber',
+      this.runId(),
+    )
+  }
+
+  /** The raw direct-guidance snapshot recorded on every attempt, by attempt number (null is the unguided snapshot). */
+  directGuidanceByAttempt(): { AttemptNumber: number; AgentDirectHumanGuidance: string | null }[] {
+    return this.all('select AttemptNumber, AgentDirectHumanGuidance from attempts where RunId = ? order by AttemptNumber', this.runId())
+  }
+
+  checkpoints(): CheckpointRow[] {
+    return this.all<CheckpointRow>(
+      'select CheckpointNumber, Id, HeadCommitSha, FingerprintSha256 from git_checkpoints where WorkspaceId = ? order by CheckpointNumber',
+      this.workspace().Id,
+    )
+  }
+
+  executions(): ExecutionRow[] {
+    return this.all<ExecutionRow>(
+      'select Id, ExecutionNumber, Status, ExitCode, GitCheckpointId, CompletionFingerprintSha256 from verification_executions where ProjectId = ? order by ExecutionNumber',
+      this.projectId(),
+    )
+  }
+
+  checkpointReviews(): CheckpointReviewRow[] {
+    return this.all<CheckpointReviewRow>(
+      'select Id, GitCheckpointId, CheckpointNumber, CheckpointFingerprintSha256, ActorKind, Decision from checkpoint_reviews where ProjectId = ? order by RecordedAtUtcTicks',
+      this.projectId(),
+    )
+  }
+
+  checkpointReviewEvidence(): CheckpointReviewEvidenceRow[] {
+    return this.all<CheckpointReviewEvidenceRow>(
+      'select e.CheckpointReviewId, e.VerificationExecutionId, e.VerificationExecutionNumber, e.VerificationExecutionCheckpointFingerprintSha256, e.VerificationExecutionStatus, e.VerificationExecutionExitCode from checkpoint_review_evidence e join checkpoint_reviews r on r.Id = e.CheckpointReviewId where r.ProjectId = ? order by e.VerificationExecutionNumber',
+      this.projectId(),
+    )
+  }
+
+  messages(): MessageRow[] {
+    return this.all<MessageRow>(
+      'select Id, AttemptId, Type, InReplyToMessageId, Summary, Sequence, StructuredContentJson, Provenance from collaboration_messages where RunId = ? order by Sequence',
+      this.runId(),
+    )
+  }
+
+  inputsOf(attemptId: string): InputRow[] {
+    return this.all<InputRow>(
+      'select i.AttemptId, i.CollaborationMessageId, i.Sequence from attempt_input_messages i join attempts a on a.Id = i.AttemptId where a.RunId = ? and i.AttemptId = ? order by i.Sequence',
+      this.runId(),
+      attemptId,
+    )
+  }
+
+  planningAuthorizations(): PlanningAuthorizationRow[] {
+    return this.all<PlanningAuthorizationRow>(
+      'select Id, EscalationMessageId, FinalProposalMessageId, HumanInstructionMessageId, ConsumedByAttemptId from planning_implementation_authorizations where RunId = ?',
+      this.runId(),
+    )
+  }
+
+  /** The sealed context manifest artifacts of this run's attempts, by attempt (byte length and hash only, never the content). */
+  manifestArtifacts(): { AttemptId: string; ContentHash: string; ByteLength: number }[] {
+    return this.all(
+      "select AttemptId, ContentHash, ByteLength from artifacts where RunId = ? and Purpose = 'AgentContextManifest' order by AttemptId",
+      this.runId(),
+    )
+  }
+
+  runLimits(): RunLimitsRow {
+    return this.one<RunLimitsRow>('select MaximumAgentAttempts, MaximumReviewCorrectionAttempts, Lifecycle from runs where Id = ?', this.runId())
+  }
+}

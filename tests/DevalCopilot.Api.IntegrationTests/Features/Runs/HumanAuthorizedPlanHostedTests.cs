@@ -354,7 +354,25 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         return new Seeded(run.Id, workspace.Id, project.Id, root.Id);
     }
 
-    private async Task<Lineage> SeedEscalatedLineageAsync(Host host, int maximumAgentAttempts = 16)
+    /// <summary>The escalation content written before ADR-0020, reproduced here independently of production: a historical
+    /// record that must keep authorizing, replaying and validating exactly as it did when it was written.</summary>
+    private static string HistoricalEscalationContent(Guid root, Guid first, Guid second, IReadOnlyList<Guid> challenges) =>
+        JsonSerializer.Serialize(new
+        {
+            unresolvedDecision =
+                "The second and final challenge-resolution round produced a revised proposal that has no further automated review or resolution.",
+            options =
+                "Decide manually whether the revised proposal is acceptable, or start a new explicit planning request. Neither is chosen by this record.",
+            consequences =
+                "The revised proposal is not implementable through this lineage and is not approved; a third review is not available.",
+            evidence =
+                $"Root proposal {root}; first revision {first}; second revision {second}; {challenges.Count} second-round "
+                + $"challenge(s) each decided once: {string.Join(", ", challenges)}.",
+            recommendedChoice =
+                "Read the second-round decisions before starting any new planning request.",
+        });
+
+    private async Task<Lineage> SeedEscalatedLineageAsync(Host host, int maximumAgentAttempts = 16, bool historicalEscalation = false)
     {
         var seeded = await SeedRootAsync(host, maximumAgentAttempts);
         await using var scope = host.Provider.CreateAsyncScope();
@@ -366,6 +384,20 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         var escalation = await db.CollaborationMessages.SingleAsync(
             message => message.RunId == seeded.RunId && message.Type == CollaborationMessageType.Escalation);
         Assert.Equal(second.RevisedId, escalation.InReplyToMessageId);
+        if (historicalEscalation)
+        {
+            // What the production writer recorded before ADR-0020: the same message, its original serialization.
+            var historical = HistoricalEscalationContent(seeded.RootId, first.RevisedId, second.RevisedId, second.ChallengeIds);
+            Assert.NotEqual(historical, escalation.StructuredContentJson);
+            await db.CollaborationMessages.Where(message => message.Id == escalation.Id)
+                .ExecuteUpdateAsync(set => set.SetProperty(message => message.StructuredContentJson, historical));
+        }
+        else
+        {
+            Assert.DoesNotContain("not implementable through this lineage", escalation.StructuredContentJson, StringComparison.Ordinal);
+            Assert.Contains("separately authorize one implementation", escalation.StructuredContentJson, StringComparison.Ordinal);
+        }
+
         var decisions = await db.CollaborationMessages
             .Where(message => message.AttemptId == second.ResolverAttemptId && message.Type == CollaborationMessageType.Decision)
             .OrderBy(message => message.Sequence).Select(message => message.Id).ToListAsync();
@@ -503,11 +535,13 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
 
     // ---- the complete chain --------------------------------------------------------------------------------------
 
-    [Fact]
-    public async Task The_second_resolution_authorization_explicit_implementation_report_verification_review_correction_and_re_review_all_hold()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task The_second_resolution_authorization_explicit_implementation_report_verification_review_correction_and_re_review_all_hold(bool historicalEscalation)
     {
         await using var host = BuildHost();
-        var lineage = await SeedEscalatedLineageAsync(host);
+        var lineage = await SeedEscalatedLineageAsync(host, historicalEscalation: historicalEscalation);
 
         // Without the human decision the final plan stays refused and nothing starts.
         var refused = await SendAsync(host, new CreateImplementationAttemptCommand(lineage.RunId, lineage.FinalId));
@@ -903,8 +937,11 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
 
     // ---- replay, tampering, and the unspent-grant guarantees -----------------------------------------------------
 
-    [Fact]
-    public async Task An_undispatched_authorized_claim_replays_its_sealed_context_after_a_restart_without_a_second_grant_or_consent()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_undispatched_authorized_claim_replays_its_sealed_context_after_a_restart_without_a_second_grant_or_consent(
+        bool historicalEscalation)
     {
         Lineage lineage;
         Guid attemptId;
@@ -912,7 +949,7 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         string sealedBefore;
         await using (var first = BuildHost())
         {
-            lineage = await SeedEscalatedLineageAsync(first);
+            lineage = await SeedEscalatedLineageAsync(first, historicalEscalation: historicalEscalation);
             authorization = await AuthorizeAsync(first, lineage);
             attemptId = await ClaimAsync(first, lineage);
             sealedBefore = (await ReadManifestAsync(first, attemptId)).GetRawText();

@@ -9,7 +9,8 @@ namespace DevalCopilot.Application.Features.Runs.Policies;
 /// <list type="bullet">
 /// <item>the <b>source</b>: a host-constructed, attemptless, protocol-1.0 Orchestrator-to-Human escalation that is the
 /// only escalation replying to a complete, coherent depth-two lineage's final Proposal, whose summary and content are
-/// exactly the canonical record the second resolution wrote (<see cref="PlanningEscalation"/>);</item>
+/// exactly one of the two complete canonical records the second resolution has written (<see cref="PlanningEscalation"/>
+/// now, its historical form before ADR-0020), recomputed from the verified identifiers and compared ordinally;</item>
 /// <item>the <b>recorded grant</b>: a relation row bound to that source, its final Proposal and an exact workspace,
 /// starting checkpoint and fingerprint, whose HumanInstruction is a human-submitted, attemptless message replying to
 /// the escalation in the canonical form <see cref="PlanningImplementationInstruction"/> writes, and whose consuming
@@ -105,15 +106,15 @@ internal static class PlanningImplementationAuthorizationEvidence
         // Exactly one escalation may answer the final Proposal; a second one, canonical or not, is ambiguous evidence.
         var escalationsOfFinal = snapshot.Messages.Count(message =>
             message.Type == CollaborationMessageType.Escalation && message.InReplyToMessageId == finalProposalId);
-        var expectedContent = PlanningEscalation.BuildStructuredContentJson(
-            final.Root.Proposal.Id,
-            firstRevision.Proposal.Id,
-            final.Proposal.Id,
-            final.Challenges.Select(challenge => challenge.Id).ToArray());
         if (escalationsOfFinal != 1
             || escalation.Sequence <= final.Proposal.Sequence
             || !string.Equals(escalation.Summary, PlanningEscalation.Summary, StringComparison.Ordinal)
-            || !string.Equals(escalation.StructuredContentJson, expectedContent, StringComparison.Ordinal))
+            || !PlanningEscalation.IsCanonicalContent(
+                escalation.StructuredContentJson,
+                final.Root.Proposal.Id,
+                firstRevision.Proposal.Id,
+                final.Proposal.Id,
+                final.Challenges.Select(challenge => challenge.Id).ToArray()))
         {
             return SourceEvaluation.Fail(SourceFailure.Invalid);
         }

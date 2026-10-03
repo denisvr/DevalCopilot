@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.Runs;
 
 namespace DevalCopilot.Application.Features.Runs;
@@ -15,8 +16,8 @@ internal static class PlanningEscalation
 {
     public const string Summary = "The second challenge-resolution round is complete and needs a human decision.";
 
-    /// <summary>The one canonical structured content of the escalation for these durable identifiers. A human
-    /// implementation authorization recomputes it to prove the escalation it answers is exactly this record.</summary>
+    /// <summary>The one canonical structured content this writer records for these durable identifiers (ADR-0020). It
+    /// is never the historical form, which <see cref="PlanningEscalationLegacyForm"/> keeps recognizable.</summary>
     public static string BuildStructuredContentJson(
         Guid rootProposalId,
         Guid firstRevisionProposalId,
@@ -33,14 +34,33 @@ internal static class PlanningEscalation
             unresolvedDecision =
                 "The second and final challenge-resolution round produced a revised proposal that has no further automated review or resolution.",
             options =
-                "Decide manually whether the revised proposal is acceptable, or start a new explicit planning request. Neither is chosen by this record.",
+                "Inspect the final proposal and the second-round decisions, then either separately authorize one implementation of that exact final plan and explicitly request it, or request a new plan with a new explicit planning request. Neither is chosen by this record.",
             consequences =
-                "The revised proposal is not implementable through this lineage and is not approved; a third review is not available.",
+                "Authorizing permits exactly one implementation claim of that exact final plan. Only a durably committed implementation claim consumes the authorization: a refused request, or a claim that definitely does not commit, consumes nothing, and a committed claim stays consumed even if its execution later fails. A new plan replaces this lineage. This record selects nothing, grants nothing and approves nothing, and a third critical review or resolution is not available.",
             evidence,
             recommendedChoice =
-                "Read the second-round decisions before starting any new planning request.",
+                "Inspect the final proposal and every second-round decision before choosing.",
         });
     }
+
+    /// <summary>Whether the stored content is, ordinally and as a whole, one of the two complete canonical forms (the
+    /// current one or the historical one) recomputed from these validated identifiers. There is no mixed form, no
+    /// semantic JSON equivalence, and no other wording or version.</summary>
+    public static bool IsCanonicalContent(
+        string structuredContentJson,
+        Guid rootProposalId,
+        Guid firstRevisionProposalId,
+        Guid secondRevisionProposalId,
+        IReadOnlyList<Guid> resolvedChallengeIds) =>
+        string.Equals(
+            structuredContentJson,
+            BuildStructuredContentJson(rootProposalId, firstRevisionProposalId, secondRevisionProposalId, resolvedChallengeIds),
+            StringComparison.Ordinal)
+        || string.Equals(
+            structuredContentJson,
+            PlanningEscalationLegacyForm.BuildStructuredContentJson(
+                rootProposalId, firstRevisionProposalId, secondRevisionProposalId, resolvedChallengeIds),
+            StringComparison.Ordinal);
 
     public static CollaborationMessage Record(
         Guid runId,

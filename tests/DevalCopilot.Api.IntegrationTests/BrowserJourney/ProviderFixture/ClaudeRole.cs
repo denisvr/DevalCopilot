@@ -27,14 +27,31 @@ public static class ClaudeRole
         switch (manifest.Contract, exec.Profile)
         {
             case ("CriticalReview", ClosedArguments.ClaudeProfile.ReadOnly):
-                response = ResponseFactory.Challenge();
+                // The proposal under review decides the round: the root receives the first challenge, the first revision the second.
+                // The final revision is never reviewed again, and no other proposal is served.
+                var (reviewedId, reviewedMarker) = manifest.RequireRoundProposal("reviewedProposal");
+                fields["planMessageId"] = reviewedId;
+                fields["planMarker"] = reviewedMarker;
+                response = reviewedMarker == ManifestInfo.RootPlanMarker ? ResponseFactory.Challenge() : ResponseFactory.SecondChallenge();
                 break;
             case ("ImplementationReport", ClosedArguments.ClaudeProfile.Mutating):
-                var (planId, marker) = manifest.RequireRevisedPlan();
+                // The plan, and for the human-authorized final plan its whole authorization contract, are validated before any edit,
+                // answer or successful log entry. Only identity, count and hash facts are logged.
+                var (planId, marker, authorization) = manifest.RequireImplementablePlan();
                 fields["planMessageId"] = planId;
                 fields["planMarker"] = marker;
+                if (authorization is not null)
+                {
+                    fields["authorizationId"] = authorization.AuthorizationId;
+                    fields["escalationMessageId"] = authorization.EscalationMessageId;
+                    fields["instructionMessageId"] = authorization.InstructionMessageId;
+                    fields["rationaleSha256"] = authorization.RationaleSha256;
+                    fields["decisionCount"] = authorization.DecisionChallengeIds.Count;
+                    fields["decisionChallengeIds"] = string.Join(",", authorization.DecisionChallengeIds);
+                }
+
                 fields["changedPath"] = CandidateEdit.IntroduceDefect(location.RequireCandidateFile(worktree));
-                response = ResponseFactory.ImplementationReport();
+                response = ResponseFactory.ImplementationReport(marker);
                 break;
             case ("ReviewCorrection", ClosedArguments.ClaudeProfile.Mutating):
                 var findingIds = manifest.MessageIds("orderedFindings");

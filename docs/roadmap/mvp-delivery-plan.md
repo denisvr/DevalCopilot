@@ -241,8 +241,13 @@ The plan-challenge loop is bounded and its exhaustion escalates: a proposal
 lineage may have one optional second critical review of the first Resolver
 revision and, if challenged, one explicit second resolution. That successful
 second resolution records one orchestrator-authored human escalation in the
-same atomic save, and the resulting depth-two revision is neither reviewable
-nor implementable. The cap is per lineage — more conservative than the
+same atomic save, and the resulting depth-two revision is never reviewable or
+resolved again and is implementable only through one explicit human authorization
+of exactly that final plan, followed by a separate explicit implementation request
+([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md);
+the escalation's own fixed text says so, and both its current and original serialization are recognized by
+[ADR-0020](../decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)).
+The cap is per lineage — more conservative than the
 per-material-issue wording in the [workflow model](../architecture/workflow-model.md#bounded-loops), because the system does not decide whether
 two challenges are the same issue. Other loop-exhaustion escalations (for
 example CI correction rounds) remain part of later increments. See the

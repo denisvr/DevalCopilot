@@ -684,7 +684,10 @@ ambiguous chain only ever **withholds** an action and never grants one.
   resolved, there is no further review or automatic resolution, the final revised proposal cannot be
   implemented through the lineage without an explicit human authorization (which permits at most one implementation
   claim of it), and a human decision is required. The escalation's own summary is shown as
-  "Human decision required: …" with the statement that the record is not an approval; if the escalation is not
+  "Human decision required: …" with the statement that the record is not an approval (the record's own fixed text names
+  the options, and recognizes both the current and the original canonical serialization of an escalation, per
+  [ADR-0020](../decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md), so the region and
+  the decision below behave identically for an escalation recorded earlier); if the escalation is not
   in the loaded timeline the region says so instead of implying it exists. It never shows raw artifact text,
   and it never states that any plan was approved or implemented.
 - **Loading, errors, run switches, and late responses.** The review status's own loading and error states are
