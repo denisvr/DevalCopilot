@@ -1,10 +1,13 @@
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { FormEvent } from 'react'
 import { useProjectVerificationCommands } from '../hooks/useProjectVerificationCommands'
 import { useProjectGitEvidence } from '../hooks/useProjectGitEvidence'
 import { useProjectVerificationExecutions } from '../hooks/useProjectVerificationExecutions'
 import { useOwnedLifetime, useOwnedState } from '../hooks/useOwnedLifetime'
+import type { OwnedLifetime } from '../hooks/useOwnedLifetime'
 import type { VerificationExecutionResponse } from '../../../api/clients'
 import { claimVerificationExecutionClient, ClaimVerificationExecutionRequest } from '../../../api/clients'
+import { ApiException } from '../../../api/generated/api-client'
 import { VerificationExecutionOutputViewer } from './VerificationExecutionOutputViewer'
 
 interface VerificationCommandsPanelProps {
@@ -30,6 +33,10 @@ interface PanelState {
   timeoutSeconds: number
   // Advances on every edit of the draft, even one that yields identical values, so a save can only clear the very draft it sent.
   draftVersion: number
+  // The refresh generation that was current when a start request ended without a definite answer (a transport failure or a server
+  // fault), i.e. when the unknown outcome became known: the host may or may not have recorded it. Reads begun at or before that
+  // generation cannot discharge it; another local submission needs a later explicit refresh that read the status successfully.
+  uncertainAtGeneration: number | null
 }
 
 function createPanelState(): PanelState {
@@ -42,7 +49,17 @@ function createPanelState(): PanelState {
     argumentsText: '',
     timeoutSeconds: DEFAULT_TIMEOUT_SECONDS,
     draftVersion: 0,
+    uncertainAtGeneration: null,
   }
+}
+
+const UNCERTAIN_START_MESSAGE =
+  'The verification request may or may not have been recorded. Use Refresh evidence to check the verification status before running again.'
+
+// A definite refusal is a client or conflict answer of the host; anything else (no answer, a server fault, an unreadable answer)
+// leaves the outcome of the request unknown and is never reported as a refusal or as an acceptance.
+function isDefiniteRefusal(caught: unknown): boolean {
+  return ApiException.isApiException(caught) && caught.status >= 400 && caught.status < 500
 }
 
 function outputCaptureDescription(execution: VerificationExecutionResponse, stream: 'stdout' | 'stderr') {
@@ -58,10 +75,17 @@ function outputCaptureDescription(execution: VerificationExecutionResponse, stre
 export function VerificationCommandsPanel({ projectId, refreshGeneration }: VerificationCommandsPanelProps) {
   const { commands, loading, saving, error, configure, update, remove } = useProjectVerificationCommands(projectId)
   const { evidence, current: evidenceCurrent, loading: evidenceLoading } = useProjectGitEvidence(projectId, true, refreshGeneration)
-  const { executions, error: executionError, refresh: refreshExecutions } = useProjectVerificationExecutions(projectId)
+  const {
+    executions,
+    error: executionError,
+    refresh: refreshExecutions,
+    current: executionsCurrent,
+    loading: executionsLoading,
+    readFailed: executionsFailed,
+  } = useProjectVerificationExecutions(projectId, refreshGeneration)
   const lifetime = useOwnedLifetime(projectId)
   const [panel, commit] = useOwnedState(lifetime, createPanelState)
-  const { runningCommandId, runMessage, selectedOutput, name, executablePath, argumentsText, timeoutSeconds, draftVersion } = panel
+  const { runningCommandId, runMessage, selectedOutput, name, executablePath, argumentsText, timeoutSeconds, draftVersion, uncertainAtGeneration } = panel
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -83,26 +107,58 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration }: Veri
     }
   }
 
-  // Run needs a checkpoint whose current metadata was read; during a pending or failed refresh it must not submit a stale one.
-  const canRun = Boolean(evidence?.checkpointId) && evidenceCurrent
+  // Run needs a checkpoint whose current metadata was read, a settled successful read of the verification executions of the displayed
+  // generation, and no running verification in the workspace that checkpoint belongs to (whatever its recipe). An execution of another
+  // workspace never blocks, and the answer of a start request that may have been recorded blocks until a later refresh read the status.
+  const checkpointId = evidence?.checkpointId
+  // Ownership is conservative: an execution or evidence without a workspace identity is treated as the current workspace's. Only a
+  // confirmed different workspace is historical, and a historical fact is displayed but never controls this workspace's Run.
+  const inCurrentWorkspace = (execution: VerificationExecutionResponse) =>
+    execution.gitWorkspaceId === undefined || evidence?.gitWorkspaceId === undefined || execution.gitWorkspaceId === evidence.gitWorkspaceId
+  const workspaceRunning = executions.some(execution => execution.status === 'Running' && inCurrentWorkspace(execution))
+  const executionsReading = !executionsCurrent && (executionsLoading || !executionsFailed)
+  const uncertaintyDischarged =
+    uncertainAtGeneration !== null && (refreshGeneration ?? 0) > uncertainAtGeneration && executionsCurrent && evidenceCurrent
+  const startUncertain = uncertainAtGeneration !== null && !uncertaintyDischarged
+  const canRun = Boolean(checkpointId) && evidenceCurrent && executionsCurrent && !workspaceRunning && !startUncertain
+
+  // Handlers are rebound on every render, but one retained from an earlier render must decide from the newest authority.
+  const latest = useRef({ canRun, checkpointId, generation: refreshGeneration ?? 0 })
+  useLayoutEffect(() => {
+    latest.current = { canRun, checkpointId, generation: refreshGeneration ?? 0 }
+  })
+  // A later explicit refresh that read the status acknowledges the uncertainty for good: it is cleared from the lifetime's state, so a
+  // later pending or failed read can never revive it.
+  useEffect(() => {
+    if (uncertaintyDischarged) {
+      commit(previous => (previous.uncertainAtGeneration === uncertainAtGeneration ? { ...previous, uncertainAtGeneration: null } : previous))
+    }
+  }, [uncertaintyDischarged, uncertainAtGeneration, commit])
+
+  // The request in flight, owned by the committed lifetime that sent it: another lifetime's request neither blocks this one nor
+  // releases its protection.
+  const starting = useRef<{ lifetime: OwnedLifetime } | null>(null)
 
   async function run(commandId: string | undefined) {
-    if (!lifetime.isActive()) {
+    if (!lifetime.isActive() || starting.current?.lifetime === lifetime) {
       return
     }
 
-    if (!commandId || !evidence?.checkpointId || !evidenceCurrent) {
-      commit(previous => ({ ...previous, runMessage: 'Capture or refresh a current source checkpoint before running verification.' }))
+    const authority = latest.current
+    if (!commandId || !authority.checkpointId || !authority.canRun) {
+      commit(previous => ({ ...previous, runMessage: 'Capture or refresh a current source checkpoint, and wait for no running verification, before running verification.' }))
       return
     }
 
+    const mine = { lifetime }
+    starting.current = mine
     const isCurrent = lifetime.begin('run')
     commit(previous => ({ ...previous, runningCommandId: commandId, runMessage: null }))
     try {
       const execution = await claimVerificationExecutionClient().claimVerificationExecution(
         projectId,
         commandId,
-        new ClaimVerificationExecutionRequest({ gitCheckpointId: evidence.checkpointId }),
+        new ClaimVerificationExecutionRequest({ gitCheckpointId: authority.checkpointId }),
       )
       // An accepted claim stays real; only a continuation of the current project may report on it.
       if (!isCurrent()) {
@@ -112,11 +168,16 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration }: Veri
       if (isCurrent()) {
         commit(previous => ({ ...previous, runMessage: `Verification #${execution.executionNumber} was requested.` }))
       }
-    } catch {
+    } catch (caught) {
       if (isCurrent()) {
-        commit(previous => ({ ...previous, runMessage: 'This verification could not be started.' }))
+        commit(previous => isDefiniteRefusal(caught)
+          ? { ...previous, runMessage: 'This verification could not be started.' }
+          : { ...previous, runMessage: null, uncertainAtGeneration: latest.current.generation })
       }
     } finally {
+      if (starting.current === mine) {
+        starting.current = null
+      }
       if (isCurrent()) {
         commit(previous => ({ ...previous, runningCommandId: null }))
       }
@@ -138,14 +199,21 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration }: Veri
         </span>
       ) : null}
       {evidenceCurrent && !evidence?.checkpointId ? <span className="dc-workspace-evidence-empty">Capture a current source checkpoint to enable Run.</span> : null}
+      {executionsReading ? <span className="dc-workspace-evidence-empty">Reading verification status…</span> : null}
+      {executionsCurrent && workspaceRunning ? <span className="dc-workspace-evidence-empty">A verification is running in this workspace; Run is available once it finishes.</span> : null}
+      {startUncertain ? <span className="dc-candidate-workspace-attention">{UNCERTAIN_START_MESSAGE}</span> : null}
 
       {loading ? <span className="dc-empty-state">Loading verification commands…</span> : null}
       {!loading && commands.length === 0 ? <span className="dc-workspace-evidence-empty">No verification commands configured.</span> : null}
       {commands.map(command => (
         (() => {
           const execution = executions.find(candidate => candidate.verificationCommandId === command.verificationCommandId)
-          const isRunning = execution?.status === 'Running'
-          const statusLabel = isRunning ? (execution?.isDispatched ? 'Running' : 'Pending') : execution?.status
+          // Display and control state are separate: only an execution of the current workspace makes this recipe Pending or Running.
+          const historical = execution !== undefined && !inCurrentWorkspace(execution)
+          const isRunning = execution?.status === 'Running' && !historical
+          const statusLabel = isRunning
+            ? (execution?.isDispatched ? 'Running' : 'Pending')
+            : historical && execution?.status === 'Running' ? 'Running (earlier workspace)' : execution?.status
           const canInspectOutput = execution && execution.status !== 'Running'
           const outputSelection = selectedOutput && selectedOutput.executionId === execution?.verificationExecutionId ? selectedOutput : null
           return (

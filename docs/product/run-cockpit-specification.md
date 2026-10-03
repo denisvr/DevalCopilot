@@ -909,6 +909,35 @@ request at exhaustion is still refused with `409 agent_attempts.direct_guidance_
 [ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md) for the request, snapshot,
 manifest, and dispatch rules.
 
+### Explicit local verification and the evidence refresh
+
+The verification panel's **Run** sends the one explicit claim request (HTTP 202, see the
+[workflow model](../architecture/workflow-model.md#current-verification-configuration-and-execution-boundary)). The project's
+"Refresh evidence" generation is passed to the panel's execution read as well as to its source evidence read, and Run needs **settled,
+successful** source evidence and execution evidence of the displayed generation (no read in flight, so each poll of a running
+verification also withholds it until it settles) and **no running verification in the current workspace**, whichever recipe it belongs
+to; the host's execution list and the evidence read now carry the workspace identity (`gitWorkspaceId`), so a running execution of
+another, historical workspace never blocks the current one and no ownership is inferred from a recipe or a checkpoint. A recipe's own
+control follows the same rule: only an execution of the current workspace labels it Pending or Running or disables it, while an execution
+of a confirmed different workspace stays visible as history ("Last run: Running (earlier workspace)") without controlling Run; a missing
+workspace identity (on the execution or on the evidence) is treated conservatively as the current workspace's. The same conditions are
+enforced in the click handler, which decides from the newest authority even when it was retained from an earlier render. Duplicate
+protection belongs to the committed lifetime of the project and to the exact request: a second synchronous activation in that lifetime
+sends nothing, while another lifetime's request (a replaced project, or an earlier visit to the same one) neither blocks it nor releases
+its protection, whether or not a parent remounts the panel. While the status read is pending the panel says so and keeps the cached history
+visible as non-authoritative; after a failed read it keeps the history, the existing fixed failure copy and Run withheld until a later
+successful refresh. The refresh itself issues reads only.
+
+A start request that ended without a definite answer (no response, a server fault or an unreadable answer) may or may not have been
+recorded: the panel shows fixed copy ("The verification request may or may not have been recorded. Use Refresh evidence to check the
+verification status before running again."), never a server detail, never retries and never invents an outcome, and withholds Run until a
+later explicit refresh read the status successfully. The boundary begins when the unknown outcome is known, not when the request was
+sent: a refresh that settled, or is still in flight, when the failure arrives cannot discharge it, polling cannot, and only a refresh begun
+afterwards whose reads succeeded does, after which it is cleared for good and no later pending or failed read revives it. It belongs to
+the project lifetime that sent the request. A definite refusal (a 4xx answer) keeps the existing "This verification could not
+be started." copy and Run stays available. An accepted claim stays real: it is reported as requested even when the follow-up status read
+fails, and after the project is replaced its continuation neither reports on nor blocks the replacement.
+
 ### Manual checkpoint review and the explicit evidence refresh
 
 The project's candidate-workspace "Checkpoint review" panel records one explicit manual `CheckpointReview` fact (a reviewer

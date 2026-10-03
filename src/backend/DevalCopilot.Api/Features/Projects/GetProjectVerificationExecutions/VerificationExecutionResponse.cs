@@ -3,6 +3,7 @@ namespace DevalCopilot.Api.Features.Projects.GetProjectVerificationExecutions;
 public sealed record VerificationExecutionResponse(
     Guid VerificationExecutionId,
     Guid VerificationCommandId,
+    Guid GitWorkspaceId,
     Guid GitCheckpointId,
     string CheckpointFingerprintSha256,
     int ExecutionNumber,

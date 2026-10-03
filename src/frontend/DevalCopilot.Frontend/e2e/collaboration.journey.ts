@@ -75,6 +75,7 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const verification = page.getByRole('region', { name: 'Verification commands' })
   const diagnosis = page.getByRole('region', { name: 'Verification diagnosis' })
   const review = page.getByRole('region', { name: 'Code review' })
+  const manual = page.getByRole('region', { name: 'Checkpoint review evidence' })
 
   // 1-2. Register and explicitly select the project, recheck its physical identity, prepare its real candidate worktree, capture
   // the checkpoint, configure the verification command, and record a ManualAgent objective.
@@ -151,6 +152,13 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await page.getByRole('button', { name: 'Refresh evidence' }).click()
   await expect(diagnosis.getByRole('button', { name: 'Diagnose failed verification with Codex' })).toBeEnabled({ timeout: 30_000 })
   await expect(diagnosis).not.toContainText('Verification has not been run for the current source')
+  // The same explicit refresh shows the failed verification as current evidence in the verification panel and in the manual review
+  // panel: a decision that needs evidence is offered, but never an approval of a failed execution. Nothing is clicked.
+  await expect(verification).toContainText('Last run: Failed')
+  await expect(verification).not.toContainText('Reading verification status…')
+  await expect(manual.getByRole('button', { name: 'Changes requested' })).toBeEnabled({ timeout: 30_000 })
+  await expect(manual.getByRole('button', { name: 'Approve' })).toBeDisabled()
+  await expect(manual).not.toContainText('Reading verification evidence…')
   expect(agentContracts()).toHaveLength(4)
   expect(checkpoints()).toHaveLength(2)
   expect(executions()).toHaveLength(1)
@@ -205,6 +213,12 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(review).not.toContainText('has not Passed for the current checkpoint', { timeout: 30_000 })
   await expect(review.getByRole('button', { name: 'Request code review' })).toBeEnabled()
   await expect(diagnosis.getByRole('button', { name: 'Diagnose failed verification with Codex' })).toHaveCount(0)
+  // The Passed verification of the corrected checkpoint is current in both evidence views after this refresh, before any decision.
+  await expect(verification).toContainText('Last run: Passed')
+  await expect(verification).not.toContainText('Reading verification status…')
+  await expect(manual.getByRole('button', { name: 'Approve' })).toBeEnabled({ timeout: 30_000 })
+  await expect(manual).not.toContainText('Reading verification evidence…')
+  expect(checkpointReviews()).toEqual([]) // no manual review exists yet, and the refresh recorded none
   expect(agentContracts()).toHaveLength(6)
   expect(checkpoints()).toHaveLength(3)
   expect(executions()).toHaveLength(2)
@@ -219,7 +233,6 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   // one Human Approved fact over the authenticated generated client's HTTP 201. It is a separate, human-authored fact: it creates no
   // attempt, message, invocation, claim, grant or lifecycle change. The ordinary approval above already recorded its own FutureAgent
   // review fact for the same checkpoint; the manual one is a second, distinct fact and never replaces or rewrites it.
-  const manual = page.getByRole('region', { name: 'Checkpoint review evidence' })
   const agentReviews = checkpointReviews()
   expect(agentReviews.map((row) => [row.ActorKind, row.Decision, row.CheckpointNumber])).toEqual([['FutureAgent', 'Approved', 3]])
   const beforeManual = { attempts: attempts().length, messages: messages().length, invocations: stageInvocations().length }

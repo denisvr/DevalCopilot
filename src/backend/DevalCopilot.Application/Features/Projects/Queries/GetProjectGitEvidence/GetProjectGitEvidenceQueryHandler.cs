@@ -26,6 +26,7 @@ public sealed class GetProjectGitEvidenceQueryHandler(IDevalCopilotDbContext dbC
                 select new
                 {
                     candidate.Id,
+                    WorkspaceId = workspace.Id,
                     candidate.CheckpointNumber,
                     candidate.CapturedAtUtc,
                     candidate.HeadCommitSha,
@@ -37,6 +38,6 @@ public sealed class GetProjectGitEvidenceQueryHandler(IDevalCopilotDbContext dbC
         return Result<GetProjectGitEvidenceQueryResult>.Success(checkpoint is null
             ? new(null, null, null, null, null, 0)
             : new(checkpoint.Id, checkpoint.CheckpointNumber, checkpoint.CapturedAtUtc, checkpoint.HeadCommitSha,
-                checkpoint.FingerprintSha256, checkpoint.ChangedFileCount));
+                checkpoint.FingerprintSha256, checkpoint.ChangedFileCount, checkpoint.WorkspaceId));
     }
 }

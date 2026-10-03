@@ -5,6 +5,7 @@ using DevalCopilot.Application.Features.Projects.Commands.RecordVerificationExec
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Projects;
@@ -115,10 +116,10 @@ public sealed class ClaimVerificationExecutionCommandHandlerTests : IAsyncLifeti
 
         var dispatchHandler = new MarkVerificationExecutionDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
         var firstDispatch = await dispatchHandler.HandleAsync(
-            new MarkVerificationExecutionDispatchedCommand(claimed.Value.VerificationExecutionId), CancellationToken.None);
+            new MarkVerificationExecutionDispatchedCommand(claimed.Value.VerificationExecutionId, await ExpectedAsync(dbContext, claimed.Value.VerificationExecutionId)), CancellationToken.None);
         await dbContext.SaveChangesAsync(CancellationToken.None);
         var secondDispatch = await dispatchHandler.HandleAsync(
-            new MarkVerificationExecutionDispatchedCommand(claimed.Value.VerificationExecutionId), CancellationToken.None);
+            new MarkVerificationExecutionDispatchedCommand(claimed.Value.VerificationExecutionId, await ExpectedAsync(dbContext, claimed.Value.VerificationExecutionId)), CancellationToken.None);
 
         Assert.True(firstDispatch.IsSuccess);
         Assert.True(secondDispatch.IsFailure);
@@ -149,14 +150,15 @@ public sealed class ClaimVerificationExecutionCommandHandlerTests : IAsyncLifeti
 
         var dispatchHandler = new MarkVerificationExecutionDispatchedCommandHandler(dbContext, new FixedTimeProvider(Now));
         var dispatched = await dispatchHandler.HandleAsync(
-            new MarkVerificationExecutionDispatchedCommand(claimed.Value.VerificationExecutionId), CancellationToken.None);
+            new MarkVerificationExecutionDispatchedCommand(claimed.Value.VerificationExecutionId, await ExpectedAsync(dbContext, claimed.Value.VerificationExecutionId)), CancellationToken.None);
         Assert.True(dispatched.IsSuccess);
         await dbContext.SaveChangesAsync(CancellationToken.None);
         await dbContext.Entry(dbContext.VerificationExecutions.Single()).ReloadAsync(CancellationToken.None);
 
         var handler = new RecordVerificationExecutionSourceChangedCommandHandler(dbContext, new FixedTimeProvider(Now));
         var result = await handler.HandleAsync(
-            new RecordVerificationExecutionSourceChangedCommand(claimed.Value.VerificationExecutionId, new string('c', 64)),
+            new RecordVerificationExecutionSourceChangedCommand(
+                claimed.Value.VerificationExecutionId, new string('c', 64), await ExpectedAsync(dbContext, claimed.Value.VerificationExecutionId)),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -164,6 +166,9 @@ public sealed class ClaimVerificationExecutionCommandHandlerTests : IAsyncLifeti
         Assert.Equal("This verification execution is no longer pending.", result.Errors[0].Description);
         Assert.DoesNotContain("Only an undispatched running verification execution can be invalidated.", result.Errors[0].Description, StringComparison.Ordinal);
     }
+
+    private static async Task<VerificationDispatchSnapshot> ExpectedAsync(DevalCopilotDbContext dbContext, Guid executionId) =>
+        VerificationDispatchSnapshot.Of(await dbContext.VerificationExecutions.AsNoTracking().SingleAsync(execution => execution.Id == executionId));
 
     private static async Task<(Project Project, GitWorkspace Workspace, GitCheckpoint Checkpoint, VerificationCommand Recipe)> AddReadyWorkspaceAsync(
         DevalCopilotDbContext dbContext, bool recipeEnabled = true)

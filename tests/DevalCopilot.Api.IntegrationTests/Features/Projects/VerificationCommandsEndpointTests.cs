@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using DevalCopilot.Api.Features.Projects.ClaimVerificationExecution;
 using DevalCopilot.Api.Features.Projects.ConfigureVerificationCommand;
+using DevalCopilot.Api.Features.Projects.GetProjectGitEvidence;
 using DevalCopilot.Api.Features.Projects.GetProjectCheckpointReviews;
 using DevalCopilot.Api.Features.Projects.GetProjectVerificationCommands;
 using DevalCopilot.Api.Features.Projects.GetProjectVerificationExecutions;
@@ -281,6 +283,98 @@ public sealed class VerificationCommandsEndpointTests(ReviewApiWebApplicationFac
         dbContext.VerificationOutputArtifacts.Add(artifact);
         await dbContext.SaveChangesAsync(CancellationToken.None);
         return project.Id;
+    }
+
+    [Fact]
+    public async Task Claim_requires_an_authenticated_session()
+    {
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            $"{ProjectsRoute}/{Guid.NewGuid()}/verification-commands/{Guid.NewGuid()}/executions", new { GitCheckpointId = Guid.NewGuid() });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authenticated_claim_is_accepted_with_its_number_and_both_reads_carry_the_workspace_identity()
+    {
+        using var client = CreateAuthenticatedClient();
+        var data = await SeedClaimReadyProjectAsync();
+
+        var response = await client.PostAsJsonAsync(
+            $"{ProjectsRoute}/{data.ProjectId}/verification-commands/{data.RecipeId}/executions", new { GitCheckpointId = data.CheckpointId });
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var accepted = await response.Content.ReadFromJsonAsync<ClaimVerificationExecutionResponse>();
+        Assert.NotNull(accepted);
+        Assert.NotEqual(Guid.Empty, accepted!.VerificationExecutionId);
+        Assert.Equal(1, accepted.ExecutionNumber);
+
+        var executions = await client.GetFromJsonAsync<List<VerificationExecutionResponse>>($"{ProjectsRoute}/{data.ProjectId}/verification-executions");
+        var execution = Assert.Single(executions!);
+        Assert.Equal(data.WorkspaceId, execution.GitWorkspaceId);
+        Assert.Equal(data.CheckpointId, execution.GitCheckpointId);
+        Assert.Equal("Running", execution.Status);
+        Assert.False(execution.IsDispatched);
+
+        var evidence = await client.GetFromJsonAsync<GetProjectGitEvidenceResponse>($"{ProjectsRoute}/{data.ProjectId}/workspace/evidence");
+        Assert.Equal(data.WorkspaceId, evidence!.GitWorkspaceId);
+        Assert.Equal(data.CheckpointId, evidence.CheckpointId);
+    }
+
+    [Fact]
+    public async Task A_second_claim_while_one_is_running_returns_a_safe_conflict_and_records_nothing()
+    {
+        using var client = CreateAuthenticatedClient();
+        var data = await SeedClaimReadyProjectAsync();
+        var route = $"{ProjectsRoute}/{data.ProjectId}/verification-commands/{data.RecipeId}/executions";
+        var first = await client.PostAsJsonAsync(route, new { GitCheckpointId = data.CheckpointId });
+        Assert.Equal(HttpStatusCode.Accepted, first.StatusCode);
+
+        var second = await client.PostAsJsonAsync(route, new { GitCheckpointId = data.CheckpointId });
+        var body = await second.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Contains("verification.already_running", body);
+        Assert.DoesNotContain("C:\\", body);
+        Assert.DoesNotContain("System.", body);
+        var executions = await client.GetFromJsonAsync<List<VerificationExecutionResponse>>($"{ProjectsRoute}/{data.ProjectId}/verification-executions");
+        Assert.Single(executions!);
+    }
+
+    [Fact]
+    public async Task A_claim_for_a_checkpoint_that_does_not_exist_returns_a_safe_not_found()
+    {
+        using var client = CreateAuthenticatedClient();
+        var data = await SeedClaimReadyProjectAsync();
+
+        var response = await client.PostAsJsonAsync(
+            $"{ProjectsRoute}/{data.ProjectId}/verification-commands/{data.RecipeId}/executions", new { GitCheckpointId = Guid.NewGuid() });
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains("verification.not_found", body);
+        Assert.DoesNotContain("C:\\", body);
+    }
+
+    private async Task<(Guid ProjectId, Guid RecipeId, Guid CheckpointId, Guid WorkspaceId)> SeedClaimReadyProjectAsync()
+    {
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var project = Project.Register(Guid.NewGuid(), "Claim project", $@"C:\repos\{Guid.NewGuid():N}", now);
+        var workspace = GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", new string('a', 40), "main", now);
+        workspace.MarkReady();
+        var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, now, new string('a', 40), new string('a', 64), []);
+        var recipe = VerificationCommand.Configure(Guid.NewGuid(), project.Id, 1, "Backend tests", @"C:\dotnet.exe", ["test"], 60, true, now);
+        dbContext.Projects.Add(project);
+        dbContext.GitWorkspaces.Add(workspace);
+        dbContext.GitCheckpoints.Add(checkpoint);
+        dbContext.VerificationCommands.Add(recipe);
+        dbContext.RepositoryMutationLeases.Add(RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, Guid.NewGuid().ToByteArray(), now));
+        await dbContext.SaveChangesAsync(CancellationToken.None);
+        return (project.Id, recipe.Id, checkpoint.Id, workspace.Id);
     }
 
     private async Task<(Guid ProjectId, Guid CheckpointId, Guid ExecutionId)> SeedReviewReadyProjectAsync()

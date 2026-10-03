@@ -7935,6 +7935,7 @@ export interface IGetProjectWorkspaceResponse {
 export class VerificationExecutionResponse implements IVerificationExecutionResponse {
     verificationExecutionId?: string;
     verificationCommandId?: string;
+    gitWorkspaceId?: string;
     gitCheckpointId?: string;
     checkpointFingerprintSha256?: string;
     executionNumber?: number;
@@ -7964,6 +7965,7 @@ export class VerificationExecutionResponse implements IVerificationExecutionResp
         if (_data) {
             this.verificationExecutionId = _data["verificationExecutionId"];
             this.verificationCommandId = _data["verificationCommandId"];
+            this.gitWorkspaceId = _data["gitWorkspaceId"];
             this.gitCheckpointId = _data["gitCheckpointId"];
             this.checkpointFingerprintSha256 = _data["checkpointFingerprintSha256"];
             this.executionNumber = _data["executionNumber"];
@@ -7993,6 +7995,7 @@ export class VerificationExecutionResponse implements IVerificationExecutionResp
         data = typeof data === 'object' ? data : {};
         data["verificationExecutionId"] = this.verificationExecutionId;
         data["verificationCommandId"] = this.verificationCommandId;
+        data["gitWorkspaceId"] = this.gitWorkspaceId;
         data["gitCheckpointId"] = this.gitCheckpointId;
         data["checkpointFingerprintSha256"] = this.checkpointFingerprintSha256;
         data["executionNumber"] = this.executionNumber;
@@ -8015,6 +8018,7 @@ export class VerificationExecutionResponse implements IVerificationExecutionResp
 export interface IVerificationExecutionResponse {
     verificationExecutionId?: string;
     verificationCommandId?: string;
+    gitWorkspaceId?: string;
     gitCheckpointId?: string;
     checkpointFingerprintSha256?: string;
     executionNumber?: number;
@@ -8271,6 +8275,7 @@ export class GetProjectGitEvidenceResponse implements IGetProjectGitEvidenceResp
     headCommitSha?: string | undefined;
     fingerprintSha256?: string | undefined;
     changedFileCount?: number;
+    gitWorkspaceId?: string | undefined;
 
     constructor(data?: IGetProjectGitEvidenceResponse) {
         if (data) {
@@ -8289,6 +8294,7 @@ export class GetProjectGitEvidenceResponse implements IGetProjectGitEvidenceResp
             this.headCommitSha = _data["headCommitSha"];
             this.fingerprintSha256 = _data["fingerprintSha256"];
             this.changedFileCount = _data["changedFileCount"];
+            this.gitWorkspaceId = _data["gitWorkspaceId"];
         }
     }
 
@@ -8307,6 +8313,7 @@ export class GetProjectGitEvidenceResponse implements IGetProjectGitEvidenceResp
         data["headCommitSha"] = this.headCommitSha;
         data["fingerprintSha256"] = this.fingerprintSha256;
         data["changedFileCount"] = this.changedFileCount;
+        data["gitWorkspaceId"] = this.gitWorkspaceId;
         return data;
     }
 }
@@ -8318,6 +8325,7 @@ export interface IGetProjectGitEvidenceResponse {
     headCommitSha?: string | undefined;
     fingerprintSha256?: string | undefined;
     changedFileCount?: number;
+    gitWorkspaceId?: string | undefined;
 }
 
 export class CheckpointReviewResponse implements ICheckpointReviewResponse {

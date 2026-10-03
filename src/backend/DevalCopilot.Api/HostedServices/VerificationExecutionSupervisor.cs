@@ -12,7 +12,10 @@ namespace DevalCopilot.Api.HostedServices;
 /// <summary>
 /// Executes only durably claimed verification recipes. No shell is involved, and a dispatch
 /// marker is committed before starting the child process so a later polling cycle cannot launch
-/// it twice. A host restart leaves any unrecorded execution for startup reconciliation.
+/// it twice. The eligibility feed only proposes candidates: the single-use marker is committed by a fresh decision that re-reads
+/// the durable execution and its ownership and requires agreement with the snapshot carried from the feed, so a refused decision
+/// launches nothing and leaves the execution pending. A host restart leaves any unrecorded execution for startup reconciliation.
+/// The filesystem is not frozen between the physical observation, the marker commit and the process start.
 /// </summary>
 public sealed class VerificationExecutionSupervisor(
     IServiceScopeFactory scopeFactory,
@@ -53,7 +56,7 @@ public sealed class VerificationExecutionSupervisor(
         {
             await DispatchAsync(
                 new RecordVerificationExecutionSourceChangedCommand(
-                    execution.VerificationExecutionId, preDispatchEvidence.FingerprintSha256!),
+                    execution.VerificationExecutionId, preDispatchEvidence.FingerprintSha256!, execution.ToSnapshot()),
                 CancellationToken.None);
             return;
         }
@@ -65,7 +68,7 @@ public sealed class VerificationExecutionSupervisor(
         }
 
         var dispatched = await DispatchAsync(
-            new MarkVerificationExecutionDispatchedCommand(execution.VerificationExecutionId), stoppingToken);
+            new MarkVerificationExecutionDispatchedCommand(execution.VerificationExecutionId, execution.ToSnapshot()), stoppingToken);
         if (dispatched.IsFailure)
         {
             return;

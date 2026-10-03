@@ -331,7 +331,7 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
     expect(clients.recordCheckpointReview).toHaveBeenCalledTimes(1)
   })
 
-  it('turns an explicit refresh into one execution read and one review read for the panel, and no review, verification, capture or Agent request', async () => {
+  it('turns an explicit refresh into one execution read per consumer (the review and verification panels) and one review read, and no review, verification, capture or Agent request', async () => {
     const clients = installClients()
     await renderSettled()
     const executionReads = clients.getProjectVerificationExecutions.mock.calls.length
@@ -339,7 +339,7 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
 
     fireEvent.click(refreshButton())
 
-    await waitFor(() => expect(clients.getProjectVerificationExecutions.mock.calls.length).toBe(executionReads + 1))
+    await waitFor(() => expect(clients.getProjectVerificationExecutions.mock.calls.length).toBe(executionReads + 2))
     await waitFor(() => expect(clients.getProjectCheckpointReviews.mock.calls.length).toBe(reviewReads + 1))
     await waitFor(() => expect(button('Approve')).toBeEnabled())
     expectNoMutationRequested(clients)
@@ -542,7 +542,7 @@ describe('CheckpointReviewPanel evidence refresh generation', () => {
 
     const reads = clients.getProjectVerificationExecutions.mock.calls.length
     fireEvent.click(refreshButton())
-    await waitFor(() => expect(clients.getProjectVerificationExecutions.mock.calls.length).toBe(reads + 1))
+    await waitFor(() => expect(clients.getProjectVerificationExecutions.mock.calls.length).toBe(reads + 2))
     await waitFor(() => expect(button('Changes requested')).toBeEnabled())
 
     expect(within(review()).getByLabelText('Reviewer')).toHaveValue('FutureAgent')

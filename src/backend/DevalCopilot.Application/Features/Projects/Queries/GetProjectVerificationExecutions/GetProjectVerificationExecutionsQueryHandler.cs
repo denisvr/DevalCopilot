@@ -20,6 +20,7 @@ public sealed class GetProjectVerificationExecutionsQueryHandler(IDevalCopilotDb
             .Select(execution => new VerificationExecutionQueryResult(
                 execution.Id,
                 execution.VerificationCommandId,
+                execution.GitWorkspaceId,
                 execution.GitCheckpointId,
                 execution.CheckpointFingerprintSha256,
                 execution.ExecutionNumber,

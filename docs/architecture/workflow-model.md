@@ -73,6 +73,34 @@ and the selected Git checkpoint only when the workspace is `Ready`, its mutation
 claim and a dispatch marker before starting the child process; the process uses no shell, no
 PATH lookup, and no ambient environment, and its working directory is the isolated workspace.
 
+The explicit claim (`POST /api/projects/{projectId}/verification-commands/{verificationCommandId}/executions`, HTTP 202 with the
+execution identity and number) decides from fresh facts at its commit. It requires an enabled recipe owned by the project, the
+project's latest workspace (`Ready`, with an active lease), a selected checkpoint that belongs to that workspace and whose fresh
+physical fingerprint still matches (the selected checkpoint need not be the newest: an older one whose fingerprint still matches stays
+eligible), and no `Running` verification in that workspace, whatever its recipe. The host reads this authority untracked and observes
+Git outside any transaction. It then opens one short write-locked transaction whose first statement atomically increments the
+project's stored execution counter (which takes the lock), re-reads the same authority untracked, requires the recipe (identity, name,
+executable, ordered arguments, timeout, enabled state), the workspace (identity, path) and the checkpoint (identity, number,
+fingerprint) to equal what the observation was taken against, and persists the execution, built from those fresh rows, with the
+reserved number. A refusal (`verification.not_found`, `disabled`, `workspace_not_ready`, `already_running`,
+`checkpoint_not_current`, `recipe_changed`), a cancellation, or a failure before the durable commit leaves no execution and no
+consumed number; a failure reported after the commit cannot prove that nothing was recorded, so it is never presented as such. A tracked
+entity retained by the context is never authority and never supplies or overwrites the counter. Serialized competing claims therefore
+create at most one `Running` execution per workspace. After a successful claim the persisted snapshot is authoritative: editing or
+disabling the live recipe neither cancels nor retargets that execution.
+
+The eligibility feed of the verification supervisor supplies candidates, not authority to launch. The supervisor carries a bounded
+snapshot (ownership identities and the exact capture and launch facts: workspace path, fingerprint, executable, ordered arguments and
+timeout) into the final decision, which commits the single-use dispatch marker in one short write-locked transaction: it re-reads the
+execution untracked, requires it to agree with that snapshot, and requires the execution's checkpoint to remain on the project's latest
+workspace, which must still be `Ready`, at the recorded path, with an active lease, before conditionally setting the marker
+(`verification.execution_snapshot_changed` or `execution_not_current` otherwise). A pre-dispatch `SourceChanged` is recorded under the
+same agreement; ownership loss or disagreement records nothing and never fabricates a fingerprint or process outcome. A refused
+decision launches no process and leaves the claim pending (it is never cancelled, retried, refunded or terminated by this boundary);
+an ineligible pending claim can therefore remain pending. Git, process and artifact work stay outside every transaction. Agreement is
+with the durable execution, not with the live recipe, and is not protection against out-of-band tampering with the database. The
+filesystem is not frozen between the physical observation, the claim commit, the dispatch commit and the process start.
+
 The host captures only redacted, bounded stdout/stderr under the application artifact root,
 seals and hashes each file outside the database transaction, then persists the metadata and
 completion evidence. Same-host result metadata records whether each stream was truncated;

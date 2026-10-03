@@ -28,7 +28,11 @@ public sealed class GetEligibleVerificationExecutionsQueryHandler(IDevalCopilotD
                     candidate.execution.ExecutablePath,
                     candidate.execution.Arguments,
                     candidate.execution.WorkspacePath,
-                    candidate.execution.TimeoutSeconds))
+                    candidate.execution.TimeoutSeconds,
+                    candidate.execution.ProjectId,
+                    candidate.execution.GitWorkspaceId,
+                    candidate.execution.GitCheckpointId,
+                    candidate.execution.VerificationCommandId))
             .ToListAsync(cancellationToken);
     }
 }

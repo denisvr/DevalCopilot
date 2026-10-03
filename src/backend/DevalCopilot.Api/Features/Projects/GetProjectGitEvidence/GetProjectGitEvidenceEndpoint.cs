@@ -25,6 +25,7 @@ public sealed class GetProjectGitEvidenceEndpoint(
             result.Value.CapturedAtUtc,
             result.Value.HeadCommitSha,
             result.Value.FingerprintSha256,
-            result.Value.ChangedFileCount));
+            result.Value.ChangedFileCount,
+            result.Value.GitWorkspaceId));
     }
 }

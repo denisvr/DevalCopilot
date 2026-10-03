@@ -6,4 +6,5 @@ public sealed record GetProjectGitEvidenceQueryResult(
     DateTimeOffset? CapturedAtUtc,
     string? HeadCommitSha,
     string? FingerprintSha256,
-    int ChangedFileCount);
+    int ChangedFileCount,
+    Guid? GitWorkspaceId = null);

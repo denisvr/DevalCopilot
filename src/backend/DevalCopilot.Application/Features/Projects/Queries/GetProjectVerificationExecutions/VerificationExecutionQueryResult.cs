@@ -5,6 +5,7 @@ namespace DevalCopilot.Application.Features.Projects.Queries.GetProjectVerificat
 public sealed record VerificationExecutionQueryResult(
     Guid VerificationExecutionId,
     Guid VerificationCommandId,
+    Guid GitWorkspaceId,
     Guid GitCheckpointId,
     string CheckpointFingerprintSha256,
     int ExecutionNumber,
