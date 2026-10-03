@@ -11,6 +11,7 @@ public sealed class RecordCheckpointReviewEndpoint(
     IResultProblemDetailsFactory problemDetails) : ProjectsBaseEndpoint
 {
     [HttpPost("{projectId:guid}/reviews")]
+    [ProducesResponseType<RecordCheckpointReviewResponse>(StatusCodes.Status201Created)]
     public async Task<ActionResult<RecordCheckpointReviewResponse>> RecordCheckpointReview(
         Guid projectId,
         [FromBody] RecordCheckpointReviewRequest request,

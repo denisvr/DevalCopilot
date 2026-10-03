@@ -909,6 +909,40 @@ request at exhaustion is still refused with `409 agent_attempts.direct_guidance_
 [ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md) for the request, snapshot,
 manifest, and dispatch rules.
 
+### Manual checkpoint review and the explicit evidence refresh
+
+The project's candidate-workspace "Checkpoint review" panel records one explicit manual `CheckpointReview` fact (a reviewer
+choice of Human or Future agent; Pending, Changes requested, Escalate or Approve) for the exact current source checkpoint. It is
+independent of every Agent stage: it creates no attempt, message, claim, authorization, budget use, publication or run
+completion, and it grants no Agent or provider authority. The ordinary Codex approval records its own `FutureAgent` review fact
+for the same checkpoint; a manual fact is a second, distinct, immutable record and never replaces or rewrites it.
+
+The host answers the protected `POST /api/projects/{projectId}/reviews` with **201 Created**, a `Location` for the review list and
+the review identity and decision. The generated client treats exactly that status as success, so an accepted decision is never
+reported as a failed submission and is never sent again. A known refusal keeps its Problem Details (`reviews.not_found`,
+`reviews.workspace_not_ready`, `reviews.checkpoint_not_current`, `reviews.evidence_not_found`, `reviews.evidence_not_terminal`,
+`reviews.approval_requires_passed_verification`, `reviews.pending_cannot_include_evidence`).
+
+The project's explicit "Refresh evidence" action (one generation per click, owned by the project's lifetime) reads the current
+checkpoint, the verification executions and the review list again; the refresh itself issues no review, verification, capture or
+Agent request and does not remount the panel. A decided action needs **settled, successful** source evidence **and** execution
+evidence of the displayed generation: in the first frame, while either read is pending and after either read failed, the decided
+actions are withheld (the panel says that verification evidence is being read, or could not be refreshed and that Refresh evidence
+retries) and a cached Passed execution is never offered. **Pending** names no execution, so it needs only current source
+evidence. A later successful explicit refresh restores the actions. "Settled" also means no read is in flight: while any verification-execution or review read is pending (a refresh, a poll of a running verification, or the read that follows an accepted decision) the previously read lists stay visible only as non-authoritative history, so the decided actions are withheld during each pending poll and offered again when it settles. The review list shows each historical fact, but its
+"Current checkpoint" or "Historical review" applicability, and the warning about a previous approval, are shown only after the
+review read of the displayed generation succeeded; while it is pending the panel says the applicability is being confirmed, and
+after a failure that it could not be confirmed. A decision the host accepted and a review read that then fails are distinct: the
+panel reports that the review evidence could not be loaded, never that the decision could not be recorded. Per-project lifetimes
+(including A to B to A), unmount, newest-read ordering, retained callbacks, the reviewer choice, the selection bound to its
+checkpoint and the verification list's single one-second polling chain behave as for the other project panels; a request the host
+accepted stays real when the selection changes.
+
+At the commit the host reads the project, the latest workspace, its readiness and active lease, the exact current checkpoint and the
+selected execution afresh inside one short write-locked transaction (see the
+[workflow model](../architecture/workflow-model.md#current-verification-configuration-and-execution-boundary)); a change committed
+after the panel's read, or while the host observed Git, is refused rather than recorded against a newer checkpoint or workspace.
+
 ### Run-isolated asynchronous controls
 
 Every asynchronous control that changes a run's Agent work or settings — the six ordinary requests (Planner,

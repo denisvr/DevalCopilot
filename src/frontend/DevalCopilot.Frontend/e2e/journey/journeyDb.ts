@@ -23,11 +23,30 @@ export interface CheckpointRow {
 }
 
 export interface ExecutionRow {
+  Id: string
   ExecutionNumber: number
   Status: string
   ExitCode: number | null
   GitCheckpointId: string
   CompletionFingerprintSha256: string | null
+}
+
+export interface CheckpointReviewRow {
+  Id: string
+  GitCheckpointId: string
+  CheckpointNumber: number
+  CheckpointFingerprintSha256: string
+  ActorKind: string
+  Decision: string
+}
+
+export interface CheckpointReviewEvidenceRow {
+  CheckpointReviewId: string
+  VerificationExecutionId: string
+  VerificationExecutionNumber: number
+  VerificationExecutionCheckpointFingerprintSha256: string
+  VerificationExecutionStatus: string
+  VerificationExecutionExitCode: number | null
 }
 
 export interface MessageRow {
@@ -85,8 +104,28 @@ export function executions(): ExecutionRow[] {
   return withJourneyDb(
     (db) =>
       db
-        .prepare('select ExecutionNumber, Status, ExitCode, GitCheckpointId, CompletionFingerprintSha256 from verification_executions order by ExecutionNumber')
+        .prepare('select Id, ExecutionNumber, Status, ExitCode, GitCheckpointId, CompletionFingerprintSha256 from verification_executions order by ExecutionNumber')
         .all() as unknown as ExecutionRow[],
+  )
+}
+
+export function checkpointReviews(): CheckpointReviewRow[] {
+  return withJourneyDb(
+    (db) =>
+      db
+        .prepare('select Id, GitCheckpointId, CheckpointNumber, CheckpointFingerprintSha256, ActorKind, Decision from checkpoint_reviews order by RecordedAtUtcTicks')
+        .all() as unknown as CheckpointReviewRow[],
+  )
+}
+
+export function checkpointReviewEvidence(): CheckpointReviewEvidenceRow[] {
+  return withJourneyDb(
+    (db) =>
+      db
+        .prepare(
+          'select CheckpointReviewId, VerificationExecutionId, VerificationExecutionNumber, VerificationExecutionCheckpointFingerprintSha256, VerificationExecutionStatus, VerificationExecutionExitCode from checkpoint_review_evidence order by VerificationExecutionNumber',
+        )
+        .all() as unknown as CheckpointReviewEvidenceRow[],
   )
 }
 

@@ -94,9 +94,22 @@ the isolated workspace is `Ready`, its lease is active, the selected checkpoint 
 persisted checkpoint for that workspace, and a fresh bounded source capture still matches it.
 `Pending` is an execution-free recorded review state. `ChangesRequested` and `Escalated` may cite
 any terminal execution for that exact checkpoint; `Approved` additionally requires a passed
-execution. Review reads re-capture current source evidence: an older approval remains historical
-evidence but is marked not applicable with a fixed stale reason when a newer checkpoint exists or
-the source fingerprint has drifted.
+execution. The selected execution need not be the newest and the review need not cover every enabled recipe. Review reads re-capture
+current source evidence: an older approval remains historical evidence but is marked not applicable with a fixed stale reason when a
+newer checkpoint exists or the source fingerprint has drifted.
+
+The explicit manual recording (`POST /api/projects/{projectId}/reviews`, Created with the review identity and decision, protected
+like every other operation) decides from fresh facts at its commit. The host reads the project, latest workspace, readiness, active
+lease and exact current checkpoint untracked and applies the gates above, observes Git outside any transaction, and then opens one
+short write-locked transaction whose first statement takes the SQLite write lock. Inside it, it re-reads the same authority and the
+selected execution (ownership, checkpoint, checkpoint fingerprint, terminal status and a coherent outcome) untracked, requires them
+to equal what the observation was taken against (the workspace path, checkpoint identity, number and fingerprint, never retargeting a
+newer workspace or checkpoint), builds the review and its evidence member from those fresh rows, and saves and commits both
+atomically; any refusal, cancellation or failure leaves no review or member row. A tracked entity retained by the context is never
+an authority read. No Git, filesystem or provider work happens under the lock. The Git observation is a point-in-time read: it does
+not freeze the working tree through the commit, so a later source change leaves a recorded review a stale historical fact, never a
+retroactive one. A manual `Human` review is a checkpoint-bound fact only: it is not provider provenance, consumes no claim or
+grant, authorizes no publication and does not complete the run.
 
 ### Current agent-implementation boundary
 

@@ -37,6 +37,9 @@ vi.mock('../hooks/useProjectVerificationExecutions', () => ({
         executionNumber: 4,
       },
     ],
+    current: true,
+    loading: false,
+    readFailed: false,
   }),
 }))
 
@@ -54,6 +57,9 @@ vi.mock('../hooks/useProjectCheckpointReviews', () => ({
     error: null,
     saving: false,
     record,
+    current: true,
+    loading: false,
+    readFailed: false,
   }),
 }))
 

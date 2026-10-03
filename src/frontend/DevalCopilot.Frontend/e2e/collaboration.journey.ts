@@ -3,7 +3,18 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { attempts, checkpoints, directGuidanceByAttempt, executions, inputsOf, messages, runLimits, sameId } from './journey/journeyDb'
+import {
+  attempts,
+  checkpointReviewEvidence,
+  checkpointReviews,
+  checkpoints,
+  directGuidanceByAttempt,
+  executions,
+  inputsOf,
+  messages,
+  runLimits,
+  sameId,
+} from './journey/journeyDb'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
   createJourneyRepository,
@@ -31,6 +42,12 @@ const CODE_REVIEW_PATH = '/agent-attempts/code-review'
 const CORRECTION_GUIDANCE_DRAFT = '  Keep the change inside the one file the findings name.\nLeave every other file alone.  '
 const CORRECTION_GUIDANCE = normalizeGuidance(CORRECTION_GUIDANCE_DRAFT)
 const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/[^/]+\/executions$/
+const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
+
+// The doubles' stage invocations (the capability probes of the host's own supervisors are not workflow stages).
+function stageInvocations() {
+  return readInvocations().filter((entry) => entry.kind !== 'probe')
+}
 
 function agentContracts(): string[] {
   return attempts().map((attempt) => attempt.AgentResponseContract)
@@ -197,10 +214,43 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await review.getByRole('button', { name: 'Request code review' }).click()
   await expect(page.getByText('Last attempt #7: Implementation approved.')).toBeVisible({ timeout: 60_000 })
 
+  // 12b. The explicit manual checkpoint review: after the ordinary Agent approval and an explicit Refresh evidence (reads only, no
+  // reload), the rendered manual panel offers Approve for the exact current checkpoint and its Passed execution, and the host records
+  // one Human Approved fact over the authenticated generated client's HTTP 201. It is a separate, human-authored fact: it creates no
+  // attempt, message, invocation, claim, grant or lifecycle change. The ordinary approval above already recorded its own FutureAgent
+  // review fact for the same checkpoint; the manual one is a second, distinct fact and never replaces or rewrites it.
+  const manual = page.getByRole('region', { name: 'Checkpoint review evidence' })
+  const agentReviews = checkpointReviews()
+  expect(agentReviews.map((row) => [row.ActorKind, row.Decision, row.CheckpointNumber])).toEqual([['FutureAgent', 'Approved', 3]])
+  const beforeManual = { attempts: attempts().length, messages: messages().length, invocations: stageInvocations().length }
+  await page.getByRole('button', { name: 'Refresh evidence' }).click()
+  await expect(manual.getByRole('button', { name: 'Approve' })).toBeEnabled({ timeout: 30_000 })
+  await expect(manual).not.toContainText('Reading verification evidence…')
+  await expect(manual).not.toContainText('could not be refreshed')
+  await expect(manual.getByLabel('Reviewer')).toHaveValue('Human')
+  expect(checkpointReviews()).toEqual(agentReviews) // the refresh recorded nothing
+  expect(attempts()).toHaveLength(beforeManual.attempts)
+  const manualRecorded = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && CHECKPOINT_REVIEW_PATH.test(new URL(response.url()).pathname),
+  )
+  await manual.getByRole('button', { name: 'Approve' }).click()
+  expect((await manualRecorded).status()).toBe(201)
+  await expect(manual).toContainText('Approved')
+  await expect(manual).toContainText('Checkpoint #3 · verification #2 · Human')
+  await expect(manual).toContainText('Current checkpoint')
+  await expect(manual).not.toContainText('This review decision could not be recorded.')
+  await expect(manual).not.toContainText('Review evidence could not be loaded.')
+  await expect(page.getByText('Last attempt #7: Implementation approved.')).toBeVisible()
+  expect(attempts()).toHaveLength(beforeManual.attempts)
+  expect(messages()).toHaveLength(beforeManual.messages)
+  expect(stageInvocations()).toHaveLength(beforeManual.invocations)
+
   // 13. Persisted visible results stay attached to this run after the journey's only reload; approval is not lifecycle completion.
   await reloadAndReselect(page)
   await expect(page.getByRole('heading', { name: OBJECTIVE })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText('Last attempt #7: Implementation approved.')).toBeVisible()
+  await expect(manual).toContainText('Checkpoint #3 · verification #2 · Human', { timeout: 30_000 })
+  await expect(manual).toContainText('Current checkpoint')
   await expect(diagnosis).toContainText('Last correction #6: Correction applied.')
   await expect(page.getByText('Completed · Completed')).toHaveCount(0)
   expect((await workflowLines(page)).join('\n')).not.toContain('Run completed')
@@ -251,6 +301,28 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(sameId(runs[1].GitCheckpointId, cps[2].Id)).toBe(true)
   expect(runs[0].CompletionFingerprintSha256).toBe(cps[1].FingerprintSha256)
   expect(runs[1].CompletionFingerprintSha256).toBe(cps[2].FingerprintSha256)
+
+  // The manual review is one persisted Human Approved fact on the exact current checkpoint, binding exactly the Passed execution of that
+  // checkpoint (not the earlier Failed one), and it is separate from the ordinary Agent approval: that approval is the seventh attempt's
+  // outcome and message, this is a checkpoint review row that no attempt, message, claim or lifecycle owns.
+  const reviewFacts = checkpointReviews()
+  expect(reviewFacts.map((row) => [row.ActorKind, row.Decision])).toEqual([['FutureAgent', 'Approved'], ['Human', 'Approved']])
+  expect(sameId(reviewFacts[0].Id, agentReviews[0].Id)).toBe(true) // the ordinary approval's fact is unchanged
+  const manualReview = reviewFacts[1]
+  expect(sameId(manualReview.Id, agentReviews[0].Id)).toBe(false)
+  expect(manualReview).toMatchObject({ CheckpointNumber: 3, CheckpointFingerprintSha256: cps[2].FingerprintSha256 })
+  expect(sameId(manualReview.GitCheckpointId, cps[2].Id)).toBe(true)
+  const manualEvidence = checkpointReviewEvidence().filter((row) => sameId(row.CheckpointReviewId, manualReview.Id))
+  expect(manualEvidence).toHaveLength(1)
+  expect(sameId(manualEvidence[0].VerificationExecutionId, runs[1].Id)).toBe(true)
+  expect(manualEvidence[0]).toMatchObject({
+    VerificationExecutionNumber: 2,
+    VerificationExecutionCheckpointFingerprintSha256: cps[2].FingerprintSha256,
+    VerificationExecutionStatus: 'Passed',
+    VerificationExecutionExitCode: 0,
+  })
+  expect(all.filter((a) => a.AgentOutcome === 'ReviewApproved')).toHaveLength(1) // seven attempts: the manual review claimed none
+  expect(all.filter((a) => a.AgentResponseContract === 'ImplementationReview')).toHaveLength(1) // the one Agent review, still Codex's
 
   // Direct guidance: exactly the one explicitly guided correction recorded the normalized text; every other attempt recorded none. The native
   // double received that exact sealed value inside the host's fixed boundary (it logs only the text's hash), and the text itself never

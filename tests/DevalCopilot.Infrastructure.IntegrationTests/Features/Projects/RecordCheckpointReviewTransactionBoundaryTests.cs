@@ -56,6 +56,41 @@ public sealed class RecordCheckpointReviewTransactionBoundaryTests : IAsyncLifet
         Assert.True(evidenceReader.ObservedCurrentTransactionWasNull);
     }
 
+    [Fact]
+    public async Task A_checkpoint_committed_by_another_connection_during_capture_is_refused_through_the_real_mediator_pipeline()
+    {
+        await using (var context = CreateContext())
+        {
+            await context.Database.MigrateAsync();
+        }
+
+        var data = await AddReviewEvidenceAsync();
+        var evidenceReader = new TransactionObservingEvidenceReader(data.FingerprintSha256);
+        evidenceReader.OnCapture = async () =>
+        {
+            // A second connection must be able to commit while the capture runs: no write lock is held across the observation.
+            await using var other = CreateContext();
+            var workspaceId = await other.GitWorkspaces.Select(workspace => workspace.Id).SingleAsync();
+            other.GitCheckpoints.Add(GitCheckpoint.Capture(
+                Guid.NewGuid(), workspaceId, 2, Now.AddMinutes(1), new string('a', 40), new string('d', 64), []));
+            await other.SaveChangesAsync(CancellationToken.None);
+        };
+        await using var provider = BuildContainer(evidenceReader);
+        await using var scope = provider.CreateAsyncScope();
+
+        var result = await scope.ServiceProvider.GetRequiredService<IApplicationMediator>().SendAsync(
+            new RecordCheckpointReviewCommand(data.ProjectId, data.CheckpointId, null, ReviewActorKind.Human, ReviewDecision.Pending),
+            CancellationToken.None);
+
+        Assert.True(evidenceReader.ObservedCurrentTransactionWasNull);
+        Assert.True(result.IsFailure);
+        Assert.Equal("reviews.checkpoint_not_current", result.Errors[0].Code);
+        await using var verify = CreateContext();
+        Assert.Empty(verify.CheckpointReviews);
+        Assert.Empty(verify.CheckpointReviewEvidence);
+        Assert.Equal(2, await verify.GitCheckpoints.CountAsync());
+    }
+
     private DevalCopilotDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<DevalCopilotDbContext>().UseSqlite($"Data Source={_databasePath}").Options);
 
@@ -107,17 +142,24 @@ public sealed class RecordCheckpointReviewTransactionBoundaryTests : IAsyncLifet
 
         public string FingerprintSha256 => fingerprintSha256;
 
+        public Func<Task>? OnCapture { get; set; }
+
         public void SetDbContext(DevalCopilotDbContext dbContext) => _dbContext = dbContext;
 
-        public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
+        public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
         {
             ObservedCurrentTransactionWasNull = _dbContext?.Database.CurrentTransaction is null;
-            return Task.FromResult(new GitWorkspaceEvidenceResult(
+            if (OnCapture is not null)
+            {
+                await OnCapture();
+            }
+
+            return new GitWorkspaceEvidenceResult(
                 GitWorkspaceEvidenceOutcome.Success,
                 new string('a', 40),
                 fingerprintSha256,
                 [],
-                null));
+                null);
         }
     }
 

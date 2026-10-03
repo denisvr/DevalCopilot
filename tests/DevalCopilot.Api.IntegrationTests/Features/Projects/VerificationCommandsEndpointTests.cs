@@ -13,6 +13,7 @@ using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
@@ -126,9 +127,42 @@ public sealed class VerificationCommandsEndpointTests(ReviewApiWebApplicationFac
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal($"/api/projects/{data.ProjectId}/reviews", response.Headers.Location?.OriginalString);
         var recorded = await response.Content.ReadFromJsonAsync<RecordCheckpointReviewResponse>();
         Assert.NotNull(recorded);
         Assert.Equal("Approved", recorded!.Decision);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        var review = Assert.Single(dbContext.CheckpointReviews.Include(candidate => candidate.Evidence)
+            .Where(candidate => candidate.ProjectId == data.ProjectId));
+        Assert.Equal(recorded.ReviewId, review.Id);
+        Assert.Equal(ReviewActorKind.Human, review.ActorKind);
+        Assert.Equal(data.ExecutionId, Assert.Single(review.Evidence).VerificationExecutionId);
+    }
+
+    [Fact]
+    public async Task Review_recording_for_a_checkpoint_that_is_not_current_returns_a_safe_conflict_without_persisting()
+    {
+        using var client = CreateAuthenticatedClient();
+        var data = await SeedReviewReadyProjectAsync();
+
+        var response = await client.PostAsJsonAsync($"{ProjectsRoute}/{data.ProjectId}/reviews", new
+        {
+            GitCheckpointId = Guid.NewGuid(),
+            VerificationExecutionId = (Guid?)null,
+            ActorKind = "Human",
+            Decision = "Pending",
+        });
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("reviews.checkpoint_not_current", body);
+        Assert.DoesNotContain("C:\\", body);
+        Assert.DoesNotContain("System.", body);
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+        Assert.Empty(dbContext.CheckpointReviews.Where(review => review.ProjectId == data.ProjectId));
     }
 
     [Fact]
