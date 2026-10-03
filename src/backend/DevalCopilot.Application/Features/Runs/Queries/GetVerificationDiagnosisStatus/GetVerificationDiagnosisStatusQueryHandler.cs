@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Domain.Features.Projects;
@@ -145,7 +146,8 @@ public sealed class GetVerificationDiagnosisStatusQueryHandler(IDevalCopilotDbCo
             attempt.AgentTimeout,
             attempt.GetAgentTokenUsageEvidence(),
             isCoherentAssignment ? ConfiguredCodexCommandSandbox : null,
-            isCoherentAssignment ? ConfiguredCodexRolloutPersistence : null));
+            isCoherentAssignment ? ConfiguredCodexRolloutPersistence : null,
+            correction is null ? null : DirectHumanGuidanceFact.ForAttempt(correction)));
     }
 
     private static Result<VerificationDiagnosisStatusQueryResult> InvalidAssignment() =>

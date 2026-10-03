@@ -3,10 +3,14 @@ import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
+import { DirectGuidanceEditor } from './DirectGuidanceEditor'
+import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
 interface VerificationDiagnosisActionProps {
+  /** The run that owns the correction draft, with the diagnosis attempt the status names. */
+  runId: string
   status: VerificationDiagnosisStatusResponse | null
   statusLoading: boolean
   statusError: string | null
@@ -18,6 +22,9 @@ interface VerificationDiagnosisActionProps {
   correctionError: string | null
   /** Requests the correction of the diagnosis the host names in `attemptId` (or the recorded human escalation at exhaustion). */
   onRequestCorrection: () => void
+  /** Requests the same correction with optional direct human guidance (ADR-0019). Resolves true only when the server accepted
+   * it AND the submission still belonged to the current lifetime. */
+  onRequestCorrectionWithGuidance: (guidance: string) => Promise<boolean>
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
@@ -112,6 +119,7 @@ function correctionPhaseLabel(status: VerificationDiagnosisStatusResponse): stri
  * the pinned verification list.
  */
 export function VerificationDiagnosisAction({
+  runId,
   status,
   statusLoading,
   statusError,
@@ -121,6 +129,7 @@ export function VerificationDiagnosisAction({
   correctionRequesting,
   correctionError,
   onRequestCorrection,
+  onRequestCorrectionWithGuidance,
   globalClaimBlock,
   timeFit,
   correctionTimeFit,
@@ -277,6 +286,19 @@ export function VerificationDiagnosisAction({
               {correctionRequesting ? 'Requesting…' : 'Correct the diagnosed findings with Claude'}
             </button>
           )}
+          {!correctionRunning && !correctionBlocked && canRequestCorrection && status.attemptId && (
+            <DirectGuidanceEditor
+              runId={runId}
+              sourceId={status.attemptId}
+              label="Direct guidance for this diagnosis correction"
+              formLabel="Correct the diagnosed findings with guidance"
+              submitLabel="Correct the diagnosed findings with guidance"
+              pendingLabel="Requesting with guidance…"
+              requesting={correctionRequesting}
+              statusLoading={statusLoading}
+              onSubmit={onRequestCorrectionWithGuidance}
+            />
+          )}
           {!correctionRunning && !correctionBlocked && canRecordEscalation && (
             <button
               type="button"
@@ -290,6 +312,11 @@ export function VerificationDiagnosisAction({
           {!correctionRunning && !correctionApplicable && !hasCorrectionAttempt && (
             <p className="dc-verification-diagnosis-correction-unavailable">
               These findings no longer apply exactly to the current source, so they cannot be corrected.
+            </p>
+          )}
+          {budgetExhausted && (
+            <p className="dc-verification-diagnosis-guidance-unavailable">
+              Direct guidance is available only within the shared correction allowance.
             </p>
           )}
           {budgetExhausted && (
@@ -309,6 +336,9 @@ export function VerificationDiagnosisAction({
             <p className="dc-verification-diagnosis-status">
               Last correction #{status.correctionAttemptNumber}: {correctionPhaseLabel(status)}.
             </p>
+          )}
+          {hasCorrectionAttempt && (
+            <DirectGuidanceFact fact={status.correctionDirectGuidance} className="dc-verification-diagnosis-direct-guidance" />
           )}
           {correctionTerminal && (
             <p className="dc-verification-diagnosis-after-correction" role="status">

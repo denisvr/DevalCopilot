@@ -441,6 +441,7 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
             }}
           />
           <VerificationDiagnosisAction
+            runId={runId}
             status={verificationDiagnosisStatus.status}
             statusLoading={verificationDiagnosisStatus.loading}
             statusError={verificationDiagnosisStatus.error}
@@ -454,6 +455,11 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
             correctionError={requestDiagnosisCorrection.error}
             onRequestCorrection={() =>
               verificationDiagnosisAttemptId && void requestDiagnosisCorrection.request(runId, verificationDiagnosisAttemptId)
+            }
+            onRequestCorrectionWithGuidance={(guidance) =>
+              verificationDiagnosisAttemptId
+                ? requestDiagnosisCorrection.request(runId, verificationDiagnosisAttemptId, guidance)
+                : Promise.resolve(false)
             }
             globalClaimBlock={globalClaimBlock}
             timeFit={codeReviewTimeFit}

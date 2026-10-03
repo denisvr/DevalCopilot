@@ -2,13 +2,16 @@ import { useCallback } from 'react'
 import { RequestDiagnosisCorrectionRequest } from '../../../api/generated/api-client'
 import { requestDiagnosisCorrectionClient } from '../../../api/clients'
 import { describeVerificationDiagnosisFailure } from '../verificationDiagnosisFailure'
+import { describeDirectGuidanceFailure } from './directGuidanceFailure'
 import { useRunScopedAction } from './useRunScopedAction'
 
 interface UseRequestDiagnosisCorrectionResult {
   requesting: boolean
   error: string | null
-  /** No guidance and no authorization exist for this source: only the exact diagnosis attempt is sent. */
-  request: (runId: string, verificationDiagnosisAttemptId: string) => Promise<boolean>
+  /** `guidance` is undefined for the plain request (including recording the human escalation at exhaustion); otherwise the raw
+   * draft, sent together with the diagnosis attempt. The server normalizes, bounds, and decides eligibility (including
+   * exhaustion). There is no authorization input for this source. */
+  request: (runId: string, verificationDiagnosisAttemptId: string, guidance?: string) => Promise<boolean>
 }
 
 const GENERIC_MESSAGE = 'A correction of the diagnosed findings could not be requested for this run.'
@@ -19,7 +22,7 @@ const ownerOf = (runId: string, verificationDiagnosisAttemptId: string | null) =
 
 /** Requests one durable Claude correction of a specific verification-diagnosis attempt's findings
  * (the host records the human escalation instead once the shared correction allowance is spent),
- * then triggers the caller's own status refresh.
+ * optionally with direct human guidance (ADR-0019), then triggers the caller's own status refresh.
  * The request is bound to the interaction lifetime of `currentRunId` AND
  * `currentVerificationDiagnosisAttemptId`: an obsolete completion, a foreign run or diagnosis, or
  * a duplicate of an in-flight submission never changes the current state. An accepted obsolete
@@ -32,16 +35,16 @@ export function useRequestDiagnosisCorrection(
   const { busy, error, run } = useRunScopedAction(ownerOf(currentRunId, currentVerificationDiagnosisAttemptId))
 
   const request = useCallback(
-    (runId: string, verificationDiagnosisAttemptId: string) =>
+    (runId: string, verificationDiagnosisAttemptId: string, guidance?: string) =>
       run(
         ownerOf(runId, verificationDiagnosisAttemptId),
         () =>
           requestDiagnosisCorrectionClient().requestDiagnosisCorrection(
             runId,
-            new RequestDiagnosisCorrectionRequest({ verificationDiagnosisAttemptId }),
+            new RequestDiagnosisCorrectionRequest({ verificationDiagnosisAttemptId, guidance }),
           ),
         {
-          toMessage: (caught) => describeVerificationDiagnosisFailure(caught, GENERIC_MESSAGE),
+          toMessage: (caught) => describeDirectGuidanceFailure(caught) ?? describeVerificationDiagnosisFailure(caught, GENERIC_MESSAGE),
           onSuccess: onRequested,
         },
       ),

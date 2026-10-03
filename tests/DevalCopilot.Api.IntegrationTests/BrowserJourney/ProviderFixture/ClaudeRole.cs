@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -38,6 +40,14 @@ public static class ClaudeRole
                 var findingIds = manifest.MessageIds("orderedFindings");
                 fields["findingCount"] = findingIds.Count;
                 fields["reportMessageId"] = manifest.ReportMessageId();
+                // The sealed direct guidance (ADR-0019), if any, is checked before the edit; only its hash and whether the host's fixed
+                // boundary framed it are logged, never the text.
+                if (manifest.DirectGuidance() is { } guidance)
+                {
+                    fields["guidanceSha256"] = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(guidance.Text)));
+                    fields["guidanceBoundary"] = guidance.BoundaryIsFixed ? "fixed" : "altered";
+                }
+
                 fields["changedPath"] = CandidateEdit.ApplyCorrection(location.RequireCandidateFile(worktree));
                 response = ResponseFactory.Correction(findingIds);
                 break;

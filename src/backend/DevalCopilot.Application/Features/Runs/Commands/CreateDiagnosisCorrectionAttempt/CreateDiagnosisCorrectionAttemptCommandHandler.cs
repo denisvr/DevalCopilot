@@ -4,6 +4,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrectionAttempt;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -26,8 +27,11 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateDiagnosisCorrect
 /// re-read untracked, once before sealing and again — together with the lifecycle, workspace, lease, checkpoint, run-wide gates, and
 /// shared allowance — inside the short claim transaction, after all external work and under the database write lock), the manifest carries the fixed diagnosis source
 /// notice, and exhaustion of the shared correction budget records one durable idempotent Orchestrator escalation bound to the
-/// diagnosis with no Attempt. There is no authorization and no guidance for this source: the ordinary review's extra
-/// correction grants cannot be transferred to it.
+/// diagnosis with no Attempt. There is no authorization for this source: the ordinary review's extra correction grants cannot be
+/// transferred to it. Optional advisory direct human guidance (ADR-0015, extended to this request by ADR-0019) is normalized before
+/// any read, snapshotted on the claimed attempt and sealed once into the existing manifest envelope, and is available only within
+/// the shared allowance: at exhaustion a guided request is refused whole (before sealing and again at the locked claim seam, with an
+/// unused seal removed) while an unguided request keeps its idempotent escalation.
 /// </summary>
 public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
     IDevalCopilotDbContext dbContext,
@@ -48,6 +52,18 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
     public async Task<Result<CreateDiagnosisCorrectionAttemptCommandResult>> HandleAsync(
         CreateDiagnosisCorrectionAttemptCommand command, CancellationToken cancellationToken)
     {
+        // Supplied direct guidance is normalized (and refused if invalid) before any read or external work. The validator
+        // normally rejects it first; this keeps a direct handler call equally safe. Null stays unguided.
+        string? directGuidance = null;
+        if (command.Guidance is not null)
+        {
+            directGuidance = DirectHumanGuidance.Normalize(command.Guidance);
+            if (directGuidance is null)
+            {
+                return Failure(DirectHumanGuidanceErrors.Invalid());
+            }
+        }
+
         // Phase 1 — external work, outside any transaction: cheap early refusals, Git evidence, the first untracked resolution
         // of the diagnosis, and the sealed manifest. Nothing here is authority; everything is decided again in phase 2.
         var run = await dbContext.Runs.SingleOrDefaultAsync(candidate => candidate.Id == command.RunId, cancellationToken);
@@ -117,6 +133,13 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
         var exhaustedBeforeSealing = await CorrectionAllowanceSpentAsync(run, cancellationToken);
         if (exhaustedBeforeSealing)
         {
+            // Direct guidance exists only within the shared allowance: at exhaustion the whole guided request is refused, after
+            // every authority gate above and before any escalation is created or anything is sealed or claimed.
+            if (directGuidance is not null)
+            {
+                return Failure(DirectHumanGuidanceErrors.UnavailableAtExhaustion());
+            }
+
             // The shared allowance is spent: one durable idempotent human-attention fact bound to this diagnosis, no Attempt,
             // no sealed manifest, nothing consumed. Its authority is decided in the same short transaction as the insert.
             return await RecordEscalationAsync(
@@ -153,7 +176,7 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
             evidence.CompleteDiff,
             humanGuidance: null,
             evidence.UntrackedFiles,
-            directHumanGuidance: null,
+            directGuidance,
             sourceNotice: ReviewCorrectionContextManifestBuilder.VerificationDiagnosisSourceNotice);
         if (Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
@@ -245,7 +268,15 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
                 return await RefuseAsync(claimTransaction, run.Id, attemptId, authorityError, cancellationToken);
             }
 
-            if (authority!.AllowanceSpent)
+            if (authority!.AllowanceSpent && directGuidance is not null)
+            {
+                // The allowance was spent between phase 1 and the lock: direct guidance is not available past it, so the guided
+                // request is refused whole (nothing claimed, no escalation) and the unused manifest is removed.
+                return await RefuseAsync(
+                    claimTransaction, run.Id, attemptId, DirectHumanGuidanceErrors.UnavailableAtExhaustion(), cancellationToken);
+            }
+
+            if (authority.AllowanceSpent)
             {
                 // The allowance was spent between phase 1 and the lock: this request records the escalation instead, in a fresh
                 // transaction of its own, and the unused manifest is removed.
@@ -274,7 +305,7 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
                 requestedClaude.Effort,
                 agentBudgetSlot,
                 requestedTurnLimit.Value,
-                directHumanGuidance: null);
+                directGuidance);
 
             var inputRows = new List<AttemptInputMessage>(sealedFindingIds.Length + 1)
             {

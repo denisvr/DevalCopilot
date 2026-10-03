@@ -181,10 +181,11 @@ snapshots, parallel executors, or automatic orchestration. Token,
 account-usage, duration, and the remaining Increment 4 controls remain
 deferred.
 
-Either explicit mutation request, the initial implementation of a resolved plan and an ordinary review correction, may
-carry optional short direct human guidance
-([ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md)). It clarifies work the plan or
-findings already authorize, is stored once on the exact claimed attempt and sealed into its context, and grants no
+Each explicit mutation request, the initial implementation of a resolved plan, an ordinary review correction and the correction
+of a verification diagnosis's findings, may carry optional short direct human guidance
+([ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md), extended to the diagnosis-origin
+correction by [ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md)). It clarifies work the
+plan or findings already authorize, is stored once on the exact claimed attempt and sealed into its context, and grants no
 authority, attempt, or budget; at correction-budget exhaustion a request carrying guidance is refused, and the
 authorization flow above keeps its own separate guidance.
 

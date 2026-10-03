@@ -928,4 +928,83 @@ public sealed class VerificationDiagnosisHostedTests : IDisposable
         Assert.Equal(AgentOutcome.DiagnosisFindingsRecorded, await InDbAsync(second, db => db.Attempts.Where(a => a.Id == attemptId).Select(a => a.AgentOutcome).SingleAsync()));
         Assert.Equal(sealedBytes, JsonSerializer.Deserialize<JsonElement>(second.Diagnosis.ReceivedManifests.Single().Text).GetRawText());
     }
+
+    private const string DirectGuidanceText = "SENTINEL-HOSTED-GUIDE Keep the fix inside the existing helper.";
+
+    /// <summary>The Claude CLI invocations (those carrying standard input) the process double has seen since <paramref name="skip"/>.</summary>
+    private static List<ProcessExecutionRequest> ClaudeInvocationsSince(Host host, int skip)
+    {
+        lock (host.Process.Requests)
+        {
+            return host.Process.Requests.Skip(skip).Where(request => request.StandardInput is not null).ToList();
+        }
+    }
+
+    [Fact]
+    public async Task A_guided_diagnosis_correction_reaches_the_real_adapter_with_the_exact_sealed_text_once_and_is_projected()
+    {
+        await using var host = BuildHost();
+        var lineage = await SeedLineageAsync(host, revised: false);
+        var (_, report) = await ImplementAsync(host, lineage);
+        await VerifyAsync(host, lineage, exitCode: 1);
+        var diagnosisId = await DiagnoseAsync(host, lineage, report.Id, FindingsJson(2), AgentOutcome.DiagnosisFindingsRecorded);
+        var findingIds = await FindingIdsAsync(host, diagnosisId);
+
+        var claim = await SendAsync(host, new CreateDiagnosisCorrectionAttemptCommand(lineage.RunId, diagnosisId, "  " + DirectGuidanceText + "\r\n"));
+        Assert.True(claim.IsSuccess, claim.IsFailure ? claim.Errors[0].Code : null);
+        var created = Assert.IsType<CreateDiagnosisCorrectionAttemptCommandResult.AttemptCreated>(claim.Value);
+        host.Process.FinalResponse = CorrectionResponse(findingIds);
+        var before = host.Process.Requests.Count;
+        await RunAttemptSupervisorAsync(host, CorrectionSupervisorFor(host), created.AttemptId);
+
+        Assert.Equal(AgentOutcome.CorrectionApplied, await InDbAsync(host, db => db.Attempts.Where(a => a.Id == created.AttemptId).Select(a => a.AgentOutcome).SingleAsync()));
+        var invocation = Assert.Single(ClaudeInvocationsSince(host, before));
+        var stdin = Encoding.UTF8.GetString(invocation.StandardInput!);
+        Assert.Equal(1, stdin.Split("SENTINEL-HOSTED-GUIDE").Length - 1);
+        Assert.True(DirectHumanGuidanceManifest.Agrees(stdin, DirectGuidanceText));
+        var sealedManifest = await ReadManifestAsync(host, created.AttemptId);
+        Assert.Equal(sealedManifest.GetRawText(), JsonSerializer.Deserialize<JsonElement>(stdin).GetRawText());
+        Assert.True(sealedManifest.TryGetProperty("sourceNotice", out _));
+        Assert.DoesNotContain(invocation.Arguments, argument => argument.Contains("SENTINEL", StringComparison.Ordinal));
+        Assert.DoesNotContain(invocation.EnvironmentVariables.Values, value => value.Contains("SENTINEL", StringComparison.Ordinal));
+
+        var status = await QueryAsync(host, new GetVerificationDiagnosisStatusQuery(lineage.RunId));
+        var fact = Assert.IsType<DirectHumanGuidanceFact>(status.Value.CorrectionDirectGuidance);
+        Assert.Equal(DirectHumanGuidanceEvidence.Provided, fact.Evidence);
+        Assert.Equal(DirectGuidanceText, fact.Text);
+        Assert.Empty(await InDbAsync(host, db => db.ReviewCorrectionAuthorizations.ToListAsync()));
+    }
+
+    [Fact]
+    public async Task A_guided_diagnosis_correction_is_replayed_after_a_restart_from_its_sealed_manifest()
+    {
+        Guid attemptId;
+        string sealedBytes;
+        IReadOnlyList<Guid> findingIds;
+        var evidence = new StagedEvidence();
+        await using (var first = BuildHost(evidence))
+        {
+            var lineage = await SeedLineageAsync(first, revised: false);
+            var (_, report) = await ImplementAsync(first, lineage);
+            await VerifyAsync(first, lineage, exitCode: 1);
+            var diagnosisId = await DiagnoseAsync(first, lineage, report.Id, FindingsJson(1), AgentOutcome.DiagnosisFindingsRecorded);
+            findingIds = await FindingIdsAsync(first, diagnosisId);
+            var claim = await SendAsync(first, new CreateDiagnosisCorrectionAttemptCommand(lineage.RunId, diagnosisId, DirectGuidanceText));
+            Assert.True(claim.IsSuccess, claim.IsFailure ? claim.Errors[0].Code : null);
+            attemptId = Assert.IsType<CreateDiagnosisCorrectionAttemptCommandResult.AttemptCreated>(claim.Value).AttemptId;
+            sealedBytes = (await ReadManifestAsync(first, attemptId)).GetRawText();
+        }
+
+        // A new host over the same database and artifacts: the claimed, undispatched guided correction is picked up and handed
+        // exactly the sealed bytes; nothing is rebuilt from today's settings or evidence.
+        await using var second = BuildHost(evidence);
+        second.Process.FinalResponse = CorrectionResponse(findingIds);
+        await RunAttemptSupervisorAsync(second, CorrectionSupervisorFor(second), attemptId);
+
+        Assert.Equal(AgentOutcome.CorrectionApplied, await InDbAsync(second, db => db.Attempts.Where(a => a.Id == attemptId).Select(a => a.AgentOutcome).SingleAsync()));
+        var invocation = Assert.Single(ClaudeInvocationsSince(second, 0));
+        var stdin = Encoding.UTF8.GetString(invocation.StandardInput!);
+        Assert.Equal(sealedBytes, JsonSerializer.Deserialize<JsonElement>(stdin).GetRawText());
+        Assert.True(DirectHumanGuidanceManifest.Agrees(stdin, DirectGuidanceText));
+    }
 }

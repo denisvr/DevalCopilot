@@ -51,6 +51,47 @@ describe('useRequestDiagnosisCorrection', () => {
     expect(outcome).toBe(true)
   })
 
+  it('sends the raw guidance beside the diagnosis attempt, and nothing when there is none', async () => {
+    const requestDiagnosisCorrection = vi.fn().mockResolvedValue(new RequestDiagnosisCorrectionResponse({ status: 'AttemptCreated' }))
+    mockClient(requestDiagnosisCorrection)
+    const { result } = renderHook(() => useRequestDiagnosisCorrection('run-1', 'diagnosis-1', vi.fn()))
+
+    await act(async () => {
+      await result.current.request('run-1', 'diagnosis-1', '  Keep it small.  ')
+    })
+    await act(async () => {
+      await result.current.request('run-1', 'diagnosis-1')
+    })
+
+    expect(requestDiagnosisCorrection.mock.calls[0][1].toJSON()).toEqual({
+      verificationDiagnosisAttemptId: 'diagnosis-1',
+      guidance: '  Keep it small.  ',
+    })
+    expect(requestDiagnosisCorrection.mock.calls[1][1].toJSON()).toEqual({ verificationDiagnosisAttemptId: 'diagnosis-1' })
+  })
+
+  it('maps the two guidance refusals to fixed copy that echoes neither the text nor the server wording', async () => {
+    const requestDiagnosisCorrection = vi
+      .fn()
+      .mockRejectedValueOnce(problem('agent_attempts.direct_guidance_invalid', 'SERVER-WORDING SECRET'))
+      .mockRejectedValueOnce(problem('agent_attempts.direct_guidance_unavailable', 'SERVER-WORDING SECRET'))
+    mockClient(requestDiagnosisCorrection)
+    const { result } = renderHook(() => useRequestDiagnosisCorrection('run-1', 'diagnosis-1', vi.fn()))
+
+    await act(async () => {
+      await result.current.request('run-1', 'diagnosis-1', 'SECRET')
+    })
+    const invalid = result.current.error
+    await act(async () => {
+      await result.current.request('run-1', 'diagnosis-1', 'SECRET')
+    })
+    const unavailable = result.current.error
+
+    expect(invalid).toMatch(/The guidance was not accepted/)
+    expect(unavailable).toMatch(/only within the ordinary correction budget/)
+    expect(`${invalid}${unavailable}`).not.toMatch(/SECRET|SERVER-WORDING/)
+  })
+
   it('treats a recorded escalation as an accepted request and refreshes', async () => {
     mockClient(
       vi.fn().mockResolvedValue(

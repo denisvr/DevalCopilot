@@ -799,7 +799,9 @@ timeline) or the bounded escalation. When the findings still apply to the curren
 findings" sends the diagnosis attempt identity and is bounded by the one shared review-correction allowance. Where that
 allowance is exhausted, "Record human escalation" records one durable Orchestrator escalation and states that it
 grants no authority; there is no authorize control for this source. Later verification, a changed checkpoint, or a
-successful correction removes the correction control. After a correction the ordinary code review still requires a new
+successful correction removes the correction control. Beside the unchanged "Request correction from findings" button the cockpit
+offers the optional guided form described under ["Optional direct guidance with a diagnosis correction"](#optional-direct-guidance-with-a-diagnosis-correction).
+After a correction the ordinary code review still requires a new
 passing verification of every enabled command. No copy claims approval, and no stage runs automatically. Requests
 use the generated clients and the run-scoped owned lifetimes, so a response for one run selection never updates
 another.
@@ -860,6 +862,52 @@ recorded" and never as "none was submitted"); and **Unknown** (recorded facts di
 is invalid; never any text). Nothing is shown for an attempt outside the two Claude mutation paths or when there is no attempt.
 See ["Optional direct human guidance for mutation requests"](../architecture/agent-collaboration-protocol.md#optional-direct-human-guidance-for-mutation-requests)
 for the request, normalization, budget, snapshot, manifest, and dispatch rules.
+
+### Optional direct guidance with a diagnosis correction
+
+Beside the unchanged "Correct the diagnosed findings with Claude" button, the diagnosis section offers one form,
+"Correct the diagnosed findings with guidance" (the same `DirectGuidanceEditor` as the two forms above), with the field
+"Direct guidance for this diagnosis correction", a counter of the normalized length out of 600, the same advisory,
+not-a-statement-that-the-provider-will-follow-it and **not screened for secrets** note, and the submit button
+"Correct the diagnosed findings with guidance" ("Requesting with guidance…" while it is in flight). The plain button never
+sends guidance and ignores the draft. The form is offered exactly where the plain correction button is actionable: the
+diagnosis recorded findings, the host reports them as still applying exactly to the current source, no diagnosis or
+correction is running, no global Agent-claim block or correction time-fit block applies, and the shared correction
+allowance is not exhausted. The submit is enabled only for a valid, non-blank draft under the rules of the section above
+and sends the diagnosis attempt identity the status names together with the raw draft; the server normalizes accepted text. The two guidance refusals
+map to the same fixed text selected only by the problem code, and the draft is kept and never echoed.
+
+The draft, busy and error state, handlers, and the request and refresh continuations are owned by the committed interaction
+lifetime of **run and diagnosis source** (the run plus the diagnosis attempt named by the status), with every ownership
+behavior of the section above: replacing the diagnosis in the same run, switching runs, returning to an earlier run or
+diagnosis (a new identity), and unmounting end the old lifetime and start an empty draft, retained handlers and a second
+synchronous submission are rejected, an accepted request for a replaced source or run is ignored for UI state but remains
+a real server operation, and a draft typed while the request or the status refresh is pending is kept. A request is
+always bound to an explicit run, so a response for one run never updates another.
+
+While a diagnosis status read is pending, including the one the project's explicit "Refresh evidence" action starts, the
+plain correction button, the escalation button and the guided submit are all disabled, the form and its draft stay in
+place, and the refresh itself issues no request that changes Agent work. If that read **fails**, the cockpit shows
+"Verification diagnosis status is unavailable." and withholds every correction and escalation control, including the guided
+form; the unsent draft is discarded with the form, because the host can no longer vouch that the diagnosis it was written
+for still applies. A failed read never revives an earlier status. After a later successful read that again reports an
+applicable correction, the form is offered again with an empty draft; nothing is restored from the failed lifetime.
+
+The diagnosis status carries `correctionDirectGuidance { state, text }`, with the existing fact semantics: absent (null)
+when there is no correction attempt, otherwise that correction attempt's own immutable fact, labelled separately from the
+diagnosis, any escalation and any authorization. **Provided** shows the accepted text as plain text with line breaks
+preserved and the note that whether the provider followed it is not observed; **Not recorded** is the neutral state shown as
+"none recorded", never as "none was submitted"; **Unknown** never shows text. It agrees with the same attempt's fact in the
+attempt evidence and the cockpit's latest-attempt block.
+
+Guidance is available only within the shared allowance and grants no additional authorization. At exhaustion the form is not
+offered, the note "Direct guidance is available only within the shared correction allowance." is shown, and the only
+action is the unchanged, unguided "Record human escalation", which records one durable Orchestrator escalation that grants no
+authority; there is no authorize control for this source. Availability in the UI never overrides the server: a guided
+request at exhaustion is still refused with `409 agent_attempts.direct_guidance_unavailable` and creates nothing. See
+["Correction guidance"](../architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis) and
+[ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md) for the request, snapshot,
+manifest, and dispatch rules.
 
 ### Run-isolated asynchronous controls
 

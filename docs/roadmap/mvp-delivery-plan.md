@@ -229,6 +229,14 @@ timeout, not a measured turn count, a token, cost, or account ceiling, a
 replacement for any budget or stop, or an eligibility claim. See the
 [architecture description](../architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts).
 
+An explicit Claude correction of the findings of a verification diagnosis ([ADR-0018](../decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md))
+may carry the same optional, bounded, advisory direct human guidance as the other explicit mutation requests
+([ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md), extended by
+[ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md)): the same normalization and bounds, one immutable
+snapshot sealed once into the existing manifest envelope, and availability only within the shared correction allowance. It grants no extra
+correction, authorization, permission or source authority, and the recorded text shows what the host supplied, not that a provider followed it.
+See the [architecture description](../architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis).
+
 The plan-challenge loop is bounded and its exhaustion escalates: a proposal
 lineage may have one optional second critical review of the first Resolver
 revision and, if challenged, one explicit second resolution. That successful

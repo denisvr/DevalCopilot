@@ -28,6 +28,10 @@ export interface VerificationDiagnosisFixture {
   runId: string
   executionReportId: string
   diagnosisAttemptId: string
+  workspaceId: string
+  checkpointId: string
+  checkpointFingerprint: string
+  findingIds: string[]
   findingSummaries: string[]
   pinnedVerification: string[]
 }
@@ -117,6 +121,57 @@ const EXECUTION_REPORT = JSON.stringify({
   completedWork: 'Added the ledger table and its query.',
   verification: 'Local verification was not run by the Implementer.',
 })
+
+/** One RUNNING Claude correction attempt of the fixture diagnosis (the existing ReviewCorrection contract at its version 2 tuple),
+ * carrying the given raw direct-guidance snapshot and the diagnosis's exact ordered inputs: the previous report, then every finding.
+ * Raw evidence for the display and wire specifications: it is never dispatched and no provider is started. */
+export function insertDiagnosisCorrectionAttempt(fixture: VerificationDiagnosisFixture, guidance: string | null): string {
+  const attemptId = randomUUID()
+  const upper = (id: string) => id.toUpperCase()
+  const db = new DatabaseSync(SMOKE_DB_PATH)
+  try {
+    db.exec('PRAGMA busy_timeout = 5000')
+    db.exec('BEGIN IMMEDIATE')
+    db.prepare(
+      `INSERT INTO attempts
+         (Id, RunId, AttemptNumber, Kind, Status, ClaimedAtUtc, ProcessArguments, AgentProvider, AgentRole, AgentProtocolVersion,
+          AgentExpectedMessageType, AgentResponseContract, AgentGitWorkspaceId, AgentGitCheckpointId, AgentCheckpointFingerprintSha256,
+          AgentContextManifestArtifactId, AgentTimeout, AgentMaxBytesPerStream, AgentMaxTotalCapturedBytes, AgentBudgetSlot,
+          AgentPermissionProfile, AgentAdapterContractVersion, AgentDirectHumanGuidance)
+       VALUES (?, ?, 5, 'Agent', 'Running', ?, '', 'ClaudeCode', 'Implementer', '1.0', 'ExecutionReport', 'ReviewCorrection', ?, ?, ?, ?,
+               1200000, 65536, 131072, 5, 'WorkspaceEditOnly', 'claude-review-correction-v2', ?)`,
+    ).run(
+      upper(attemptId), upper(fixture.runId), NOW, upper(fixture.workspaceId), upper(fixture.checkpointId), fixture.checkpointFingerprint,
+      upper(randomUUID()), guidance,
+    )
+    const insertInput = db.prepare('INSERT INTO attempt_input_messages (Id, AttemptId, CollaborationMessageId, Sequence) VALUES (?, ?, ?, ?)')
+    ;[fixture.executionReportId, ...fixture.findingIds].forEach((messageId, sequence) =>
+      insertInput.run(upper(randomUUID()), upper(attemptId), upper(messageId), sequence),
+    )
+    db.exec('COMMIT')
+  } catch (error) {
+    try {
+      db.exec('ROLLBACK')
+    } catch {
+      // The transaction may already be closed.
+    }
+    throw error
+  } finally {
+    db.close()
+  }
+  return attemptId
+}
+
+/** Rewrites the raw direct-guidance snapshot of one attempt (a null value is the unguided snapshot). */
+export function setAttemptGuidance(attemptId: string, guidance: string | null) {
+  const db = new DatabaseSync(SMOKE_DB_PATH)
+  try {
+    db.exec('PRAGMA busy_timeout = 5000')
+    db.prepare('UPDATE attempts SET AgentDirectHumanGuidance = ? WHERE Id = ?').run(guidance, attemptId.toUpperCase())
+  } finally {
+    db.close()
+  }
+}
 
 /** Registers a project and a manual run, prepares its workspace and checkpoint through the public operations, marks the run
  * Running, and inserts the coherent evidence chain described above. */
@@ -300,6 +355,10 @@ export async function createVerificationDiagnosisFixture(name: string): Promise<
     runId,
     executionReportId,
     diagnosisAttemptId: attempts.diagnosis,
+    workspaceId,
+    checkpointId,
+    checkpointFingerprint: fingerprint,
+    findingIds,
     findingSummaries,
     pinnedVerification: ['#1 unit · execution 1 · Failed · exit code 1', '#2 lint · execution 2 · Passed · exit code 0'],
   }

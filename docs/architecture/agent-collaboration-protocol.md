@@ -877,7 +877,9 @@ request. No generic instruction system, provider flag, fallback, automatic retry
 
 ### Optional direct human guidance for mutation requests
 
-The two explicit mutation requests, the initial implementation of a resolved plan and an ordinary review correction, may
+The explicit mutation requests, the initial implementation of a resolved plan and an ordinary review correction (and, since
+[ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md), the correction of a verification
+diagnosis's findings, described under "Explicit verification failure diagnosis"), may
 carry short **direct guidance** ([ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md)).
 It is advisory clarification of work the authoritative plan or the complete findings already authorize. It grants no
 authority, attempt, budget, permission, tool, or approval, and it is distinct from the authorization guidance above: it
@@ -2583,9 +2585,9 @@ include it.
 - **Operations.** `POST /api/runs/{runId}/agent-attempts/verification-diagnosis` with `{ "executionReportMessageId" }` claims a
   diagnosis; `GET` the same path returns its bounded status (findings count, pinned verification list, correction, budget, and
   escalation facts, and a display hint of whether the current verification is diagnosable). `POST
-  /api/runs/{runId}/agent-attempts/verification-diagnosis/correction` with `{ "verificationDiagnosisAttemptId" }` claims a correction or
-  records the diagnosis's one escalation; it accepts neither guidance nor an authorization. The ordinary
-  `review-correction` endpoint keeps its review-source contract. Nothing runs automatically.
+  /api/runs/{runId}/agent-attempts/verification-diagnosis/correction` with `{ "verificationDiagnosisAttemptId", "guidance"? }` claims a
+  correction or records the diagnosis's one escalation; it accepts optional direct guidance (see "Correction" below) and no
+  authorization. The ordinary `review-correction` endpoint keeps its review-source contract. Nothing runs automatically.
 - **Eligibility.** A valid current initial or corrected Implementer `ExecutionReport` on the workspace's current checkpoint, a Ready
   workspace with an active lease, and the host-derived complete verification selection: every enabled command's latest execution
   bound to that checkpoint and fingerprint is terminal and coherent (`Passed`/`Exited`/0 or `Failed`/`Exited`/nonzero, with the
@@ -2624,6 +2626,26 @@ include it.
   idempotent Orchestrator `Escalation` bound to the diagnosis is recorded in a `DiagnosisCorrectionEscalation` row with no attempt and no
   grant; no extra-correction authorization exists for this source and the ordinary review's grants cannot be used for it. Both the
   claim and the escalation re-read their authority untracked inside one short write-locked transaction.
+- **Correction guidance.** The correction request may carry the optional advisory direct guidance of
+  [ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md), extended to this request by
+  [ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md), under the same normalization, bounds,
+  `400 agent_attempts.direct_guidance_invalid`, 8 KiB body cap, snapshot (`AgentDirectHumanGuidance`, version 2 contract and
+  workspace-edit profile only), manifest members (`directHumanGuidanceBoundary` then `directHumanGuidance`, once, after the source
+  notice and before `untrustedEvidenceBoundary`; an unguided manifest is byte-identical to before), feed, dispatch guard
+  (`agent_attempts.direct_guidance_mismatch`) and sealed-manifest agreement as the ordinary correction. It is available only within the
+  shared allowance: at exhaustion a valid guided request is refused whole with `409 agent_attempts.direct_guidance_unavailable`,
+  after every existing authority gate, before anything is sealed and again at the locked claim seam (an unused seal is removed), and
+  creates no attempt, escalation or authorization change; an unguided request keeps the idempotent escalation above. It grants no
+  extra correction, no authorization and no authority over the source, budgets, permissions or scope.
+- **Correction guidance read model.** The diagnosis status adds `correctionDirectGuidance { state, text }` with the existing
+  semantics: null when there is no correction, otherwise that correction attempt's own `NotRecorded`, `Provided` (text) or
+  `Unknown` (no text) fact, separate from the diagnosis, any escalation and any authorization. The attempt evidence, history
+  drill-down and cockpit latest-attempt projections carry the same fact and must agree. It states what the host supplied to the
+  sealed context, never that a provider followed it.
+  The cockpit offers the existing owned guidance editor beside the unguided correction action only while a correction is applicable,
+  not running or blocked, and within the allowance; its request, pending and error state and draft belong to the run and the diagnosis
+  source and to the committed interaction lifetime, it is disabled while the status is loading and withheld while the status read has
+  failed (which discards an unsent draft with it), and the exhausted "Record human escalation" action stays unguided.
 - **Re-review.** The corrected report's ordinary code review judges the implemented plan and still requires every enabled command's
   latest execution for the new checkpoint to be Passed.
 

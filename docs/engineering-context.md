@@ -46,7 +46,8 @@
 - [ADR-0014](decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md):
   Add manual Agent run intake with durable execution-mode isolation.
 - [ADR-0015](decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md):
-  Add direct human guidance to explicit mutation requests.
+  Add direct human guidance to explicit mutation requests (its request scope is narrowly extended to the diagnosis-origin
+  correction by ADR-0019).
 - [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md):
   Add explicit human authorization of one escalated-plan implementation (its preservation of the ordinary
   first-revision review target is narrowly superseded by ADR-0017).
@@ -54,6 +55,9 @@
   Review the implemented plan through correction.
 - [ADR-0018](decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md):
   Add explicit local verification failure diagnosis and bounded correction (it narrowly extends ADR-0010's eligible finding source).
+- [ADR-0019](decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md):
+  Add direct human guidance to diagnosis-origin corrections (it narrowly extends ADR-0015's request scope and ADR-0018's
+  correction request).
 
 ## Product-specific architecture
 
@@ -96,7 +100,8 @@
   contracts. It is a provider-loop request beside the host timeout, never a measured count, a token, cost, or account
   ceiling, or a host-enforced limit (see
   [the protocol](architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts)).
-- The two explicit mutation requests (initial implementation and ordinary review correction) may carry optional bounded
+- The explicit mutation requests (initial implementation, ordinary review correction and, by ADR-0019, the correction of a
+  verification diagnosis's findings) may carry optional bounded
   direct human guidance, snapshotted immutably on the exact claimed attempt and sealed into its context beside a fixed
   advisory boundary. It is advisory clarification only, available within the ordinary correction budget, and a fact of what
   the host supplied, never of provider compliance (see
@@ -114,7 +119,8 @@
   [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md)).
 - A human may explicitly request a read-only Codex diagnosis of the current failed local verification of an exact ExecutionReport. It
   yields one to ten findings or one bounded escalation, never an approval, and may then separately request a Claude correction of
-  those findings through the existing correction contract and its one shared allowance. Verification is rerun explicitly and an
+  those findings through the existing correction contract and its one shared allowance, optionally with the same bounded advisory
+  direct guidance as an ordinary correction, available only within that allowance (ADR-0019). Verification is rerun explicitly and an
   ordinary code review still requires every enabled command to be Passed (see
   [ADR-0018](decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md) and
   [the protocol](architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis)).

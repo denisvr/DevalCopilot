@@ -3,11 +3,13 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { attempts, checkpoints, executions, inputsOf, messages, runLimits, sameId } from './journey/journeyDb'
+import { attempts, checkpoints, directGuidanceByAttempt, executions, inputsOf, messages, runLimits, sameId } from './journey/journeyDb'
+import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
   createJourneyRepository,
   journeyRoot,
   journeySecret,
+  readInvocationLogText,
   readInvocations,
   readLaunchTargetVerdict,
   repositorySnapshot,
@@ -25,6 +27,9 @@ import { injectJourneySession, registerProject, selectProject, workflowLines } f
 const PROJECT = 'Collaboration journey fixture'
 const OBJECTIVE = 'Implement the ledger total in the Feature file'
 const CODE_REVIEW_PATH = '/agent-attempts/code-review'
+// Harmless advisory guidance typed into the rendered form of the diagnosis correction, with whitespace the host normalizes away.
+const CORRECTION_GUIDANCE_DRAFT = '  Keep the change inside the one file the findings name.\nLeave every other file alone.  '
+const CORRECTION_GUIDANCE = normalizeGuidance(CORRECTION_GUIDANCE_DRAFT)
 const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/[^/]+\/executions$/
 
 function agentContracts(): string[] {
@@ -149,9 +154,14 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(page.getByText('Total does not add its operands.').first()).toBeVisible()
   expect(agentContracts()).toHaveLength(5)
 
-  // 10. Claude diagnosis-origin correction, explicitly requested: the double edits the actual candidate file back.
-  await diagnosis.getByRole('button', { name: 'Correct the diagnosed findings with Claude' }).click()
+  // 10. Claude diagnosis-origin correction, explicitly requested through the rendered guidance form: the double edits the actual
+  // candidate file back, and receives the exact normalized guidance the host sealed.
+  await diagnosis.getByLabel('Direct guidance for this diagnosis correction').fill(CORRECTION_GUIDANCE_DRAFT)
+  await diagnosis.getByRole('button', { name: 'Correct the diagnosed findings with guidance' }).click()
   await expect(diagnosis).toContainText('Last correction #6: Correction applied.', { timeout: 60_000 })
+  await expect(diagnosis).toContainText('Direct human guidance supplied to this attempt')
+  await expect(diagnosis).toContainText('whether the provider followed it is not observed')
+  await expect(diagnosis).toContainText('Leave every other file alone.')
   await expect(diagnosis).toContainText('1 of 2 used')
   expect(agentContracts()).toEqual([
     'Proposal', 'CriticalReview', 'ChallengeResolution', 'ImplementationReport', 'VerificationDiagnosis', 'ReviewCorrection',
@@ -241,6 +251,20 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(sameId(runs[1].GitCheckpointId, cps[2].Id)).toBe(true)
   expect(runs[0].CompletionFingerprintSha256).toBe(cps[1].FingerprintSha256)
   expect(runs[1].CompletionFingerprintSha256).toBe(cps[2].FingerprintSha256)
+
+  // Direct guidance: exactly the one explicitly guided correction recorded the normalized text; every other attempt recorded none. The native
+  // double received that exact sealed value inside the host's fixed boundary (it logs only the text's hash), and the text itself never
+  // reached its log. This proves local agreement of the sealed context, not that a provider would follow the guidance.
+  expect(directGuidanceByAttempt().map((row) => [row.AttemptNumber, row.AgentDirectHumanGuidance])).toEqual(
+    all.map((a) => [a.AttemptNumber, a.AttemptNumber === correctionAttempt.AttemptNumber ? CORRECTION_GUIDANCE : null]),
+  )
+  const guidedEntries = invocations.filter((entry) => entry.contract === 'ReviewCorrection')
+  expect(guidedEntries).toHaveLength(1)
+  expect(guidedEntries[0].guidanceSha256).toBe(sha256Hex(CORRECTION_GUIDANCE))
+  expect(guidedEntries[0].guidanceBoundary).toBe('fixed')
+  expect(invocations.filter((entry) => entry.contract !== 'ReviewCorrection' && entry.guidanceSha256 !== undefined)).toEqual([])
+  expect(readInvocationLogText()).not.toContain('Keep the change inside')
+  expect(readInvocationLogText()).not.toContain('Leave every other file alone')
 
   // The doubles' own log: exactly the contracts requested, in order, each served once; the verification executable saw real content.
   expect(invocations.filter((e) => e.kind !== 'probe').map((e) => e.contract ?? `verify:${e.outcome}`)).toEqual([

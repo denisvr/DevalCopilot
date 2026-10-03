@@ -133,6 +133,20 @@ const noDiagnosis = () => new VerificationDiagnosisStatusResponse({ hasAttempt: 
 const diagnosable = (marker = 'report-1') =>
   new VerificationDiagnosisStatusResponse({ hasAttempt: false, reviewableExecutionReportMessageId: marker, diagnosableExecutionReportMessageId: marker })
 const noReview = () => new CodeReviewAttemptStatusResponse({ hasAttempt: false })
+// A completed findings diagnosis whose correction still applies, within the shared allowance.
+const correctable = (source = 'diagnosis-1') =>
+  new VerificationDiagnosisStatusResponse({
+    hasAttempt: true,
+    attemptId: source,
+    attemptNumber: 4,
+    status: 'Completed',
+    outcome: 'DiagnosisFindingsRecorded',
+    findingCount: 1,
+    correctionApplicable: true,
+    maximumReviewCorrectionAttempts: 2,
+    reviewCorrectionAttemptsUsed: 0,
+    reviewableExecutionReportMessageId: 'report-1',
+  })
 
 function execution(runId: string, status: string) {
   return new VerificationExecutionResponse({
@@ -484,6 +498,60 @@ describe('Refresh evidence reaches the run\'s verification-dependent display', (
     expect(calls.requestDiagnosis).toHaveBeenCalledTimes(1)
     await act(async () => accepted.resolve({}))
     expect(calls.requestDiagnosis).toHaveBeenCalledTimes(1)
+  })
+
+  const guidanceBox = () => within(diagnosisRegion()).queryByLabelText('Direct guidance for this diagnosis correction') as HTMLTextAreaElement | null
+  const guidedSubmit = () => within(diagnosisRegion()).getByRole('button', { name: 'Correct the diagnosed findings with guidance' })
+
+  it('offers the correction guidance from the fresh diagnosis status, keeps its draft across Refresh evidence, and the refresh requests nothing', async () => {
+    serve('run-1', { diagnosis: () => Promise.resolve(correctable()) })
+    calls.requestCorrection.mockResolvedValue({})
+    await renderReady()
+    await waitFor(() => expect(guidanceBox()).not.toBeNull())
+    fireEvent.change(guidanceBox()!, { target: { value: 'Keep the fix small.' } })
+    const boxBefore = guidanceBox()
+    const gate = deferred<VerificationDiagnosisStatusResponse>()
+    serve('run-1', { diagnosis: () => gate.promise })
+
+    fireEvent.click(refreshButton())
+
+    await waitFor(() => expect(guidedSubmit()).toBeDisabled())
+    expect(guidanceBox()).toBe(boxBefore)
+    expect(guidanceBox()!.value).toBe('Keep the fix small.')
+    noMutation()
+    await act(async () => gate.resolve(correctable()))
+    await waitFor(() => expect(guidedSubmit()).toBeEnabled())
+    expect(guidanceBox()).toBe(boxBefore)
+    expect(guidanceBox()!.value).toBe('Keep the fix small.')
+
+    fireEvent.click(guidedSubmit())
+
+    await waitFor(() => expect(calls.requestCorrection).toHaveBeenCalledTimes(1))
+    expect(calls.requestCorrection.mock.calls[0][0]).toBe('run-1')
+    expect(calls.requestCorrection.mock.calls[0][1].toJSON()).toEqual({ verificationDiagnosisAttemptId: 'diagnosis-1', guidance: 'Keep the fix small.' })
+    expect(calls.requestDiagnosis).not.toHaveBeenCalled()
+    expect(calls.requestReview).not.toHaveBeenCalled()
+  })
+
+  it('removes the correction guidance while the diagnosis refresh has failed and offers it again after a successful refresh', async () => {
+    serve('run-1', { diagnosis: () => Promise.resolve(correctable()) })
+    await renderReady()
+    await waitFor(() => expect(guidanceBox()).not.toBeNull())
+
+    serve('run-1', { diagnosis: unavailable })
+    fireEvent.click(refreshButton())
+
+    expect(await within(diagnosisRegion()).findByText('Verification diagnosis status is unavailable.')).toBeInTheDocument()
+    expect(guidanceBox()).toBeNull()
+    expect(within(diagnosisRegion()).queryByRole('button', { name: /Correct the diagnosed findings/ })).toBeNull()
+    noMutation()
+
+    serve('run-1', { diagnosis: () => Promise.resolve(correctable()) })
+    fireEvent.click(refreshButton())
+
+    await waitFor(() => expect(guidanceBox()).not.toBeNull())
+    expect(guidanceBox()!.value).toBe('')
+    noMutation()
   })
 
   it('applies only the newest of overlapping refreshes', async () => {

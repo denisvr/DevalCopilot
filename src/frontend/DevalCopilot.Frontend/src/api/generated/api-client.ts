@@ -3994,6 +3994,7 @@ export interface IRequestDiagnosisCorrectionResponse {
 
 export class RequestDiagnosisCorrectionRequest implements IRequestDiagnosisCorrectionRequest {
     verificationDiagnosisAttemptId?: string;
+    guidance?: string | undefined;
 
     constructor(data?: IRequestDiagnosisCorrectionRequest) {
         if (data) {
@@ -4007,6 +4008,7 @@ export class RequestDiagnosisCorrectionRequest implements IRequestDiagnosisCorre
     init(_data?: any) {
         if (_data) {
             this.verificationDiagnosisAttemptId = _data["verificationDiagnosisAttemptId"];
+            this.guidance = _data["guidance"];
         }
     }
 
@@ -4020,12 +4022,14 @@ export class RequestDiagnosisCorrectionRequest implements IRequestDiagnosisCorre
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["verificationDiagnosisAttemptId"] = this.verificationDiagnosisAttemptId;
+        data["guidance"] = this.guidance;
         return data;
     }
 }
 
 export interface IRequestDiagnosisCorrectionRequest {
     verificationDiagnosisAttemptId?: string;
+    guidance?: string | undefined;
 }
 
 export class RequestCodexPlanningRepairAttemptResponse implements IRequestCodexPlanningRepairAttemptResponse {
@@ -4503,6 +4507,7 @@ export class VerificationDiagnosisStatusResponse implements IVerificationDiagnos
     tokenUsage?: AgentTokenUsageResponse | undefined;
     configuredCommandSandbox?: string | undefined;
     configuredRolloutPersistence?: string | undefined;
+    correctionDirectGuidance?: DirectHumanGuidanceResponse | undefined;
 
     constructor(data?: IVerificationDiagnosisStatusResponse) {
         if (data) {
@@ -4553,6 +4558,7 @@ export class VerificationDiagnosisStatusResponse implements IVerificationDiagnos
             this.tokenUsage = _data["tokenUsage"] ? AgentTokenUsageResponse.fromJS(_data["tokenUsage"]) : undefined as any;
             this.configuredCommandSandbox = _data["configuredCommandSandbox"];
             this.configuredRolloutPersistence = _data["configuredRolloutPersistence"];
+            this.correctionDirectGuidance = _data["correctionDirectGuidance"] ? DirectHumanGuidanceResponse.fromJS(_data["correctionDirectGuidance"]) : undefined as any;
         }
     }
 
@@ -4603,6 +4609,7 @@ export class VerificationDiagnosisStatusResponse implements IVerificationDiagnos
         data["tokenUsage"] = this.tokenUsage ? this.tokenUsage.toJSON() : undefined as any;
         data["configuredCommandSandbox"] = this.configuredCommandSandbox;
         data["configuredRolloutPersistence"] = this.configuredRolloutPersistence;
+        data["correctionDirectGuidance"] = this.correctionDirectGuidance ? this.correctionDirectGuidance.toJSON() : undefined as any;
         return data;
     }
 }
@@ -4638,6 +4645,7 @@ export interface IVerificationDiagnosisStatusResponse {
     tokenUsage?: AgentTokenUsageResponse | undefined;
     configuredCommandSandbox?: string | undefined;
     configuredRolloutPersistence?: string | undefined;
+    correctionDirectGuidance?: DirectHumanGuidanceResponse | undefined;
 }
 
 export class AgentAttemptArtifactMetadataResponse implements IAgentAttemptArtifactMetadataResponse {
@@ -4834,6 +4842,46 @@ export interface IAgentTokenUsageResponse {
     outputTokens?: number | undefined;
     cacheCreationInputTokens?: number | undefined;
     cacheReadInputTokens?: number | undefined;
+}
+
+export class DirectHumanGuidanceResponse implements IDirectHumanGuidanceResponse {
+    state?: string;
+    text?: string | undefined;
+
+    constructor(data?: IDirectHumanGuidanceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.text = _data["text"];
+        }
+    }
+
+    static fromJS(data: any): DirectHumanGuidanceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new DirectHumanGuidanceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["text"] = this.text;
+        return data;
+    }
+}
+
+export interface IDirectHumanGuidanceResponse {
+    state?: string;
+    text?: string | undefined;
 }
 
 export class SealedAgentArtifactWindowResponse implements ISealedAgentArtifactWindowResponse {
@@ -5350,46 +5398,6 @@ export class ClaudeMutationTurnLimitResponse implements IClaudeMutationTurnLimit
 export interface IClaudeMutationTurnLimitResponse {
     state?: string;
     maxTurns?: number | undefined;
-}
-
-export class DirectHumanGuidanceResponse implements IDirectHumanGuidanceResponse {
-    state?: string;
-    text?: string | undefined;
-
-    constructor(data?: IDirectHumanGuidanceResponse) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.state = _data["state"];
-            this.text = _data["text"];
-        }
-    }
-
-    static fromJS(data: any): DirectHumanGuidanceResponse {
-        data = typeof data === 'object' ? data : {};
-        let result = new DirectHumanGuidanceResponse();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["state"] = this.state;
-        data["text"] = this.text;
-        return data;
-    }
-}
-
-export interface IDirectHumanGuidanceResponse {
-    state?: string;
-    text?: string | undefined;
 }
 
 export class RunTokenUsageSummaryResponse implements IRunTokenUsageSummaryResponse {

@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createJourneyRepository, repositorySnapshot } from '../journey/journeyEnv.ts'
+import { normalizeGuidance, sha256Hex } from '../journey/guidance.ts'
 import { planIdentityProblems } from '../journey/planIdentity.ts'
 import { registerWithReadinessRetry } from './registrationRetry.ts'
 import type { RegistrationAnswer, RegistrationDriver } from './registrationRetry.ts'
@@ -244,5 +245,19 @@ describe('the registration retry', () => {
     assert.equal(log.submits.length, 4)
     assert.equal(log.sleeps.length, 3)
     assert.equal(log.confirmations, 0)
+  })
+})
+
+describe('the journey guidance helpers', () => {
+  it('normalizes as the host does: Unicode form C, line feeds, trimmed, and nothing else', () => {
+    assert.equal(normalizeGuidance('  Keep it small.\r\nLeave the rest.  '), 'Keep it small.\nLeave the rest.')
+    assert.equal(normalizeGuidance('café'), 'café')
+    assert.equal(normalizeGuidance('a\rb'), 'a\nb')
+    assert.equal(normalizeGuidance('inner   spacing  stays'), 'inner   spacing  stays')
+  })
+
+  it('hashes the exact UTF-8 text, so the double\'s logged hash can be compared without ever logging the text', () => {
+    assert.equal(sha256Hex('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
+    assert.notEqual(sha256Hex('abc'), sha256Hex('abc '))
   })
 })

@@ -1,5 +1,6 @@
 using Devalente.Shared.AspNetCore.Mvc;
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Api.Features.Runs.Contracts;
 using DevalCopilot.Api.Features.Runs.GetAgentAttemptStatus;
 using DevalCopilot.Application.Features.Runs.Queries.GetVerificationDiagnosisStatus;
 using Microsoft.AspNetCore.Mvc;
@@ -62,6 +63,7 @@ public sealed class GetVerificationDiagnosisStatusEndpoint(
             AgentProcessExecutionResponse.FromDomain(value.HasAttempt, value.ProcessExecution, value.Timeout),
             AgentTokenUsageResponse.FromDomain(value.HasAttempt, value.TokenUsage),
             value.ConfiguredCommandSandbox,
-            value.ConfiguredRolloutPersistence));
+            value.ConfiguredRolloutPersistence,
+            DirectHumanGuidanceResponse.FromDomain(value.CorrectionDirectGuidance)));
     }
 }

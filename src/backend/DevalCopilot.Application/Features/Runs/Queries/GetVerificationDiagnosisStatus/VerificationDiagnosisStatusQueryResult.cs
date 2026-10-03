@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptStatus;
 using DevalCopilot.Domain.Features.Runs;
 
@@ -14,6 +15,9 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetVerificationDiagnosi
 /// <param name="ReviewableExecutionReportMessageId">The corrected ExecutionReport when the latest diagnosis-origin correction
 /// completed as CorrectionApplied and is still the workspace's current result; the ordinary code review of it requires new
 /// Passed verification.</param>
+/// <param name="CorrectionDirectGuidance">The direct human guidance fact of the latest diagnosis-origin correction attempt's own
+/// immutable snapshot (ADR-0019): null when there is no correction, otherwise `NotRecorded`, `Provided` or `Unknown`. It is
+/// distinct from the diagnosis and from any escalation, and states what the host supplied, never that a provider followed it.</param>
 public sealed record VerificationDiagnosisStatusQueryResult(
     bool HasAttempt,
     Guid? AttemptId,
@@ -45,7 +49,8 @@ public sealed record VerificationDiagnosisStatusQueryResult(
     TimeSpan? Timeout = null,
     AgentTokenUsageEvidence? TokenUsage = null,
     string? ConfiguredCommandSandbox = null,
-    string? ConfiguredRolloutPersistence = null)
+    string? ConfiguredRolloutPersistence = null,
+    DirectHumanGuidanceFact? CorrectionDirectGuidance = null)
 {
     public static VerificationDiagnosisStatusQueryResult NoAttempt(
         int maximumReviewCorrectionAttempts,

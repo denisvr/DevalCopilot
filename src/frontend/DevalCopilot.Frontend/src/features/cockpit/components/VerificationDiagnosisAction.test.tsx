@@ -36,6 +36,7 @@ function findingsStatus(overrides: Partial<ConstructorParameters<typeof Verifica
 function renderAction(overrides: Partial<ComponentProps<typeof VerificationDiagnosisAction>> = {}) {
   return render(
     <VerificationDiagnosisAction
+      runId="run-1"
       status={status()}
       statusLoading={false}
       statusError={null}
@@ -45,6 +46,7 @@ function renderAction(overrides: Partial<ComponentProps<typeof VerificationDiagn
       correctionRequesting={false}
       correctionError={null}
       onRequestCorrection={vi.fn()}
+      onRequestCorrectionWithGuidance={vi.fn().mockResolvedValue(true)}
       globalClaimBlock={null}
       timeFit={{ reason: 'Fits' }}
       correctionTimeFit={{ reason: 'Fits' }}
@@ -89,6 +91,7 @@ describe('VerificationDiagnosisAction', () => {
     expect(screen.getByRole('button', { name: 'Requesting…' })).toBeDisabled()
     rerender(
       <VerificationDiagnosisAction
+        runId="run-1"
         status={status({ diagnosableExecutionReportMessageId: 'report-1' })}
         statusLoading
         statusError={null}
@@ -98,6 +101,7 @@ describe('VerificationDiagnosisAction', () => {
         correctionRequesting={false}
         correctionError={null}
         onRequestCorrection={vi.fn()}
+        onRequestCorrectionWithGuidance={vi.fn().mockResolvedValue(true)}
         globalClaimBlock={null}
         timeFit={{ reason: 'Fits' }}
         correctionTimeFit={{ reason: 'Fits' }}

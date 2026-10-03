@@ -12,7 +12,7 @@ public static class InvocationLog
     private static readonly HashSet<string> AllowedFields =
     [
         "role", "kind", "contract", "planMessageId", "planMarker", "reportMessageId", "findingCount", "challengeCount",
-        "changedPath", "outcome",
+        "changedPath", "outcome", "guidanceSha256", "guidanceBoundary",
     ];
 
     public static void Append(OwnedLocation location, IReadOnlyDictionary<string, object?> fields)

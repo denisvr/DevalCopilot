@@ -81,6 +81,14 @@ export interface InvocationEntry {
   challengeCount?: number
   changedPath?: string
   outcome?: string
+  guidanceSha256?: string
+  guidanceBoundary?: string
+}
+
+/** The doubles' invocation log exactly as written, for a check that something never appears in it. */
+export function readInvocationLogText(): string {
+  const path = join(journeyRoot().root, 'fixture', 'invocations.jsonl')
+  return existsSync(path) ? readFileSync(path, 'utf8') : ''
 }
 
 /** The doubles' allowlisted invocation evidence, in order (see the provider fixture's invocation log). */

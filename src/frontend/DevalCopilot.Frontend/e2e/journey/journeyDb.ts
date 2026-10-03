@@ -63,6 +63,17 @@ export function attempts(): AttemptRow[] {
   )
 }
 
+/** The raw direct-guidance snapshot recorded on every attempt, by attempt number (null is the unguided snapshot). */
+export function directGuidanceByAttempt(): { AttemptNumber: number; AgentDirectHumanGuidance: string | null }[] {
+  return withJourneyDb(
+    (db) =>
+      db.prepare('select AttemptNumber, AgentDirectHumanGuidance from attempts order by AttemptNumber').all() as unknown as {
+        AttemptNumber: number
+        AgentDirectHumanGuidance: string | null
+      }[],
+  )
+}
+
 export function checkpoints(): CheckpointRow[] {
   return withJourneyDb(
     (db) =>
