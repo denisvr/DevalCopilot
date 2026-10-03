@@ -61,6 +61,21 @@ and accepted [ADRs](../decisions/README.md) for their respective contracts.
   been marked. A failed diagnosis-status read removes the editor and so an unsent draft. A guided correction cannot be requested at exhaustion; only the unguided escalation, which grants no authority, remains. The manual `RecordCheckpointReview`
   HTTP 201 against a generated client that accepts only 200 remains a deferred, untouched product mismatch, and the other run status hooks keep their own refresh rules. Not selected or implemented: session persistence/resume/compaction, account
   allowance, new providers, recipe or permission changes, ambiguous-process and no-change recovery, lifecycle completion, scheduling and publication. No next slice is selected.
+- Publication (2026-10-03): Codex granted publication GO for the complete reviewed 44-file diff (36 modified tracked, 8 new), including documentation correction R1, Codex's one-sentence correction in the cockpit specification (the form sends the raw
+  draft and the server normalizes accepted text) and the final planner record. Preflight matched before staging: `main`; `HEAD`, local `origin/main` and live `refs/heads/main` all `681b7509da28aa91825fe7ca209096234ddf9804`; nothing staged; SHA-256
+  `planner-handoff.md` `efaeb50b5b48efd694514c3da562a4596962b94d49eec2ccaeaab09da189e4de`, `current-work.md` `01f1fad672110da32bff0aa9084b9d2279e1ab299d16a90385a2e18ba50c6173`, generated client
+  `1caa1d42862910d711a93198c8a74f3388a678a051fef2e58c8be8cab4aa0ef2`. Exactly those 44 files were staged (no probes, databases, build output, secrets or test results; `git diff --cached --check` clean apart from Git's CRLF notices) and committed on that parent as
+  `edb664be27cdfbc7b471c8da647d1f05d73d69d0`, then pushed with a normal fast-forward push (no force). After a fetch, `HEAD`, local `origin/main` and live `refs/heads/main` were verified equal to that SHA, with a clean checkout. The planner record was
+  committed exactly as reviewed and is not edited by this closure.
+  - Post-publication checks, run on that commit with normal authentication and the normal host composition, .NET commands sequentially: `dotnet build DevalCopilot.slnx --no-restore -p:UseSharedCompilation=false -m:1` 0 warnings/0 errors; Application
+    filtered (`DiagnosisCorrection|CreateDiagnosisCorrectionAttempt|DirectHumanGuidance`) 247/247; Infrastructure filtered (`DirectHumanGuidanceAdapterTests`) 55/55; Api filtered (`VerificationDiagnosisHostedTests|RequestDiagnosisCorrection|ProviderFixtureContractTests`) 91/91;
+    Architecture 9/9, and no test skipped in any of these runs. From `src/frontend/DevalCopilot.Frontend`: `npx vitest run` 126 files, 1707/1707; `npm run build` exit 0 (only the existing chunk-size notice); `npm run lint` exit 0 with 9 warnings (the unchanged baseline), 0 errors;
+    `npm run test:harness` 40/40; then `npm run test:e2e:all`: the Chromium suite 9/9 and the guided collaboration journey 1/1. The generated client hash was unchanged (`1caa1d42…0ef2`), `git diff --check` clean (CRLF notices only), and the checkout clean after the checks.
+    No check failed, was skipped or was rerun.
+  - RETAINED, not rerun on the published commit (their code and tests are unchanged since the implementation and the later changes are documentation only): the full Domain 952/952, Application 3526/3526, Infrastructure 963 passed + 3 existing skips of 966 and Api 832/832 suites, `npm run typecheck`,
+    `npm audit` 0 vulnerabilities, `dotnet format --verify-no-changes` 153 findings identical to the recorded baseline, and `dotnet list package --vulnerable --include-transitive` none, all recorded above from the pre-publication tree. The earlier failure and flake evidence recorded in the older sections of this file is preserved unchanged.
+  - Remaining limitations: unchanged from the limits above. The doubles prove agreement of the sealed context, not real-provider reliability; the content screen is best-effort; the manual `RecordCheckpointReview` HTTP 201 against a client that accepts only 200 remains a deferred product mismatch. This closure does not claim that
+    Increment 4 is complete and selects no next slice.
 
 ## Browser-driven local collaboration proof (2026-10-02)
 
