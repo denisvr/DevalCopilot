@@ -42,7 +42,7 @@ public sealed class VerificationDiagnosisContextManifestBuilderTests : IAsyncLif
             scene.Run.ProjectId, scene.Scene.Workspace.Id, scene.Implementation.ReviewCheckpoint.Id, scene.Implementation.ReviewFingerprint,
             "Fix the ledger query.", PlanId, "Plan summary.", planContent,
             ReportId, "Report summary.", "{\"completedWork\":\"Done.\",\"verification\":\"dotnet test\"}",
-            read.Value!, prefixes.Streams!, evidence.ChangedPaths, evidence.CompleteDiff,
+            read.Value!, prefixes.Streams!, evidence.ChangedPaths, TrackedChangeEvidence.From(evidence),
             ProjectInstructionContextManifest.Prepare(
                 scene.Scene.Workspace.Id, scene.Implementation.ReviewCheckpoint.Id, scene.Implementation.ReviewFingerprint, evidence.InstructionContext),
             evidence.UntrackedFiles);

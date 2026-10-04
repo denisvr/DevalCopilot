@@ -231,7 +231,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                     challenge.Id, challenge.Summary, challenge.StructuredContentJson))
                 .ToArray(),
             evidence.ChangedPaths,
-            evidence.CompleteDiff,
+            TrackedChangeEvidence.From(evidence),
             ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             evidence.UntrackedFiles,
             formatRepair: command.RepairSourceAttemptId is not null);

@@ -1,4 +1,5 @@
 using System.Text;
+using DevalCopilot.Application.Features.Runs.Policies;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
@@ -6,6 +7,10 @@ namespace DevalCopilot.Application.Tests.Features.Runs;
 /// from the lines, so a fixture is always a well-formed patch unless a test deliberately corrupts it.</summary>
 internal static class TrackedDiffFixture
 {
+    /// <summary>Host-comparison text as already composed evidence (the text-level seam; attested derivation has its own tests).</summary>
+    public static TrackedChangeEvidence Composed(string? diff) =>
+        diff is null ? TrackedChangeEvidence.NotProvided : new TrackedChangeEvidence(diff, []);
+
     public static string Hunk(int oldStart, params string[] lines)
     {
         var oldCount = lines.Count(line => line.StartsWith(' ') || line.StartsWith('-'));

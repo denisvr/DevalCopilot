@@ -72,51 +72,51 @@ public sealed class ProjectInstructionContextFormsTests
                 ContextManifestBuilder.Build(Id, Id, Id, fingerprint, new string('p', padding), "Human advice.", [Id], instructions),
             "planning-repair" => ContextManifestBuilder.BuildFormatRepair(Id, Id, Id, fingerprint, new string('p', padding), instructions),
             "critical-review" => ClaudeCriticalReviewContextManifestBuilder.Build(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, paths, null, instructions),
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, paths, TrackedChangeEvidence.NotProvided, instructions),
             "critical-review-repair" => ClaudeCriticalReviewContextManifestBuilder.Build(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, paths, null, instructions, formatRepair: true),
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, paths, TrackedChangeEvidence.NotProvided, instructions, formatRepair: true),
             "resolution" => ChallengeResolutionContextManifestBuilder.Build(
                 Id, Id, Id, fingerprint, "objective", Id, "summary", padded,
-                [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, null, instructions),
+                [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, TrackedChangeEvidence.NotProvided, instructions),
             "resolution-repair" => ChallengeResolutionContextManifestBuilder.Build(
                 Id, Id, Id, fingerprint, "objective", Id, "summary", padded,
-                [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, null, instructions,
+                [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, TrackedChangeEvidence.NotProvided, instructions,
                 formatRepair: true),
             "implementation-accepted" => ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, acceptance, paths, null, Commands, instructions),
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, acceptance, paths, TrackedChangeEvidence.NotProvided, Commands, instructions),
             "implementation-accepted-guided" => ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, acceptance, paths, null, Commands, instructions,
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, acceptance, paths, TrackedChangeEvidence.NotProvided, Commands, instructions,
                 directHumanGuidance: "Prefer the smaller change."),
             "implementation-revised" => ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, paths, null, Commands, instructions),
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, paths, TrackedChangeEvidence.NotProvided, Commands, instructions),
             "implementation-revised-reviewed" => ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, paths, null, Commands, instructions, acceptance),
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, paths, TrackedChangeEvidence.NotProvided, Commands, instructions, acceptance),
             "implementation-authorized" => ImplementationContextManifestBuilder.BuildForHumanAuthorizedEscalatedProposal(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, authorization, paths, null, Commands, instructions),
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, authorization, paths, TrackedChangeEvidence.NotProvided, Commands, instructions),
             "implementation-authorized-guided" => ImplementationContextManifestBuilder.BuildForHumanAuthorizedEscalatedProposal(
-                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, authorization, paths, null, Commands, instructions,
+                Id, Id, Id, fingerprint, "objective", Id, "summary", padded, decisions, authorization, paths, TrackedChangeEvidence.NotProvided, Commands, instructions,
                 directHumanGuidance: "Prefer the smaller change."),
             "code-review" => CodeReviewContextManifestBuilder.Build(
-                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, null, instructions),
+                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, TrackedChangeEvidence.NotProvided, instructions),
             "code-review-repair" => CodeReviewContextManifestBuilder.Build(
-                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, null, instructions,
+                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, TrackedChangeEvidence.NotProvided, instructions,
                 formatRepair: true),
             "code-review-correction" => CodeReviewContextManifestBuilder.BuildForCorrection(
-                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, null, Correction,
+                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, TrackedChangeEvidence.NotProvided, Correction,
                 instructions),
             "code-review-correction-repair" => CodeReviewContextManifestBuilder.BuildForCorrection(
-                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, null, Correction,
+                Id, Id, Id, fingerprint, "objective", Id, "plan", "{}", Id, "report", padded, Verification, paths, TrackedChangeEvidence.NotProvided, Correction,
                 instructions, formatRepair: true),
             "review-correction" => ReviewCorrectionContextManifestBuilder.Build(
-                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, null, instructions),
+                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, TrackedChangeEvidence.NotProvided, instructions),
             "review-correction-human-guidance" => ReviewCorrectionContextManifestBuilder.Build(
-                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, null, instructions,
+                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, TrackedChangeEvidence.NotProvided, instructions,
                 new ReviewCorrectionContextManifestBuilder.Guidance(Id, "Authorized advice.")),
             "review-correction-direct-guidance" => ReviewCorrectionContextManifestBuilder.Build(
-                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, null, instructions,
+                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, TrackedChangeEvidence.NotProvided, instructions,
                 directHumanGuidance: "Prefer the smaller change."),
             "diagnosis-correction-guided" => ReviewCorrectionContextManifestBuilder.Build(
-                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, null, instructions,
+                Id, Id, Id, Id, fingerprint, "objective", Id, "report", padded, [finding], paths, TrackedChangeEvidence.NotProvided, instructions,
                 directHumanGuidance: "Prefer the smaller change.",
                 sourceNotice: ReviewCorrectionContextManifestBuilder.VerificationDiagnosisSourceNotice),
             _ => throw new ArgumentOutOfRangeException(nameof(form)),

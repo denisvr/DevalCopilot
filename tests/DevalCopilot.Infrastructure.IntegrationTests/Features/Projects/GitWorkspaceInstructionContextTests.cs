@@ -430,7 +430,11 @@ public sealed class GitWorkspaceInstructionContextTests : IDisposable
         Assert.Null(previews.InstructionContext);
         Assert.NotNull(forAgent.InstructionContext);
         Assert.Equal(plain.FingerprintSha256, forAgent.FingerprintSha256);
-        Assert.Equal(plain.CompleteDiff, forAgent.CompleteDiff);
+        // The ordinary capture keeps the raw patch; the delivered capture never carries it (ADR-0024) and attests no tracked change here.
+        Assert.Equal(string.Empty, plain.CompleteDiff);
+        Assert.Null(forAgent.CompleteDiff);
+        Assert.Empty(forAgent.TrackedFiles!);
+        Assert.Null(plain.TrackedFiles);
         Assert.Equal(plain.ChangedPaths, forAgent.ChangedPaths);
         Assert.Equal(previews.UntrackedFiles!.Select(file => file.Path), forAgent.UntrackedFiles!.Select(file => file.Path));
         Assert.Null(forAgentWithoutPreviews.UntrackedFiles);

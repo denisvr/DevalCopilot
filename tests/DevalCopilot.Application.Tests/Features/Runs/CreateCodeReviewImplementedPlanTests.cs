@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using System.Text.Json;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
@@ -296,7 +297,7 @@ public sealed class CreateCodeReviewImplementedPlanTests : IAsyncLifetime
         Guid.Parse("33333333-3333-3333-3333-333333333333"), new string('b', 64), "The objective.", planId, summary, content,
         Guid.Parse("44444444-4444-4444-4444-444444444444"), "Report summary.", "{\"completedWork\":\"Done.\"}",
         [new CodeReviewContextManifestBuilder.VerificationEvidence("Backend tests", 1, "Passed", "Exited", 0)],
-        [], null, InstructionContextTestSupport.NotCaptured);
+        [], TrackedChangeEvidence.NotProvided, InstructionContextTestSupport.NotCaptured);
 
     [Fact]
     public void A_different_plan_changes_only_the_resolved_plan_values_and_the_member_order_is_pinned()

@@ -55,7 +55,7 @@ internal static class VerificationDiagnosisContextManifestBuilder
         VerificationDiagnosisEvidence.Selection selection,
         IReadOnlyList<VerificationFailureExcerpts.RawStream> rawStreams,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         ProjectInstructionContextManifest instructions,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles)
     {
@@ -67,7 +67,7 @@ internal static class VerificationDiagnosisContextManifestBuilder
             foreach (var budget in ExcerptBudgetSteps)
             {
                 var excerpts = VerificationFailureExcerpts.Allocate(rawStreams, budget);
-                last = ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
+                last = ChangeEvidenceManifest.Fit(changedPaths, tracked, untrackedFiles, changeEvidence => Serialize(
                     projectId, gitWorkspaceId, resultGitCheckpointId, resultCheckpointFingerprintSha256, runObjective,
                     implementedPlanMessageId, implementedPlanSummary, implementedPlanStructuredContentJson,
                     executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,

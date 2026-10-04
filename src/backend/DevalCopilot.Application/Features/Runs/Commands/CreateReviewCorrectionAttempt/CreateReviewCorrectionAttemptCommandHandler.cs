@@ -271,7 +271,7 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
             findings.Select(finding => new ReviewCorrectionContextManifestBuilder.Finding(
                 finding.Id, finding.Summary, finding.StructuredContentJson)).ToArray(),
             evidence.ChangedPaths,
-            evidence.CompleteDiff,
+            TrackedChangeEvidence.From(evidence),
             ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             humanGuidance is null ? null : new ReviewCorrectionContextManifestBuilder.Guidance(humanGuidance.MessageId, humanGuidance.Text),
             evidence.UntrackedFiles,

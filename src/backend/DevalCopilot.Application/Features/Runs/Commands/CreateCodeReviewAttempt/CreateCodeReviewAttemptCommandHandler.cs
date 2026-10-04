@@ -258,7 +258,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 executionReportMessage.StructuredContentJson,
                 orderedVerificationEvidence,
                 evidence.ChangedPaths,
-                evidence.CompleteDiff,
+                TrackedChangeEvidence.From(evidence),
                 instructions,
                 evidence.UntrackedFiles,
                 formatRepair: command.RepairSourceAttemptId is not null)
@@ -276,7 +276,7 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                 executionReportMessage.StructuredContentJson,
                 orderedVerificationEvidence,
                 evidence.ChangedPaths,
-                evidence.CompleteDiff,
+                TrackedChangeEvidence.From(evidence),
                 new CodeReviewContextManifestBuilder.CorrectionEvidence(
                     validatedExecutionReport.PreviousExecutionReport.Id,
                     validatedExecutionReport.PreviousExecutionReport.Summary,

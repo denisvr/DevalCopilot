@@ -10,10 +10,10 @@ using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
-/// <summary>The captured Git diff of a real disposable worktree (staged and unstaged tracked changes, a large
-/// first file, a later small change, non-ASCII quoted paths, a space in a path, a missing final newline, a
-/// binary file, a mode-only change, and an untracked file) run through the unchanged reader, the shared parser
-/// and selector, and a real manifest builder.</summary>
+/// <summary>A real disposable worktree (staged and unstaged tracked changes, a large rewrite, a later small change, a non-ASCII path, a
+/// space in a path, a missing final newline, a binary file, a mode-only change, and an untracked file) captured for a new Agent claim by
+/// the real reader, derived into tracked evidence, and sealed through a real manifest builder (ADR-0024). The raw patch is not an
+/// input anywhere: the delivered text is the host comparison of attested snapshots, and every tracked path is accounted for.</summary>
 public sealed class TrackedDiffRealGitTests : IDisposable
 {
     private static readonly Guid Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -36,63 +36,55 @@ public sealed class TrackedDiffRealGitTests : IDisposable
     }
 
     [Fact]
-    public async Task A_real_worktree_diff_shows_the_prefix_defect_and_the_selected_hunks_fix_it()
+    public async Task A_real_worktree_capture_delivers_the_attested_comparison_with_every_path_accounted_and_the_large_rewrite_sampled()
     {
         var repository = CreateRepository();
 
         var plain = await _reader.CaptureAsync(repository, CancellationToken.None);
-        var previews = await _reader.CaptureWithUntrackedPreviewsAsync(repository, CancellationToken.None);
-        var raw = Git(repository, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--binary", "HEAD");
+        var result = await _reader.CaptureForAgentContextAsync(repository, includeUntrackedPreviews: true, CancellationToken.None);
 
-        // The captured snapshot is unchanged: identical input gives the identical fingerprint and diff text.
-        Assert.Equal(GitWorkspaceEvidenceOutcome.Success, plain.Outcome);
-        Assert.Equal(plain.FingerprintSha256, previews.FingerprintSha256);
-        Assert.Equal(plain.CompleteDiff, previews.CompleteDiff);
-        Assert.Equal(raw, plain.CompleteDiff);
-        var diff = plain.CompleteDiff!;
-
-        // The defect: the first 8,192 characters end inside the large first file, so every later change is absent.
-        var oldPrefix = diff[..8192];
-        Assert.Contains("+late change", diff, StringComparison.Ordinal);
-        Assert.DoesNotContain("late.txt", oldPrefix, StringComparison.Ordinal);
-        Assert.DoesNotContain("+late change", oldPrefix, StringComparison.Ordinal);
-
-        var parsed = TrackedDiffParser.Parse(diff);
+        // The checkpoint's raw observation is unchanged; the delivered capture just never carries the raw patch.
+        Assert.Equal(GitWorkspaceEvidenceOutcome.Success, result.Outcome);
+        Assert.Equal(plain.FingerprintSha256, result.FingerprintSha256);
+        Assert.Null(result.CompleteDiff);
+        var tracked = TrackedChangeEvidence.From(result);
+        var parsed = TrackedDiffParser.Parse(tracked.Text!);
         Assert.True(parsed.Recognized);
         Assert.DoesNotContain(parsed.Files, file => file.Kind == TrackedDiffFileKind.Unsupported);
-        var kinds = parsed.Files.ToDictionary(file => file.Path!, file => file.Kind);
-        Assert.Equal(TrackedDiffFileKind.Binary, kinds["bin.dat"]);
-        Assert.Equal(TrackedDiffFileKind.MetadataOnly, kinds["run.sh"]);
-        Assert.Equal(TrackedDiffFileKind.Text, kinds["café.txt"]);
-        Assert.Equal(TrackedDiffFileKind.Text, kinds["with space.txt"]);
-        Assert.Equal(TrackedDiffFileKind.Text, kinds["nonl.txt"]);
+        Assert.Equal(
+            ["big.txt", "café.txt", "late.txt", "nonl.txt", "with space.txt"],
+            parsed.Files.Select(file => file.Path!));
+        Assert.All(parsed.Files, file => Assert.Equal(TrackedDiffFileKind.Text, file.Kind));
+        Assert.Equal(["bin.dat:binary", "run.sh:no_content_difference"], tracked.Omissions.Select(omission => $"{omission.Path}:{omission.Reason}"));
 
         var manifest = ClaudeCriticalReviewContextManifestBuilder.Build(
-            Id, Id, Id, plain.FingerprintSha256!, "objective", Id, "summary", "{}", plain.ChangedPaths, diff,
-            InstructionContextTestSupport.NotCaptured, previews.UntrackedFiles);
+            Id, Id, Id, result.FingerprintSha256!, "objective", Id, "summary", "{}", result.ChangedPaths, tracked,
+            InstructionContextTestSupport.NotCaptured, result.UntrackedFiles);
         using var document = JsonDocument.Parse(manifest);
         var evidence = document.RootElement.GetProperty("changeEvidence");
         var selected = evidence.GetProperty("diff").GetString()!;
 
         Assert.True(Encoding.UTF8.GetByteCount(selected) <= ChangeEvidenceManifest.MaxInlinedDiffBytes);
         Assert.True(Encoding.UTF8.GetByteCount(manifest) <= ChangeEvidenceManifest.ManifestCeilingBytes);
-        Assert.Contains("+late change", selected, StringComparison.Ordinal);
-        Assert.Contains("+cafe changed", selected, StringComparison.Ordinal);
-        Assert.Contains("+spaced changed", selected, StringComparison.Ordinal);
+        Assert.Contains("+late change\n", selected, StringComparison.Ordinal);
+        Assert.Contains("+cafe changed\n", selected, StringComparison.Ordinal);
+        Assert.Contains("+spaced changed\n", selected, StringComparison.Ordinal);
         Assert.Contains("\\ No newline at end of file", selected, StringComparison.Ordinal);
-        Assert.Contains("old mode 100644", selected, StringComparison.Ordinal);
         Assert.Contains("\"a/caf\\303\\251.txt\"", selected, StringComparison.Ordinal);
         Assert.DoesNotContain("GIT binary patch", manifest, StringComparison.Ordinal);
+        Assert.DoesNotContain("old mode", manifest, StringComparison.Ordinal);
+        Assert.DoesNotContain("index ", selected, StringComparison.Ordinal);
         Assert.True(evidence.GetProperty("diffTruncated").GetBoolean());
         var items = evidence.GetProperty("diffSelection").GetProperty("items").EnumerateArray()
             .ToDictionary(item => item.GetProperty("path").GetString()!, item => item);
         Assert.Equal("binary", items["bin.dat"].GetProperty("reason").GetString());
+        Assert.Equal("no_content_difference", items["run.sh"].GetProperty("reason").GetString());
         Assert.Equal("hunk_too_large", items["big.txt"].GetProperty("reason").GetString());
         Assert.Equal("brand new untracked", evidence.GetProperty("untrackedFiles").GetProperty("files")[0].GetProperty("text").GetString());
         Assert.Equal(TrackedDiffParser.Parse(selected).Files.Count, selected.Split("diff --git ").Length - 1);
         Assert.DoesNotContain(TrackedDiffParser.Parse(selected).Files, file => file.Kind == TrackedDiffFileKind.Unsupported);
 
-        // The oversized staged rewrite of big.txt contributes a separate, incomplete sample taken from the real diff.
+        // The oversized staged rewrite of big.txt contributes a separate, incomplete sample taken from the attested comparison.
         var samples = evidence.GetProperty("diffSelection").GetProperty("samples");
         Assert.False(samples.GetProperty("complete").GetBoolean());
         Assert.False(samples.GetProperty("patch").GetBoolean());
@@ -108,9 +100,25 @@ public sealed class TrackedDiffRealGitTests : IDisposable
         Assert.StartsWith("rewritten line 0001 ", sampledLines[4].GetProperty("text").GetString(), StringComparison.Ordinal);
         Assert.All(sampledLines, line => Assert.Contains(
             (line.GetProperty("side").GetString() == "added" ? "+" : "-") + line.GetProperty("text").GetString() + "\n",
-            diff, StringComparison.Ordinal));
+            tracked.Text, StringComparison.Ordinal));
         Assert.DoesNotContain("rewritten line", selected, StringComparison.Ordinal);
         Assert.True(Encoding.UTF8.GetByteCount(samples.GetRawText()) <= TrackedDiffSampler.MaxSectionBytes);
+    }
+
+    [Fact]
+    public async Task The_earlier_prefix_defect_is_gone_a_late_small_change_is_delivered_after_a_large_first_file()
+    {
+        var repository = CreateRepository();
+        var result = await _reader.CaptureForAgentContextAsync(repository, includeUntrackedPreviews: true, CancellationToken.None);
+
+        var manifest = ClaudeCriticalReviewContextManifestBuilder.Build(
+            Id, Id, Id, result.FingerprintSha256!, "objective", Id, "summary", "{}", result.ChangedPaths, TrackedChangeEvidence.From(result),
+            InstructionContextTestSupport.NotCaptured, result.UntrackedFiles);
+
+        var selected = JsonDocument.Parse(manifest).RootElement.GetProperty("changeEvidence").GetProperty("diff").GetString()!;
+        Assert.Contains("late.txt", selected, StringComparison.Ordinal);
+        Assert.Contains("+late change\n", selected, StringComparison.Ordinal);
+        Assert.DoesNotContain("big.txt", selected, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -118,10 +126,10 @@ public sealed class TrackedDiffRealGitTests : IDisposable
     {
         var repository = CreateRepository();
 
-        var first = await _reader.CaptureWithUntrackedPreviewsAsync(repository, CancellationToken.None);
-        var second = await _reader.CaptureWithUntrackedPreviewsAsync(repository, CancellationToken.None);
+        var first = await _reader.CaptureForAgentContextAsync(repository, includeUntrackedPreviews: true, CancellationToken.None);
+        var second = await _reader.CaptureForAgentContextAsync(repository, includeUntrackedPreviews: true, CancellationToken.None);
         string Build(GitWorkspaceEvidenceResult result) => ClaudeCriticalReviewContextManifestBuilder.Build(
-            Id, Id, Id, result.FingerprintSha256!, "objective", Id, "summary", "{}", result.ChangedPaths, result.CompleteDiff,
+            Id, Id, Id, result.FingerprintSha256!, "objective", Id, "summary", "{}", result.ChangedPaths, TrackedChangeEvidence.From(result),
             InstructionContextTestSupport.NotCaptured, result.UntrackedFiles);
 
         Assert.Equal(first.FingerprintSha256, second.FingerprintSha256);
@@ -150,7 +158,6 @@ public sealed class TrackedDiffRealGitTests : IDisposable
         File.WriteAllText(Path.Combine(path, "big.txt"), Lines(1, 300, "rewritten") + Lines(301, 700, "original"));
         Git(path, "add", "big.txt");
         Git(path, "update-index", "--chmod=+x", "run.sh");
-        File.WriteAllText(Path.Combine(path, "late.txt"), "one\ntwo\n+late change\nfour\nfive\n".Replace("+late change", "late change"));
         File.WriteAllText(Path.Combine(path, "late.txt"), "one\ntwo\nlate change\nfour\nfive\n");
         File.WriteAllText(Path.Combine(path, "café.txt"), "cafe changed\n", new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(path, "with space.txt"), "spaced changed\n");

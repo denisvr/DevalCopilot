@@ -238,7 +238,7 @@ internal static class UntrackedFilePreviewReader
 
     /// <summary>Git reports forward-slash paths relative to the worktree root. Anything that could name
     /// something else (rooted, drive or stream syntax, dot segments, empty segments) is refused unopened.</summary>
-    private static bool IsPlainRelativePath(string path)
+    internal static bool IsPlainRelativePath(string path)
     {
         if (path.Length == 0 || path[0] == '/' || path.Contains('\\') || path.Contains(':') || path.Contains('\0'))
         {

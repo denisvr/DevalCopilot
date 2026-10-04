@@ -183,7 +183,7 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandler(
             selection,
             prefixes.Streams!,
             evidence.ChangedPaths,
-            evidence.CompleteDiff,
+            TrackedChangeEvidence.From(evidence),
             ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             evidence.UntrackedFiles);
         if (Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)

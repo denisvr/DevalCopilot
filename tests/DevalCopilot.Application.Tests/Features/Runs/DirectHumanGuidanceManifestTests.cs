@@ -47,20 +47,20 @@ public sealed class DirectHumanGuidanceManifestTests
     private static string Original(string? guidance, string? diff = Diff) =>
         ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
             ProjectId, WorkspaceId, CheckpointId, "fingerprint", "Objective", ProposalId, "Summary",
-            "{\"scope\":\"x\"}", Acceptance, Changed, diff, Commands, InstructionContextTestSupport.NotCaptured, Untracked, guidance);
+            "{\"scope\":\"x\"}", Acceptance, Changed, TrackedDiffFixture.Composed(diff), Commands, InstructionContextTestSupport.NotCaptured, Untracked, guidance);
 
     private static string Revised(string? guidance, bool withSecondReview, string? diff = Diff) =>
         ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
             ProjectId, WorkspaceId, CheckpointId, "fingerprint", "Objective", ProposalId, "Revised",
             "{\"scope\":\"y\"}",
-            [new(ChallengeId, "Decision.", "{\"decision\":\"accept\"}")], Changed, diff, Commands, InstructionContextTestSupport.NotCaptured,
+            [new(ChallengeId, "Decision.", "{\"decision\":\"accept\"}")], Changed, TrackedDiffFixture.Composed(diff), Commands, InstructionContextTestSupport.NotCaptured,
             withSecondReview ? Acceptance : null, Untracked, guidance);
 
     private static string Correction(string? guidance, string? humanGuidance = null, string? diff = Diff) =>
         ReviewCorrectionContextManifestBuilder.Build(
             ProjectId, RunId, WorkspaceId, CheckpointId, "fingerprint", "Objective", ReportId, "Report.",
             "{\"completedWork\":\"done\"}",
-            [new(FindingId, "Finding.", "{\"severity\":\"high\"}")], Changed, diff, InstructionContextTestSupport.NotCaptured,
+            [new(FindingId, "Finding.", "{\"severity\":\"high\"}")], Changed, TrackedDiffFixture.Composed(diff), InstructionContextTestSupport.NotCaptured,
             humanGuidance is null ? null : new ReviewCorrectionContextManifestBuilder.Guidance(Guid.Parse("00000000-0000-0000-0000-0000000000b1"), humanGuidance),
             Untracked, guidance);
 
@@ -68,7 +68,7 @@ public sealed class DirectHumanGuidanceManifestTests
     private static string LegacyImplementation(
         object resolutionEvidence, IReadOnlyList<GitWorkspaceChangedPath> changed, string? diff,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untracked, string summary, string structuredContent) =>
-        InstructionContextTestSupport.NotCaptured.Fit(instructions => ChangeEvidenceManifest.Fit(changed, diff, untracked, changeEvidence => JsonSerializer.Serialize(new
+        InstructionContextTestSupport.NotCaptured.Fit(instructions => ChangeEvidenceManifest.Fit(changed, TrackedDiffFixture.Composed(diff), untracked, changeEvidence => JsonSerializer.Serialize(new
         {
             protocolVersion = CollaborationMessage.ProtocolVersionOne,
             expectedResponseContract = nameof(AgentResponseContract.ImplementationReport),

@@ -2770,14 +2770,22 @@ verification-diagnosis manifest carries the same section, so six manifest famili
 - **Forward only.** A manifest sealed before ADR-0022 replays its exact bytes, including a preview the corrected reader would
   now refuse; a later fresh claim captures the truthful omission. Nothing recaptures, reseals or rewrites history.
 - **Limits.** This closes generic untracked-preview delivery, not every filesystem read. The raw Git observation behind the
-  checkpoint fingerprint (`status`, the per-path `hash-object` of untracked files) and the tracked diff, hunk and
-  changed-line sample selection read named paths and can still read the content of a file that another name links to outside
-  the worktree; their hardening is a separate decision. Files and link topology can change after observation.
+  checkpoint fingerprint (`status`, the per-path `hash-object` of untracked files) reads named paths and can still read the
+  content of a file that another name links to outside the worktree; its hardening is a separate decision. The tracked diff, hunk
+  and changed-line sample text of a NEWLY claimed stage was a further route and is closed separately (see "Attested tracked-change
+  text in Agent manifests" and [ADR-0024](../decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md)).
+  Files and link topology can change after observation.
 - **Not included.** A generic file browser or retrieval tool, tracked-file full text, a per-file request, a provider
   flag, permission or session change, generated summaries, compaction, account or approval semantics, and any change
   to the checkpoint fingerprint, claim, budget, or dispatch rules. The evidence is untrusted context, not approval.
 
 ### Bounded tracked-hunk evidence in Agent manifests
+
+> Since [ADR-0024](../decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md) a NEWLY claimed manifest builds
+> this selection from the host comparison of attested snapshots (see "Attested tracked-change text in Agent manifests"), not from
+> Git's captured working-path patch. The parser, selector, sampler, fitting steps and truthfulness described below are unchanged and
+> operate on that comparison text, so statements about repository diff prefixes, `header_unparseable` and raw Git headers describe the
+> behavior of sealed history and of the parser's own safety net, not of new delivery.
 
 The five Agent manifests that carry `changeEvidence` used to copy the first 8,192 UTF-16 characters of the captured
 tracked diff. That prefix could end inside a hunk or a Unicode scalar and let one large first file hide every later
@@ -2849,6 +2857,91 @@ Git call, capture command, fingerprint, changed-path list, claim rule, or replay
   never recomputed at dispatch. Not included: raw full-diff or file retrieval, a new Git command, a rename or copy
   format, and any approval or eligibility meaning.
 
+### Attested tracked-change text in Agent manifests
+
+The tracked text of change evidence used to come from the raw patch of `git diff HEAD` as captured for the checkpoint. Git builds
+that patch by reopening repository pathnames, so a tracked file with a second name outside the worktree could put the other file's
+changed text into every role's manifest, the provider input and the sealed-artifact viewer. Every NEWLY claimed Agent stage now
+delivers tracked text only from attested snapshots (see
+[ADR-0024](../decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md)); the raw observation, the checkpoint
+fingerprint and its serialization, the ordinary captures and the ordinary checkpoint diff are unchanged.
+
+- **Capture.** `IGitWorkspaceEvidenceReader.CaptureForAgentContextAsync` still observes the raw state, but the capture it returns has
+  `CompleteDiff` null and `TrackedFiles`: one `GitWorkspaceTrackedFile` per tracked changed path (every path that is not `??`), in
+  ordinal path order, each either attested before and after text or one fixed `GitWorkspaceTrackedOmission`. The facts are owned,
+  immutable and provider-neutral: `GitWorkspaceEvidenceResult` copies the collection it is given (at construction and on every
+  `with` replacement) into a `GitWorkspaceTrackedFiles` snapshot that is neither an array nor a mutable list, so neither the
+  caller's collection nor a cast of the returned one can replace text after the proof. They cross the Projects Application boundary
+  as data, and the eight claim handlers derive
+  `TrackedChangeEvidence` from them (the planning stage carries no change evidence). They are observed inside the same status/diff
+  bracket as the instruction context and again after it; any difference, or a source whose bytes did not hold, is
+  `RepositoryChangedDuringCapture`.
+- **Current side (Windows).** Each current file is read through one held handle (`TrackedFileSourceReader`): before any length or
+  byte, the operating system must report that the handle's final path is exactly, case-sensitively, the resolved worktree root plus
+  the Git-reported relative path and that it is a regular, non-device, non-reparse file with exactly one link
+  (`GetFinalPathNameByHandle`, `GetFileInformationByHandle`); the length is then bounded, the bytes are read and the same facts are
+  asked again of the same handle. Git hashes exactly those bytes on standard input (`hash-object --no-filters --stdin`; no repository
+  pathname is given to Git), the handle is read again and proven once more, and Git's identity, this host's own blob computation and
+  the bytes must agree. A deletion is claimed only for a path that does not open, with its immediate parent directory physically
+  proven to be the owned directory before and after the failed open; an access failure is never absence. Another host omits every
+  file as `containment_unproven`.
+- **Baseline side.** The old text is the blob the captured HEAD records for the literal path: `ls-tree -z -l <commit> -- <paths>`
+  (batches of at most 32, literal pathspecs) for mode, type, object identity and size, then `cat-file blob <id>` only after the current
+  side is acceptable. Both run with `--no-replace-objects`, `GIT_NO_REPLACE_OBJECTS=1` and `GIT_NO_LAZY_FETCH=1` (so a replacement
+  object cannot change the baseline and a missing local object is an omission, never a fetch), the existing hardening and no filter,
+  textconv, shell or object write. Only a regular-file blob (`100644`, `100755`) of at most 256 KiB is read, and its content is
+  accepted only when the re-encoded bytes equal the recorded size and hash to the object identity (a decoded process string is not
+  raw-byte proof by itself); the identity is checked on the first read. Baseline text is cached per object for the second
+  observation only when its file was admitted (the facts already hold that text), so the 512 KiB retained-source budget bounds
+  everything an observation keeps alive, and a baseline whose file is omitted afterwards is not kept.
+- **The host comparison.** The manifest builder composes the patch itself from the two snapshots (`TrackedComparison`): a linear
+  common-prefix scan, a linear common-suffix scan that never overlaps it, one complete replacement hunk for the remaining middle
+  and at most three unchanged context lines at each edge. A line is its exact text including its terminator, so a different
+  terminator or a missing final newline is a difference and is stated with the standard `\ No newline at end of file` marker.
+  Headers are `diff --git a/<path> b/<path>` then `---` and `+++` (`/dev/null` for an addition or deletion), with paths in the
+  canonical quoted form (bare when no character needs quoting, otherwise C-style quoted with octal escapes for control characters and
+  every non-ASCII byte) and `@@ -start,count +start,count @@` numeric ranges; no raw header, function text, mode or index line is copied,
+  and the repository's diff prefix, filter, textconv and end-of-line settings have no influence. An empty file added or removed is a
+  header with no hunk. The fixed limitation is stated in every manifest that has a tracked changed path as
+  `changeEvidence.trackedComparison` (`method` `host_prefix_suffix_v1` and a notice): this is not Git's minimal or filter-normalized
+  patch, unchanged lines inside the replaced middle can appear as removed and added, line-ending-only differences remain visible, and
+  file modes and renames are not compared (a shorter form of the same notice survives the counts-only reduction).
+- **Supported and omitted.** Modified (`" M"`, `"M "`, `"MM"`), added to the index (`"A "`, `"AM"`) and deleted (`" D"`, `"D "`,
+  `"MD"`) paths are compared. Fixed omission reasons: `reserved_instruction_file`, `unsupported_status` (a type change, an
+  intent-to-add, an added-then-deleted path, a path that is also untracked, a duplicated porcelain entry), `unmerged`,
+  `unsupported_mode`, `symbolic_link`, `submodule`, `not_regular_file`, `containment_unproven`, `unreadable`, `too_large`,
+  `too_many_lines`, `binary`, `invalid_utf8`, `baseline_unavailable`, `baseline_unverified`, `unencodable_path`, `aggregate_limit`,
+  `no_content_difference` (identical bytes, for example a mode-only change), and the two builder-derived reasons `not_attested`
+  (no fact for the path) and `attestation_incoherent` (a duplicate, a fact that contradicts the porcelain state, text outside the
+  bounds). An omission carries no text and no size.
+- **Bounds.** At most 256 KiB and 8192 lines per source (either side), at most 512 KiB of source retained per observation (both sides
+  of every attested file, spent in ordinal path order; the next file that would exceed it is `aggregate_limit`), the existing
+  128 changed paths, 512 KiB raw capture and 10-second Git timeout; work is linear in those sizes and no source is ever truncated
+  into apparently complete text. The 32 KiB manifest ceiling, the 8 KiB tracked selection and the 4 KiB sample section are unchanged.
+- **Builders re-derive.** `TrackedChangeEvidence.Derive` is the only way text reaches `ChangeEvidenceManifest`: it accounts for every
+  tracked changed path exactly once, ordinal, from the capture's own changed paths and the reader's facts. A reader that returned no
+  facts delivers no tracked text and every tracked path is `not_attested`; a fact for a path that is not a tracked change is ignored;
+  the porcelain state decides which sides may be absent (`Classify`, shared with the reader); bounds and the retained budget are
+  checked again; the two reserved root names are always omitted. There is no raw-diff input to the builders, and a legacy raw patch
+  can never be admitted by missing or incoherent facts.
+- **Manifest accounting.** The composed text is parsed by the existing `TrackedDiffParser`; omitted paths are merged into the same
+  file list as omitted files, so `diffSelection.files`, `hunks`, `items` (kind `unsupported`, the fixed reason), the whole-hunk
+  selection and the incomplete samples work unchanged. A comparison with no omission that fits 8 KiB is inlined exactly
+  (`diffTruncated: false`, no `diffSelection`); otherwise `diffTruncated: true`, `diffSelection.complete: false` and, whenever any path
+  is omitted, `diffSelection.omissionReasons` (reason to count, ordinal), which is a few fixed bytes and so survives every reduction
+  step even when the per-file items are replaced by their counts. A manifest with no tracked path has no `trackedComparison` member and
+  keeps the historical empty-diff shape.
+- **Boundaries and replay.** Source text lives only in the sealed manifest, the provider input and the existing authenticated
+  sealed-artifact viewer, unredacted, and is never stored in SQLite, a log or an error. Dispatch and restart read the sealed artifact;
+  nothing recaptures, rebuilds, filters or reseals it, and a manifest sealed before this contract (a raw patch under `diff`, no
+  `trackedComparison`) replays its exact bytes. Architecture tests keep `CompleteDiff` out of the Runs feature, allow the derivation
+  only in the claim handlers and keep the attestation types out of supervisors, endpoints and adapters.
+- **Limits.** The raw observation behind the fingerprint and the ordinary checkpoint diff still read named paths and are not claimed to
+  have this containment guarantee; committed blob content is not confidential by inference; topology can change after observation;
+  only Windows has the physical proof; the process doubles used in tests do not establish real-provider reliability. Not included: a
+  minimal-diff optimizer, alias enumeration, a deeper parent chain for deletions, a generic file reader, and any provider flag,
+  permission, budget, grant, scheduling or lifecycle change.
+
 ### Project instruction context in Agent manifests
 
 Every manifest used to carry the same three fixed DevalCopilot documentation names as "instruction references" whatever the
@@ -2876,16 +2969,14 @@ references are removed from new manifests and not replaced; an old sealed manife
 - **Delivery projection.** The two root names are reserved to this section. In a NEW Agent manifest their text never appears as a
   generic untracked preview or as tracked diff, hunk or sample content, whatever the section says (Complete, any Omitted reason,
   Absent) and for a safe, unsafe, clean, dirty or untracked source. The Agent-context capture does not preview a reserved
-  untracked path and returns it as omitted (`reserved_instruction_file`); its returned diff has the reserved files' blocks removed
-  structurally, cut at `diff --git` boundaries by each block's own decoded header path (never by searching text). Only the default
-  `a/`/`b/` header with one identical path is decoded; a block whose header is anything else (`diff.noprefix`,
-  `diff.mnemonicprefix`, a rename, a malformed quote) is unknown, never "not reserved", so when a reserved path changed the whole
-  generic diff, unrelated hunks included, is withheld and `diffSelection.reason` is the fixed `reserved_instruction_diff_withheld`
-  with a fixed notice (changed paths still list every file; no other prefix is guessed and the ordinary observation and
-  fingerprint are not normalized); the builders apply the same projection to any reader's capture. Changed
-  paths stay; a changed reserved path is named in `diffSelection.reservedInstructionFiles` at every reduction step and the diff
-  is then never `diffTruncated: false` or `complete`; unrelated evidence is delivered as before. Names match ignoring case; only
-  the root path is reserved. Ordinary captures, the fingerprint and historical manifests are unchanged.
+  untracked path and returns it as omitted (`reserved_instruction_file`). A reserved TRACKED path is, since ADR-0024, an explicit
+  `reserved_instruction_file` omission of the attested tracked evidence (it is never even read for it), counted in
+  `diffSelection.omissionReasons` and listed in `diffSelection.items` beside the delivered siblings, whatever a reader's facts
+  claim and in every builder; the earlier cut of the raw patch at `diff --git` boundaries, and its whole-diff withholding
+  (`reserved_instruction_diff_withheld`) under an undecodable header format, applied only to the raw patch and are no longer part of
+  new delivery. Changed paths stay; a changed reserved path is named in `diffSelection.reservedInstructionFiles` at every reduction
+  step and the diff is then never `diffTruncated: false` or `complete`; unrelated evidence is delivered as before. Names match
+  ignoring case; only the root path is reserved. Ordinary captures, the fingerprint and historical manifests are unchanged.
 - **Section.** `projectInstructionContextBoundary` (fixed text) and `projectInstructionContext` (`version` 1, `notice`,
   `sourceGitWorkspaceId`, `sourceGitCheckpointId`, `sourceCheckpointFingerprintSha256`, `sources`). Each of the two `sources`
   has `fileName`, `status` (`Complete`, `Absent`, `Omitted`), `reason`, `byteLength`, `sha256` and `text`; text only for

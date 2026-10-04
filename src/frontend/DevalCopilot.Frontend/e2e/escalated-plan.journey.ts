@@ -6,6 +6,8 @@ import type { Page } from '@playwright/test'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import { JourneyData, sameId } from './journey/journeyDb'
 import {
+  CANDIDATE_BASELINE,
+  CANDIDATE_RELATIVE_PATH,
   createJourneyRepository,
   instructionFiles,
   journeyRoot,
@@ -18,6 +20,7 @@ import {
   repositorySnapshot,
 } from './journey/journeyEnv'
 import { instructionDeliveryProblems } from './journey/instructionDelivery'
+import { trackedDeliveryProblems } from './journey/trackedDelivery'
 import { escalatedLineageProblems, ESCALATED_STAGE_SEQUENCE } from './journey/planIdentity'
 import { injectJourneySession, registerProject, selectProject, workflowLines } from './journey/journeySupport'
 
@@ -474,6 +477,29 @@ test('the escalated journey: an authorized final plan through failed verificatio
       all.map((attempt) => attempt.AgentResponseContract),
       readInvocationLogText(mark),
     ),
+  ).toEqual([])
+
+  // Attested tracked-change text (ADR-0024): the one tracked file the doubles edit is a regular single-name file of this journey's own
+  // worktree, so every stage claimed after an edit received the host comparison of the committed HEAD text and the proven current bytes
+  // in its sealed manifest, and no stage received any before the first edit. The patches are applied to the text this journey committed
+  // with an independent applier, and the last stage's rebuilds the worktree file exactly as it is now.
+  const candidateNow = readFileSync(join(data.workspace().WorkspacePath, 'src', 'Feature.cs'), 'utf8')
+  expect(
+    trackedDeliveryProblems(sealedManifests, all.map((attempt) => attempt.AgentResponseContract), {
+      path: CANDIDATE_RELATIVE_PATH,
+      baseline: CANDIDATE_BASELINE,
+      currentByContract: {
+        Proposal: null,
+        CriticalReview: null,
+        ChallengeResolution: null,
+        ImplementationReport: null,
+        VerificationDiagnosis: CANDIDATE_BASELINE.replace('return 0;', 'return left - right;'),
+        ReviewCorrection: CANDIDATE_BASELINE.replace('return 0;', 'return left - right;'),
+        ImplementationReview: CANDIDATE_BASELINE.replace('return 0;', 'return left + right;'),
+      },
+      finalContract: 'ImplementationReview',
+      finalWorktreeText: candidateNow,
+    }),
   ).toEqual([])
 
   // A real fingerprint/checkpoint change at each mutation, with verification bound to the checkpoint it judged.

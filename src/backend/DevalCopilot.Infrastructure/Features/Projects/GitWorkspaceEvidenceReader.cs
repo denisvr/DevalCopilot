@@ -144,6 +144,18 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
                 }
             }
 
+            // Tracked sources of a new Agent delivery are attested inside the same bracket (and again after it), never read from the raw patch.
+            GitWorkspaceTrackedObservation? firstTracked = null;
+            var baselineCache = new Dictionary<string, BaselineRead>(StringComparer.Ordinal);
+            if (includeInstructionContext)
+            {
+                firstTracked = await ObserveTrackedFilesAsync(gitPath, workspacePath, beforeHeadSha, changedPaths, baselineCache, cancellationToken);
+                if (firstTracked.Failure is { } firstTrackedFailure)
+                {
+                    return Failure(firstTrackedFailure);
+                }
+            }
+
             var afterStatus = await RunAsync(gitPath, workspacePath, ["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"], cancellationToken);
             var afterHead = await RunAsync(gitPath, workspacePath, ["rev-parse", "HEAD"], cancellationToken);
             var secondDiff = await RunAsync(gitPath, workspacePath, DiffArguments, cancellationToken);
@@ -170,8 +182,19 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
                 }
             }
 
+            GitWorkspaceTrackedObservation? secondTracked = null;
+            if (firstTracked is not null)
+            {
+                secondTracked = await ObserveTrackedFilesAsync(gitPath, workspacePath, afterHeadSha, changedPaths, baselineCache, cancellationToken);
+                if (secondTracked.Failure is { } secondTrackedFailure)
+                {
+                    return Failure(secondTrackedFailure);
+                }
+            }
+
             if (beforeHeadSha == afterHeadSha && beforeStatus.Output == afterStatus.Output && firstDiff.Output == secondDiff.Output
-                && (firstInstructions is null || firstInstructions.IsConsistentWith(secondInstructions!)))
+                && (firstInstructions is null || firstInstructions.IsConsistentWith(secondInstructions!))
+                && (firstTracked is null || firstTracked.IsConsistentWith(secondTracked!)))
             {
                 var fingerprint = ComputeFingerprint(beforeHeadSha, beforeStatus.Output, secondDiff.Output, untrackedHashes);
                 var captured = new GitWorkspaceEvidenceResult(
@@ -181,7 +204,8 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
                     changedPaths,
                     secondDiff.Output,
                     untrackedFiles,
-                    firstInstructions?.Context);
+                    firstInstructions?.Context,
+                    firstTracked?.Files);
                 return includeInstructionContext ? AgentEvidenceProjection.Project(captured) : captured;
             }
         }
@@ -218,7 +242,8 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
         string workspacePath,
         IReadOnlyList<string> subcommandArguments,
         CancellationToken cancellationToken,
-        byte[]? standardInput = null)
+        byte[]? standardInput = null,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         var arguments = new List<string>(HardeningPrefix.Count + subcommandArguments.Count);
         arguments.AddRange(HardeningPrefix);
@@ -236,7 +261,7 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
                 Timeout = ReadTimeout,
                 MaxBytesPerStream = MaxCapturedBytes,
                 MaxTotalCapturedBytes = MaxCapturedBytes,
-                EnvironmentVariables = HardeningEnvironment,
+                EnvironmentVariables = environment ?? HardeningEnvironment,
                 StandardInput = standardInput,
             }, cancellationToken);
         }

@@ -864,7 +864,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             proposalMessage.StructuredContentJson,
             new ImplementationContextManifestBuilder.AcceptanceEvidence(acceptanceMessage.Summary, acceptanceMessage.StructuredContentJson),
             evidence.ChangedPaths,
-            evidence.CompleteDiff,
+            TrackedChangeEvidence.From(evidence),
             configuredVerificationCommands,
             ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             evidence.UntrackedFiles,
@@ -913,7 +913,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
                     authorization.Instruction.Id,
                     authorization.Rationale),
                 evidence.ChangedPaths,
-                evidence.CompleteDiff,
+                TrackedChangeEvidence.From(evidence),
                 configuredVerificationCommands,
                 ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
                 untrackedFiles: evidence.UntrackedFiles,
@@ -937,7 +937,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
                     decision.InReplyToMessageId!.Value, decision.Summary, decision.StructuredContentJson))
                 .ToArray(),
             evidence.ChangedPaths,
-            evidence.CompleteDiff,
+            TrackedChangeEvidence.From(evidence),
             configuredVerificationCommands,
             ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             acceptance is null

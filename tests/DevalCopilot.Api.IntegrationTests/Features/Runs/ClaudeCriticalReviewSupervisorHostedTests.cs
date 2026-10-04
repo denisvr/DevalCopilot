@@ -443,14 +443,18 @@ public sealed partial class ClaudeCriticalReviewSupervisorHostedTests : IDisposa
     [Fact]
     public async Task After_a_restart_the_claimed_attempt_dispatches_the_sealed_tracked_hunk_selection_not_a_fresh_capture()
     {
-        static string Hunk(int start, string oldLine, string newLine) => $"@@ -{start},1 +{start},1 @@\n-{oldLine}\n+{newLine}\n";
-        static string File(string path, string hunks) => $"diff --git a/{path} b/{path}\nindex 1111111..2222222 100644\n--- a/{path}\n+++ b/{path}\n{hunks}";
-        var largeHunk = "@@ -1,50 +1,50 @@\n" + string.Concat(Enumerable.Range(0, 50).Select(i => $"-{new string('a', 90)}{i:D2}\n+{new string('b', 90)}{i:D2}\n"));
-        var claimDiff = File("src/Large.cs", largeHunk) + File("src/Small.cs", Hunk(3, "old sealed value", "new sealed value"));
+        // The attested before/after text a new claim seals: one file whose single replacement hunk is too large to select whole, and one small one.
+        var largeBefore = string.Concat(Enumerable.Range(0, 50).Select(i => $"{new string('a', 90)}{i:D2}\n"));
+        var largeAfter = string.Concat(Enumerable.Range(0, 50).Select(i => $"{new string('b', 90)}{i:D2}\n"));
         var claimEvidence = new GitWorkspaceEvidenceResult(
             GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint,
             [new GitWorkspaceChangedPath("src/Large.cs", null, " ", "M"), new GitWorkspaceChangedPath("src/Small.cs", null, " ", "M")],
-            claimDiff);
+            null,
+            TrackedFiles:
+            [
+                new GitWorkspaceTrackedFile("src/Large.cs", null, largeBefore, largeAfter),
+                new GitWorkspaceTrackedFile("src/Small.cs", null, "old sealed value\n", "new sealed value\n"),
+            ]);
         Guid attemptId;
         string sealedHashBeforeRestart;
         await using (var first = BuildServiceProvider(new SequencedGitWorkspaceEvidenceReader(_ => claimEvidence), new FakeCriticalReviewAdapter(_artifactStore)))
@@ -464,7 +468,11 @@ public sealed partial class ClaudeCriticalReviewSupervisorHostedTests : IDisposa
         }
 
         // A fresh container is a host restart. Its Git evidence differs, so only the sealed manifest can carry the selection.
-        var restartedEvidence = claimEvidence with { CompleteDiff = "REPLACED AFTER RESTART" };
+        var restartedEvidence = claimEvidence with
+        {
+            CompleteDiff = "REPLACED AFTER RESTART",
+            TrackedFiles = [new GitWorkspaceTrackedFile("src/Small.cs", null, "old sealed value\n", "REPLACED AFTER RESTART\n")],
+        };
         var adapter = new FakeCriticalReviewAdapter(_artifactStore) { FinalResponseJsonToWrite = ValidAcceptanceFinalResponseJson };
         await using var restarted = BuildServiceProvider(new SequencedGitWorkspaceEvidenceReader(_ => restartedEvidence), adapter);
         var supervisor = CreateSupervisor(restarted);

@@ -38,7 +38,11 @@ public enum GitWorkspaceEvidenceOutcome
 /// <summary><see cref="UntrackedFiles"/> is empty unless previews were requested; it never changes
 /// the fingerprint, which is computed from raw-content hashes and not from previews.
 /// <see cref="InstructionContext"/> is null unless Agent context assembly asked for it; it never changes the
-/// fingerprint either.</summary>
+/// fingerprint either. <see cref="TrackedFiles"/> is non-null only for a new Agent-context capture, whose
+/// <see cref="CompleteDiff"/> is then deliberately null: it carries the attested tracked source facts instead of the raw
+/// working-path patch, accounts every tracked changed path once, and never changes the fingerprint. Whatever collection is handed
+/// in, at construction or by a <c>with</c> replacement, is copied into an owned immutable <see cref="GitWorkspaceTrackedFiles"/>
+/// snapshot: the facts cannot be replaced after the reader's physical proof, through the caller's collection or the returned one.</summary>
 public sealed record GitWorkspaceEvidenceResult(
     GitWorkspaceEvidenceOutcome Outcome,
     string? HeadCommitSha,
@@ -46,7 +50,18 @@ public sealed record GitWorkspaceEvidenceResult(
     IReadOnlyList<GitWorkspaceChangedPath> ChangedPaths,
     string? CompleteDiff,
     IReadOnlyList<GitWorkspaceUntrackedFile>? UntrackedFiles = null,
-    GitWorkspaceInstructionContext? InstructionContext = null);
+    GitWorkspaceInstructionContext? InstructionContext = null,
+    IReadOnlyList<GitWorkspaceTrackedFile>? TrackedFiles = null)
+{
+    private readonly GitWorkspaceTrackedFiles? trackedFiles = GitWorkspaceTrackedFiles.From(TrackedFiles);
+
+    /// <summary>The owned immutable snapshot of the attested facts (see the type summary); never the caller's collection.</summary>
+    public IReadOnlyList<GitWorkspaceTrackedFile>? TrackedFiles
+    {
+        get => trackedFiles;
+        init => trackedFiles = GitWorkspaceTrackedFiles.From(value);
+    }
+}
 
 /// <summary>Status values are Git porcelain's literal one-character index and work-tree
 /// columns. They remain data only; callers must not interpret them as filesystem paths.</summary>

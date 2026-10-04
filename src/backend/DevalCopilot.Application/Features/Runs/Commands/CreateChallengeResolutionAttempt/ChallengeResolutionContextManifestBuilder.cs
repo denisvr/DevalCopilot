@@ -37,11 +37,11 @@ internal static class ChallengeResolutionContextManifestBuilder
         string originalProposalStructuredContentJson,
         IReadOnlyList<ChallengeEvidence> orderedChallenges,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         ProjectInstructionContextManifest instructions,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
         bool formatRepair = false) =>
-        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
+        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, tracked, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             originalProposalMessageId, originalProposalSummary, originalProposalStructuredContentJson,
             orderedChallenges, changeEvidence, rendering, formatRepair)));

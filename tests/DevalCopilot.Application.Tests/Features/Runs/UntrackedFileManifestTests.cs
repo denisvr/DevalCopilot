@@ -29,6 +29,12 @@ public sealed class UntrackedFileManifestTests
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles,
         int paddingCharacters);
 
+    internal delegate string BuildAttestedManifest(
+        IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
+        TrackedChangeEvidence tracked,
+        IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles,
+        int paddingCharacters);
+
     public static IEnumerable<object[]> Variants => new[]
     {
         "critical-review", "challenge-resolution", "implementation-accepted", "implementation-revised",
@@ -38,40 +44,48 @@ public sealed class UntrackedFileManifestTests
     private static string Padded(int paddingCharacters) =>
         JsonSerializer.Serialize(new { p = new string('p', paddingCharacters) });
 
-    internal static BuildManifest Builder(string variant) => variant switch
+    /// <summary>The text-level vehicle: the diff is the host comparison text itself (parser, selector, sampler and fitting
+    /// fixtures), never a repository patch, and attestation is exercised by <see cref="AttestedBuilder"/>.</summary>
+    internal static BuildManifest Builder(string variant)
     {
-        "critical-review" => (paths, diff, files, padding) => ClaudeCriticalReviewContextManifestBuilder.Build(
-            Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding), paths, diff, InstructionContextTestSupport.NotCaptured, files),
-        "challenge-resolution" => (paths, diff, files, padding) => ChallengeResolutionContextManifestBuilder.Build(
+        var attested = AttestedBuilder(variant);
+        return (paths, diff, files, padding) => attested(paths, TrackedDiffFixture.Composed(diff), files, padding);
+    }
+
+    internal static BuildAttestedManifest AttestedBuilder(string variant) => variant switch
+    {
+        "critical-review" => (paths, tracked, files, padding) => ClaudeCriticalReviewContextManifestBuilder.Build(
+            Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding), paths, tracked, InstructionContextTestSupport.NotCaptured, files),
+        "challenge-resolution" => (paths, tracked, files, padding) => ChallengeResolutionContextManifestBuilder.Build(
             Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding),
-            [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, diff, InstructionContextTestSupport.NotCaptured, files),
-        "implementation-accepted" => (paths, diff, files, padding) =>
+            [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, tracked, InstructionContextTestSupport.NotCaptured, files),
+        "implementation-accepted" => (paths, tracked, files, padding) =>
             ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
                 Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding),
-                new ImplementationContextManifestBuilder.AcceptanceEvidence("a", "{}"), paths, diff,
+                new ImplementationContextManifestBuilder.AcceptanceEvidence("a", "{}"), paths, tracked,
                 [new ImplementationContextManifestBuilder.VerificationCommandReference("build", true)], InstructionContextTestSupport.NotCaptured, files),
-        "implementation-revised" => (paths, diff, files, padding) =>
+        "implementation-revised" => (paths, tracked, files, padding) =>
             ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
                 Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding),
-                [new ImplementationContextManifestBuilder.DecisionEvidence(Id, "d", "{}")], paths, diff,
+                [new ImplementationContextManifestBuilder.DecisionEvidence(Id, "d", "{}")], paths, tracked,
                 [new ImplementationContextManifestBuilder.VerificationCommandReference("build", true)], InstructionContextTestSupport.NotCaptured,
                 untrackedFiles: files),
-        "implementation-review" => (paths, diff, files, padding) => CodeReviewContextManifestBuilder.Build(
+        "implementation-review" => (paths, tracked, files, padding) => CodeReviewContextManifestBuilder.Build(
             Id, Id, Id, Fingerprint, "objective", Id, "plan", "{}", Id, "report", Padded(padding),
             [new CodeReviewContextManifestBuilder.VerificationEvidence("build", 1, "Passed", "Succeeded", 0)],
-            paths, diff, InstructionContextTestSupport.NotCaptured, files),
-        "implementation-review-correction" => (paths, diff, files, padding) =>
+            paths, tracked, InstructionContextTestSupport.NotCaptured, files),
+        "implementation-review-correction" => (paths, tracked, files, padding) =>
             CodeReviewContextManifestBuilder.BuildForCorrection(
                 Id, Id, Id, Fingerprint, "objective", Id, "plan", "{}", Id, "report", "{}",
                 [new CodeReviewContextManifestBuilder.VerificationEvidence("build", 1, "Passed", "Succeeded", 0)],
-                paths, diff,
+                paths, tracked,
                 new CodeReviewContextManifestBuilder.CorrectionEvidence(
                     Id, "previous", Padded(padding), [new CodeReviewContextManifestBuilder.CorrectionFinding(Id, "f", "{}")],
                     [new CodeReviewContextManifestBuilder.CorrectionRevisionResponse(Id, Id, "r", "{}")]),
                 InstructionContextTestSupport.NotCaptured, files),
-        "review-correction" => (paths, diff, files, padding) => ReviewCorrectionContextManifestBuilder.Build(
+        "review-correction" => (paths, tracked, files, padding) => ReviewCorrectionContextManifestBuilder.Build(
             Id, Id, Id, Id, Fingerprint, "objective", Id, "report", Padded(padding),
-            [new ReviewCorrectionContextManifestBuilder.Finding(Id, "f", "{}")], paths, diff, InstructionContextTestSupport.NotCaptured, null, files),
+            [new ReviewCorrectionContextManifestBuilder.Finding(Id, "f", "{}")], paths, tracked, InstructionContextTestSupport.NotCaptured, null, files),
         _ => throw new ArgumentOutOfRangeException(nameof(variant)),
     };
 

@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path'
 import { after, describe, it } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
+  CANDIDATE_BASELINE,
   createJourneyRepository,
   instructionFiles,
   markInvocations,
@@ -17,6 +18,8 @@ import {
 } from '../journey/journeyEnv.ts'
 import { instructionDeliveryProblems } from '../journey/instructionDelivery.ts'
 import type { SealedManifest } from '../journey/instructionDelivery.ts'
+import { applyUnifiedPatch, trackedDeliveryProblems } from '../journey/trackedDelivery.ts'
+import type { TrackedExpectation } from '../journey/trackedDelivery.ts'
 import { createHash } from 'node:crypto'
 import { normalizeGuidance, sha256Hex } from '../journey/guidance.ts'
 import { canonicalSnapshot, EXPECTED_MODEL_LIMITS, renderedRows, responseMember } from '../journey/modelContextLimits.ts'
@@ -690,6 +693,112 @@ describe('the instruction fixture and its delivery judge', () => {
     assert.match(judge(entries(), [sealed('a'), sealed('b')], leaky).join(' '), /log carries/)
     const foreign = JSON.stringify(entries()) + sha256OfText(FOREIGN[0].text)
     assert.match(judge(entries(), [sealed('a'), sealed('b')], foreign).join(' '), /identity of another project/)
+  })
+})
+
+describe('the tracked-change delivery judge', () => {
+  const PATH = 'src/Feature.cs'
+  const DEFECT = CANDIDATE_BASELINE.replace('return 0;', 'return left - right;')
+  const CORRECT = CANDIDATE_BASELINE.replace('return 0;', 'return left + right;')
+  const CONTRACTS = ['Proposal', 'ImplementationReport', 'VerificationDiagnosis', 'ImplementationReview']
+  const EXPECTED: TrackedExpectation = {
+    path: PATH,
+    baseline: CANDIDATE_BASELINE,
+    currentByContract: { Proposal: null, ImplementationReport: null, VerificationDiagnosis: DEFECT, ImplementationReview: CORRECT },
+    finalContract: 'ImplementationReview',
+    finalWorktreeText: CORRECT,
+  }
+  const HEADER = `diff --git a/${PATH} b/${PATH}\n--- a/${PATH}\n+++ b/${PATH}\n`
+  // The host comparison of the baseline against each state, written here as independent literals (line 7 is the only changed line).
+  const patchTo = (statement: string) =>
+    `${HEADER}@@ -4,6 +4,6 @@\n {\n     public static int Total(int left, int right)\n     {\n-        return 0;\n+        ${statement}\n     }\n }\n`
+  const DEFECT_PATCH = patchTo('return left - right;')
+  const CORRECT_PATCH = patchTo('return left + right;')
+
+  function manifest(attemptId: string, evidence: Record<string, unknown> | undefined): SealedManifest {
+    const text = JSON.stringify(evidence === undefined ? { expectedResponseContract: 'X' } : { expectedResponseContract: 'X', changeEvidence: evidence })
+    return {
+      attemptId,
+      text,
+      byteLength: Buffer.byteLength(text, 'utf8'),
+      contentHash: createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex'),
+    }
+  }
+
+  const unchanged = () => ({ changedPaths: [], diff: '', diffTruncated: false })
+  const changed = (diff: string, extra: Record<string, unknown> = {}) => ({
+    changedPaths: [{ Path: PATH, PreviousPath: null, IndexStatus: ' ', WorkTreeStatus: 'M' }],
+    diff,
+    diffTruncated: false,
+    trackedComparison: {
+      method: 'host_prefix_suffix_v1',
+      notice: "Tracked changes are compared by this host ... this is not Git's minimal or filter-normalized patch ...",
+    },
+    ...extra,
+  })
+  const good = (): SealedManifest[] => [
+    manifest('a', undefined),
+    manifest('b', unchanged()),
+    manifest('c', changed(DEFECT_PATCH)),
+    manifest('d', changed(CORRECT_PATCH)),
+  ]
+  const judge = (manifests: readonly SealedManifest[] = good(), expected: TrackedExpectation = EXPECTED) =>
+    trackedDeliveryProblems(manifests, CONTRACTS, expected).join(' | ')
+
+  it('applies a host comparison to the committed baseline with an independent applier', () => {
+    assert.equal(applyUnifiedPatch(DEFECT_PATCH, CANDIDATE_BASELINE), DEFECT)
+    assert.equal(applyUnifiedPatch(CORRECT_PATCH, CANDIDATE_BASELINE), CORRECT)
+    assert.equal(applyUnifiedPatch(`${HEADER}@@ -0,0 +1,1 @@\n+only\n`, ''), 'only\n')
+    assert.equal(applyUnifiedPatch(`${HEADER}@@ -1,1 +1,1 @@\n-a\n\\ No newline at end of file\n+a\n`, 'a'), 'a\n')
+    assert.throws(() => applyUnifiedPatch(patchTo('x').replace('        return 0;', '        return 1;'), CANDIDATE_BASELINE), /differs from the baseline/)
+    assert.throws(() => applyUnifiedPatch(`${HEADER}@@ -4 +4 @@\n-x\n+y\n`, CANDIDATE_BASELINE), /not a numeric hunk header/)
+  })
+
+  it('accepts exactly the attested comparison delivered for every stage and rebuilt from the baseline', () => {
+    assert.equal(judge(), '')
+  })
+
+  it('detects a raw Git patch: an index line, a function-text hunk header, or mode metadata', () => {
+    const withIndex = DEFECT_PATCH.replace(`--- a/${PATH}`, `index 1111111..2222222 100644\n--- a/${PATH}`)
+    const functionText = DEFECT_PATCH.replace('@@ -4,6 +4,6 @@', '@@ -4,6 +4,6 @@ public static class Feature')
+    assert.match(judge([good()[0], good()[1], manifest('c', changed(withIndex)), good()[3]]), /not exactly one host-written file block/)
+    assert.match(judge([good()[0], good()[1], manifest('c', changed(functionText)), good()[3]]), /bare numeric range/)
+  })
+
+  it('detects a missing or altered comparison statement and a selection that claims the evidence is incomplete', () => {
+    const noStatement = changed(DEFECT_PATCH)
+    delete (noStatement as Record<string, unknown>).trackedComparison
+    assert.match(judge([good()[0], good()[1], manifest('c', noStatement), good()[3]]), /does not name the host comparison method/)
+    const noLimitation = changed(DEFECT_PATCH, { trackedComparison: { method: 'host_prefix_suffix_v1', notice: 'compared' } })
+    assert.match(judge([good()[0], good()[1], manifest('c', noLimitation), good()[3]]), /does not state that the comparison is not Git's minimal/)
+    const partial = changed(DEFECT_PATCH, { diffTruncated: true, diffSelection: { complete: false } })
+    assert.match(judge([good()[0], good()[1], manifest('c', partial), good()[3]]), /not delivered as an exact, complete comparison/)
+  })
+
+  it('detects a comparison that does not rebuild the state the stage was handed, and one that does not rebuild the worktree', () => {
+    assert.match(judge([good()[0], good()[1], manifest('c', changed(CORRECT_PATCH)), good()[3]]), /rebuilds .*return left \+ right.*not the file the stage was handed/)
+    assert.match(judge(good(), { ...EXPECTED, finalWorktreeText: DEFECT }), /final stage's comparison does not rebuild the file as it is in the worktree/)
+    assert.match(judge([good()[0], good()[1], manifest('c', changed(`${HEADER}@@ -9,1 +9,1 @@\n-x\n+y\n`)), good()[3]]), /does not apply to the committed baseline/)
+  })
+
+  it('detects evidence for a file that was unchanged, a wrong changed path and a planning manifest with evidence', () => {
+    assert.match(judge([good()[0], manifest('b', changed(DEFECT_PATCH)), good()[2], good()[3]]), /unchanged at claim time, yet tracked change evidence/)
+    assert.match(judge([manifest('a', unchanged()), good()[1], good()[2], good()[3]]), /planning manifest unexpectedly carries change evidence/)
+    const wrongPath = changed(DEFECT_PATCH, { changedPaths: [{ Path: 'src/Other.cs', PreviousPath: null, IndexStatus: ' ', WorkTreeStatus: 'M' }] })
+    assert.match(judge([good()[0], good()[1], manifest('c', wrongPath), good()[3]]), /exactly the one modified tracked path/)
+    const staged = changed(DEFECT_PATCH, { changedPaths: [{ Path: PATH, PreviousPath: null, IndexStatus: 'M', WorkTreeStatus: 'M' }] })
+    assert.match(judge([good()[0], good()[1], manifest('c', staged), good()[3]]), /exactly the one modified tracked path/)
+  })
+
+  it('detects a missing manifest, a missing evidence member, an unknown contract and a manifest that is not JSON', () => {
+    assert.match(judge(good().slice(0, 3)), /3 sealed manifests were found, not 4/)
+    assert.match(judge([good()[0], manifest('b', undefined), good()[2], good()[3]]), /carries no change evidence/)
+    assert.match(
+      trackedDeliveryProblems(good(), ['Proposal', 'Mystery', 'VerificationDiagnosis', 'ImplementationReview'], EXPECTED).join(' '),
+      /no expectation for contract Mystery/,
+    )
+    assert.match(judge([good()[0], good()[1], { ...good()[2], text: '{' }, good()[3]]), /not JSON/)
+    assert.match(trackedDeliveryProblems(good(), CONTRACTS, { ...EXPECTED, finalContract: 'Nothing' }).join(' '), /never claimed/)
   })
 })
 

@@ -101,7 +101,7 @@ public sealed class UntrackedPreviewFormsDeliveryTests : IDisposable
     private static string Build(string form, GitWorkspaceEvidenceResult result)
     {
         var paths = result.ChangedPaths;
-        var diff = result.CompleteDiff;
+        var diff = TrackedChangeEvidence.From(result);
         var fingerprint = result.FingerprintSha256!;
         var untracked = result.UntrackedFiles;
         var instructions = ProjectInstructionContextManifest.Prepare(Id, Id, fingerprint, result.InstructionContext);
@@ -211,6 +211,88 @@ public sealed class UntrackedPreviewFormsDeliveryTests : IDisposable
         Assert.Equal(1, Occurrences(delivery.Stdin, UntrackedPreviewScene.SafeText));
         Assert.Equal(1, Occurrences(delivery.Stdin, UntrackedPreviewScene.ControlText));
         AssertUntrackedAccounting(delivery.Stdin);
+    }
+
+    [Theory]
+    [MemberData(nameof(FormNames))]
+    public async Task The_outside_sentinel_reaches_no_surface_of_any_form_through_tracked_files_while_the_attested_siblings_do(string form)
+    {
+        _scene.CommitTrackedFixtures();
+        _scene.MakeTrackedChanges();
+        var (_, contract, provider) = Forms.Single(entry => entry.Form == form);
+        var ordinary = await _reader.CaptureAsync(_scene.Repository, CancellationToken.None);
+
+        var result = await _reader.CaptureForAgentContextAsync(_scene.Repository, includeUntrackedPreviews: true, CancellationToken.None);
+        Assert.Equal(GitWorkspaceEvidenceOutcome.Success, result.Outcome);
+        var manifest = Build(form, result);
+        var delivery = await SealAndDeliverAsync(
+            manifest, contract, provider, form.StartsWith("implementation-authorized", StringComparison.Ordinal) ? Authorization : null,
+            AdapterVersion(form, contract), IsDirectlyGuided(form) ? DirectGuidance : null);
+
+        // The parent defect's precondition: ordinary raw observation reads the outside bytes through the named tracked paths.
+        Assert.Contains(UntrackedPreviewScene.Sentinel, ordinary.CompleteDiff!, StringComparison.Ordinal);
+        Assert.Equal(ordinary.FingerprintSha256, result.FingerprintSha256);
+        Assert.Null(result.CompleteDiff);
+        Assert.Equal(delivery.SealedManifest, delivery.Stdin);
+        Assert.Equal(manifest, delivery.Stdin);
+        Assert.DoesNotContain(UntrackedPreviewScene.Sentinel, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+        Assert.DoesNotContain(UntrackedPreviewScene.Sentinel, delivery.SealedManifest, StringComparison.Ordinal);
+        Assert.DoesNotContain(UntrackedPreviewScene.Sentinel, delivery.Stdin, StringComparison.Ordinal);
+        Assert.Equal(1, Occurrences(delivery.Stdin, "TRACKED-SAFE-AFTER-8d12"));
+        Assert.Equal(1, Occurrences(delivery.Stdin, "TRACKED-CONTROL-AFTER-56be"));
+        AssertTrackedAccounting(delivery.Stdin);
+    }
+
+    /// <summary>A manifest sealed in the historical shape (a raw patch under <c>diff</c>, no comparison statement) is neither rebuilt,
+    /// filtered nor rejected at dispatch: the real adapter delivers its exact bytes.</summary>
+    [Fact]
+    public async Task A_manifest_sealed_in_the_historical_raw_diff_shape_replays_its_exact_bytes_through_the_real_adapter()
+    {
+        _scene.CommitTrackedFixtures();
+        _scene.MakeTrackedChanges();
+        var result = await _reader.CaptureForAgentContextAsync(_scene.Repository, includeUntrackedPreviews: true, CancellationToken.None);
+        var current = System.Text.Json.Nodes.JsonNode.Parse(Build("critical-review", result))!.AsObject();
+        var evidence = current["changeEvidence"]!.AsObject();
+        evidence["diff"] = "diff --git a/old.txt b/old.txt\n--- a/old.txt\n+++ b/old.txt\n@@ -1 +1 @@\n-a\n+HISTORICAL-RAW-PATCH-LINE\n";
+        evidence["diffTruncated"] = false;
+        evidence.Remove("diffSelection");
+        evidence.Remove("trackedComparison");
+        var historical = current.ToJsonString();
+
+        var delivery = await SealAndDeliverAsync(historical, AgentResponseContract.CriticalReview, AgentProvider.ClaudeCode);
+
+        Assert.Equal(historical, delivery.SealedManifest);
+        Assert.Equal(historical, delivery.Stdin);
+        Assert.Contains("HISTORICAL-RAW-PATCH-LINE", delivery.Stdin, StringComparison.Ordinal);
+        Assert.DoesNotContain("trackedComparison", delivery.Stdin, StringComparison.Ordinal);
+    }
+
+    /// <summary>The linked tracked paths are named with the fixed reason and no text; the siblings' comparison text is attested.</summary>
+    private static void AssertTrackedAccounting(string manifestText)
+    {
+        using var document = JsonDocument.Parse(manifestText);
+        var evidence = document.RootElement.GetProperty("changeEvidence");
+        Assert.True(evidence.GetProperty("diffTruncated").GetBoolean());
+        Assert.Equal("host_prefix_suffix_v1", evidence.GetProperty("trackedComparison").GetProperty("method").GetString());
+        var selection = evidence.GetProperty("diffSelection");
+        Assert.False(selection.GetProperty("complete").GetBoolean());
+        Assert.Equal(2, selection.GetProperty("omissionReasons").GetProperty("containment_unproven").GetInt32());
+        if (!selection.TryGetProperty("itemsOmitted", out _))
+        {
+            var items = selection.GetProperty("items").EnumerateArray().ToDictionary(item => item.GetProperty("path").GetString()!);
+            foreach (var linked in UntrackedPreviewScene.TrackedLinkedPaths)
+            {
+                Assert.Equal("containment_unproven", items[linked].GetProperty("reason").GetString());
+                Assert.Equal("omitted", items[linked].GetProperty("selection").GetString());
+            }
+        }
+
+        var diff = evidence.GetProperty("diff").GetString()!;
+        Assert.Contains(
+            "--- a/tracked-safe.txt\n+++ b/tracked-safe.txt\n@@ -1,3 +1,3 @@\n TRACKED-SAFE-BEFORE-3f0a stays as context\n" +
+            "-old safe line\n+TRACKED-SAFE-AFTER-8d12 the attested change\n trailing context\n",
+            diff,
+            StringComparison.Ordinal);
     }
 
     [Fact]

@@ -35,7 +35,7 @@ internal static class ImplementationContextManifestBuilder
         string proposalStructuredContentJson,
         AcceptanceEvidence acceptance,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
         ProjectInstructionContextManifest instructions,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
@@ -48,7 +48,7 @@ internal static class ImplementationContextManifestBuilder
                 form = "acceptedOriginalProposal",
                 acceptance = new { summary = acceptance.Summary, structuredContent = Deserialize(acceptance.StructuredContentJson) },
             },
-            changedPaths, completeDiff, configuredVerificationCommands, instructions, untrackedFiles, directHumanGuidance);
+            changedPaths, tracked, configuredVerificationCommands, instructions, untrackedFiles, directHumanGuidance);
 
     public static string BuildForResolvedRevisedProposal(
         Guid projectId,
@@ -61,7 +61,7 @@ internal static class ImplementationContextManifestBuilder
         string revisedProposalStructuredContentJson,
         IReadOnlyList<DecisionEvidence> orderedDecisions,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
         ProjectInstructionContextManifest instructions,
         AcceptanceEvidence? acceptedSecondReview = null,
@@ -95,7 +95,7 @@ internal static class ImplementationContextManifestBuilder
         return Build(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             revisedProposalMessageId, revisedProposalSummary, revisedProposalStructuredContentJson,
-            resolutionEvidence, changedPaths, completeDiff, configuredVerificationCommands, instructions, untrackedFiles,
+            resolutionEvidence, changedPaths, tracked, configuredVerificationCommands, instructions, untrackedFiles,
             directHumanGuidance);
     }
 
@@ -121,7 +121,7 @@ internal static class ImplementationContextManifestBuilder
         IReadOnlyList<DecisionEvidence> orderedDecisions,
         HumanAuthorizationEvidence authorization,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
         ProjectInstructionContextManifest instructions,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
@@ -154,7 +154,7 @@ internal static class ImplementationContextManifestBuilder
         return Build(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             finalProposalMessageId, finalProposalSummary, finalProposalStructuredContentJson,
-            resolutionEvidence, changedPaths, completeDiff, configuredVerificationCommands, instructions, untrackedFiles,
+            resolutionEvidence, changedPaths, tracked, configuredVerificationCommands, instructions, untrackedFiles,
             directHumanGuidance, humanPlanAuthorized: true);
     }
 
@@ -169,13 +169,13 @@ internal static class ImplementationContextManifestBuilder
         string proposalStructuredContentJson,
         object resolutionEvidence,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         IReadOnlyList<VerificationCommandReference> configuredVerificationCommands,
         ProjectInstructionContextManifest instructions,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles,
         string? directHumanGuidance,
         bool humanPlanAuthorized = false) =>
-        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
+        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, tracked, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, gitCheckpointId, checkpointFingerprintSha256, runObjective,
             proposalMessageId, proposalSummary, proposalStructuredContentJson, resolutionEvidence,
             configuredVerificationCommands, directHumanGuidance, humanPlanAuthorized, changeEvidence, rendering)));

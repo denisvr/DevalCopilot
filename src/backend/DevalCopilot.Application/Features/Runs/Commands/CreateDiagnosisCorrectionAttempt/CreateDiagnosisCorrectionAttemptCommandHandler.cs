@@ -174,7 +174,7 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
             current.OrderedFindings.Select(finding => new ReviewCorrectionContextManifestBuilder.Finding(
                 finding.Id, finding.Summary, finding.StructuredContentJson)).ToArray(),
             evidence.ChangedPaths,
-            evidence.CompleteDiff,
+            TrackedChangeEvidence.From(evidence),
             ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             humanGuidance: null,
             untrackedFiles: evidence.UntrackedFiles,

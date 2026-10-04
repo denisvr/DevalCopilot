@@ -57,11 +57,11 @@ internal static class CodeReviewContextManifestBuilder
         string executionReportStructuredContentJson,
         IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         ProjectInstructionContextManifest instructions,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
         bool formatRepair = false) =>
-        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
+        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, tracked, untrackedFiles, changeEvidence => Serialize(
             projectId, gitWorkspaceId, resultGitCheckpointId, resultCheckpointFingerprintSha256, runObjective,
             resolvedPlanMessageId, resolvedPlanSummary, resolvedPlanStructuredContentJson,
             executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,
@@ -152,14 +152,14 @@ internal static class CodeReviewContextManifestBuilder
         string executionReportStructuredContentJson,
         IReadOnlyList<VerificationEvidence> orderedVerificationEvidence,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         CorrectionEvidence correctionEvidence,
         ProjectInstructionContextManifest instructions,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
         bool formatRepair = false) =>
         // The correction evidence is part of what must fit the manifest ceiling, so it is added
         // inside each fitting attempt rather than after the section was already sized.
-        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence =>
+        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, tracked, untrackedFiles, changeEvidence =>
         {
             var root = JsonNode.Parse(Serialize(
                 projectId,

@@ -6,6 +6,8 @@ import type { Locator, Page } from '@playwright/test'
 import { JourneyData, sameId } from './journey/journeyDb'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
+  CANDIDATE_BASELINE,
+  CANDIDATE_RELATIVE_PATH,
   createJourneyRepository,
   instructionFiles,
   journeyRoot,
@@ -18,6 +20,7 @@ import {
   repositorySnapshot,
 } from './journey/journeyEnv'
 import { instructionDeliveryProblems } from './journey/instructionDelivery'
+import { trackedDeliveryProblems } from './journey/trackedDelivery'
 import { planIdentityProblems } from './journey/planIdentity'
 import { canonicalSnapshot, EXPECTED_MODEL_LIMITS, renderedRows, responseMember } from './journey/modelContextLimits'
 import type { ExpectedModelLimit } from './journey/modelContextLimits'
@@ -454,6 +457,29 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
       all.map((attempt) => attempt.AgentResponseContract),
       readInvocationLogText(mark),
     ),
+  ).toEqual([])
+
+  // Attested tracked-change text (ADR-0024): the one tracked file the doubles edit is a regular single-name file of the owned worktree,
+  // so every stage claimed after an edit received, in its sealed manifest, the host comparison of the committed HEAD text and the proven
+  // current bytes, and no stage received any before the first edit. The sealed patches are applied to the text this journey committed with
+  // an independent applier; the last stage's rebuilds the worktree file exactly as it is now. No Git patch header or function text appears.
+  const candidateNow = readFileSync(join(data.workspace().WorkspacePath, 'src', 'Feature.cs'), 'utf8')
+  expect(
+    trackedDeliveryProblems(sealedManifests, all.map((attempt) => attempt.AgentResponseContract), {
+      path: CANDIDATE_RELATIVE_PATH,
+      baseline: CANDIDATE_BASELINE,
+      currentByContract: {
+        Proposal: null,
+        CriticalReview: null,
+        ChallengeResolution: null,
+        ImplementationReport: null,
+        VerificationDiagnosis: CANDIDATE_BASELINE.replace('return 0;', 'return left - right;'),
+        ReviewCorrection: CANDIDATE_BASELINE.replace('return 0;', 'return left - right;'),
+        ImplementationReview: CANDIDATE_BASELINE.replace('return 0;', 'return left + right;'),
+      },
+      finalContract: 'ImplementationReview',
+      finalWorktreeText: candidateNow,
+    }),
   ).toEqual([])
 
   // No agent ever committed or pushed: the worktree still has the single baseline commit and the original repository is untouched.

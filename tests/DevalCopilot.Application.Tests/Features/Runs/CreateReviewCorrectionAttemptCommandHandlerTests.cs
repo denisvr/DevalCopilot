@@ -232,6 +232,40 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests : I
             attempt.Id.ToString("N"), "AgentContextManifest.partial")));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_claim_seals_the_attested_tracked_text_and_never_the_raw_patch_the_capture_carried(bool attested)
+    {
+        await using var context = _fixture.CreateContext();
+        var seed = await SeedAsync(context);
+        var capture = seed.Evidence with
+        {
+            ChangedPaths = [new GitWorkspaceChangedPath("src/Changed.cs", null, " ", "M")],
+            CompleteDiff = "diff --git a/src/Changed.cs b/src/Changed.cs\n+RAW-PATCH-SENTINEL-5f1c\n",
+            TrackedFiles = attested ? [new GitWorkspaceTrackedFile("src/Changed.cs", null, "old line\n", "ATTESTED-NEW-LINE-77ab\n")] : null,
+        };
+        var handler = new CreateReviewCorrectionAttemptCommandHandler(context, new RecordingEvidenceReader(capture), new TestArtifactStore(), new FixedTimeProvider(Now));
+
+        var result = await handler.HandleAsync(Command(seed), CancellationToken.None);
+
+        Assert.True(result.IsSuccess, string.Join("; ", result.Errors.Select(error => error.Code)));
+        var created = Assert.IsType<CreateReviewCorrectionAttemptCommandResult.AttemptCreated>(result.Value);
+        var manifest = File.ReadAllText(Path.Combine(
+            Path.GetTempPath(), "devalcopilot-review-correction-tests", seed.Run.Id.ToString("N"), created.AttemptId.ToString("N"), "AgentContextManifest.partial"));
+        Assert.DoesNotContain("RAW-PATCH-SENTINEL-5f1c", manifest, StringComparison.Ordinal);
+        if (attested)
+        {
+            Assert.Contains("ATTESTED-NEW-LINE-77ab", manifest, StringComparison.Ordinal);
+        }
+        else
+        {
+            // A reader that returned no attestation delivers no tracked text at all, and says so for the path.
+            Assert.DoesNotContain("ATTESTED-NEW-LINE-77ab", manifest, StringComparison.Ordinal);
+            Assert.Contains("\"not_attested\":1", manifest, StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public async Task Third_claim_creates_one_durable_escalation_without_attempt_or_manifest()
     {

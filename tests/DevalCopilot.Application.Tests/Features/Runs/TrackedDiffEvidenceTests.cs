@@ -235,7 +235,8 @@ public sealed class TrackedDiffEvidenceTests
         Assert.False(evidence.GetProperty("diffTruncated").GetBoolean());
         Assert.False(evidence.TryGetProperty("diffSelection", out _));
         Assert.False(evidence.TryGetProperty("untrackedFiles", out _));
-        Assert.Equal(["changedPaths", "diff", "diffTruncated"], evidence.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(["changedPaths", "diff", "diffTruncated", "trackedComparison"], evidence.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(ChangeEvidenceManifest.ComparisonMethod, evidence.GetProperty("trackedComparison").GetProperty("method").GetString());
     }
 
     [Theory]

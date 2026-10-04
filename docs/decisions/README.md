@@ -37,6 +37,8 @@ supersedes it.
   (additive; it narrows what generic untracked previews may deliver and changes no existing authority decision)
 - [ADR-0023: Record Claude-reported model context limits in historical attempt evidence](0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md)
   (additive; it records and shows what Claude reported and changes no existing authority decision)
+- [ADR-0024: Deliver new tracked-change text only from attested snapshots](0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md)
+  (it narrowly advances ADR-0021 and ADR-0022 for new tracked delivery only and changes no existing authority decision)
 
 ## Status values
 

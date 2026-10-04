@@ -1,3 +1,4 @@
+using DevalCopilot.Application.Features.Runs.Policies;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
@@ -19,7 +20,7 @@ public sealed class TrackedDiffPrefixDefectTests
             [new("src/Large.cs", null, " ", "M"), new("src/Small.cs", null, " ", "M")];
 
         var manifest = ClaudeCriticalReviewContextManifestBuilder.Build(
-            Id, Id, Id, new string('a', 64), "objective", Id, "summary", "{}", paths, diff, InstructionContextTestSupport.NotCaptured);
+            Id, Id, Id, new string('a', 64), "objective", Id, "summary", "{}", paths, Composed(diff), InstructionContextTestSupport.NotCaptured);
 
         var included = JsonDocument.Parse(manifest).RootElement.GetProperty("changeEvidence").GetProperty("diff").GetString()!;
         Assert.Contains("+new value", included, StringComparison.Ordinal);

@@ -342,6 +342,130 @@ public sealed class UntrackedPreviewClaimDeliveryTests : IDisposable
         Assert.Equal(atClaim.SealedManifest, (await DeliverClaimAsync(provider, reviewId)).SealedManifest);
     }
 
+    // ---- tracked evidence (ADR-0024) -------------------------------------------------------------------------------------------
+
+    private void ArrangeTrackedUnsafeAndSafeFiles()
+    {
+        _scene.CommitTrackedFixtures();
+        _scene.MakeTrackedChanges();
+        // Precondition independent of the host under test: the linked tracked paths really read as the outside bytes.
+        Assert.Equal(UntrackedPreviewScene.Sentinel, File.ReadAllText(Path.Combine(_scene.Repository, "tracked-linked.txt")));
+        Assert.Equal(UntrackedPreviewScene.Sentinel, File.ReadAllText(Path.Combine(_scene.Repository, "deep", "tracked-nested-linked.txt")));
+    }
+
+    /// <summary>The sentinel appears nowhere; the safe sibling's attested change appears exactly once; each unsafe tracked path is named
+    /// with the fixed omission and no text; the diff is never presented as complete.</summary>
+    private static void AssertTrackedDelivery(Delivery delivery)
+    {
+        Assert.DoesNotContain(UntrackedPreviewScene.Sentinel, delivery.SealedManifest, StringComparison.Ordinal);
+        Assert.DoesNotContain(UntrackedPreviewScene.Sentinel, delivery.Stdin, StringComparison.Ordinal);
+        Assert.Equal(1, Occurrences(delivery.Stdin, "TRACKED-SAFE-AFTER-8d12"));
+        Assert.Equal(1, Occurrences(delivery.Stdin, "TRACKED-CONTROL-AFTER-56be"));
+        using var document = JsonDocument.Parse(delivery.Stdin);
+        var evidence = document.RootElement.GetProperty("changeEvidence");
+        Assert.True(evidence.GetProperty("diffTruncated").GetBoolean());
+        Assert.Equal("host_prefix_suffix_v1", evidence.GetProperty("trackedComparison").GetProperty("method").GetString());
+        var selection = evidence.GetProperty("diffSelection");
+        Assert.False(selection.GetProperty("complete").GetBoolean());
+        Assert.Equal(2, selection.GetProperty("omissionReasons").GetProperty("containment_unproven").GetInt32());
+        var items = selection.GetProperty("items").EnumerateArray().ToDictionary(item => item.GetProperty("path").GetString()!);
+        foreach (var linked in UntrackedPreviewScene.TrackedLinkedPaths)
+        {
+            Assert.Equal("containment_unproven", items[linked].GetProperty("reason").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task Claude_and_Codex_claims_deliver_the_attested_tracked_sibling_and_never_the_outside_sentinel_of_a_tracked_hard_link()
+    {
+        ArrangeTrackedUnsafeAndSafeFiles();
+        await using var provider = BuildProvider();
+        var (runId, fingerprint) = await SeedAsync(provider);
+        var planningId = await ClaimPlanningAsync(provider, runId);
+        var planning = await DeliverClaimAsync(provider, planningId);
+        Assert.DoesNotContain(UntrackedPreviewScene.Sentinel, planning.Stdin, StringComparison.Ordinal);
+        await CompletePlanningAsync(provider, runId, planningId, fingerprint);
+        var proposalId = await ProposalOfAsync(provider, planningId);
+
+        var reviewId = await ClaimCriticalReviewAsync(provider, runId, proposalId);
+        var review = await DeliverClaimAsync(provider, reviewId);
+        Assert.Equal(AgentProvider.ClaudeCode, review.Provider);
+        AssertTrackedDelivery(review);
+
+        await RecordReviewAsync(provider, runId, reviewId, AgentOutcome.Challenged, ChallengeResponse, fingerprint);
+        var resolutionId = await ClaimResolutionAsync(provider, runId, reviewId);
+        var resolution = await DeliverClaimAsync(provider, resolutionId);
+        Assert.Equal(AgentProvider.Codex, resolution.Provider);
+        AssertTrackedDelivery(resolution);
+    }
+
+    [Fact]
+    public async Task A_Claude_implementation_claim_delivers_the_same_attested_tracked_evidence()
+    {
+        ArrangeTrackedUnsafeAndSafeFiles();
+        await using var provider = BuildProvider();
+        var (runId, fingerprint) = await SeedAsync(provider);
+        var planningId = await ClaimPlanningAsync(provider, runId);
+        await CompletePlanningAsync(provider, runId, planningId, fingerprint);
+        var proposalId = await ProposalOfAsync(provider, planningId);
+        var reviewId = await ClaimCriticalReviewAsync(provider, runId, proposalId);
+        await RecordReviewAsync(provider, runId, reviewId, AgentOutcome.Accepted, AcceptanceResponse, fingerprint);
+
+        var implementation = await DeliverClaimAsync(provider, await ClaimImplementationAsync(provider, runId, proposalId));
+
+        Assert.Equal(AgentResponseContract.ImplementationReport, implementation.Contract);
+        AssertTrackedDelivery(implementation);
+    }
+
+    [Fact]
+    public async Task A_tracked_manifest_sealed_before_a_second_name_appeared_replays_its_exact_bytes_after_a_restart_and_a_fresh_claim_omits_the_file()
+    {
+        _scene.CommitTrackedFixtures();
+        _scene.Write("tracked-safe.txt", UntrackedPreviewScene.TrackedSafeAfter);
+        _scene.Write("deep/tracked-control.txt", UntrackedPreviewScene.TrackedControlAfter);
+        _scene.Write("tracked-linked.txt", "SHARED-TRACKED-TEXT-6a21 edited tracked file\n");
+        Guid runId;
+        Guid reviewId;
+        Guid proposalId;
+        string fingerprint;
+        Delivery atClaim;
+        await using (var first = BuildProvider())
+        {
+            (runId, fingerprint) = await SeedAsync(first);
+            var planningId = await ClaimPlanningAsync(first, runId);
+            await CompletePlanningAsync(first, runId, planningId, fingerprint);
+            proposalId = await ProposalOfAsync(first, planningId);
+            reviewId = await ClaimCriticalReviewAsync(first, runId, proposalId);
+            atClaim = await DeliverClaimAsync(first, reviewId);
+        }
+
+        Assert.Equal(1, Occurrences(atClaim.Stdin, "SHARED-TRACKED-TEXT-6a21"));
+        Assert.Equal(1, Occurrences(atClaim.Stdin, "TRACKED-SAFE-AFTER-8d12"));
+
+        // The host restarts while a second name for the same bytes appears outside the worktree: same content, same raw identity.
+        _scene.AddOutsideAliasOf("tracked-linked.txt", "outside-alias.txt");
+        Assert.Equal(fingerprint, (await _reader.CaptureAsync(_scene.Repository, CancellationToken.None)).FingerprintSha256);
+        await using var restarted = BuildProvider();
+
+        var replayed = await DeliverClaimAsync(restarted, reviewId);
+        Assert.Equal(atClaim.SealedManifest, replayed.SealedManifest);
+        Assert.Equal(atClaim.Stdin, replayed.Stdin);
+
+        await RecordReviewAsync(restarted, runId, reviewId, AgentOutcome.Accepted, AcceptanceResponse, fingerprint);
+        var fresh = await DeliverClaimAsync(restarted, await ClaimImplementationAsync(restarted, runId, proposalId));
+        Assert.NotEqual(atClaim.Stdin, fresh.Stdin);
+        Assert.DoesNotContain("SHARED-TRACKED-TEXT-6a21", fresh.Stdin, StringComparison.Ordinal);
+        Assert.Equal(1, Occurrences(fresh.Stdin, "TRACKED-SAFE-AFTER-8d12"));
+        using var document = JsonDocument.Parse(fresh.Stdin);
+        var selection = document.RootElement.GetProperty("changeEvidence").GetProperty("diffSelection");
+        Assert.Equal(
+            "containment_unproven",
+            selection.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("path").GetString() == "tracked-linked.txt")
+                .GetProperty("reason").GetString());
+        // The earlier sealed artifact is still exactly what it was.
+        Assert.Equal(atClaim.SealedManifest, (await DeliverClaimAsync(restarted, reviewId)).SealedManifest);
+    }
+
     private static async Task CompletePlanningAsync(ServiceProvider provider, Guid runId, Guid planningId, string fingerprint)
     {
         await using var scope = provider.CreateAsyncScope();

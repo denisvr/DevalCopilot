@@ -62,7 +62,7 @@ public sealed class ProjectInstructionContextRegressionTests : IDisposable
 
         var manifest = ClaudeCriticalReviewContextManifestBuilder.Build(
             Id, Id, Id, evidence.FingerprintSha256!, "objective", Id, "summary", "{}", evidence.ChangedPaths,
-            evidence.CompleteDiff, Instructions(evidence), evidence.UntrackedFiles);
+            TrackedChangeEvidence.From(evidence), Instructions(evidence), evidence.UntrackedFiles);
 
         Assert.Equal(BetaConvention, AgentsText(manifest));
         Assert.DoesNotContain("ALPHA-CONVENTION", manifest, StringComparison.Ordinal);
@@ -81,7 +81,7 @@ public sealed class ProjectInstructionContextRegressionTests : IDisposable
             Id, Id, Id, evidence.FingerprintSha256!, "objective", null, [], Instructions(evidence));
         var review = ClaudeCriticalReviewContextManifestBuilder.Build(
             Id, Id, Id, evidence.FingerprintSha256!, "objective", Id, "summary", "{}", evidence.ChangedPaths,
-            evidence.CompleteDiff, Instructions(evidence), evidence.UntrackedFiles);
+            TrackedChangeEvidence.From(evidence), Instructions(evidence), evidence.UntrackedFiles);
 
         Assert.DoesNotContain(foreignReference, planning, StringComparison.Ordinal);
         Assert.DoesNotContain(foreignReference, review, StringComparison.Ordinal);

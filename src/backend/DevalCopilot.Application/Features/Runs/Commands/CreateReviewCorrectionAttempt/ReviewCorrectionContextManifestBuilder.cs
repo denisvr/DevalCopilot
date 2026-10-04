@@ -44,13 +44,13 @@ internal static class ReviewCorrectionContextManifestBuilder
         string executionReportStructuredContentJson,
         IReadOnlyList<Finding> orderedFindings,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
-        string? completeDiff,
+        TrackedChangeEvidence tracked,
         ProjectInstructionContextManifest instructions,
         Guidance? humanGuidance = null,
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles = null,
         string? directHumanGuidance = null,
         string? sourceNotice = null) =>
-        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, completeDiff, untrackedFiles, changeEvidence => Serialize(
+        instructions.Fit(rendering => ChangeEvidenceManifest.Fit(changedPaths, tracked, untrackedFiles, changeEvidence => Serialize(
             projectId, runId, workspaceId, startingCheckpointId, startingFingerprint, objective,
             executionReportMessageId, executionReportSummary, executionReportStructuredContentJson,
             orderedFindings, humanGuidance, directHumanGuidance, sourceNotice, changeEvidence, rendering)));

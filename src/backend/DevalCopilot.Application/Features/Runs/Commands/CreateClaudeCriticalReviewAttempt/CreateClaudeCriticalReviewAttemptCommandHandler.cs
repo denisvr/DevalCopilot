@@ -225,7 +225,7 @@ public sealed class CreateClaudeCriticalReviewAttemptCommandHandler(
             proposalMessage.Summary,
             proposalMessage.StructuredContentJson,
             evidence.ChangedPaths,
-            evidence.CompleteDiff,
+            TrackedChangeEvidence.From(evidence),
             ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             evidence.UntrackedFiles,
             formatRepair: command.RepairSourceAttemptId is not null);

@@ -19,6 +19,14 @@ internal sealed class UntrackedPreviewScene : IDisposable
     /// <summary>Untracked paths that are hard links to the outside file, at a root and a nested position.</summary>
     internal static readonly string[] LinkedPaths = ["linked.txt", "deep/nested/linked.txt"];
 
+    /// <summary>Tracked paths that are committed with ordinary text and then replaced by hard links to the outside file.</summary>
+    internal static readonly string[] TrackedLinkedPaths = ["tracked-linked.txt", "deep/tracked-nested-linked.txt"];
+
+    internal const string TrackedSafeBefore = "TRACKED-SAFE-BEFORE-3f0a stays as context\nold safe line\ntrailing context\n";
+    internal const string TrackedSafeAfter = "TRACKED-SAFE-BEFORE-3f0a stays as context\nTRACKED-SAFE-AFTER-8d12 the attested change\ntrailing context\n";
+    internal const string TrackedControlBefore = "control before\n";
+    internal const string TrackedControlAfter = "TRACKED-CONTROL-AFTER-56be nested single-name file\n";
+
     private UntrackedPreviewScene(string root, string repository, string outsideFile)
     {
         Root = root;
@@ -56,6 +64,33 @@ internal sealed class UntrackedPreviewScene : IDisposable
         {
             HardLink(relativePath, OutsideFile);
         }
+    }
+
+    /// <summary>Commits the tracked fixtures: the two paths that will become outside hard links, a safe sibling and a nested control.</summary>
+    internal void CommitTrackedFixtures()
+    {
+        foreach (var relativePath in TrackedLinkedPaths)
+        {
+            Write(relativePath, "committed text of " + relativePath + "\n");
+        }
+
+        Write("tracked-safe.txt", TrackedSafeBefore);
+        Write("deep/tracked-control.txt", TrackedControlBefore);
+        Git(Repository, "add", "-A");
+        Git(Repository, "commit", "-q", "-m", "tracked fixtures");
+    }
+
+    /// <summary>Replaces each committed linked path by a second name for the outside file, and edits the safe siblings.</summary>
+    internal void MakeTrackedChanges()
+    {
+        foreach (var relativePath in TrackedLinkedPaths)
+        {
+            File.Delete(Path.Combine(Repository, relativePath.Replace('/', '\\')));
+            HardLink(relativePath, OutsideFile);
+        }
+
+        Write("tracked-safe.txt", TrackedSafeAfter);
+        Write("deep/tracked-control.txt", TrackedControlAfter);
     }
 
     /// <summary>The healthy siblings that must stay available: an unrelated top-level file and an ordinary nested file.</summary>

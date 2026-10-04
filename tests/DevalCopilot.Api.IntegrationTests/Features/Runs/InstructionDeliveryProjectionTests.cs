@@ -187,12 +187,13 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
         }
     }
 
-    /// <summary>A repository configured with a diff header format this host does not decode returns, from the ordinary Git observation,
-    /// a diff whose blocks cannot be attributed to a path with certainty. Unknown never means not reserved: when a tracked root
-    /// instruction file changed, the whole generic diff is withheld, with fixed truthful accounting, and nothing else is disturbed.</summary>
+    /// <summary>A repository configured with a diff header format that the old raw-patch projection could not attribute to a path
+    /// (<c>diff.noprefix</c>, <c>diff.mnemonicprefix</c>) has no influence on new delivery: the host builds every header itself from
+    /// attested snapshots. A changed reserved root file is an explicit fixed omission (never even read), the unrelated change is
+    /// delivered with the default headers, and nothing is withheld whole.</summary>
     [Theory]
     [MemberData(nameof(UnsupportedDiffFormats))]
-    public async Task An_undecodable_diff_header_never_carries_a_changed_root_source_outside_the_section(string name, string setting, bool withUnrelatedChange)
+    public async Task A_repository_diff_prefix_setting_never_influences_the_attested_delivery_of_a_changed_root_source(string name, string setting, bool withUnrelatedChange)
     {
         var repository = CreateRepository();
         var outside = Path.Combine(_root, "outside.txt");
@@ -219,30 +220,37 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
         Assert.Equal("Omitted", SourceOf(delivery.Manifest, name).GetProperty("status").GetString());
         Assert.Equal("containment_unproven", SourceOf(delivery.Manifest, name).GetProperty("reason").GetString());
         AssertAccounted(delivery, name);
-        // The whole generic diff is withheld, truthfully: no diff text at all, never complete, with a fixed reason.
         Assert.Null(delivery.Result.CompleteDiff);
+        Assert.Equal(
+            GitWorkspaceTrackedOmission.ReservedInstructionFile,
+            Assert.Single(delivery.Result.TrackedFiles!, file => file.Path == name).Omission);
         using var document = JsonDocument.Parse(delivery.Manifest);
         var evidence = document.RootElement.GetProperty("changeEvidence");
-        Assert.Equal(JsonValueKind.Null, evidence.GetProperty("diff").ValueKind);
         Assert.True(evidence.GetProperty("diffTruncated").GetBoolean());
         var selection = evidence.GetProperty("diffSelection");
         Assert.False(selection.GetProperty("complete").GetBoolean());
-        Assert.Equal("reserved_instruction_diff_withheld", selection.GetProperty("reason").GetString());
+        Assert.Equal(1, selection.GetProperty("omissionReasons").GetProperty("reserved_instruction_file").GetInt32());
         Assert.Equal([name], selection.GetProperty("reservedInstructionFiles").EnumerateArray().Select(item => item.GetString()));
+        var diff = evidence.GetProperty("diff").GetString()!;
         if (withUnrelatedChange)
         {
-            // Unrelated change evidence the uncertainty also withheld is still named, and unrelated untracked evidence is delivered.
-            Assert.DoesNotContain("UNRELATED-DIFF-LINE", delivery.Manifest, StringComparison.Ordinal);
-            Assert.Contains(delivery.Result.ChangedPaths, path => path.Path == "src/other.txt");
+            Assert.Equal(
+                "diff --git a/src/other.txt b/src/other.txt\n--- a/src/other.txt\n+++ b/src/other.txt\n@@ -1,1 +1,1 @@\n-other baseline\n\\ No newline at end of file\n" +
+                "+UNRELATED-DIFF-LINE changed\n\\ No newline at end of file\n",
+                diff);
             Assert.Contains("UNRELATED-UNTRACKED-TEXT", delivery.Manifest, StringComparison.Ordinal);
             Assert.Contains("UNRELATED-UNTRACKED-TEXT", delivery.Stdin, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Equal(string.Empty, diff);
         }
     }
 
     [Theory]
     [InlineData("diff.noprefix")]
     [InlineData("diff.mnemonicprefix")]
-    public async Task An_undecodable_diff_is_delivered_unchanged_when_no_root_instruction_file_changed_and_the_ordinary_observation_is_untouched(string setting)
+    public async Task The_attested_comparison_is_the_same_whatever_the_repository_diff_prefix_setting_and_the_ordinary_observation_is_untouched(string setting)
     {
         var repository = CreateRepository();
         Git(repository, "config", setting, "true");
@@ -252,10 +260,13 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
         var plain = await _reader.CaptureAsync(repository, CancellationToken.None);
         var forAgent = await _reader.CaptureForAgentContextAsync(repository, includeUntrackedPreviews: true, CancellationToken.None);
 
-        // Same raw observation, same fingerprint; the projection has nothing reserved to cut.
-        Assert.Equal(plain.CompleteDiff, forAgent.CompleteDiff);
+        // Same raw observation and fingerprint; the delivered evidence is the attested before/after text, not the raw patch.
+        Assert.Contains("UNRELATED-DIFF-LINE", plain.CompleteDiff, StringComparison.Ordinal);
+        Assert.Null(forAgent.CompleteDiff);
         Assert.Equal(plain.FingerprintSha256, forAgent.FingerprintSha256);
-        Assert.Contains("UNRELATED-DIFF-LINE", forAgent.CompleteDiff, StringComparison.Ordinal);
+        var fact = Assert.Single(forAgent.TrackedFiles!);
+        Assert.Equal(new GitWorkspaceTrackedFile("src/other.txt", null, "other baseline", "UNRELATED-DIFF-LINE changed"), fact);
+        Assert.StartsWith("diff --git a/src/other.txt b/src/other.txt\n", TrackedChangeEvidence.From(forAgent).Text, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -305,7 +316,8 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
         Assert.Contains("UNRELATED-DIFF-LINE", delivery.Manifest, StringComparison.Ordinal);
         Assert.Contains("UNRELATED-UNTRACKED-TEXT", delivery.Manifest, StringComparison.Ordinal);
         Assert.Contains("UNRELATED-DIFF-LINE", delivery.Stdin, StringComparison.Ordinal);
-        Assert.Contains("UNRELATED-DIFF-LINE", delivery.Result.CompleteDiff, StringComparison.Ordinal);
+        Assert.Null(delivery.Result.CompleteDiff);
+        Assert.Contains(delivery.Result.TrackedFiles!, file => file.Path == "src/other.txt" && file.AfterText == "UNRELATED-DIFF-LINE changed");
         Assert.Contains(delivery.Result.UntrackedFiles!, file => file.Path == "notes/new.txt" && file.Text!.Contains("UNRELATED-UNTRACKED-TEXT", StringComparison.Ordinal));
         AssertAccounted(delivery, "AGENTS.md");
         AssertAccounted(delivery, "CLAUDE.md");
@@ -333,7 +345,7 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
 
         var manifest = ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
             Id, Id, Id, result.FingerprintSha256!, "objective", Id, "summary", "{}",
-            new ImplementationContextManifestBuilder.AcceptanceEvidence("a", "{}"), result.ChangedPaths, result.CompleteDiff,
+            new ImplementationContextManifestBuilder.AcceptanceEvidence("a", "{}"), result.ChangedPaths, TrackedChangeEvidence.From(result),
             [new ImplementationContextManifestBuilder.VerificationCommandReference("build", true)],
             ProjectInstructionContextManifest.Prepare(Id, Id, result.FingerprintSha256!, result.InstructionContext),
             result.UntrackedFiles);
@@ -370,7 +382,7 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
     private static string BuildManifest(GitWorkspaceEvidenceResult result, int padding) =>
         ClaudeCriticalReviewContextManifestBuilder.Build(
             Id, Id, Id, result.FingerprintSha256!, "objective", Id, "summary", JsonSerializer.Serialize(new { p = new string('p', padding) }),
-            result.ChangedPaths, result.CompleteDiff,
+            result.ChangedPaths, TrackedChangeEvidence.From(result),
             ProjectInstructionContextManifest.Prepare(Id, Id, result.FingerprintSha256!, result.InstructionContext), result.UntrackedFiles);
 
     /// <summary>The largest padding whose manifest still fits the 32 KiB ceiling only after the section's text was omitted for budget.</summary>
@@ -384,7 +396,9 @@ public sealed class InstructionDeliveryProjectionTests : IDisposable
                 break;
             }
 
-            if (manifest.Contains("manifest_budget", StringComparison.Ordinal))
+            using var document = JsonDocument.Parse(manifest);
+            if (document.RootElement.GetProperty("projectInstructionContext").GetProperty("sources").EnumerateArray()
+                .Any(source => source.TryGetProperty("reason", out var reason) && reason.GetString() == "manifest_budget"))
             {
                 return padding;
             }

@@ -39,13 +39,13 @@ public sealed class PlanningImplementationAuthorizationManifestTests
             decisions ?? [new ImplementationContextManifestBuilder.DecisionEvidence(ChallengeId, "Decision.", DecisionJson)],
             new ImplementationContextManifestBuilder.HumanAuthorizationEvidence(
                 fact.AuthorizationId, fact.EscalationMessageId, fact.HumanInstructionMessageId, fact.Rationale),
-            changedPaths ?? [], diff, [], InstructionContextTestSupport.NotCaptured, null, guidance);
+            changedPaths ?? [], TrackedDiffFixture.Composed(diff), [], InstructionContextTestSupport.NotCaptured, null, guidance);
     }
 
     private static string Ordinary() =>
         ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
             ProjectId, WorkspaceId, CheckpointId, Fingerprint, "Objective", FinalProposalId, "Plan.", PlanJson,
-            [new ImplementationContextManifestBuilder.DecisionEvidence(ChallengeId, "Decision.", DecisionJson)], [], null, [], InstructionContextTestSupport.NotCaptured);
+            [new ImplementationContextManifestBuilder.DecisionEvidence(ChallengeId, "Decision.", DecisionJson)], [], TrackedChangeEvidence.NotProvided, [], InstructionContextTestSupport.NotCaptured);
 
     private static string[] Members(string manifest) =>
         JsonDocument.Parse(manifest).RootElement.EnumerateObject().Select(property => property.Name).ToArray();
@@ -74,7 +74,7 @@ public sealed class PlanningImplementationAuthorizationManifestTests
         var original = ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
             ProjectId, WorkspaceId, CheckpointId, Fingerprint, "Objective", FinalProposalId, "Plan.", PlanJson,
             new ImplementationContextManifestBuilder.AcceptanceEvidence("Accepted.", "{\"rationale\":\"Sound.\"}"),
-            [], null, [], InstructionContextTestSupport.NotCaptured);
+            [], TrackedChangeEvidence.NotProvided, [], InstructionContextTestSupport.NotCaptured);
 
         foreach (var manifest in new[] { ordinary, original })
         {

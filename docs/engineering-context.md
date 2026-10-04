@@ -70,6 +70,9 @@
 - [ADR-0023](decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md):
   Record Claude-reported model context limits in historical attempt evidence (additive; it records and shows what Claude
   reported and changes no existing authority decision).
+- [ADR-0024](decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md):
+  Deliver new tracked-change text only from attested snapshots (it narrowly advances ADR-0021 and ADR-0022 for new tracked
+  delivery only and changes no existing authority decision).
 
 ## Product-specific architecture
 
@@ -101,8 +104,9 @@
   read, is a regular, non-reparse file with exactly one name (a file any other name reaches is omitted, not
   enumerated) and whose bytes match the fingerprint's raw-content identity; other hosts omit it. Its text exists only
   in the sealed manifest, the provider input and the existing authenticated sealed-artifact viewer. This closes
-  generic untracked-preview delivery, not every filesystem read: raw Git hashing and the tracked diff can still read
-  an outside hard link (see
+  generic untracked-preview delivery, not every filesystem read: the raw Git hashing behind the checkpoint fingerprint
+  (and the ordinary checkpoint diff) can still read an outside hard link; the tracked diff of NEW Agent delivery is closed
+  separately by ADR-0024 (see
   [ADR-0022](decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md) and
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)).
 - Every newly claimed Agent stage also receives the exact root `AGENTS.md` and `CLAUDE.md` of its own project's owned
@@ -121,6 +125,15 @@
   text hunk too large to select whole adds only a separate, at most 4 KiB, explicitly incomplete sample of its changed
   lines outside `diff` (see
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-tracked-hunk-evidence-in-agent-manifests)).
+  For a NEWLY claimed stage the text of that selection is never taken from Git's patch (ADR-0024): every tracked changed
+  path is attested from the exact blob of the captured HEAD and, on Windows, from a held handle proven to be the single-name
+  regular file of the owned worktree before and after the bounded read and around an independent identity check, and the
+  host writes one conservative replacement hunk per file from those snapshots (not Git's minimal or filter-normalized
+  patch, which the manifest states). A path that is unsafe, unprovable, unsupported or outside the bounds (256 KiB and
+  8192 lines per source, 512 KiB retained per observation) is an explicit fixed-reason omission beside its delivered
+  siblings, builders re-derive that for any reader, and sealed manifests replay unchanged (see
+  [ADR-0024](decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md) and
+  [the protocol](architecture/agent-collaboration-protocol.md#attested-tracked-change-text-in-agent-manifests)).
 - The two Claude paths that can edit the worktree (initial implementation and review correction) may carry one
   owner-requested, run-scoped agentic-turn limit, snapshotted immutably on each claimed attempt and passed as the
   provider's documented `--max-turns` argument under the `claude-implementation-v2` and `claude-review-correction-v2`

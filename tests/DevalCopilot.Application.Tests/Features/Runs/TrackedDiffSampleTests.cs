@@ -303,7 +303,7 @@ public sealed class TrackedDiffSampleTests
         var selectableEvidence = Evidence(Build(variant, selectable, 0, "src/Large.cs", "src/Small.cs"));
 
         Assert.Equal(small, smallEvidence.GetProperty("diff").GetString());
-        Assert.Equal(["changedPaths", "diff", "diffTruncated"], smallEvidence.EnumerateObject().Select(p => p.Name));
+        Assert.Equal(["changedPaths", "diff", "diffTruncated", "trackedComparison"], smallEvidence.EnumerateObject().Select(p => p.Name));
         Assert.False(smallEvidence.TryGetProperty("diffSelection", out _));
         Assert.True(selectableEvidence.GetProperty("diffSelection").GetProperty("hunks").GetProperty("included").GetInt32() >= 2);
         Assert.False(selectableEvidence.GetProperty("diffSelection").TryGetProperty("samples", out _));
