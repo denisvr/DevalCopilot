@@ -43,6 +43,31 @@ public sealed class AgentModelContextLimitsBoundaryTests
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
+    private sealed class ReadOnlyCountedEntries(CountingEntries entries) : IReadOnlyCollection<AgentModelContextLimitEntry>
+    {
+        public int Count => entries.Count;
+
+        public IEnumerator<AgentModelContextLimitEntry> GetEnumerator() => entries.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    private sealed class MutableCountedEntries(CountingEntries entries) : ICollection<AgentModelContextLimitEntry>
+    {
+        public int Count => entries.Count;
+        public bool IsReadOnly => true;
+
+        public IEnumerator<AgentModelContextLimitEntry> GetEnumerator() => entries.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public void Add(AgentModelContextLimitEntry item) => throw new NotSupportedException();
+        public void Clear() => throw new NotSupportedException();
+        public bool Contains(AgentModelContextLimitEntry item) => throw new NotSupportedException();
+        public void CopyTo(AgentModelContextLimitEntry[] array, int arrayIndex) => throw new NotSupportedException();
+        public bool Remove(AgentModelContextLimitEntry item) => throw new NotSupportedException();
+    }
+
     private static void TryWriteThroughTheCollectionInterfaces(IReadOnlyList<AgentModelContextLimitEntry?> view, AgentModelContextLimitEntry replacement)
     {
         var writes = new List<Action>();
@@ -136,6 +161,36 @@ public sealed class AgentModelContextLimitsBoundaryTests
 
         Assert.Equal(AgentModelContextLimitsRecording.InvalidEvidenceCode, error?.Code);
         Assert.Equal(0, excessive.Reads);
+    }
+
+    [Theory]
+    [InlineData(true, 17)]
+    [InlineData(false, 17)]
+    [InlineData(true, 2)]
+    [InlineData(false, 2)]
+    public void A_counted_collection_without_an_index_is_admitted_before_any_traversal(bool readOnly, int count)
+    {
+        var entries = new CountingEntries(count);
+        IEnumerable<AgentModelContextLimitEntry> source = readOnly
+            ? new ReadOnlyCountedEntries(entries)
+            : new MutableCountedEntries(entries);
+
+        var limits = new AgentModelContextLimits(TestModelContextLimits.Source, source);
+        var error = AgentModelContextLimitsRecording.Validate(
+            limits, AgentProvider.ClaudeCode, AgentOutcome.ProviderInvocationFailed, true, out var evidence);
+
+        if (count > AgentModelContextLimitsEvidence.MaxModels)
+        {
+            Assert.Equal(0, entries.Reads);
+            Assert.Equal(AgentModelContextLimitsRecording.InvalidEvidenceCode, error?.Code);
+            Assert.Null(evidence);
+        }
+        else
+        {
+            Assert.Equal(count, entries.Reads);
+            Assert.Null(error);
+            Assert.Equal(count, evidence!.Models.Length);
+        }
     }
 
     [Fact]

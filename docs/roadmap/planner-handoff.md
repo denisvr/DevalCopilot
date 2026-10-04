@@ -97,7 +97,7 @@ unchanged tree until green. Preserve this planner-owned record byte-for-byte.
 No stage, commit, push, next-slice selection or Increment 4 completion is
 authorized. Any future GO will be bound to a newly reviewed snapshot.
 
-### Final review decision (2026-10-04): GO for the corrected 80-path snapshot
+### Published review decision (2026-10-04): GO for the corrected 80-path snapshot
 
 The owner explicitly assigned Codex current-slice execution after Claude credit
 exhaustion. Codex completed the bounded correction and final review; it does not
@@ -133,6 +133,38 @@ push it and verify all three refs and a clean tree again. No amend, force push,
 history reconciliation, silent failed-check retry or unrelated edit. Any material
 change after this GO requires review again. The next slice is selected only after
 verified closure; this GO authorizes no next-slice implementation.
+
+### Corrective review decision (2026-10-04): GO for four existing paths
+
+Substantive 53b2eb69a7ea5677b13db4a4735c476003f6454b is published and its
+instructed post-publication checks passed. The subsequent R2 count-interface
+refinement is separately reviewed, rather than silently covered by that GO.
+Two focused regressions reproduced traversal of 17 entries for an excessive
+IReadOnlyCollection or ICollection without an index; the two valid controls passed.
+Both count interfaces are now checked before any entry read or builder allocation,
+while the uncounted 17-entry ceiling and all recording semantics are unchanged.
+
+Fresh build 0 warnings/errors, affected Application 50, full Application 3958,
+Infrastructure adapter/migration selection 158, Api endpoint/actual hosted
+supervisor selection 111 and Architecture 13 passed with no skips. Formatter is
+at its 153-finding baseline; client unchanged. Other full suites and frontend
+checks remain explicitly retained from the preceding published-code runs.
+
+The reviewed corrective diff is exactly four modified existing paths, with an
+empty index and no untracked files, main on the published substantive SHA:
+- Application/Features/Runs/Ports/AgentModelContextLimits.cs under src/backend;
+- Features/Runs/AgentModelContextLimitsBoundaryTests.cs under tests/DevalCopilot.Application.Tests;
+- docs/roadmap/current-work.md;
+- docs/roadmap/planner-handoff.md.
+
+Bind their raw hashes/sizes before staging, commit exactly this correction on
+53b2eb6 without amending it, normally fast-forward push main, fetch and verify
+HEAD/local/live main and a clean tree. Then build, run the affected Application
+model-limit selection, harness and one canonical test:e2e:all (only after harness
+passes). A failure stops closure. Finally make one current-work-only factual
+closure covering both substantive and corrective publications, fresh/retained
+checks and all limits; normally push and verify refs/clean tree. No unrelated
+change or next-slice implementation. A material change returns for review.
 
 ### Independently verified publication and new baseline
 

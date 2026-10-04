@@ -44,16 +44,21 @@ public sealed class AgentModelContextLimits
             return [];
         }
 
+        int? knownCount = models switch
+        {
+            IReadOnlyCollection<AgentModelContextLimitEntry?> collection => collection.Count,
+            ICollection<AgentModelContextLimitEntry?> collection => collection.Count,
+            _ => null,
+        };
+        if (knownCount is <= 0 or > AgentModelContextLimitsEvidence.MaxModels)
+        {
+            return [];
+        }
+
         var builder = ImmutableArray.CreateBuilder<AgentModelContextLimitEntry?>();
         if (models is IReadOnlyList<AgentModelContextLimitEntry?> list)
         {
-            var count = list.Count;
-            if (count <= 0 || count > AgentModelContextLimitsEvidence.MaxModels)
-            {
-                return [];
-            }
-
-            for (var index = 0; index < count; index++)
+            for (var index = 0; index < knownCount!.Value; index++)
             {
                 builder.Add(list[index]);
             }
