@@ -35,6 +35,8 @@ supersedes it.
   (additive; it changes no existing authority decision)
 - [ADR-0022: Admit generic untracked-file previews only from physically proven single-name files](0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md)
   (additive; it narrows what generic untracked previews may deliver and changes no existing authority decision)
+- [ADR-0023: Record Claude-reported model context limits in historical attempt evidence](0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md)
+  (additive; it records and shows what Claude reported and changes no existing authority decision)
 
 ## Status values
 

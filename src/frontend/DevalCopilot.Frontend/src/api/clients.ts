@@ -166,6 +166,8 @@ export type {
   AgentAttemptHistoryResponse,
   AgentAttemptHistoryEntryResponse,
   AgentAttemptEvidenceResponse,
+  AgentModelContextLimitsResponse,
+  AgentModelContextLimitResponse,
   StageMapEntryResponse,
   UpdateVerificationCommandRequest,
   VerificationCommandResponse,

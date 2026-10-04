@@ -1367,6 +1367,26 @@ public sealed class Attempt
                 AgentProvider, AgentInputTokens, AgentOutputTokens, AgentCacheCreationInputTokens,
                 AgentCacheReadInputTokens, AgentTokenUsageSchemaVersion);
 
+    /// <summary>The one canonical project-owned text of the model identifiers the provider listed for this Agent attempt's
+    /// invocation with each one's reported context-window and maximum-output token limits (see
+    /// <see cref="AgentModelContextLimitsEvidence.Serialize"/>). Recorded once, only by an Agent completion transition, in
+    /// the same call as the terminal outcome. <see langword="null"/> means the evidence is truthfully absent: the attempt
+    /// was never dispatched, its provider reported none in a proven contract, the host was interrupted before recording
+    /// one, or the attempt predates this evidence. Read it only through <see cref="GetAgentModelContextLimitsEvidence"/>:
+    /// stored text that is not exactly valid canonical evidence is unknown, never partially trusted.</summary>
+    public string? AgentModelContextLimitsSnapshot { get; private set; }
+
+    /// <summary>Returns the recorded provider-reported model context-limit evidence, or <see langword="null"/> when it is
+    /// absent, the stored text is not canonical valid evidence for this attempt's provider (malformed, oversized, another
+    /// version, source, or provider), or the attempt has not yet concluded. A still-<see cref="AttemptStatus.Running"/> or
+    /// never-dispatched attempt always reports unknown evidence here, even when its row already carries well-formed text.
+    /// Non-Agent attempts never have this evidence. Historical provider-reported observation only: never remaining
+    /// context or next-invocation capacity.</summary>
+    public AgentModelContextLimitsEvidence? GetAgentModelContextLimitsEvidence() =>
+        Kind != AttemptKind.Agent || Status == AttemptStatus.Running || AgentDispatchedAtUtc is null
+            ? null
+            : AgentModelContextLimitsEvidence.FromPersisted(AgentProvider, AgentModelContextLimitsSnapshot);
+
     public void Complete(DateTimeOffset nowUtc)
     {
         if (Status != AttemptStatus.Running)
@@ -1541,12 +1561,16 @@ public sealed class Attempt
     /// <param name="tokenUsage">Provider-reported token usage, recorded atomically with the outcome
     /// and process evidence. Null when the provider reported none through a proven contract. See
     /// <see cref="AgentTokenUsageEvidencePolicy"/>.</param>
+    /// <param name="modelContextLimits">The model identifiers the provider listed with their reported context-window and
+    /// maximum-output limits, recorded atomically with the outcome and independent of both it and the token usage. Null
+    /// when the provider reported none through a proven contract. See <see cref="AgentModelContextLimitsEvidencePolicy"/>.</param>
     public void CompleteAgent(
         AgentOutcome outcome,
         string? completionFingerprintSha256,
         DateTimeOffset nowUtc,
         AgentProcessExecutionEvidence? processEvidence = null,
-        AgentTokenUsageEvidence? tokenUsage = null)
+        AgentTokenUsageEvidence? tokenUsage = null,
+        AgentModelContextLimitsEvidence? modelContextLimits = null)
     {
         if (Kind != AttemptKind.Agent)
         {
@@ -1620,10 +1644,12 @@ public sealed class Attempt
         // when a fingerprint mismatch then downgrades it to SourceChanged.
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
         EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
+        EnsureAgentModelContextLimitsCanBeRecorded(outcome, modelContextLimits);
 
         AgentOutcome = effectiveOutcome;
         ApplyAgentProcessEvidence(processEvidence);
         ApplyAgentTokenUsage(tokenUsage);
+        ApplyAgentModelContextLimits(modelContextLimits);
         Status = isRecognizedSuccessOutcome ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
     }
@@ -1704,6 +1730,36 @@ public sealed class Attempt
     }
 
     /// <summary>
+    /// Independent Domain backstop for provider-reported model context limits, shared by every Agent completion
+    /// transition so the rule cannot drift between them. The evidence is write-once and bound to a dispatched attempt
+    /// of its own provider whose outcome is not a pre-invocation classification; like token usage it is never required
+    /// for any outcome and is independent of it. See <see cref="AgentModelContextLimitsEvidencePolicy"/>. Always called
+    /// before any mutation, so a violation leaves the attempt untouched.
+    /// </summary>
+    private void EnsureAgentModelContextLimitsCanBeRecorded(AgentOutcome requestedOutcome, AgentModelContextLimitsEvidence? modelContextLimits)
+    {
+        if (modelContextLimits is not null && AgentModelContextLimitsSnapshot is not null)
+        {
+            throw new InvalidOperationException("Agent model context-limit evidence is write-once.");
+        }
+
+        var violation = AgentModelContextLimitsEvidencePolicy.Evaluate(
+            AgentProvider, requestedOutcome, AgentDispatchedAtUtc.HasValue, modelContextLimits);
+        if (violation is not null)
+        {
+            throw new InvalidOperationException($"{requestedOutcome} cannot be recorded with this model context-limit evidence: {violation}.");
+        }
+    }
+
+    private void ApplyAgentModelContextLimits(AgentModelContextLimitsEvidence? modelContextLimits)
+    {
+        if (modelContextLimits is not null)
+        {
+            AgentModelContextLimitsSnapshot = modelContextLimits.Serialize();
+        }
+    }
+
+    /// <summary>
     /// The single atomic completion transition for a Claude Code implementation attempt —
     /// deliberately independent of <see cref="CompleteAgent"/> and its fingerprint-mismatch-to-
     /// <see cref="Runs.AgentOutcome.SourceChanged"/> override, which must never apply here: a
@@ -1721,7 +1777,8 @@ public sealed class Attempt
         Guid? resultGitCheckpointId,
         DateTimeOffset nowUtc,
         AgentProcessExecutionEvidence? processEvidence = null,
-        AgentTokenUsageEvidence? tokenUsage = null)
+        AgentTokenUsageEvidence? tokenUsage = null,
+        AgentModelContextLimitsEvidence? modelContextLimits = null)
     {
         if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ImplementationReport)
         {
@@ -1775,10 +1832,12 @@ public sealed class Attempt
 
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
         EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
+        EnsureAgentModelContextLimitsCanBeRecorded(outcome, modelContextLimits);
 
         AgentOutcome = outcome;
         ApplyAgentProcessEvidence(processEvidence);
         ApplyAgentTokenUsage(tokenUsage);
+        ApplyAgentModelContextLimits(modelContextLimits);
         AgentResultGitCheckpointId = resultGitCheckpointId;
         Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;
@@ -1802,7 +1861,8 @@ public sealed class Attempt
         Guid? resultGitCheckpointId,
         DateTimeOffset nowUtc,
         AgentProcessExecutionEvidence? processEvidence = null,
-        AgentTokenUsageEvidence? tokenUsage = null)
+        AgentTokenUsageEvidence? tokenUsage = null,
+        AgentModelContextLimitsEvidence? modelContextLimits = null)
     {
         if (Kind != AttemptKind.Agent || AgentResponseContract != Runs.AgentResponseContract.ReviewCorrection)
         {
@@ -1867,10 +1927,12 @@ public sealed class Attempt
 
         EnsureAgentProcessEvidenceCanBeRecorded(outcome, processEvidence);
         EnsureAgentTokenUsageCanBeRecorded(outcome, tokenUsage);
+        EnsureAgentModelContextLimitsCanBeRecorded(outcome, modelContextLimits);
 
         AgentOutcome = outcome;
         ApplyAgentProcessEvidence(processEvidence);
         ApplyAgentTokenUsage(tokenUsage);
+        ApplyAgentModelContextLimits(modelContextLimits);
         AgentResultGitCheckpointId = resultGitCheckpointId;
         Status = isSuccess ? AttemptStatus.Completed : AttemptStatus.Failed;
         CompletedAtUtc = nowUtc;

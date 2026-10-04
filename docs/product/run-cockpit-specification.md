@@ -1317,6 +1317,16 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   standard output, standard error, and final response) and shows one attempt at a time under a
   clear "historical evidence" caveat that says nothing about the run's current state. Loading,
   retryable error, "no longer available", and "identity could not be verified" states are explicit.
+- **Claude-reported model limits.** For a Claude attempt, the selected detail also shows a "Claude-reported model limits" section
+  (a historical fact stored when the attempt concluded; see
+  ["Claude-reported model context limits"](../architecture/agent-collaboration-protocol.md#claude-reported-model-context-limits)
+  and [ADR-0023](../decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md)). It lists each
+  model identifier Claude reported, as plain text, with its context-window tokens and its maximum output tokens, ordered by
+  identifier, and says the entries are models listed by Claude and not independently proven to have been used, and that remaining
+  context and the capacity of the next invocation were not measured. An attempt with no recorded evidence shows "Not recorded",
+  never zero. The section never shows a percentage, a fullness meter, an estimate derived from token usage, a readiness or
+  eligibility claim, or an action, and a Codex attempt shows no such section. It is replaced with the selection and discarded with
+  the history, so a limit of one attempt or run is never shown for another.
 - **Artifact text.** Only after the owner chooses one of the purposes actually present does the
   viewer offer "Load"; further windows load only on "Load next window". Text is rendered as plain
   text, never HTML or Markdown, with the same purpose-specific caveat as the message-linked viewer

@@ -145,6 +145,14 @@ export class JourneyData {
     return this.all('select AttemptNumber, AgentDirectHumanGuidance from attempts where RunId = ? order by AttemptNumber', this.runId())
   }
 
+  /** The raw model-limits snapshot recorded on every attempt, by attempt number (null is the attempt that recorded none). */
+  modelContextLimitsByAttempt(): { AttemptNumber: number; AgentModelContextLimitsSnapshot: string | null }[] {
+    return this.all(
+      'select AttemptNumber, AgentModelContextLimitsSnapshot from attempts where RunId = ? order by AttemptNumber',
+      this.runId(),
+    )
+  }
+
   checkpoints(): CheckpointRow[] {
     return this.all<CheckpointRow>(
       'select CheckpointNumber, Id, HeadCommitSha, FingerprintSha256 from git_checkpoints where WorkspaceId = ? order by CheckpointNumber',

@@ -391,7 +391,7 @@ describe('VerificationCommandsPanel Run authority', () => {
     view.rerender(<CandidateWorkspacePanel projectId="project-a" />)
 
     await waitFor(() => expect(within(verification()).getByText('Reading verification status…')).toBeInTheDocument())
-    expect(runButton()).toBeDisabled()
+    await waitFor(() => expect(runButton()).toBeDisabled())
     await act(async () => returning.resolve([]))
     await waitFor(() => expect(runButton()).toBeEnabled())
   })

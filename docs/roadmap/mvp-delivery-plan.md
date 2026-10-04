@@ -161,7 +161,9 @@ manual transfer.
 - provider-specific model, effort, and permission-mode discovery and selection
   at safe attempt boundaries;
 - provider session correlation and eligible resume behavior;
-- context-window visibility and safe manual compaction when supported;
+- context-window visibility and safe manual compaction when supported (historical attempt evidence shows the model limits Claude
+  reported, per [ADR-0023](../decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md); remaining
+  context, live capacity and compaction remain open);
 - separate Codex and Claude account-usage snapshots, warning thresholds, and
   stop guardrails.
 

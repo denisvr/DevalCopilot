@@ -9,7 +9,9 @@ namespace DevalCopilot.Api.Features.Runs.GetAgentAttemptEvidence;
 /// proven coherent: only the number, status, and claim/completion times are present and every other
 /// field is null or empty. Artifact entries describe only the four allowlisted Agent purposes and
 /// never carry a storage path, content hash, or text. Never carries a provider session identifier,
-/// prompt, adapter contract version, executable path, argument, or working directory.
+/// prompt, adapter contract version, executable path, argument, or working directory. <c>ModelContextLimits</c> is the additive,
+/// nullable record of the models the provider listed with their reported limits when the attempt concluded, null when it was
+/// not recorded or is unknown (see <see cref="AgentModelContextLimitsResponse"/>).
 /// </summary>
 public sealed record AgentAttemptEvidenceResponse(
     bool IdentityValid,
@@ -32,4 +34,5 @@ public sealed record AgentAttemptEvidenceResponse(
     Guid? RepairSourceAttemptId = null,
     /// <summary>The proved source attempt's number, else null.</summary>
     int? RepairSourceAttemptNumber = null,
-    DirectHumanGuidanceResponse? DirectGuidance = null);
+    DirectHumanGuidanceResponse? DirectGuidance = null,
+    AgentModelContextLimitsResponse? ModelContextLimits = null);

@@ -119,17 +119,18 @@ public sealed class AddDiagnosisCorrectionEscalationMigrationTests : IAsyncLifet
     public async Task Historical_review_escalations_authorizations_and_messages_survive_and_no_diagnosis_escalation_is_fabricated()
     {
         var runId = Guid.NewGuid();
+        Attempt review;
         await using (var previous = CreateContext())
         {
             await previous.Database.GetService<IMigrator>().MigrateAsync(PriorMigration);
             var projectId = Guid.NewGuid();
             previous.Projects.Add(Project.Register(projectId, "Historical", $@"C:\repos\{Guid.NewGuid():N}", Now));
             previous.Runs.Add(Run.RecordIntent(runId, projectId, 1, "Historical run", Now));
-            var review = Attempt.ClaimAgentCodeReview(
+            await previous.SaveChangesAsync();
+            review = Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
             review.MarkAgentDispatched(Now);
-            previous.Attempts.Add(review);
-            await previous.SaveChangesAsync();
+            await HistoricalAgentAttemptRow.InsertAsync(previous, review);
             var escalationMessage = HostEscalation(runId, Guid.NewGuid());
             previous.CollaborationMessages.Add(escalationMessage);
             await previous.SaveChangesAsync();
@@ -156,6 +157,7 @@ public sealed class AddDiagnosisCorrectionEscalationMigrationTests : IAsyncLifet
         Assert.True(authorization.IsAvailable);
         Assert.Equal(2, await reopened.CollaborationMessages.CountAsync());
         Assert.Equal(1, await reopened.Attempts.CountAsync());
+        HistoricalAgentAttemptRow.AssertEveryFactSurvived(reopened, review, await reopened.Attempts.AsNoTracking().SingleAsync(item => item.Id == review.Id));
     }
 
     [Fact]

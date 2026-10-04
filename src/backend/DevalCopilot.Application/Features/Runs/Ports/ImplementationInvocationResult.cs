@@ -13,4 +13,5 @@ public sealed record ImplementationInvocationResult(
     string? ObservedModel = null,
     string? ObservedEffort = null,
     AgentProcessEvidence? ProcessEvidence = null,
-    AgentTokenUsage? TokenUsage = null);
+    AgentTokenUsage? TokenUsage = null,
+    AgentModelContextLimits? ModelContextLimits = null);

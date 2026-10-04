@@ -111,6 +111,11 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         builder.Property(attempt => attempt.AgentCacheReadInputTokens);
         builder.Property(attempt => attempt.AgentTokenUsageSchemaVersion).HasMaxLength(AgentTokenUsageEvidence.MaxSchemaVersionLength);
 
+        // Provider-reported model context limits: one nullable canonical project-owned snapshot, never backfilled, so every
+        // attempt recorded before this column existed truthfully reads as unknown. No length mapping: stored text of any size
+        // must load, and Attempt.GetAgentModelContextLimitsEvidence judges it (oversized or malformed text is unknown).
+        builder.Property(attempt => attempt.AgentModelContextLimitsSnapshot).HasColumnType("TEXT");
+
         // The run-wide Agent claim-budget slot: null for every Simulated/Process attempt, never
         // backfilled to a value for those kinds. Every historical Agent attempt was backfilled a
         // deterministic slot by the AddAgentClaimBudget migration.

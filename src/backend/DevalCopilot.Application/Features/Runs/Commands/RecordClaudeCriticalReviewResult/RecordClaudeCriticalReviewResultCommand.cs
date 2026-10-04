@@ -23,4 +23,5 @@ public sealed record RecordClaudeCriticalReviewResultCommand(
     ValidatedCriticalReview? Review,
     string? ProviderSessionId,
     AgentProcessEvidence? ProcessEvidence = null,
-    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordClaudeCriticalReviewResultCommandResult>>;
+    AgentTokenUsage? TokenUsage = null,
+    AgentModelContextLimits? ModelContextLimits = null) : ICommand<Result<RecordClaudeCriticalReviewResultCommandResult>>;

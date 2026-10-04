@@ -155,6 +155,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
 
         var envelope = TryParseEnvelope(result.StandardOutput);
         var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(envelope?.Usage, result.StandardOutputTruncated);
+        var modelLimits = ClaudeCliModelContextLimits.UnlessTruncated(envelope?.ModelLimits, result.StandardOutputTruncated);
         if (envelope is null || envelope.IsError || envelope.FinalResponseJson is null)
         {
             // A non-zero exit is already handled above; this covers a zero exit that still
@@ -163,7 +164,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             // response to seal as a proposal review — recorded as a truthful provider failure,
             // never as an empty or invented success. Provider-reported usage is still preserved
             // when the envelope itself was structurally valid (for example is_error: true).
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
         }
 
         try
@@ -174,7 +175,7 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
         }
 
         return new CriticalReviewInvocationResult(
@@ -183,7 +184,8 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
             result.StandardErrorTruncated,
             envelope.SessionId,
             ProcessEvidence: processEvidence,
-            TokenUsage: tokenUsage);
+            TokenUsage: tokenUsage,
+            ModelContextLimits: modelLimits);
     }
 
     /// <summary>Never a searched, invented, or PATH-resolved value — must already be a fully
@@ -245,9 +247,9 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
     /// report at all) — only a present, non-null value of the wrong shape is malformed. Any other
     /// field is tolerated and ignored: this is a fixed contract
     /// against a versioned CLI, not a strict schema over every field the provider may ever add.
-    /// The one addition is <c>usage</c>, read by <see cref="ClaudeCliTokenUsage.TryRead"/> as
-    /// best-effort token-usage evidence: a missing or malformed <c>usage</c> only leaves
-    /// <see cref="ClaudeEnvelope.Usage"/> null and never rejects the envelope.
+    /// The two additions are <c>usage</c> and <c>modelUsage</c>, read by <see cref="ClaudeCliTokenUsage.TryRead"/> and
+    /// <see cref="ClaudeCliModelContextLimits.TryRead"/> as independent, best-effort evidence: a missing or malformed one only
+    /// leaves <see cref="ClaudeEnvelope.Usage"/> or <see cref="ClaudeEnvelope.ModelLimits"/> null and never rejects the envelope.
     /// <c>result</c> is normalized to a bare JSON string regardless of whether the provider
     /// emitted it as a JSON string (containing schema-conformant JSON text) or as a
     /// schema-conformant JSON value directly; either way, the caller feeds the returned text into
@@ -312,20 +314,23 @@ public sealed class ClaudeCriticalReviewAdapter(IProcessExecutionAdapter process
                 sessionId = value;
             }
 
-            return new ClaudeEnvelope(isError, finalResponseJson, sessionId, ClaudeCliTokenUsage.TryRead(root));
+            return new ClaudeEnvelope(
+                isError, finalResponseJson, sessionId, ClaudeCliTokenUsage.TryRead(root), ClaudeCliModelContextLimits.TryRead(root));
         }
     }
 
-    private sealed record ClaudeEnvelope(bool IsError, string? FinalResponseJson, string? SessionId, AgentTokenUsage? Usage);
+    private sealed record ClaudeEnvelope(
+        bool IsError, string? FinalResponseJson, string? SessionId, AgentTokenUsage? Usage, AgentModelContextLimits? ModelLimits);
 
     /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
-    /// <paramref name="tokenUsage"/> is null whenever no structurally valid envelope reported
-    /// well-shaped usage.</summary>
+    /// <paramref name="tokenUsage"/> and <paramref name="modelLimits"/> are null whenever no structurally valid envelope reported
+    /// well-shaped usage or limits, each judged independently.</summary>
     private static CriticalReviewInvocationResult Failed(
         bool standardOutputTruncated = false,
         bool standardErrorTruncated = false,
         AgentProcessEvidence? processEvidence = null,
-        AgentTokenUsage? tokenUsage = null) =>
+        AgentTokenUsage? tokenUsage = null,
+        AgentModelContextLimits? modelLimits = null) =>
         new(CriticalReviewInvocationOutcome.Failed, standardOutputTruncated, standardErrorTruncated, ProviderSessionId: null, processEvidence,
-            tokenUsage);
+            tokenUsage, modelLimits);
 }

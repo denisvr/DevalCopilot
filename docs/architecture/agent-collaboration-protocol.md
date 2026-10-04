@@ -993,6 +993,11 @@ for another:
   evidence rather than a second copy — never for an undispatched attempt or a
   pre-invocation outcome. It is never inferred from output length, configured
   limits, CLI defaults, or another provider's fields.
+- **Provider-reported model context limits** — `AgentModelContextLimitsEvidence`: the model identifiers Claude listed in its own
+  result and the context-window and maximum-output limits it reported for each, under a fixed parsing-contract source tag. Like
+  token usage it is reported by the provider, best-effort, independent of the outcome, the process evidence and the usage, and
+  recorded once in the same transaction for a dispatched Claude attempt only; it is never remaining context or capacity (see
+  [Claude-reported model context limits](#claude-reported-model-context-limits)).
 - **Truthful absence** — an attempt that was never dispatched, whose invocation
   failed before any process result existed, that a restart reconciled as
   `Interrupted`, or that predates this evidence has no process evidence at all.
@@ -1264,7 +1269,9 @@ without changing any provider, workflow, schema, or the message-linked routes:
   (`GetAgentAttemptEvidenceQuery`) resolves by the exact `(RunId, AttemptId)` pair and
   `Kind == Agent`; an unknown, foreign-run, or non-Agent attempt is a safe 404
   (`agent_attempts.not_found`). It returns identity, lifecycle, host-measured process
-  evidence, provider-reported token evidence, and metadata (purpose, byte length,
+  evidence, provider-reported token evidence, for a concluded Claude attempt the additive nullable `modelContextLimits`
+  member (the models Claude listed with their reported limits; see
+  [Claude-reported model context limits](#claude-reported-model-context-limits)), and metadata (purpose, byte length,
   truncation, capture outcome) for only the four allowlisted purposes, filtered by
   the artifact row's independently stored `RunId`, `AttemptId`, and purpose, so a
   cross-run row or a Process-purpose row never appears.
@@ -1352,8 +1359,8 @@ a mismatched provider or schema projects as unknown, not as known usage.
 Usage is read only from a
 structurally valid envelope of a clean process exit whose stdout was not
 truncated (a valid `is_error: true` envelope still carries its usage);
-`modelUsage`, `total_cost_usd`, `duration_api_ms`, `stop_reason`, and every
-other field are ignored.
+`total_cost_usd`, `duration_api_ms`, `stop_reason`, and every
+other field are ignored here (`modelUsage` is read separately, see "Claude-reported model context limits" below).
 
 **Codex — proven.** The token-usage contract was verified from the installed
 Codex CLI (`codex-cli 0.155.0-alpha.16.4`) using two independent read-only
@@ -1470,6 +1477,49 @@ state reflect an unpopulated accumulator, not a provider-reported zero — and
 once at least one attempt has known usage its sum is always shown exactly as
 reported, including a genuine zero.
 budget for either provider.
+
+### Claude-reported model context limits
+
+The same Claude result envelope may carry an optional `modelUsage` map. It was evidenced like the usage contract above, and
+additionally from the official [programmatic CLI guide](https://code.claude.com/docs/en/headless) (print mode is the CLI form of the
+Agent SDK) and the SDK's [TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript), which declares `modelUsage`
+with `contextWindow` and `maxOutputTokens`: never from an authenticated invocation, a model catalog, a CLI default, an alias or a
+token total. See [ADR-0023](../decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md).
+
+**Observation.** The three Claude adapters read it from exactly the envelope and exit boundary their usage reader uses: a
+structurally valid envelope of a clean process exit whose stdout was not truncated (a valid `is_error: true` envelope still carries
+it). A non-zero exit, a timeout, a cancellation, an incomplete capture, an invalid outer envelope and an invocation with no process
+result supply none. Only each map key (the model identifier) and its `contextWindow` and `maxOutputTokens` are retained; costs, usage
+totals, `canonicalModel`, routing and every other member are ignored, and an entry is never interpreted as the main model or a
+fallback. The existing observed model and effort and the token usage are unchanged, and no invocation argument, authentication,
+permission or session behavior is involved.
+
+**Admission** is bounded and all-or-unknown: exactly one `modelUsage` object; 1 to 16 unique identifiers compared ordinally and never
+normalized, each 1 to 128 ASCII characters matching `[A-Za-z0-9][A-Za-z0-9._-]*`; each entry an object holding exactly one occurrence
+of each required member; both members positive JSON integers that fit a 32-bit signed integer; and the output limit no greater than the
+window. A missing, empty, duplicated, malformed, excessive or unsupported map is absent optional evidence: no valid subset is kept, and
+the business result, the process evidence and the token usage are judged independently (missing limits keep valid usage, missing usage
+keeps valid limits). One Domain rule judges the shape for both the parser and the recording policy.
+
+**Recording.** A provider-neutral immutable value (the fixed source tag `claude-cli-model-usage-v1` and the entries) travels through the
+three invocation results, supervisors and recording commands, and the existing completion transaction records it once with the
+outcome, artifacts and other evidence, including for an unsuccessful semantic outcome. It is persisted as one nullable `TEXT` column on
+the attempt holding a canonical, versioned, project-owned snapshot (`{"version":1,"source":…,"models":[…]}`, entries ordered
+ordinally, compact, at most 4 KiB of UTF-8); only Infrastructure parses provider field names. The Domain accepts it only for a
+dispatched `ClaudeCode` attempt with that exact source and an outcome outside the pre-invocation set that process and token evidence
+share, and only once. Rows that predate the column stay `NULL`: nothing backfills or reparses an artifact.
+
+**Reading.** `Attempt.GetAgentModelContextLimitsEvidence()` accepts stored text only when it re-serializes to exactly itself as valid
+evidence for the attempt's provider; malformed, oversized, reordered, extended, wrong-provider and unknown-version text projects as
+absent without throwing and without affecting a sibling, and a `Running`, undispatched, non-Agent or identity-incoherent attempt
+exposes none. The read uses stored facts only: no provider probe and no artifact read.
+
+**Exposure.** `GET /runs/{runId}/agent-attempts/{attemptId}/evidence` carries one additive nullable `modelContextLimits` member
+(`models`, each with `modelId`, `contextWindowTokens` and `maxOutputTokens`, ordered ordinally). The source tag and snapshot version
+are never exposed, and no other status, cockpit or history-list contract changes.
+
+This is historical, provider-reported observation. It is not remaining context, a fullness measure, a live capability, an eligibility
+decision, proof that a listed model was used, an account allowance, or a basis for compaction or resume.
 
 ### Provider account-allowance contracts
 

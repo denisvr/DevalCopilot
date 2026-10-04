@@ -16,7 +16,8 @@ namespace DevalCopilot.Infrastructure.Features.Runs;
 /// its usage schema documentation names exactly <c>input_tokens</c>, <c>output_tokens</c>,
 /// <c>cache_creation_input_tokens</c>, and <c>cache_read_input_tokens</c> as numbers, and its
 /// default usage literal initializes all four to <c>0</c>. Only those four members are read;
-/// <c>modelUsage</c>, <c>total_cost_usd</c>, and every other field are deliberately ignored.
+/// <c>total_cost_usd</c> and every other field are deliberately ignored here; <c>modelUsage</c> is read separately by
+/// <see cref="ClaudeCliModelContextLimits"/>.
 ///
 /// Parsing is defensive and fails closed to <see langword="null"/> — meaning "no usage evidence",
 /// never an exception and never an invented or partial value — when <c>usage</c> is missing or

@@ -17,4 +17,5 @@ public sealed record RecordReviewCorrectionResultCommand(
     ValidatedReviewCorrection? Correction,
     string? ProviderSessionId,
     AgentProcessEvidence? ProcessEvidence = null,
-    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordReviewCorrectionResultCommandResult>>;
+    AgentTokenUsage? TokenUsage = null,
+    AgentModelContextLimits? ModelContextLimits = null) : ICommand<Result<RecordReviewCorrectionResultCommandResult>>;

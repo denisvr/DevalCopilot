@@ -50,6 +50,7 @@ public sealed class GetAgentAttemptEvidenceEndpoint(
             ClaudeMutationTurnLimitResponse.FromDomain(value.MaxTurns),
             value.RepairSourceAttemptId,
             value.RepairSourceAttemptNumber,
-            DirectHumanGuidanceResponse.FromDomain(value.DirectGuidance)));
+            DirectHumanGuidanceResponse.FromDomain(value.DirectGuidance),
+            AgentModelContextLimitsResponse.FromDomain(value.ModelContextLimits)));
     }
 }

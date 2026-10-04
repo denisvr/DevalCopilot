@@ -583,7 +583,8 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
 
     private async Task<Seed> SeedAsync(
         ServiceProvider provider, string? claimedClaudeModel = null, string? claimedClaudeEffort = null,
-        TimeSpan? maximumAgentInvocationTime = null, int? claimedMaxTurns = null)
+        TimeSpan? maximumAgentInvocationTime = null, int? claimedMaxTurns = null, string? claudeLaunchPath = null,
+        string? manifestText = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -596,7 +597,7 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         var workspace = GitWorkspace.Prepare(Guid.NewGuid(), project.Id, 1, $@"C:\workspaces\{Guid.NewGuid():N}", "branch", Head, "main", now); workspace.MarkReady();
         var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, workspace.ReserveCheckpointNumber(), now, Head, Fingerprint, []);
         var lease = RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, project.Id.ToByteArray(), now);
-        var capability = HostCapabilitySnapshot.Seed(Capability.ClaudeCli, now); capability.MarkDispatched(now); capability.RecordSuccess(CapabilityLaunchKind.DirectExecutable, @"C:\safe\claude.exe", null, "1.0", now, now.AddMinutes(5));
+        var capability = HostCapabilitySnapshot.Seed(Capability.ClaudeCli, now); capability.MarkDispatched(now); capability.RecordSuccess(CapabilityLaunchKind.DirectExecutable, claudeLaunchPath ?? @"C:\safe\claude.exe", null, "1.0", now, now.AddMinutes(5));
         var planning = Attempt.ClaimAgent(Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now, 1); planning.MarkAgentDispatched(now); planning.CompleteAgent(AgentOutcome.Proposed, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
         var proposal = CollaborationMessage.Record(Guid.NewGuid(), run.Id, planning.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.Proposal, null, "Implement the correction.", JsonSerializer.Serialize(new { scope = "Correction", implementationSteps = "Apply findings.", risks = "None.", verificationPlan = "Run tests.", escalationPoints = "None." }), CollaborationMessageProvenance.ProviderObserved, now);
         var acceptanceAttempt = Attempt.ClaimAgentCriticalReview(Guid.NewGuid(), run.Id, 2, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(20), 262144, 524288, now, 2); acceptanceAttempt.MarkAgentDispatched(now); acceptanceAttempt.CompleteAgent(AgentOutcome.Accepted, Fingerprint, now, processEvidence: TestProcessEvidence.CleanExit);
@@ -607,7 +608,7 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         var finding = CollaborationMessage.Record(Guid.NewGuid(), run.Id, review.Id, CollaborationMessage.ProtocolVersionOne, ParticipantIdentity.ForAgent(AgentRole.CodeReviewer, AgentProvider.Codex), ParticipantIdentity.ForAgentWithUnknownRole(AgentProvider.ClaudeCode), CollaborationMessageType.ReviewFinding, report.Id, "The branch needs correction.", JsonSerializer.Serialize(new { severity = "high", category = "correctness", evidence = "The branch is incomplete.", requiredChange = "Complete the branch." }), CollaborationMessageProvenance.ProviderObserved, now.AddSeconds(1));
         var manifestId = Guid.NewGuid();
         var correction = Attempt.ClaimAgentReviewCorrectionWithModelRequest(Guid.NewGuid(), run.Id, 5, workspace.Id, checkpoint.Id, Fingerprint, manifestId, TimeSpan.FromMinutes(20), 262144, 524288, now, claimedClaudeModel, claimedClaudeEffort, 5, claimedMaxTurns);
-        var manifestPath = _artifactStore.GetPartialPath(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest); Directory.CreateDirectory(Path.GetDirectoryName(manifestPath)!); await File.WriteAllTextAsync(manifestPath, "manifest");
+        var manifestPath = _artifactStore.GetPartialPath(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest); Directory.CreateDirectory(Path.GetDirectoryName(manifestPath)!); await File.WriteAllTextAsync(manifestPath, manifestText ?? "manifest");
         var sealedManifest = await _artifactStore.SealAsync(run.Id, correction.Id, ArtifactPurpose.AgentContextManifest, CancellationToken.None);
         db.Projects.Add(project); db.Runs.Add(run); db.GitWorkspaces.Add(workspace); db.GitCheckpoints.Add(checkpoint); db.RepositoryMutationLeases.Add(lease); db.HostCapabilitySnapshots.Add(capability); db.Attempts.AddRange(planning, acceptanceAttempt, implementation, review, correction); db.CollaborationMessages.AddRange(proposal, acceptance, report, finding);
         db.AttemptInputMessages.AddRange(AttemptInputMessage.Record(Guid.NewGuid(), acceptanceAttempt.Id, proposal.Id, 0), AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, proposal.Id, 0), AttemptInputMessage.Record(Guid.NewGuid(), implementation.Id, acceptance.Id, 1), AttemptInputMessage.Record(Guid.NewGuid(), review.Id, report.Id, 0), AttemptInputMessage.Record(Guid.NewGuid(), correction.Id, report.Id, 0), AttemptInputMessage.Record(Guid.NewGuid(), correction.Id, finding.Id, 1));

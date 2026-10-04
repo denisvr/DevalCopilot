@@ -7147,6 +7147,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
     repairSourceAttemptId?: string | undefined;
     repairSourceAttemptNumber?: number | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
+    modelContextLimits?: AgentModelContextLimitsResponse | undefined;
 
     constructor(data?: IAgentAttemptEvidenceResponse) {
         if (data) {
@@ -7181,6 +7182,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
             this.repairSourceAttemptId = _data["repairSourceAttemptId"];
             this.repairSourceAttemptNumber = _data["repairSourceAttemptNumber"];
             this.directGuidance = _data["directGuidance"] ? DirectHumanGuidanceResponse.fromJS(_data["directGuidance"]) : undefined as any;
+            this.modelContextLimits = _data["modelContextLimits"] ? AgentModelContextLimitsResponse.fromJS(_data["modelContextLimits"]) : undefined as any;
         }
     }
 
@@ -7215,6 +7217,7 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
         data["repairSourceAttemptId"] = this.repairSourceAttemptId;
         data["repairSourceAttemptNumber"] = this.repairSourceAttemptNumber;
         data["directGuidance"] = this.directGuidance ? this.directGuidance.toJSON() : undefined as any;
+        data["modelContextLimits"] = this.modelContextLimits ? this.modelContextLimits.toJSON() : undefined as any;
         return data;
     }
 }
@@ -7238,6 +7241,95 @@ export interface IAgentAttemptEvidenceResponse {
     repairSourceAttemptId?: string | undefined;
     repairSourceAttemptNumber?: number | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
+    modelContextLimits?: AgentModelContextLimitsResponse | undefined;
+}
+
+export class AgentModelContextLimitsResponse implements IAgentModelContextLimitsResponse {
+    models?: AgentModelContextLimitResponse[];
+
+    constructor(data?: IAgentModelContextLimitsResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["models"])) {
+                this.models = [] as any;
+                for (let item of _data["models"])
+                    this.models!.push(AgentModelContextLimitResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): AgentModelContextLimitsResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentModelContextLimitsResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.models)) {
+            data["models"] = [];
+            for (let item of this.models)
+                data["models"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IAgentModelContextLimitsResponse {
+    models?: AgentModelContextLimitResponse[];
+}
+
+export class AgentModelContextLimitResponse implements IAgentModelContextLimitResponse {
+    modelId?: string;
+    contextWindowTokens?: number;
+    maxOutputTokens?: number;
+
+    constructor(data?: IAgentModelContextLimitResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.modelId = _data["modelId"];
+            this.contextWindowTokens = _data["contextWindowTokens"];
+            this.maxOutputTokens = _data["maxOutputTokens"];
+        }
+    }
+
+    static fromJS(data: any): AgentModelContextLimitResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentModelContextLimitResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["modelId"] = this.modelId;
+        data["contextWindowTokens"] = this.contextWindowTokens;
+        data["maxOutputTokens"] = this.maxOutputTokens;
+        return data;
+    }
+}
+
+export interface IAgentModelContextLimitResponse {
+    modelId?: string;
+    contextWindowTokens?: number;
+    maxOutputTokens?: number;
 }
 
 export class CreateManualRunResponse implements ICreateManualRunResponse {

@@ -19,6 +19,7 @@ import { instructionDeliveryProblems } from '../journey/instructionDelivery.ts'
 import type { SealedManifest } from '../journey/instructionDelivery.ts'
 import { createHash } from 'node:crypto'
 import { normalizeGuidance, sha256Hex } from '../journey/guidance.ts'
+import { canonicalSnapshot, EXPECTED_MODEL_LIMITS, renderedRows, responseMember } from '../journey/modelContextLimits.ts'
 import { ESCALATED_STAGE_SEQUENCE, escalatedLineageProblems, planIdentityProblems } from '../journey/planIdentity.ts'
 import type { EscalatedLineage } from '../journey/planIdentity.ts'
 import { JourneyData } from '../journey/journeyDb.ts'
@@ -689,5 +690,46 @@ describe('the instruction fixture and its delivery judge', () => {
     assert.match(judge(entries(), [sealed('a'), sealed('b')], leaky).join(' '), /log carries/)
     const foreign = JSON.stringify(entries()) + sha256OfText(FOREIGN[0].text)
     assert.match(judge(entries(), [sealed('a'), sealed('b')], foreign).join(' '), /identity of another project/)
+  })
+})
+
+describe('the journey model-limits expectations', () => {
+  it('lists each contract\'s models in the ordinal order of their identifiers, which is not the order the double lists them', () => {
+    for (const [contract, models] of Object.entries(EXPECTED_MODEL_LIMITS)) {
+      const ids = models.map((model) => model.modelId)
+      assert.deepEqual(ids, [...ids].sort(), contract)
+      assert.equal(new Set(ids).size, ids.length, contract)
+    }
+    assert.deepEqual(
+      EXPECTED_MODEL_LIMITS.ImplementationReport.map((model) => model.modelId),
+      ['claude-journey-impl-helper', 'claude-journey-impl-main'],
+    )
+  })
+
+  it('gives every contract its own models and limits, so one stage\'s values can never pass for another\'s', () => {
+    const texts = Object.values(EXPECTED_MODEL_LIMITS).map((models) => canonicalSnapshot(models))
+    assert.equal(new Set(texts).size, texts.length)
+    const limits = Object.values(EXPECTED_MODEL_LIMITS).flatMap((models) =>
+      models.flatMap((model) => [model.contextWindowTokens, model.maxOutputTokens]),
+    )
+    assert.equal(new Set(limits).size, limits.length)
+  })
+
+  it('writes the canonical project snapshot byte for byte', () => {
+    assert.equal(
+      canonicalSnapshot(EXPECTED_MODEL_LIMITS.CriticalReview),
+      '{"version":1,"source":"claude-cli-model-usage-v1","models":[{"modelId":"claude-journey-critic","contextWindowTokens":180000,"maxOutputTokens":24000}]}',
+    )
+    assert.ok(canonicalSnapshot(EXPECTED_MODEL_LIMITS.ImplementationReport).length <= 4096)
+  })
+
+  it('renders thousands separators and mirrors the evidence response member for member', () => {
+    assert.deepEqual(renderedRows(EXPECTED_MODEL_LIMITS.ImplementationReport), [
+      ['claude-journey-impl-helper', '200,000', '32,000'],
+      ['claude-journey-impl-main', '1,000,000', '64,000'],
+    ])
+    assert.deepEqual(responseMember(EXPECTED_MODEL_LIMITS.ReviewCorrection), {
+      models: [{ modelId: 'claude-journey-fix', contextWindowTokens: 150000, maxOutputTokens: 16000 }],
+    })
   })
 })

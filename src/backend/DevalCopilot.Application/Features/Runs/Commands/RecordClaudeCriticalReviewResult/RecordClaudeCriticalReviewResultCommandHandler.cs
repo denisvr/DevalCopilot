@@ -139,6 +139,15 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
             return Result<RecordClaudeCriticalReviewResultCommandResult>.Failure(tokenUsageError);
         }
 
+        // Provider-reported model context limits are independent of the outcome and the token usage, best-effort and never
+        // required; when supplied they are validated before any mutation by the same rule and recorded atomically below.
+        var modelLimitsError = AgentModelContextLimitsRecording.Validate(
+            command.ModelContextLimits, attempt.AgentProvider, command.Outcome, attempt.AgentDispatchedAtUtc.HasValue, out var modelLimits);
+        if (modelLimitsError is not null)
+        {
+            return Result<RecordClaudeCriticalReviewResultCommandResult>.Failure(modelLimitsError);
+        }
+
         if (command.ProviderSessionId is { Length: > MaxProviderSessionIdLength })
         {
             return Result<RecordClaudeCriticalReviewResultCommandResult>.Failure(
@@ -177,7 +186,7 @@ public sealed class RecordClaudeCriticalReviewResultCommandHandler(IDevalCopilot
             attempt.RecordAgentProviderSessionId(command.ProviderSessionId);
         }
 
-        attempt.CompleteAgent(command.Outcome, command.CompletionFingerprintSha256, nowUtc, processEvidence, tokenUsage);
+        attempt.CompleteAgent(command.Outcome, command.CompletionFingerprintSha256, nowUtc, processEvidence, tokenUsage, modelLimits);
 
         foreach (var sealedArtifact in command.SealedArtifacts)
         {

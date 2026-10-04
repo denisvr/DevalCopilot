@@ -92,7 +92,7 @@ public sealed class ReviewCorrectionSupervisor(
 
         if (launchTarget is null)
         {
-            await RecordResultAsync(attempt, false, false, false, null, null, null, stoppingToken);
+            await RecordResultAsync(attempt, false, false, false, null, null, null, null, stoppingToken);
             return;
         }
 
@@ -111,13 +111,13 @@ public sealed class ReviewCorrectionSupervisor(
         }
         catch (OperationCanceledException)
         {
-            await RecordResultAsync(attempt, false, false, false, null, null, null, CancellationToken.None);
+            await RecordResultAsync(attempt, false, false, false, null, null, null, null, CancellationToken.None);
             return;
         }
         catch (Exception)
         {
             logger.LogError("review_correction_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
-            await RecordResultAsync(attempt, false, false, false, null, null, null, CancellationToken.None);
+            await RecordResultAsync(attempt, false, false, false, null, null, null, null, CancellationToken.None);
             return;
         }
 
@@ -133,6 +133,7 @@ public sealed class ReviewCorrectionSupervisor(
             invocation.ProviderSessionId,
             invocation.ProcessEvidence,
             invocation.TokenUsage,
+            invocation.ModelContextLimits,
             CancellationToken.None);
     }
 
@@ -144,6 +145,7 @@ public sealed class ReviewCorrectionSupervisor(
         string? providerSessionId,
         AgentProcessEvidence? processEvidence,
         AgentTokenUsage? tokenUsage,
+        AgentModelContextLimits? modelLimits,
         CancellationToken cancellationToken)
     {
         var completionEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, CancellationToken.None);
@@ -183,7 +185,8 @@ public sealed class ReviewCorrectionSupervisor(
                 correction,
                 providerSessionId,
                 processEvidence,
-                tokenUsage), recordingTimeoutSource.Token);
+                tokenUsage,
+                modelLimits), recordingTimeoutSource.Token);
         }
         catch (Exception)
         {

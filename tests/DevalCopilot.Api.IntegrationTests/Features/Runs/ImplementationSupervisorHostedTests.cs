@@ -39,7 +39,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// post-invocation evidence capture that always runs regardless of process outcome, and the
 /// truthfulness rules unique to a role that can actually mutate the worktree.
 /// </summary>
-public sealed class ImplementationSupervisorHostedTests : IDisposable
+public sealed partial class ImplementationSupervisorHostedTests : IDisposable
 {
     private static readonly TimeSpan PollTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TerminalPollTimeout = TimeSpan.FromSeconds(10);

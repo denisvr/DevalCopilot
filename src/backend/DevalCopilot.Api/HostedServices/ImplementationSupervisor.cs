@@ -128,7 +128,7 @@ public sealed class ImplementationSupervisor(
         {
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, observedModel: null,
-                observedEffort: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
+                observedEffort: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
             return;
         }
 
@@ -164,7 +164,7 @@ public sealed class ImplementationSupervisor(
             logger.LogError("implementation_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, observedModel: null,
-                observedEffort: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
+                observedEffort: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
             return;
         }
 
@@ -182,6 +182,7 @@ public sealed class ImplementationSupervisor(
             invocationResult.ObservedEffort,
             invocationResult.ProcessEvidence,
             invocationResult.TokenUsage,
+            invocationResult.ModelContextLimits,
             CancellationToken.None);
     }
 
@@ -195,6 +196,7 @@ public sealed class ImplementationSupervisor(
         string? observedEffort,
         AgentProcessEvidence? processEvidence,
         AgentTokenUsage? tokenUsage,
+        AgentModelContextLimits? modelLimits,
         CancellationToken cancellationToken)
     {
         // Always captured, regardless of processSucceeded: this is the one role whose
@@ -245,7 +247,8 @@ public sealed class ImplementationSupervisor(
                     observedModel,
                     observedEffort,
                     processEvidence,
-                    tokenUsage),
+                    tokenUsage,
+                    modelLimits),
                 recordingTimeoutSource.Token);
         }
         catch (Exception)

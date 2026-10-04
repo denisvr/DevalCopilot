@@ -6,7 +6,7 @@ namespace DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptEvidence
 
 /// <summary>
 /// Bounded metadata for one historical Agent attempt: identity, lifecycle, host-measured process and
-/// provider-reported token evidence, and metadata (never content) for the four allowlisted artifact
+/// provider-reported token evidence, the model limits a Claude attempt's provider listed, and metadata (never content) for the four allowlisted artifact
 /// purposes. Never carries a storage path, content hash, provider session identifier, prompt,
 /// adapter contract version, or artifact text. When <see cref="IdentityValid"/> is false the
 /// persisted role, provider, contract, or assignment could not be proven coherent and only the
@@ -31,4 +31,5 @@ public sealed record GetAgentAttemptEvidenceQueryResult(
     ClaudeMutationTurnLimitFact? MaxTurns = null,
     Guid? RepairSourceAttemptId = null,
     int? RepairSourceAttemptNumber = null,
-    DirectHumanGuidanceFact? DirectGuidance = null);
+    DirectHumanGuidanceFact? DirectGuidance = null,
+    AgentModelContextLimitsEvidence? ModelContextLimits = null);

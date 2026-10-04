@@ -67,6 +67,9 @@
 - [ADR-0022](decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md):
   Admit generic untracked-file previews only from physically proven single-name files (additive; it narrows what those
   previews may deliver and changes no existing authority decision).
+- [ADR-0023](decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md):
+  Record Claude-reported model context limits in historical attempt evidence (additive; it records and shows what Claude
+  reported and changes no existing authority decision).
 
 ## Product-specific architecture
 
@@ -160,6 +163,16 @@
   that provider once reached or unprovable; it is a retrospective local
   guardrail, not an account allowance or a per-attempt cap, and the advisory
   warning is separate (see the open risks in `docs/roadmap/current-work.md`).
+- The three Claude adapters also read the optional `modelUsage` map of the one clean-exit, untruncated result envelope
+  and keep only each model identifier with its reported context-window and maximum-output limits, admitted whole or not
+  at all (at most 16 unique ASCII identifiers, positive 32-bit integers, output not above the window) and independent of
+  the business result and of token usage. The completion transaction records them once as one nullable canonical
+  project-owned snapshot on the attempt (at most 4 KiB), and only the existing historical attempt-evidence route and its
+  selected detail show them, as "Claude-reported model limits": models listed by Claude, not proven used, never remaining
+  context or next-invocation capacity, "Not recorded" when absent. It changes no argument, eligibility, token control,
+  filesystem or manifest behavior (see
+  [ADR-0023](decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md) and
+  [the protocol](architecture/agent-collaboration-protocol.md#claude-reported-model-context-limits)).
 - Git, Codex, Claude Code, and GitHub integrations are replaceable
   Infrastructure adapters behind narrow Application ports.
 - The MVP uses existing local CLI authentication and never copies provider

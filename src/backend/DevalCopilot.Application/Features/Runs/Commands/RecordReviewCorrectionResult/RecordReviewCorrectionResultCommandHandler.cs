@@ -225,6 +225,15 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             return Failure(tokenUsageError);
         }
 
+        // Provider-reported model context limits are independent of the outcome and the token usage, best-effort and never
+        // required; when supplied they are validated before any mutation by the same rule and recorded atomically below.
+        var modelLimitsError = AgentModelContextLimitsRecording.Validate(
+            command.ModelContextLimits, attempt.AgentProvider, outcome, attempt.AgentDispatchedAtUtc.HasValue, out var modelLimits);
+        if (modelLimitsError is not null)
+        {
+            return Failure(modelLimitsError);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
         if (!string.IsNullOrWhiteSpace(command.ProviderSessionId))
         {
@@ -250,7 +259,7 @@ public sealed class RecordReviewCorrectionResultCommandHandler(IDevalCopilotDbCo
             resultCheckpointId = resultCheckpoint.Id;
         }
 
-        attempt.CompleteReviewCorrection(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage);
+        attempt.CompleteReviewCorrection(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage, modelLimits);
         if (mutationSuspected)
         {
             workspace.MarkNeedsAttention(AmbiguousMutationReasonCode);

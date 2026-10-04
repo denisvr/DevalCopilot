@@ -730,6 +730,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.Property<int?>("AgentMaxTotalCapturedBytes")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("AgentModelContextLimitsSnapshot")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("AgentObservedEffort")
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");

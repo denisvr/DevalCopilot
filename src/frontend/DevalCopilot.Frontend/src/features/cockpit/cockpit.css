@@ -917,3 +917,26 @@
   flex-direction: column;
   gap: 0.4rem;
 }
+
+/* Claude-reported model limits: identifiers are plain text and may be long; the table never stretches the detail. */
+.dc-model-context-limits h4 {
+  margin: 0.5rem 0 0.25rem;
+}
+
+.dc-model-context-limits table {
+  border-collapse: collapse;
+  max-width: 100%;
+}
+
+.dc-model-context-limits th,
+.dc-model-context-limits td {
+  padding: 0.15rem 0.6rem 0.15rem 0;
+  text-align: left;
+  font-weight: normal;
+  overflow-wrap: anywhere;
+}
+
+.dc-model-context-limits thead th {
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}

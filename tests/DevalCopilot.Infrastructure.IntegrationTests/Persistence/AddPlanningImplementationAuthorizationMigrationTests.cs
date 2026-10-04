@@ -58,8 +58,10 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
         return names;
     }
 
+    private Attempt? _seededPlanner;
+
     private async Task<(Guid RunId, Guid EscalationId, Guid FinalProposalId, Guid InstructionId, Guid AttemptId)> SeedFreshAsync(
-        DevalCopilotDbContext context)
+        DevalCopilotDbContext context, bool historicalSchema = false)
     {
         var projectId = Guid.NewGuid();
         var runId = Guid.NewGuid();
@@ -70,7 +72,18 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
         var planner = Attempt.ClaimAgent(
             attemptId, runId, 1, workspaceId, Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
         planner.MarkAgentDispatched(Now);
-        context.Attempts.Add(planner);
+        _seededPlanner = planner;
+        if (historicalSchema)
+        {
+            // A schema older than the current model cannot take the entity as an ordinary save would write it.
+            await context.SaveChangesAsync();
+            await HistoricalAgentAttemptRow.InsertAsync(context, planner);
+        }
+        else
+        {
+            context.Attempts.Add(planner);
+        }
+
         var proposal = CollaborationMessage.Record(
             Guid.NewGuid(), runId, attemptId, CollaborationMessage.ProtocolVersionOne,
             ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
@@ -94,21 +107,37 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
     }
 
     [Fact]
+    public async Task The_latest_schema_fresh_seed_persists_every_fact_the_claimed_attempt_supplies()
+    {
+        await using (var context = CreateContext())
+        {
+            await context.Database.MigrateAsync();
+            await SeedFreshAsync(context);
+        }
+
+        await using var reopened = CreateContext();
+        var persisted = await reopened.Attempts.AsNoTracking().SingleAsync();
+        HistoricalAgentAttemptRow.AssertEveryFactSurvived(reopened, _seededPlanner!, persisted);
+    }
+
+    [Fact]
     public async Task Historical_messages_inputs_and_review_correction_authorizations_survive_and_no_grant_is_fabricated()
     {
         var projectId = Guid.NewGuid();
         var runId = Guid.NewGuid();
         var escalationId = Guid.NewGuid();
         var instructionId = Guid.NewGuid();
+        Attempt attempt;
         await using (var previous = CreateContext())
         {
             await previous.Database.GetService<IMigrator>().MigrateAsync(PriorMigration);
             previous.Projects.Add(Project.Register(projectId, "Historical", $@"C:\repos\{Guid.NewGuid():N}", Now));
             previous.Runs.Add(Run.RecordIntent(runId, projectId, 1, "Historical depth-two run", Now));
-            var attempt = Attempt.ClaimAgent(
+            await previous.SaveChangesAsync();
+            attempt = Attempt.ClaimAgent(
                 Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
             attempt.MarkAgentDispatched(Now);
-            previous.Attempts.Add(attempt);
+            await HistoricalAgentAttemptRow.InsertAsync(previous, attempt);
             var proposal = CollaborationMessage.Record(
                 Guid.NewGuid(), runId, attempt.Id, CollaborationMessage.ProtocolVersionOne,
                 ParticipantIdentity.ForAgent(AgentRole.Planner, AgentProvider.Codex),
@@ -140,6 +169,7 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
         Assert.Equal(3, await reopened.CollaborationMessages.CountAsync());
         Assert.Equal(1, await reopened.AttemptInputMessages.CountAsync());
         Assert.Equal(1, await reopened.Attempts.CountAsync());
+        HistoricalAgentAttemptRow.AssertEveryFactSurvived(reopened, attempt, await reopened.Attempts.AsNoTracking().SingleAsync(item => item.Id == attempt.Id));
         var historicalInstruction = await reopened.CollaborationMessages.AsNoTracking().SingleAsync(message => message.Id == instructionId);
         Assert.Equal(ReviewCorrectionGuidance.BuildStructuredContentJson("Historical reason."), historicalInstruction.StructuredContentJson);
         Assert.Equal("Human authorized one additional review-correction attempt.", historicalInstruction.Summary);
@@ -242,7 +272,7 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
         {
             // Stopped at this migration itself: a later migration (which drops its own table on Down) is not part of this proof.
             await context.Database.GetService<IMigrator>().MigrateAsync("20261001185037_AddPlanningImplementationAuthorization");
-            await SeedFreshAsync(context);
+            await SeedFreshAsync(context, historicalSchema: true);
         }
 
         var tablesBefore = await ReadSchemaNamesAsync("table");

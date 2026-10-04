@@ -13,7 +13,7 @@ using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
-public sealed class RecordReviewCorrectionResultCommandHandlerTests(SqliteDatabaseFixture fixture)
+public sealed partial class RecordReviewCorrectionResultCommandHandlerTests(SqliteDatabaseFixture fixture)
     : IClassFixture<SqliteDatabaseFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 20, 12, 0, 0, TimeSpan.Zero);

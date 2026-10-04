@@ -82,8 +82,37 @@ public static class ClaudeRole
             ["is_error"] = false,
             ["result"] = response,
             ["session_id"] = "fixture-session-" + Guid.NewGuid().ToString("N"),
+            // The models the double lists with the limits it reports, as the provider contract carries them. The values differ by
+            // contract so a limit can never be mistaken for another stage's, and every entry carries unrelated members the host ignores.
+            ["modelUsage"] = ModelUsageFor(manifest.Contract),
         };
         Console.Out.Write(envelope.ToJsonString(new JsonSerializerOptions()) + "\n");
         return 0;
+    }
+
+    private static JsonObject ModelUsageFor(string contract) => contract switch
+    {
+        "CriticalReview" => ModelUsage(("claude-journey-critic", 180000, 24000)),
+        // Listed in the reverse of their ordinal order: the host records, and the page shows, them ordered by identifier.
+        "ImplementationReport" => ModelUsage(("claude-journey-impl-main", 1000000, 64000), ("claude-journey-impl-helper", 200000, 32000)),
+        "ReviewCorrection" => ModelUsage(("claude-journey-fix", 150000, 16000)),
+        _ => throw new FixtureRefusal(FixtureRefusal.UnsupportedInvocation, "No model usage is defined for this contract."),
+    };
+
+    private static JsonObject ModelUsage(params (string ModelId, int ContextWindow, int MaxOutputTokens)[] models)
+    {
+        var usage = new JsonObject();
+        foreach (var (modelId, contextWindow, maxOutputTokens) in models)
+        {
+            usage[modelId] = new JsonObject
+            {
+                ["inputTokens"] = 7,
+                ["costUSD"] = 0.01,
+                ["contextWindow"] = contextWindow,
+                ["maxOutputTokens"] = maxOutputTokens,
+            };
+        }
+
+        return usage;
     }
 }

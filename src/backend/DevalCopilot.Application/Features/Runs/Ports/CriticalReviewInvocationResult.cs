@@ -11,4 +11,5 @@ public sealed record CriticalReviewInvocationResult(
     bool StandardErrorTruncated,
     string? ProviderSessionId,
     AgentProcessEvidence? ProcessEvidence = null,
-    AgentTokenUsage? TokenUsage = null);
+    AgentTokenUsage? TokenUsage = null,
+    AgentModelContextLimits? ModelContextLimits = null);

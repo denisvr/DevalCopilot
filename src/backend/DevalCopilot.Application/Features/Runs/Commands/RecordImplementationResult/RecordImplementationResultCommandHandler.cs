@@ -251,6 +251,15 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             return Result<RecordImplementationResultCommandResult>.Failure(tokenUsageError);
         }
 
+        // Provider-reported model context limits are independent of the outcome and the token usage, best-effort and never
+        // required; when supplied they are validated before any mutation by the same rule and recorded atomically below.
+        var modelLimitsError = AgentModelContextLimitsRecording.Validate(
+            command.ModelContextLimits, attempt.AgentProvider, outcome, attempt.AgentDispatchedAtUtc.HasValue, out var modelLimits);
+        if (modelLimitsError is not null)
+        {
+            return Result<RecordImplementationResultCommandResult>.Failure(modelLimitsError);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
 
         try
@@ -295,7 +304,7 @@ public sealed class RecordImplementationResultCommandHandler(IDevalCopilotDbCont
             resultCheckpointId = checkpoint.Id;
         }
 
-        attempt.CompleteImplementation(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage);
+        attempt.CompleteImplementation(outcome, resultCheckpointId, nowUtc, processEvidence, tokenUsage, modelLimits);
 
         if (mutationSuspected)
         {

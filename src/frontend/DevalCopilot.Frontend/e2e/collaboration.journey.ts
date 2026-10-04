@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 import { JourneyData, sameId } from './journey/journeyDb'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
@@ -19,6 +19,8 @@ import {
 } from './journey/journeyEnv'
 import { instructionDeliveryProblems } from './journey/instructionDelivery'
 import { planIdentityProblems } from './journey/planIdentity'
+import { canonicalSnapshot, EXPECTED_MODEL_LIMITS, renderedRows, responseMember } from './journey/modelContextLimits'
+import type { ExpectedModelLimit } from './journey/modelContextLimits'
 import { injectJourneySession, registerProject, selectProject, workflowLines } from './journey/journeySupport'
 
 // The browser-driven local collaboration proof (Increment 4): ONE explicit manual journey through the rendered controls of the
@@ -54,6 +56,42 @@ function agentContracts(): string[] {
 async function reloadAndReselect(page: Page) {
   await page.reload()
   await selectProject(page, PROJECT)
+}
+
+// Opens the run's Agent attempt history if it is closed, inspects one attempt through its rendered control, and returns the evidence the
+// generated client received from the host for exactly that attempt (observed on the wire) beside the rendered detail. The attempt must not
+// be the one already selected: selecting it again requests nothing.
+async function inspectAttempt(page: Page, attemptNumber: number) {
+  const history = page.getByRole('region', { name: 'Agent attempt history' })
+  const show = history.getByRole('button', { name: 'Show Agent attempt history' })
+  if ((await show.count()) > 0) {
+    await show.click()
+  }
+
+  const attempt = data.attempts().find((row) => row.AttemptNumber === attemptNumber)!
+  const evidencePath = new RegExp(`/api/runs/[^/]+/agent-attempts/${attempt.Id}/evidence$`, 'i')
+  const answered = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && evidencePath.test(new URL(response.url()).pathname),
+    { timeout: 30_000 },
+  )
+  await history.getByRole('button', { name: `Inspect attempt ${attemptNumber}` }).click()
+  const response = await answered
+  expect(response.status()).toBe(200)
+  const detail = page.getByRole('region', { name: 'Selected Agent attempt evidence' })
+  await expect(detail).toContainText(`Attempt #${attemptNumber}`)
+  return { attempt, evidence: await response.json(), detail }
+}
+
+async function expectRenderedModelLimits(detail: Locator, models: readonly ExpectedModelLimit[]) {
+  const region = detail.getByRole('region', { name: 'Claude-reported model limits' })
+  await expect(region).toBeVisible()
+  await expect(region).toContainText('Models listed by Claude in its result for this attempt (not independently proven to have been used):')
+  await expect(region).toContainText('Remaining context and the capacity of the next invocation were not measured.')
+  const rows = await region
+    .locator('tbody tr')
+    .evaluateAll((elements) => elements.map((row) => Array.from(row.children).map((cell) => cell.textContent)))
+  expect(rows).toEqual(renderedRows(models))
+  await expect(region).not.toContainText('Not recorded')
 }
 
 test('the collaboration journey: failed verification, diagnosis, correction, fresh verification, and ordinary approval', async ({ page }) => {
@@ -257,6 +295,39 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(data.messages()).toHaveLength(beforeManual.messages)
   expect(stageInvocations()).toHaveLength(beforeManual.invocations)
 
+  // 12c. Claude-reported model limits (ADR-0023): each of the three Claude stages' real adapters read the models its native double listed
+  // (with the limits it reported for each) from the provider envelope, and the host recorded them in the completion transaction. The
+  // rendered history detail shows them, and the generated client received exactly them from the host; a Codex attempt has none. This is
+  // historical observation the double reported, not remaining context, a live capability, or proof of what a real provider would say.
+  const limitsBeforeReload: Record<string, unknown> = {}
+  for (const [attemptNumber, contract] of [[2, 'CriticalReview'], [4, 'ImplementationReport'], [6, 'ReviewCorrection']] as const) {
+    const inspected = await inspectAttempt(page, attemptNumber)
+    expect(inspected.attempt.AgentResponseContract).toBe(contract)
+    expect(inspected.evidence.provider).toBe('ClaudeCode')
+    expect(inspected.evidence.modelContextLimits).toEqual(responseMember(EXPECTED_MODEL_LIMITS[contract]))
+    await expectRenderedModelLimits(inspected.detail, EXPECTED_MODEL_LIMITS[contract])
+    // Selecting the next attempt replaces the section: only the selected attempt's limits are ever on the page.
+    await expect(page.getByRole('region', { name: 'Claude-reported model limits' })).toHaveCount(1)
+    limitsBeforeReload[contract] = inspected.evidence.modelContextLimits
+  }
+
+  const codexPlanning = await inspectAttempt(page, 1)
+  expect(codexPlanning.evidence.provider).toBe('Codex')
+  expect(codexPlanning.evidence.modelContextLimits ?? null).toBeNull()
+  await expect(codexPlanning.detail.getByRole('region', { name: 'Claude-reported model limits' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Claude-reported model limits' })).toHaveCount(0)
+
+  // The host's own record of the same fact (read-only): the canonical project snapshot for exactly the three Claude attempts, nothing for the others.
+  expect(data.modelContextLimitsByAttempt().map((row) => [row.AttemptNumber, row.AgentModelContextLimitsSnapshot])).toEqual([
+    [1, null],
+    [2, canonicalSnapshot(EXPECTED_MODEL_LIMITS.CriticalReview)],
+    [3, null],
+    [4, canonicalSnapshot(EXPECTED_MODEL_LIMITS.ImplementationReport)],
+    [5, null],
+    [6, canonicalSnapshot(EXPECTED_MODEL_LIMITS.ReviewCorrection)],
+    [7, null],
+  ])
+
   // 13. Persisted visible results stay attached to this run after the journey's only reload; approval is not lifecycle completion.
   await reloadAndReselect(page)
   await expect(page.getByRole('heading', { name: OBJECTIVE })).toBeVisible({ timeout: 30_000 })
@@ -266,6 +337,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(diagnosis).toContainText('Last correction #6: Correction applied.')
   await expect(page.getByText('Completed · Completed')).toHaveCount(0)
   expect((await workflowLines(page)).join('\n')).not.toContain('Run completed')
+
+  // The recorded limits survive the reload: the history is closed again, and the same attempts, inspected again through the rendered controls,
+  // show the same limits, and the host answers with the same evidence it did before.
+  for (const [attemptNumber, contract] of [[4, 'ImplementationReport'], [6, 'ReviewCorrection']] as const) {
+    const inspected = await inspectAttempt(page, attemptNumber)
+    expect(inspected.evidence.modelContextLimits).toEqual(limitsBeforeReload[contract])
+    expect(inspected.evidence.modelContextLimits).toEqual(responseMember(EXPECTED_MODEL_LIMITS[contract]))
+    await expectRenderedModelLimits(inspected.detail, EXPECTED_MODEL_LIMITS[contract])
+  }
 
   // ---- Evidence read back from the host's own records and the doubles' allowlisted log ---------------------------------------
   const all = data.attempts()

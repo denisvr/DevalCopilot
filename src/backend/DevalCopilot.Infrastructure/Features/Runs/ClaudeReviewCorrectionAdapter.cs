@@ -100,11 +100,13 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
             return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence);
         }
 
-        var parsed = TryParseEnvelope(result.StandardOutput, out var finalResponse, out var sessionId, out var reportedUsage);
+        var parsed = TryParseEnvelope(
+            result.StandardOutput, out var finalResponse, out var sessionId, out var reportedUsage, out var reportedLimits);
         var tokenUsage = ClaudeCliTokenUsage.UnlessTruncated(reportedUsage, result.StandardOutputTruncated);
+        var modelLimits = ClaudeCliModelContextLimits.UnlessTruncated(reportedLimits, result.StandardOutputTruncated);
         if (!parsed || finalResponse is null)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
         }
 
         try
@@ -115,29 +117,32 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
         }
         catch (IOException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
         }
         catch (UnauthorizedAccessException)
         {
-            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage);
+            return Failed(result.StandardOutputTruncated, result.StandardErrorTruncated, processEvidence, tokenUsage, modelLimits);
         }
 
         return new ReviewCorrectionInvocationResult(
             ImplementationInvocationOutcome.Exited, result.StandardOutputTruncated, result.StandardErrorTruncated, sessionId, processEvidence,
-            tokenUsage);
+            tokenUsage, modelLimits);
     }
 
     /// <summary>Returns true only for a successful, well-shaped envelope. <paramref name="tokenUsage"/>
     /// is set whenever the envelope is structurally valid — including an <c>is_error: true</c> or
     /// empty-result envelope, which still returns false — and stays null for a malformed envelope or
-    /// a missing or malformed <c>usage</c> object; usage never decides the return value. See
-    /// <see cref="ClaudeCliTokenUsage"/>.</summary>
+    /// a missing or malformed <c>usage</c> object; usage never decides the return value. Likewise <paramref name="modelLimits"/>
+    /// is the independent, optional <c>modelUsage</c> evidence of the same envelope and never decides it. See
+    /// <see cref="ClaudeCliTokenUsage"/> and <see cref="ClaudeCliModelContextLimits"/>.</summary>
     private static bool TryParseEnvelope(
-        string output, out string? finalResponse, out string? sessionId, out AgentTokenUsage? tokenUsage)
+        string output, out string? finalResponse, out string? sessionId, out AgentTokenUsage? tokenUsage,
+        out AgentModelContextLimits? modelLimits)
     {
         finalResponse = null;
         sessionId = null;
         tokenUsage = null;
+        modelLimits = null;
         try
         {
             using var document = JsonDocument.Parse(output);
@@ -167,6 +172,7 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
             }
 
             tokenUsage = ClaudeCliTokenUsage.TryRead(root);
+            modelLimits = ClaudeCliModelContextLimits.TryRead(root);
             if (error.ValueKind == JsonValueKind.True)
             {
                 return false;
@@ -201,12 +207,13 @@ public sealed class ClaudeReviewCorrectionAdapter(IProcessExecutionAdapter proce
     }
 
     /// <summary><paramref name="processEvidence"/> is null only when no process result exists;
-    /// <paramref name="tokenUsage"/> is null whenever no structurally valid envelope reported
-    /// well-shaped usage.</summary>
+    /// <paramref name="tokenUsage"/> and <paramref name="modelLimits"/> are null whenever no structurally valid envelope reported
+    /// well-shaped usage or limits, each judged independently.</summary>
     private static ReviewCorrectionInvocationResult Failed(
         bool stdoutTruncated = false,
         bool stderrTruncated = false,
         AgentProcessEvidence? processEvidence = null,
-        AgentTokenUsage? tokenUsage = null) =>
-        new(ImplementationInvocationOutcome.Failed, stdoutTruncated, stderrTruncated, null, processEvidence, tokenUsage);
+        AgentTokenUsage? tokenUsage = null,
+        AgentModelContextLimits? modelLimits = null) =>
+        new(ImplementationInvocationOutcome.Failed, stdoutTruncated, stderrTruncated, null, processEvidence, tokenUsage, modelLimits);
 }

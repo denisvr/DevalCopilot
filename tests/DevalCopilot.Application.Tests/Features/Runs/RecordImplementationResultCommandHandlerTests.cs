@@ -11,7 +11,7 @@ using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
 
-public sealed class RecordImplementationResultCommandHandlerTests(SqliteDatabaseFixture fixture) : IClassFixture<SqliteDatabaseFixture>
+public sealed partial class RecordImplementationResultCommandHandlerTests(SqliteDatabaseFixture fixture) : IClassFixture<SqliteDatabaseFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);
     private static readonly string StartingHeadSha = new('a', 40);

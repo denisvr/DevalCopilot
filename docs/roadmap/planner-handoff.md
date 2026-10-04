@@ -5,223 +5,304 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md), the
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Selected slice (2026-10-04): physically proven untracked-file previews
+## Selected slice (2026-10-04): Claude-reported model context limits in attempt evidence
 
-### Current review decision (2026-10-04): GO for the reviewed snapshot
+Codex selects exactly one bounded Increment 4 outcome: after a Claude attempt
+concludes, its existing historical evidence view shows the model identifiers
+listed in the provider result and each model's reported context-window and
+maximum-output token limits. The result is a durable observation for that
+attempt, available after restart, rather than a live capacity or eligibility
+claim. Claude began implementation in one executor chat. The owner subsequently assigned
+Codex completion of this slice after Claude credit exhaustion. That reassignment
+authorizes this correction, not implementation of the next selected slice.
 
-Codex authorizes publication of this bounded generic untracked-preview slice
-only. The complete diff has been inspected: the existing reader proves the
-opened handle's attributes and exactly one link before any byte or length read,
-then rechecks the same handle after the bounded read. Unsafe text and size are
-omitted, healthy sibling previews remain available, the capture fingerprint and
-root instruction contract stay unchanged, and sealed replay remains exact.
-No blocking finding remains. No next slice is selected and Increment 4 is not
-claimed complete.
+### Historical review decision (2026-10-04): NO-GO, corrected below
 
-Verified branch main; HEAD, local origin/main and live refs/heads/main:
-5c9dace0f976025ad71dfad11bb73c9468343236. Empty index; exactly 16 reviewed paths
-(11 tracked modifications and 5 new files), including this planner review edit
-and the commit-ready current-work.md entry. Publication is bound to the exact
-path/raw-SHA-256/size inventory issued with the publication instruction, not
-counts alone. The generated client remains
+Independent review confirms main, HEAD, local origin/main and live
+refs/heads/main at 122d4ebaa81f4d5899cf5e69e916de33bc67318c. The index is empty;
+the submitted inventory is exactly 78 paths (47 modified, 31 untracked).
+The executor preserved the selection record at SHA-256
+6d68f53e6bf4f3e234daec8342b6e4f999878c55563f142ecf3281eecaddadd5 before this
+planner review edit. The regenerated client is
+d283da056d20b9f1ea9e14cd6ac452988a3f13226fb8c8f8c6bb90e5790b0819.
+This is a correction of the selected outcome in the same executor chat,
+not a new slice or publication permission.
+
+Three findings must be corrected:
+
+1. R1, immutable evidence and carriage. AgentModelContextLimitsEvidence.Models
+   exposes the actual List returned by Order through IReadOnlyList. Both
+   Create and FromPersisted permit a caller to cast it to IList and replace
+   entries after validation. Serialize and the Attempt completion backstop
+   then record those changed values. A reviewer probe changed a validated
+   window from 200000 to 777 and recorded 777; it also replaced a restored
+   entry with window -1/output 0, recorded terminal completion and
+   stored that invalid snapshot, which the read side subsequently hid.
+   AgentModelContextLimits similarly retains the caller's mutable collection.
+   Give both boundaries their own immutable snapshot with no writable
+   collection exposed or shared backing storage. Preserve ordering, whole-map
+   admission, 16 entries and the 4 KiB bound. Prove source-collection mutation
+   and mutation through the public surface cannot change reported values or
+   serialization, including FromPersisted and the completion transitions.
+   Merely exposing IReadOnlyList or wrapping a caller-owned list is insufficient.
+2. R2, bounded non-throwing recording validation. AgentModelContextLimitsRecording
+   dereferences and materializes limits.Models before checking shape/count.
+   The reviewer probe reproduced ArgumentNullException for a null collection,
+   NullReferenceException for a null entry, and enumeration of a 17-entry
+   collection before its count could be refused. Check the collection and
+   count before traversal/allocation, safely refuse null entries, and return
+   the existing fixed invalid-evidence error without producing Domain evidence
+   or mutating the completion. Do not replace this with a blanket exception
+   catch or relax the parser's all-or-unknown contract. Add regressions for
+   these inputs and the three recording handlers' unchanged state on refusal.
+   Coordinate construction and validation with R1 so freezing does not
+   introduce an unbounded copy before the admission check.
+3. R3, preserve the older test fixtures' facts. HistoricalAgentAttemptRow now
+   inserts only a small subset of an Attempt that the previous EF seed
+   persisted in full. A reviewer probe invoked the modified SeedFreshAsync
+   on the latest migrated SQLite schema: workspace, checkpoint, fingerprint,
+   manifest artifact, protocol, permission profile, adapter version, both
+   capture bounds and budget slot were all NULL despite the claimed Attempt
+   supplying them. The same reduced helper replaces two historical seeds.
+   Keep ordinary EF insertion for a latest-schema seed; for an older schema
+   write the existing applicable scalar facts faithfully, omitting only
+   columns that do not exist there. Assert their preservation through upgrade,
+   alongside the existing messages, inputs and authorizations. Do not weaken
+   assertions or fabricate values. The two additive down-migration column
+   expectation updates are appropriate and are not a separate finding.
+
+The Claude-only detail section and the closed ASCII identifier admission remain
+within the selected contract. No request to broaden either is made. Preserve
+the nullable additive API, invocation behavior, observation-only meaning,
+current schema boundary and all prior risk disclosures.
+
+Independent checks on the submitted tree: solution/NSwag build 0 warnings and
+0 errors; Domain model-limit filter 96/96; Application model-limit filter 35/35;
+Infrastructure adapters/new migration/affected older migration filter 157/157;
+Api model-limit endpoint filter 12/12; the three actual hosted supervisor classes
+99/99; Architecture 13/13; focused Vitest display/detail tests 16/16.
+No test in these selections was skipped. The external reviewer probes above
+exercise gaps those green suites do not cover. The client regenerated unchanged.
+The reviewer did not repeat the full suites or browser runs after establishing
+the blockers; the executor's reported full validation remains submitted evidence,
+not independent proof of these invariants.
+
+Write the focused regressions first against the submitted behavior and retain
+their red evidence. Correct only R1-R3, update the existing current-work.md entry
+with actual fresh/retained checks, and return the entire unstaged, uncommitted,
+unpushed diff for re-review. Run affected checks first, then the relevant full
+backend and frontend validation for the final code; harness must pass before one
+canonical test:e2e:all. Retain unexplained failures instead of rerunning an
+unchanged tree until green. Preserve this planner-owned record byte-for-byte.
+No stage, commit, push, next-slice selection or Increment 4 completion is
+authorized. Any future GO will be bound to a newly reviewed snapshot.
+
+### Final review decision (2026-10-04): GO for the corrected 80-path snapshot
+
+The owner explicitly assigned Codex current-slice execution after Claude credit
+exhaustion. Codex completed the bounded correction and final review; it does not
+claim an independent review of its own edits. R1-R3 above are resolved: owned
+ImmutableArray snapshots, count admission before entry reads (zero reads for an
+excessive counted collection; at most 17 for an uncounted sequence), fixed
+malformed-input refusals with unchanged completion state, and faithful historical
+fixtures with ordinary EF latest-schema seeds and non-vacuous fact comparisons.
+
+The reviewed tree is main on 122d4ebaa81f4d5899cf5e69e916de33bc67318c, with an
+empty index and exactly 80 paths (48 modified, 32 new). The client SHA-256 is
+d283da056d20b9f1ea9e14cd6ac452988a3f13226fb8c8f8c6bb90e5790b0819.
+current-work.md records the fresh full suites: build 0 warnings/errors; Domain
+1056, Application 3954, Infrastructure 1149 + 4 existing environment skips,
+Api 997, Architecture 13; Vitest 1802, typecheck/strict e2e/build clean, lint
+9 baseline warnings, harness 69, then one canonical Chromium 11 + journeys 2.
+It preserves the frontend synchronization failure and sandbox scratch-directory
+refusal, their bounded/environment corrections, retained audits and mutations,
+and the 153-finding formatter baseline. Observation-only scope and all limits
+remain unchanged. No real-provider reliability or Increment 4 completion is proven.
+
+Publication instruction: bind all 80 reviewed paths to a raw hash/size inventory;
+verify that snapshot, empty index and unchanged local/live baseline before staging.
+Commit exactly that substantive snapshot including current-work.md and this GO,
+then normally fast-forward push main to origin/main. Fetch and independently
+verify HEAD, local origin/main and live refs/heads/main equal the delivered SHA
+and the checkout is clean. Run the solution build, affected Domain/Application/
+Infrastructure/Api selections and full Architecture, frontend checks, harness,
+then one canonical test:e2e:all after harness success. Record actual counts and
+skips separately from retained full-suite evidence. Only after these succeed,
+make one current-work.md-only factual closure within this slice entry, normally
+push it and verify all three refs and a clean tree again. No amend, force push,
+history reconciliation, silent failed-check retry or unrelated edit. Any material
+change after this GO requires review again. The next slice is selected only after
+verified closure; this GO authorizes no next-slice implementation.
+
+### Independently verified publication and new baseline
+
+Branch main; HEAD, local origin/main and live refs/heads/main:
+122d4ebaa81f4d5899cf5e69e916de33bc67318c. Empty index and clean checkout before
+this planner edit. Substantive ba5797a0be898a7a50c7a400056ed891ce3c47d5 has parent
+5c9dace0f976025ad71dfad11bb73c9468343236 and exactly the approved 16 paths.
+All 15 files outside the closure match the approved raw SHA-256 and size.
+The substantive current-work.md Git blob matches the approved raw SHA-256
+9c3da1e373077f501f08d57222cd09145a99eaf1708b407e1d6b3a1ecf21bcc5.
+Closure 122d4eba has parent ba5797a0 and changes only that delivery entry
+(+5/-1). The approved inventory manifest itself matches SHA-256
+71105170a67fe76e9e8505a144a1331de6b59a39830ad901ed06f8db99e504a8.
+The prior publication is verified and its snapshot-specific GO is spent.
+No implementation suite was repeated merely to verify an identical publication.
+
+Reported post-publication build and filtered Infrastructure/Application/Api/
+Architecture checks, harness and canonical browser suites match the review
+instruction, including the two explicit file-symlink skips; current-work.md
+distinguishes these from retained full suites, mutations and other checks.
+Generated api-client.ts remains
 13c9d116ecc792e05e2652f470ceff3c73bfc574c2fb348157dc7d5440dac44a.
 
-Independent fresh reviewer evidence: solution build 0 errors and 0 warnings;
-Infrastructure preview/instruction filter 96 passed and 2 environment-gated
-file-symlink skips; Api preview delivery plus prior instruction delivery/replay,
-hosted chains and fixture filter 84 passed without skips; Application preview
-manifest/instruction/projection filter 185 passed without skips; Architecture
-full 13 passed; harness 65 passed; canonical test:e2e:all once, Chromium 11 and
-native-double journeys 2 passed with normal authentication, normal host
-composition and all supervisors. No browser failure or unchanged rerun occurred.
-The known SignalR navigation negotiation console lines remain. Git diff check
-and all 16 changed/new file NUL/trailing-whitespace/lone-CR/final-newline checks
-passed; 190 local document file links resolved (anchors were not independently
-rechecked). The historical delivery ledger is unchanged. The executor's full
-suites, mutation runs, formatter comparison and 303 file/anchor link checks are
-separately reported evidence in current-work.md, not independent reviewer runs.
-
-Codex adjusted only two wording facts in the new current-work.md entry: its
-planner hash describes the dispatch/executor-return state before this review
-edit, and executor checks apply to the final implementation with delivery docs
-finalized afterwards. No production or test file changed during review.
-
-Accepted limits: Windows-only proof and explicit symlink privilege skips;
-legitimate multiple links are conservatively omitted; files and link topology
-can change after observation. Raw Git hashing and tracked diff can still read
-outside hard links. Normally admitted content remains unredacted and visible
-in the authenticated artifact viewer. No real-provider reliability is proven.
-The two older e2e roots remain outside cleanup authority.
-
-Use one publication instruction: verify every approved path/hash/size and the
-empty index, commit exactly this substantive snapshot including current-work.md,
-push main normally, verify the live ref, run the specified checks on that commit,
-then make only the tightly bounded factual current-work.md closure and verify
-its normal push. Stop on divergence, failed checks, inventory mismatch or any
-material change. Do not force-push, amend, reconcile history, rerun an unexplained
-failure into green or start another slice.
-
-Approved inventory manifest (outside the repository):
-`C:\Users\denis\AppData\Local\Temp\devalcopilot-untracked-preview-go-20261004-375abebe9e194de6ba4621606fc4beb6.json`
-
-### Original selection decision and verified baseline (historical)
-
-Codex selects one bounded Increment 4 security outcome: generic untracked-file
-previews delivered to Agents admit bytes only from a physically proven, regular,
-single-name file at the exact Git-reported path of the owned worktree. Unsafe
-files retain explicit omission accounting; healthy sibling previews remain
-available. Claude implements in one new executor chat. This is selection only,
-with no implementation, commit/push GO or Increment 4 completion claim.
-
-Independently verified main; HEAD, local origin/main and live refs/heads/main:
-5c9dace0f976025ad71dfad11bb73c9468343236. Empty index and clean checkout before
-this planner edit. Substantive 4f3e31ab70c2dda9220e48eded8c4b0920daf73a has parent
-3b8450c48e247846944204ba8f2eab1b04bc635b and exactly the approved 84 paths. All
-83 non-closure files match the approved raw SHA-256 and size; the substantive
-current-work.md Git blob matches approved SHA-256
-7271ac59f3d98e64ec160542655ea04fd622723d7e664457724257a27443b79b. Closure 5c9dace0
-has parent 4f3e31ab and changes only the bounded current-work.md entry (+5/-1).
-The prior publication is verified and its GO is spent. Its reported publication
-checks and retained evidence remain in current-work.md; no suite was repeated
-merely to verify an identical publication. Generated api-client.ts remains
-13c9d116ecc792e05e2652f470ceff3c73bfc574c2fb348157dc7d5440dac44a.
+Expected executor preflight after this edit: the same branch and full HEAD,
+nothing staged, only docs/roadmap/planner-handoff.md modified, no untracked
+paths. Preserve this planner-owned record byte-for-byte.
 
 ### Evidence and candidate comparison
 
-UntrackedFilePreviewReader checks the opened handle's final path and the bytes'
-Git blob identity, but does not ask WindowsHandleFileFacts for attributes and
-link count. A hard link can name the same file both inside and outside the
-worktree while passing both checks. Codex independently invoked the published
-reader on a disposable real Windows hard link with a matching blob identity:
-the outside sentinel was returned as preview text. This proves the reader gap;
-it is not a claim that a real provider was invoked. The probe was removed and
-the repository remained clean.
+The three Claude adapters already parse one bounded JSON result envelope from
+--print --output-format json. ClaudeCliTokenUsage deliberately ignores modelUsage.
+The existing attempt-evidence GET and history detail are suitable bounded,
+authenticated inspection surfaces; neither needs a new provider call.
 
-This closes a demonstrated disclosure route used by the shared Agent evidence
-capability, rather than increasing context sampling. The existing root-only
-instruction protection does not protect a different untracked filename.
-Broader tracked-diff/fingerprint containment is a separate capability decision:
-Git still reads named paths, and patch generation cannot be declared safe merely
-by checking a filename before Git reopens it. That remaining risk stays visible.
-Account stops, resume and compaction were compared but are not selected. The
-[App Server reference](https://learn.chatgpt.com/docs/app-server) documents rate
-limit reads and thread compaction; it does not establish this host's binding of
-an observed account to a subsequent restricted CLI invocation. The
-[Claude CLI reference](https://code.claude.com/docs/en/cli-reference) says
-no-session-persistence prevents resume. Neither a CLI flag nor an observed
-allowance proves safe invocation eligibility under the current contracts.
-Lifecycle/commit orchestration belongs to Increment 5 and remains excluded.
+The official [programmatic CLI guide](https://code.claude.com/docs/en/headless)
+identifies print mode as the CLI form of the Agent SDK. Its
+[TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript)
+declares the modelUsage map and the contextWindow and maxOutputTokens members.
+Codex fetched the official Markdown reference when the web reader rejected
+the oversized HTML, and independently inspected only public schema strings
+from installed @anthropic-ai/claude-code 2.1.276: the result envelope includes
+modelUsage, and its entry schema declares both limits as integers. No
+authenticated invocation, credential read, package installation or CLI-default
+inference was used. These establish a reported-field contract, not the accuracy
+of a provider's reported values or future invocation capacity.
+
+This advances a remaining Increment 4 context-visibility gap with a complete
+adapter-to-database-to-HTTP-to-browser outcome. It does not extend sampling.
+Raw Git hashing and tracked-diff hard-link disclosure remain a real, explicitly
+open security risk. Closing them requires a separate design that derives
+delivered evidence from proven bytes; checking names before Git reopens them
+would be unsound. A broader rewrite of checkpoint/diff capabilities is not
+included here and remains necessary before claiming comprehensive containment.
+Account stops, safe resume and manual compaction remain unselected: allowance
+observations do not bind an account to an eligible CLI invocation, and a
+contextWindow field does not establish a compaction/resume contract.
+The Increment 5 coordinator, lifecycle and publication authorities are excluded.
 
 ### Precise implementation boundary
 
-- Harden the existing Projects-owned UntrackedFilePreviewReader for every caller
-  that requests generic untracked previews, including CaptureWithUntrackedPreviewsAsync
-  and CaptureForAgentContextAsync. Do not enable previews for planning or any
-  other path that currently requests none, and add no new file discovery.
-- Keep lexical refusal of rooted/drive/stream/dot/empty-segment paths before an
-  open, exact ordinal final-handle path matching against the resolved worktree
-  root, and legitimate redirected-root behavior. Before reading bytes or their
-  length, require successful handle facts proving a regular, non-reparse,
-  non-device file with exactly one link. Reuse WindowsHandleFileFacts; no new
-  interop, generic filesystem service or Application-level file access is needed.
-- Refuse every multiple-link file, even when all known names are inside the
-  worktree. Enumerating aliases is neither required nor sufficient. Failure to
-  obtain proof is containment_unproven, with no text or unproven size. Preserve
-  existing fixed classifications for a known non-regular file and other failures.
-  Recheck the held handle's admission facts after its bounded read, before
-  accepting the preview. Do not reopen the repository pathname to read content,
-  use pathname metadata as proof, or weaken an unsupported-host omission.
-- Preserve the existing 64 KiB full-byte verification limit, 4 KiB per-file and
-  16 KiB aggregate preview limits, ordinal ordering, strict UTF-8/NUL handling,
-  character-boundary cuts, fingerprint blob-identity comparison and whole-manifest
-  32 KiB fitting. A new omission must not spend preview text budget or hide a
-  healthy sibling. Preserve complete/shortened/omitted accounting and fixed reasons.
-- Do not alter CaptureAsync, Git commands/raw observations, checkpoint identity
-  serialization, tracked diff/hunk/sample selection, instruction-section capture,
-  root-name reservation, claim budgets/eligibility or dispatch. Explicitly retain
-  that raw Git hashing and tracked diff may still read outside hard links; this
-  slice prevents their content being returned through generic untracked previews,
-  not every filesystem read. Files and link topology can change after observation.
-- Newly sealed manifests carry the truthful omission. Historical sealed artifacts
-  replay byte-identically, even if they contain a preview that the new reader
-  would refuse. No reseal, historical rewrite, dispatch-time recapture or new
-  artifact access authority. Content admitted normally is still unredacted and
-  visible through the authenticated sealed-artifact viewer.
-- Add additive ADR-0022 for this generic-preview admission policy; ADR-0021's root
-  instruction contract remains accepted and unchanged. Update its index,
-  engineering context, the preview protocol passage and the relevant roadmap
-  risk description. Correct the preview passage's outdated caller and viewer
-  claims narrowly; do not rewrite the historical delivery ledger.
+- Parse modelUsage in all three existing Claude adapters: critical review,
+  initial implementation, and review correction, including the existing
+  repair/guided/authorized/diagnosis-origin variants through those adapters.
+  Use the same structurally valid, clean-exit, untruncated stdout envelope
+  boundary as existing token evidence. A valid is_error envelope may retain
+  this independent evidence. Non-zero exit, incomplete capture or an invalid
+  outer envelope yields no new evidence.
+- Retain only each map key as modelId, contextWindow as contextWindowTokens,
+  and maxOutputTokens. Do not interpret a map entry as the main model, fallback,
+  requested alias, authentication state or permission capability. Ignore cost,
+  usage totals, canonicalModel, provider-routing fields and all other metadata.
+  Do not modify existing AgentObservedModel/effort or token accounting.
+- All-or-unknown bounded admission: one unique modelUsage object, 1 to 16 unique
+  ordinal keys, each 1 to 128 ASCII characters matching
+  [A-Za-z0-9][A-Za-z0-9._-]*; no normalization or alias substitution.
+  Every entry must be an object with exactly one of each required numeric
+  member, positive JSON integers fitting Int32, and maxOutputTokens no greater
+  than contextWindowTokens. Reject duplicate required members, malformed or
+  empty maps, unsupported key shapes, overflow and over-bound data as absent
+  optional evidence. Do not take the first valid subset. Preserve existing
+  business outcomes, valid token usage and process evidence independently.
+- Use a provider-neutral, project-owned immutable evidence value across ports
+  and completion recording. Persist one nullable, versioned project-owned
+  snapshot on Attempt in one new nullable TEXT column, not the raw envelope
+  or a second assignment authority. At most 4 KiB UTF-8 serialized, with entries
+  ordered ordinally by modelId; a fixed source tag identifies the Claude
+  parsing contract. Keep serialization provider-independent. Domain validates
+  the project shape; Infrastructure alone parses provider field names.
+  No child-table/catalog framework or new dependency is required.
+- Record the snapshot once in the existing completion transaction, including
+  unsuccessful semantic outcomes where the admitted invocation evidence exists.
+  Preserve atomic outcome/artifact/evidence recording and no premature writes.
+  Old rows remain NULL; never backfill by reparsing artifacts. Malformed,
+  excessive, unknown-version or wrong-provider persisted data projects absent
+  without throwing or poisoning healthy sibling attempts. A Running,
+  undispatched, non-Agent or incoherent attempt exposes none.
+- Extend only the existing GET /runs/{runId}/agent-attempts/{attemptId}/evidence
+  response additively with nullable modelContextLimits and API-owned nested DTOs.
+  Reads use stored facts only, never an artifact read or provider probe.
+  Reuse its identity, authentication and cross-run non-disclosure rules.
+  Other role-status/cockpit-summary/history-list contracts stay unchanged.
+  Regenerate the client through NSwag; do not hand-edit it.
+- Show the nullable evidence in the existing selected historical attempt detail:
+  "Claude-reported model limits", modelId, context-window tokens, maximum output
+  tokens, and fixed text explaining that remaining context and next-invocation
+  capacity were not measured. Call entries models listed by Claude, not models
+  independently proven used. Missing evidence is "Not recorded", never zero.
+  No fullness percentage, arithmetic from cumulative usage, progress meter,
+  live readiness claim, new global panel, polling, probe or action.
+  Preserve run/attempt selection ownership and render identifiers as text.
+- Add additive ADR-0023 for the observation/persistence/display boundary,
+  narrowly update its index, engineering context, protocol, cockpit contract
+  and roadmap gap description, and add a commit-ready current-work.md entry.
+  Preserve historical entries and all containment-risk disclosures.
 
-### Acceptance evidence and validation
+### Stop gates and exclusions
 
-1. Write failing regressions first against the parent: a real outside hard link
-   at an ordinary root and nested untracked path must currently return a matching
-   sentinel, then be omitted by the corrected reader. Use independent expected
-   bytes/identities. Cover an in-worktree second hard link, a safe sibling and a
-   normal single-name control. The hard-link regression must run on this host;
-   do not replace it with a mock or an environment skip.
-2. At the real Git/filesystem boundary cover both preview capture entry points,
-   facts unavailable, non-regular/link/junction and unsupported-host refusals,
-   exact path/redirected-root controls, identity mismatch, and a deterministic
-   link-count change during the bounded read caught by the final proof. Reuse
-   existing bounds/encoding/order tests rather than copying their full matrix.
-   Establish that admission failure returns no preview bytes. A file-symlink
-   privilege skip may remain explicit and separate from the hard-link evidence.
-3. Through real claims, sealed artifacts and actual adapters over process doubles,
-   prove the outside sentinel is absent from the entire returned preview evidence,
-   entire manifest and stdin while an unrelated safe preview is present. Cover
-   both providers and every existing preview-bearing builder/form using the
-   narrowest shared coverage; do not assert only one JSON section or manufacture
-   omissions in a fake reader as the security proof. Preserve claims that do not
-   request previews, root reserved-name behavior and no-consumption on existing
-   claim refusals. Prove old sealed replay and a later fresh claim's omission.
-4. Mutation checks must detect bypassed link-count/facts proof and bypassed final
-   admission recheck. Restore mutations byte-identically. Add no test-only
-   production bypass; an internal deterministic seam may expose only the real
-   acquisition/read boundary when necessary.
-5. Run affected checks first. On the final tree run one solution build/NSwag,
-   sequential full Infrastructure, Application and Api suites, and Architecture.
-   Domain can remain explicitly retained if no Domain code/tests change. Keep the
-   generated client byte-identical. Run formatter comparison and hygiene/link
-   checks on every tracked/untracked changed file. No dependency changes are
-   expected; label audit evidence retained rather than inventing a fresh run.
-6. Run frontend typecheck/build, strict e2e typecheck and the harness, then one
-   canonical test:e2e:all with normal authentication, host composition and all
-   supervisors. No new browser journey, workflow SQL seed, extra claim or reload
-   is required. Run full Vitest if frontend files change; otherwise identify its
-   earlier result as retained. Clean only roots owned by this run; leave the two
-   older e2e roots untouched. Stop and preserve an unexplained canonical failure.
+Stop and report if the existing envelope contract cannot carry these fields
+without changing invocation/authentication/permission/session behavior, if the
+evidence cannot be bounded and persisted independently of semantic outcome,
+or if the existing authenticated detail cannot render it without a broader
+authority or state redesign. Do not substitute Unknown-only scaffolding.
+Stop unexplained build/test/browser failures and retain their evidence rather
+than rerunning an unchanged tree until green.
 
-### Exclusions, stop gates and delivery
+No provider calls in automated tests, SDK installation, new discovery/probe,
+account allowance/threshold/eligibility, token stop change, model/effort selection,
+resume, compaction, session persistence, provider fallback, scheduling,
+autonomous verification, lifecycle/commit/push authority, manifest recapture,
+sealed replay rewrite, filesystem/diff/fingerprint change, native-shell work,
+dependency change or unrelated hook migration. No Increment 4 completion claim.
 
-No HTTP/DTO/generated-client, schema/migration/dependency, React production,
-provider argv/profile/schema/permission, authentication, budget, grant, scheduler,
-lifecycle, account threshold, session/resume/compaction or publication change.
-No broad filesystem/artifact-store hardening, generic file browser, tracked-diff
-regeneration, fingerprint redesign or expanded preview bounds.
+### Acceptance evidence and checks
 
-Stop on preflight discrepancy, inability to establish the stated held-handle
-proof, a required wider filesystem read or authority, a real-provider call,
-external contract mismatch, historical rewrite or a production blocker outside
-scope. Do not silently harden tracked diff or claim this resolves its risk.
-Do not weaken assertions, hide failures, disable supervisors or rerun an unchanged
-browser failure into green. Return a blocker with the narrow reproduction.
+1. Write regressions first proving the parent discards a concrete reported
+   model map; then prove single/multiple model observations through every
+   Claude adapter over process doubles with invocation arguments unchanged.
+   Cover malformed/duplicate/oversized/non-integer/contradictory maps,
+   truncation, invalid envelopes, clean is_error, and semantic invalid output.
+   Missing model limits must preserve ordinary output and existing token usage;
+   missing usage must not discard otherwise admitted model limits.
+2. Prove nullable upgrade of a populated prior SQLite schema, exact round trip,
+   bounded versioned snapshot, immutable recording, rollback and replay/restart.
+   Exercise tampered stored shape/provider/source/status and healthy siblings.
+   No artifact reparse or extra provider invocation may be needed on reads.
+3. At the real MVC boundary prove the additive success/absence contract,
+   authorization, foreign-run refusal, malformed persisted evidence and
+   OpenAPI/client shape. A hosted completion flow must use actual Claude
+   adapters/process doubles and production recording, not only SQL-seeded data.
+4. Prove the historical detail's recorded and absent states, multiple entries,
+   text-only model labels and run/attempt replacement behavior. Extend an
+   existing native-double journey to inspect production-recorded limits through
+   the generated client and rendered history detail, including persistence after
+   reload; do not build another journey framework or use raw SQL as that proof.
+5. Mutation evidence must detect lost completion propagation, admitted duplicate
+   numeric fields and replacement of provider values with requested/default
+   capacities. Restore every mutation byte-identically.
+6. Affected checks first; then one final solution/NSwag build, sequential full
+   Domain/Application/Infrastructure/Api suites and Architecture. Run frontend
+   Vitest, typecheck, lint and production build, strict e2e typecheck, harness,
+   then one canonical test:e2e:all with normal authentication, Program
+   composition and all supervisors. Distinguish explicit environment skips.
+   Recheck formatter against the baseline and all changed/new file whitespace,
+   NUL and Markdown file/anchor links. Audits may be explicitly retained if
+   dependencies do not change. No test-output/build/database files in the diff.
 
-Return the complete unstaged, uncommitted, unpushed diff, including a commit-ready
-current-work.md entry, exact changed-file inventory, commands actually run,
-fresh/retained evidence and remaining limits, for Codex GO/NO-GO. Preserve this
-planner-owned file byte-for-byte. Keep all corrections in the same executor chat
-and select no next slice. A future GO will use one publication instruction for
-the reviewed substantive commit, normal fast-forward push, live verification,
-required checks and tightly bounded current-work-only factual closure. Any
-material post-GO change requires re-review.
-
-### Executor preflight after selection (historical)
-
-Expected branch main; HEAD, local origin/main and live refs/heads/main:
-5c9dace0f976025ad71dfad11bb73c9468343236.
-Nothing staged; only docs/roadmap/planner-handoff.md modified; no untracked files.
-Generated api-client.ts SHA-256:
-13c9d116ecc792e05e2652f470ceff3c73bfc574c2fb348157dc7d5440dac44a.
-The complete English execution prompt is provided in chat, not duplicated here.
+Return the complete unstaged, uncommitted, unpushed diff (tracked and untracked),
+commit-ready current-work.md, exact inventory, client hash, actual commands and
+results, fresh versus retained evidence, failures/skips and residual risks for
+Codex GO/NO-GO. Keep corrections in the same executor chat. A future GO will
+supply one snapshot-bound publication instruction covering substantive commit,
+normal fast-forward push/live verification and tightly bounded factual closure.
+Any material change after that GO returns for review. No GO is given here.

@@ -46,4 +46,5 @@ public sealed record RecordImplementationResultCommand(
     string? ObservedModel = null,
     string? ObservedEffort = null,
     AgentProcessEvidence? ProcessEvidence = null,
-    AgentTokenUsage? TokenUsage = null) : ICommand<Result<RecordImplementationResultCommandResult>>;
+    AgentTokenUsage? TokenUsage = null,
+    AgentModelContextLimits? ModelContextLimits = null) : ICommand<Result<RecordImplementationResultCommandResult>>;
