@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.Versioning;
 using System.Text;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Projects;
 using DevalCopilot.Infrastructure.IntegrationTests.Features.EnvironmentReadiness;
 using Xunit;
@@ -208,6 +209,214 @@ public sealed class UntrackedFilePreviewReaderTests : IDisposable
         Assert.Null(escaped.SizeBytes);
         Assert.Equal("contained", contained.Text);
         Assert.Equal("contained", throughRedirect.Text);
+    }
+
+    [WindowsOnlyTheory]
+    [InlineData("linked.txt")]
+    [InlineData("deep/nested/linked.txt")]
+    public void An_untracked_path_hard_linked_to_an_outside_file_is_refused_with_no_text_or_size(string relativePath)
+    {
+        var outsideHash = WriteOutside("secret.txt", OutsideSecret);
+        var safeHash = WriteInside("safe.txt", "safe sibling");
+        var controlHash = WriteInside("control.txt", "single name control");
+        HardLinkInside(relativePath, Path.Combine(_outside, "secret.txt"));
+
+        var files = Read((relativePath, outsideHash), ("safe.txt", safeHash), ("control.txt", controlHash));
+
+        // Independent expectation: the bytes the outside file really holds, and the identity Git itself computes for the path.
+        Assert.Equal(OutsideSecret, File.ReadAllText(Path.Combine(_worktree, relativePath.Replace('/', '\\'))));
+        Assert.Equal(outsideHash, GitWorkspaceUntrackedPreviewTests.GitOutput(_worktree, "hash-object", "--no-filters", "--", relativePath));
+        var refused = Assert.Single(files, file => file.Path == relativePath);
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, refused.Omission);
+        Assert.Null(refused.Text);
+        Assert.Null(refused.SizeBytes);
+        Assert.False(refused.ContentComplete);
+        Assert.DoesNotContain(files, file => (file.Text ?? string.Empty).Contains(OutsideSecret, StringComparison.Ordinal));
+        Assert.Equal("safe sibling", Assert.Single(files, file => file.Path == "safe.txt").Text);
+        Assert.Equal("single name control", Assert.Single(files, file => file.Path == "control.txt").Text);
+    }
+
+    [WindowsOnlyFact]
+    public void A_file_with_a_second_name_is_refused_even_when_that_name_is_also_inside_the_worktree()
+    {
+        var hash = WriteInside("original.txt", "two names inside");
+        HardLinkInside("alias.txt", Path.Combine(_worktree, "original.txt"));
+
+        var files = Read(("original.txt", hash), ("alias.txt", hash));
+
+        Assert.All(files, file =>
+        {
+            Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+            Assert.Null(file.Text);
+            Assert.Null(file.SizeBytes);
+        });
+    }
+
+    [WindowsOnlyFact]
+    public void A_refused_hard_link_spends_no_aggregate_budget_and_hides_no_healthy_sibling()
+    {
+        var outsideHash = WriteOutside("secret.txt", new string('s', 5000));
+        HardLinkInside("a-linked.txt", Path.Combine(_outside, "secret.txt"));
+        var hashes = Enumerable.Range(1, 4)
+            .Select(index => ($"f{index}.txt", WriteInside($"f{index}.txt", new string((char)('0' + index), 4096))))
+            .Prepend(("a-linked.txt", outsideHash))
+            .ToArray();
+
+        var files = Read(hashes);
+
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, files[0].Omission);
+        Assert.All(files.Skip(1), file =>
+        {
+            Assert.Null(file.Omission);
+            Assert.Equal(4096, file.Text!.Length);
+        });
+    }
+
+    [WindowsOnlyFact]
+    public void A_file_that_lost_its_other_name_is_previewed_again()
+    {
+        var hash = WriteOutside("secret.txt", "formerly shared");
+        HardLinkInside("shared.txt", Path.Combine(_outside, "secret.txt"));
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, Assert.Single(Read(("shared.txt", hash))).Omission);
+
+        File.Delete(Path.Combine(_outside, "secret.txt"));
+
+        var admitted = Assert.Single(Read(("shared.txt", hash)));
+        Assert.Null(admitted.Omission);
+        Assert.Equal("formerly shared", admitted.Text);
+    }
+
+    private static readonly WindowsHandleFileFacts.Facts Plain = new(FileAttributes.Archive, 1);
+
+    private IReadOnlyList<GitWorkspaceUntrackedFile> ReadWithFacts(
+        Func<int, WindowsHandleFileFacts.Facts?> factsForCall, params (string Path, string Hash)[] files)
+    {
+        var call = 0;
+        return UntrackedFilePreviewReader.ReadAll(
+            _worktree, files, _ => factsForCall(++call));
+    }
+
+    public static TheoryData<string> RefusedAdmissionFacts => new() { "unavailable", "two-links", "reparse-point", "reparse-and-two-links" };
+
+    private static WindowsHandleFileFacts.Facts? Refused(string kind) => kind switch
+    {
+        "unavailable" => null,
+        "two-links" => new WindowsHandleFileFacts.Facts(FileAttributes.Archive, 2),
+        "reparse-point" => new WindowsHandleFileFacts.Facts(FileAttributes.Archive | FileAttributes.ReparsePoint, 1),
+        _ => new WindowsHandleFileFacts.Facts(FileAttributes.ReparsePoint, 3),
+    };
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(RefusedAdmissionFacts))]
+    public void Admission_facts_that_do_not_prove_a_single_name_regular_file_omit_it_before_anything_is_read(string kind)
+    {
+        var hash = WriteInside("f.txt", "x");
+
+        var file = Assert.Single(ReadWithFacts(_ => Refused(kind), ("f.txt", hash)));
+
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+        Assert.Null(file.Text);
+        Assert.Null(file.SizeBytes);
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(RefusedAdmissionFacts))]
+    public void Facts_refused_only_before_the_read_still_omit_the_file_because_nothing_may_be_read_unproven(string kind)
+    {
+        var hash = WriteInside("f.txt", "x");
+
+        var file = Assert.Single(ReadWithFacts(call => call == 1 ? Refused(kind) : Plain, ("f.txt", hash)));
+
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+        Assert.Null(file.Text);
+        Assert.Null(file.SizeBytes);
+    }
+
+    [WindowsOnlyTheory]
+    [InlineData(FileAttributes.Directory)]
+    [InlineData(FileAttributes.Device)]
+    public void A_directory_or_device_is_the_existing_not_a_regular_file_refusal_with_no_text_or_size(FileAttributes attributes)
+    {
+        var hash = WriteInside("f.txt", "x");
+
+        var file = Assert.Single(ReadWithFacts(_ => new WindowsHandleFileFacts.Facts(attributes, 1), ("f.txt", hash)));
+
+        Assert.Equal(GitWorkspaceUntrackedOmission.NotRegularFile, file.Omission);
+        Assert.Null(file.Text);
+        Assert.Null(file.SizeBytes);
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(RefusedAdmissionFacts))]
+    public void Facts_that_change_during_the_bounded_read_discard_the_preview_and_every_size(string kind)
+    {
+        var hash = WriteInside("f.txt", "bytes read before the facts changed");
+
+        var file = Assert.Single(ReadWithFacts(call => call == 1 ? Plain : Refused(kind), ("f.txt", hash)));
+
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+        Assert.Null(file.Text);
+        Assert.Null(file.SizeBytes);
+        Assert.False(file.ContentComplete);
+    }
+
+    [WindowsOnlyFact]
+    public void Facts_that_change_after_any_read_conclusion_still_discard_what_that_conclusion_carried()
+    {
+        var tooLarge = WriteInside("large.txt", new string('l', UntrackedFilePreviewReader.MaxVerifiedFileBytes + 1));
+        File.WriteAllBytes(Path.Combine(_worktree, "binary.bin"), [(byte)'a', 0, (byte)'b']);
+        var binary = GitWorkspaceUntrackedPreviewTests.GitOutput(_worktree, "hash-object", "--no-filters", "--", "binary.bin");
+        var mismatch = WriteInside("mismatch.txt", "original");
+        File.WriteAllText(Path.Combine(_worktree, "mismatch.txt"), "changed!!");
+
+        var files = UntrackedFilePreviewReader.ReadAll(
+            _worktree,
+            [("large.txt", tooLarge), ("binary.bin", binary), ("mismatch.txt", mismatch)],
+            _ => Plain);
+        Assert.Equal(
+            [GitWorkspaceUntrackedOmission.Binary, GitWorkspaceUntrackedOmission.TooLarge, GitWorkspaceUntrackedOmission.ContentIdentityMismatch],
+            files.Select(file => file.Omission!.Value));
+
+        var calls = 0;
+        var changed = UntrackedFilePreviewReader.ReadAll(
+            _worktree,
+            [("large.txt", tooLarge), ("binary.bin", binary), ("mismatch.txt", mismatch)],
+            _ => ++calls % 2 == 1 ? Plain : new WindowsHandleFileFacts.Facts(FileAttributes.Archive, 2));
+
+        Assert.All(changed, file =>
+        {
+            Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+            Assert.Null(file.Text);
+            Assert.Null(file.SizeBytes);
+        });
+    }
+
+    [WindowsOnlyFact]
+    public void Facts_are_asked_of_the_open_handle_exactly_twice_per_opened_file_and_never_for_a_refused_path()
+    {
+        var hash = WriteInside("ok.txt", "ok");
+        var calls = 0;
+
+        var files = UntrackedFilePreviewReader.ReadAll(
+            _worktree,
+            [("ok.txt", hash), ("../ok.txt", hash), ("missing.txt", hash)],
+            _ =>
+            {
+                calls++;
+                return Plain;
+            });
+
+        Assert.Equal(2, calls);
+        Assert.Equal("ok", Assert.Single(files, file => file.Path == "ok.txt").Text);
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, Assert.Single(files, file => file.Path == "../ok.txt").Omission);
+        Assert.Equal(GitWorkspaceUntrackedOmission.Missing, Assert.Single(files, file => file.Path == "missing.txt").Omission);
+    }
+
+    private void HardLinkInside(string relativePath, string existingPath)
+    {
+        var linkPath = Path.Combine(_worktree, relativePath.Replace('/', '\\'));
+        Directory.CreateDirectory(Path.GetDirectoryName(linkPath)!);
+        HardLinkSupport.Create(linkPath, existingPath);
     }
 
     private IReadOnlyList<GitWorkspaceUntrackedFile> Read(params (string Path, string Hash)[] files) =>

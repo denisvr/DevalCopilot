@@ -33,6 +33,8 @@ supersedes it.
 - [ADR-0020: Correct the escalation explanation and accept its two canonical forms](0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)
 - [ADR-0021: Add bounded root instruction context to Agent manifests](0021-add-bounded-root-instruction-context-to-agent-manifests.md)
   (additive; it changes no existing authority decision)
+- [ADR-0022: Admit generic untracked-file previews only from physically proven single-name files](0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md)
+  (additive; it narrows what generic untracked previews may deliver and changes no existing authority decision)
 
 ## Status values
 

@@ -76,20 +76,36 @@ internal static class RealAdapterInstructionProbe
         }
     }
 
-    internal static async Task<Delivery> DeliverAsync(
+    internal static Task<Delivery> DeliverAsync(
         Attempt attempt, Artifact manifest, string workspacePath, IArtifactStore artifactStore, string launchExecutable,
-        PlanningImplementationAuthorizationFact? authorization = null)
+        PlanningImplementationAuthorizationFact? authorization = null) =>
+        DeliverAsync(
+            new Subject(
+                attempt.AgentResponseContract!.Value, attempt.AgentProvider!.Value, attempt.RunId, attempt.Id, attempt.AgentTimeout,
+                attempt.AgentMaxBytesPerStream, attempt.AgentMaxTotalCapturedBytes, attempt.AgentAdapterContractVersion),
+            manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash, workspacePath, artifactStore, launchExecutable,
+            authorization);
+
+    /// <summary>The identity and limits an adapter is invoked with: those of a claimed attempt, or, for a manifest a builder form
+    /// sealed directly, the closed defaults a claim would have recorded.</summary>
+    internal sealed record Subject(
+        AgentResponseContract Contract, AgentProvider Provider, Guid RunId, Guid AttemptId, TimeSpan? Timeout = null,
+        int? MaxBytesPerStream = null, int? MaxTotalCapturedBytes = null, string? AdapterContractVersion = null,
+        string? DirectHumanGuidance = null);
+
+    internal static async Task<Delivery> DeliverAsync(
+        Subject subject, string path, long length, string hash, string workspacePath, IArtifactStore artifactStore,
+        string launchExecutable, PlanningImplementationAuthorizationFact? authorization = null)
     {
-        var sealedWindow = await artifactStore.VerifyAndReadSealedAsync(
-            manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash, 0, 64 * 1024, CancellationToken.None);
+        var sealedWindow = await artifactStore.VerifyAndReadSealedAsync(path, length, hash, 0, 64 * 1024, CancellationToken.None);
         Assert.Equal(SealedReadStatus.Ok, sealedWindow.Status);
 
         var process = new CapturingProcessDouble();
-        var timeout = attempt.AgentTimeout ?? TimeSpan.FromMinutes(10);
-        var perStream = attempt.AgentMaxBytesPerStream ?? 256 * 1024;
-        var total = attempt.AgentMaxTotalCapturedBytes ?? 512 * 1024;
-        var (run, id, path, length, hash) = (attempt.RunId, attempt.Id, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash);
-        var contract = attempt.AgentResponseContract!.Value;
+        var timeout = subject.Timeout ?? TimeSpan.FromMinutes(10);
+        var perStream = subject.MaxBytesPerStream ?? 256 * 1024;
+        var total = subject.MaxTotalCapturedBytes ?? 512 * 1024;
+        var (run, id) = (subject.RunId, subject.AttemptId);
+        var contract = subject.Contract;
 
         switch (contract)
         {
@@ -112,7 +128,8 @@ internal static class RealAdapterInstructionProbe
                 await new ClaudeImplementationAdapter(process, artifactStore).InvokeAsync(
                     new ImplementationInvocationRequest(
                         run, id, workspacePath, path, length, hash, launchExecutable, timeout, perStream, total,
-                        AdapterContractVersion: attempt.AgentAdapterContractVersion, PlanningAuthorization: authorization),
+                        AdapterContractVersion: subject.AdapterContractVersion, DirectHumanGuidance: subject.DirectHumanGuidance,
+                        PlanningAuthorization: authorization),
                     CancellationToken.None);
                 break;
             case AgentResponseContract.ImplementationReview:
@@ -124,7 +141,7 @@ internal static class RealAdapterInstructionProbe
                 await new ClaudeReviewCorrectionAdapter(process, artifactStore).InvokeAsync(
                     new ReviewCorrectionInvocationRequest(
                         run, id, workspacePath, path, length, hash, launchExecutable, timeout, perStream, total,
-                        AdapterContractVersion: attempt.AgentAdapterContractVersion),
+                        AdapterContractVersion: subject.AdapterContractVersion, DirectHumanGuidance: subject.DirectHumanGuidance),
                     CancellationToken.None);
                 break;
             case AgentResponseContract.VerificationDiagnosis:
@@ -133,11 +150,11 @@ internal static class RealAdapterInstructionProbe
                     CancellationToken.None);
                 break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(attempt), contract, "No real adapter is known for this contract.");
+                throw new ArgumentOutOfRangeException(nameof(subject), contract, "No real adapter is known for this contract.");
         }
 
         Assert.True(process.Requests.Count == 1, $"The {contract} adapter started {process.Requests.Count} provider processes.");
         var request = process.Requests[0];
-        return new Delivery(contract, attempt.AgentProvider!.Value, attempt.Id, sealedWindow.Text, Encoding.UTF8.GetString(request.StandardInput!));
+        return new Delivery(contract, subject.Provider, id, sealedWindow.Text, Encoding.UTF8.GetString(request.StandardInput!));
     }
 }

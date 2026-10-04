@@ -245,6 +245,15 @@ reason, already sealed manifests replay unchanged, and the content is untrusted 
 Imports, other instruction files, provider-side discovery, resume and compaction remain unselected. See the
 [architecture description](../architecture/agent-collaboration-protocol.md#project-instruction-context-in-agent-manifests).
 
+The bounded text previews of untracked files that those stages receive are admitted only from a physically proven, regular,
+single-name file ([ADR-0022](../decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md)):
+the open handle's final path must be exactly the reported path of the owned worktree and the operating system must report, before
+any read and again after the bounded read, exactly one link, so a file that any other name reaches is an explicit omission while
+its healthy siblings are still delivered. This closes generic untracked-preview delivery, not every filesystem read: raw Git
+hashing for the checkpoint fingerprint and the tracked diff can still read an outside hard link, and hardening them remains an
+unselected, separate decision. See the
+[architecture description](../architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests).
+
 The plan-challenge loop is bounded and its exhaustion escalates: a proposal
 lineage may have one optional second critical review of the first Resolver
 revision and, if challenged, one explicit second resolution. That successful

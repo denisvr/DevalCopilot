@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Diagnostics;
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
@@ -331,6 +332,204 @@ public sealed class GitWorkspaceUntrackedPreviewTests : IDisposable
             Assert.Null(file.Text);
             Assert.Null(file.SizeBytes);
         });
+    }
+
+    // ---- physically proven single-name files (ADR-0022) ---------------------------------------------------------------------
+
+    private const string WithPreviews = "CaptureWithUntrackedPreviewsAsync";
+    private const string ForAgentContext = "CaptureForAgentContextAsync";
+
+    public static TheoryData<string> EntryPoints => new() { WithPreviews, ForAgentContext };
+
+    private static Task<GitWorkspaceEvidenceResult> CaptureVia(string entryPoint, GitWorkspaceEvidenceReader reader, string repository) =>
+        entryPoint == WithPreviews
+            ? reader.CaptureWithUntrackedPreviewsAsync(repository, CancellationToken.None)
+            : reader.CaptureForAgentContextAsync(repository, includeUntrackedPreviews: true, CancellationToken.None);
+
+    private string OutsideSecretFile(string content = OutsideSecret)
+    {
+        var path = Path.Combine(_root, "outside-secret.txt");
+        File.WriteAllText(path, content);
+        return path;
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(EntryPoints))]
+    public async Task An_untracked_hard_link_to_an_outside_file_is_omitted_at_a_root_and_a_nested_path_while_siblings_are_previewed(string entryPoint)
+    {
+        var repository = CreateRepository();
+        var outside = OutsideSecretFile();
+        HardLinkSupport.Create(Path.Combine(repository, "linked.txt"), outside);
+        Directory.CreateDirectory(Path.Combine(repository, "deep", "nested"));
+        HardLinkSupport.Create(Path.Combine(repository, "deep", "nested", "linked.txt"), outside);
+        Write(repository, "safe.txt", "safe sibling");
+        Write(repository, "deep/control.txt", "single name control");
+        var plain = await _reader.CaptureAsync(repository, CancellationToken.None);
+
+        var result = await CaptureVia(entryPoint, _reader, repository);
+
+        // The parent defect's precondition: Git itself identifies the linked paths by the outside bytes.
+        Assert.Equal(GitOutput(repository, "hash-object", "--no-filters", "--", outside), GitOutput(repository, "hash-object", "--no-filters", "--", "linked.txt"));
+        Assert.Equal(GitWorkspaceEvidenceOutcome.Success, result.Outcome);
+        Assert.Equal(plain.FingerprintSha256, result.FingerprintSha256);
+        var files = result.UntrackedFiles!;
+        Assert.Equal(["deep/control.txt", "deep/nested/linked.txt", "linked.txt", "safe.txt"], files.Select(file => file.Path));
+        foreach (var linked in files.Where(file => file.Path.EndsWith("linked.txt", StringComparison.Ordinal)))
+        {
+            Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, linked.Omission);
+            Assert.Null(linked.Text);
+            Assert.Null(linked.SizeBytes);
+        }
+
+        Assert.Equal("safe sibling", Assert.Single(files, file => file.Path == "safe.txt").Text);
+        Assert.Equal("single name control", Assert.Single(files, file => file.Path == "deep/control.txt").Text);
+        Assert.DoesNotContain(OutsideSecret, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(EntryPoints))]
+    public async Task An_untracked_file_with_a_second_name_inside_the_worktree_is_omitted_under_both_names(string entryPoint)
+    {
+        var repository = CreateRepository();
+        Write(repository, "one.txt", "two names");
+        HardLinkSupport.Create(Path.Combine(repository, "two.txt"), Path.Combine(repository, "one.txt"));
+        Write(repository, "safe.txt", "safe sibling");
+
+        var files = (await CaptureVia(entryPoint, _reader, repository)).UntrackedFiles!;
+
+        Assert.All(files.Where(file => file.Path is "one.txt" or "two.txt"), file =>
+        {
+            Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+            Assert.Null(file.Text);
+            Assert.Null(file.SizeBytes);
+        });
+        Assert.Equal("safe sibling", Assert.Single(files, file => file.Path == "safe.txt").Text);
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(EntryPoints))]
+    public async Task Unavailable_admission_facts_omit_every_file_without_text_or_size_and_keep_the_fingerprint(string entryPoint)
+    {
+        var repository = CreateRepository();
+        Write(repository, "a.txt", "a");
+        Write(repository, "b.txt", "b");
+        var unavailable = new GitWorkspaceEvidenceReader(
+            new ChildProcessExecutionAdapter(), physicalContainmentAvailable: true, readHandleFacts: _ => null);
+
+        var result = await CaptureVia(entryPoint, unavailable, repository);
+
+        Assert.Equal((await _reader.CaptureAsync(repository, CancellationToken.None)).FingerprintSha256, result.FingerprintSha256);
+        Assert.Equal(["a.txt", "b.txt"], result.UntrackedFiles!.Select(file => file.Path));
+        Assert.All(result.UntrackedFiles!, file =>
+        {
+            Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+            Assert.Null(file.Text);
+            Assert.Null(file.SizeBytes);
+        });
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(EntryPoints))]
+    public async Task A_second_name_that_appears_during_the_bounded_read_is_caught_by_the_final_recheck_on_the_held_handle(string entryPoint)
+    {
+        var repository = CreateRepository();
+        Write(repository, "a-late.txt", "bytes already read when the second name appears");
+        Write(repository, "b-sibling.txt", "healthy sibling");
+        var calls = 0;
+        var racing = new GitWorkspaceEvidenceReader(
+            new ChildProcessExecutionAdapter(),
+            physicalContainmentAvailable: true,
+            readHandleFacts: handle =>
+            {
+                // Call 1 is the admission proof before any byte is read; call 2 is the recheck after the bounded read. A REAL
+                // second name appears in between, so the facts the operating system reports for the same handle change.
+                if (++calls == 2)
+                {
+                    HardLinkSupport.Create(Path.Combine(_root, "late-alias.txt"), Path.Combine(repository, "a-late.txt"));
+                }
+
+                return OperatingSystem.IsWindows() ? WindowsHandleFileFacts.TryGet(handle) : null;
+            });
+
+        var result = await CaptureVia(entryPoint, racing, repository);
+
+        Assert.Equal(GitWorkspaceEvidenceOutcome.Success, result.Outcome);
+        var late = Assert.Single(result.UntrackedFiles!, file => file.Path == "a-late.txt");
+        Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, late.Omission);
+        Assert.Null(late.Text);
+        Assert.Null(late.SizeBytes);
+        Assert.Equal("healthy sibling", Assert.Single(result.UntrackedFiles!, file => file.Path == "b-sibling.txt").Text);
+        Assert.True(File.Exists(Path.Combine(_root, "late-alias.txt")));
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(EntryPoints))]
+    public async Task Admission_is_proven_twice_on_the_handle_and_a_healthy_single_name_file_is_still_previewed(string entryPoint)
+    {
+        var repository = CreateRepository();
+        Write(repository, "only.txt", "one name");
+        var calls = 0;
+        var counting = new GitWorkspaceEvidenceReader(
+            new ChildProcessExecutionAdapter(), physicalContainmentAvailable: true,
+            readHandleFacts: handle =>
+            {
+                calls++;
+                return OperatingSystem.IsWindows() ? WindowsHandleFileFacts.TryGet(handle) : null;
+            });
+
+        var file = Assert.Single((await CaptureVia(entryPoint, counting, repository)).UntrackedFiles!);
+
+        Assert.Null(file.Omission);
+        Assert.Equal("one name", file.Text);
+        Assert.Equal(2, calls);
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(EntryPoints))]
+    public async Task A_host_without_a_containment_proof_omits_a_hard_linked_file_as_well_as_every_other(string entryPoint)
+    {
+        var repository = CreateRepository();
+        HardLinkSupport.Create(Path.Combine(repository, "linked.txt"), OutsideSecretFile());
+        Write(repository, "safe.txt", "safe sibling");
+        var unproven = new GitWorkspaceEvidenceReader(new ChildProcessExecutionAdapter(), physicalContainmentAvailable: false);
+
+        var result = await CaptureVia(entryPoint, unproven, repository);
+
+        Assert.All(result.UntrackedFiles!, file =>
+        {
+            Assert.Equal(GitWorkspaceUntrackedOmission.ContainmentUnproven, file.Omission);
+            Assert.Null(file.Text);
+            Assert.Null(file.SizeBytes);
+        });
+        Assert.DoesNotContain(OutsideSecret, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+    }
+
+    [WindowsOnlyTheory]
+    [MemberData(nameof(EntryPoints))]
+    public async Task Junction_and_redirected_root_controls_hold_through_both_entry_points(string entryPoint)
+    {
+        var repository = CreateRepository();
+        var outside = Path.Combine(_root, "outside-dir");
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "secret.txt"), OutsideSecret);
+        CreateJunction(Path.Combine(repository, "link"), outside);
+        Write(repository, "inside.txt", "inside");
+        var redirected = CreateJunction(Path.Combine(_root, "redirected-root"), repository);
+
+        var direct = await CaptureVia(entryPoint, _reader, repository);
+        var viaRedirect = await CaptureVia(entryPoint, _reader, redirected);
+
+        foreach (var result in new[] { direct, viaRedirect })
+        {
+            Assert.Equal(GitWorkspaceEvidenceOutcome.Success, result.Outcome);
+            Assert.DoesNotContain(OutsideSecret, JsonSerializer.Serialize(result), StringComparison.Ordinal);
+            Assert.Equal("inside", Assert.Single(result.UntrackedFiles!, file => file.Path == "inside.txt").Text);
+            Assert.All(result.UntrackedFiles!.Where(file => file.Path.StartsWith("link", StringComparison.Ordinal)), file =>
+            {
+                Assert.NotNull(file.Omission);
+                Assert.Null(file.Text);
+            });
+        }
     }
 
     private string CreateRepository()

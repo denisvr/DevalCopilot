@@ -2671,18 +2671,31 @@ Git evidence had a blind spot: the checkpoint fingerprint covers every untracked
 (`git hash-object --no-filters`), but `git diff HEAD` does not print a new file's text, so a review stage saw the path
 in `changedPaths` and none of its contents. The five Agent manifests that carry `changeEvidence` (critical review,
 challenge resolution, implementation, implementation review including the correction variant, and review correction)
-now also carry an `untrackedFiles` section inside `changeEvidence`, under the same untrusted-evidence boundary.
+now also carry an `untrackedFiles` section inside `changeEvidence`, under the same untrusted-evidence boundary. The
+verification-diagnosis manifest carries the same section, so six manifest families carry it.
 
-- **Capture.** `IGitWorkspaceEvidenceReader.CaptureWithUntrackedPreviewsAsync` (only Agent claim handlers call it; the
-  plain `CaptureAsync` and every other caller are unchanged) returns `UntrackedFiles`, one entry per `??` path of the
-  same capture, in ordinal path order. Previews are read inside the reader's existing status/diff observation bracket
+- **Capture.** Seven of the eight claim handlers (critical review, resolution, implementation, code review, review
+  correction, diagnosis-origin correction and verification diagnosis) request previews through
+  `IGitWorkspaceEvidenceReader.CaptureForAgentContextAsync(includeUntrackedPreviews: true)`; planning requests none.
+  `CaptureWithUntrackedPreviewsAsync` is the same preview capture without the instruction context, and a reader that does not
+  capture instructions delegates to it. The plain `CaptureAsync` and every other caller are unchanged. Both return
+  `UntrackedFiles`, one entry per `??` path of the same capture, in ordinal path order. Previews are read inside the reader's existing status/diff observation bracket
   and only against the hashes the fingerprint is computed from. The fingerprint, tracked diff, status, and changed
   paths are unchanged; a preview never feeds them.
 - **Admission (Windows).** A file is previewed only when it is opened as a regular file, the operating system reports
   that the open handle's final path is exactly, and case-sensitively, the resolved worktree root plus the
   Git-reported relative path (`GetFinalPathNameByHandle`, describing what is open rather than racing a separate check, so no link, junction,
-  swapped component, or case-distinct spelling redirected the open), its length is at most 64 KiB, the bytes hash to
-  the fingerprint's git blob identity, contain no NUL byte, and are valid UTF-8. A legitimately redirected worktree
+  swapped component, or case-distinct spelling redirected the open), the same handle is a regular, non-reparse,
+  non-device file with exactly one link (`GetFileInformationByHandle` through `WindowsHandleFileFacts`, asked of the open
+  handle before any byte or length is read and asked again of that handle after the bounded read, before the preview is
+  accepted), its length is at most 64 KiB, the bytes hash to the fingerprint's git blob identity, contain no NUL byte, and
+  are valid UTF-8. A hard link passes the final-path and identity checks because the name that was opened is the exact
+  reported one, so the link count is the proof that no other name, inside the worktree or outside it, reaches the file; a
+  file with several links is omitted even when every known name is inside the worktree, and aliases are never enumerated.
+  Unavailable facts, a link count other than one and a reparse point are `containment_unproven`, with no text and no size
+  that was not proven; a directory or device keeps `not_regular_file`. An omission spends none of the 4 KiB per-file or
+  16 KiB aggregate preview budget, so it never hides a healthy sibling (see
+  [ADR-0022](../decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md)). A legitimately redirected worktree
   root is accepted because the root is resolved with the same call. Path forms that could name something else
   (rooted, drive or stream syntax, dot or empty segments) are refused unopened; a directory is never opened. No
   bytes are read from a handle whose containment is not proven.
@@ -2699,10 +2712,17 @@ now also carry an `untrackedFiles` section inside `changeEvidence`, under the sa
   file, `allFilesComplete` summarizes it, and a fixed notice states that the list does not prove nothing else
   changed. Ignored files never appear (Git does not list them); a tracked-only or no-change capture produces a
   manifest byte-identical to the previous shape.
-- **Boundaries.** Raw source text lives only in the sealed manifest and the provider's standard input, as before. It is
-  never written to SQLite, an API response, a log, an error, or browser storage, and no reason carries a path or an
-  exception message. A file changed after its identity was captured is omitted as `content_identity_mismatch`; the
+- **Boundaries.** Raw source text lives only in the sealed manifest, the provider's standard input and the existing
+  authenticated sealed-artifact viewer, which already serves manifest content to the local operator and shows an admitted
+  preview unredacted like any other manifest content. It is never written to SQLite, a status response, a log, an error, or
+  browser storage, and no reason carries a path or an exception message. A file changed after its identity was captured is omitted as `content_identity_mismatch`; the
   fingerprint keeps the captured identity, so a preview can never be attributed to content it does not match.
+- **Forward only.** A manifest sealed before ADR-0022 replays its exact bytes, including a preview the corrected reader would
+  now refuse; a later fresh claim captures the truthful omission. Nothing recaptures, reseals or rewrites history.
+- **Limits.** This closes generic untracked-preview delivery, not every filesystem read. The raw Git observation behind the
+  checkpoint fingerprint (`status`, the per-path `hash-object` of untracked files) and the tracked diff, hunk and
+  changed-line sample selection read named paths and can still read the content of a file that another name links to outside
+  the worktree; their hardening is a separate decision. Files and link topology can change after observation.
 - **Not included.** A generic file browser or retrieval tool, tracked-file full text, a per-file request, a provider
   flag, permission or session change, generated summaries, compaction, account or approval semantics, and any change
   to the checkpoint fingerprint, claim, budget, or dispatch rules. The evidence is untrusted context, not approval.

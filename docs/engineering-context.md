@@ -64,6 +64,9 @@
   single-source-text-form requirement).
 - [ADR-0021](decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md):
   Add bounded root instruction context to Agent manifests (additive; it changes no existing authority decision).
+- [ADR-0022](decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md):
+  Admit generic untracked-file previews only from physically proven single-name files (additive; it narrows what those
+  previews may deliver and changes no existing authority decision).
 
 ## Product-specific architecture
 
@@ -90,9 +93,14 @@
   durable records and evidence. Complete transcripts and unchanged repository
   content are not replayed by default.
 - Agent stages that receive bounded Git change evidence also receive bounded, identity-verified text previews of
-  eligible untracked files, each explicitly marked complete, shortened, or omitted. A preview is admitted only
-  from a handle proven physically inside the approved worktree (Windows) whose bytes match the fingerprint's
-  raw-content identity; other hosts omit it. Its text exists only in the sealed manifest and provider input (see
+  eligible untracked files, each explicitly marked complete, shortened, or omitted. A preview is admitted only from a
+  handle proven physically inside the approved worktree (Windows) that, before any read and again after the bounded
+  read, is a regular, non-reparse file with exactly one name (a file any other name reaches is omitted, not
+  enumerated) and whose bytes match the fingerprint's raw-content identity; other hosts omit it. Its text exists only
+  in the sealed manifest, the provider input and the existing authenticated sealed-artifact viewer. This closes
+  generic untracked-preview delivery, not every filesystem read: raw Git hashing and the tracked diff can still read
+  an outside hard link (see
+  [ADR-0022](decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md) and
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)).
 - Every newly claimed Agent stage also receives the exact root `AGENTS.md` and `CLAUDE.md` of its own project's owned
   worktree, in one versioned `projectInstructionContext` section bound to the claim's workspace and checkpoint and preceded by a

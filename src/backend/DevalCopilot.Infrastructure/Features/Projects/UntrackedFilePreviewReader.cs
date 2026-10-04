@@ -12,9 +12,12 @@ namespace DevalCopilot.Infrastructure.Features.Projects;
 /// the file is opened as a regular file, the operating system reports that the OPEN HANDLE's final path
 /// is exactly (case-sensitively) the resolved worktree root plus the Git-reported relative path (so no link, junction, or
 /// swapped component can have redirected the open, and the check describes what is open rather than
-/// racing a separate path check), and the bytes read hash to the same raw-content identity
-/// (<c>git hash-object --no-filters</c>) that the checkpoint fingerprint uses. Nothing is read from a
-/// handle whose containment is not proven. Windows is the only host with that proof; elsewhere every
+/// racing a separate path check), the same handle is a regular, non-reparse, non-device file with exactly ONE name (a file that
+/// any other name reaches, inside the worktree or not, is refused: a hard link passes the path check because the name that was
+/// opened is the exact reported one), and the bytes read hash to the same raw-content identity
+/// (<c>git hash-object --no-filters</c>) that the checkpoint fingerprint uses. Those facts are proven on the held handle before
+/// any byte or length is read and asked again on that handle after the bounded read, before a preview is accepted. Nothing is
+/// read from a handle whose containment is not proven. Windows is the only host with that proof; elsewhere every
 /// file is omitted as <see cref="GitWorkspaceUntrackedOmission.ContainmentUnproven"/> instead of relying
 /// on lexical containment. No repository text, path, or exception detail leaves this class except as the
 /// returned preview.
@@ -34,8 +37,18 @@ internal static class UntrackedFilePreviewReader
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
     internal static IReadOnlyList<GitWorkspaceUntrackedFile> ReadAll(
-        string workspacePath, IEnumerable<(string Path, string Hash)> untrackedFiles)
+        string workspacePath, IEnumerable<(string Path, string Hash)> untrackedFiles) =>
+        ReadAll(workspacePath, untrackedFiles, readHandleFacts: null);
+
+    /// <param name="readHandleFacts">Test seam at the one real boundary: the operating system's answer about an open handle,
+    /// asked once before any byte is read and once after the bounded read. Production passes none and gets
+    /// <see cref="WindowsHandleFileFacts.TryGet"/>.</param>
+    internal static IReadOnlyList<GitWorkspaceUntrackedFile> ReadAll(
+        string workspacePath,
+        IEnumerable<(string Path, string Hash)> untrackedFiles,
+        Func<SafeFileHandle, WindowsHandleFileFacts.Facts?>? readHandleFacts)
     {
+        readHandleFacts ??= WindowsHandleFileFacts.TryGet;
         var ordered = untrackedFiles.OrderBy(file => file.Path, StringComparer.Ordinal).ToArray();
         var rootFinalPath = WindowsFinalPathResolver.TryResolveDirectoryFinalPath(workspacePath)?.TrimEnd('\\');
         var results = new List<GitWorkspaceUntrackedFile>(ordered.Length);
@@ -55,7 +68,7 @@ internal static class UntrackedFilePreviewReader
                 continue;
             }
 
-            var file = ReadOne(workspacePath, rootFinalPath, path, hash, MaxPreviewBytesTotal - usedBytes);
+            var file = ReadOne(workspacePath, rootFinalPath, path, hash, MaxPreviewBytesTotal - usedBytes, readHandleFacts);
             results.Add(file);
             usedBytes += file.Text is null ? 0 : Encoding.UTF8.GetByteCount(file.Text);
         }
@@ -64,7 +77,12 @@ internal static class UntrackedFilePreviewReader
     }
 
     private static GitWorkspaceUntrackedFile ReadOne(
-        string workspacePath, string rootFinalPath, string relativePath, string expectedGitHash, int remainingBudget)
+        string workspacePath,
+        string rootFinalPath,
+        string relativePath,
+        string expectedGitHash,
+        int remainingBudget,
+        Func<SafeFileHandle, WindowsHandleFileFacts.Facts?> readHandleFacts)
     {
         if (relativePath.EndsWith('/'))
         {
@@ -111,9 +129,18 @@ internal static class UntrackedFilePreviewReader
                 return Omitted(relativePath, GitWorkspaceUntrackedOmission.ContainmentUnproven);
             }
 
+            // Before any byte or length is read: a regular, non-reparse, non-device file with exactly one name.
+            if (RefuseUnlessSingleNameRegularFile(handle, relativePath, readHandleFacts) is { } refused)
+            {
+                return refused;
+            }
+
             try
             {
-                return ReadVerified(handle, relativePath, expectedGitHash, remainingBudget);
+                var preview = ReadVerified(handle, relativePath, expectedGitHash, remainingBudget);
+                // The same held handle, asked again after the bounded read: a second name that appeared meanwhile, or facts the
+                // system can no longer give, discard the preview (text and size included) whatever the read concluded.
+                return RefuseUnlessSingleNameRegularFile(handle, relativePath, readHandleFacts) ?? preview;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
                 or NotSupportedException)
@@ -121,6 +148,22 @@ internal static class UntrackedFilePreviewReader
                 return Omitted(relativePath, GitWorkspaceUntrackedOmission.Unreadable);
             }
         }
+    }
+
+    /// <summary>The handle's own attributes and link count, never a pathname's. Unavailable facts, another name for the file or a
+    /// reparse point leave containment unproven (nothing is read or kept); a directory or device is not a regular file.</summary>
+    private static GitWorkspaceUntrackedFile? RefuseUnlessSingleNameRegularFile(
+        SafeFileHandle handle, string relativePath, Func<SafeFileHandle, WindowsHandleFileFacts.Facts?> readHandleFacts)
+    {
+        var facts = readHandleFacts(handle);
+        if (facts is null || facts.Value.LinkCount != 1 || facts.Value.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            return Omitted(relativePath, GitWorkspaceUntrackedOmission.ContainmentUnproven);
+        }
+
+        return facts.Value.Attributes.HasFlag(FileAttributes.Directory) || facts.Value.Attributes.HasFlag(FileAttributes.Device)
+            ? Omitted(relativePath, GitWorkspaceUntrackedOmission.NotRegularFile)
+            : null;
     }
 
     private static GitWorkspaceUntrackedFile ReadVerified(

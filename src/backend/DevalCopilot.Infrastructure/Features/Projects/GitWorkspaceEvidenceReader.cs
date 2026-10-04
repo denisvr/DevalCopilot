@@ -5,6 +5,8 @@ using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
+using DevalCopilot.Infrastructure.Features.Processes;
+using Microsoft.Win32.SafeHandles;
 
 namespace DevalCopilot.Infrastructure.Features.Projects;
 
@@ -20,17 +22,23 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
 {
     private readonly IProcessExecutionAdapter processExecutionAdapter;
     private readonly bool physicalContainmentAvailable;
+    private readonly Func<SafeFileHandle, WindowsHandleFileFacts.Facts?>? readHandleFacts;
 
     public GitWorkspaceEvidenceReader(IProcessExecutionAdapter processExecutionAdapter)
         : this(processExecutionAdapter, OperatingSystem.IsWindows())
     {
     }
 
-    /// <summary>Test seam: a host without a physical-containment proof must omit every preview.</summary>
-    internal GitWorkspaceEvidenceReader(IProcessExecutionAdapter processExecutionAdapter, bool physicalContainmentAvailable)
+    /// <summary>Test seam: a host without a physical-containment proof must omit every preview, and a test may observe, or
+    /// withhold, the operating system's answer to the preview reader's admission-facts question on an open handle.</summary>
+    internal GitWorkspaceEvidenceReader(
+        IProcessExecutionAdapter processExecutionAdapter,
+        bool physicalContainmentAvailable,
+        Func<SafeFileHandle, WindowsHandleFileFacts.Facts?>? readHandleFacts = null)
     {
         this.processExecutionAdapter = processExecutionAdapter;
         this.physicalContainmentAvailable = physicalContainmentAvailable;
+        this.readHandleFacts = readHandleFacts;
     }
 
     private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(10);
@@ -191,7 +199,7 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
 
         if (physicalContainmentAvailable && OperatingSystem.IsWindows())
         {
-            return UntrackedFilePreviewReader.ReadAll(workspacePath, untrackedHashes);
+            return UntrackedFilePreviewReader.ReadAll(workspacePath, untrackedHashes, readHandleFacts);
         }
 
         // No physical-containment proof on this host: never fall back to lexical containment.
