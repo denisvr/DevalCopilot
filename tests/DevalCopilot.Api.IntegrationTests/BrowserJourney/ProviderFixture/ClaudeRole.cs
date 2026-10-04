@@ -22,6 +22,7 @@ public static class ClaudeRole
         var manifest = ManifestInfo.Parse(readStandardInput());
         ResponseSchemas.RequireAgreement("claude", manifest.Contract, exec.SchemaJson);
         var fields = new Dictionary<string, object?> { ["role"] = "claude", ["kind"] = "print", ["contract"] = manifest.Contract };
+        InstructionEvidence.Record(fields, manifest);
 
         string response;
         switch (manifest.Contract, exec.Profile)

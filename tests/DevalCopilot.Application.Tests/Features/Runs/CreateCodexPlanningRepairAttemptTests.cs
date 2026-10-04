@@ -111,6 +111,25 @@ public sealed partial class CreateCodexPlanningAttemptCommandHandlerTests
     }
 
     [Fact]
+    public async Task A_repair_claim_captures_fresh_instruction_context_and_carries_the_projects_own_conventions()
+    {
+        await using var dbContext = _fixture.CreateContext();
+        var (run, _, _, source) = await SeedWithInvalidSourceAsync(dbContext);
+        var artifactStore = new FakeArtifactStore();
+
+        var result = await NewHandler(dbContext, artifactStore, RepairEvidenceReader.Matching(Fingerprint))
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(run.Id, source.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var manifest = File.ReadAllText(
+            artifactStore.GetPartialPath(run.Id, result.Value.AttemptId, ArtifactPurpose.AgentContextManifest));
+        using var document = JsonDocument.Parse(manifest);
+        InstructionContextTestSupport.AssertManifestCarriesDeliveredInstructions(document.RootElement);
+        Assert.True(document.RootElement.TryGetProperty("formatRepairNotice", out _));
+        Assert.DoesNotContain("docs/engineering-context.md", manifest, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Repair_claims_a_linked_read_only_planner_attempt_and_consumes_the_next_budget_slot()
     {
         await using var dbContext = _fixture.CreateContext();

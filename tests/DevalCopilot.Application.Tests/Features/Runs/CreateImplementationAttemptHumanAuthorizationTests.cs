@@ -96,6 +96,7 @@ public sealed class CreateImplementationAttemptHumanAuthorizationTests : IAsyncL
         using var document = JsonDocument.Parse(manifestText);
         var root = document.RootElement;
         Assert.Equal(PlanningImplementationAuthorizationManifest.Boundary, root.GetProperty("humanPlanAuthorizationBoundary").GetString());
+        InstructionContextTestSupport.AssertManifestCarriesDeliveredInstructions(root);
         var plan = root.GetProperty("resolvedPlan");
         Assert.Equal(lineage.FinalProposal.Id, plan.GetProperty("proposalMessageId").GetGuid());
         var evidence = plan.GetProperty("resolutionEvidence");
@@ -173,6 +174,59 @@ public sealed class CreateImplementationAttemptHumanAuthorizationTests : IAsyncL
         Assert.Equal("agent_attempts.context_manifest_too_large", Assert.Single(result.Errors).Code);
         Assert.Equal(0, store.Seals);
         await AssertGrantUnconsumedAsync(lineage.RunId);
+    }
+
+    private async Task<(string Manifest, Guid RunId)> ClaimWithBulkyDecisionsAsync(int rationaleCharacters)
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync(secondChallengeCount: 5);
+        await using (var seed = _fixture.CreateContext())
+        {
+            var bulky = "{\"resolution\":\"accepted\",\"rationale\":\"" + new string('r', rationaleCharacters)
+                + "\",\"resultingPlanChanges\":\"Changes\",\"nextAction\":\"None\"}";
+            var decisionIds = lineage.Second.Decisions.Select(decision => decision.Id).ToArray();
+            await seed.CollaborationMessages.Where(message => decisionIds.Contains(message.Id))
+                .ExecuteUpdateAsync(set => set.SetProperty(message => message.StructuredContentJson, bulky));
+        }
+
+        await using var dbContext = _fixture.CreateContext();
+        var store = new RecordingArtifactStore();
+        var evidence = new CountingEvidenceReader(
+            instructions: InstructionContextTestSupport.Texts(new string('a', 5000), new string('c', 5000)));
+
+        var result = await ClaimAsync(dbContext, lineage, evidence, store);
+
+        Assert.True(result.IsSuccess, result.IsFailure ? result.Errors[0].Code : null);
+        Assert.Equal(1, store.Seals);
+        var manifest = store.ReadManifest(lineage.RunId, result.Value.AttemptId);
+        Assert.True(System.Text.Encoding.UTF8.GetByteCount(manifest) <= 32 * 1024);
+        await using var verify = _fixture.CreateContext();
+        Assert.Equal(result.Value.AttemptId, (await GrantAsync(verify, lineage.RunId)).ConsumedByAttemptId);
+        return (manifest, lineage.RunId);
+    }
+
+    [Theory]
+    [InlineData(3000, "Complete", "Complete")]
+    [InlineData(3800, "Complete", "Omitted")]
+    [InlineData(5000, "Omitted", "Omitted")]
+    public async Task Whole_instruction_texts_are_omitted_in_reverse_order_before_authority_evidence_is_ever_shortened(
+        int rationaleCharacters, string expectedAgents, string expectedClaude)
+    {
+        var (manifestText, _) = await ClaimWithBulkyDecisionsAsync(rationaleCharacters);
+
+        using var document = JsonDocument.Parse(manifestText);
+        var sources = document.RootElement.GetProperty("projectInstructionContext").GetProperty("sources").EnumerateArray().ToArray();
+        Assert.Equal(expectedAgents, sources[0].GetProperty("status").GetString());
+        Assert.Equal(expectedClaude, sources[1].GetProperty("status").GetString());
+        Assert.Equal(expectedClaude == "Omitted" ? "manifest_budget" : null, sources[1].GetProperty("reason").GetString());
+        Assert.Equal(expectedAgents == "Omitted" ? "manifest_budget" : null, sources[0].GetProperty("reason").GetString());
+        // The authority evidence is never shortened: every decision keeps its full rationale.
+        var decisions = document.RootElement.GetProperty("resolvedPlan").GetProperty("resolutionEvidence").GetProperty("decisions")
+            .EnumerateArray().ToArray();
+        Assert.Equal(5, decisions.Length);
+        Assert.All(decisions, decision => Assert.Equal(
+            rationaleCharacters, decision.GetProperty("structuredContent").GetProperty("rationale").GetString()!.Length));
+        Assert.Equal(ProjectInstructionContextManifest.Boundary, document.RootElement.GetProperty("projectInstructionContextBoundary").GetString());
+        Assert.Equal(64, sources[1].GetProperty("sha256").GetString()!.Length);
     }
 
     [Fact]

@@ -22,7 +22,8 @@ internal static class UntrackedManifestTestSupport
         [
             new GitWorkspaceUntrackedFile("notes/new.txt", null, 31, PreviewText, true),
             new GitWorkspaceUntrackedFile("blob.bin", GitWorkspaceUntrackedOmission.Binary, 12, null, false),
-        ]);
+        ],
+        InstructionContextTestSupport.Delivered);
 
     public static void AssertManifestCarriesPreviews(string manifestJson)
     {
@@ -46,5 +47,7 @@ internal static class UntrackedManifestTestSupport
         {
             Assert.DoesNotContain("handler preview text", property.Value.GetRawText(), StringComparison.Ordinal);
         }
+
+        InstructionContextTestSupport.AssertManifestCarriesDeliveredInstructions(root);
     }
 }

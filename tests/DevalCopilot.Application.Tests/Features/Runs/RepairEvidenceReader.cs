@@ -17,7 +17,15 @@ internal sealed class RepairEvidenceReader(GitWorkspaceEvidenceResult result) : 
     public static RepairEvidenceReader Matching(string fingerprintSha256) =>
         new(UntrackedManifestTestSupport.Evidence(fingerprintSha256));
 
-    public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
+    /// <summary>Any capture other than the Agent-context one returns no instruction context, so a claim handler that did not ask
+    /// for it delivers "not captured" and its test fails.</summary>
+    public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
+        (await CountAsync(cancellationToken)) with { InstructionContext = null };
+
+    public Task<GitWorkspaceEvidenceResult> CaptureForAgentContextAsync(
+        string workspacePath, bool includeUntrackedPreviews, CancellationToken cancellationToken) => CountAsync(cancellationToken);
+
+    private async Task<GitWorkspaceEvidenceResult> CountAsync(CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref _calls);
         if (!_hookRan && OnFirstCapture is { } hook)

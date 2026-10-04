@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using DevalCopilot.Application.Features.Processes.Ports;
+using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
@@ -12,9 +13,10 @@ namespace DevalCopilot.Infrastructure.Features.Projects;
 /// status, diff, and untracked-file hashes with repeat observations and discards the whole
 /// result when anything changes during capture. Git receives only fixed builtin subcommands;
 /// no pager, external diff, text conversion, protocol, prompt, optional lock, fsmonitor, or
-/// untracked-cache behavior is available to repository configuration.
+/// untracked-cache behavior is available to repository configuration. An Agent claim may also ask for the exact root
+/// instruction files (see <c>GitWorkspaceEvidenceReader.AgentInstructions.cs</c>), observed in the same bracket and again after it.
 /// </summary>
-public sealed class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
+public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
 {
     private readonly IProcessExecutionAdapter processExecutionAdapter;
     private readonly bool physicalContainmentAvailable;
@@ -50,14 +52,18 @@ public sealed class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
         };
 
     public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
-        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: false, cancellationToken);
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: false, includeInstructionContext: false, cancellationToken);
 
     public Task<GitWorkspaceEvidenceResult> CaptureWithUntrackedPreviewsAsync(
         string workspacePath, CancellationToken cancellationToken) =>
-        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: true, cancellationToken);
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: true, includeInstructionContext: false, cancellationToken);
+
+    public Task<GitWorkspaceEvidenceResult> CaptureForAgentContextAsync(
+        string workspacePath, bool includeUntrackedPreviews, CancellationToken cancellationToken) =>
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews, includeInstructionContext: true, cancellationToken);
 
     private async Task<GitWorkspaceEvidenceResult> CaptureCoreAsync(
-        string workspacePath, bool includeUntrackedPreviews, CancellationToken cancellationToken)
+        string workspacePath, bool includeUntrackedPreviews, bool includeInstructionContext, CancellationToken cancellationToken)
     {
         var descriptor = HostCapabilityCatalog.Get(Capability.Git);
         var gitPath = HostExecutableResolver.TryResolve(descriptor.CandidateExecutableNames, descriptor.FallbackDirectories);
@@ -111,7 +117,24 @@ public sealed class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
 
             // Read inside the observation bracket so a status or diff change around the read discards
             // the capture, and only against the hashes the fingerprint itself is computed from.
-            var untrackedFiles = includeUntrackedPreviews ? ReadUntrackedPreviews(workspacePath, untrackedHashes) : null;
+            // New Agent delivery reserves the two root instruction names to the instruction section, so their bytes are not even
+            // read as a generic preview; the projection below states them as omitted. The fingerprint above is the raw observation.
+            var previewHashes = includeInstructionContext
+                ? untrackedHashes.Where(file => !GitWorkspaceInstructionContext.IsReservedPath(file.Path)).ToList()
+                : untrackedHashes;
+            var untrackedFiles = includeUntrackedPreviews ? ReadUntrackedPreviews(workspacePath, previewHashes) : null;
+
+            // The root instruction files are observed inside the same bracket, and observed again after it: any change
+            // of their presence, classification, or raw identity discards the whole capture, text included.
+            GitWorkspaceInstructionObservation? firstInstructions = null;
+            if (includeInstructionContext)
+            {
+                firstInstructions = await ObserveInstructionContextAsync(gitPath, workspacePath, untrackedHashes, cancellationToken);
+                if (firstInstructions.Failure is { } firstInstructionFailure)
+                {
+                    return Failure(firstInstructionFailure);
+                }
+            }
 
             var afterStatus = await RunAsync(gitPath, workspacePath, ["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"], cancellationToken);
             var afterHead = await RunAsync(gitPath, workspacePath, ["rev-parse", "HEAD"], cancellationToken);
@@ -129,16 +152,29 @@ public sealed class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
                 return Failure(GitWorkspaceEvidenceOutcome.InvalidGitState);
             }
 
-            if (beforeHeadSha == afterHeadSha && beforeStatus.Output == afterStatus.Output && firstDiff.Output == secondDiff.Output)
+            GitWorkspaceInstructionObservation? secondInstructions = null;
+            if (firstInstructions is not null)
+            {
+                secondInstructions = await ObserveInstructionContextAsync(gitPath, workspacePath, untrackedHashes, cancellationToken);
+                if (secondInstructions.Failure is { } secondInstructionFailure)
+                {
+                    return Failure(secondInstructionFailure);
+                }
+            }
+
+            if (beforeHeadSha == afterHeadSha && beforeStatus.Output == afterStatus.Output && firstDiff.Output == secondDiff.Output
+                && (firstInstructions is null || firstInstructions.IsConsistentWith(secondInstructions!)))
             {
                 var fingerprint = ComputeFingerprint(beforeHeadSha, beforeStatus.Output, secondDiff.Output, untrackedHashes);
-                return new GitWorkspaceEvidenceResult(
+                var captured = new GitWorkspaceEvidenceResult(
                     GitWorkspaceEvidenceOutcome.Success,
                     beforeHeadSha,
                     fingerprint,
                     changedPaths,
                     secondDiff.Output,
-                    untrackedFiles);
+                    untrackedFiles,
+                    firstInstructions?.Context);
+                return includeInstructionContext ? AgentEvidenceProjection.Project(captured) : captured;
             }
         }
 
@@ -170,7 +206,11 @@ public sealed class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
         ["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--binary", "HEAD"];
 
     private async Task<GitCommandResult> RunAsync(
-        string gitPath, string workspacePath, IReadOnlyList<string> subcommandArguments, CancellationToken cancellationToken)
+        string gitPath,
+        string workspacePath,
+        IReadOnlyList<string> subcommandArguments,
+        CancellationToken cancellationToken,
+        byte[]? standardInput = null)
     {
         var arguments = new List<string>(HardeningPrefix.Count + subcommandArguments.Count);
         arguments.AddRange(HardeningPrefix);
@@ -189,6 +229,7 @@ public sealed class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceReader
                 MaxBytesPerStream = MaxCapturedBytes,
                 MaxTotalCapturedBytes = MaxCapturedBytes,
                 EnvironmentVariables = HardeningEnvironment,
+                StandardInput = standardInput,
             }, cancellationToken);
         }
         catch (OperationCanceledException)

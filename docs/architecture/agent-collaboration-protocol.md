@@ -456,7 +456,8 @@ There is no automatic retry, and no repair of a mutating Implementer or ReviewCo
 Agent input is assembled from selected durable records:
 
 - objective and current task;
-- applicable project instructions;
+- the project's own root instruction files, accounted for exactly (see "Project instruction context in Agent
+  manifests");
 - current plan revision and unresolved challenges;
 - relevant decisions and findings;
 - Git fingerprint, a bounded selection of complete tracked-file hunks, and bounded previews of eligible untracked
@@ -2233,8 +2234,8 @@ account-allowance, session, or invocation eligibility.
   `codex-planning-v1`).
 - **Manifest.** The sealed context manifest (`AgentContextManifest`, host-constructed) is the ordinary planning
   manifest for the current verified context — the run objective, project/workspace/checkpoint identities and
-  fingerprint, the unchanged expected Proposal schema, and instruction references, with no human instruction and
-  no prior decisions, exactly as an ordinary claim — plus one fixed host-authored
+  fingerprint, the unchanged expected Proposal schema, and the project instruction context of ADR-0021 captured fresh
+  at the repair's own claim, with no human instruction and no prior decisions, exactly as an ordinary claim — plus one fixed host-authored
   `formatRepairNotice` (`ContextManifestBuilder.FormatRepairNotice`): an earlier planning response failed
   structural validation, this is a fresh planning request, and exactly one Proposal satisfying the unchanged
   schema is required. It never contains the source's raw response, parser or validation detail, artifact path,
@@ -2778,6 +2779,70 @@ Git call, capture command, fingerprint, changed-path list, claim rule, or replay
   never recomputed at dispatch. Not included: raw full-diff or file retrieval, a new Git command, a rename or copy
   format, and any approval or eligibility meaning.
 
+### Project instruction context in Agent manifests
+
+Every manifest used to carry the same three fixed DevalCopilot documentation names as "instruction references" whatever the
+project, without reading them. Every NEW Agent claim now seals the project's own root instructions instead, through one
+additive section (see [ADR-0021](../decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md)). The fixed
+references are removed from new manifests and not replaced; an old sealed manifest replays its own bytes, references included.
+
+- **Which files.** Exactly the root `AGENTS.md` then `CLAUDE.md` of the claim's own tool-owned worktree. No import, Markdown
+  reference, nested or parent file, link, home path or setting is followed, and a reference to a sibling checkout grants no
+  read. Tracked (clean or modified) and non-ignored untracked files are eligible; ignored-only files and assume-unchanged or
+  skip-worktree entries are omitted because no checkpoint evidence vouches for them.
+- **Capture.** `IGitWorkspaceEvidenceReader.CaptureForAgentContextAsync` is called only by the eight claim handlers (planning,
+  critical review, resolution, implementation, code review, review correction, diagnosis-origin correction, verification
+  diagnosis), once per claim, beside the untracked previews where the stage has them; every other capture is unchanged and
+  returns no instruction context. Git runs only fixed hardened builtin subcommands with literal pathspecs (`ls-files -v`, an
+  ignored-others listing). On Windows a file is read only through an open handle whose final path is exactly the resolved
+  worktree root plus the fixed name, which is a regular, single-name, non-reparse file within the 8 KiB bound; nothing is hashed
+  or sent for a file that fails that proof. The independent raw identity is Git's `hash-object --no-filters --stdin` of exactly
+  those bounded bytes (no repository pathname is ever given to Git for it), the same held handle is read again, and Git's
+  identity, the host's own blob computation and (for an untracked file) the checkpoint fingerprint's identity must agree.
+  Presence, classification, identity and text are observed inside the capture bracket and again after it; any difference or
+  identity mismatch discards all text and fails as `RepositoryChangedDuringCapture`. Another host omits both files as
+  `containment_unproven`. The raw observation behind the fingerprint (status, the full diff and the per-path `hash-object` of
+  untracked files) is the unchanged, pre-existing one and is not claimed to have this containment guarantee.
+- **Delivery projection.** The two root names are reserved to this section. In a NEW Agent manifest their text never appears as a
+  generic untracked preview or as tracked diff, hunk or sample content, whatever the section says (Complete, any Omitted reason,
+  Absent) and for a safe, unsafe, clean, dirty or untracked source. The Agent-context capture does not preview a reserved
+  untracked path and returns it as omitted (`reserved_instruction_file`); its returned diff has the reserved files' blocks removed
+  structurally, cut at `diff --git` boundaries by each block's own decoded header path (never by searching text). Only the default
+  `a/`/`b/` header with one identical path is decoded; a block whose header is anything else (`diff.noprefix`,
+  `diff.mnemonicprefix`, a rename, a malformed quote) is unknown, never "not reserved", so when a reserved path changed the whole
+  generic diff, unrelated hunks included, is withheld and `diffSelection.reason` is the fixed `reserved_instruction_diff_withheld`
+  with a fixed notice (changed paths still list every file; no other prefix is guessed and the ordinary observation and
+  fingerprint are not normalized); the builders apply the same projection to any reader's capture. Changed
+  paths stay; a changed reserved path is named in `diffSelection.reservedInstructionFiles` at every reduction step and the diff
+  is then never `diffTruncated: false` or `complete`; unrelated evidence is delivered as before. Names match ignoring case; only
+  the root path is reserved. Ordinary captures, the fingerprint and historical manifests are unchanged.
+- **Section.** `projectInstructionContextBoundary` (fixed text) and `projectInstructionContext` (`version` 1, `notice`,
+  `sourceGitWorkspaceId`, `sourceGitCheckpointId`, `sourceCheckpointFingerprintSha256`, `sources`). Each of the two `sources`
+  has `fileName`, `status` (`Complete`, `Absent`, `Omitted`), `reason`, `byteLength`, `sha256` and `text`; text only for
+  `Complete`, length and SHA-256 only when established (a file omitted for budget keeps the ones it has). Reasons: `ignored`,
+  `index_flag`, `unmerged`, `not_regular_file`, `containment_unproven`, `unreadable`, `content_identity_mismatch`, `too_large`,
+  `binary`, `invalid_utf8`, `section_budget`, `manifest_budget`, `not_captured`. A capture that returned no context is
+  `not_captured`, never `Absent`. Placement: directly after `untrustedEvidenceBoundary` where the form has one (so a
+  format-repair notice stays in the trusted part), and where the planning form carried the old references.
+- **Bounds.** At most 8 KiB of raw UTF-8 per source, valid and without NUL; the complete decoded text is kept byte for byte
+  (line endings and a byte order mark included). The serialized section is at most 12 KiB, fitted as whole entries in fixed
+  order (`section_budget`). In the 32 KiB whole-manifest fitting the section is reduced last: only after change evidence (and
+  the diagnosis failure excerpts) are reduced as far as they can be are whole texts omitted, latest first
+  (`manifest_budget`). No plan, challenge, finding, schema or authorization is shortened, and a manifest whose mandatory
+  content cannot fit keeps the existing `context_manifest_too_large` refusal with its orphan cleanup and without consuming a
+  claim, reservation or grant.
+- **Authority.** The fixed boundary states the section is untrusted repository text that may inform the response through
+  compatible conventions only; it can never override or extend the authorized plan, the role, the output schema, permissions,
+  command restrictions or any human decision and grants no tool, network, approval, authorization, retry, budget, provider
+  switch or publication. Provider adapters, arguments, safe-mode and schemas are unchanged.
+- **Replay and confidentiality.** Dispatch and restart read the sealed artifact; nothing recaptures or rebuilds it, and a
+  manifest sealed before this contract is never rejected for lacking the section. The text is carried by the sealed manifest, the
+  provider input and the existing authenticated sealed-artifact viewer, which already serves manifest content in the browser and
+  now shows this section like any other manifest content (no new endpoint or viewer); it is never stored in SQLite, a log or an
+  error, and is not redacted. Containment is proven at the read, and the file can still change after observation.
+- **Not included.** Imports, a directory walk, a third file, provider-side discovery, redaction of repository content, a
+  rewrite of historical manifests, or any change to authority, budgets or permissions.
+
 ## Token efficiency
 
 - Build a context manifest for each attempt and include only inputs required by
@@ -2807,8 +2872,9 @@ Git call, capture command, fingerprint, changed-path list, claim rule, or replay
 
 ## Untrusted content
 
-Repository files, comments, issue text, test output, CI logs, generated files,
-and prior agent responses are quoted or delimited as untrusted evidence. They
+Repository files (including the project's own root `AGENTS.md` and `CLAUDE.md`, which are delivered only as the
+bounded, fixed-boundary section described in "Project instruction context in Agent manifests"), comments, issue text,
+test output, CI logs, generated files, and prior agent responses are quoted or delimited as untrusted evidence. They
 cannot grant permissions, alter the protocol, request credentials, change
 budgets, or bypass project instructions.
 

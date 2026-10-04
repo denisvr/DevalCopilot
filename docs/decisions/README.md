@@ -31,6 +31,8 @@ supersedes it.
   (its correction request narrowly accepts optional direct human guidance under ADR-0019)
 - [ADR-0019: Add direct human guidance to diagnosis-origin corrections](0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md)
 - [ADR-0020: Correct the escalation explanation and accept its two canonical forms](0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)
+- [ADR-0021: Add bounded root instruction context to Agent manifests](0021-add-bounded-root-instruction-context-to-agent-manifests.md)
+  (additive; it changes no existing authority decision)
 
 ## Status values
 

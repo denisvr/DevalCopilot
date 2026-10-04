@@ -220,7 +220,7 @@ internal static class TrackedDiffParser
     /// <summary>The path in <c>diff --git a/P b/P</c>. Only the default <c>a/</c> and <c>b/</c> prefixes and an
     /// identical path on both sides (no renames are captured) are accepted; an unquoted path is split by length, so
     /// there is exactly one reading.</summary>
-    private static string? TryParsePath(string rest)
+    internal static string? TryParsePath(string rest)
     {
         if (rest.StartsWith('"'))
         {

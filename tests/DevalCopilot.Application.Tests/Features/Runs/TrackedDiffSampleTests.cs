@@ -395,7 +395,7 @@ public sealed class TrackedDiffSampleTests
         var sawShrunk = false;
         var previousBytes = int.MaxValue;
 
-        for (var padding = 4_000; padding <= 27_000; padding += 500)
+        for (var padding = 4_000; padding <= 25_000; padding += 500)
         {
             var manifest = build(paths, diff, untracked, padding);
 

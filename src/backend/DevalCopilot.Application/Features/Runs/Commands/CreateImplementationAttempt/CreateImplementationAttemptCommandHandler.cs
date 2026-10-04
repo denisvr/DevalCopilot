@@ -267,7 +267,8 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 Error.Conflict("agent_attempts.provider_not_observed", "The Claude runtime is not currently observed as available."));
         }
 
-        var evidence = await evidenceReader.CaptureWithUntrackedPreviewsAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureForAgentContextAsync(
+            workspace.WorkspacePath, includeUntrackedPreviews: true, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 != checkpoint.FingerprintSha256)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(
@@ -865,6 +866,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             evidence.ChangedPaths,
             evidence.CompleteDiff,
             configuredVerificationCommands,
+            ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             evidence.UntrackedFiles,
             directHumanGuidance);
 
@@ -913,6 +915,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
                 evidence.ChangedPaths,
                 evidence.CompleteDiff,
                 configuredVerificationCommands,
+                ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
                 untrackedFiles: evidence.UntrackedFiles,
                 directHumanGuidance: directHumanGuidance);
             return ResolvedPlanValidation.SucceededAuthorized(
@@ -936,6 +939,7 @@ public sealed class CreateImplementationAttemptCommandHandler(
             evidence.ChangedPaths,
             evidence.CompleteDiff,
             configuredVerificationCommands,
+            ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             acceptance is null
                 ? null
                 : new ImplementationContextManifestBuilder.AcceptanceEvidence(acceptance.Summary, acceptance.StructuredContentJson),

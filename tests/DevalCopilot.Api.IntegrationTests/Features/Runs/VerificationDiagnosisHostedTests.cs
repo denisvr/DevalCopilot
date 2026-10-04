@@ -99,14 +99,20 @@ public sealed class VerificationDiagnosisHostedTests : IDisposable
 
     // ---- deterministic boundaries ------------------------------------------------------------------------------
 
+    private const string OwnAgentsText = "OWN-PROJECT-CONVENTIONS: keep handlers small.\r\nSay \"yes\" & use <Operation>Handler — naïve 𝄞.\r\n";
+    private const string ForeignMarker = "FOREIGN-PROJECT-CONVENTIONS";
+
     private sealed class StagedEvidence : IGitWorkspaceEvidenceReader
     {
         public int Stage { get; set; }
 
+        /// <summary>The project's own root instruction files as every claim's capture observes them.</summary>
+        public GitWorkspaceInstructionContext? Instructions { get; set; } = RealAdapterInstructionProbe.OwnContext(OwnAgentsText);
+
         public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
             Task.FromResult(new GitWorkspaceEvidenceResult(
                 GitWorkspaceEvidenceOutcome.Success, Head, Fingerprints[Stage],
-                Stage == 0 ? [] : [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], null));
+                Stage == 0 ? [] : [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], null, null, Instructions));
     }
 
     /// <summary>One double for both process users: a Claude CLI request (no sink paths) advances the evidence stage, a
@@ -735,6 +741,30 @@ public sealed class VerificationDiagnosisHostedTests : IDisposable
         // The ordinary review sits on its own contract: the diagnosis never counted as a review and vice versa.
         Assert.Equal(1, host.Diagnosis.InvocationCount);
         Assert.Equal(1, host.Review.InvocationCount);
+
+        // Every claim of the run — including the Codex diagnosis and the diagnosis-origin Claude correction — reaches its REAL
+        // adapter as its own sealed manifest, carrying this project's conventions once and no other project's.
+        var (attempts, artifacts, workspacePath) = await InDbAsync(host, async db => (
+            await db.Attempts.AsNoTracking().Where(a => a.RunId == lineage.RunId && a.Kind == AttemptKind.Agent)
+                .OrderBy(a => a.AttemptNumber).ToListAsync(),
+            await db.Artifacts.AsNoTracking().Where(a => a.RunId == lineage.RunId && a.Purpose == ArtifactPurpose.AgentContextManifest)
+                .ToListAsync(),
+            (await db.GitWorkspaces.AsNoTracking().SingleAsync(w => w.Id == lineage.WorkspaceId)).WorkspacePath));
+        var deliveries = new List<RealAdapterInstructionProbe.Delivery>();
+        foreach (var attempt in attempts)
+        {
+            var sealedManifest = artifacts.Single(artifact => artifact.Id == attempt.AgentContextManifestArtifactId);
+            var delivery = await RealAdapterInstructionProbe.DeliverAsync(attempt, sealedManifest, workspacePath, _artifactStore, _claudeExecutable);
+            RealAdapterInstructionProbe.AssertDeliversOwnConventions(delivery, OwnAgentsText, ForeignMarker);
+            deliveries.Add(delivery);
+        }
+
+        Assert.Contains(deliveries, delivery => delivery.Contract == AgentResponseContract.VerificationDiagnosis && delivery.Provider == AgentProvider.Codex);
+        Assert.Contains(deliveries, delivery => delivery.Contract == AgentResponseContract.ReviewCorrection
+            && delivery.Provider == AgentProvider.ClaudeCode
+            && delivery.Stdin.Contains("explicit diagnosis of a failed local verification", StringComparison.Ordinal));
+        Assert.Contains(deliveries, delivery => delivery.Contract == AgentResponseContract.ImplementationReview);
+        Assert.Contains(deliveries, delivery => delivery.Contract == AgentResponseContract.ImplementationReport);
     }
 
     [Fact]

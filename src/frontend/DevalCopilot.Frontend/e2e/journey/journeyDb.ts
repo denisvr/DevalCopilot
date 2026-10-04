@@ -195,10 +195,10 @@ export class JourneyData {
     )
   }
 
-  /** The sealed context manifest artifacts of this run's attempts, by attempt (byte length and hash only, never the content). */
-  manifestArtifacts(): { AttemptId: string; ContentHash: string; ByteLength: number }[] {
+  /** The sealed context manifest artifacts of this run's attempts, by attempt (identity, hash, length and the host's own relative path; never the content). */
+  manifestArtifacts(): { AttemptId: string; ContentHash: string; ByteLength: number; RelativeStoragePath: string }[] {
     return this.all(
-      "select AttemptId, ContentHash, ByteLength from artifacts where RunId = ? and Purpose = 'AgentContextManifest' order by AttemptId",
+      "select AttemptId, ContentHash, ByteLength, RelativeStoragePath from artifacts where RunId = ? and Purpose = 'AgentContextManifest' order by AttemptId",
       this.runId(),
     )
   }

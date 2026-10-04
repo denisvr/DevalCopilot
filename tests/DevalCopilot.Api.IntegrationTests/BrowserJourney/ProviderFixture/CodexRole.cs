@@ -26,6 +26,7 @@ public static class CodexRole
         ResponseSchemas.RequireAgreement("codex", manifest.Contract, ResponseSchemas.ReadBoundedFile(exec.SchemaPath));
         var resultPath = location.RequireArtifactSink(exec.ResultPath);
         var fields = new Dictionary<string, object?> { ["role"] = "codex", ["kind"] = "exec", ["contract"] = manifest.Contract };
+        InstructionEvidence.Record(fields, manifest);
 
         string response;
         switch (manifest.Contract)

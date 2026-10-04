@@ -36,7 +36,9 @@ internal static class UntrackedFileManifestSection
             .Select(path => path.Path)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => byPath.TryGetValue(path, out var file)
+            .Select(path => GitWorkspaceInstructionContext.IsReservedPath(path)
+                ? new Entry(path, Reason(GitWorkspaceUntrackedOmission.ReservedInstructionFile), null, null, false)
+                : byPath.TryGetValue(path, out var file)
                 ? new Entry(path, file.Omission is { } omission ? Reason(omission) : null, file.SizeBytes, file.Text, file.ContentComplete)
                 : new Entry(path, "not_captured", null, null, false))
             .ToList();
@@ -114,6 +116,7 @@ internal static class UntrackedFileManifestSection
         GitWorkspaceUntrackedOmission.Binary => "binary",
         GitWorkspaceUntrackedOmission.InvalidUtf8 => "invalid_utf8",
         GitWorkspaceUntrackedOmission.AggregateLimit => "aggregate_limit",
+        GitWorkspaceUntrackedOmission.ReservedInstructionFile => "reserved_instruction_file",
         _ => "unverifiable",
     };
 }

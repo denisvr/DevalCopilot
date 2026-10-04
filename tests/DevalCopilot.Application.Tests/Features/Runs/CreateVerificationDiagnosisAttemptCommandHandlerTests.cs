@@ -77,6 +77,7 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandlerTests : IAsy
         using var manifest = JsonDocument.Parse(scene.Store.ReadManifest(scene.Run.Id, attempt.Id));
         Assert.Equal("VerificationDiagnosis", manifest.RootElement.GetProperty("expectedResponseContract").GetString());
         Assert.Equal(3, manifest.RootElement.GetProperty("verificationEvidence").GetArrayLength());
+        InstructionContextTestSupport.AssertManifestCarriesDeliveredInstructions(manifest.RootElement);
     }
 
     [Fact]

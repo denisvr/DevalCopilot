@@ -237,6 +237,14 @@ snapshot sealed once into the existing manifest envelope, and availability only 
 correction, authorization, permission or source authority, and the recorded text shows what the host supplied, not that a provider followed it.
 See the [architecture description](../architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis).
 
+Every newly claimed Agent stage also receives the exact root `AGENTS.md` and `CLAUDE.md` of its own project's owned worktree
+as one bounded, identity-verified, fixed-boundary section of its sealed context manifest
+([ADR-0021](../decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md)), replacing the earlier fixed
+DevalCopilot documentation references. Only those two root files are read; each is Complete, Absent or Omitted with a fixed
+reason, already sealed manifests replay unchanged, and the content is untrusted advisory context that grants no authority.
+Imports, other instruction files, provider-side discovery, resume and compaction remain unselected. See the
+[architecture description](../architecture/agent-collaboration-protocol.md#project-instruction-context-in-agent-manifests).
+
 The plan-challenge loop is bounded and its exhaustion escalates: a proposal
 lineage may have one optional second critical review of the first Resolver
 revision and, if challenged, one explicit second resolution. That successful

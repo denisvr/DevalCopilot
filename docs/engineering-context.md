@@ -62,6 +62,8 @@
 - [ADR-0020](decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md):
   Correct the escalation explanation and accept its two canonical forms (it narrowly supersedes ADR-0016's
   single-source-text-form requirement).
+- [ADR-0021](decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md):
+  Add bounded root instruction context to Agent manifests (additive; it changes no existing authority decision).
 
 ## Product-specific architecture
 
@@ -92,6 +94,16 @@
   from a handle proven physically inside the approved worktree (Windows) whose bytes match the fingerprint's
   raw-content identity; other hosts omit it. Its text exists only in the sealed manifest and provider input (see
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)).
+- Every newly claimed Agent stage also receives the exact root `AGENTS.md` and `CLAUDE.md` of its own project's owned
+  worktree, in one versioned `projectInstructionContext` section bound to the claim's workspace and checkpoint and preceded by a
+  fixed boundary that makes it untrusted advisory context beneath the authorized plan, role, schema, permissions, command
+  restrictions and human decisions. Each file is Complete (whole text, verified length and SHA-256), Absent, or Omitted with a
+  fixed reason; only those two root paths are ever read, nothing is imported or followed, their text is withheld from the generic
+  untracked and tracked-diff evidence of the same delivery, and the text is carried by the sealed
+  manifest, the provider input and the existing authenticated sealed-artifact viewer. Already sealed manifests replay unchanged, the host proves containment on the open handle (Windows
+  only), and the file can still change after observation (see
+  [ADR-0021](decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md) and
+  [the protocol](architecture/agent-collaboration-protocol.md#project-instruction-context-in-agent-manifests)).
 - The tracked side of that evidence is a deterministic selection of complete file headers and hunks under an 8 KiB
   UTF-8 bound, fitted with the untracked previews inside the 32 KiB manifest ceiling; omitted tracked material is
   accounted for with fixed reasons and the selection is never described as a complete or applyable patch. A valid

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT_ENV, TOKEN_ENV, verifyOwnedRoot } from '../harness/ownedRoot.ts'
@@ -42,19 +43,49 @@ export interface JourneyRepository {
   baselineCommit: string
 }
 
-/** The disposable source repository (test setup, not workflow): one baseline commit holding the stub candidate file. */
+/** The two root instruction files every journey repository tracks, in the fixed order the host reads and reports them. */
+export const INSTRUCTION_FILE_NAMES = ['AGENTS.md', 'CLAUDE.md'] as const
+
+export interface InstructionFile {
+  fileName: (typeof INSTRUCTION_FILE_NAMES)[number]
+  /** The exact characters written to the repository (the file is UTF-8 with these line endings and no byte order mark). */
+  text: string
+}
+
+/**
+ * The root conventions of the repository called `name`, written independently of the host: distinct per repository so a stage that
+ * received another project's files is detectable, with a multibyte character, quotes, angle brackets and CRLF endings so exact
+ * preservation and escaping are exercised. The marker in each file never appears anywhere else in the product.
+ */
+export function instructionFiles(name: string): InstructionFile[] {
+  return [
+    {
+      fileName: 'AGENTS.md',
+      text: `# ${name} conventions\n\nKeep every change inside the plan-scoped file.\nQuote "names", prefer <Operation>Handler & friends — naïve 𝄞.\nCONVENTIONS-OF-${name}\n`,
+    },
+    { fileName: 'CLAUDE.md', text: `Claude notes for ${name}.\r\nSecond line, CRLF endings, trailing newline.\r\n` },
+  ]
+}
+
+/** The SHA-256 of the UTF-8 bytes of a text, lower-case hexadecimal (the identity the host's section must carry for a Complete file). */
+export const sha256OfText = (text: string): string => createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex')
+
+/** The disposable source repository (test setup, not workflow): one baseline commit holding the stub candidate file and the two root instruction files. */
 export function createJourneyRepository(name: string): JourneyRepository {
   const path = join(journeyRoot().root, 'repos', name)
   mkdirSync(join(path, 'src'), { recursive: true })
   writeFileSync(join(path, 'README.md'), `# ${name}\n`)
   writeFileSync(join(path, CANDIDATE_RELATIVE_PATH), CANDIDATE_BASELINE)
+  for (const file of instructionFiles(name)) {
+    writeFileSync(join(path, file.fileName), Buffer.from(file.text, 'utf8'))
+  }
   const git = (...args: string[]) => execFileSync('git', ['-C', path, ...args], { stdio: 'pipe' }).toString().trim()
   git('init', '--initial-branch', 'main')
   // No line-ending conversion anywhere for this repository: the host runs Git with a cleared environment (no global
   // configuration), so a machine-wide autocrlf would otherwise check the worktree out with CRLF while the host's Git compares it
   // to LF blobs and reports every file as changed. The repository-level setting is shared by the worktrees created from it.
   git('config', 'core.autocrlf', 'false')
-  git('add', 'README.md', CANDIDATE_RELATIVE_PATH)
+  git('add', 'README.md', CANDIDATE_RELATIVE_PATH, ...INSTRUCTION_FILE_NAMES)
   git('-c', 'user.name=Fixture Author', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', 'Initial commit')
   return { path, baselineCommit: git('rev-parse', 'HEAD') }
 }
@@ -89,6 +120,17 @@ export interface InvocationEntry {
   rationaleSha256?: string
   decisionCount?: number
   decisionChallengeIds?: string
+  // What the double independently observed about the sealed project instruction context (never its text).
+  instructionSection?: string
+  instructionOrder?: string
+  instructionBoundary?: string
+  instructionBinding?: string
+  instructionFiles?: string
+  instructionStatuses?: string
+  instructionByteLengths?: string
+  instructionSha256?: string
+  instructionTextsVerified?: string
+  instructionReferences?: string
 }
 
 function invocationLines(): string[] {
@@ -121,6 +163,11 @@ export function readInvocations(since: InvocationMark): InvocationEntry[] {
   return invocationLines()
     .slice(since)
     .map((line) => JSON.parse(line) as InvocationEntry)
+}
+
+/** A sealed context manifest read back, read-only, from the owned artifact root (the stored relative path is the host's own). */
+export function readSealedManifestText(relativeStoragePath: string): string {
+  return readFileSync(join(journeyRoot().root, 'artifacts', relativeStoragePath), 'utf8')
 }
 
 export function readLaunchTargetVerdict(): { verified: boolean; codexOwned: boolean; claudeOwned: boolean } | null {

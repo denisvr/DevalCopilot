@@ -41,25 +41,25 @@ public sealed class UntrackedFileManifestTests
     internal static BuildManifest Builder(string variant) => variant switch
     {
         "critical-review" => (paths, diff, files, padding) => ClaudeCriticalReviewContextManifestBuilder.Build(
-            Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding), paths, diff, files),
+            Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding), paths, diff, InstructionContextTestSupport.NotCaptured, files),
         "challenge-resolution" => (paths, diff, files, padding) => ChallengeResolutionContextManifestBuilder.Build(
             Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding),
-            [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, diff, files),
+            [new ChallengeResolutionContextManifestBuilder.ChallengeEvidence(Id, "c", "{}")], paths, diff, InstructionContextTestSupport.NotCaptured, files),
         "implementation-accepted" => (paths, diff, files, padding) =>
             ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
                 Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding),
                 new ImplementationContextManifestBuilder.AcceptanceEvidence("a", "{}"), paths, diff,
-                [new ImplementationContextManifestBuilder.VerificationCommandReference("build", true)], files),
+                [new ImplementationContextManifestBuilder.VerificationCommandReference("build", true)], InstructionContextTestSupport.NotCaptured, files),
         "implementation-revised" => (paths, diff, files, padding) =>
             ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
                 Id, Id, Id, Fingerprint, "objective", Id, "summary", Padded(padding),
                 [new ImplementationContextManifestBuilder.DecisionEvidence(Id, "d", "{}")], paths, diff,
-                [new ImplementationContextManifestBuilder.VerificationCommandReference("build", true)],
+                [new ImplementationContextManifestBuilder.VerificationCommandReference("build", true)], InstructionContextTestSupport.NotCaptured,
                 untrackedFiles: files),
         "implementation-review" => (paths, diff, files, padding) => CodeReviewContextManifestBuilder.Build(
             Id, Id, Id, Fingerprint, "objective", Id, "plan", "{}", Id, "report", Padded(padding),
             [new CodeReviewContextManifestBuilder.VerificationEvidence("build", 1, "Passed", "Succeeded", 0)],
-            paths, diff, files),
+            paths, diff, InstructionContextTestSupport.NotCaptured, files),
         "implementation-review-correction" => (paths, diff, files, padding) =>
             CodeReviewContextManifestBuilder.BuildForCorrection(
                 Id, Id, Id, Fingerprint, "objective", Id, "plan", "{}", Id, "report", "{}",
@@ -68,10 +68,10 @@ public sealed class UntrackedFileManifestTests
                 new CodeReviewContextManifestBuilder.CorrectionEvidence(
                     Id, "previous", Padded(padding), [new CodeReviewContextManifestBuilder.CorrectionFinding(Id, "f", "{}")],
                     [new CodeReviewContextManifestBuilder.CorrectionRevisionResponse(Id, Id, "r", "{}")]),
-                files),
+                InstructionContextTestSupport.NotCaptured, files),
         "review-correction" => (paths, diff, files, padding) => ReviewCorrectionContextManifestBuilder.Build(
             Id, Id, Id, Id, Fingerprint, "objective", Id, "report", Padded(padding),
-            [new ReviewCorrectionContextManifestBuilder.Finding(Id, "f", "{}")], paths, diff, null, files),
+            [new ReviewCorrectionContextManifestBuilder.Finding(Id, "f", "{}")], paths, diff, InstructionContextTestSupport.NotCaptured, null, files),
         _ => throw new ArgumentOutOfRangeException(nameof(variant)),
     };
 

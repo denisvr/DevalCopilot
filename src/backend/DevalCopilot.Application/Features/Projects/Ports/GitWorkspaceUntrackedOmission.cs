@@ -32,4 +32,8 @@ public enum GitWorkspaceUntrackedOmission
 
     /// <summary>The capture's aggregate preview budget was already spent by earlier files.</summary>
     AggregateLimit,
+
+    /// <summary>The path is a root instruction file (<c>AGENTS.md</c> or <c>CLAUDE.md</c>). Its text is reserved to the controlled
+    /// instruction section, so no generic preview of it is ever delivered to an Agent.</summary>
+    ReservedInstructionFile,
 }

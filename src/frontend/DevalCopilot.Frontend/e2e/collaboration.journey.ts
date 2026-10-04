@@ -7,14 +7,17 @@ import { JourneyData, sameId } from './journey/journeyDb'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
   createJourneyRepository,
+  instructionFiles,
   journeyRoot,
   journeySecret,
   markInvocations,
   readInvocationLogText,
   readInvocations,
   readLaunchTargetVerdict,
+  readSealedManifestText,
   repositorySnapshot,
 } from './journey/journeyEnv'
+import { instructionDeliveryProblems } from './journey/instructionDelivery'
 import { planIdentityProblems } from './journey/planIdentity'
 import { injectJourneySession, registerProject, selectProject, workflowLines } from './journey/journeySupport'
 
@@ -352,6 +355,26 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     'Proposal', 'CriticalReview', 'ChallengeResolution', 'ImplementationReport', 'verify:failed', 'VerificationDiagnosis', 'ReviewCorrection',
     'verify:passed', 'ImplementationReview',
   ])
+
+  // Project instruction context (ADR-0021): every one of the claimed stages received ITS OWN repository's tracked root AGENTS.md and
+  // CLAUDE.md, complete and identity-verified, and nothing of the other journey's repository. Two independent views agree with the files
+  // this journey itself committed: what each double observed about the section it was handed (identity facts only; the log never holds
+  // the text) and the sealed manifests read back, read-only, from the owned artifact root. The files are tracked and clean, so they
+  // added no changed path to any checkpoint (asserted above), and the doubles still edited only the one plan-scoped candidate file.
+  const manifestRows = data.manifestArtifacts()
+  const sealedManifests = all.map((attempt) => {
+    const row = manifestRows.find((candidate) => sameId(candidate.AttemptId, attempt.Id))!
+    return { attemptId: attempt.Id, text: readSealedManifestText(row.RelativeStoragePath), byteLength: row.ByteLength, contentHash: row.ContentHash }
+  })
+  expect(
+    instructionDeliveryProblems(
+      invocations.filter((entry) => entry.role !== 'verify' && entry.kind !== 'probe'),
+      sealedManifests,
+      { files: instructionFiles('journey-source'), workspaceId: data.workspace().Id, foreignFiles: instructionFiles('escalated-source') },
+      all.map((attempt) => attempt.AgentResponseContract),
+      readInvocationLogText(mark),
+    ),
+  ).toEqual([])
 
   // No agent ever committed or pushed: the worktree still has the single baseline commit and the original repository is untouched.
   const worktree = data.workspace().WorkspacePath

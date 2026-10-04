@@ -183,7 +183,7 @@ internal static class UntrackedFilePreviewReader
 
     /// <summary>Git's blob object id of <paramref name="content"/> in a SHA-1 repository, which is what
     /// <c>hash-object --no-filters</c> prints and the reader already requires to be 40 hex characters.</summary>
-    private static string GitBlobSha1(byte[] content)
+    internal static string GitBlobSha1(byte[] content)
     {
 #pragma warning disable CA5350 // Git's SHA-1 object identity; used to match it, never for security.
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);

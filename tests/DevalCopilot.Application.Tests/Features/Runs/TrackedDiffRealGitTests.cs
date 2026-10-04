@@ -69,7 +69,7 @@ public sealed class TrackedDiffRealGitTests : IDisposable
 
         var manifest = ClaudeCriticalReviewContextManifestBuilder.Build(
             Id, Id, Id, plain.FingerprintSha256!, "objective", Id, "summary", "{}", plain.ChangedPaths, diff,
-            previews.UntrackedFiles);
+            InstructionContextTestSupport.NotCaptured, previews.UntrackedFiles);
         using var document = JsonDocument.Parse(manifest);
         var evidence = document.RootElement.GetProperty("changeEvidence");
         var selected = evidence.GetProperty("diff").GetString()!;
@@ -122,7 +122,7 @@ public sealed class TrackedDiffRealGitTests : IDisposable
         var second = await _reader.CaptureWithUntrackedPreviewsAsync(repository, CancellationToken.None);
         string Build(GitWorkspaceEvidenceResult result) => ClaudeCriticalReviewContextManifestBuilder.Build(
             Id, Id, Id, result.FingerprintSha256!, "objective", Id, "summary", "{}", result.ChangedPaths, result.CompleteDiff,
-            result.UntrackedFiles);
+            InstructionContextTestSupport.NotCaptured, result.UntrackedFiles);
 
         Assert.Equal(first.FingerprintSha256, second.FingerprintSha256);
         Assert.Equal(Build(first), Build(second));

@@ -96,11 +96,17 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
     {
         public int Stage { get; set; }
 
+        /// <summary>The project's own root instruction files as every claim's capture observes them.</summary>
+        public GitWorkspaceInstructionContext? Instructions { get; set; }
+
         public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
             Task.FromResult(new GitWorkspaceEvidenceResult(
                 GitWorkspaceEvidenceOutcome.Success, Head, Fingerprints[Stage],
-                Stage == 0 ? [] : [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], null));
+                Stage == 0 ? [] : [new GitWorkspaceChangedPath("src/Foo.cs", null, "M", " ")], null, null, Instructions));
     }
+
+    private const string OwnAgentsText = "OWN-PROJECT-CONVENTIONS: keep handlers small.\r\nSay \"yes\" & use <Operation>Handler — naïve 𝄞.\r\n";
+    private const string ForeignMarker = "FOREIGN-PROJECT-CONVENTIONS";
 
     private sealed class RecordingProcessDouble(StagedEvidence evidence) : IProcessExecutionAdapter
     {
@@ -177,7 +183,7 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
 
     private Host BuildHost()
     {
-        var evidence = new StagedEvidence();
+        var evidence = new StagedEvidence { Instructions = RealAdapterInstructionProbe.OwnContext(OwnAgentsText) };
         var process = new RecordingProcessDouble(evidence);
         var review = new FakeReviewAdapter(_artifactStore);
         var services = new ServiceCollection();
@@ -660,6 +666,50 @@ public sealed class HumanAuthorizedPlanHostedTests : IDisposable
         var second = await SendAsync(host, new CreateImplementationAttemptCommand(lineage.RunId, lineage.FinalId));
         Assert.True(second.IsFailure);
         Assert.Equal(attemptId, await InDbAsync(host, db => db.PlanningImplementationAuthorizations.Select(g => g.ConsumedByAttemptId).SingleAsync()));
+
+        await AssertEveryClaimDeliversTheProjectsOwnConventionsThroughItsRealAdapterAsync(host, lineage, expectDiagnosis: false);
+    }
+
+    /// <summary>Every Agent attempt this production lineage claimed — planning, both critical reviews and resolutions, the
+    /// authorized implementation, the code review and its format repair, the correction and its re-review — is fed, from its
+    /// own sealed manifest, through the REAL adapter of its role and provider. What each adapter hands the provider is the
+    /// sealed bytes exactly, carrying the project's own conventions once and nothing from any other project.</summary>
+    private async Task AssertEveryClaimDeliversTheProjectsOwnConventionsThroughItsRealAdapterAsync(
+        Host host, Lineage lineage, bool expectDiagnosis)
+    {
+        var (attempts, artifacts, workspacePath) = await InDbAsync(host, async db => (
+            await db.Attempts.AsNoTracking().Where(a => a.RunId == lineage.RunId && a.Kind == AttemptKind.Agent)
+                .OrderBy(a => a.AttemptNumber).ToListAsync(),
+            await db.Artifacts.AsNoTracking().Where(a => a.RunId == lineage.RunId && a.Purpose == ArtifactPurpose.AgentContextManifest)
+                .ToListAsync(),
+            (await db.GitWorkspaces.AsNoTracking().SingleAsync(w => w.Id == lineage.WorkspaceId)).WorkspacePath));
+        var grant = await InDbAsync(host, db => db.PlanningImplementationAuthorizations.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.RunId == lineage.RunId));
+        var deliveries = new List<RealAdapterInstructionProbe.Delivery>();
+        foreach (var attempt in attempts)
+        {
+            var manifest = artifacts.Single(artifact => artifact.Id == attempt.AgentContextManifestArtifactId);
+            var authorization = grant is not null && grant.ConsumedByAttemptId == attempt.Id
+                ? new PlanningImplementationAuthorizationFact(
+                    grant.Id, grant.EscalationMessageId, grant.FinalProposalMessageId, grant.HumanInstructionMessageId, Rationale)
+                : null;
+            var delivery = await RealAdapterInstructionProbe.DeliverAsync(
+                attempt, manifest, workspacePath, _artifactStore, _claudeExecutable, authorization);
+            RealAdapterInstructionProbe.AssertDeliversOwnConventions(delivery, OwnAgentsText, ForeignMarker);
+            deliveries.Add(delivery);
+        }
+
+        var expected = new[]
+        {
+            AgentResponseContract.Proposal, AgentResponseContract.CriticalReview, AgentResponseContract.ChallengeResolution,
+            AgentResponseContract.ImplementationReport, AgentResponseContract.ImplementationReview, AgentResponseContract.ReviewCorrection,
+        }.Concat(expectDiagnosis ? [AgentResponseContract.VerificationDiagnosis] : []);
+        Assert.Equal(expected.Order(), deliveries.Select(delivery => delivery.Contract).Distinct().Order());
+        Assert.Equal(
+            new[] { AgentProvider.ClaudeCode, AgentProvider.Codex }.Order(),
+            deliveries.Select(delivery => delivery.Provider).Distinct().Order());
+        // The format-repair claim of the code review is among them, and it too carries the conventions.
+        Assert.Contains(deliveries, delivery => delivery.Stdin.Contains("formatRepairNotice", StringComparison.Ordinal));
     }
 
     private const string RootPlanSummary = "Add the ledger table and its query.";

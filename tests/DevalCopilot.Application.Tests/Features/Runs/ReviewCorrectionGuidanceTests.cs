@@ -131,7 +131,7 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
             [
                 "protocolVersion", "expectedResponseContract", "projectId", "runId", "workspaceId", "startingCheckpointId",
                 "startingFingerprint", "objective", "instruction", "expectedOutputSchema", "untrustedEvidenceBoundary",
-                "executionReport", "orderedFindings", "changeEvidence",
+                "projectInstructionContextBoundary", "projectInstructionContext", "executionReport", "orderedFindings", "changeEvidence",
             ],
             TopLevelKeys(manifest));
         Assert.Equal(created.AttemptId, (await context.ReviewCorrectionAuthorizations.SingleAsync()).ConsumedByAttemptId);
@@ -179,9 +179,11 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests
 
         var keys = TopLevelKeys(manifest);
         Assert.Equal("untrustedEvidenceBoundary", keys[10]);
-        Assert.Equal("humanGuidanceBoundary", keys[11]);
-        Assert.Equal("humanGuidance", keys[12]);
-        Assert.Equal("executionReport", keys[13]);
+        Assert.Equal("projectInstructionContextBoundary", keys[11]);
+        Assert.Equal("projectInstructionContext", keys[12]);
+        Assert.Equal("humanGuidanceBoundary", keys[13]);
+        Assert.Equal("humanGuidance", keys[14]);
+        Assert.Equal("executionReport", keys[15]);
         using (var document = JsonDocument.Parse(manifest))
         {
             var block = document.RootElement.GetProperty("humanGuidance");

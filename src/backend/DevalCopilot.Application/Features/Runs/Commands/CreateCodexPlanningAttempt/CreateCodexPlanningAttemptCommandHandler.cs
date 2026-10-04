@@ -4,6 +4,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -172,7 +173,8 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 Error.Conflict("agent_attempts.provider_not_observed", "The Codex runtime is not currently observed as available."));
         }
 
-        var evidence = await evidenceReader.CaptureAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureForAgentContextAsync(
+            workspace.WorkspacePath, includeUntrackedPreviews: false, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 != checkpoint.FingerprintSha256)
         {
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
@@ -183,11 +185,12 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         var manifestArtifactId = Guid.NewGuid();
         var nowUtc = timeProvider.GetUtcNow();
 
+        var instructions = ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext);
         var manifestJson = command.RepairSourceAttemptId is null
             ? ContextManifestBuilder.Build(
-                run.ProjectId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, run.Objective, null, [])
+                run.ProjectId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, run.Objective, null, [], instructions)
             : ContextManifestBuilder.BuildFormatRepair(
-                run.ProjectId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, run.Objective);
+                run.ProjectId, workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, run.Objective, instructions);
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {
             // Genuinely unreachable with today's bounded manifest fields, but never silently

@@ -297,7 +297,8 @@ Before worktree creation, the run records:
 - repository canonical path and remote identity;
 - current branch and commit;
 - clean, dirty, or explicitly accepted working-tree state;
-- applicable instruction files and their content hashes;
+- applicable instruction files and their content hashes (as of ADR-0021 each new Agent claim also seals the exact root
+  `AGENTS.md` and `CLAUDE.md` of the claim's own worktree, with their verified length and SHA-256, into its context manifest);
 - configured default branch and branch naming policy;
 - discovered tool paths and versions;
 - verification commands;

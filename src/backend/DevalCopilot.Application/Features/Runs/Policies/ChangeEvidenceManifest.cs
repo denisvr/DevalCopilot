@@ -1,4 +1,5 @@
 using System.Text;
+using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Features.Projects.Ports;
 
 namespace DevalCopilot.Application.Features.Runs.Policies;
@@ -15,7 +16,9 @@ namespace DevalCopilot.Application.Features.Runs.Policies;
 /// measured as serialized against the ceiling and optional text (tracked hunks and untracked previews together) is
 /// reduced step by step; the accounting for tracked and untracked evidence is reduced only to its counts-only form,
 /// never dropped. If even that cannot fit, the last form is returned and each claim handler's own refusal applies.
-/// Everything here is repository content and sits under each manifest's untrusted-evidence boundary.
+/// Everything here is repository content and sits under each manifest's untrusted-evidence boundary. The project instruction
+/// section is fitted around this ladder by <see cref="ProjectInstructionContextManifest.Fit"/>: whole instruction texts are
+/// omitted only after every reduction here has been exhausted.
 /// </summary>
 internal static class ChangeEvidenceManifest
 {
@@ -34,6 +37,12 @@ internal static class ChangeEvidenceManifest
         (0, 0, 0),
     ];
 
+    internal const string ReservedDiffWithheld = "reserved_instruction_diff_withheld";
+
+    internal const string ReservedDiffWithheldNotice =
+        "No tracked diff text is delivered: a tracked root instruction file changed and the diff could not be cut at certain file " +
+        "boundaries, so the whole generic diff, including unrelated hunks, was withheld. Every changed file is listed in changedPaths.";
+
     internal const string DiffNotice =
         "The tracked diff below is a bounded selection of complete file headers and hunks, not the full diff and not " +
         "an applyable patch. Every file that is partial or absent is listed here with a fixed reason.";
@@ -45,13 +54,24 @@ internal static class ChangeEvidenceManifest
         IReadOnlyList<GitWorkspaceUntrackedFile>? untrackedFiles,
         Func<Dictionary<string, object?>, string> serialize)
     {
+        // The two root instruction names are reserved to the instruction section: their tracked content is withheld here whatever
+        // their instruction status (and whatever a capture already projected), and the withholding is always stated.
+        var reserved = changedPaths
+            .Where(path => GitWorkspaceInstructionContext.IsReservedPath(path.Path))
+            .Select(path => path.Path)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var trackedReservedChanged = changedPaths.Any(path =>
+            GitWorkspaceInstructionContext.IsReservedPath(path.Path) && !(path.IndexStatus == "?" && path.WorkTreeStatus == "?"));
+        completeDiff = AgentEvidenceProjection.WithholdReservedDiff(completeDiff, reserved.Length > 0);
         var parsed = completeDiff is null ? null : TrackedDiffParser.Parse(completeDiff);
         var entries = UntrackedFileManifestSection.Resolve(changedPaths, untrackedFiles);
 
         foreach (var (diffBytes, untrackedBytes, sampleBytes) in Steps)
         {
             var manifest = serialize(Evidence(
-                changedPaths, completeDiff, parsed, diffBytes, sampleBytes, includeItems: true,
+                changedPaths, completeDiff, parsed, diffBytes, sampleBytes, includeItems: true, reserved, trackedReservedChanged,
                 entries.Count == 0 ? null : UntrackedFileManifestSection.Section(entries, untrackedBytes)));
             if (Fits(manifest))
             {
@@ -60,7 +80,7 @@ internal static class ChangeEvidenceManifest
         }
 
         var withoutItems = serialize(Evidence(
-            changedPaths, completeDiff, parsed, 0, 0, includeItems: false,
+            changedPaths, completeDiff, parsed, 0, 0, includeItems: false, reserved, trackedReservedChanged,
             entries.Count == 0 ? null : UntrackedFileManifestSection.Section(entries, 0)));
         if (Fits(withoutItems))
         {
@@ -68,7 +88,7 @@ internal static class ChangeEvidenceManifest
         }
 
         return serialize(Evidence(
-            changedPaths, completeDiff, parsed, 0, 0, includeItems: false,
+            changedPaths, completeDiff, parsed, 0, 0, includeItems: false, reserved, trackedReservedChanged,
             entries.Count == 0 ? null : UntrackedFileManifestSection.Summary(entries)));
     }
 
@@ -81,6 +101,8 @@ internal static class ChangeEvidenceManifest
         int diffBudgetBytes,
         int sampleBudgetBytes,
         bool includeItems,
+        IReadOnlyList<string> reservedInstructionFiles,
+        bool trackedReservedChanged,
         object? untrackedSection)
     {
         var evidence = new Dictionary<string, object?>
@@ -104,11 +126,11 @@ internal static class ChangeEvidenceManifest
         {
             evidence["diff"] = null;
             evidence["diffTruncated"] = true;
-            evidence["diffSelection"] = new
+            evidence["diffSelection"] = new Dictionary<string, object?>
             {
-                notice = DiffNotice,
-                complete = false,
-                reason = "unsupported_format",
+                ["notice"] = DiffNotice,
+                ["complete"] = false,
+                ["reason"] = "unsupported_format",
             };
         }
         else
@@ -118,6 +140,25 @@ internal static class ChangeEvidenceManifest
             evidence["diffTruncated"] = true;
             evidence["diffSelection"] = DiffSelection(
                 selection, includeItems, diffBudgetBytes == 0 && !includeItems, TrackedDiffSampler.Build(parsed, sampleBudgetBytes));
+        }
+
+        if (reservedInstructionFiles.Count > 0)
+        {
+            // Never complete evidence: the tracked content of these root instruction files is delivered only by the instruction
+            // section. The accounting survives every reduction step because it is a few fixed bytes.
+            var selection = evidence.TryGetValue("diffSelection", out var existing) && existing is Dictionary<string, object?> current
+                ? current
+                : new Dictionary<string, object?> { ["notice"] = DiffNotice, ["complete"] = false };
+            selection["reservedInstructionFiles"] = reservedInstructionFiles;
+            if (trackedReservedChanged && evidence["diff"] is null && !selection.ContainsKey("reason"))
+            {
+                // No diff text at all although a tracked root instruction file changed: the whole generic diff is withheld (it could not
+                // be cut at a certain boundary), which also withholds unrelated hunks. The changed paths above still name every file.
+                selection["reason"] = ReservedDiffWithheld;
+                selection["notice"] = ReservedDiffWithheldNotice;
+            }
+            evidence["diffTruncated"] = true;
+            evidence["diffSelection"] = selection;
         }
 
         if (untrackedSection is not null)

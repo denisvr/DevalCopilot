@@ -39,13 +39,13 @@ public sealed class PlanningImplementationAuthorizationManifestTests
             decisions ?? [new ImplementationContextManifestBuilder.DecisionEvidence(ChallengeId, "Decision.", DecisionJson)],
             new ImplementationContextManifestBuilder.HumanAuthorizationEvidence(
                 fact.AuthorizationId, fact.EscalationMessageId, fact.HumanInstructionMessageId, fact.Rationale),
-            changedPaths ?? [], diff, [], null, guidance);
+            changedPaths ?? [], diff, [], InstructionContextTestSupport.NotCaptured, null, guidance);
     }
 
     private static string Ordinary() =>
         ImplementationContextManifestBuilder.BuildForResolvedRevisedProposal(
             ProjectId, WorkspaceId, CheckpointId, Fingerprint, "Objective", FinalProposalId, "Plan.", PlanJson,
-            [new ImplementationContextManifestBuilder.DecisionEvidence(ChallengeId, "Decision.", DecisionJson)], [], null, []);
+            [new ImplementationContextManifestBuilder.DecisionEvidence(ChallengeId, "Decision.", DecisionJson)], [], null, [], InstructionContextTestSupport.NotCaptured);
 
     private static string[] Members(string manifest) =>
         JsonDocument.Parse(manifest).RootElement.EnumerateObject().Select(property => property.Name).ToArray();
@@ -58,11 +58,13 @@ public sealed class PlanningImplementationAuthorizationManifestTests
 
         Assert.DoesNotContain("humanPlanAuthorizationBoundary", ordinary);
         Assert.Equal(
-            ordinary.Take(ordinary.Length - 3)
+            ordinary.Take(ordinary.Length - 5)
                 .Append("humanPlanAuthorizationBoundary")
-                .Concat(ordinary.Skip(ordinary.Length - 3)),
+                .Concat(ordinary.Skip(ordinary.Length - 5)),
             authorized);
-        Assert.Equal(["untrustedEvidenceBoundary", "resolvedPlan", "changeEvidence"], authorized.TakeLast(3));
+        Assert.Equal(
+            ["untrustedEvidenceBoundary", "projectInstructionContextBoundary", "projectInstructionContext", "resolvedPlan", "changeEvidence"],
+            authorized.TakeLast(5));
     }
 
     [Fact]
@@ -72,7 +74,7 @@ public sealed class PlanningImplementationAuthorizationManifestTests
         var original = ImplementationContextManifestBuilder.BuildForAcceptedOriginalProposal(
             ProjectId, WorkspaceId, CheckpointId, Fingerprint, "Objective", FinalProposalId, "Plan.", PlanJson,
             new ImplementationContextManifestBuilder.AcceptanceEvidence("Accepted.", "{\"rationale\":\"Sound.\"}"),
-            [], null, []);
+            [], null, [], InstructionContextTestSupport.NotCaptured);
 
         foreach (var manifest in new[] { ordinary, original })
         {

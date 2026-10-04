@@ -399,7 +399,7 @@ public sealed partial class ProviderFixtureContractTests : IDisposable
         Assert.DoesNotContain(_root, log, StringComparison.OrdinalIgnoreCase);
         foreach (var line in log.Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            var allowed = new[] { "role", "kind", "contract", "planMessageId", "planMarker", "reportMessageId", "findingCount", "challengeCount", "changedPath", "outcome", "guidanceSha256", "guidanceBoundary", "authorizationId", "escalationMessageId", "instructionMessageId", "rationaleSha256", "decisionCount", "decisionChallengeIds" };
+            var allowed = new[] { "role", "kind", "contract", "planMessageId", "planMarker", "reportMessageId", "findingCount", "challengeCount", "changedPath", "outcome", "guidanceSha256", "guidanceBoundary", "authorizationId", "escalationMessageId", "instructionMessageId", "rationaleSha256", "decisionCount", "decisionChallengeIds", "instructionSection", "instructionOrder", "instructionBoundary", "instructionBinding", "instructionFiles", "instructionStatuses", "instructionByteLengths", "instructionSha256", "instructionTextsVerified", "instructionReferences" };
             Assert.All(JsonNode.Parse(line)!.AsObject().Select(property => property.Key), key => Assert.Contains(key, allowed));
         }
     }

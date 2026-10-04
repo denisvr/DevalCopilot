@@ -147,8 +147,8 @@ public sealed class CreateClaudeCriticalReviewRepairAttemptTests : IAsyncLifetim
         var ordinaryMembers = new[]
         {
             "protocolVersion", "expectedResponseContract", "objective", "projectId", "gitWorkspaceId", "gitCheckpointId",
-            "checkpointFingerprintSha256", "instructionReferences", "reviewCriteria", "expectedOutputSchema",
-            "untrustedEvidenceBoundary", "reviewedProposal", "changeEvidence",
+            "checkpointFingerprintSha256", "reviewCriteria", "expectedOutputSchema",
+            "untrustedEvidenceBoundary", "projectInstructionContextBoundary", "projectInstructionContext", "reviewedProposal", "changeEvidence",
         };
         Assert.Equal(ordinaryMembers, withoutNotice);
 

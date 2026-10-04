@@ -3,6 +3,7 @@ using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.CreateVerificationDiagnosisAttempt;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -41,7 +42,10 @@ public sealed class VerificationDiagnosisContextManifestBuilderTests : IAsyncLif
             scene.Run.ProjectId, scene.Scene.Workspace.Id, scene.Implementation.ReviewCheckpoint.Id, scene.Implementation.ReviewFingerprint,
             "Fix the ledger query.", PlanId, "Plan summary.", planContent,
             ReportId, "Report summary.", "{\"completedWork\":\"Done.\",\"verification\":\"dotnet test\"}",
-            read.Value!, prefixes.Streams!, evidence.ChangedPaths, evidence.CompleteDiff, evidence.UntrackedFiles);
+            read.Value!, prefixes.Streams!, evidence.ChangedPaths, evidence.CompleteDiff,
+            ProjectInstructionContextManifest.Prepare(
+                scene.Scene.Workspace.Id, scene.Implementation.ReviewCheckpoint.Id, scene.Implementation.ReviewFingerprint, evidence.InstructionContext),
+            evidence.UntrackedFiles);
     }
 
     [Fact]
@@ -55,8 +59,8 @@ public sealed class VerificationDiagnosisContextManifestBuilderTests : IAsyncLif
         Assert.Equal(
             [
                 "protocolVersion", "expectedResponseContract", "objective", "projectId", "gitWorkspaceId", "resultGitCheckpointId",
-                "resultCheckpointFingerprintSha256", "instructionReferences", "instruction", "failureOutputNotice", "expectedOutputSchema",
-                "untrustedEvidenceBoundary", "implementedPlan", "executionReport", "verificationEvidence", "changeEvidence",
+                "resultCheckpointFingerprintSha256", "instruction", "failureOutputNotice", "expectedOutputSchema",
+                "untrustedEvidenceBoundary", "projectInstructionContextBoundary", "projectInstructionContext", "implementedPlan", "executionReport", "verificationEvidence", "changeEvidence",
             ],
             names);
         var boundary = Array.IndexOf(names, "untrustedEvidenceBoundary");

@@ -211,7 +211,7 @@ public sealed partial class CreateReviewCorrectionAttemptCommandHandlerTests : I
     {
         await using var context = _fixture.CreateContext();
         var seed = await SeedAsync(context);
-        var evidenceReader = new RecordingEvidenceReader(seed.Evidence with { UntrackedFiles = UntrackedManifestTestSupport.Evidence(seed.Evidence.FingerprintSha256!).UntrackedFiles, ChangedPaths = [.. seed.Evidence.ChangedPaths, .. UntrackedManifestTestSupport.Evidence(seed.Evidence.FingerprintSha256!).ChangedPaths] });
+        var evidenceReader = new RecordingEvidenceReader(seed.Evidence with { InstructionContext = InstructionContextTestSupport.Delivered, UntrackedFiles = UntrackedManifestTestSupport.Evidence(seed.Evidence.FingerprintSha256!).UntrackedFiles, ChangedPaths = [.. seed.Evidence.ChangedPaths, .. UntrackedManifestTestSupport.Evidence(seed.Evidence.FingerprintSha256!).ChangedPaths] });
         var handler = new CreateReviewCorrectionAttemptCommandHandler(context, evidenceReader, new TestArtifactStore(), new FixedTimeProvider(Now));
 
         var result = await handler.HandleAsync(Command(seed), CancellationToken.None);

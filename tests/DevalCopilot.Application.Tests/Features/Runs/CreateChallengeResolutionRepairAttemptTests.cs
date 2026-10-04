@@ -147,8 +147,8 @@ public sealed class CreateChallengeResolutionRepairAttemptTests : IAsyncLifetime
             new[]
             {
                 "protocolVersion", "expectedResponseContract", "objective", "projectId", "gitWorkspaceId", "gitCheckpointId",
-                "checkpointFingerprintSha256", "instructionReferences", "instruction", "expectedOutputSchema",
-                "untrustedEvidenceBoundary", "originalProposal", "challenges", "changeEvidence",
+                "checkpointFingerprintSha256", "instruction", "expectedOutputSchema",
+                "untrustedEvidenceBoundary", "projectInstructionContextBoundary", "projectInstructionContext", "originalProposal", "challenges", "changeEvidence",
             },
             members.Where(name => name != "formatRepairNotice"));
         Assert.DoesNotContain(source.Id.ToString(), manifestText, StringComparison.OrdinalIgnoreCase);

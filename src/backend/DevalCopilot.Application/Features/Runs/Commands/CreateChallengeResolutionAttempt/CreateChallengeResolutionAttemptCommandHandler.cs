@@ -7,6 +7,7 @@ using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -190,7 +191,8 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 Error.Conflict("agent_attempts.provider_not_observed", "The Codex runtime is not currently observed as available."));
         }
 
-        var evidence = await evidenceReader.CaptureWithUntrackedPreviewsAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureForAgentContextAsync(
+            workspace.WorkspacePath, includeUntrackedPreviews: true, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 != checkpoint.FingerprintSha256)
         {
             return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(
@@ -230,6 +232,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 .ToArray(),
             evidence.ChangedPaths,
             evidence.CompleteDiff,
+            ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             evidence.UntrackedFiles,
             formatRepair: command.RepairSourceAttemptId is not null);
         if (System.Text.Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)

@@ -107,6 +107,8 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandlerTests : IAsync
         Assert.DoesNotContain("verificationEvidence", manifestText, StringComparison.Ordinal);
         Assert.DoesNotContain(DiagnosisTestScene.ExecutableSentinel, manifestText, StringComparison.Ordinal);
         Assert.Contains("Diagnosis finding 1.", manifestText, StringComparison.Ordinal);
+        InstructionContextTestSupport.AssertManifestCarriesDeliveredInstructions(manifest.RootElement);
+        Assert.True(Array.IndexOf(names, "projectInstructionContext") > Array.IndexOf(names, "untrustedEvidenceBoundary"));
     }
 
     [Fact]

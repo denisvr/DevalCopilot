@@ -113,7 +113,8 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
             return Failure(Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required."));
         }
 
-        var evidence = await evidenceReader.CaptureWithUntrackedPreviewsAsync(workspace.WorkspacePath, cancellationToken);
+        var evidence = await evidenceReader.CaptureForAgentContextAsync(
+            workspace.WorkspacePath, includeUntrackedPreviews: true, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success
             || !string.Equals(evidence.FingerprintSha256, checkpoint.FingerprintSha256, StringComparison.Ordinal))
         {
@@ -174,9 +175,10 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
                 finding.Id, finding.Summary, finding.StructuredContentJson)).ToArray(),
             evidence.ChangedPaths,
             evidence.CompleteDiff,
+            ProjectInstructionContextManifest.Prepare(workspace.Id, checkpoint.Id, checkpoint.FingerprintSha256, evidence.InstructionContext),
             humanGuidance: null,
-            evidence.UntrackedFiles,
-            directGuidance,
+            untrackedFiles: evidence.UntrackedFiles,
+            directHumanGuidance: directGuidance,
             sourceNotice: ReviewCorrectionContextManifestBuilder.VerificationDiagnosisSourceNotice);
         if (Encoding.UTF8.GetByteCount(manifestJson) > MaxContextManifestBytes)
         {

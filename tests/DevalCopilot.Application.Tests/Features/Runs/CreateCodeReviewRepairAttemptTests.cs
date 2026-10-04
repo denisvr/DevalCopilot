@@ -157,8 +157,8 @@ public sealed class CreateCodeReviewRepairAttemptTests : IAsyncLifetime
             new[]
             {
                 "protocolVersion", "expectedResponseContract", "objective", "projectId", "gitWorkspaceId", "resultGitCheckpointId",
-                "resultCheckpointFingerprintSha256", "instructionReferences", "instruction", "expectedOutputSchema",
-                "untrustedEvidenceBoundary", "resolvedPlan", "executionReport", "verificationEvidence", "changeEvidence",
+                "resultCheckpointFingerprintSha256", "instruction", "expectedOutputSchema",
+                "untrustedEvidenceBoundary", "projectInstructionContextBoundary", "projectInstructionContext", "resolvedPlan", "executionReport", "verificationEvidence", "changeEvidence",
             },
             members.Where(name => name != "formatRepairNotice"));
         Assert.Equal(2, manifest.RootElement.GetProperty("verificationEvidence").GetArrayLength());

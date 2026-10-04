@@ -13,7 +13,9 @@ public static class InvocationLog
     [
         "role", "kind", "contract", "planMessageId", "planMarker", "reportMessageId", "findingCount", "challengeCount",
         "changedPath", "outcome", "guidanceSha256", "guidanceBoundary", "authorizationId", "escalationMessageId",
-        "instructionMessageId", "rationaleSha256", "decisionCount", "decisionChallengeIds",
+        "instructionMessageId", "rationaleSha256", "decisionCount", "decisionChallengeIds", "instructionSection", "instructionOrder",
+        "instructionBoundary", "instructionBinding", "instructionFiles", "instructionStatuses", "instructionByteLengths", "instructionSha256",
+        "instructionTextsVerified", "instructionReferences",
     ];
 
     public static void Append(OwnedLocation location, IReadOnlyDictionary<string, object?> fields)

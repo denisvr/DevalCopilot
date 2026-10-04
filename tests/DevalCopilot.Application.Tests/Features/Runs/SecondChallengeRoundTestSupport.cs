@@ -71,11 +71,19 @@ internal static class SecondChallengeRoundTestSupport
         new(dbContext, scene.Run.Id, scene.Workspace.Id, scene.Checkpoint.Id, Fingerprint, Now, nextAttemptNumber);
 
     /// <summary>Counts Git captures and can run an action on the first one.</summary>
-    internal sealed class CountingEvidenceReader(Func<Task>? onCapture = null) : IGitWorkspaceEvidenceReader
+    internal sealed class CountingEvidenceReader(
+        Func<Task>? onCapture = null, GitWorkspaceInstructionContext? instructions = null) : IGitWorkspaceEvidenceReader
     {
         public int Captures { get; private set; }
 
-        public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken)
+        /// <summary>Only the Agent-context capture returns instruction context, so a claim that did not ask for it fails its test.</summary>
+        public async Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
+            (await CountAsync()) with { InstructionContext = null };
+
+        public Task<GitWorkspaceEvidenceResult> CaptureForAgentContextAsync(
+            string workspacePath, bool includeUntrackedPreviews, CancellationToken cancellationToken) => CountAsync();
+
+        private async Task<GitWorkspaceEvidenceResult> CountAsync()
         {
             Captures++;
             if (onCapture is not null)
@@ -84,7 +92,8 @@ internal static class SecondChallengeRoundTestSupport
             }
 
             return new GitWorkspaceEvidenceResult(
-                GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null);
+                GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null,
+                InstructionContext: instructions ?? InstructionContextTestSupport.Delivered);
         }
     }
 
