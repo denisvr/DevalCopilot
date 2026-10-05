@@ -19,6 +19,7 @@ import {
 } from '../../../api/clients'
 import {
   CheckpointReviewResponse,
+  GetGitCheckpointDiffOmissionResponse,
   GetGitCheckpointDiffResponse,
   GetProjectGitEvidenceResponse,
   GetProjectWorkspaceResponse,
@@ -298,13 +299,13 @@ describe('useProjectGitEvidence ownership', () => {
       changedFileCount: 1,
     })
   const files = (path: string) => [new GitCheckpointChangedFileResponse({ path, indexStatus: ' ', workTreeStatus: 'M' })]
-  const diff = (text: string) => new GetGitCheckpointDiffResponse({ completeDiff: text })
+  const diff = (text: string) => new GetGitCheckpointDiffResponse({ comparisonText: text, isComplete: true, trackedPathCount: text === '' ? 0 : 1, comparedPathCount: text === '' ? 0 : 1, omissions: [] })
   type Props = { id: string | null; enabled: boolean }
   const useUnderTest = ({ id, enabled }: Props) => useProjectGitEvidence(id, enabled)
   const pick = (r: ReturnType<typeof useProjectGitEvidence>) => ({
     checkpoint: r.evidence?.checkpointId,
     files: r.changedFiles?.map((file) => file.path),
-    diff: r.completeDiff,
+    diff: r.comparison?.text,
     loading: r.loading,
     capturing: r.capturing,
     inspecting: r.inspecting,
@@ -424,7 +425,7 @@ describe('useProjectGitEvidence ownership', () => {
     // The inspection of C1 is not C2's: C2 can be inspected and nothing of C1 is shown.
     expect(result.current.inspecting).toBe(false)
     expect(result.current.changedFiles).toBeNull()
-    expect(result.current.completeDiff).toBeNull()
+    expect(result.current.comparison).toBeNull()
 
     const mark = frames.length
     await act(async () => {
@@ -443,7 +444,7 @@ describe('useProjectGitEvidence ownership', () => {
     expect(getGitCheckpointChangedFiles).toHaveBeenLastCalledWith('project-a', 'checkpoint-2')
     expect(getGitCheckpointDiff).toHaveBeenLastCalledWith('project-a', 'checkpoint-2')
     expect(result.current.changedFiles?.map((file) => file.path)).toEqual(['second.txt'])
-    expect(result.current.completeDiff).toBe('diff of checkpoint two')
+    expect(result.current.comparison?.text).toBe('diff of checkpoint two')
   })
 
   it('drops the inspected files and diff when a refresh names a newer checkpoint, and an inspection failure stays on its checkpoint', async () => {
@@ -460,14 +461,14 @@ describe('useProjectGitEvidence ownership', () => {
     await act(async () => {
       await result.current.inspect()
     })
-    expect(result.current.completeDiff).toBe('one')
+    expect(result.current.comparison?.text).toBe('one')
 
     await act(async () => {
       await result.current.capture()
     })
     expect(result.current.evidence?.checkpointId).toBe('checkpoint-2')
     expect(result.current.changedFiles).toBeNull()
-    expect(result.current.completeDiff).toBeNull()
+    expect(result.current.comparison).toBeNull()
   })
 
   it('does not refresh, flag or write for the replacement after an accepted capture, and a stale handler starts nothing', async () => {
@@ -511,6 +512,106 @@ describe('useProjectGitEvidence ownership', () => {
     expect(getProjectGitEvidence).toHaveBeenCalledTimes(reads)
   })
 
+  it('exposes the host comparison with its coverage, omissions and limitation and never reads a missing field as clean', async () => {
+    const answers = [
+      new GetGitCheckpointDiffResponse({
+        comparisonText: 'diff --git a/safe b/safe',
+        isComplete: false,
+        trackedPathCount: 2,
+        comparedPathCount: 1,
+        limitation: 'fixed limitation',
+        omissions: [new GetGitCheckpointDiffOmissionResponse({ path: 'linked', reason: 'containment_unproven' })],
+      }),
+      new GetGitCheckpointDiffResponse({ comparisonText: '', isComplete: true, trackedPathCount: 0, comparedPathCount: 0, omissions: [] }),
+      new GetGitCheckpointDiffResponse({}),
+    ]
+    const getGitCheckpointDiff = vi.fn()
+    answers.forEach((answer) => getGitCheckpointDiff.mockResolvedValueOnce(answer))
+    client(projectGitEvidenceClient, { getProjectGitEvidence: vi.fn().mockResolvedValue(evidence('checkpoint-1')) })
+    client(gitCheckpointChangedFilesClient, { getGitCheckpointChangedFiles: vi.fn().mockResolvedValue(files('x.txt')) })
+    client(gitCheckpointDiffClient, { getGitCheckpointDiff })
+    const { result } = recorded(useUnderTest, { id: 'project-a', enabled: true } as Props, pick)
+    await waitFor(() => expect(result.current.evidence?.checkpointId).toBe('checkpoint-1'))
+
+    await act(async () => {
+      await result.current.inspect()
+    })
+    expect(result.current.comparison).toEqual({
+      text: 'diff --git a/safe b/safe',
+      complete: false,
+      trackedPathCount: 2,
+      comparedPathCount: 1,
+      limitation: 'fixed limitation',
+      omissions: [{ path: 'linked', reason: 'containment_unproven' }],
+    })
+
+    await act(async () => {
+      await result.current.inspect()
+    })
+    expect(result.current.comparison).toMatchObject({ text: '', complete: true, trackedPathCount: 0, omissions: [] })
+
+    await act(async () => {
+      await result.current.inspect()
+    })
+    // A body without explicit coverage is refused: the previous comparison is cleared, the fixed message is shown, nothing is "clean".
+    expect(result.current.comparison).toBeNull()
+    expect(result.current.changedFiles).toBeNull()
+    expect(result.current.error).toBe('The host response could not be confirmed as a valid checkpoint comparison.')
+  })
+
+  it('refuses contradictory accounting, keeps the refusal on its checkpoint and recovers on a valid answer', async () => {
+    const contradictory = new GetGitCheckpointDiffResponse({
+      comparisonText: '', isComplete: true, trackedPathCount: 3, comparedPathCount: 0, omissions: [],
+    })
+    const getGitCheckpointDiff = vi.fn().mockResolvedValueOnce(contradictory).mockResolvedValueOnce(diff('ok'))
+    client(projectGitEvidenceClient, { getProjectGitEvidence: vi.fn().mockResolvedValue(evidence('checkpoint-1')) })
+    client(gitCheckpointChangedFilesClient, { getGitCheckpointChangedFiles: vi.fn().mockResolvedValue(files('x.txt')) })
+    client(gitCheckpointDiffClient, { getGitCheckpointDiff })
+    const { result } = recorded(useUnderTest, { id: 'project-a', enabled: true } as Props, pick)
+    await waitFor(() => expect(result.current.evidence?.checkpointId).toBe('checkpoint-1'))
+
+    await act(async () => {
+      await result.current.inspect()
+    })
+    expect(result.current.comparison).toBeNull()
+    expect(result.current.error).toBe('The host response could not be confirmed as a valid checkpoint comparison.')
+
+    await act(async () => {
+      await result.current.inspect()
+    })
+    expect(result.current.error).toBeNull()
+    expect(result.current.comparison?.text).toBe('ok')
+  })
+
+  it('keeps the newest inspection when an older overlapping answer for the same checkpoint arrives late', async () => {
+    const olderDiff = deferred<GetGitCheckpointDiffResponse>()
+    const olderFiles = deferred<GitCheckpointChangedFileResponse[]>()
+    const getGitCheckpointDiff = vi.fn().mockReturnValueOnce(olderDiff.promise).mockResolvedValueOnce(diff('newer comparison'))
+    const getGitCheckpointChangedFiles = vi.fn().mockReturnValueOnce(olderFiles.promise).mockResolvedValueOnce(files('newer.txt'))
+    client(projectGitEvidenceClient, { getProjectGitEvidence: vi.fn().mockResolvedValue(evidence('checkpoint-1')) })
+    client(gitCheckpointChangedFilesClient, { getGitCheckpointChangedFiles })
+    client(gitCheckpointDiffClient, { getGitCheckpointDiff })
+    const { result } = recorded(useUnderTest, { id: 'project-a', enabled: true } as Props, pick)
+    await waitFor(() => expect(result.current.evidence?.checkpointId).toBe('checkpoint-1'))
+
+    act(() => {
+      void result.current.inspect()
+    })
+    await act(async () => {
+      await result.current.inspect()
+    })
+    expect(result.current.comparison?.text).toBe('newer comparison')
+
+    await act(async () => {
+      olderFiles.resolve(files('older.txt'))
+      olderDiff.resolve(diff('older comparison'))
+    })
+
+    expect(result.current.comparison?.text).toBe('newer comparison')
+    expect(result.current.changedFiles?.map((file) => file.path)).toEqual(['newer.txt'])
+    expect(result.current.inspecting).toBe(false)
+  })
+
   it('keeps same-project capture, inspection and recoverable failure working', async () => {
     const getProjectGitEvidence = vi.fn().mockResolvedValue(evidence('checkpoint-1'))
     const getGitCheckpointChangedFiles = vi
@@ -531,7 +632,7 @@ describe('useProjectGitEvidence ownership', () => {
     })
     expect(result.current.error).toBeNull()
     expect(result.current.changedFiles?.map((file) => file.path)).toEqual(['ok.txt'])
-    expect(result.current.completeDiff).toBe('')
+    expect(result.current.comparison?.text).toBe('')
   })
 })
 

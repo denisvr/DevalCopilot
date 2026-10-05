@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,7 @@ public sealed class GetGitCheckpointDiffQueryHandler(
                 Error.Conflict("workspaces.lease_not_active", "This workspace is no longer owned for source evidence inspection."));
         }
 
-        var current = await evidenceReader.CaptureAsync(checkpoint.WorkspacePath, cancellationToken);
+        var current = await evidenceReader.CaptureForCheckpointInspectionAsync(checkpoint.WorkspacePath, cancellationToken);
         if (current.Outcome != GitWorkspaceEvidenceOutcome.Success)
         {
             return Result<GetGitCheckpointDiffQueryResult>.Failure(MapEvidenceFailure(current.Outcome));
@@ -50,10 +51,13 @@ public sealed class GetGitCheckpointDiffQueryHandler(
         if (!string.Equals(current.FingerprintSha256, checkpoint.FingerprintSha256, StringComparison.Ordinal))
         {
             return Result<GetGitCheckpointDiffQueryResult>.Failure(
-                Error.Conflict("git_evidence.stale_checkpoint", "Source changed since this checkpoint. Capture new evidence before inspecting the complete diff."));
+                Error.Conflict("git_evidence.stale_checkpoint", "Source changed since this checkpoint. Capture new evidence before inspecting the comparison."));
         }
 
-        return Result<GetGitCheckpointDiffQueryResult>.Success(new(current.FingerprintSha256!, current.CompleteDiff!));
+        // Every delivered byte is re-derived from the capture's attested facts; the raw patch is never part of an inspection capture.
+        var entries = AttestedTrackedComparison.Derive(
+            current.ChangedPaths, current.TrackedFiles, TrackedSourcePurpose.HumanInspection);
+        return Result<GetGitCheckpointDiffQueryResult>.Success(CheckpointComparisonFit.Fit(current.FingerprintSha256!, entries));
     }
 
     private static Error MapEvidenceFailure(GitWorkspaceEvidenceOutcome outcome) => outcome switch

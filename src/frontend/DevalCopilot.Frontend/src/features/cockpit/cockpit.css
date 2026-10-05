@@ -270,6 +270,28 @@
   font-family: monospace;
 }
 
+.dc-workspace-evidence-comparison {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dc-workspace-evidence-comparison [data-complete="false"] {
+  color: var(--dc-warning);
+  font-weight: 600;
+}
+
+.dc-workspace-evidence-omissions {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  font-family: monospace;
+}
+
+.dc-workspace-evidence-limitation {
+  color: var(--dc-text-muted);
+}
+
 .dc-workspace-evidence-diff {
   max-height: 24rem;
   margin: 0;

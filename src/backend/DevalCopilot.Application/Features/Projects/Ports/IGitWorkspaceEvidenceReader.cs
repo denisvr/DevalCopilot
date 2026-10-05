@@ -1,3 +1,5 @@
+using DevalCopilot.Application.Features.Projects.Policies;
+
 namespace DevalCopilot.Application.Features.Projects.Ports;
 
 /// <summary>Reads bounded, hardened Git evidence from a tool-owned workspace. It never writes
@@ -22,6 +24,16 @@ public interface IGitWorkspaceEvidenceReader
         includeUntrackedPreviews
             ? CaptureWithUntrackedPreviewsAsync(workspacePath, cancellationToken)
             : CaptureAsync(workspacePath, cancellationToken);
+
+    /// <summary>The capture a human checkpoint inspection derives its comparison from (ADR-0027): the same coherent capture bracket
+    /// and fingerprint, with the attested tracked source facts in <see cref="GitWorkspaceEvidenceResult.TrackedFiles"/> and the root
+    /// instruction names NOT reserved, and neither instruction context, untracked previews nor the raw patch
+    /// (<see cref="GitWorkspaceEvidenceResult.CompleteDiff"/> is always null). An implementation without attestation support returns
+    /// the plain capture with the raw patch removed and no facts, which a consumer reports as unattested omissions, never as a
+    /// patch.</summary>
+    async Task<GitWorkspaceEvidenceResult> CaptureForCheckpointInspectionAsync(
+        string workspacePath, CancellationToken cancellationToken) =>
+        CheckpointInspectionProjection.Project(await CaptureAsync(workspacePath, cancellationToken));
 }
 
 public enum GitWorkspaceEvidenceOutcome
@@ -38,7 +50,7 @@ public enum GitWorkspaceEvidenceOutcome
 /// <summary><see cref="UntrackedFiles"/> is empty unless previews were requested; it never changes
 /// the fingerprint, which is computed from raw-content hashes and not from previews.
 /// <see cref="InstructionContext"/> is null unless Agent context assembly asked for it; it never changes the
-/// fingerprint either. <see cref="TrackedFiles"/> is non-null only for a new Agent-context capture, whose
+/// fingerprint either. <see cref="TrackedFiles"/> is non-null only for a new Agent-context capture or a checkpoint-inspection capture (ADR-0027), whose
 /// <see cref="CompleteDiff"/> is then deliberately null: it carries the attested tracked source facts instead of the raw
 /// working-path patch, accounts every tracked changed path once, and never changes the fingerprint. Whatever collection is handed
 /// in, at construction or by a <c>with</c> replacement, is copied into an owned immutable <see cref="GitWorkspaceTrackedFiles"/>

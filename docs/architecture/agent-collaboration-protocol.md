@@ -2942,7 +2942,9 @@ that patch by reopening repository pathnames, so a tracked file with a second na
 changed text into every role's manifest, the provider input and the sealed-artifact viewer. Every NEWLY claimed Agent stage now
 delivers tracked text only from attested snapshots (see
 [ADR-0024](../decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md)); the raw observation, the checkpoint
-fingerprint and its serialization, the ordinary captures and the ordinary checkpoint diff are unchanged.
+fingerprint and its serialization and the ordinary captures are unchanged; the authenticated human checkpoint inspection is attested
+the same way by [ADR-0027](../decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md) (see "Attested checkpoint
+comparison for human inspection").
 
 - **Capture.** `IGitWorkspaceEvidenceReader.CaptureForAgentContextAsync` still observes the raw state, but the capture it returns has
   `CompleteDiff` null and `TrackedFiles`: one `GitWorkspaceTrackedFile` per tracked changed path (every path that is not `??`), in
@@ -3012,13 +3014,44 @@ fingerprint and its serialization, the ordinary captures and the ordinary checkp
 - **Boundaries and replay.** Source text lives only in the sealed manifest, the provider input and the existing authenticated
   sealed-artifact viewer, unredacted, and is never stored in SQLite, a log or an error. Dispatch and restart read the sealed artifact;
   nothing recaptures, rebuilds, filters or reseals it, and a manifest sealed before this contract (a raw patch under `diff`, no
-  `trackedComparison`) replays its exact bytes. Architecture tests keep `CompleteDiff` out of the Runs feature, allow the derivation
-  only in the claim handlers and keep the attestation types out of supervisors, endpoints and adapters.
-- **Limits.** The raw observation behind the fingerprint and the ordinary checkpoint diff still read named paths and are not claimed to
+  `trackedComparison`) replays its exact bytes. Architecture tests keep `CompleteDiff` out of the Runs feature (and, since ADR-0027, out of every production reader), allow the
+  derivation only in the claim handlers and keep the attestation types out of supervisors, endpoints and adapters.
+- **Limits.** The raw observation behind the fingerprint still reads named paths and is not claimed to
   have this containment guarantee; committed blob content is not confidential by inference; topology can change after observation;
   only Windows has the physical proof; the process doubles used in tests do not establish real-provider reliability. Not included: a
   minimal-diff optimizer, alias enumeration, a deeper parent chain for deletions, a generic file reader, and any provider flag,
   permission, budget, grant, scheduling or lifecycle change.
+
+### Attested checkpoint comparison for human inspection
+
+The protected checkpoint-diff route a human uses to inspect a checkpoint used to return the raw patch of `git diff HEAD` as
+`CompleteDiff`, which Git builds by reopening repository pathnames: a tracked file with a second name outside the owned worktree put
+the other file's changed text into the response and the rendered page. Since
+[ADR-0027](../decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md) the same attestation as
+ADR-0024 backs that route, with the Agent-only concerns left out.
+
+- **Capture.** `IGitWorkspaceEvidenceReader.CaptureForCheckpointInspectionAsync` is the only capture the query asks for. It is the same
+  coherent bracket and fingerprint, returns `TrackedFiles` (the immutable facts of every tracked changed path) and returns no raw
+  patch, no instruction context and no untracked previews. The two root instruction names are not reserved for it, and no
+  instruction file is read to inspect a checkpoint. A reader without attestation support yields the plain capture with the patch
+  removed and no facts, so every tracked path is a `not_attested` omission.
+- **Shared policy, separate delivery.** `AttestedTrackedComparison` and `TrackedComparison` live in Projects and are the one admission
+  and comparison used by both consumers; every call states a `TrackedSourcePurpose`. `AgentDelivery` reserves `AGENTS.md` and
+  `CLAUDE.md` to the controlled instruction section (unchanged); `HumanInspection` compares a physically proven tracked root
+  instruction file as inert displayed text that imports nothing and grants no authority. Agent manifest fitting stays in Runs and
+  the inspection response fitting stays in the query.
+- **Response.** `comparisonText`, `isComplete`, `trackedPathCount`, `comparedPathCount`, the fixed `limitation` and
+  `omissions` (path and fixed reason, ordinal): every tracked changed path is compared or omitted exactly once, untracked files stay
+  in the changed-files route, and `isComplete` means only that no tracked path was omitted. The text is at most 512 KiB of UTF-8;
+  whole file blocks are fitted in ordinal order and an over-budget block is omitted as `comparison_limit`, never cut. The existing
+  128 changed paths, 256 KiB and 8192 lines per source and 512 KiB retained per observation still apply.
+- **Interface.** The inspection hook keeps project and checkpoint ownership and overlapping-read ordering; the panel states a
+  partial or all-omitted result, lists the omitted paths and the limitation as plain text, and shows "No tracked diff." only for a
+  complete capture with no tracked change.
+- **Limits.** The raw observation behind the fingerprint still reads named paths; topology can change after observation; only Windows
+  has the physical proof; the comparison is not Git's minimal or filter-normalized patch and does not compare modes or renames. Not
+  included: the raw patch, alias enumeration, a minimal-diff optimizer, paging and any change to fingerprints, checkpoints, Agent
+  manifests or replay.
 
 ### Project instruction context in Agent manifests
 

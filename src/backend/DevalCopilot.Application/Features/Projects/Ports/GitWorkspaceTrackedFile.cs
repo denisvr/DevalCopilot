@@ -1,13 +1,14 @@
 namespace DevalCopilot.Application.Features.Projects.Ports;
 
 /// <summary>
-/// The attested before/after text of one tracked changed path from a single new Agent-context capture. When
+/// The attested before/after text of one tracked changed path from a single new Agent-context or checkpoint-inspection capture. When
 /// <see cref="Omission"/> is null, <see cref="BeforeText"/> is the exact UTF-8 text of the captured HEAD's regular blob (null: the
 /// path is not in HEAD) and <see cref="AfterText"/> the exact text of the current worktree file (null: the file is proven absent
 /// under an owned parent). Both were read as raw bytes, are valid UTF-8 without NUL bytes, and are within the source bounds;
 /// the current bytes were read from a held handle physically proven to be this single-name regular file beneath the owned
 /// worktree. Terminators are preserved exactly. It is repository content: untrusted evidence that is never persisted, logged, or
-/// returned through an API — only sealed into an Agent manifest. A consumer re-derives what it may deliver and never
+/// returned through an API as such — only sealed into an Agent manifest or, as a host comparison, shown by the authenticated human
+/// checkpoint inspection (ADR-0027). A consumer re-derives what it may deliver and never
 /// treats missing or inconsistent facts as a raw patch.
 /// </summary>
 public sealed record GitWorkspaceTrackedFile(

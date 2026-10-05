@@ -8,7 +8,8 @@ using Microsoft.Win32.SafeHandles;
 namespace DevalCopilot.Infrastructure.Features.Projects;
 
 /// <summary>
-/// The Agent-context attestation of tracked changed paths (ADR-0024). Every tracked changed path becomes exactly one
+/// The attestation of tracked changed paths for a new Agent-context capture (ADR-0024) and a human checkpoint inspection
+/// (ADR-0027); the two differ only in whether the root instruction names are reserved. Every tracked changed path becomes exactly one
 /// <see cref="GitWorkspaceTrackedFile"/>: either attested before/after text or a fixed omission. The CURRENT side is acquired only
 /// through <see cref="TrackedFileSourceReader"/> (a held Windows handle whose exact final path beneath the resolved owned worktree,
 /// regular/non-reparse attributes and single link are proven before any length or byte, rechecked after the bounded read, and
@@ -46,6 +47,7 @@ public sealed partial class GitWorkspaceEvidenceReader
         string headSha,
         IReadOnlyList<GitWorkspaceChangedPath> changedPaths,
         Dictionary<string, BaselineRead> baselineCache,
+        bool reserveInstructionNames,
         CancellationToken cancellationToken)
     {
         var untrackedPaths = changedPaths
@@ -56,7 +58,7 @@ public sealed partial class GitWorkspaceEvidenceReader
             .Where(path => !(path.IndexStatus == "?" && path.WorkTreeStatus == "?"))
             .GroupBy(path => path.Path, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
-            .Select(group => Plan(group.Key, [.. group], untrackedPaths.Contains(group.Key)))
+            .Select(group => Plan(group.Key, [.. group], untrackedPaths.Contains(group.Key), reserveInstructionNames))
             .ToArray();
         if (plans.Length == 0)
         {
@@ -111,9 +113,10 @@ public sealed partial class GitWorkspaceEvidenceReader
         return GitWorkspaceTrackedObservation.Of(files, changed);
     }
 
-    private static TrackedPlan Plan(string path, GitWorkspaceChangedPath[] states, bool alsoUntracked)
+    private static TrackedPlan Plan(
+        string path, GitWorkspaceChangedPath[] states, bool alsoUntracked, bool reserveInstructionNames)
     {
-        if (GitWorkspaceInstructionContext.IsReservedPath(path))
+        if (reserveInstructionNames && GitWorkspaceInstructionContext.IsReservedPath(path))
         {
             return new TrackedPlan(path, default, GitWorkspaceTrackedOmission.ReservedInstructionFile);
         }

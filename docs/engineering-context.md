@@ -79,6 +79,9 @@
 - [ADR-0026](decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md):
   Warn explicitly about a Codex account-usage percentage (additive; an optional run-scoped advisory percentage, checked only on
   explicit request, independent of the ADR-0025 stop, and it changes no existing authority decision).
+- [ADR-0027](decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md):
+  Compare attested tracked sources for human checkpoint inspection (it advances ADR-0024's deferred ordinary checkpoint diff
+  query for the authenticated human inspection only and changes no existing authority decision).
 
 ## Product-specific architecture
 
@@ -111,8 +114,8 @@
   enumerated) and whose bytes match the fingerprint's raw-content identity; other hosts omit it. Its text exists only
   in the sealed manifest, the provider input and the existing authenticated sealed-artifact viewer. This closes
   generic untracked-preview delivery, not every filesystem read: the raw Git hashing behind the checkpoint fingerprint
-  (and the ordinary checkpoint diff) can still read an outside hard link; the tracked diff of NEW Agent delivery is closed
-  separately by ADR-0024 (see
+  can still read an outside hard link; the tracked diff of NEW Agent delivery is closed separately by ADR-0024 and the human
+  checkpoint inspection by ADR-0027 (see
   [ADR-0022](decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md) and
   [the protocol](architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)).
 - Every newly claimed Agent stage also receives the exact root `AGENTS.md` and `CLAUDE.md` of its own project's owned
@@ -192,6 +195,16 @@
   writes nothing; no claim, gate, dispatch or invocation path reads it, and a warning never refuses or stops anything
   ([ADR-0026](decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)). Claude account usage, session resume and
   manual compaction remain open.
+- A human inspecting a checkpoint (the existing protected diff route) receives the same kind of host comparison, not Git's raw
+  working-path patch (ADR-0027): an explicit inspection capture in the existing coherent bracket attests every tracked changed path
+  with the ADR-0024 proof, the query re-derives coverage from those immutable facts, and the response carries the comparison text
+  (at most 512 KiB of UTF-8, whole file blocks in ordinal order), a completeness flag and tracked/compared counts, the fixed
+  host-comparison limitation, and every tracked path without text with a fixed reason; it never shows "No tracked diff." for an
+  all-omitted capture. A physically proven tracked root `AGENTS.md` or `CLAUDE.md` is inert source text there, while Agent delivery
+  still reserves both names to the controlled instruction section. This closes the HTTP/UI text-delivery route of the ordinary
+  checkpoint diff, not every filesystem read: the raw Git hashing behind the fingerprint still reads named paths, and files can
+  change after observation (see
+  [ADR-0027](decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)).
 - The three Claude adapters also read the optional `modelUsage` map of the one clean-exit, untruncated result envelope
   and keep only each model identifier with its reported context-window and maximum-output limits, admitted whole or not
   at all (at most 16 unique ASCII identifiers, positive 32-bit integers, output not above the window) and independent of

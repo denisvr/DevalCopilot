@@ -1,3 +1,5 @@
+import { omissionReasonLabel } from '../hooks/checkpointComparison'
+import type { CheckpointComparison } from '../hooks/checkpointComparison'
 import { useProjectGitEvidence } from '../hooks/useProjectGitEvidence'
 
 interface WorkspaceEvidencePanelProps {
@@ -12,10 +14,27 @@ function abbreviate(value: string | undefined): string {
   return value ? value.slice(0, 12) : ''
 }
 
+/** What the host actually compared. "No tracked diff." is shown only for a complete capture with no tracked change: an
+ * incomplete or all-omitted response never reads as clean. */
+function coverageSummary(comparison: CheckpointComparison): string {
+  const { trackedPathCount, comparedPathCount, omissions } = comparison
+  if (comparison.complete) {
+    return trackedPathCount === 0
+      ? 'No tracked diff.'
+      : `All ${trackedPathCount} tracked ${trackedPathCount === 1 ? 'file' : 'files'} compared.`
+  }
+
+  if (comparedPathCount === 0) {
+    return `No tracked file could be compared: ${omissions.length} omitted.`
+  }
+
+  return `Partial comparison: ${comparedPathCount} of ${trackedPathCount} tracked files compared, ${omissions.length} omitted.`
+}
+
 /** Source evidence deliberately remains separate from workspace preparation: preparation
  * proves ownership; a checkpoint proves one observed content state. */
 export function WorkspaceEvidencePanel({ projectId, workspaceReady, refreshGeneration, onCaptured }: WorkspaceEvidencePanelProps) {
-  const { evidence, changedFiles, completeDiff, loading, capturing, inspecting, error, capture, inspect } = useProjectGitEvidence(
+  const { evidence, changedFiles, comparison, loading, capturing, inspecting, error, capture, inspect } = useProjectGitEvidence(
     projectId,
     workspaceReady,
     refreshGeneration,
@@ -61,7 +80,22 @@ export function WorkspaceEvidencePanel({ projectId, workspaceReady, refreshGener
           ))}
         </ul>
       ) : null}
-      {completeDiff !== null ? <pre className="dc-workspace-evidence-diff">{completeDiff || 'No tracked diff.'}</pre> : null}
+      {comparison ? (
+        <div className="dc-workspace-evidence-comparison" role="group" aria-label="Checkpoint comparison">
+          <span role="status" data-complete={comparison.complete}>{coverageSummary(comparison)}</span>
+          {comparison.omissions.length > 0 ? (
+            <ul className="dc-workspace-evidence-omissions" aria-label="Files without comparison">
+              {comparison.omissions.map((omission) => (
+                <li key={omission.path}>
+                  <code>{omission.path}</code> — {omissionReasonLabel(omission.reason)}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {comparison.text ? <pre className="dc-workspace-evidence-diff">{comparison.text}</pre> : null}
+          {comparison.limitation ? <small className="dc-workspace-evidence-limitation">{comparison.limitation}</small> : null}
+        </div>
+      ) : null}
       {error ? <span className="dc-candidate-workspace-error">{error}</span> : null}
     </section>
   )

@@ -44,6 +44,9 @@ supersedes it.
 - [ADR-0026: Warn explicitly about a Codex account-usage percentage](0026-warn-explicitly-about-a-codex-account-usage-percentage.md)
   (additive; an optional run-scoped advisory percentage checked only on explicit request, independent of the ADR-0025 stop and
   changing no existing authority decision)
+- [ADR-0027: Compare attested tracked sources for human checkpoint inspection](0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)
+  (it advances ADR-0024's deferred ordinary checkpoint diff query for the authenticated human inspection only and changes no
+  existing authority decision)
 
 ## Status values
 

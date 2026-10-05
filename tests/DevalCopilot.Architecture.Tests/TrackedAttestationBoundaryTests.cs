@@ -3,7 +3,7 @@ using Xunit;
 namespace DevalCopilot.Architecture.Tests;
 
 /// <summary>ADR-0024: new Agent delivery of tracked change evidence comes only from attested snapshots. The raw working-path patch
-/// (<c>CompleteDiff</c>) belongs to the ordinary capture and its own query; no claim handler, builder or Runs policy may read it, the
+/// (<c>CompleteDiff</c>) belongs only to the ordinary capture behind the checkpoint fingerprint (ADR-0027: no query or endpoint reads it); no claim handler, builder or Runs policy may read it, the
 /// attestation is derived only at the claim handlers, and supervisors, endpoints and adapters never touch the attestation types, so a
 /// sealed manifest can never be rebuilt from current files at dispatch.</summary>
 public sealed class TrackedAttestationBoundaryTests
@@ -56,7 +56,7 @@ public sealed class TrackedAttestationBoundaryTests
     }
 
     [Fact]
-    public void The_raw_patch_is_read_only_by_the_ordinary_checkpoint_diff_query_and_the_capture_itself()
+    public void No_production_source_reads_the_raw_working_path_patch_of_a_capture_ADR_0027()
     {
         var root = BackendRoot();
         var readers = ProductionSources(root)
@@ -65,12 +65,75 @@ public sealed class TrackedAttestationBoundaryTests
             .Order()
             .ToArray();
 
+        // The ordinary capture still produces the patch for the checkpoint fingerprint, but no endpoint, query, policy or builder
+        // reads it any more: checkpoint inspection is attested like new Agent delivery.
+        Assert.Empty(readers);
+    }
+
+    [Fact]
+    public void Checkpoint_inspection_uses_only_the_explicit_inspection_capture_and_never_the_ordinary_one()
+    {
+        var root = BackendRoot();
+        var handler = Code(Path.Combine(
+            root, "DevalCopilot.Application", "Features", "Projects", "Queries", "GetGitCheckpointDiff", "GetGitCheckpointDiffQueryHandler.cs"));
+
+        Assert.Contains("CaptureForCheckpointInspectionAsync(", handler, StringComparison.Ordinal);
+        Assert.DoesNotContain("CaptureAsync(", handler.Replace("CaptureForCheckpointInspectionAsync(", string.Empty, StringComparison.Ordinal), StringComparison.Ordinal);
+        Assert.DoesNotContain("CaptureWithUntrackedPreviewsAsync(", handler, StringComparison.Ordinal);
+        Assert.DoesNotContain("CaptureForAgentContextAsync(", handler, StringComparison.Ordinal);
+        Assert.Contains("TrackedSourcePurpose.HumanInspection", handler, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Each_tracked_source_purpose_is_stated_by_exactly_its_own_consumer_and_Agent_delivery_never_names_the_human_one()
+    {
+        var root = BackendRoot();
+        var derivers = ProductionSources(root)
+            .Where(path => Code(path).Contains("AttestedTrackedComparison.Derive(", StringComparison.Ordinal))
+            .Select(path => Relative(root, path))
+            .Order()
+            .ToArray();
+        var humanPurpose = ProductionSources(root)
+            .Where(path => Code(path).Contains("TrackedSourcePurpose.HumanInspection", StringComparison.Ordinal))
+            .Select(path => Relative(root, path))
+            .ToArray();
+        var agentPurpose = ProductionSources(root)
+            .Where(path => Code(path).Contains("TrackedSourcePurpose.AgentDelivery", StringComparison.Ordinal))
+            .Select(path => Relative(root, path))
+            .Order()
+            .ToArray();
+
         Assert.Equal(
             [
-                Path.Combine("DevalCopilot.Api", "Features", "Projects", "GetGitCheckpointDiff", "GetGitCheckpointDiffEndpoint.cs"),
                 Path.Combine("DevalCopilot.Application", "Features", "Projects", "Queries", "GetGitCheckpointDiff", "GetGitCheckpointDiffQueryHandler.cs"),
+                Path.Combine("DevalCopilot.Application", "Features", "Runs", "Policies", "TrackedChangeEvidence.cs"),
             ],
-            readers);
+            derivers);
+        Assert.Equal(
+            [Path.Combine("DevalCopilot.Application", "Features", "Projects", "Queries", "GetGitCheckpointDiff", "GetGitCheckpointDiffQueryHandler.cs")],
+            humanPurpose);
+        // The shared policy names the Agent purpose only to apply its reservation; the one Agent consumer states it.
+        Assert.Equal(
+            [
+                Path.Combine("DevalCopilot.Application", "Features", "Projects", "Policies", "AttestedTrackedComparison.cs"),
+                Path.Combine("DevalCopilot.Application", "Features", "Runs", "Policies", "TrackedChangeEvidence.cs"),
+            ],
+            agentPurpose);
+    }
+
+    [Fact]
+    public void The_shared_comparison_policy_lives_with_Projects_and_Runs_owns_no_second_comparison_algorithm()
+    {
+        var root = BackendRoot();
+        var projects = Path.Combine(root, "DevalCopilot.Application", "Features", "Projects", "Policies");
+        var runs = Path.Combine(root, "DevalCopilot.Application", "Features", "Runs");
+
+        Assert.True(File.Exists(Path.Combine(projects, "TrackedComparison.cs")));
+        Assert.True(File.Exists(Path.Combine(projects, "AttestedTrackedComparison.cs")));
+        var runsSources = ProductionSources(runs).ToArray();
+        Assert.DoesNotContain(runsSources, path => Path.GetFileName(path) == "TrackedComparison.cs");
+        Assert.DoesNotContain(runsSources, path => Code(path).Contains("class TrackedComparison", StringComparison.Ordinal));
+        Assert.DoesNotContain(runsSources, path => Code(path).Contains("static string? Compose(", StringComparison.Ordinal));
     }
 
     [Fact]

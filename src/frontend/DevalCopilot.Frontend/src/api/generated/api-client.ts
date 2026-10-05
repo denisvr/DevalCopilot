@@ -9166,7 +9166,12 @@ export interface ICheckpointReviewEvidenceResponse {
 
 export class GetGitCheckpointDiffResponse implements IGetGitCheckpointDiffResponse {
     fingerprintSha256?: string;
-    completeDiff?: string;
+    comparisonText?: string;
+    isComplete?: boolean;
+    trackedPathCount?: number;
+    comparedPathCount?: number;
+    limitation?: string;
+    omissions?: GetGitCheckpointDiffOmissionResponse[];
 
     constructor(data?: IGetGitCheckpointDiffResponse) {
         if (data) {
@@ -9180,7 +9185,16 @@ export class GetGitCheckpointDiffResponse implements IGetGitCheckpointDiffRespon
     init(_data?: any) {
         if (_data) {
             this.fingerprintSha256 = _data["fingerprintSha256"];
-            this.completeDiff = _data["completeDiff"];
+            this.comparisonText = _data["comparisonText"];
+            this.isComplete = _data["isComplete"];
+            this.trackedPathCount = _data["trackedPathCount"];
+            this.comparedPathCount = _data["comparedPathCount"];
+            this.limitation = _data["limitation"];
+            if (Array.isArray(_data["omissions"])) {
+                this.omissions = [] as any;
+                for (let item of _data["omissions"])
+                    this.omissions!.push(GetGitCheckpointDiffOmissionResponse.fromJS(item));
+            }
         }
     }
 
@@ -9194,14 +9208,68 @@ export class GetGitCheckpointDiffResponse implements IGetGitCheckpointDiffRespon
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["fingerprintSha256"] = this.fingerprintSha256;
-        data["completeDiff"] = this.completeDiff;
+        data["comparisonText"] = this.comparisonText;
+        data["isComplete"] = this.isComplete;
+        data["trackedPathCount"] = this.trackedPathCount;
+        data["comparedPathCount"] = this.comparedPathCount;
+        data["limitation"] = this.limitation;
+        if (Array.isArray(this.omissions)) {
+            data["omissions"] = [];
+            for (let item of this.omissions)
+                data["omissions"].push(item ? item.toJSON() : undefined as any);
+        }
         return data;
     }
 }
 
 export interface IGetGitCheckpointDiffResponse {
     fingerprintSha256?: string;
-    completeDiff?: string;
+    comparisonText?: string;
+    isComplete?: boolean;
+    trackedPathCount?: number;
+    comparedPathCount?: number;
+    limitation?: string;
+    omissions?: GetGitCheckpointDiffOmissionResponse[];
+}
+
+export class GetGitCheckpointDiffOmissionResponse implements IGetGitCheckpointDiffOmissionResponse {
+    path?: string;
+    reason?: string;
+
+    constructor(data?: IGetGitCheckpointDiffOmissionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.path = _data["path"];
+            this.reason = _data["reason"];
+        }
+    }
+
+    static fromJS(data: any): GetGitCheckpointDiffOmissionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitCheckpointDiffOmissionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["path"] = this.path;
+        data["reason"] = this.reason;
+        return data;
+    }
+}
+
+export interface IGetGitCheckpointDiffOmissionResponse {
+    path?: string;
+    reason?: string;
 }
 
 export class GitCheckpointChangedFileResponse implements IGitCheckpointChangedFileResponse {

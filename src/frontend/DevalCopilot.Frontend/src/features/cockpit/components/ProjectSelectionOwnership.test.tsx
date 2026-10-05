@@ -468,7 +468,7 @@ describe('WorkspaceEvidencePanel checkpoint ownership', () => {
     const getGitCheckpointDiff = vi
       .fn()
       .mockReturnValueOnce(firstDiff.promise)
-      .mockResolvedValueOnce(new GetGitCheckpointDiffResponse({ completeDiff: 'diff --git second' }))
+      .mockResolvedValueOnce(new GetGitCheckpointDiffResponse({ comparisonText: 'diff --git second', isComplete: true, trackedPathCount: 1, comparedPathCount: 1, omissions: [] }))
     asClient(projectGitEvidenceClient, { getProjectGitEvidence })
     asClient(captureGitWorkspaceCheckpointClient, { captureGitWorkspaceCheckpoint: vi.fn().mockResolvedValue({}) })
     asClient(gitCheckpointChangedFilesClient, { getGitCheckpointChangedFiles })
@@ -490,7 +490,7 @@ describe('WorkspaceEvidencePanel checkpoint ownership', () => {
 
     await act(async () => {
       firstFiles.resolve([new GitCheckpointChangedFileResponse({ path: 'first-only.txt', indexStatus: ' ', workTreeStatus: 'M' })])
-      firstDiff.resolve(new GetGitCheckpointDiffResponse({ completeDiff: 'diff --git first' }))
+      firstDiff.resolve(new GetGitCheckpointDiffResponse({ comparisonText: 'diff --git first', isComplete: true, trackedPathCount: 1, comparedPathCount: 1, omissions: [] }))
     })
     await flush()
     expect(screen.queryByText(/first-only\.txt/)).toBeNull()

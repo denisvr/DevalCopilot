@@ -272,6 +272,14 @@ Unsafe, unprovable or unsupported files are explicit omissions beside their deli
 unchanged, and the raw observation and checkpoint fingerprint are unchanged. See the
 [architecture description](../architecture/agent-collaboration-protocol.md#attested-tracked-change-text-in-agent-manifests).
 
+The authenticated human inspection of a checkpoint uses the same attestation
+([ADR-0027](../decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)): the protected diff route returns a
+bounded host comparison (at most 512 KiB, whole file blocks) with explicit per-path omissions and fixed coverage statements instead of
+Git's raw working-path patch, a physically proven tracked root `AGENTS.md` or `CLAUDE.md` is inert displayed text there while Agent
+delivery still reserves both names, and the panel never reads an incomplete or all-omitted result as clean. This closes the HTTP/UI
+text-delivery route of the ordinary checkpoint diff, not every filesystem read. See the
+[architecture description](../architecture/agent-collaboration-protocol.md#attested-checkpoint-comparison-for-human-inspection).
+
 The plan-challenge loop is bounded and its exhaustion escalates: a proposal
 lineage may have one optional second critical review of the first Resolver
 revision and, if challenged, one explicit second resolution. That successful

@@ -19,6 +19,14 @@ public sealed class GetGitCheckpointDiffEndpoint(
             return problemDetails.CreateResponse(result, HttpContext);
         }
 
-        return Ok(new GetGitCheckpointDiffResponse(result.Value.FingerprintSha256, result.Value.CompleteDiff));
+        var value = result.Value;
+        return Ok(new GetGitCheckpointDiffResponse(
+            value.FingerprintSha256,
+            value.ComparisonText,
+            value.IsComplete,
+            value.TrackedPathCount,
+            value.ComparedPathCount,
+            value.Limitation,
+            value.Omissions.Select(omission => new GetGitCheckpointDiffOmissionResponse(omission.Path, omission.Reason)).ToArray()));
     }
 }

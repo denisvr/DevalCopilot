@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace DevalCopilot.Application.Features.Runs.Policies;
+namespace DevalCopilot.Application.Features.Projects.Policies;
 
 /// <summary>
 /// The deterministic host comparison of two owned text snapshots of one tracked file, in unified-diff shape. It is built only

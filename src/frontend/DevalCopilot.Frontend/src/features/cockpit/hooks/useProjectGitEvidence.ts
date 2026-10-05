@@ -10,6 +10,8 @@ import type {
   GetProjectGitEvidenceResponse,
   GitCheckpointChangedFileResponse,
 } from '../../../api/clients'
+import { toCheckpointComparison, UNCONFIRMED_COMPARISON_MESSAGE } from './checkpointComparison'
+import type { CheckpointComparison } from './checkpointComparison'
 import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
 
 const GENERIC_MESSAGE = 'This source evidence request could not be completed.'
@@ -28,11 +30,11 @@ function extractSafeErrorDetail(caught: unknown): string {
   }
 }
 
-// Files and diff belong to the exact checkpoint that was inspected, in addition to the project.
+// Files and comparison belong to the exact checkpoint that was inspected, in addition to the project.
 interface Inspection {
   checkpointId: string
   files: GitCheckpointChangedFileResponse[]
-  diff: string
+  comparison: CheckpointComparison
 }
 
 interface EvidenceFrame {
@@ -57,7 +59,7 @@ function createFrame(projectId: string | null): EvidenceFrame {
  * evidence is written to browser storage, URLs, or shared project summaries.
  *
  * Evidence, its errors and pending flags belong to the current project's lifetime (nothing is
- * owned while the project is null or evidence is disabled); files and diff additionally belong to
+ * owned while the project is null or evidence is disabled); files and comparison additionally belong to
  * the exact checkpoint inspected, so a newer checkpoint neither retains nor accepts the previous
  * checkpoint's. Older overlapping reads and every continuation of a replaced lifetime are ignored.
  *
@@ -147,16 +149,22 @@ export function useProjectGitEvidence(
     const isCurrent = owner.begin('inspect')
     commit((previous) => ({ ...previous, inspectingCheckpointId: checkpointId, error: null }))
     try {
-      const [files, diff] = await Promise.all([
+      const [files, response] = await Promise.all([
         gitCheckpointChangedFilesClient().getGitCheckpointChangedFiles(projectId, checkpointId),
         gitCheckpointDiffClient().getGitCheckpointDiff(projectId, checkpointId),
       ])
       if (isCurrent()) {
-        commit((previous) =>
-          previous.evidence?.checkpointId === checkpointId
-            ? { ...previous, inspection: { checkpointId, files, diff: diff.completeDiff ?? '' } }
-            : previous,
-        )
+        // A body that does not state its coverage coherently is refused through the same path as a failed inspection.
+        const comparison = toCheckpointComparison(response)
+        commit((previous) => {
+          if (previous.evidence?.checkpointId !== checkpointId) {
+            return previous
+          }
+
+          return comparison
+            ? { ...previous, inspection: { checkpointId, files, comparison } }
+            : { ...previous, inspection: null, error: { message: UNCONFIRMED_COMPARISON_MESSAGE, checkpointId } }
+        })
       }
     } catch (caught: unknown) {
       if (isCurrent()) {
@@ -179,7 +187,7 @@ export function useProjectGitEvidence(
   return {
     evidence,
     changedFiles: inspection?.files ?? null,
-    completeDiff: inspection?.diff ?? null,
+    comparison: inspection?.comparison ?? null,
     loading: frame.loading,
     current: frame.readGeneration === refreshGeneration && !frame.loading && !frame.readFailed && !frame.capturing,
     capturing: frame.capturing,

@@ -58,7 +58,7 @@ selection's own loading state or its own error, and never the previous selection
 or sync status, paths, checkpoints, diffs, command and verification recipes, execution and review lists, drafts, selected
 output, or action targets. This holds for a null selection and for a return to an earlier one (each selection is a new
 lifetime), and an answer that names another run is refused rather than shown. The project-level candidate-workspace evidence
-follows the same rule: metadata, errors and pending flags belong to the selected project, and inspected files and diff
+follows the same rule: metadata, errors and pending flags belong to the selected project, and inspected files and comparison
 additionally belong to the exact checkpoint inspected, so a newer checkpoint never shows or accepts an older checkpoint's.
 Overlapping reads are ordered, so an older answer never overwrites a newer one. A request the host already accepted
 (workspace preparation, an identity recheck, a checkpoint capture, a verification command change, a verification start or a
@@ -983,6 +983,27 @@ afterwards whose reads succeeded does, after which it is cleared for good and no
 the project lifetime that sent the request. A definite refusal (a 4xx answer) keeps the existing "This verification could not
 be started." copy and Run stays available. An accepted claim stays real: it is reported as requested even when the follow-up status read
 fails, and after the project is replaced its continuation neither reports on nor blocks the replacement.
+
+### Source evidence: inspecting a checkpoint
+
+The project's "Source evidence" panel shows the exact checkpoint's changed files and, after an explicit "Inspect files & diff"
+request, the host comparison of its tracked files ([ADR-0027](../decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)),
+never Git's raw patch. The comparison is built by the host from attested snapshots of the committed and the proven current file; a
+file that is unsafe, unprovable, unsupported or beyond a bound is listed with a fixed reason instead of being quoted or hidden, and
+the panel always states the coverage:
+
+- A complete result with tracked files reads "All N tracked files compared."; a capture with no tracked change reads "No tracked
+  diff." and that empty state is shown for no other result.
+- A partial result reads "Partial comparison: X of Y tracked files compared, Z omitted.", and an all-omitted result "No tracked file
+  could be compared: Z omitted."; each omitted path is listed with its reason. Coverage is admitted only from explicit finite
+  non-negative integer counts whose accounting is coherent (compared plus omitted equals tracked, the completeness flag equals
+  "nothing omitted", the text is empty exactly when no path was compared). A response with a missing member, an invalid count or
+  contradictory accounting is refused through the failed-inspection path with the fixed message "The host response could not be
+  confirmed as a valid checkpoint comparison." and is never read as clean or complete.
+- The fixed limitation (not Git's minimal or filter-normalized patch; modes and renames not compared; untracked files listed
+  separately) is shown with the comparison. Paths, reasons and text are rendered as plain text.
+- The comparison belongs to the project and the exact checkpoint, an older overlapping answer never replaces a newer one, and a failed
+  inspection clears the previous comparison and shows the safe error. Nothing is polled or stored in the browser.
 
 ### Manual checkpoint review and the explicit evidence refresh
 

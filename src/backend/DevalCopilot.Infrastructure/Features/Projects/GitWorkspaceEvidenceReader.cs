@@ -60,19 +60,35 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
         };
 
     public Task<GitWorkspaceEvidenceResult> CaptureAsync(string workspacePath, CancellationToken cancellationToken) =>
-        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: false, includeInstructionContext: false, cancellationToken);
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: false, CapturePurpose.Plain, cancellationToken);
 
     public Task<GitWorkspaceEvidenceResult> CaptureWithUntrackedPreviewsAsync(
         string workspacePath, CancellationToken cancellationToken) =>
-        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: true, includeInstructionContext: false, cancellationToken);
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: true, CapturePurpose.Plain, cancellationToken);
 
     public Task<GitWorkspaceEvidenceResult> CaptureForAgentContextAsync(
         string workspacePath, bool includeUntrackedPreviews, CancellationToken cancellationToken) =>
-        CaptureCoreAsync(workspacePath, includeUntrackedPreviews, includeInstructionContext: true, cancellationToken);
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews, CapturePurpose.AgentContext, cancellationToken);
+
+    public Task<GitWorkspaceEvidenceResult> CaptureForCheckpointInspectionAsync(
+        string workspacePath, CancellationToken cancellationToken) =>
+        CaptureCoreAsync(workspacePath, includeUntrackedPreviews: false, CapturePurpose.CheckpointInspection, cancellationToken);
+
+    /// <summary>Why a capture is taken. The fingerprint is the raw observation in every case; the purpose selects only which
+    /// derived facts accompany it: none, the Agent context (instruction files reserved, tracked sources attested, no raw patch), or
+    /// the human checkpoint inspection (tracked sources attested with the root instruction names NOT reserved, no raw patch).</summary>
+    private enum CapturePurpose
+    {
+        Plain,
+        AgentContext,
+        CheckpointInspection,
+    }
 
     private async Task<GitWorkspaceEvidenceResult> CaptureCoreAsync(
-        string workspacePath, bool includeUntrackedPreviews, bool includeInstructionContext, CancellationToken cancellationToken)
+        string workspacePath, bool includeUntrackedPreviews, CapturePurpose purpose, CancellationToken cancellationToken)
     {
+        var includeInstructionContext = purpose == CapturePurpose.AgentContext;
+        var includeTrackedFiles = purpose != CapturePurpose.Plain;
         var descriptor = HostCapabilityCatalog.Get(Capability.Git);
         var gitPath = HostExecutableResolver.TryResolve(descriptor.CandidateExecutableNames, descriptor.FallbackDirectories);
         if (gitPath is null)
@@ -147,9 +163,10 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
             // Tracked sources of a new Agent delivery are attested inside the same bracket (and again after it), never read from the raw patch.
             GitWorkspaceTrackedObservation? firstTracked = null;
             var baselineCache = new Dictionary<string, BaselineRead>(StringComparer.Ordinal);
-            if (includeInstructionContext)
+            if (includeTrackedFiles)
             {
-                firstTracked = await ObserveTrackedFilesAsync(gitPath, workspacePath, beforeHeadSha, changedPaths, baselineCache, cancellationToken);
+                firstTracked = await ObserveTrackedFilesAsync(
+                    gitPath, workspacePath, beforeHeadSha, changedPaths, baselineCache, includeInstructionContext, cancellationToken);
                 if (firstTracked.Failure is { } firstTrackedFailure)
                 {
                     return Failure(firstTrackedFailure);
@@ -185,7 +202,8 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
             GitWorkspaceTrackedObservation? secondTracked = null;
             if (firstTracked is not null)
             {
-                secondTracked = await ObserveTrackedFilesAsync(gitPath, workspacePath, afterHeadSha, changedPaths, baselineCache, cancellationToken);
+                secondTracked = await ObserveTrackedFilesAsync(
+                    gitPath, workspacePath, afterHeadSha, changedPaths, baselineCache, includeInstructionContext, cancellationToken);
                 if (secondTracked.Failure is { } secondTrackedFailure)
                 {
                     return Failure(secondTrackedFailure);
@@ -206,7 +224,12 @@ public sealed partial class GitWorkspaceEvidenceReader : IGitWorkspaceEvidenceRe
                     untrackedFiles,
                     firstInstructions?.Context,
                     firstTracked?.Files);
-                return includeInstructionContext ? AgentEvidenceProjection.Project(captured) : captured;
+                return purpose switch
+                {
+                    CapturePurpose.AgentContext => AgentEvidenceProjection.Project(captured),
+                    CapturePurpose.CheckpointInspection => CheckpointInspectionProjection.Project(captured),
+                    _ => captured,
+                };
             }
         }
 

@@ -224,7 +224,7 @@ public sealed class GitWorkspaceTrackedRetentionTests : IDisposable
             .Where(line => !line.StartsWith("##", StringComparison.Ordinal))
             .Select(line => new GitWorkspaceChangedPath(line[3..].TrimEnd('\r'), null, line[..1], line.Substring(1, 1)))
             .ToArray();
-        var observation = await _reader.ObserveTrackedFilesAsync(gitPath, repository, head, changed, cache, CancellationToken.None);
+        var observation = await _reader.ObserveTrackedFilesAsync(gitPath, repository, head, changed, cache, reserveInstructionNames: true, CancellationToken.None);
         Assert.Null(observation.Failure);
         return observation;
     }
