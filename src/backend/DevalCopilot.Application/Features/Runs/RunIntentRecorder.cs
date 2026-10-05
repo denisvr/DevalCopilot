@@ -16,7 +16,8 @@ namespace DevalCopilot.Application.Features.Runs;
 /// The check and the number reservation are one serialized unit: <c>Project.NextExecutionNumber</c> is an
 /// EF concurrency token, so two requests that both passed the check and read the same counter cannot both
 /// commit. The loser's UPDATE matches no row, the whole save rolls back (run, event, and counter together),
-/// and it is reported as a retryable conflict. A refusal writes nothing.
+/// and it is reported as a retryable conflict. A refusal writes nothing. The caller supplies the effective, already validated
+/// run-wide Agent claim and reserved-time ceilings (ADR-0028); the simulated operation passes the fixed defaults.
 /// </para>
 /// </summary>
 public static class RunIntentRecorder
@@ -30,6 +31,8 @@ public static class RunIntentRecorder
         Guid projectId,
         string objective,
         RunExecutionMode executionMode,
+        int maximumAgentAttempts,
+        TimeSpan maximumAgentInvocationTime,
         CancellationToken cancellationToken)
     {
         var project = await dbContext.Projects
@@ -57,7 +60,15 @@ public static class RunIntentRecorder
 
         var nowUtc = timeProvider.GetUtcNow();
         var executionNumber = project.ReserveExecutionNumber();
-        var run = Run.RecordClassifiedIntent(Guid.NewGuid(), project.Id, executionNumber, executionMode, objective, nowUtc);
+        var run = Run.RecordClassifiedIntent(
+            Guid.NewGuid(),
+            project.Id,
+            executionNumber,
+            executionMode,
+            objective,
+            nowUtc,
+            maximumAgentAttempts: maximumAgentAttempts,
+            maximumAgentInvocationTime: maximumAgentInvocationTime);
         var runEvent = RunEvent.Record(
             Guid.NewGuid(),
             run.Id,

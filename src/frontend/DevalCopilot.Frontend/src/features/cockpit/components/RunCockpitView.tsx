@@ -225,9 +225,9 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
           evidence for the newly selected one. */}
       {cockpit.runId === runId && (
         <AgentClaimBudgetBanner
-          maximumAgentAttempts={cockpit.maximumAgentAttempts ?? 0}
-          agentAttemptsUsed={cockpit.agentAttemptsUsed ?? 0}
-          agentBudgetExhausted={cockpit.agentBudgetExhausted ?? false}
+          maximumAgentAttempts={cockpit.maximumAgentAttempts}
+          agentAttemptsUsed={cockpit.agentAttemptsUsed}
+          agentBudgetExhausted={cockpit.agentBudgetExhausted}
         />
       )}
       {cockpit.runId === runId && <OneAgentClaimSlotRemainingWarning cockpit={cockpit} selectedRunId={runId} />}

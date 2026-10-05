@@ -82,6 +82,10 @@
 - [ADR-0027](decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md):
   Compare attested tracked sources for human checkpoint inspection (it advances ADR-0024's deferred ordinary checkpoint diff
   query for the authenticated human inspection only and changes no existing authority decision).
+- [ADR-0028](decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md):
+  Let the owner choose immutable run budgets at manual intake (it narrowly advances the fixed-default creation behavior of
+  ADR-0012, ADR-0013 and ADR-0014 for new manual runs only and changes no claim, immutability, consumption or historical-policy
+  decision).
 
 ## Product-specific architecture
 
@@ -205,6 +209,13 @@
   checkpoint diff, not every filesystem read: the raw Git hashing behind the fingerprint still reads named paths, and files can
   change after observation (see
   [ADR-0027](decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)).
+- Manual run intake may carry two optional, immutable, run-wide choices (ADR-0028): a claimed-Agent-attempt ceiling of 1 through 16 and
+  a reserved-invocation-time ceiling of 1 through 120 whole minutes, each defaulting independently to the existing 16 and 120 when
+  omitted or null. They are stored in the existing `Run` columns by the same atomic creation, never clamped, rounded or changed
+  afterwards, and enforced by the unchanged claims (claims stay consumed after failure or interruption; time is reserved from
+  configured timeouts, never measured). A ceiling below a role's configured timeout prevents that claim; the simulated demo and
+  every historical run keep their policies, and the 1..16 / 1..120 range does not limit them (see
+  [ADR-0028](decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md)).
 - The three Claude adapters also read the optional `modelUsage` map of the one clean-exit, untruncated result envelope
   and keep only each model identifier with its reported context-window and maximum-output limits, admitted whole or not
   at all (at most 16 unique ASCII identifiers, positive 32-bit integers, output not above the window) and independent of

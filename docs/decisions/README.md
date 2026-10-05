@@ -47,6 +47,9 @@ supersedes it.
 - [ADR-0027: Compare attested tracked sources for human checkpoint inspection](0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)
   (it advances ADR-0024's deferred ordinary checkpoint diff query for the authenticated human inspection only and changes no
   existing authority decision)
+- [ADR-0028: Let the owner choose immutable run budgets at manual intake](0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md)
+  (it narrowly advances ADR-0012, ADR-0013 and ADR-0014's fixed-default creation behavior for new manual runs only and changes
+  no claim, immutability, consumption or historical-policy decision)
 
 ## Status values
 

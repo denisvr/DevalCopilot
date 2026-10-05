@@ -286,7 +286,7 @@ describe('RunIntakeForm current refusals', () => {
 
   it('reports a server validation refusal with fixed copy', async () => {
     await submitRefused(problem(400, 'validation.failed'))
-    expect(screen.getByRole('alert')).toHaveTextContent(/objective was not accepted/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(/run was not accepted/i)
     expect(screen.queryByText(/raw server detail/)).toBeNull()
   })
 

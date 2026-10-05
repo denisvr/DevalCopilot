@@ -62,7 +62,9 @@ export function AgentInvocationTimeBudgetBanner({
       ) : (
         <>
           Reserved Agent invocation time: {formatMinutes(reservedMilliseconds)} of{' '}
-          {formatMinutes(maximumMilliseconds)} ({formatMinutes(remainingMilliseconds)} remaining).
+          {formatMinutes(maximumMilliseconds)} ({formatMinutes(remainingMilliseconds)} remaining). Time is reserved from
+          configured timeouts, not measured elapsed time, and a positive remainder does not prove that any role can be
+          claimed.
         </>
       )}
     </div>

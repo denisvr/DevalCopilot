@@ -2,7 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createManualRunClient, startSimulatedRunClient } from '../../../api/clients'
 import { CreateManualRunRequest, StartSimulatedRunRequest } from '../../../api/generated/api-client'
 import type { CreateManualRunResponse } from '../../../api/generated/api-client'
-import { describeRunIntakeFailure, isRunIntakeBlocked, validateRunObjective } from '../runIntake'
+import {
+  describeRunIntakeFailure,
+  isRunIntakeBlocked,
+  parseAgentClaimsDraft,
+  parseInvocationMinutesDraft,
+  validateRunIntakeDraft,
+} from '../runIntake'
+import type { RunIntakeDraft } from '../runIntake'
 import { useRunScopedAction } from './useRunScopedAction'
 
 /** The fixed objective of the labelled demo action; it is never presented as a user objective. */
@@ -32,7 +39,7 @@ export interface RunIntake {
   pendingKind: RunIntakeKind | null
   error: string | null
   created: CreatedRunNotice | null
-  createManual: (projectId: string, objective: string, draftVersion: number) => Promise<boolean>
+  createManual: (projectId: string, draft: RunIntakeDraft, draftVersion: number) => Promise<boolean>
   startSimulated: (projectId: string) => Promise<boolean>
 }
 
@@ -105,18 +112,26 @@ export function useRunIntake(projectId: string, options: UseRunIntakeOptions): R
   )
 
   const createManual = useCallback(
-    (requestProjectId: string, objective: string, draftVersion: number) => {
-      const invalid = validateRunObjective(objective)
-      if (invalid) {
-        reportError(invalid)
+    (requestProjectId: string, draft: RunIntakeDraft, draftVersion: number) => {
+      const invalid = validateRunIntakeDraft(draft)
+      const maximumAgentAttempts = parseAgentClaimsDraft(draft.maximumAgentAttempts)
+      const maximumAgentInvocationMinutes = parseInvocationMinutesDraft(draft.maximumAgentInvocationMinutes)
+      if (invalid || maximumAgentAttempts === null || maximumAgentInvocationMinutes === null) {
+        reportError(invalid ?? 'The budget choices are not valid.')
         return Promise.resolve(false)
       }
+      const { objective } = draft
       return submit(
         requestProjectId,
         'manual',
         () =>
           createManualRunClient().createManualRun(
-            new CreateManualRunRequest({ projectId: requestProjectId, objective }),
+            new CreateManualRunRequest({
+              projectId: requestProjectId,
+              objective,
+              maximumAgentAttempts,
+              maximumAgentInvocationMinutes,
+            }),
           ),
         'The run could not be created.',
         () => optionsRef.current.onManualCreated(requestProjectId, draftVersion),

@@ -3,11 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { AgentClaimBudgetBanner } from './AgentClaimBudgetBanner'
 
 describe('AgentClaimBudgetBanner', () => {
-  it('renders nothing while the budget is not exhausted', () => {
-    const { container } = render(
-      <AgentClaimBudgetBanner maximumAgentAttempts={16} agentAttemptsUsed={5} agentBudgetExhausted={false} />,
-    )
-    expect(container).toBeEmptyDOMElement()
+  it('shows a quiet fact, not an alert, while the budget is not exhausted', () => {
+    render(<AgentClaimBudgetBanner maximumAgentAttempts={16} agentAttemptsUsed={5} agentBudgetExhausted={false} />)
+    expect(screen.getByText(/Agent claims:/)).toHaveTextContent('Agent claims: 5 of 16 used.')
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('shows a clear human next action once the budget is exhausted', () => {

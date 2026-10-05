@@ -240,6 +240,11 @@ export class JourneyData {
     )
   }
 
+  /** The run-wide Agent claim ceiling and reserved-time ceiling exactly as stored (the time as its INTEGER tick count; null when none). */
+  runBudgets(): { MaximumAgentAttempts: number; MaximumAgentInvocationTime: number | null } {
+    return this.one('select MaximumAgentAttempts, MaximumAgentInvocationTime from runs where Id = ?', this.runId())
+  }
+
   runLimits(): RunLimitsRow {
     return this.one<RunLimitsRow>('select MaximumAgentAttempts, MaximumReviewCorrectionAttempts, Lifecycle from runs where Id = ?', this.runId())
   }

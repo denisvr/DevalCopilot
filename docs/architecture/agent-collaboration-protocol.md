@@ -772,6 +772,17 @@ remaining, a legacy/unknown flag, and a fail-closed evidence-invalid flag),
 never combined with the count budget's own fields. See
 [ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md).
 
+Neither ceiling has to be the default for a NEW manual run
+([ADR-0028](../decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md)): `POST /api/runs/manual` accepts the
+optional nullable integers `maximumAgentAttempts` (1 through 16) and `maximumAgentInvocationMinutes` (1 through 120 whole minutes), each
+independently defaulting to 16 and 120 when omitted or null, and refuses any other explicit value (including a quoted or fractional
+number) without clamping, rounding or writing anything. The effective values are stored in the same two columns by the same atomic
+creation and are immutable afterwards. No claim algorithm changes: all eight Agent claim handlers, their repair variants and race
+rechecks keep reading the persisted values, every claim keeps consuming one slot and reserving its configured timeout whether it later
+fails or is interrupted, and a ceiling below a role's configured timeout refuses that claim before any probe, capture, seal or provider
+invocation. The range is a creation rule only; a historical or domain-created run (above 16 claims, or with no time policy) is read and
+enforced exactly as before, and the simulated operation keeps the fixed defaults.
+
 Each agent attempt is intended to eventually record requested and effective
 provider configuration:
 

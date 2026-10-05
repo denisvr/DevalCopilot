@@ -98,9 +98,11 @@ public sealed class ManualRunHostedTests : IDisposable
         return project.Id;
     }
 
-    private static async Task<CreateManualRunResponse> CreateManualRunAsync(HttpClient client, Guid projectId, string objective)
+    private static async Task<CreateManualRunResponse> CreateManualRunAsync(
+        HttpClient client, Guid projectId, string objective, int? maximumAgentAttempts = null, int? maximumAgentInvocationMinutes = null)
     {
-        var response = await client.PostAsJsonAsync("/api/runs/manual", new CreateManualRunRequest(projectId, objective));
+        var response = await client.PostAsJsonAsync(
+            "/api/runs/manual", new CreateManualRunRequest(projectId, objective, maximumAgentAttempts, maximumAgentInvocationMinutes));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<CreateManualRunResponse>())!;
     }
@@ -252,6 +254,96 @@ public sealed class ManualRunHostedTests : IDisposable
         Assert.Equal((long)TimeSpan.FromMinutes(120).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.MaximumMilliseconds);
         Assert.Equal((long)planning.AgentTimeout!.Value.TotalMilliseconds, cockpit.AgentInvocationTimeBudget.ReservedMilliseconds);
         Assert.Equal(1, _adapter.InvocationCount);
+    }
+
+    private static async Task<AttemptStatus> WaitForAttemptAsync(ManualRunHost host, Guid attemptId)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        AttemptStatus status;
+        do
+        {
+            using var scope = host.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
+            status = (await dbContext.Attempts.AsNoTracking().SingleAsync(candidate => candidate.Id == attemptId)).Status;
+            if (status != AttemptStatus.Running)
+            {
+                break;
+            }
+
+            await Task.Delay(100);
+        }
+        while (DateTime.UtcNow < deadline);
+
+        return status;
+    }
+
+    [Fact]
+    public async Task A_chosen_reservation_below_the_planning_timeout_refuses_the_claim_before_any_provider_work()
+    {
+        using var host = StartHost();
+        using var client = Client(host);
+        var projectId = await SeedProjectAsync(host, "Small time fixture", withEligibleWorkspace: true);
+        var manual = await CreateManualRunAsync(client, projectId, "Plan within nine minutes", maximumAgentAttempts: 5, maximumAgentInvocationMinutes: 9);
+
+        var requested = await client.PostAsync($"/api/runs/{manual.RunId}/agent-attempts/codex-plan", content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, requested.StatusCode);
+        Assert.Contains("agent_attempts.time_budget_exceeded", await requested.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        await SeveralPollCyclesAsync();
+        await AssertUntouchedManualRunAsync(host, client, manual.RunId, "Plan within nine minutes");
+        var cockpit = await CockpitAsync(client, manual.RunId);
+        Assert.Equal(5, cockpit.MaximumAgentAttempts);
+        Assert.Equal((long)TimeSpan.FromMinutes(9).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.MaximumMilliseconds);
+        Assert.Equal(0L, cockpit.AgentInvocationTimeBudget.ReservedMilliseconds);
+        Assert.Equal(0, _adapter.InvocationCount);
+    }
+
+    [Fact]
+    public async Task A_chosen_single_claim_with_an_exactly_fitting_reservation_is_consumed_permanently_and_then_refused()
+    {
+        using var host = StartHost();
+        using var client = Client(host);
+        var projectId = await SeedProjectAsync(host, "Equality fixture", withEligibleWorkspace: true);
+        var manual = await CreateManualRunAsync(client, projectId, "Plan within ten minutes", maximumAgentAttempts: 1, maximumAgentInvocationMinutes: 10);
+
+        var requested = await client.PostAsync($"/api/runs/{manual.RunId}/agent-attempts/codex-plan", content: null);
+        Assert.Equal(HttpStatusCode.OK, requested.StatusCode);
+        var attempt = await requested.Content.ReadFromJsonAsync<RequestCodexPlanningAttemptResponse>();
+        Assert.Equal(AttemptStatus.Completed, await WaitForAttemptAsync(host, attempt!.AttemptId));
+        await SeveralPollCyclesAsync();
+
+        var cockpit = await CockpitAsync(client, manual.RunId);
+        Assert.Equal(1, cockpit.MaximumAgentAttempts);
+        Assert.Equal(1, cockpit.AgentAttemptsUsed);
+        Assert.True(cockpit.AgentBudgetExhausted);
+        Assert.Equal((long)TimeSpan.FromMinutes(10).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.MaximumMilliseconds);
+        Assert.Equal((long)TimeSpan.FromMinutes(10).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.ReservedMilliseconds);
+        Assert.Equal(0L, cockpit.AgentInvocationTimeBudget.RemainingMilliseconds);
+
+        var second = await client.PostAsync($"/api/runs/{manual.RunId}/agent-attempts/codex-plan", content: null);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Contains("agent_attempts.budget_exhausted", await second.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(1, _adapter.InvocationCount);
+    }
+
+    [Fact]
+    public async Task A_smaller_chosen_budget_on_one_run_never_limits_an_unrelated_default_run()
+    {
+        using var host = StartHost();
+        using var client = Client(host);
+        var smallProject = await SeedProjectAsync(host, "Small fixture", withEligibleWorkspace: true);
+        var defaultProject = await SeedProjectAsync(host, "Default fixture", withEligibleWorkspace: true);
+        var small = await CreateManualRunAsync(client, smallProject, "Too small", maximumAgentAttempts: 1, maximumAgentInvocationMinutes: 1);
+        var unrelated = await CreateManualRunAsync(client, defaultProject, "Default budgets");
+
+        var refused = await client.PostAsync($"/api/runs/{small.RunId}/agent-attempts/codex-plan", content: null);
+        var accepted = await client.PostAsync($"/api/runs/{unrelated.RunId}/agent-attempts/codex-plan", content: null);
+
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+        var cockpit = await CockpitAsync(client, unrelated.RunId);
+        Assert.Equal(16, cockpit.MaximumAgentAttempts);
+        Assert.Equal((long)TimeSpan.FromMinutes(120).TotalMilliseconds, cockpit.AgentInvocationTimeBudget.MaximumMilliseconds);
     }
 
     /// <summary>Disposable owned fixture roots, shared by a host and its restarted successor.</summary>

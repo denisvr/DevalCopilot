@@ -93,6 +93,23 @@ The cockpit and project summaries disclose the run's durable execution mode: "Ma
 for `ManualAgent` and `Legacy` runs; a simulated or unrecognized run shows a fixed note instead. A manual run can stay
 nonterminal after its stages or after its budgets are exhausted; budget copy never promises that a new run replaces it.
 
+The manual form also offers two whole-number budget drafts beside the objective, initially 16 **Agent claims** and 120
+**reserved invocation minutes**, accepted from 1 through 16 and 1 through 120
+([ADR-0028](../decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md)). A blank, fractional, exponent,
+out-of-range, or negative draft is refused in place with fixed copy and nothing is sent; the form never rounds or clamps. The copy
+states that claims stay consumed after a failure or interruption, that time is reserved from each attempt's configured timeout rather
+than measured, that neither ceiling can be changed after recording, and that a ceiling smaller than a role's configured timeout
+prevents that claim, which can be the first. The objective and both drafts are one per-project submission snapshot: every edit of any
+of them (including editing back to an identical value) advances its version, an accepted completion resets only an unchanged snapshot
+of its own current lifetime, and a replacement, an A to B to A switch, an unmount, or a late completion never overwrites a newer
+snapshot, notice, error, or guard. The separately labelled demo ignores the drafts and uses the fixed defaults. After recording, the
+cockpit always shows the actual immutable claim ceiling and usage ("Agent claims: N of M used", as a quiet fact until the existing
+exhausted alert replaces it) and the reserved-time ceiling, reservation, and remainder; the claim projection is trusted only when the ceiling is a
+safe positive integer, the usage a safe non-negative integer, and the exhausted flag a boolean that agrees with usage at or above the
+ceiling (a historical ceiling above 16 and usage above the ceiling are coherent); anything else, including an exhausted flag the
+numbers contradict, shows a distinct unknown or invalid note with no count and no reached-limit claim, and neither a count nor a positive remainder is ever read as proof that a role can be
+claimed.
+
 ## Run header
 
 The primary header shows:

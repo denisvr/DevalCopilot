@@ -12,8 +12,19 @@ public sealed class CreateManualRunCommandHandler(IDevalCopilotDbContext dbConte
         CreateManualRunCommand command,
         CancellationToken cancellationToken)
     {
+        // Each omitted or null choice independently keeps the fixed default; the validated whole minutes become
+        // exactly that TimeSpan. Nothing is clamped or rounded here: the validator has already refused anything else.
         var recorded = await RunIntentRecorder.RecordAsync(
-            dbContext, timeProvider, command.ProjectId, command.Objective, RunExecutionMode.ManualAgent, cancellationToken);
+            dbContext,
+            timeProvider,
+            command.ProjectId,
+            command.Objective,
+            RunExecutionMode.ManualAgent,
+            command.MaximumAgentAttempts ?? Run.DefaultMaximumAgentAttempts,
+            command.MaximumAgentInvocationMinutes is { } minutes
+                ? TimeSpan.FromMinutes(minutes)
+                : Run.DefaultMaximumAgentInvocationTime,
+            cancellationToken);
 
         return recorded.IsFailure
             ? Result<CreateManualRunCommandResult>.Failure(recorded.Errors[0])

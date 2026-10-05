@@ -7987,6 +7987,8 @@ export interface ICreateManualRunResponse {
 export class CreateManualRunRequest implements ICreateManualRunRequest {
     projectId?: string;
     objective?: string;
+    maximumAgentAttempts?: number | undefined;
+    maximumAgentInvocationMinutes?: number | undefined;
 
     constructor(data?: ICreateManualRunRequest) {
         if (data) {
@@ -8001,6 +8003,8 @@ export class CreateManualRunRequest implements ICreateManualRunRequest {
         if (_data) {
             this.projectId = _data["projectId"];
             this.objective = _data["objective"];
+            this.maximumAgentAttempts = _data["maximumAgentAttempts"];
+            this.maximumAgentInvocationMinutes = _data["maximumAgentInvocationMinutes"];
         }
     }
 
@@ -8015,6 +8019,8 @@ export class CreateManualRunRequest implements ICreateManualRunRequest {
         data = typeof data === 'object' ? data : {};
         data["projectId"] = this.projectId;
         data["objective"] = this.objective;
+        data["maximumAgentAttempts"] = this.maximumAgentAttempts;
+        data["maximumAgentInvocationMinutes"] = this.maximumAgentInvocationMinutes;
         return data;
     }
 }
@@ -8022,6 +8028,8 @@ export class CreateManualRunRequest implements ICreateManualRunRequest {
 export interface ICreateManualRunRequest {
     projectId?: string;
     objective?: string;
+    maximumAgentAttempts?: number | undefined;
+    maximumAgentInvocationMinutes?: number | undefined;
 }
 
 export class AuthorizeReviewCorrectionResponse implements IAuthorizeReviewCorrectionResponse {

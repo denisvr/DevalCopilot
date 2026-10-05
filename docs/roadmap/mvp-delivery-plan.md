@@ -280,6 +280,13 @@ delivery still reserves both names, and the panel never reads an incomplete or a
 text-delivery route of the ordinary checkpoint diff, not every filesystem read. See the
 [architecture description](../architecture/agent-collaboration-protocol.md#attested-checkpoint-comparison-for-human-inspection).
 
+An owner recording a new manual run may also choose smaller immutable run-wide ceilings for claimed Agent attempts (1 through 16) and
+reserved invocation time (1 through 120 minutes)
+([ADR-0028](../decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md)); the existing claims enforce those exact
+persisted values, claims and reservations stay consumed after failure or interruption, and a ceiling below a role's configured timeout
+prevents that claim. This is a creation-time choice only, with no change to existing runs, defaults, token or account policy, or any
+claim algorithm; the cockpit shows the actual ceilings and usage before exhaustion.
+
 The plan-challenge loop is bounded and its exhaustion escalates: a proposal
 lineage may have one optional second critical review of the first Resolver
 revision and, if challenged, one explicit second resolution. That successful

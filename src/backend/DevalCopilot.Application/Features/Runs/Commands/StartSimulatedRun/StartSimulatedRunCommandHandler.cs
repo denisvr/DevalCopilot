@@ -13,7 +13,14 @@ public sealed class StartSimulatedRunCommandHandler(IDevalCopilotDbContext dbCon
         CancellationToken cancellationToken)
     {
         var recorded = await RunIntentRecorder.RecordAsync(
-            dbContext, timeProvider, command.ProjectId, command.Objective, RunExecutionMode.Simulated, cancellationToken);
+            dbContext,
+            timeProvider,
+            command.ProjectId,
+            command.Objective,
+            RunExecutionMode.Simulated,
+            Run.DefaultMaximumAgentAttempts,
+            Run.DefaultMaximumAgentInvocationTime,
+            cancellationToken);
 
         return recorded.IsFailure
             ? Result<StartSimulatedRunCommandResult>.Failure(recorded.Errors[0])

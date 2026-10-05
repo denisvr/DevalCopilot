@@ -15,7 +15,9 @@ public sealed class CreateManualRunEndpoint(
         CancellationToken cancellationToken)
     {
         var result = await mediator.SendAsync(
-            new CreateManualRunCommand(request.ProjectId, request.Objective), cancellationToken);
+            new CreateManualRunCommand(
+                request.ProjectId, request.Objective, request.MaximumAgentAttempts, request.MaximumAgentInvocationMinutes),
+            cancellationToken);
 
         return result.IsFailure
             ? problemDetails.CreateResponse(result, HttpContext)

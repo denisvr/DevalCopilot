@@ -19,6 +19,10 @@ public sealed class Run
     /// <see langword="null"/>.</summary>
     public static readonly TimeSpan DefaultMaximumAgentInvocationTime = TimeSpan.FromMinutes(120);
 
+    /// <summary>The fixed default run-wide Agent claim ceiling a new Run receives unless its creation operation
+    /// supplies a smaller explicit one (ADR-0028). It equals the persisted column default of historical rows.</summary>
+    public const int DefaultMaximumAgentAttempts = 16;
+
     /// <summary>Records an intent whose execution mode is <see cref="RunExecutionMode.Legacy"/>: the
     /// shape of every Run created before execution modes existed. No creation operation uses it; a new
     /// Run is created through <see cref="RecordClassifiedIntent"/>.</summary>
@@ -29,7 +33,7 @@ public sealed class Run
         string objective,
         DateTimeOffset nowUtc,
         int maximumReviewCorrectionAttempts = 2,
-        int maximumAgentAttempts = 16,
+        int maximumAgentAttempts = DefaultMaximumAgentAttempts,
         TimeSpan? maximumAgentInvocationTime = null) =>
         Create(
             id,
@@ -52,7 +56,7 @@ public sealed class Run
         string objective,
         DateTimeOffset nowUtc,
         int maximumReviewCorrectionAttempts = 2,
-        int maximumAgentAttempts = 16,
+        int maximumAgentAttempts = DefaultMaximumAgentAttempts,
         TimeSpan? maximumAgentInvocationTime = null)
     {
         if (!RunExecutionModeAdmission.IsAssignableAtCreation(executionMode))
