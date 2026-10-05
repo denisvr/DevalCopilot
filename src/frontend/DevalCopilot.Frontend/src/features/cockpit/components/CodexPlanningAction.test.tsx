@@ -154,6 +154,8 @@ describe('CodexPlanningAction', () => {
     ['ProviderInvocationFailed', 'Codex could not be invoked'],
     ['CheckpointEvidenceUnavailable', 'Source evidence could not be captured'],
     ['WorkspaceNoLongerEligible', 'Workspace no longer eligible for dispatch'],
+    ['AccountUsageStopReached', 'Not started: the account-usage stop was reached'],
+    ['AccountUsageEvidenceUnavailable', 'Not started: the account-usage stop could not be checked'],
   ])('labels the %s terminal outcome safely', (outcome, label) => {
     render(
       <CodexPlanningAction

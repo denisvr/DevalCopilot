@@ -13,6 +13,7 @@ using DevalCopilot.Application.Features.Runs.Commands.CreateImplementationAttemp
 using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptResult;
+using DevalCopilot.Application.Features.Runs.Commands.SetCodexAccountUsageStop;
 using DevalCopilot.Application.Features.Runs.Commands.RecordClaudeCriticalReviewResult;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationReviewResult;
 using DevalCopilot.Application.Features.Runs.Commands.RecordImplementationResult;
@@ -596,13 +597,15 @@ public sealed partial class ImplementationReviewSupervisorHostedTests : IDisposa
     private ServiceProvider BuildServiceProvider(
         IGitWorkspaceEvidenceReader evidenceReader,
         ICodexImplementationReviewAdapter implementationReviewAdapter,
-        RecordingFaultInjector? faultInjector = null)
+        RecordingFaultInjector? faultInjector = null,
+        ScriptedAccountUsageAdapter? accountUsage = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContext<DevalCopilotDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IDevalCopilotDbContext>(sp => sp.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
+        AccountUsageGuardTestServices.Register(services, accountUsage);
         services.AddSingleton(evidenceReader);
         services.AddSingleton(implementationReviewAdapter);
         services.AddSingleton<IArtifactStore>(_artifactStore);
@@ -640,7 +643,8 @@ public sealed partial class ImplementationReviewSupervisorHostedTests : IDisposa
     /// through <see cref="CreateCodeReviewAttemptCommand"/>.
     /// </summary>
     private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid ResultCheckpointId, Guid ExecutionId, Guid CommandId, Guid ExecutionReportId)>
-        SeedEligibleCodeReviewAttemptAsync(ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader)
+        SeedEligibleCodeReviewAttemptAsync(
+            ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, int? accountUsageStop = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -708,6 +712,11 @@ public sealed partial class ImplementationReviewSupervisorHostedTests : IDisposa
         execution.Complete(VerificationExecutionOutcome.Exited, 0, resultCheckpoint.FingerprintSha256, DateTimeOffset.UtcNow);
         dbContext.VerificationExecutions.Add(execution);
         await dbContext.SaveChangesAsync(CancellationToken.None);
+
+        if (accountUsageStop is { } stop)
+        {
+            Assert.True((await mediator.SendAsync(new SetCodexAccountUsageStopCommand(runId, stop), CancellationToken.None)).IsSuccess);
+        }
 
         var createReviewAttemptResult = await mediator.SendAsync(
             new CreateCodeReviewAttemptCommand(runId, executionReport.Id), CancellationToken.None);

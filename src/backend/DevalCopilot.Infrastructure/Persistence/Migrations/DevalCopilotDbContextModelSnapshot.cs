@@ -688,6 +688,9 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AgentAccountUsageDecisionSnapshot")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("AgentAdapterContractVersion")
                         .HasMaxLength(128)
                         .HasColumnType("TEXT");
@@ -861,6 +864,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("_agentCodexAccountUsageStopPercent")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("AgentCodexAccountUsageStopPercent");
 
                     b.Property<string>("_agentDirectHumanGuidance")
                         .HasColumnType("TEXT")
@@ -1307,6 +1314,11 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("_codexAccountUsageStopPercent")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CodexAccountUsageStopPercent");
 
                     b.Property<string>("_executionModeStored")
                         .IsConcurrencyToken()

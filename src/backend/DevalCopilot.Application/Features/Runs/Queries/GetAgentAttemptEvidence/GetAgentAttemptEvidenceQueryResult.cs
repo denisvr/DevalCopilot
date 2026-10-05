@@ -32,4 +32,6 @@ public sealed record GetAgentAttemptEvidenceQueryResult(
     Guid? RepairSourceAttemptId = null,
     int? RepairSourceAttemptNumber = null,
     DirectHumanGuidanceFact? DirectGuidance = null,
-    AgentModelContextLimitsEvidence? ModelContextLimits = null);
+    AgentModelContextLimitsEvidence? ModelContextLimits = null,
+    CodexAccountUsageStopFact? AccountUsageStop = null,
+    CodexAccountUsageDecisionFact? AccountUsageDecision = null);

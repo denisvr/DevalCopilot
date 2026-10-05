@@ -220,8 +220,12 @@ claimed attempt is unaffected. It is a retrospective local guardrail, not a
 provider account allowance, a per-attempt cap, or a token reservation, and it
 is distinct from the advisory token-activity warning. See the
 [architecture description](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim).
-The provider account-usage stop-threshold exit criterion above, and the
-remaining Increment 4 loop, token, and account-usage controls, remain open.
+An owner may also set an optional, run-scoped Codex account-usage percentage stop
+([ADR-0025](../decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)): it is enforced on
+new Codex claims and checked again before dispatch from a strict read-only observation, and ends a claimed attempt before
+dispatch with a recorded decision. It is a local guard, not eligibility or capacity, and covers Codex only.
+The provider account-usage stop-threshold exit criterion above is therefore met for Codex only; Claude account usage, and
+the remaining Increment 4 loop, token, and account-usage controls, remain open.
 
 The two Claude paths that can edit the worktree also accept an optional,
 owner-requested, run-scoped agentic-turn limit (1 through 100), snapshotted

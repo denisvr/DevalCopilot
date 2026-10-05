@@ -1,5 +1,6 @@
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Commands.RecordCodexAccountUsageStop;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
@@ -407,9 +408,67 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         }
 
         var nowUtc = timeProvider.GetUtcNow();
+
+        // The account-usage half of the last gate (ADR-0025). A Codex attempt that snapshotted a threshold is never dispatched without
+        // its own fresh guard facts, which are re-validated here against the attempt's stored threshold, the current vetted launch
+        // tuple and the freshness rules; a missing, malformed, expired, mismatched or reached guard can never commit the marker.
+        var accountUsageError = await CheckAccountUsageGuardAsync(attempt.Id, provider, command.ExpectedAccountUsageGuard, nowUtc, cancellationToken);
+        if (accountUsageError is not null)
+        {
+            return Result<DateTimeOffset>.Failure(accountUsageError);
+        }
+
         attempt.MarkAgentDispatched(nowUtc);
 
         return Result<DateTimeOffset>.Success(nowUtc);
+    }
+
+    private async Task<Error?> CheckAccountUsageGuardAsync(
+        Guid attemptId, AgentProvider provider, CodexAccountUsageGuardFacts? facts, DateTimeOffset nowUtc, CancellationToken cancellationToken)
+    {
+        static Error Mismatch() => Error.Conflict(
+            RecordCodexAccountUsageStopCommandHandler.GuardMismatchCode,
+            "The account-usage guard facts do not belong to this attempt, its threshold and its launch target.");
+
+        if (provider != AgentProvider.Codex)
+        {
+            return facts is null ? null : Mismatch();
+        }
+
+        var stored = await dbContext.Attempts.AsNoTracking()
+            .Where(candidate => candidate.Id == attemptId)
+            .Select(candidate => EF.Property<string?>(candidate, Attempt.AgentCodexAccountUsageStopStorageProperty))
+            .SingleAsync(cancellationToken);
+        var reading = CodexAccountUsageStop.Read(stored);
+        if (reading.IsAbsent)
+        {
+            return facts is null ? null : Mismatch();
+        }
+
+        if (reading.Value is not { } threshold)
+        {
+            return CodexAccountUsageStopGate.SettingInvalid();
+        }
+
+        if (facts is null)
+        {
+            return CodexAccountUsageStopGate.EvidenceUnavailable();
+        }
+
+        if (facts.AttemptId != attemptId || facts.ThresholdPercent != threshold)
+        {
+            return Mismatch();
+        }
+
+        var tuple = await CodexAccountUsageStopGate.ReadLaunchTupleAsync(dbContext, cancellationToken);
+        if (tuple is null || tuple.ExecutablePath != facts.ExecutablePath || tuple.ScriptPath != facts.ScriptPath)
+        {
+            return Mismatch();
+        }
+
+        return CodexAccountUsageStopPolicy.Evaluate(facts, threshold, nowUtc).StopDecision is { } decision
+            ? CodexAccountUsageStopGate.ToError(decision)
+            : null;
     }
 
     private static Result<DateTimeOffset> WorkspaceNoLongerEligible() =>

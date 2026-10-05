@@ -15,7 +15,7 @@ public static class InvocationLog
         "changedPath", "outcome", "guidanceSha256", "guidanceBoundary", "authorizationId", "escalationMessageId",
         "instructionMessageId", "rationaleSha256", "decisionCount", "decisionChallengeIds", "instructionSection", "instructionOrder",
         "instructionBoundary", "instructionBinding", "instructionFiles", "instructionStatuses", "instructionByteLengths", "instructionSha256",
-        "instructionTextsVerified", "instructionReferences",
+        "instructionTextsVerified", "instructionReferences", "usageReadIndex",
     ];
 
     public static void Append(OwnedLocation location, IReadOnlyDictionary<string, object?> fields)

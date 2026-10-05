@@ -338,6 +338,33 @@ public sealed class Run
         _requestedClaudeMaxTurns = ClaudeMutationTurnLimit.Format(maxTurns);
     }
 
+    /// <summary>The EF field-only property that holds the Codex account-usage stop as its exact stored text. Persistence and queries
+    /// refer to this name; every other reader uses <see cref="ReadCodexAccountUsageStopPercent"/>.</summary>
+    public const string CodexAccountUsageStopStorageProperty = "_codexAccountUsageStopPercent";
+
+    private string? _codexAccountUsageStopPercent;
+
+    /// <summary>The exact reading of the owner's current, explicit, run-scoped Codex account-usage stop (see
+    /// <see cref="CodexAccountUsageStop"/>). Absent means disabled (the default for every historical and newly created Run);
+    /// malformed means the stored representation is not a canonical whole number in range and must be refused by every consumer,
+    /// never clamped or ignored. A change applies to future Codex claims only and never to an already-claimed attempt's own
+    /// immutable snapshot. The stored text is an EF concurrency token, so a claim can never commit against a stale setting, and a
+    /// malformed stored value still round-trips exactly so it can be repaired by setting a new value.</summary>
+    public CodexAccountUsageStopReading ReadCodexAccountUsageStopPercent() => CodexAccountUsageStop.Read(_codexAccountUsageStopPercent);
+
+    /// <summary>Sets or clears the run-scoped Codex account-usage stop. A non-null value must satisfy
+    /// <see cref="CodexAccountUsageStop.IsValid"/>; permitted while <see cref="Lifecycle"/> is Created or Running. A change applies to
+    /// future claims only, and replaces a malformed stored value.</summary>
+    public void SetCodexAccountUsageStopPercent(int? percent)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot change the Codex account-usage stop for a run whose lifecycle is {Lifecycle}.");
+        }
+
+        _codexAccountUsageStopPercent = CodexAccountUsageStop.Format(percent);
+    }
+
     /// <summary>The largest warning threshold this Run accepts (10^12 reported token-activity
     /// units). A bound, not a policy: it keeps every threshold comparable with the bounded sums
     /// the cockpit projects and safely representable everywhere.</summary>

@@ -47,7 +47,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 /// real-provider reliability. Every row below is written by production commands: planning, acceptance, implementation,
 /// verification and its sealed stdout/stderr, diagnosis, correction, and the ordinary review.
 /// </summary>
-public sealed class VerificationDiagnosisHostedTests : IDisposable
+public sealed partial class VerificationDiagnosisHostedTests : IDisposable
 {
     private const string SentinelExecutable = @"C:\sentinel-tools\build-tool.exe";
     private const string SentinelArgument = "--sentinel-argument-7712";
@@ -246,7 +246,7 @@ public sealed class VerificationDiagnosisHostedTests : IDisposable
         public ValueTask DisposeAsync() => Provider.DisposeAsync();
     }
 
-    private Host BuildHost(StagedEvidence? evidence = null)
+    private Host BuildHost(StagedEvidence? evidence = null, ScriptedAccountUsageAdapter? accountUsage = null)
     {
         evidence ??= new StagedEvidence();
         var process = new RecordingProcessDouble(evidence);
@@ -257,6 +257,7 @@ public sealed class VerificationDiagnosisHostedTests : IDisposable
         services.AddDbContext<DevalCopilotDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IDevalCopilotDbContext>(sp => sp.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
+        AccountUsageGuardTestServices.Register(services, accountUsage);
         services.AddSingleton<IGitWorkspaceEvidenceReader>(evidence);
         services.AddSingleton<IArtifactStore>(_artifactStore);
         services.AddSingleton<IVerificationOutputArtifactStore>(_artifactStore);

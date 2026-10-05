@@ -123,6 +123,7 @@ public sealed partial class SecondChallengeRoundSupervisorHostedTests : IDisposa
         services.AddDbContext<DevalCopilotDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IDevalCopilotDbContext>(sp => sp.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
+        AccountUsageGuardTestServices.Register(services);
         services.AddSingleton(evidenceReader);
         services.AddSingleton(adapter);
         services.AddSingleton<IArtifactStore>(_artifactStore);

@@ -940,3 +940,31 @@
   font-size: 0.8rem;
   color: var(--dc-text-muted);
 }
+
+/* Codex account-usage stop: a run-scoped local guard, visibly separate from the allowance observation. */
+.dc-codex-account-usage-stop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--dc-border, currentColor);
+}
+
+.dc-codex-account-usage-stop-title {
+  font-weight: 600;
+}
+
+.dc-codex-account-usage-stop-note,
+.dc-codex-account-usage-stop-readonly {
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-codex-account-usage-stop-error {
+  color: var(--dc-danger, #b3261e);
+}
+
+.dc-codex-account-usage-decision p {
+  margin: 0.15rem 0;
+  overflow-wrap: anywhere;
+}

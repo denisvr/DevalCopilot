@@ -83,6 +83,17 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
             .IsConcurrencyToken()
             .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
 
+        // The owner's optional Codex account-usage stop (ADR-0025): no default and no backfill (a historical run has none, so none
+        // is invented). A field-only property holding the exact stored text in an INTEGER-affinity column, so a fractional,
+        // overflowing, or non-numeric stored value is read as malformed instead of being truncated, and a malformed value still
+        // round-trips exactly (see Run.ReadCodexAccountUsageStopPercent). A concurrency token, so a claim can never commit against
+        // a stale setting and a stale tracked Run can never overwrite a newer one (see CurrentCodexAccountUsageStop).
+        builder.Property<string?>(Run.CodexAccountUsageStopStorageProperty)
+            .HasColumnName("CodexAccountUsageStopPercent")
+            .HasColumnType("INTEGER")
+            .IsConcurrencyToken()
+            .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
+
         // Advisory token-warning thresholds: no default, no backfill (a historical run has none),
         // and deliberately NOT concurrency tokens, so writing one can never make a claim's own Run
         // UPDATE fail (see SetTokenWarningThresholdCommandHandler).

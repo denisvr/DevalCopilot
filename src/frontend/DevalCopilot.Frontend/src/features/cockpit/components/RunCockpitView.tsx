@@ -473,7 +473,12 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
           )}
           <AgentCollaboration runId={runId} {...collaborationTimeline} />
         </div>
-        <UsageEvidenceRail runId={runId} />
+        <UsageEvidenceRail
+          runId={runId}
+          codexAccountUsageStop={cockpit.runId === runId ? cockpit.codexAccountUsageStop : null}
+          accountUsageStopEditable={cockpit.lifecycle === 'Created' || cockpit.lifecycle === 'Running'}
+          onAccountUsageStopSaved={refresh}
+        />
       </div>
       <LiveOutputDrawer runId={runId} attemptId={currentProcessAttemptId} />
     </>

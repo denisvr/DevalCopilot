@@ -122,6 +122,11 @@ builder.Services.AddHostedService<HostCapabilityReadinessSupervisor>();
 // roles). Reads the same durable HostCapabilitySnapshot evidence as every other Codex path.
 builder.Services.AddSingleton<ICodexAccountAllowanceAdapter, CodexAccountAllowanceAdapter>();
 
+// The run-scoped Codex account-usage stop (ADR-0025): a distinct, strict observation over the same shared App Server session (it never
+// keeps a partial subset, unlike the display-only allowance adapter above), and the supervisors' shared dispatch guard around it.
+builder.Services.AddSingleton<DevalCopilot.Application.Features.Runs.Ports.IAccountUsageObserver, CodexAccountUsageGuardAdapter>();
+builder.Services.AddSingleton<CodexAccountUsageDispatchGuard>();
+
 // Codex model/reasoning-effort catalog observation: a second read-only App Server exchange that
 // reuses the same duplex process/handshake/cleanup mechanics as the allowance adapter above
 // (via the shared CodexAppServerSession), never a new process contract of its own.

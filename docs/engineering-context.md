@@ -73,6 +73,9 @@
 - [ADR-0024](decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md):
   Deliver new tracked-change text only from attested snapshots (it narrowly advances ADR-0021 and ADR-0022 for new tracked
   delivery only and changes no existing authority decision).
+- [ADR-0025](decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md):
+  Stop new Codex attempts at an explicit account-usage percentage (additive; it adds an optional run-scoped guard
+  for Codex claims and pre-dispatch and changes no existing authority decision).
 
 ## Product-specific architecture
 
@@ -170,12 +173,17 @@
   [the protocol](architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis)).
 - Token usage is a visible, best-effort measurement at attempt and run level
   when provider data is available. It is not an account or cost budget and no
-  account-usage threshold is enforced anywhere in the system. The one
-  enforced token control is an owner-configured, run-scoped, provider-separated
+  account-usage threshold is enforced for Claude or by the display-only allowance. The enforced token control is an
+  owner-configured, run-scoped, provider-separated
   stop on locally recorded token activity that refuses the next Agent claim for
   that provider once reached or unprovable; it is a retrospective local
   guardrail, not an account allowance or a per-attempt cap, and the advisory
   warning is separate (see the open risks in `docs/roadmap/current-work.md`).
+  A separate, optional, run-scoped Codex account-usage percentage stop (1 through 100) is enforced at the Codex claim
+  and again immediately before dispatch from a strict read-only observation that never reuses the display-only
+  allowance projection; reaching it, or failing to observe it, ends a claimed attempt before dispatch with a
+  bounded recorded decision. It is a local guard over a provider-reported percentage, not eligibility or capacity
+  ([ADR-0025](decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)).
 - The three Claude adapters also read the optional `modelUsage` map of the one clean-exit, untruncated result envelope
   and keep only each model identifier with its reported context-window and maximum-output limits, admitted whole or not
   at all (at most 16 unique ASCII identifiers, positive 32-bit integers, output not above the window) and independent of

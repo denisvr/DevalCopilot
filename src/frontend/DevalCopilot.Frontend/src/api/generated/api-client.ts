@@ -212,6 +212,58 @@ export class SetCodexAssignmentPreferenceEndpointClient {
     }
 }
 
+export class SetCodexAccountUsageStopEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    setCodexAccountUsageStop(runId: string, request: SetCodexAccountUsageStopRequest): Promise<SetCodexAccountUsageStopResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/codex-account-usage-stop";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processSetCodexAccountUsageStop(_response);
+        });
+    }
+
+    protected processSetCodexAccountUsageStop(response: Response): Promise<SetCodexAccountUsageStopResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = SetCodexAccountUsageStopResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<SetCodexAccountUsageStopResponse>(null as any);
+    }
+}
+
 export class SetClaudeMutationTurnLimitEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3532,6 +3584,78 @@ export interface ISetCodexAssignmentPreferenceRequest {
     requestedEffort?: string | undefined;
 }
 
+export class SetCodexAccountUsageStopResponse implements ISetCodexAccountUsageStopResponse {
+    percent?: number | undefined;
+
+    constructor(data?: ISetCodexAccountUsageStopResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.percent = _data["percent"];
+        }
+    }
+
+    static fromJS(data: any): SetCodexAccountUsageStopResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetCodexAccountUsageStopResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["percent"] = this.percent;
+        return data;
+    }
+}
+
+export interface ISetCodexAccountUsageStopResponse {
+    percent?: number | undefined;
+}
+
+export class SetCodexAccountUsageStopRequest implements ISetCodexAccountUsageStopRequest {
+    percent!: number | undefined;
+
+    constructor(data?: ISetCodexAccountUsageStopRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.percent = _data["percent"];
+        }
+    }
+
+    static fromJS(data: any): SetCodexAccountUsageStopRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new SetCodexAccountUsageStopRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["percent"] = this.percent;
+        return data;
+    }
+}
+
+export interface ISetCodexAccountUsageStopRequest {
+    percent: number | undefined;
+}
+
 export class SetClaudeMutationTurnLimitResponse implements ISetClaudeMutationTurnLimitResponse {
     maxTurns?: number | undefined;
 
@@ -5071,6 +5195,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
     tokenStops?: RunCockpitTokenStopResponse[] | undefined;
     claudeMutationTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
     executionMode?: string | undefined;
+    codexAccountUsageStop?: CodexAccountUsageStopResponse | undefined;
 
     constructor(data?: IGetRunCockpitResponse) {
         if (data) {
@@ -5133,6 +5258,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
             }
             this.claudeMutationTurnLimit = _data["claudeMutationTurnLimit"] ? ClaudeMutationTurnLimitResponse.fromJS(_data["claudeMutationTurnLimit"]) : undefined as any;
             this.executionMode = _data["executionMode"];
+            this.codexAccountUsageStop = _data["codexAccountUsageStop"] ? CodexAccountUsageStopResponse.fromJS(_data["codexAccountUsageStop"]) : undefined as any;
         }
     }
 
@@ -5195,6 +5321,7 @@ export class GetRunCockpitResponse implements IGetRunCockpitResponse {
         }
         data["claudeMutationTurnLimit"] = this.claudeMutationTurnLimit ? this.claudeMutationTurnLimit.toJSON() : undefined as any;
         data["executionMode"] = this.executionMode;
+        data["codexAccountUsageStop"] = this.codexAccountUsageStop ? this.codexAccountUsageStop.toJSON() : undefined as any;
         return data;
     }
 }
@@ -5230,6 +5357,7 @@ export interface IGetRunCockpitResponse {
     tokenStops?: RunCockpitTokenStopResponse[] | undefined;
     claudeMutationTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
     executionMode?: string | undefined;
+    codexAccountUsageStop?: CodexAccountUsageStopResponse | undefined;
 }
 
 export class StageMapEntryResponse implements IStageMapEntryResponse {
@@ -5790,6 +5918,46 @@ export interface IRunCockpitTokenStopResponse {
     insufficientEvidenceAttempts?: number;
     unattributedAttempts?: number;
     countOverflowed?: boolean;
+}
+
+export class CodexAccountUsageStopResponse implements ICodexAccountUsageStopResponse {
+    state?: string;
+    percent?: number | undefined;
+
+    constructor(data?: ICodexAccountUsageStopResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.percent = _data["percent"];
+        }
+    }
+
+    static fromJS(data: any): CodexAccountUsageStopResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexAccountUsageStopResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["percent"] = this.percent;
+        return data;
+    }
+}
+
+export interface ICodexAccountUsageStopResponse {
+    state?: string;
+    percent?: number | undefined;
 }
 
 export class ReviewCorrectionAttemptStatusResponse implements IReviewCorrectionAttemptStatusResponse {
@@ -7148,6 +7316,8 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
     repairSourceAttemptNumber?: number | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
     modelContextLimits?: AgentModelContextLimitsResponse | undefined;
+    accountUsageStop?: CodexAccountUsageStopResponse | undefined;
+    accountUsageDecision?: CodexAccountUsageDecisionResponse | undefined;
 
     constructor(data?: IAgentAttemptEvidenceResponse) {
         if (data) {
@@ -7183,6 +7353,8 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
             this.repairSourceAttemptNumber = _data["repairSourceAttemptNumber"];
             this.directGuidance = _data["directGuidance"] ? DirectHumanGuidanceResponse.fromJS(_data["directGuidance"]) : undefined as any;
             this.modelContextLimits = _data["modelContextLimits"] ? AgentModelContextLimitsResponse.fromJS(_data["modelContextLimits"]) : undefined as any;
+            this.accountUsageStop = _data["accountUsageStop"] ? CodexAccountUsageStopResponse.fromJS(_data["accountUsageStop"]) : undefined as any;
+            this.accountUsageDecision = _data["accountUsageDecision"] ? CodexAccountUsageDecisionResponse.fromJS(_data["accountUsageDecision"]) : undefined as any;
         }
     }
 
@@ -7218,6 +7390,8 @@ export class AgentAttemptEvidenceResponse implements IAgentAttemptEvidenceRespon
         data["repairSourceAttemptNumber"] = this.repairSourceAttemptNumber;
         data["directGuidance"] = this.directGuidance ? this.directGuidance.toJSON() : undefined as any;
         data["modelContextLimits"] = this.modelContextLimits ? this.modelContextLimits.toJSON() : undefined as any;
+        data["accountUsageStop"] = this.accountUsageStop ? this.accountUsageStop.toJSON() : undefined as any;
+        data["accountUsageDecision"] = this.accountUsageDecision ? this.accountUsageDecision.toJSON() : undefined as any;
         return data;
     }
 }
@@ -7242,6 +7416,8 @@ export interface IAgentAttemptEvidenceResponse {
     repairSourceAttemptNumber?: number | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
     modelContextLimits?: AgentModelContextLimitsResponse | undefined;
+    accountUsageStop?: CodexAccountUsageStopResponse | undefined;
+    accountUsageDecision?: CodexAccountUsageDecisionResponse | undefined;
 }
 
 export class AgentModelContextLimitsResponse implements IAgentModelContextLimitsResponse {
@@ -7330,6 +7506,114 @@ export interface IAgentModelContextLimitResponse {
     modelId?: string;
     contextWindowTokens?: number;
     maxOutputTokens?: number;
+}
+
+export class CodexAccountUsageDecisionResponse implements ICodexAccountUsageDecisionResponse {
+    state?: string;
+    decision?: string | undefined;
+    reason?: string | undefined;
+    thresholdPercent?: number | undefined;
+    retrievedAtUtc?: Date | undefined;
+    windows?: CodexAccountUsageWindowResponse[];
+
+    constructor(data?: ICodexAccountUsageDecisionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.decision = _data["decision"];
+            this.reason = _data["reason"];
+            this.thresholdPercent = _data["thresholdPercent"];
+            this.retrievedAtUtc = _data["retrievedAtUtc"] ? new Date(_data["retrievedAtUtc"].toString()) : undefined as any;
+            if (Array.isArray(_data["windows"])) {
+                this.windows = [] as any;
+                for (let item of _data["windows"])
+                    this.windows!.push(CodexAccountUsageWindowResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): CodexAccountUsageDecisionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexAccountUsageDecisionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["decision"] = this.decision;
+        data["reason"] = this.reason;
+        data["thresholdPercent"] = this.thresholdPercent;
+        data["retrievedAtUtc"] = this.retrievedAtUtc ? this.retrievedAtUtc.toISOString() : undefined as any;
+        if (Array.isArray(this.windows)) {
+            data["windows"] = [];
+            for (let item of this.windows)
+                data["windows"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface ICodexAccountUsageDecisionResponse {
+    state?: string;
+    decision?: string | undefined;
+    reason?: string | undefined;
+    thresholdPercent?: number | undefined;
+    retrievedAtUtc?: Date | undefined;
+    windows?: CodexAccountUsageWindowResponse[];
+}
+
+export class CodexAccountUsageWindowResponse implements ICodexAccountUsageWindowResponse {
+    bucketId?: string | undefined;
+    window?: string;
+    usedPercent?: number;
+
+    constructor(data?: ICodexAccountUsageWindowResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.bucketId = _data["bucketId"];
+            this.window = _data["window"];
+            this.usedPercent = _data["usedPercent"];
+        }
+    }
+
+    static fromJS(data: any): CodexAccountUsageWindowResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CodexAccountUsageWindowResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["bucketId"] = this.bucketId;
+        data["window"] = this.window;
+        data["usedPercent"] = this.usedPercent;
+        return data;
+    }
+}
+
+export interface ICodexAccountUsageWindowResponse {
+    bucketId?: string | undefined;
+    window?: string;
+    usedPercent?: number;
 }
 
 export class CreateManualRunResponse implements ICreateManualRunResponse {

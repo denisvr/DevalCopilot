@@ -26,6 +26,10 @@ describe('describeVerificationDiagnosisFailure', () => {
     ['agent_attempts.token_stop_reached', 'token stop has been reached'],
     ['agent_attempts.token_stop_evidence_indeterminate', 'could not be determined'],
     ['agent_attempts.token_stop_policy_changed', 'policy changed'],
+    ['agent_attempts.account_usage_stop_reached', 'account-usage stop was reached'],
+    ['agent_attempts.account_usage_stop_evidence_unavailable', 'account-usage stop could not be checked'],
+    ['agent_attempts.account_usage_stop_setting_invalid', 'not a valid setting'],
+    ['agent_attempts.account_usage_stop_policy_changed', 'account-usage stop changed'],
   ])('uses fixed copy for the real token-stop code %s without echoing server text', (code, expected) => {
     const message = describeVerificationDiagnosisFailure(problem(code, 'SENTINEL-DETAIL'), GENERIC)
 

@@ -2233,6 +2233,50 @@ eligibility input, and setting either never configures the other.
   parser, CLI-argument, session, or context behavior. A review-correction request that would only create the
   human escalation is also refused while the stop blocks Claude, because the stop check precedes that logic.
 
+### Run-scoped Codex account-usage stop at claim and dispatch
+
+An owner may set or clear an optional integer from 1 to 100 on an active Run (`Run.CodexAccountUsageStopPercent`) through one
+protected MVC operation (`POST /api/runs/{runId}/codex-account-usage-stop`, strict body `{ "percent": integer | null }`; one human
+event per change). Null disables the guard and adds no provider read. A new Codex attempt (planning, challenge resolution, code
+review and re-review, verification diagnosis, and their format repairs) snapshots the value immutably
+(`AgentCodexAccountUsageStopPercent`); later changes apply only to later claims, and historical rows stay null. A stored value that
+is not the canonical text of an integer in range refuses new Codex claims with a fixed error; it is never treated as disabled.
+
+Enforcement is a local guard over a strict, read-only provider observation
+([ADR-0025](../decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)), never over the display-only
+allowance projection:
+
+1. The observation (the provider-neutral Application port `IAccountUsageObserver`, implemented in Infrastructure by the Codex adapter:
+   initialize, initialized, one `account/rateLimits/read` through the vetted launch
+   target) is all-or-nothing. A duplicate, a missing or invalid window, an out-of-range percentage, an invalid duration or reset, an
+   unsafe bucket identifier, more than 16 buckets or an empty or invalid bucket map is unavailable. No provider text is carried.
+2. Every bucket and window is evaluated. A window at or above the threshold stops (equality stops); so does a provider-reported
+   reached state; so do missing, mismatched or expired evidence (a retrieval instant outside the read interval, in the future or more
+   than 30 seconds old, or a passed reset).
+3. The provider is observed outside any EF transaction. The claim seam re-reads the stored authority and compares the facts inside the
+   short claim transaction. Before dispatch a separate observation, bound to the attempt, the threshold and the launch tuple, is
+   validated again by `MarkAgentAttemptDispatchedCommand`, which cannot commit the dispatch marker on a missing, mismatched, expired
+   or reached guard.
+4. A pre-dispatch refusal terminates the claimed attempt through one dedicated command, atomically with a bounded canonical decision
+   (`AgentAccountUsageDecisionSnapshot`, version 1, source `codex-account-rate-limits-v1`, at most 8192 bytes) and one completion
+   event: outcome `AccountUsageStopReached` or `AccountUsageEvidenceUnavailable`, no dispatch marker, no Agent invocation. Consumed
+   budgets and grants stay spent; there is no retry, polling, refund or new repair authority. The command is a manual-transaction
+   command (one short write-locked transaction: lock, refresh the attempt from the database, read the threshold snapshot from that
+   fresh state, record, one save, commit; the notification follows the commit). Facts prepared for another threshold or launch tuple
+   resolve as unavailable evidence for the actual snapshot, without their windows; facts for another attempt are refused. If the
+   terminal recording cannot commit, the attempt stays Running and undispatched but is blocked from every later dispatch pass of that
+   host process (fail closed, logged; the block is process-local). Recreating only a supervisor reuses that block. A normal full
+   host restart runs the existing startup recovery and read-only Agent reconciliation before supervisors: the still-Running attempt and
+   its Run become Interrupted, without a new account observation or Agent invocation for that attempt. It does not invent an account-usage
+   decision whose recording never committed, and grants no automatic resume or refund.
+5. A recorded decision is projected only when it agrees with the attempt's own threshold snapshot; a contradiction or an absent
+   snapshot is shown as unavailable evidence with nothing of the decision exposed. The set operation's request body is bounded to
+   8 KiB.
+
+The cockpit shows the setting (`codexAccountUsageStop`) separately from token activity and from the display-only allowance, and the
+attempt evidence shows `accountUsageStop` and `accountUsageDecision`. Below-threshold evidence is never described as eligibility,
+remaining quota or live capacity, and an already dispatched attempt is never cancelled.
+
 ### One manual Codex Planner format repair
 
 A human may request **one** repair of a Codex Planner attempt whose recorded outcome is exactly

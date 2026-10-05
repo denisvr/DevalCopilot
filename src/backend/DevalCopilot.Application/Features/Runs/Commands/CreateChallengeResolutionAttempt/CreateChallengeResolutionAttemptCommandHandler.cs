@@ -5,6 +5,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Application.Features.Runs.Policies;
@@ -29,7 +30,8 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
     TimeProvider timeProvider,
-    IAttemptDurabilityProbe attemptDurabilityProbe)
+    IAttemptDurabilityProbe attemptDurabilityProbe,
+    IAccountUsageObserver? accountUsageGuardAdapter = null)
     : ICommandHandler<CreateChallengeResolutionAttemptCommand, Result<CreateChallengeResolutionAttemptCommandResult>>
 {
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
@@ -139,6 +141,18 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         {
             return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(tokenStopError);
         }
+
+        // The run-scoped Codex account-usage stop (ADR-0025), after the budgets and the token stop and before any provider probe, Git
+        // work, or manifest sealing. The strict observation happens here, outside any EF transaction; a refusal commits nothing.
+        // Unconfigured, it makes no observation. The commit seam below re-confirms the setting, the launch tuple and freshness.
+        var accountUsageCheck = await CodexAccountUsageStopGate.CheckClaimAsync(
+            dbContext, accountUsageGuardAdapter, timeProvider, run, cancellationToken);
+        if (accountUsageCheck.IsFailure)
+        {
+            return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(accountUsageCheck.Errors);
+        }
+
+        var accountUsageGuard = accountUsageCheck.Value;
 
         var workspace = await dbContext.GitWorkspaces
             .Where(candidate => candidate.ProjectId == run.ProjectId)
@@ -279,6 +293,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
             requestedEffort,
             agentBudgetSlot,
             command.RepairSourceAttemptId);
+        CodexAccountUsageStopGate.Snapshot(attempt, accountUsageGuard);
 
         // The one authoritative record of this attempt's exact ordered input set: the original
         // Proposal at sequence 0, then every Challenge in timeline order — never a second,
@@ -341,6 +356,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
         {
             bool preferenceStillCurrent;
             bool stopPolicyStillCurrent;
+            Error? accountUsageError;
             bool modeStillAdmitted;
             Error? lateEligibilityError;
             try
@@ -353,6 +369,11 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 // The token stop policy the claim decided against must be unchanged too: one more
                 // atomic UPDATE ... WHERE compare inside this same transaction (see CurrentTokenStopPolicy).
                 stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
+
+                // The account-usage stop (ADR-0025): the stored setting and the vetted launch tuple must still be exactly what the
+                // early check observed, and its evidence still fresh at this seam, before any insert.
+                accountUsageError = await CodexAccountUsageStopGate.ConfirmInTransactionAsync(
+                    dbContext, timeProvider, run, accountUsageGuard, cancellationToken);
 
                 // The execution mode the claim decided against must still admit Agent work: one more atomic
                 // UPDATE ... WHERE inside this same transaction, so a mode change can never confer stale authority.
@@ -417,6 +438,15 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(CurrentTokenStopPolicy.PolicyChangedDuringClaim());
+            }
+
+            if (accountUsageError is not null)
+            {
+                // The account-usage stop changed, its launch tuple changed, or its evidence is no longer fresh: rolled back before any
+                // insert, the sealed manifest removed and nothing consumed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(accountUsageError);
             }
 
             if (lateEligibilityError is not null)

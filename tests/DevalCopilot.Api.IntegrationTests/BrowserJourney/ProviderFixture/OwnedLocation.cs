@@ -19,6 +19,8 @@ public sealed class OwnedLocation
         WorkspaceRoot = Path.Combine(root, "workspaces");
         ArtifactRoot = Path.Combine(root, "artifacts");
         LogPath = Path.Combine(root, "fixture", "invocations.jsonl");
+        UsageScriptPath = Path.Combine(root, "fixture", "account-usage.json");
+        UsageCounterPath = Path.Combine(root, "fixture", "account-usage.reads");
     }
 
     public string Root { get; }
@@ -28,6 +30,12 @@ public sealed class OwnedLocation
     public string ArtifactRoot { get; }
 
     public string LogPath { get; }
+
+    /// <summary>The scripted account-usage answers the journey writes for the closed App Server mode.</summary>
+    public string UsageScriptPath { get; }
+
+    /// <summary>The read counter the closed App Server mode keeps, so each launch answers its own scripted read.</summary>
+    public string UsageCounterPath { get; }
 
     public static OwnedLocation ResolveFromExecutable(string? processPath)
     {
@@ -104,6 +112,17 @@ public sealed class OwnedLocation
         }
 
         return LogPath;
+    }
+
+    /// <summary>The scripted usage answers, which must be an existing plain file inside the root reached through no alias.</summary>
+    public string RequireUsageScript()
+    {
+        if (!IsPlainDestination(UsageScriptPath) || !File.Exists(UsageScriptPath) || !IsPlainDestination(UsageCounterPath))
+        {
+            throw new FixtureRefusal(FixtureRefusal.OwnershipRefused, "The usage script is missing or is not a plain file inside the owned root.");
+        }
+
+        return UsageScriptPath;
     }
 
     /// <summary>True when <paramref name="path"/> is strictly inside the root, neither it nor any existing ancestor beneath the root

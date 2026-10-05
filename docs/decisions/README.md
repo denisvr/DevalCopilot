@@ -39,6 +39,8 @@ supersedes it.
   (additive; it records and shows what Claude reported and changes no existing authority decision)
 - [ADR-0024: Deliver new tracked-change text only from attested snapshots](0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md)
   (it narrowly advances ADR-0021 and ADR-0022 for new tracked delivery only and changes no existing authority decision)
+- [ADR-0025: Stop new Codex attempts at an explicit account-usage percentage](0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)
+  (additive; an optional run-scoped Codex guard at claim and before dispatch that changes no existing authority decision)
 
 ## Status values
 

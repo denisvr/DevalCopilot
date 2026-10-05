@@ -5,6 +5,7 @@ import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
+import { ACCOUNT_USAGE_OUTCOME_LABELS } from '../accountUsageOutcomeLabels'
 
 interface CodexPlanningActionProps {
   status: AgentAttemptStatusResponse | null
@@ -23,6 +24,7 @@ interface CodexPlanningActionProps {
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
+  ...ACCOUNT_USAGE_OUTCOME_LABELS,
   Proposed: 'Plan proposed',
   SourceChanged: 'Source changed before the plan completed',
   InvalidStructuredOutput: 'Codex returned an invalid structured response',

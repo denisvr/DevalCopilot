@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
@@ -690,5 +691,50 @@ public sealed partial class CreateCodexPlanningAttemptCommandHandlerTests
         var claimedRun = await verify.Runs.AsNoTracking().SingleAsync(r => r.Id == run.Id);
         Assert.Equal(RunLifecycle.Running, claimedRun.Lifecycle);
         Assert.Equal(1, claimedRun.CodexTokenStopThreshold);
+    }
+
+    // ---- run-scoped Codex account-usage stop (ADR-0025): the format-repair claim is guarded exactly like an ordinary claim
+
+    [Fact]
+    public async Task A_repair_claim_at_a_reached_account_usage_stop_is_refused_before_any_external_work()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (run, _, _, source) = await SeedWithInvalidSourceAsync(seedContext);
+        await AccountUsageStopTestSupport.SetStopAsync(_fixture, run.Id, 80);
+        var attemptsBefore = await AttemptCountAsync(run.Id);
+        var reader = new AccountUsageEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null));
+        var store = new FakeArtifactStore();
+        var adapter = StubAccountUsageAdapter.Always(AccountUsageStopTestSupport.Observation(Now, 80));
+        await using var context = _fixture.CreateContext();
+
+        var result = await new CreateCodexPlanningAttemptCommandHandler(context, reader, store, new FixedTimeProvider(Now), DurabilityProbe, adapter)
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(run.Id, source.Id), CancellationToken.None);
+
+        Assert.Equal(CodexAccountUsageStopGate.ReachedCode, Assert.Single(result.Errors).Code);
+        Assert.Equal(0, reader.Calls);
+        Assert.Empty(store.DeletedSealedFiles);
+        Assert.Equal(attemptsBefore, await AttemptCountAsync(run.Id));
+    }
+
+    [Fact]
+    public async Task A_repair_claim_below_the_account_usage_stop_snapshots_it_on_the_repair_attempt()
+    {
+        await using var seedContext = _fixture.CreateContext();
+        var (run, _, _, source) = await SeedWithInvalidSourceAsync(seedContext);
+        await AccountUsageStopTestSupport.SetStopAsync(_fixture, run.Id, 80);
+        var reader = new AccountUsageEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null));
+        var adapter = StubAccountUsageAdapter.Always(AccountUsageStopTestSupport.Observation(Now, 79));
+        await using var context = _fixture.CreateContext();
+
+        var result = await new CreateCodexPlanningAttemptCommandHandler(context, reader, new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe, adapter)
+            .HandleAsync(new CreateCodexPlanningAttemptCommand(run.Id, source.Id), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verify = _fixture.CreateContext();
+        var repair = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == result.Value.AttemptId);
+        Assert.Equal(source.Id, repair.AgentRepairSourceAttemptId);
+        Assert.Equal(80, repair.ReadAgentCodexAccountUsageStopPercent().Value);
     }
 }

@@ -30,4 +30,5 @@ public sealed record GetRunCockpitResponse(
     IReadOnlyList<RunCockpitTokenWarningResponse>? TokenWarnings = null,
     IReadOnlyList<RunCockpitTokenStopResponse>? TokenStops = null,
     ClaudeMutationTurnLimitResponse? ClaudeMutationTurnLimit = null,
-    string? ExecutionMode = null);
+    string? ExecutionMode = null,
+    CodexAccountUsageStopResponse? CodexAccountUsageStop = null);

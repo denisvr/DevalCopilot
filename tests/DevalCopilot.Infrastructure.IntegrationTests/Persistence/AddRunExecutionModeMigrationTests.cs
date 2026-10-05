@@ -207,7 +207,8 @@ public sealed class AddRunExecutionModeMigrationTests : IAsyncLifetime
         }
 
         var after = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
-        Assert.Equal(["ExecutionMode"], before.Except(after));
+        // The database is at the latest migration, so the later AddCodexAccountUsageStop run column is dropped on the way down too.
+        Assert.Equal(["CodexAccountUsageStopPercent", "ExecutionMode"], before.Except(after).Order());
         Assert.Empty(after.Except(before));
 
         await using var probe = new SqliteConnection($"Data Source={_databasePath}");

@@ -189,6 +189,7 @@ public sealed class CodexSupervisorRoutingHostedTests : IDisposable
         services.AddDbContext<DevalCopilotDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IDevalCopilotDbContext>(sp => sp.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
+        AccountUsageGuardTestServices.Register(services);
         services.AddSingleton<IGitWorkspaceEvidenceReader>(new FixedEvidence());
         services.AddSingleton<IArtifactStore>(_artifactStore);
         services.AddSingleton<ICodexPlanningAdapter>(planning);

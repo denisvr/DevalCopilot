@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.CreateChallengeResolutionAttempt;
 using DevalCopilot.Domain.Features.Projects;
@@ -34,8 +36,9 @@ public sealed class CreateChallengeResolutionRepairAttemptTests : IAsyncLifetime
     public Task DisposeAsync() => _fixture.DisposeAsync();
 
     private CreateChallengeResolutionAttemptCommandHandler NewHandler(
-        IDevalCopilotDbContext db, RepairEvidenceReader reader, RepairArtifactStore store, IAttemptDurabilityProbe? probe = null) =>
-        new(db, reader, store, new FixedTimeProvider(RepairTestScene.Now), probe ?? new AttemptDurabilityProbe(_fixture.Options));
+        IDevalCopilotDbContext db, RepairEvidenceReader reader, RepairArtifactStore store, IAttemptDurabilityProbe? probe = null,
+        IAccountUsageObserver? accountUsage = null) =>
+        new(db, reader, store, new FixedTimeProvider(RepairTestScene.Now), probe ?? new AttemptDurabilityProbe(_fixture.Options), accountUsage);
 
     private static string Code<T>(Result<T> result) => Assert.Single(result.Errors).Code;
 
@@ -998,5 +1001,47 @@ public sealed class CreateChallengeResolutionRepairAttemptTests : IAsyncLifetime
             await context.Database.ExecuteSqlInterpolatedAsync($"DELETE FROM runs WHERE Id = {scene.Run.Id}");
             Assert.Empty(context.Attempts.Where(a => a.RunId == scene.Run.Id));
         }
+    }
+
+    // ---- run-scoped Codex account-usage stop (ADR-0025): the format-repair claim is guarded exactly like an ordinary claim
+
+    [Fact]
+    public async Task A_repair_claim_at_a_reached_account_usage_stop_is_refused_before_any_external_work()
+    {
+        var scene = await RepairTestScene.CreateAsync(_fixture);
+        var (source, _, _) = scene.AddResolverSource(challengeCount: 2);
+        await scene.SaveAsync();
+        await AccountUsageStopTestSupport.SetStopAsync(_fixture, scene.Run.Id, 80);
+        var attemptsBefore = await scene.AttemptCountAsync();
+        var reader = RepairEvidenceReader.Matching(RepairTestScene.Fingerprint);
+        var store = new RepairArtifactStore();
+        var adapter = StubAccountUsageAdapter.Always(AccountUsageStopTestSupport.Observation(RepairTestScene.Now, 80));
+        await using var freshContext = _fixture.CreateContext();
+
+        var result = await RepairAsync(NewHandler(freshContext, reader, store, accountUsage: adapter), scene.Run.Id, source.Id);
+
+        await AssertRefusedBeforeAnyExternalWorkAsync(result, CodexAccountUsageStopGate.ReachedCode, scene, attemptsBefore, reader, store);
+        Assert.Equal(1, adapter.Calls);
+    }
+
+    [Fact]
+    public async Task A_repair_claim_below_the_account_usage_stop_snapshots_it_on_the_repair_attempt()
+    {
+        var scene = await RepairTestScene.CreateAsync(_fixture);
+        var (source, _, _) = scene.AddResolverSource(challengeCount: 2);
+        await scene.SaveAsync();
+        await AccountUsageStopTestSupport.SetStopAsync(_fixture, scene.Run.Id, 80);
+        var adapter = StubAccountUsageAdapter.Always(AccountUsageStopTestSupport.Observation(RepairTestScene.Now, 79));
+        await using var freshContext = _fixture.CreateContext();
+
+        var result = await RepairAsync(
+            NewHandler(freshContext, RepairEvidenceReader.Matching(RepairTestScene.Fingerprint), new RepairArtifactStore(), accountUsage: adapter),
+            scene.Run.Id, source.Id);
+
+        Assert.True(result.IsSuccess, result.IsFailure ? Code(result) : null);
+        await using var verify = _fixture.CreateContext();
+        var repair = await verify.Attempts.AsNoTracking().SingleAsync(a => a.Id == result.Value.AttemptId);
+        Assert.Equal(source.Id, repair.AgentRepairSourceAttemptId);
+        Assert.Equal(80, repair.ReadAgentCodexAccountUsageStopPercent().Value);
     }
 }

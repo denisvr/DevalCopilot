@@ -7,6 +7,7 @@ import { DirectGuidanceEditor } from './DirectGuidanceEditor'
 import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
+import { ACCOUNT_USAGE_OUTCOME_LABELS } from '../accountUsageOutcomeLabels'
 
 interface VerificationDiagnosisActionProps {
   /** The run that owns the correction draft, with the diagnosis attempt the status names. */
@@ -35,6 +36,7 @@ interface VerificationDiagnosisActionProps {
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
+  ...ACCOUNT_USAGE_OUTCOME_LABELS,
   DiagnosisFindingsRecorded: 'Diagnosis findings recorded',
   DiagnosisEscalated: 'Diagnosis escalated for a human decision',
   InvalidStructuredOutput: 'Codex returned an invalid structured diagnosis',
@@ -77,6 +79,8 @@ const UNAVAILABLE_COPY: Record<string, string> = {
 }
 
 const FAILED_OUTCOMES = new Set([
+  'AccountUsageStopReached',
+  'AccountUsageEvidenceUnavailable',
   'InvalidStructuredOutput',
   'ProviderInvocationFailed',
   'CheckpointEvidenceUnavailable',

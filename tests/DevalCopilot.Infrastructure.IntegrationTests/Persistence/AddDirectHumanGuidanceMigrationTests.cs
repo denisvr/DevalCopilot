@@ -217,8 +217,10 @@ public sealed class AddDirectHumanGuidanceMigrationTests : IAsyncLifetime
         }
 
         var after = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
-        // The database is at the latest migration, so the later AddAgentModelContextLimits column is dropped on the way down too.
-        Assert.Equal(["AgentDirectHumanGuidance", "AgentModelContextLimitsSnapshot"], before.Except(after).Order());
+        // The database is at the latest migration, so the later AddAgentModelContextLimits and AddCodexAccountUsageStop columns are dropped on the way down too.
+        Assert.Equal(
+            ["AgentAccountUsageDecisionSnapshot", "AgentCodexAccountUsageStopPercent", "AgentDirectHumanGuidance", "AgentModelContextLimitsSnapshot"],
+            before.Except(after).Order());
         Assert.Empty(after.Except(before));
 
         await using var probe = new SqliteConnection($"Data Source={_databasePath}");

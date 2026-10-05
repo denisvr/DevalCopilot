@@ -116,6 +116,16 @@ public sealed class AttemptConfiguration : IEntityTypeConfiguration<Attempt>
         // must load, and Attempt.GetAgentModelContextLimitsEvidence judges it (oversized or malformed text is unknown).
         builder.Property(attempt => attempt.AgentModelContextLimitsSnapshot).HasColumnType("TEXT");
 
+        // The Codex account-usage stop (ADR-0025): the threshold snapshotted when the attempt was claimed (exact stored text in an
+        // INTEGER-affinity column, never backfilled, so no historical policy is invented; see
+        // Attempt.ReadAgentCodexAccountUsageStopPercent) and the one canonical decision that stopped it before dispatch (nullable
+        // TEXT, no length mapping so oversized text still loads and Attempt.GetAgentAccountUsageDecision judges it).
+        builder.Property<string?>(Attempt.AgentCodexAccountUsageStopStorageProperty)
+            .HasColumnName("AgentCodexAccountUsageStopPercent")
+            .HasColumnType("INTEGER")
+            .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
+        builder.Property(attempt => attempt.AgentAccountUsageDecisionSnapshot).HasColumnType("TEXT");
+
         // The run-wide Agent claim-budget slot: null for every Simulated/Process attempt, never
         // backfilled to a value for those kinds. Every historical Agent attempt was backfilled a
         // deterministic slot by the AddAgentClaimBudget migration.

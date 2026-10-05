@@ -14,6 +14,11 @@ public static class CodexRole
             return 0;
         }
 
+        if (ClosedArguments.IsCodexAppServer(args))
+        {
+            return AccountUsageRole.Run(location, Console.In, Console.Out);
+        }
+
         var exec = ClosedArguments.ParseCodex(args);
         var worktree = location.RequireWorktree(currentDirectory);
         if (!string.Equals(

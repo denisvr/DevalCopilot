@@ -37,6 +37,8 @@ public static class AgentProcessEvidencePolicy
         AgentOutcome.InputAlreadyCodeReviewed,
         AgentOutcome.InputAlreadyCorrected,
         AgentOutcome.InputAlreadyDiagnosed,
+        AgentOutcome.AccountUsageStopReached,
+        AgentOutcome.AccountUsageEvidenceUnavailable,
     }.ToFrozenSet();
 
     public static bool RequiresCleanExit(AgentOutcome outcome) => CleanExitRequiredOutcomes.Contains(outcome);

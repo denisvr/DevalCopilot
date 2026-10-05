@@ -430,4 +430,77 @@ describe('AgentAttemptHistoryPanel', () => {
       )
     })
   })
+
+  describe('Codex account-usage stop evidence', () => {
+    const stoppedEvidence = (overrides: Record<string, unknown>, provider = 'Codex') => ({
+      ...evidenceFor(1),
+      provider,
+      attemptStatus: 'Failed',
+      outcome: 'AccountUsageStopReached',
+      ...overrides,
+    })
+
+    async function openDetail() {
+      history.mockResolvedValue({ items: [entry(1, { provider: 'Codex' })], hasMore: false })
+      render(<AgentAttemptHistoryPanel runId="run-1" />)
+      openHistory()
+      await screen.findByText(/Attempt #1/)
+      fireEvent.click(screen.getByRole('button', { name: 'Inspect attempt 1' }))
+      return screen.findByRole('region', { name: 'Selected Agent attempt evidence' })
+    }
+
+    it('shows the stored decision with the retrieval time and windows for a stopped Codex attempt', async () => {
+      const retrievedAtUtc = new Date('2026-10-01T12:30:00Z')
+      evidence.mockResolvedValue(
+        stoppedEvidence({
+          accountUsageStop: { state: 'Configured', percent: 80 },
+          accountUsageDecision: {
+            state: 'Recorded',
+            decision: 'Reached',
+            reason: 'ThresholdReached',
+            thresholdPercent: 80,
+            retrievedAtUtc,
+            windows: [{ bucketId: 'codex', window: 'Primary', usedPercent: 85 }],
+          },
+        }),
+      )
+
+      const detail = await openDetail()
+      const fact = await within(detail).findByRole('region', { name: 'Codex account-usage stop' })
+
+      expect(within(fact).getByText('Claimed with account-usage stop: 80% used')).toBeTruthy()
+      expect(within(fact).getByText('Not started: a reported usage window reached the configured stop (80%).')).toBeTruthy()
+      expect(within(fact).getByText(`Host retrieval time: ${retrievedAtUtc.toLocaleString()}`)).toBeTruthy()
+      expect(within(fact).getByText('codex primary window: 85% used')).toBeTruthy()
+    })
+
+    it('shows no decision line for an attempt without a stored decision', async () => {
+      evidence.mockResolvedValue(stoppedEvidence({ outcome: 'Proposed', accountUsageStop: { state: 'NotConfigured' } }))
+
+      const detail = await openDetail()
+      const fact = await within(detail).findByRole('region', { name: 'Codex account-usage stop' })
+
+      expect(within(fact).getByText('Claimed with no account-usage stop')).toBeTruthy()
+      expect(fact.textContent).not.toMatch(/Not started/)
+    })
+
+    it('shows an unverifiable message for an Unavailable decision', async () => {
+      evidence.mockResolvedValue(stoppedEvidence({ accountUsageDecision: { state: 'Unavailable', windows: [] } }))
+
+      const detail = await openDetail()
+
+      expect(await within(detail).findByText('The stored account-usage decision could not be verified.')).toBeTruthy()
+    })
+
+    it('shows nothing for a Claude attempt', async () => {
+      evidence.mockResolvedValue(
+        stoppedEvidence({ accountUsageStop: { state: 'Configured', percent: 80 }, accountUsageDecision: { state: 'Unavailable', windows: [] } }, 'ClaudeCode'),
+      )
+
+      const detail = await openDetail()
+      await within(detail).findByText(/Attempt #1/)
+
+      expect(within(detail).queryByRole('region', { name: 'Codex account-usage stop' })).toBeNull()
+    })
+  })
 })

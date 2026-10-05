@@ -3,6 +3,7 @@ using System.Text;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using DevalCopilot.Application.Features.Runs.Policies;
@@ -34,7 +35,8 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandler(
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
     TimeProvider timeProvider,
-    IAttemptDurabilityProbe attemptDurabilityProbe)
+    IAttemptDurabilityProbe attemptDurabilityProbe,
+    IAccountUsageObserver? accountUsageGuardAdapter = null)
     : ICommandHandler<CreateVerificationDiagnosisAttemptCommand, Result<CreateVerificationDiagnosisAttemptCommandResult>>
 {
     private const int MaxContextManifestBytes = 32 * 1024;
@@ -90,6 +92,18 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandler(
         {
             return Failure(tokenStopError);
         }
+
+        // The run-scoped Codex account-usage stop (ADR-0025), after the budgets and the token stop and before any provider probe, Git
+        // work, or manifest sealing. The strict observation happens here, outside any EF transaction; a refusal commits nothing.
+        // Unconfigured, it makes no observation. The commit seam below re-confirms the setting, the launch tuple and freshness.
+        var accountUsageCheck = await CodexAccountUsageStopGate.CheckClaimAsync(
+            dbContext, accountUsageGuardAdapter, timeProvider, run, cancellationToken);
+        if (accountUsageCheck.IsFailure)
+        {
+            return Failure(accountUsageCheck.Errors[0]);
+        }
+
+        var accountUsageGuard = accountUsageCheck.Value;
 
         var workspace = await dbContext.GitWorkspaces
             .Where(candidate => candidate.ProjectId == run.ProjectId)
@@ -219,6 +233,7 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandler(
             requestedModel,
             requestedEffort,
             agentBudgetSlot);
+        CodexAccountUsageStopGate.Snapshot(attempt, accountUsageGuard);
 
         // The one authoritative record of this attempt's exact durable identity: the diagnosed ExecutionReport at sequence 0
         // and the exact ordered claimed verification-execution set — one relational membership row per execution.
@@ -263,6 +278,7 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandler(
         {
             bool preferenceStillCurrent;
             bool stopPolicyStillCurrent;
+            Error? accountUsageError;
             bool modeStillAdmitted;
             Error? authorityError = null;
             try
@@ -270,11 +286,16 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandler(
                 preferenceStillCurrent = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
                     dbContext, run.Id, requestedModel, requestedEffort, cancellationToken);
                 stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
+
+                // The account-usage stop (ADR-0025): the stored setting and the vetted launch tuple must still be exactly what the
+                // early check observed, and its evidence still fresh at this seam, before any insert.
+                accountUsageError = await CodexAccountUsageStopGate.ConfirmInTransactionAsync(
+                    dbContext, timeProvider, run, accountUsageGuard, cancellationToken);
                 modeStillAdmitted = await CurrentRunExecutionMode.ConfirmAgentAdmittedAsync(dbContext, run, cancellationToken);
 
                 // Authority is re-read here, untracked, after the guard writes above hold the database write lock and after
                 // all external work, so it is atomic with the insert below.
-                if (preferenceStillCurrent && stopPolicyStillCurrent && modeStillAdmitted)
+                if (preferenceStillCurrent && stopPolicyStillCurrent && accountUsageError is null && modeStillAdmitted)
                 {
                     authorityError = await RevalidateAuthorityAsync(
                         run, workspace.Id, checkpoint, executionReport.Id, implementedPlan.Id, selection, cancellationToken);
@@ -313,6 +334,11 @@ public sealed class CreateVerificationDiagnosisAttemptCommandHandler(
             if (!stopPolicyStillCurrent)
             {
                 return await RefuseAsync(claimTransaction, run.Id, attemptId, CurrentTokenStopPolicy.PolicyChangedDuringClaim(), cancellationToken);
+            }
+
+            if (accountUsageError is not null)
+            {
+                return await RefuseAsync(claimTransaction, run.Id, attemptId, accountUsageError, cancellationToken);
             }
 
             if (authorityError is not null)

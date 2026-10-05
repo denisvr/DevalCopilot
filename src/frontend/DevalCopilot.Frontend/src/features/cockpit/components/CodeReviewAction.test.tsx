@@ -99,6 +99,28 @@ describe('CodeReviewAction', () => {
     expect(screen.queryByRole('button', { name: 'Request code review' })).not.toBeInTheDocument()
   })
 
+  it.each([
+    ['AccountUsageStopReached', 'Not started: the account-usage stop was reached'],
+    ['AccountUsageEvidenceUnavailable', 'Not started: the account-usage stop could not be checked'],
+  ])('labels the %s outcome safely and still allows a retry', (outcome, label) => {
+    render(
+      <CodeReviewAction
+        executionReportMessageId="message-1"
+        status={new CodeReviewAttemptStatusResponse({ attemptId: 'attempt-1', attemptNumber: 1, status: 'Failed', outcome, executionReportMessageId: 'message-1' })}
+        statusLoading={false}
+        statusError={null}
+        requesting={false}
+        requestError={null}
+        onRequest={vi.fn()}
+        globalClaimBlock={null}
+        timeFit={{ reason: 'Fits' }}
+      />,
+    )
+
+    expect(screen.getByText(`Last attempt #1: ${label}.`)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Request code review' })).toBeInTheDocument()
+  })
+
   it('shows the configured command sandbox and rollout persistence for a coherent attempt', () => {
     render(
       <CodeReviewAction

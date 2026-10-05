@@ -10,6 +10,7 @@ using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt
 using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptResult;
+using DevalCopilot.Application.Features.Runs.Commands.SetCodexAccountUsageStop;
 using DevalCopilot.Application.Features.Runs.Commands.RecordChallengeResolutionResult;
 using DevalCopilot.Application.Features.Runs.Commands.RecordClaudeCriticalReviewResult;
 using DevalCopilot.Application.Features.Runs;
@@ -462,13 +463,15 @@ public sealed partial class ChallengeResolutionSupervisorHostedTests : IDisposab
     }
 
     private ServiceProvider BuildServiceProvider(
-        IGitWorkspaceEvidenceReader evidenceReader, ICodexChallengeResolutionAdapter challengeResolutionAdapter)
+        IGitWorkspaceEvidenceReader evidenceReader, ICodexChallengeResolutionAdapter challengeResolutionAdapter,
+        ScriptedAccountUsageAdapter? accountUsage = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContext<DevalCopilotDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IDevalCopilotDbContext>(sp => sp.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
+        AccountUsageGuardTestServices.Register(services, accountUsage);
         services.AddSingleton(evidenceReader);
         services.AddSingleton(challengeResolutionAdapter);
         services.AddSingleton<IArtifactStore>(_artifactStore);
@@ -489,7 +492,8 @@ public sealed partial class ChallengeResolutionSupervisorHostedTests : IDisposab
     /// <see cref="CreateChallengeResolutionAttemptCommand"/>.
     /// </summary>
     private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid OriginalProposalId, List<Guid> ChallengeIds)>
-        SeedEligibleChallengeResolutionAttemptAsync(ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader)
+        SeedEligibleChallengeResolutionAttemptAsync(
+            ServiceProvider provider, IGitWorkspaceEvidenceReader evidenceReader, int? accountUsageStop = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -530,6 +534,11 @@ public sealed partial class ChallengeResolutionSupervisorHostedTests : IDisposab
             .OrderBy(m => m.Sequence)
             .Select(m => m.Id)
             .ToList();
+
+        if (accountUsageStop is { } stop)
+        {
+            Assert.True((await mediator.SendAsync(new SetCodexAccountUsageStopCommand(runId, stop), CancellationToken.None)).IsSuccess);
+        }
 
         var createResolutionResult = await mediator.SendAsync(
             new CreateChallengeResolutionAttemptCommand(runId, reviewAttemptId), CancellationToken.None);

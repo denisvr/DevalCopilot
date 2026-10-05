@@ -285,16 +285,16 @@ internal sealed class DiagnosisTestScene
 
     public CreateVerificationDiagnosisAttemptCommandHandler ClaimHandler(
         IDevalCopilotDbContext? db = null, RepairEvidenceReader? reader = null, DiagnosisArtifactStore? store = null,
-        IAttemptDurabilityProbe? probe = null) =>
-        new(db ?? Db, reader ?? Reader(), store ?? Store, new FixedTimeProvider(Now), probe ?? new AttemptDurabilityProbe(Fixture.Options));
+        IAttemptDurabilityProbe? probe = null, IAccountUsageObserver? accountUsageAdapter = null, TimeProvider? clock = null) =>
+        new(db ?? Db, reader ?? Reader(), store ?? Store, clock ?? new FixedTimeProvider(Now), probe ?? new AttemptDurabilityProbe(Fixture.Options), accountUsageAdapter);
 
     /// <summary>Runs the claim on <paramref name="db"/> or, by default, on a fresh context that sees the database as it is now.</summary>
     public async Task<Devalente.Shared.Results.Result<CreateVerificationDiagnosisAttemptCommandResult>> ClaimAsync(
         IDevalCopilotDbContext? db = null, RepairEvidenceReader? reader = null, DiagnosisArtifactStore? store = null,
-        Guid? reportId = null, Guid? runId = null)
+        Guid? reportId = null, Guid? runId = null, IAccountUsageObserver? accountUsageAdapter = null, TimeProvider? clock = null)
     {
         await using var fresh = Fixture.CreateContext();
-        return await ClaimHandler(db ?? fresh, reader, store).HandleAsync(
+        return await ClaimHandler(db ?? fresh, reader, store, accountUsageAdapter: accountUsageAdapter, clock: clock).HandleAsync(
             new CreateVerificationDiagnosisAttemptCommand(runId ?? Run.Id, reportId ?? ReportId), CancellationToken.None);
     }
 

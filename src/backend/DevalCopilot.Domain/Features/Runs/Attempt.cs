@@ -1188,6 +1188,43 @@ public sealed class Attempt
     public bool HasDispatchCoherentTurnLimit() => ClaudeMutationAdapterContract.IsDispatchCoherent(
         AgentResponseContract, AgentRole, AgentProvider, AgentPermissionProfile, AgentAdapterContractVersion, ReadAgentRequestedMaxTurns());
 
+    /// <summary>The EF field-only property that holds the account-usage stop snapshot as its exact stored text. Persistence and
+    /// queries refer to this name; every other reader uses <see cref="ReadAgentCodexAccountUsageStopPercent"/>.</summary>
+    public const string AgentCodexAccountUsageStopStorageProperty = "_agentCodexAccountUsageStopPercent";
+
+    private string? _agentCodexAccountUsageStopPercent;
+
+    /// <summary>The exact reading of the immutable Codex account-usage stop (a used-percent threshold, see
+    /// <see cref="CodexAccountUsageStop"/>) this Codex attempt was claimed with. Absent means the stop was not configured when it
+    /// was claimed, or the attempt predates the setting (no historical policy is ever invented); malformed means the stored
+    /// representation is not a canonical whole number in range, so it is never read as a threshold, as null, or as zero. A
+    /// claim-time snapshot of the owner's setting, never a statement about the account.</summary>
+    public CodexAccountUsageStopReading ReadAgentCodexAccountUsageStopPercent() =>
+        CodexAccountUsageStop.Read(_agentCodexAccountUsageStopPercent);
+
+    /// <summary>Records the run's account-usage stop on this attempt, exactly once, before the attempt is first persisted. Only a
+    /// Running, never-dispatched Codex Agent attempt can take it, and the value must satisfy
+    /// <see cref="CodexAccountUsageStop.IsValid"/>. There is no way to change or clear it afterwards.</summary>
+    public void SnapshotCodexAccountUsageStop(int percent)
+    {
+        if (Kind != AttemptKind.Agent || AgentProvider != Runs.AgentProvider.Codex)
+        {
+            throw new InvalidOperationException("Only a Codex Agent attempt can snapshot an account-usage stop.");
+        }
+
+        if (Status != AttemptStatus.Running || AgentDispatchedAtUtc.HasValue)
+        {
+            throw new InvalidOperationException("The account-usage stop is snapshotted when the attempt is claimed, before dispatch.");
+        }
+
+        if (_agentCodexAccountUsageStopPercent is not null)
+        {
+            throw new InvalidOperationException("The account-usage stop snapshot is immutable.");
+        }
+
+        _agentCodexAccountUsageStopPercent = CodexAccountUsageStop.Format(percent);
+    }
+
     /// <summary>The EF field-only property that holds the direct-guidance snapshot as its exact stored text.
     /// Persistence and queries refer to this name; every other reader uses <see cref="ReadAgentDirectHumanGuidance"/>.</summary>
     public const string AgentDirectHumanGuidanceStorageProperty = "_agentDirectHumanGuidance";
@@ -1386,6 +1423,74 @@ public sealed class Attempt
         Kind != AttemptKind.Agent || Status == AttemptStatus.Running || AgentDispatchedAtUtc is null
             ? null
             : AgentModelContextLimitsEvidence.FromPersisted(AgentProvider, AgentModelContextLimitsSnapshot);
+
+    /// <summary>The one canonical project-owned text of the decision that stopped this never-dispatched Codex attempt because of the
+    /// run's account-usage stop (see <see cref="AgentCodexAccountUsageDecision.Serialize"/>). Recorded once, only by
+    /// <see cref="CompleteAgentAccountUsageStop"/>, in the same call as the terminal outcome. <see langword="null"/> means no
+    /// decision was recorded, which is never read as "below the threshold". Read it only through
+    /// <see cref="GetAgentAccountUsageDecision"/>: stored text that is not exactly valid canonical evidence is unknown.</summary>
+    public string? AgentAccountUsageDecisionSnapshot { get; private set; }
+
+    /// <summary>The recorded decision, or <see langword="null"/> when it is absent, the stored text is not canonical valid
+    /// evidence for this Codex attempt, the attempt has not concluded, it was dispatched, or its outcome is not one of the two stop
+    /// outcomes. Never throws.</summary>
+    public AgentCodexAccountUsageDecision? GetAgentAccountUsageDecision()
+    {
+        if (Kind != AttemptKind.Agent || Status != AttemptStatus.Failed || AgentDispatchedAtUtc is not null
+            || AgentOutcome is not (Runs.AgentOutcome.AccountUsageStopReached or Runs.AgentOutcome.AccountUsageEvidenceUnavailable))
+        {
+            return null;
+        }
+
+        // Canonical text alone does not prove this attempt's decision: it must agree with the attempt's own immutable threshold
+        // snapshot, exactly as the recording transition required. An ordinary decision needs the actual valid, equal threshold;
+        // the unusable-threshold decision needs an actually malformed snapshot; an absent snapshot confirms nothing.
+        var decision = AgentCodexAccountUsageDecision.FromPersisted(AgentProvider, AgentAccountUsageDecisionSnapshot);
+        return decision is not null && AgreesWithThresholdSnapshot(decision, ReadAgentCodexAccountUsageStopPercent()) ? decision : null;
+    }
+
+    private static bool AgreesWithThresholdSnapshot(AgentCodexAccountUsageDecision decision, CodexAccountUsageStopReading snapshot) =>
+        !snapshot.IsAbsent
+        && (decision.Reason == CodexAccountUsageDecisionReason.ThresholdUnusable
+            ? snapshot.IsMalformed
+            : !snapshot.IsMalformed && decision.ThresholdPercent == snapshot.Value);
+
+    /// <summary>The terminal pre-dispatch transition of the account-usage stop: records the bounded decision and the matching outcome
+    /// atomically for a Running, never-dispatched Codex attempt that took an account-usage stop snapshot. The decision must agree
+    /// with that snapshot (its threshold equals a valid snapshot; an unusable-threshold decision needs a malformed one), and a
+    /// second decision, a dispatched attempt or an attempt without a snapshot is refused before any mutation. No dispatch marker,
+    /// process evidence, token usage or model limits exist for it.</summary>
+    public void CompleteAgentAccountUsageStop(AgentCodexAccountUsageDecision decision, DateTimeOffset nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
+        if (Kind != AttemptKind.Agent || AgentProvider != Runs.AgentProvider.Codex)
+        {
+            throw new InvalidOperationException("Only a Codex Agent attempt can record an account-usage stop.");
+        }
+
+        if (Status != AttemptStatus.Running || AgentDispatchedAtUtc.HasValue || AgentAccountUsageDecisionSnapshot is not null)
+        {
+            throw new InvalidOperationException("An account-usage stop is recorded once, for a claimed attempt that was never dispatched.");
+        }
+
+        var snapshot = ReadAgentCodexAccountUsageStopPercent();
+        if (snapshot.IsAbsent)
+        {
+            throw new InvalidOperationException("This attempt did not claim an account-usage stop.");
+        }
+
+        if (!AgreesWithThresholdSnapshot(decision, snapshot))
+        {
+            throw new InvalidOperationException("The decision does not agree with the attempt's account-usage stop snapshot.");
+        }
+
+        AgentOutcome = decision.Kind == CodexAccountUsageDecisionKind.Reached
+            ? Runs.AgentOutcome.AccountUsageStopReached
+            : Runs.AgentOutcome.AccountUsageEvidenceUnavailable;
+        AgentAccountUsageDecisionSnapshot = decision.Serialize();
+        Status = AttemptStatus.Failed;
+        CompletedAtUtc = nowUtc;
+    }
 
     public void Complete(DateTimeOffset nowUtc)
     {

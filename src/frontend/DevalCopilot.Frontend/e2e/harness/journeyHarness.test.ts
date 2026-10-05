@@ -23,6 +23,13 @@ import type { TrackedExpectation } from '../journey/trackedDelivery.ts'
 import { createHash } from 'node:crypto'
 import { normalizeGuidance, sha256Hex } from '../journey/guidance.ts'
 import { canonicalSnapshot, EXPECTED_MODEL_LIMITS, renderedRows, responseMember } from '../journey/modelContextLimits.ts'
+import {
+  agentStageInvocations,
+  canonicalReachedDecision,
+  observationIndices,
+  stoppedAttemptProblems,
+} from '../journey/accountUsage.ts'
+import type { ExpectedStoppedAttempt, ObservedStoppedAttempt } from '../journey/accountUsage.ts'
 import { ESCALATED_STAGE_SEQUENCE, escalatedLineageProblems, planIdentityProblems } from '../journey/planIdentity.ts'
 import type { EscalatedLineage } from '../journey/planIdentity.ts'
 import { JourneyData } from '../journey/journeyDb.ts'
@@ -840,5 +847,95 @@ describe('the journey model-limits expectations', () => {
     assert.deepEqual(responseMember(EXPECTED_MODEL_LIMITS.ReviewCorrection), {
       models: [{ modelId: 'claude-journey-fix', contextWindowTokens: 150000, maxOutputTokens: 16000 }],
     })
+  })
+})
+
+describe('the account-usage stop judge', () => {
+  const expected: ExpectedStoppedAttempt = {
+    attemptNumber: 1,
+    threshold: 80,
+    windows: [
+      { bucketId: 'codex', window: 'Primary', usedPercent: 85 },
+      { bucketId: 'codex', window: 'Secondary', usedPercent: 20 },
+    ],
+  }
+  const instant = '2026-10-04T12:00:00.12345Z'
+  const healthy = (): ObservedStoppedAttempt => ({
+    status: 'Failed',
+    outcome: 'AccountUsageStopReached',
+    dispatchedAtUtc: null,
+    storedThreshold: 80,
+    storedDecision: canonicalReachedDecision(80, instant, expected.windows),
+    stop: { state: 'Configured', percent: 80 },
+    decision: {
+      state: 'Recorded',
+      decision: 'Reached',
+      reason: 'ThresholdReached',
+      thresholdPercent: 80,
+      retrievedAtUtc: '2026-10-04T12:00:00.12345+00:00',
+      windows: [
+        { bucketId: 'codex', window: 'Primary', usedPercent: 85 },
+        { bucketId: 'codex', window: 'Secondary', usedPercent: 20 },
+      ],
+    },
+    renderedText: [
+      'Claimed with account-usage stop: 80% used',
+      'Not started: a reported usage window reached the configured stop (80%).',
+      'Host retrieval time: 10/4/2026, 12:00:00 PM',
+      'codex primary window: 85% used',
+      'codex secondary window: 20% used',
+      'A local guard over a provider-reported percentage; it says nothing about account access, remaining quota or live capacity.',
+    ].join('\n'),
+  })
+
+  it('accepts a stopped attempt that matches what the host recorded and showed', () => {
+    assert.deepEqual(stoppedAttemptProblems(expected, healthy()), [])
+  })
+
+  it('detects a dispatched, successful or differently classified attempt', () => {
+    assert.ok(stoppedAttemptProblems(expected, { ...healthy(), dispatchedAtUtc: '2026-10-04T12:00:01Z' }).some((p) => /dispatch marker/.test(p)))
+    assert.ok(stoppedAttemptProblems(expected, { ...healthy(), status: 'Completed' }).some((p) => /not Failed/.test(p)))
+    assert.ok(stoppedAttemptProblems(expected, { ...healthy(), outcome: 'Proposed' }).some((p) => /outcome/.test(p)))
+  })
+
+  it('detects a missing, altered or non-canonical threshold and decision', () => {
+    assert.ok(stoppedAttemptProblems(expected, { ...healthy(), storedThreshold: null }).some((p) => /threshold snapshot/.test(p)))
+    assert.ok(stoppedAttemptProblems(expected, { ...healthy(), decision: null }).length > 0)
+    const other = healthy()
+    other.decision!.windows = [{ bucketId: 'codex', window: 'Primary', usedPercent: 99 }]
+    assert.ok(stoppedAttemptProblems(expected, other).some((p) => /windows/.test(p)))
+    assert.ok(stoppedAttemptProblems(expected, { ...healthy(), storedDecision: healthy().storedDecision!.replace('85', '86') }).some((p) => /canonical/.test(p)))
+    const unavailable = healthy()
+    unavailable.decision!.state = 'Unavailable'
+    assert.ok(stoppedAttemptProblems(expected, unavailable).some((p) => /recorded decision/.test(p)))
+  })
+
+  it('detects a page that omits the stop, the retrieval time or a window, or makes an unproven claim', () => {
+    assert.ok(stoppedAttemptProblems(expected, { ...healthy(), renderedText: 'nothing' }).length >= 3)
+    const claim = { ...healthy(), renderedText: healthy().renderedText + '\nThis account is eligible to continue.' }
+    assert.ok(stoppedAttemptProblems(expected, claim).some((p) => /unproven claim/.test(p)))
+    const remaining = { ...healthy(), renderedText: healthy().renderedText + '\nRemaining quota: 15%' }
+    assert.ok(stoppedAttemptProblems(expected, remaining).some((p) => /unproven claim/.test(p)))
+    const account = { ...healthy(), renderedText: healthy().renderedText + '\nacct_123' }
+    assert.ok(stoppedAttemptProblems(expected, account).some((p) => /provider or account text/.test(p)))
+  })
+
+  it('writes the one canonical decision text with a seven-digit UTC instant', () => {
+    assert.equal(
+      canonicalReachedDecision(80, '2026-10-04T12:00:00+00:00', [{ bucketId: null, window: 'Primary', usedPercent: 90 }]),
+      '{"version":1,"source":"codex-account-rate-limits-v1","decision":"reached","reason":"threshold_reached","thresholdPercent":80,"retrievedAtUtc":"2026-10-04T12:00:00.0000000Z","windows":[{"bucket":null,"window":"primary","usedPercent":90}]}',
+    )
+    assert.ok(canonicalReachedDecision(80, instant, expected.windows).includes('"retrievedAtUtc":"2026-10-04T12:00:00.1234500Z"'))
+  })
+
+  it('reads only the observations and the stage invocations from the log of the double', () => {
+    const entries: InvocationEntry[] = [
+      { role: 'codex', kind: 'probe' },
+      { role: 'codex', kind: 'account_usage', usageReadIndex: 0 },
+      { role: 'codex', kind: 'exec', contract: 'Proposal' },
+      { role: 'codex', kind: 'account_usage', usageReadIndex: 1 },
+    ]
+    assert.deepEqual(observationIndices(entries), [0, 1])
+    assert.deepEqual(agentStageInvocations(entries).map((entry) => entry.contract), ['Proposal'])
   })
 })

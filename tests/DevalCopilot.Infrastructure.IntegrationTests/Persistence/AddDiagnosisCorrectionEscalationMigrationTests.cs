@@ -125,8 +125,9 @@ public sealed class AddDiagnosisCorrectionEscalationMigrationTests : IAsyncLifet
             await previous.Database.GetService<IMigrator>().MigrateAsync(PriorMigration);
             var projectId = Guid.NewGuid();
             previous.Projects.Add(Project.Register(projectId, "Historical", $@"C:\repos\{Guid.NewGuid():N}", Now));
-            previous.Runs.Add(Run.RecordIntent(runId, projectId, 1, "Historical run", Now));
             await previous.SaveChangesAsync();
+            // An older schema cannot take the Run as an ordinary save would write it (it lacks later columns).
+            await HistoricalEntityRow.InsertAsync(previous, Run.RecordIntent(runId, projectId, 1, "Historical run", Now));
             review = Attempt.ClaimAgentCodeReview(
                 Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
             review.MarkAgentDispatched(Now);

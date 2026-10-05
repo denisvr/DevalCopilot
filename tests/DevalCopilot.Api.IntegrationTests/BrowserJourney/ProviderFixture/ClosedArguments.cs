@@ -24,6 +24,10 @@ public static class ClosedArguments
 
     public sealed record ClaudeExec(ClaudeProfile Profile, string SchemaJson);
 
+    /// <summary>The one App Server launch the strict account-usage observation makes: exactly <c>app-server --stdio</c>.</summary>
+    public static bool IsCodexAppServer(IReadOnlyList<string> args) =>
+        args.Count == 2 && args[0] == "app-server" && args[1] == "--stdio";
+
     public static CodexExec ParseCodex(IReadOnlyList<string> args)
     {
         var index = 0;

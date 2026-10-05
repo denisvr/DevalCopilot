@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -19,7 +20,8 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
     IGitWorkspaceEvidenceReader evidenceReader,
     IArtifactStore artifactStore,
     TimeProvider timeProvider,
-    IAttemptDurabilityProbe attemptDurabilityProbe)
+    IAttemptDurabilityProbe attemptDurabilityProbe,
+    IAccountUsageObserver? accountUsageGuardAdapter = null)
     : ICommandHandler<CreateCodexPlanningAttemptCommand, Result<CreateCodexPlanningAttemptCommandResult>>
 {
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
@@ -162,6 +164,18 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(tokenStopError);
         }
 
+        // The run-scoped Codex account-usage stop (ADR-0025), after the budgets and the token stop and before any provider
+        // probe, Git work, or manifest sealing. The strict observation happens here, outside any EF transaction; a refusal commits
+        // nothing. Unconfigured, it makes no observation. The commit seam below re-confirms the setting, the launch tuple and freshness.
+        var accountUsageCheck = await CodexAccountUsageStopGate.CheckClaimAsync(
+            dbContext, accountUsageGuardAdapter, timeProvider, run, cancellationToken);
+        if (accountUsageCheck.IsFailure)
+        {
+            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(accountUsageCheck.Errors);
+        }
+
+        var accountUsageGuard = accountUsageCheck.Value;
+
         var codexSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.CodexCli, cancellationToken);
         if (codexSnapshot is null
@@ -249,6 +263,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 requestedModel,
                 requestedEffort,
                 agentBudgetSlot);
+        CodexAccountUsageStopGate.Snapshot(attempt, accountUsageGuard);
 
         var manifestArtifact = Artifact.Record(
             manifestArtifactId,
@@ -299,6 +314,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         {
             bool preferenceStillCurrent;
             bool stopPolicyStillCurrent;
+            Error? accountUsageError;
             bool modeStillAdmitted;
             Error? repairSourceError = null;
             try
@@ -312,6 +328,11 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 // atomic UPDATE ... WHERE compare inside this same transaction (see CurrentTokenStopPolicy).
                 stopPolicyStillCurrent = await CurrentTokenStopPolicy.ConfirmUnchangedAsync(dbContext, run, cancellationToken);
 
+                // The account-usage stop (ADR-0025): the stored setting and the vetted launch tuple must still be exactly what the
+                // early check observed, and its evidence still fresh at this seam, before any insert.
+                accountUsageError = await CodexAccountUsageStopGate.ConfirmInTransactionAsync(
+                    dbContext, timeProvider, run, accountUsageGuard, cancellationToken);
+
                 // The execution mode the claim decided against must still admit Agent work: one more atomic
                 // UPDATE ... WHERE inside this same transaction, so a mode change can never confer stale authority.
                 modeStillAdmitted = await CurrentRunExecutionMode.ConfirmAgentAdmittedAsync(dbContext, run, cancellationToken);
@@ -321,7 +342,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 // place; even zero matches still open the write transaction), so no other claim
                 // can commit between this re-check and this claim's own insert. Only a still-current
                 // preference proceeds; a stale one is reported as the preference conflict below.
-                if (preferenceStillCurrent && stopPolicyStillCurrent && command.RepairSourceAttemptId is { } repairSourceAtCommit)
+                if (preferenceStillCurrent && stopPolicyStillCurrent && accountUsageError is null && command.RepairSourceAttemptId is { } repairSourceAtCommit)
                 {
                     repairSourceError = await PlanningRepairSource.EvaluateAsync(
                         dbContext, run.Id, repairSourceAtCommit, workspace.Id, checkpoint.Id,
@@ -378,6 +399,15 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateCodexPlanningAttemptCommandResult>.Failure(CurrentTokenStopPolicy.PolicyChangedDuringClaim());
+            }
+
+            if (accountUsageError is not null)
+            {
+                // The account-usage stop changed, its launch tuple changed, or its evidence is no longer fresh: rolled back before any
+                // insert, the sealed manifest removed and nothing consumed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(accountUsageError);
             }
 
             if (repairSourceError is not null)

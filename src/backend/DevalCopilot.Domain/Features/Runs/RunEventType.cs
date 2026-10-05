@@ -66,4 +66,8 @@ public static class RunEventType
     /// future Agent claims for that provider. The payload carries only the provider name and the new
     /// threshold (null when cleared).</summary>
     public const string TokenStopThresholdChanged = "run.token_stop_threshold_changed";
+
+    /// <summary>The owner set or cleared the run-scoped Codex account-usage stop percentage, enforced on future Codex claims and
+    /// their dispatch. The payload carries only the new percentage (null when cleared).</summary>
+    public const string CodexAccountUsageStopChanged = "run.codex_account_usage_stop_changed";
 }

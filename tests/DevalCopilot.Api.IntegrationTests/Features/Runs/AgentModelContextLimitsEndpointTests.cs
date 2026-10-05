@@ -207,6 +207,7 @@ public sealed class AgentModelContextLimitsEndpointTests(ApiWebApplicationFactor
                 "IdentityValid", "AttemptId", "AttemptNumber", "AttemptStatus", "ClaimedAtUtc", "CompletedAtUtc", "Provider", "Role",
                 "ResponseContract", "Outcome", "DispatchedAtUtc", "ProcessExecution", "TokenUsage", "Artifacts", "MaxTurns",
                 "RepairSourceAttemptId", "RepairSourceAttemptNumber", "DirectGuidance", "ModelContextLimits",
+                "AccountUsageStop", "AccountUsageDecision",
             ],
             members);
         Assert.Equal(

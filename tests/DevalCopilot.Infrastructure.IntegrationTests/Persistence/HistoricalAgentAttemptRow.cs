@@ -17,50 +17,7 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Persistence;
 /// </summary>
 internal static class HistoricalAgentAttemptRow
 {
-    // The only interpolated text is the table and column names of the project's own EF model (never a value, never input); every value
-    // travels as a typed parameter.
-    [SuppressMessage("Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Identifiers come from the project's own EF model; all values are parameters.")]
-    internal static async Task InsertAsync(DevalCopilotDbContext context, Attempt attempt)
-    {
-        var entityType = context.Model.FindEntityType(typeof(Attempt))!;
-        var tableName = entityType.GetTableName()!;
-        var table = StoreObjectIdentifier.Table(tableName, entityType.GetSchema());
-        var entry = context.Entry(attempt);
-
-        await context.Database.OpenConnectionAsync();
-        var connection = context.Database.GetDbConnection();
-        var available = new HashSet<string>(StringComparer.Ordinal);
-        await using (var columns = connection.CreateCommand())
-        {
-            columns.CommandText = $"SELECT name FROM pragma_table_info('{tableName}')";
-            await using var reader = await columns.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                available.Add(reader.GetString(0));
-            }
-        }
-
-        await using var insert = connection.CreateCommand();
-        var names = new List<string>();
-        var placeholders = new List<string>();
-        foreach (var property in entityType.GetProperties())
-        {
-            var column = property.GetColumnName(table);
-            if (column is null || !available.Contains(column))
-            {
-                continue;
-            }
-
-            var parameterName = $"$p{names.Count}";
-            var mapping = property.GetRelationalTypeMapping();
-            insert.Parameters.Add(mapping.CreateParameter(insert, parameterName, entry.Property(property.Name).CurrentValue, property.IsNullable));
-            names.Add($"\"{column}\"");
-            placeholders.Add(parameterName);
-        }
-
-        insert.CommandText = $"INSERT INTO \"{tableName}\" ({string.Join(", ", names)}) VALUES ({string.Join(", ", placeholders)})";
-        Assert.Equal(1, await insert.ExecuteNonQueryAsync());
-    }
+    internal static Task InsertAsync(DevalCopilotDbContext context, Attempt attempt) => HistoricalEntityRow.InsertAsync(context, attempt);
 
     /// <summary>Every mapped fact of the original Attempt (identity, workspace, checkpoint, fingerprint, manifest, protocol, contract,
     /// permission profile, adapter version, capture bounds, budget slot, timeouts and the rest) must be the fact that was read back.

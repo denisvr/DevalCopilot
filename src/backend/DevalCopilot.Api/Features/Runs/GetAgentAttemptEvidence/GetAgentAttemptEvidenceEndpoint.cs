@@ -51,6 +51,8 @@ public sealed class GetAgentAttemptEvidenceEndpoint(
             value.RepairSourceAttemptId,
             value.RepairSourceAttemptNumber,
             DirectHumanGuidanceResponse.FromDomain(value.DirectGuidance),
-            AgentModelContextLimitsResponse.FromDomain(value.ModelContextLimits)));
+            AgentModelContextLimitsResponse.FromDomain(value.ModelContextLimits),
+            CodexAccountUsageStopResponse.FromDomain(value.AccountUsageStop),
+            CodexAccountUsageDecisionResponse.FromDomain(value.AccountUsageDecision)));
     }
 }

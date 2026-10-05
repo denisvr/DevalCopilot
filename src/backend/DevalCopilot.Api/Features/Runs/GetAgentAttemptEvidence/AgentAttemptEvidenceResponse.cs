@@ -35,4 +35,6 @@ public sealed record AgentAttemptEvidenceResponse(
     /// <summary>The proved source attempt's number, else null.</summary>
     int? RepairSourceAttemptNumber = null,
     DirectHumanGuidanceResponse? DirectGuidance = null,
-    AgentModelContextLimitsResponse? ModelContextLimits = null);
+    AgentModelContextLimitsResponse? ModelContextLimits = null,
+    CodexAccountUsageStopResponse? AccountUsageStop = null,
+    CodexAccountUsageDecisionResponse? AccountUsageDecision = null);

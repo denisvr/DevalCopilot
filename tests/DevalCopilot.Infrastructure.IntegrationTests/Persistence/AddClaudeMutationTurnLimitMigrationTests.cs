@@ -374,11 +374,14 @@ public sealed class AddClaudeMutationTurnLimitMigrationTests : IAsyncLifetime
 
         var runColumnsAfter = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
         var attemptColumnsAfter = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
-        // The database is at the latest migration, so the later AddRunExecutionMode, AddDirectHumanGuidance and AddAgentModelContextLimits columns are dropped on the way down too.
-        Assert.Equal(["ExecutionMode", "RequestedClaudeMaxTurns"], runColumnsBefore.Except(runColumnsAfter).Order());
+        // The database is at the latest migration, so the later AddRunExecutionMode, AddDirectHumanGuidance, AddAgentModelContextLimits and AddCodexAccountUsageStop columns are dropped on the way down too.
+        Assert.Equal(["CodexAccountUsageStopPercent", "ExecutionMode", "RequestedClaudeMaxTurns"], runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
         Assert.Equal(
-            ["AgentDirectHumanGuidance", "AgentModelContextLimitsSnapshot", "AgentRequestedMaxTurns"],
+            [
+                "AgentAccountUsageDecisionSnapshot", "AgentCodexAccountUsageStopPercent", "AgentDirectHumanGuidance",
+                "AgentModelContextLimitsSnapshot", "AgentRequestedMaxTurns",
+            ],
             attemptColumnsBefore.Except(attemptColumnsAfter).Order());
         Assert.Empty(attemptColumnsAfter.Except(attemptColumnsBefore));
 

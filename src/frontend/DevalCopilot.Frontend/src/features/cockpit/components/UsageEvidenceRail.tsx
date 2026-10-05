@@ -4,6 +4,8 @@ import { describeCodexAccountAllowance, describeCodexAccountAllowanceRetrievedAt
 import { useCodexModelCatalog } from '../hooks/useCodexModelCatalog'
 import { describeCodexModelCatalog, describeCodexModelCatalogRetrievedAt } from '../describeCodexModelCatalog'
 import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
+import { CodexAccountUsageStopControl } from './CodexAccountUsageStopControl'
+import type { CodexAccountUsageStopResponse } from '../../../api/clients'
 
 const EVIDENCE_TABS = ['Changes', 'Local verification', 'Review findings', 'GitHub CI', 'Artifacts', 'Approvals']
 
@@ -18,9 +20,18 @@ const EVIDENCE_TABS = ['Changes', 'Local verification', 'Review findings', 'GitH
 interface UsageEvidenceRailProps {
   /** The run whose Agent attempt history the rail offers; the history is omitted when absent. */
   runId?: string
+  /** The run's saved Codex account-usage stop; the control is omitted when absent. Independent of the allowance observation. */
+  codexAccountUsageStop?: CodexAccountUsageStopResponse | null
+  accountUsageStopEditable?: boolean
+  onAccountUsageStopSaved?: () => Promise<boolean>
 }
 
-export function UsageEvidenceRail({ runId }: UsageEvidenceRailProps = {}) {
+export function UsageEvidenceRail({
+  runId,
+  codexAccountUsageStop,
+  accountUsageStopEditable = false,
+  onAccountUsageStopSaved,
+}: UsageEvidenceRailProps = {}) {
   const [collapsed, setCollapsed] = useState(false)
   const { allowance, loading, error, refresh } = useCodexAccountAllowance(!collapsed)
   const {
@@ -94,6 +105,15 @@ export function UsageEvidenceRail({ runId }: UsageEvidenceRailProps = {}) {
               Refresh
             </button>
           </div>
+          {runId && codexAccountUsageStop && (
+            <CodexAccountUsageStopControl
+              key={`account-usage-stop:${runId}:${codexAccountUsageStop.state ?? ''}:${codexAccountUsageStop.percent ?? ''}`}
+              runId={runId}
+              setting={codexAccountUsageStop}
+              editable={accountUsageStopEditable}
+              onSaved={onAccountUsageStopSaved}
+            />
+          )}
           <div className="dc-placeholder">Claude account usage: not yet collected in this increment.</div>
           {EVIDENCE_TABS.map((tab) => (
             <div key={tab} className="dc-placeholder">

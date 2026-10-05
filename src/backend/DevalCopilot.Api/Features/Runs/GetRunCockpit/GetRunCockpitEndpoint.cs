@@ -71,6 +71,7 @@ public sealed class GetRunCockpitEndpoint(
                 (value.TokenWarnings ?? []).Select(RunCockpitTokenWarningResponse.FromDomain).ToArray(),
                 (value.TokenStops ?? []).Select(RunCockpitTokenStopResponse.FromDomain).ToArray(),
                 ClaudeMutationTurnLimitResponse.FromDomain(value.ClaudeTurnLimitRequest),
-                value.ExecutionMode is { } executionMode ? RunExecutionModeResponse.From(executionMode) : null));
+                value.ExecutionMode is { } executionMode ? RunExecutionModeResponse.From(executionMode) : null,
+                CodexAccountUsageStopResponse.FromDomain(value.CodexAccountUsageStop)));
     }
 }

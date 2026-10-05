@@ -10,6 +10,7 @@ using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt
 using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptResult;
+using DevalCopilot.Application.Features.Runs.Commands.SetCodexAccountUsageStop;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -765,6 +766,7 @@ public sealed partial class AgentAttemptSupervisorHostedTests : IDisposable
         services.AddDbContext<DevalCopilotDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IDevalCopilotDbContext>(provider => provider.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
+        AccountUsageGuardTestServices.Register(services);
         services.AddSingleton(evidenceReader);
         services.AddSingleton(codexAdapter);
         services.AddSingleton<IArtifactStore>(_artifactStore);
@@ -788,7 +790,8 @@ public sealed partial class AgentAttemptSupervisorHostedTests : IDisposable
     /// the same production path that creates one, so eligibility is governed by the real
     /// Domain/Application rules rather than a hand-built shortcut.
     /// </summary>
-    private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid LeaseId)> SeedEligibleAgentAttemptAsync(ServiceProvider provider)
+    private async Task<(Guid RunId, Guid AttemptId, Guid WorkspaceId, Guid LeaseId)> SeedEligibleAgentAttemptAsync(
+        ServiceProvider provider, int? accountUsageStop = null)
     {
         await using var scope = provider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -820,6 +823,11 @@ public sealed partial class AgentAttemptSupervisorHostedTests : IDisposable
         await dbContext.SaveChangesAsync(CancellationToken.None);
 
         var mediator = scope.ServiceProvider.GetRequiredService<IApplicationMediator>();
+        if (accountUsageStop is { } stop)
+        {
+            Assert.True((await mediator.SendAsync(new SetCodexAccountUsageStopCommand(run.Id, stop), CancellationToken.None)).IsSuccess);
+        }
+
         var createResult = await mediator.SendAsync(new CreateCodexPlanningAttemptCommand(run.Id), CancellationToken.None);
         Assert.True(createResult.IsSuccess);
 

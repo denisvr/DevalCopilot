@@ -68,15 +68,21 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
         var workspaceId = Guid.NewGuid();
         var attemptId = Guid.NewGuid();
         context.Projects.Add(Project.Register(projectId, "Fresh", $@"C:\repos\{Guid.NewGuid():N}", Now));
-        context.Runs.Add(Run.RecordIntent(runId, projectId, 1, "Objective", Now));
+        var seededRun = Run.RecordIntent(runId, projectId, 1, "Objective", Now);
+        if (!historicalSchema)
+        {
+            context.Runs.Add(seededRun);
+        }
+
         var planner = Attempt.ClaimAgent(
             attemptId, runId, 1, workspaceId, Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
         planner.MarkAgentDispatched(Now);
         _seededPlanner = planner;
         if (historicalSchema)
         {
-            // A schema older than the current model cannot take the entity as an ordinary save would write it.
+            // A schema older than the current model cannot take the entities as an ordinary save would write them.
             await context.SaveChangesAsync();
+            await HistoricalEntityRow.InsertAsync(context, seededRun);
             await HistoricalAgentAttemptRow.InsertAsync(context, planner);
         }
         else
@@ -132,8 +138,9 @@ public sealed class AddPlanningImplementationAuthorizationMigrationTests : IAsyn
         {
             await previous.Database.GetService<IMigrator>().MigrateAsync(PriorMigration);
             previous.Projects.Add(Project.Register(projectId, "Historical", $@"C:\repos\{Guid.NewGuid():N}", Now));
-            previous.Runs.Add(Run.RecordIntent(runId, projectId, 1, "Historical depth-two run", Now));
             await previous.SaveChangesAsync();
+            // An older schema cannot take the Run as an ordinary save would write it (it lacks later columns).
+            await HistoricalEntityRow.InsertAsync(previous, Run.RecordIntent(runId, projectId, 1, "Historical depth-two run", Now));
             attempt = Attempt.ClaimAgent(
                 Guid.NewGuid(), runId, 1, Guid.NewGuid(), Guid.NewGuid(), Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
             attempt.MarkAgentDispatched(Now);

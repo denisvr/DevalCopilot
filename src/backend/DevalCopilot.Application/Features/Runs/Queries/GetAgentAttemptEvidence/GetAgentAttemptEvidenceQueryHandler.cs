@@ -79,6 +79,8 @@ public sealed class GetAgentAttemptEvidenceQueryHandler(IDevalCopilotDbContext d
             lineage.SourceAttemptId,
             lineage.SourceAttemptNumber,
             DirectHumanGuidanceFact.ForAttempt(attempt),
-            attempt.GetAgentModelContextLimitsEvidence()));
+            attempt.GetAgentModelContextLimitsEvidence(),
+            CodexAccountUsageStopFact.ForAttempt(attempt),
+            CodexAccountUsageDecisionFact.ForAttempt(attempt)));
     }
 }

@@ -131,6 +131,8 @@ export interface InvocationEntry {
   instructionSha256?: string
   instructionTextsVerified?: string
   instructionReferences?: string
+  // The zero-based index of a scripted account-usage observation the double answered (the closed App Server mode).
+  usageReadIndex?: number
 }
 
 function invocationLines(): string[] {

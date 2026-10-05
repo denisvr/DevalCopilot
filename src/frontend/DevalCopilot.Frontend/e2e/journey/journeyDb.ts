@@ -153,6 +153,35 @@ export class JourneyData {
     )
   }
 
+  /** The run-scoped Codex account-usage stop exactly as stored (an INTEGER; null when disabled). */
+  runAccountUsageStop(): number | null {
+    return this.one<{ CodexAccountUsageStopPercent: number | null }>(
+      'select CodexAccountUsageStopPercent from runs where Id = ?',
+      this.runId(),
+    ).CodexAccountUsageStopPercent
+  }
+
+  /** How many times the human changed the account-usage stop (events of this run), by their recorded payloads in order. */
+  accountUsageStopEvents(): string[] {
+    return this.all<{ PayloadJson: string }>(
+      "select PayloadJson from events where RunId = ? and EventType = 'run.codex_account_usage_stop_changed' order by Sequence",
+      this.runId(),
+    ).map((row) => row.PayloadJson)
+  }
+
+  /** The raw account-usage facts on every attempt, by attempt number: dispatch marker, threshold snapshot and decision text. */
+  accountUsageByAttempt(): {
+    AttemptNumber: number
+    AgentDispatchedAtUtc: string | null
+    AgentCodexAccountUsageStopPercent: number | null
+    AgentAccountUsageDecisionSnapshot: string | null
+  }[] {
+    return this.all(
+      'select AttemptNumber, AgentDispatchedAtUtc, AgentCodexAccountUsageStopPercent, AgentAccountUsageDecisionSnapshot from attempts where RunId = ? order by AttemptNumber',
+      this.runId(),
+    )
+  }
+
   checkpoints(): CheckpointRow[] {
     return this.all<CheckpointRow>(
       'select CheckpointNumber, Id, HeadCommitSha, FingerprintSha256 from git_checkpoints where WorkspaceId = ? order by CheckpointNumber',

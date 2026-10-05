@@ -212,4 +212,17 @@ public enum AgentOutcome
     /// <see cref="SourceChanged"/>, which stays the Git-fingerprint classification. Valid only for the CodeReviewer +
     /// VerificationDiagnosis combination.</summary>
     VerificationEvidenceChanged = 25,
+
+    /// <summary>Detected immediately before dispatch for a Codex attempt that claimed a run-scoped account-usage stop (ADR-0025): a
+    /// validated usage window reported a used percentage at or above the claimed threshold, or the provider reported a
+    /// reached-limit state. The provider is never invoked and no dispatch marker exists; the claim's budgets and consumed
+    /// authorizations stay spent. The bounded decision is recorded on the attempt. A local guard over a provider-reported
+    /// percentage, never a statement about the account or quota. Valid only for a Codex attempt.</summary>
+    AccountUsageStopReached = 26,
+
+    /// <summary>Detected immediately before dispatch for a Codex attempt that claimed a run-scoped account-usage stop (ADR-0025):
+    /// whether the account stayed below the threshold could not be established (an invalid, partial, duplicated, unavailable or
+    /// expired observation, or an unusable stored threshold), so the attempt was never dispatched. Same effects as
+    /// <see cref="AccountUsageStopReached"/>. Valid only for a Codex attempt.</summary>
+    AccountUsageEvidenceUnavailable = 27,
 }

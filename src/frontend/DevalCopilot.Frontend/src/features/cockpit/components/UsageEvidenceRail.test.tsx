@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   CodexAccountAllowanceResponse,
+  CodexAccountUsageStopResponse,
   CodexAllowanceBucketResponse,
   CodexAllowanceWindowResponse,
   CodexModelCatalogResponse,
@@ -208,5 +209,69 @@ describe('UsageEvidenceRail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Collapse usage and evidence rail' }))
     expect(screen.queryByRole('button', { name: 'Show Agent attempt history' })).toBeNull()
+  })
+
+  describe('Codex account-usage stop control', () => {
+    const stopSetting = new CodexAccountUsageStopResponse({ state: 'Configured', percent: 80 })
+
+    function stubAllowance(status: 'Unknown' | 'Observed') {
+      vi.mocked(codexAccountAllowanceClient).mockReturnValue({
+        getCodexAccountAllowance: vi.fn().mockResolvedValue(
+          new CodexAccountAllowanceResponse({
+            status,
+            retrievedAtUtc: status === 'Observed' ? (new Date('2026-09-27T12:00:00Z') as never) : undefined,
+            buckets: [],
+          }),
+        ),
+      } as never)
+      stubUnknownCatalog()
+    }
+
+    it('mounts only with a run and a setting, separately from the allowance and the catalog', async () => {
+      stubAllowance('Unknown')
+      const { rerender } = render(<UsageEvidenceRail runId="run-1" />)
+      await screen.findByText('Codex account usage: Unknown')
+      expect(screen.queryByRole('group', { name: 'Codex account-usage stop' })).toBeNull()
+
+      rerender(<UsageEvidenceRail codexAccountUsageStop={stopSetting} />)
+      expect(screen.queryByRole('group', { name: 'Codex account-usage stop' })).toBeNull()
+
+      rerender(<UsageEvidenceRail runId="run-1" codexAccountUsageStop={stopSetting} accountUsageStopEditable />)
+      const group = screen.getByRole('group', { name: 'Codex account-usage stop' })
+      expect(group.closest('.dc-codex-account-allowance')).toBeNull()
+      expect(group.closest('.dc-codex-model-catalog')).toBeNull()
+      expect(screen.getByText('Current run setting: 80% used')).toBeTruthy()
+      const allowance = document.querySelector('.dc-codex-account-allowance') as Element
+      const placeholder = screen.getByText('Claude account usage: not yet collected in this increment.')
+      expect(allowance.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(group.compareDocumentPosition(placeholder) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    })
+
+    it('is not mounted while the rail is collapsed', async () => {
+      stubAllowance('Unknown')
+      render(<UsageEvidenceRail runId="run-1" codexAccountUsageStop={stopSetting} accountUsageStopEditable />)
+      expect(screen.getByRole('group', { name: 'Codex account-usage stop' })).toBeTruthy()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse usage and evidence rail' }))
+
+      expect(screen.queryByRole('group', { name: 'Codex account-usage stop' })).toBeNull()
+    })
+
+    it.each(['Unknown', 'Observed'] as const)('is not enabled or disabled by the %s allowance observation', async (status) => {
+      stubAllowance(status)
+      render(<UsageEvidenceRail runId="run-1" codexAccountUsageStop={stopSetting} accountUsageStopEditable />)
+      await waitFor(() => expect((screen.getByRole('button', { name: 'Refresh Codex account usage' }) as HTMLButtonElement).disabled).toBe(false))
+
+      expect((screen.getByLabelText('Codex account-usage stop percentage') as HTMLInputElement).disabled).toBe(false)
+      expect((screen.getByRole('button', { name: 'Save Codex account-usage stop' }) as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('is read-only unless the caller says it is editable', () => {
+      stubAllowance('Unknown')
+      render(<UsageEvidenceRail runId="run-1" codexAccountUsageStop={stopSetting} />)
+
+      expect(screen.queryByLabelText('Codex account-usage stop percentage')).toBeNull()
+      expect(screen.getByText("This run's Codex account-usage stop can no longer be changed.")).toBeTruthy()
+    })
   })
 })

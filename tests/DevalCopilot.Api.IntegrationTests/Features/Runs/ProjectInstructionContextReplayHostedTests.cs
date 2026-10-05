@@ -89,6 +89,7 @@ public sealed class ProjectInstructionContextReplayHostedTests : IDisposable
         services.AddDbContext<DevalCopilotDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
         services.AddScoped<IDevalCopilotDbContext>(provider => provider.GetRequiredService<DevalCopilotDbContext>());
         services.AddSingleton(TimeProvider.System);
+        AccountUsageGuardTestServices.Register(services);
         services.AddSingleton<IGitWorkspaceEvidenceReader>(evidence);
         services.AddSingleton<IArtifactStore>(_artifactStore);
         services.AddSingleton<ICodexPlanningAdapter>(new CodexPlanningAdapter(process, _artifactStore));

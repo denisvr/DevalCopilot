@@ -90,6 +90,12 @@ public sealed class ChallengeResolutionSupervisor(
 
     private async Task ExecuteOneAsync(EligibleChallengeResolutionAttempt attempt, CancellationToken stoppingToken)
     {
+        // An attempt whose account-usage refusal could not be recorded stays blocked (fail closed): no capture, observation or dispatch.
+        if (ResolveAccountUsageGuard().IsBlocked(attempt.AttemptId))
+        {
+            return;
+        }
+
         var preDispatchEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, stoppingToken);
         if (preDispatchEvidence.Outcome == GitWorkspaceEvidenceOutcome.Success
             && preDispatchEvidence.FingerprintSha256 is not null
@@ -110,10 +116,28 @@ public sealed class ChallengeResolutionSupervisor(
 
         var launchTarget = await DispatchAsync(new GetCodexLaunchTargetQuery(), stoppingToken);
 
+        // The run-scoped Codex account-usage stop (ADR-0025): a separate fresh guard read, after the normal pre-dispatch Git capture and
+        // before the dispatch marker, bound to this attempt, its threshold snapshot and the launch tuple handed to the adapter below.
+        // A stop (or an unobservable account) resolves the claimed attempt without a marker or an invocation.
+        var accountUsageGuard = ResolveAccountUsageGuard();
+        var accountUsage = await accountUsageGuard.PrepareAsync(attempt.RunId, attempt.AttemptId, launchTarget, stoppingToken);
+        if (accountUsage.Stopped)
+        {
+            return;
+        }
+
         var dispatched = await DispatchAsync(
-            new MarkAgentAttemptDispatchedCommand(attempt.RunId, attempt.AttemptId), stoppingToken);
+            new MarkAgentAttemptDispatchedCommand(attempt.RunId, attempt.AttemptId, ExpectedAccountUsageGuard: accountUsage.Facts), stoppingToken);
         if (dispatched.IsFailure)
         {
+            // The gate independently refused for an account-usage reason (a missing, expired, mismatched or reached guard):
+            // resolved explicitly, never stranded, never retried.
+            if (CodexAccountUsageDispatchGuard.IsAccountUsageRefusal(dispatched.Errors[0].Code))
+            {
+                await accountUsageGuard.ResolveRefusedAsync(attempt.RunId, attempt.AttemptId, accountUsage.Facts);
+                return;
+            }
+
             // The command's own last-gate revalidation is authoritative: workspace/lease/checkpoint
             // eligibility, or the resolution-specific fact that no competing attempt already
             // resolved this exact ordered input set, could each have been lost between the earlier
@@ -322,6 +346,14 @@ public sealed class ChallengeResolutionSupervisor(
             logger.LogError("challenge_resolution_evidence_capture_threw");
             return new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.GitInvocationFailed, null, null, [], null);
         }
+    }
+
+    /// <summary>The shared account-usage dispatch guard, a host singleton resolved from the same composition every other collaborator
+    /// comes from, so a supervisor constructed over a host's service provider always has it.</summary>
+    private CodexAccountUsageDispatchGuard ResolveAccountUsageGuard()
+    {
+        using var scope = scopeFactory.CreateScope();
+        return scope.ServiceProvider.GetRequiredService<CodexAccountUsageDispatchGuard>();
     }
 
     private async Task<TResult> DispatchAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken)

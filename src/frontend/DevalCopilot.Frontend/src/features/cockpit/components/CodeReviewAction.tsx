@@ -5,6 +5,7 @@ import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
+import { ACCOUNT_USAGE_OUTCOME_LABELS } from '../accountUsageOutcomeLabels'
 
 interface CodeReviewActionProps {
   executionReportMessageId: string | null
@@ -23,6 +24,7 @@ interface CodeReviewActionProps {
 }
 
 const OUTCOME_LABEL: Record<string, string> = {
+  ...ACCOUNT_USAGE_OUTCOME_LABELS,
   ReviewApproved: 'Implementation approved',
   ReviewChangesRequested: 'Changes requested',
   SourceChanged: 'Source changed before the review completed',

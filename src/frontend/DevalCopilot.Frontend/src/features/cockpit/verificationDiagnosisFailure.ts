@@ -21,6 +21,12 @@ const MESSAGES: Record<string, string> = {
     'A configured token stop has been reached for this provider, so nothing was requested.',
   'agent_attempts.token_stop_evidence_indeterminate':
     'Token usage evidence for this provider could not be determined, so nothing was requested.',
+  'agent_attempts.account_usage_stop_reached': 'A configured Codex account-usage stop was reached, so nothing was started.',
+  'agent_attempts.account_usage_stop_evidence_unavailable':
+    'The configured Codex account-usage stop could not be checked, so nothing was started.',
+  'agent_attempts.account_usage_stop_setting_invalid':
+    'The saved Codex account-usage stop is not a valid setting. Set or clear it and try again.',
+  'agent_attempts.account_usage_stop_policy_changed': 'The Codex account-usage stop changed while requesting. Refresh and try again.',
   'agent_attempts.token_stop_policy_changed':
     'The token-stop policy changed while requesting. Refresh and try again.',
   'agent_attempts.execution_report_not_found': 'That implementation report was not found, so nothing was requested.',
