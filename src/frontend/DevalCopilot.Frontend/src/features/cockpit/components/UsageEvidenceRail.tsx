@@ -5,7 +5,8 @@ import { useCodexModelCatalog } from '../hooks/useCodexModelCatalog'
 import { describeCodexModelCatalog, describeCodexModelCatalogRetrievedAt } from '../describeCodexModelCatalog'
 import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 import { CodexAccountUsageStopControl } from './CodexAccountUsageStopControl'
-import type { CodexAccountUsageStopResponse } from '../../../api/clients'
+import { CodexAccountUsageWarningControl } from './CodexAccountUsageWarningControl'
+import type { CodexAccountUsageStopResponse, CodexAccountUsageWarningSettingResponse } from '../../../api/clients'
 
 const EVIDENCE_TABS = ['Changes', 'Local verification', 'Review findings', 'GitHub CI', 'Artifacts', 'Approvals']
 
@@ -24,6 +25,10 @@ interface UsageEvidenceRailProps {
   codexAccountUsageStop?: CodexAccountUsageStopResponse | null
   accountUsageStopEditable?: boolean
   onAccountUsageStopSaved?: () => Promise<boolean>
+  /** The run's saved advisory Codex account-usage warning; the control is omitted when absent. */
+  codexAccountUsageWarning?: CodexAccountUsageWarningSettingResponse | null
+  accountUsageWarningEditable?: boolean
+  onAccountUsageWarningSaved?: () => Promise<boolean>
 }
 
 export function UsageEvidenceRail({
@@ -31,6 +36,9 @@ export function UsageEvidenceRail({
   codexAccountUsageStop,
   accountUsageStopEditable = false,
   onAccountUsageStopSaved,
+  codexAccountUsageWarning,
+  accountUsageWarningEditable = false,
+  onAccountUsageWarningSaved,
 }: UsageEvidenceRailProps = {}) {
   const [collapsed, setCollapsed] = useState(false)
   const { allowance, loading, error, refresh } = useCodexAccountAllowance(!collapsed)
@@ -112,6 +120,14 @@ export function UsageEvidenceRail({
               setting={codexAccountUsageStop}
               editable={accountUsageStopEditable}
               onSaved={onAccountUsageStopSaved}
+            />
+          )}
+          {runId && codexAccountUsageWarning && (
+            <CodexAccountUsageWarningControl
+              runId={runId}
+              setting={codexAccountUsageWarning}
+              editable={accountUsageWarningEditable}
+              onSaved={onAccountUsageWarningSaved}
             />
           )}
           <div className="dc-placeholder">Claude account usage: not yet collected in this increment.</div>

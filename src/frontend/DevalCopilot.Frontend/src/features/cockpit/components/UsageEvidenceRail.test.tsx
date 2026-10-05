@@ -4,17 +4,26 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   CodexAccountAllowanceResponse,
   CodexAccountUsageStopResponse,
+  CodexAccountUsageWarningSettingResponse,
+  GetCodexAccountUsageWarningResponse,
   CodexAllowanceBucketResponse,
   CodexAllowanceWindowResponse,
   CodexModelCatalogResponse,
   CodexModelCatalogEntryResponse,
 } from '../../../api/generated/api-client'
-import { codexAccountAllowanceClient, codexModelCatalogClient } from '../../../api/clients'
+import {
+  codexAccountAllowanceClient,
+  codexModelCatalogClient,
+  getCodexAccountUsageWarningClient,
+  setCodexAccountUsageWarningClient,
+} from '../../../api/clients'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
 
 vi.mock('../../../api/clients', () => ({
   codexAccountAllowanceClient: vi.fn(),
   codexModelCatalogClient: vi.fn(),
+  getCodexAccountUsageWarningClient: vi.fn(),
+  setCodexAccountUsageWarningClient: vi.fn(),
 }))
 
 function stubUnknownCatalog() {
@@ -272,6 +281,88 @@ describe('UsageEvidenceRail', () => {
 
       expect(screen.queryByLabelText('Codex account-usage stop percentage')).toBeNull()
       expect(screen.getByText("This run's Codex account-usage stop can no longer be changed.")).toBeTruthy()
+    })
+  })
+
+  describe('Codex account-usage warning control', () => {
+    const stopSetting = new CodexAccountUsageStopResponse({ state: 'Configured', percent: 95 })
+    const warningSetting = new CodexAccountUsageWarningSettingResponse({ state: 'Configured', percent: 80 })
+
+    function stubClients() {
+      const getCodexAccountAllowance = vi.fn().mockResolvedValue(
+        new CodexAccountAllowanceResponse({ status: 'Unknown', retrievedAtUtc: undefined, buckets: [] }),
+      )
+      vi.mocked(codexAccountAllowanceClient).mockReturnValue({ getCodexAccountAllowance } as never)
+      stubUnknownCatalog()
+      const getCodexAccountUsageWarning = vi.fn().mockResolvedValue(
+        new GetCodexAccountUsageWarningResponse({ state: 'Unavailable', reason: 'EvidenceUnavailable', windows: [] }),
+      )
+      vi.mocked(getCodexAccountUsageWarningClient).mockReturnValue({ getCodexAccountUsageWarning } as never)
+      vi.mocked(setCodexAccountUsageWarningClient).mockReturnValue({ setCodexAccountUsageWarning: vi.fn() } as never)
+      return { getCodexAccountAllowance, getCodexAccountUsageWarning }
+    }
+
+    it('mounts only with a run and a setting, beside but separate from the stop and the allowance', async () => {
+      stubClients()
+      const { rerender } = render(<UsageEvidenceRail runId="run-1" />)
+      await screen.findByText('Codex account usage: Unknown')
+      expect(screen.queryByRole('group', { name: 'Codex account-usage warning' })).toBeNull()
+
+      rerender(<UsageEvidenceRail codexAccountUsageWarning={warningSetting} />)
+      expect(screen.queryByRole('group', { name: 'Codex account-usage warning' })).toBeNull()
+
+      rerender(
+        <UsageEvidenceRail
+          runId="run-1"
+          codexAccountUsageStop={stopSetting}
+          accountUsageStopEditable
+          codexAccountUsageWarning={warningSetting}
+          accountUsageWarningEditable
+        />,
+      )
+      const warning = screen.getByRole('group', { name: 'Codex account-usage warning' })
+      const stop = screen.getByRole('group', { name: 'Codex account-usage stop' })
+      expect(warning.contains(stop) || stop.contains(warning)).toBe(false)
+      expect(warning.closest('.dc-codex-account-allowance')).toBeNull()
+      expect(stop.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(screen.getByText('Current run setting: 80% used')).toBeTruthy()
+      expect(screen.getByText('Current run setting: 95% used')).toBeTruthy()
+    })
+
+    it('performs no warning read on mount, on allowance or catalog refresh, or when collapsing and expanding', async () => {
+      const { getCodexAccountUsageWarning, getCodexAccountAllowance } = stubClients()
+      render(<UsageEvidenceRail runId="run-1" codexAccountUsageWarning={warningSetting} accountUsageWarningEditable />)
+      await waitFor(() => expect(getCodexAccountAllowance).toHaveBeenCalledTimes(1))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh Codex account usage' }))
+      await waitFor(() => expect(getCodexAccountAllowance).toHaveBeenCalledTimes(2))
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse usage and evidence rail' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Expand usage and evidence rail' }))
+
+      expect(getCodexAccountUsageWarning).not.toHaveBeenCalled()
+      expect(screen.getByRole('status', { name: '' }).textContent).toBe('Not checked in this view.')
+    })
+
+    it('reads the warning only from its own explicit action, separately from the allowance Refresh', async () => {
+      const { getCodexAccountUsageWarning, getCodexAccountAllowance } = stubClients()
+      render(<UsageEvidenceRail runId="run-1" codexAccountUsageWarning={warningSetting} accountUsageWarningEditable />)
+      await waitFor(() => expect(getCodexAccountAllowance).toHaveBeenCalledTimes(1))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Check Codex account warning' }))
+
+      await waitFor(() => expect(getCodexAccountUsageWarning).toHaveBeenCalledTimes(1))
+      expect(getCodexAccountUsageWarning).toHaveBeenCalledWith('run-1')
+      expect(getCodexAccountAllowance).toHaveBeenCalledTimes(1)
+    })
+
+    it('is not mounted while the rail is collapsed', async () => {
+      stubClients()
+      render(<UsageEvidenceRail runId="run-1" codexAccountUsageWarning={warningSetting} accountUsageWarningEditable />)
+      expect(screen.getByRole('group', { name: 'Codex account-usage warning' })).toBeTruthy()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse usage and evidence rail' }))
+
+      expect(screen.queryByRole('group', { name: 'Codex account-usage warning' })).toBeNull()
     })
   })
 })

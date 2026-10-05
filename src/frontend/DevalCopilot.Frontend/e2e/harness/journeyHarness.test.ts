@@ -28,8 +28,14 @@ import {
   canonicalReachedDecision,
   observationIndices,
   stoppedAttemptProblems,
+  warningCheckProblems,
 } from '../journey/accountUsage.ts'
-import type { ExpectedStoppedAttempt, ObservedStoppedAttempt } from '../journey/accountUsage.ts'
+import type {
+  ExpectedStoppedAttempt,
+  ExpectedWarningCheck,
+  ObservedStoppedAttempt,
+  ObservedWarningCheck,
+} from '../journey/accountUsage.ts'
 import { ESCALATED_STAGE_SEQUENCE, escalatedLineageProblems, planIdentityProblems } from '../journey/planIdentity.ts'
 import type { EscalatedLineage } from '../journey/planIdentity.ts'
 import { JourneyData } from '../journey/journeyDb.ts'
@@ -937,5 +943,96 @@ describe('the account-usage stop judge', () => {
     ]
     assert.deepEqual(observationIndices(entries), [0, 1])
     assert.deepEqual(agentStageInvocations(entries).map((entry) => entry.contract), ['Proposal'])
+  })
+})
+
+describe('the account-usage warning check judge', () => {
+  const expected: ExpectedWarningCheck = {
+    threshold: 60,
+    state: 'Reached',
+    reason: 'ThresholdReached',
+    windows: [
+      { bucketId: 'codex', window: 'Primary', usedPercent: 10, reachedThreshold: false },
+      { bucketId: 'codex', window: 'Secondary', usedPercent: 70, reachedThreshold: true },
+    ],
+  }
+  const healthy = (): ObservedWarningCheck => ({
+    status: 200,
+    body: {
+      state: 'Reached',
+      reason: 'ThresholdReached',
+      thresholdPercent: 60,
+      observedAtUtc: '2026-10-05T12:00:00.1234567+00:00',
+      windows: [
+        { bucketId: 'codex', window: 'Primary', usedPercent: 10, reachedThreshold: false },
+        { bucketId: 'codex', window: 'Secondary', usedPercent: 70, reachedThreshold: true },
+      ],
+      providerReportedLimitReached: false,
+    },
+    renderedText: [
+      'A reported usage window had reached the 60% warning when the Codex account was observed.',
+      'Host retrieval time: 10/5/2026, 12:00:00 PM',
+      'codex primary window: 10% used',
+      'codex secondary window: 70% used (warning reached)',
+    ].join('\n'),
+    observationsAdded: 1,
+    attemptsAdded: 0,
+  })
+
+  it('accepts a check that matches the scripted read and what the page showed', () => {
+    assert.deepEqual(warningCheckProblems(expected, healthy()), [])
+  })
+
+  it('detects an automatic or repeated read, a created attempt and a failed answer', () => {
+    assert.ok(warningCheckProblems(expected, { ...healthy(), observationsAdded: 0 }).some((p) => /not one/.test(p)))
+    assert.ok(warningCheckProblems(expected, { ...healthy(), observationsAdded: 2 }).some((p) => /not one/.test(p)))
+    assert.ok(warningCheckProblems(expected, { ...healthy(), attemptsAdded: 1 }).some((p) => /created 1 attempts/.test(p)))
+    assert.ok(warningCheckProblems(expected, { ...healthy(), status: 500 }).some((p) => /HTTP 500/.test(p)))
+  })
+
+  it('detects another outcome, threshold or window set', () => {
+    const below = healthy()
+    below.body!.state = 'Below'
+    assert.ok(warningCheckProblems(expected, below).some((p) => /state is Below/.test(p)))
+    const other = healthy()
+    other.body!.thresholdPercent = 50
+    assert.ok(warningCheckProblems(expected, other).some((p) => /concerns 50%/.test(p)))
+    const windows = healthy()
+    windows.body!.windows[1].reachedThreshold = false
+    assert.ok(warningCheckProblems(expected, windows).some((p) => /windows are/.test(p)))
+    assert.ok(warningCheckProblems(expected, { ...healthy(), body: null }).length > 0)
+  })
+
+  it('detects a page that omits the outcome, the date or a window, or makes an unproven claim', () => {
+    assert.ok(warningCheckProblems(expected, { ...healthy(), renderedText: 'nothing' }).length >= 3)
+    for (const extra of ['This account is eligible.', 'Remaining quota: 30%', 'acct_123']) {
+      assert.ok(warningCheckProblems(expected, { ...healthy(), renderedText: `${healthy().renderedText}\n${extra}` }).length > 0)
+    }
+  })
+
+  it('judges a below check against its own outcome text', () => {
+    const below: ExpectedWarningCheck = {
+      threshold: 60,
+      state: 'Below',
+      reason: null,
+      windows: [{ bucketId: 'codex', window: 'Primary', usedPercent: 59, reachedThreshold: false }],
+    }
+    const observed: ObservedWarningCheck = {
+      status: 200,
+      body: {
+        state: 'Below',
+        reason: null,
+        thresholdPercent: 60,
+        observedAtUtc: '2026-10-05T12:00:00+00:00',
+        windows: [{ bucketId: 'codex', window: 'Primary', usedPercent: 59, reachedThreshold: false }],
+        providerReportedLimitReached: false,
+      },
+      renderedText:
+        'No reported usage window had reached the 60% warning when the Codex account was observed.\nHost retrieval time: now\ncodex primary window: 59% used',
+      observationsAdded: 1,
+      attemptsAdded: 0,
+    }
+    assert.deepEqual(warningCheckProblems(below, observed), [])
+    assert.ok(warningCheckProblems(below, { ...observed, renderedText: healthy().renderedText }).length > 0)
   })
 })

@@ -365,6 +365,34 @@ public sealed class Run
         _codexAccountUsageStopPercent = CodexAccountUsageStop.Format(percent);
     }
 
+    /// <summary>The EF field-only property that holds the Codex account-usage warning as its exact stored text. Persistence and queries
+    /// refer to this name; every other reader uses <see cref="ReadCodexAccountUsageWarningPercent"/>.</summary>
+    public const string CodexAccountUsageWarningStorageProperty = "_codexAccountUsageWarningPercent";
+
+    private string? _codexAccountUsageWarningPercent;
+
+    /// <summary>The exact reading of the owner's current, explicit, run-scoped Codex account-usage warning (see
+    /// <see cref="CodexAccountUsageWarning"/>). Absent means no warning (the default for every historical and newly created Run);
+    /// malformed means the stored representation is not a canonical whole number in range and must be refused by every consumer,
+    /// never clamped or ignored. Advisory only: unlike the account-usage stop, the stored text is deliberately NOT an EF concurrency
+    /// token, so writing it can never make a claim's own Run UPDATE fail and no claim, gate or invocation path reads it. A malformed
+    /// stored value still round-trips exactly so it can be repaired by setting or clearing the warning.</summary>
+    public CodexAccountUsageWarningReading ReadCodexAccountUsageWarningPercent() =>
+        CodexAccountUsageWarning.Read(_codexAccountUsageWarningPercent);
+
+    /// <summary>Sets or clears the run-scoped Codex account-usage warning. A non-null value must satisfy
+    /// <see cref="CodexAccountUsageWarning.IsValid"/>; permitted while <see cref="Lifecycle"/> is Created or Running. It replaces a
+    /// malformed stored value.</summary>
+    public void SetCodexAccountUsageWarningPercent(int? percent)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot change the Codex account-usage warning for a run whose lifecycle is {Lifecycle}.");
+        }
+
+        _codexAccountUsageWarningPercent = CodexAccountUsageWarning.Format(percent);
+    }
+
     /// <summary>The largest warning threshold this Run accepts (10^12 reported token-activity
     /// units). A bound, not a policy: it keeps every threshold comparable with the bounded sums
     /// the cockpit projects and safely representable everywhere.</summary>

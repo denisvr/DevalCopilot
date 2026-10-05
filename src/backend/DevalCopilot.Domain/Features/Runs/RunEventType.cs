@@ -70,4 +70,8 @@ public static class RunEventType
     /// <summary>The owner set or cleared the run-scoped Codex account-usage stop percentage, enforced on future Codex claims and
     /// their dispatch. The payload carries only the new percentage (null when cleared).</summary>
     public const string CodexAccountUsageStopChanged = "run.codex_account_usage_stop_changed";
+
+    /// <summary>The owner set or cleared the run-scoped advisory Codex account-usage warning percentage (ADR-0026). The payload carries
+    /// only the new percentage (null when cleared); the event never records an observation.</summary>
+    public const string CodexAccountUsageWarningChanged = "run.codex_account_usage_warning_changed";
 }

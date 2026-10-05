@@ -22,6 +22,8 @@ import {
   SetClaudeModelPreferenceEndpointClient,
   SetClaudeMutationTurnLimitEndpointClient,
   SetCodexAccountUsageStopEndpointClient,
+  SetCodexAccountUsageWarningEndpointClient,
+  GetCodexAccountUsageWarningEndpointClient,
   SetTokenWarningThresholdEndpointClient,
   SetTokenStopThresholdEndpointClient,
   GetRunCockpitEndpointClient,
@@ -86,6 +88,8 @@ export const setCodexAssignmentPreferenceClient = () => new SetCodexAssignmentPr
 export const setClaudeModelPreferenceClient = () => new SetClaudeModelPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setClaudeMutationTurnLimitClient = () => new SetClaudeMutationTurnLimitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setCodexAccountUsageStopClient = () => new SetCodexAccountUsageStopEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const setCodexAccountUsageWarningClient = () => new SetCodexAccountUsageWarningEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const getCodexAccountUsageWarningClient = () => new GetCodexAccountUsageWarningEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setTokenWarningThresholdClient = () => new SetTokenWarningThresholdEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setTokenStopThresholdClient = () => new SetTokenStopThresholdEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const processAttemptOutputClient = () => new GetProcessAttemptOutputEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -156,6 +160,9 @@ export type {
   CodexAccountUsageStopResponse,
   CodexAccountUsageDecisionResponse,
   CodexAccountUsageWindowResponse,
+  CodexAccountUsageWarningSettingResponse,
+  GetCodexAccountUsageWarningResponse,
+  CodexAccountUsageWarningWindowResponse,
   DirectHumanGuidanceResponse,
   SetTokenWarningThresholdResponse,
   RunCockpitTokenWarningResponse,

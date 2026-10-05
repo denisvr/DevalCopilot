@@ -28,6 +28,16 @@ export function startAccountUsageScript(reads: readonly ScriptedUsageRead[]): vo
   writeFileSync(join(fixtureDirectory(), 'account-usage.json'), JSON.stringify({ reads }), 'utf8')
 }
 
+/**
+ * Replaces the scripted reads WITHOUT resetting the double's read counter: the `consumed` observations already made are padded with a
+ * harmless low read, so the first scripted read of `reads` answers the next observation. Only valid while no observation is in flight.
+ */
+export function continueAccountUsageScript(consumed: number, reads: readonly ScriptedUsageRead[]): void {
+  mkdirSync(fixtureDirectory(), { recursive: true })
+  const padded = [...Array.from({ length: consumed }, (): ScriptedUsageRead => ({ primary: 1 })), ...reads]
+  writeFileSync(join(fixtureDirectory(), 'account-usage.json'), JSON.stringify({ reads: padded }), 'utf8')
+}
+
 /** Removes the script, so a later observation by this root's double is refused (nothing in a later journey relies on it). */
 export function endAccountUsageScript(): void {
   rmSync(join(fixtureDirectory(), 'account-usage.json'), { force: true })
@@ -151,6 +161,78 @@ export function stoppedAttemptProblems(expected: ExpectedStoppedAttempt, observe
     .join('\n')
   for (const pattern of FORBIDDEN_CLAIMS) {
     want(!pattern.test(claimed), `the page makes an unproven claim (${pattern})`)
+  }
+  want(!/acct_|@|rate_limit|plan ?type|credits/i.test(rendered), 'the page shows provider or account text')
+  return problems
+}
+
+/** What one explicit warning check (ADR-0026) must report for the double's scripted read. */
+export interface ExpectedWarningCheck {
+  threshold: number
+  state: 'Below' | 'Reached'
+  reason: 'ThresholdReached' | null
+  windows: readonly { bucketId: string | null; window: 'Primary' | 'Secondary'; usedPercent: number; reachedThreshold: boolean }[]
+}
+
+export interface ObservedWarningCheck {
+  status: number
+  /** The response body exactly as the generated client received it. */
+  body: {
+    state: string
+    reason: string | null
+    thresholdPercent: number | null
+    observedAtUtc: string | null
+    windows: { bucketId: string | null; window: string; usedPercent: number; reachedThreshold: boolean }[]
+    providerReportedLimitReached: boolean
+  } | null
+  /** The check result the page rendered (the status region only). */
+  renderedText: string
+  /** How many strict observations of the double this one check caused. */
+  observationsAdded: number
+  /** How many attempts this check created. */
+  attemptsAdded: number
+}
+
+/**
+ * The problems of one explicit warning check: exactly one observation and no attempt, the response and the rendered page both stating
+ * the scripted outcome for the saved threshold with a host retrieval time, and no provider text, account identity, eligibility or
+ * capacity claim. An empty list is success.
+ */
+export function warningCheckProblems(expected: ExpectedWarningCheck, observed: ObservedWarningCheck): string[] {
+  const problems: string[] = []
+  const want = (condition: boolean, message: string) => {
+    if (!condition) {
+      problems.push(message)
+    }
+  }
+
+  want(observed.status === 200, `the check answered HTTP ${observed.status}`)
+  want(observed.observationsAdded === 1, `the check caused ${observed.observationsAdded} observations, not one`)
+  want(observed.attemptsAdded === 0, `the check created ${observed.attemptsAdded} attempts`)
+  const body = observed.body
+  want(body?.state === expected.state, `the check state is ${body?.state}`)
+  want((body?.reason ?? null) === expected.reason, `the check reason is ${body?.reason}`)
+  want(body?.thresholdPercent === expected.threshold, `the check concerns ${body?.thresholdPercent}%`)
+  want(typeof body?.observedAtUtc === 'string' && !Number.isNaN(Date.parse(body.observedAtUtc)), 'the check has no host retrieval instant')
+  want(body?.providerReportedLimitReached === false, 'the check reports a provider limit state')
+  want(
+    JSON.stringify(body?.windows ?? null) === JSON.stringify(expected.windows),
+    `the check windows are ${JSON.stringify(body?.windows)}`,
+  )
+
+  const rendered = observed.renderedText
+  const headline =
+    expected.state === 'Below'
+      ? `No reported usage window had reached the ${expected.threshold}% warning when the Codex account was observed.`
+      : `A reported usage window had reached the ${expected.threshold}% warning when the Codex account was observed.`
+  want(rendered.includes(headline), 'the page does not state the outcome')
+  want(rendered.includes('Host retrieval time:'), 'the page does not show the host retrieval time')
+  for (const window of expected.windows) {
+    const line = `${window.bucketId ?? 'account'} ${window.window.toLowerCase()} window: ${window.usedPercent}% used${window.reachedThreshold ? ' (warning reached)' : ''}`
+    want(rendered.includes(line), `the page does not show "${line}"`)
+  }
+  for (const pattern of FORBIDDEN_CLAIMS) {
+    want(!pattern.test(rendered), `the page makes an unproven claim (${pattern})`)
   }
   want(!/acct_|@|rate_limit|plan ?type|credits/i.test(rendered), 'the page shows provider or account text')
   return problems

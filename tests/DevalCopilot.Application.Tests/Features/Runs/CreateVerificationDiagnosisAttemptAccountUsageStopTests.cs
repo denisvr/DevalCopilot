@@ -94,4 +94,20 @@ public sealed class CreateVerificationDiagnosisAttemptAccountUsageStopTests : IA
     [InlineData(null)]
     public Task A_setting_changed_between_the_check_and_the_commit_refuses_and_commits_nothing(int? changeTo) =>
         AccountUsageClaimContract.A_setting_changed_between_the_check_and_the_commit_refuses_and_commits_nothing(AccountUsage, changeTo);
+
+    [Theory]
+    [InlineData(3.5)]
+    [InlineData("abc")]
+    [InlineData(0)]
+    [InlineData(4294967297L)]
+    public Task A_malformed_advisory_warning_storage_never_affects_the_claim_or_the_stop(object stored) =>
+        AccountUsageClaimContract.A_malformed_advisory_warning_storage_never_affects_the_claim_or_the_stop(AccountUsage, stored);
+
+    [Fact]
+    public Task A_reached_or_disabled_stop_is_decided_by_the_stop_alone_whatever_the_warning_says() =>
+        AccountUsageClaimContract.A_reached_or_disabled_stop_is_decided_by_the_stop_alone_whatever_the_warning_says(AccountUsage);
+
+    [Fact]
+    public Task An_advisory_warning_change_during_the_claim_neither_refuses_nor_is_overwritten() =>
+        AccountUsageClaimContract.An_advisory_warning_change_during_the_claim_neither_refuses_nor_is_overwritten(AccountUsage);
 }

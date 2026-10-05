@@ -224,8 +224,12 @@ An owner may also set an optional, run-scoped Codex account-usage percentage sto
 ([ADR-0025](../decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)): it is enforced on
 new Codex claims and checked again before dispatch from a strict read-only observation, and ends a claimed attempt before
 dispatch with a recorded decision. It is a local guard, not eligibility or capacity, and covers Codex only.
-The provider account-usage stop-threshold exit criterion above is therefore met for Codex only; Claude account usage, and
-the remaining Increment 4 loop, token, and account-usage controls, remain open.
+The provider account-usage stop-threshold exit criterion above is therefore met for Codex only. An owner may also save an optional,
+run-scoped, advisory Codex account-usage warning percentage
+([ADR-0026](../decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)) that an explicit "Check Codex account
+warning" request compares with one strict observation; it is independent of the stop, never refuses or stops work, and is shown only
+when asked for. Claude account usage, session resume, manual compaction, and the remaining Increment 4 loop, token, and
+account-usage controls, remain open.
 
 The two Claude paths that can edit the worktree also accept an optional,
 owner-requested, run-scoped agentic-turn limit (1 through 100), snapshotted

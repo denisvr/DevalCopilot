@@ -589,6 +589,49 @@ implementation action recognizes exactly the adapter contract versions `claude-i
 ["Optional Claude agentic-turn limit for mutation attempts"](../architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts)
 for the durable request, claim-snapshot, versioning, and argument semantics.
 
+### Codex account-usage warning (advisory, explicit check)
+
+Two separate groups in the usage rail, shown after the allowance and model-catalog lines and before the Claude placeholder,
+carry the run's Codex account-usage controls: the **Codex account-usage stop** group
+([ADR-0025](../decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)) and, directly after it,
+the **Codex account-usage warning** group
+([ADR-0026](../decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)). They are never merged, have no
+required ordering, and neither reads the other. Both appear only when the cockpit projection carries the run's setting.
+
+The warning group shows "Current run setting: Not configured | N% used | Unknown" (Unknown for an invalid stored value or an
+unrecognized projection, never a number), a fixed advisory note, and, while the run is Created or Running, a numeric field
+with Save and Clear (otherwise it states the warning can no longer be changed; the backend's HTTP 422 remains the real guard).
+The draft is validated locally and never clamped: an empty Save asks for a number (only Clear clears), and only canonical ASCII
+whole numbers 1 through 100 are sent; Clear sends an explicit `null`. A save is disabled while pending, a failure shows a fixed
+message chosen by HTTP status only (never server text), and an accepted save or clear re-queries the authoritative cockpit
+with the same fixed "Saved, but the cockpit could not be refreshed" message. Saving or clearing contacts no provider and never
+starts a check; the cockpit read performs no provider work either.
+
+A **"Check Codex account warning"** action exists only while a valid warning is saved. It is the only thing that reads the
+account: not mounting, saving, clearing, selecting a run, cockpit catch-up, polling, collapsing and expanding the rail, or the
+allowance Refresh. One activation makes one request (`GET` of the same route, no caller-supplied threshold, executable or
+prior observation); a second activation while pending is ignored. The result area is a status region with exactly one state:
+**Not checked in this view**; **Checking the Codex account…** (pending); **The Codex account could not be checked. Try again.**
+(failure); an **unavailable** answer with fixed copy (the evidence could not be read, was no longer current, or the saved
+warning or launch target changed during the check, or the saved warning changed); or a dated **Below** ("No reported usage
+window had reached the N% warning when the Codex account was observed.") or **Reached** ("A reported usage window had reached
+the N% warning …", or "The provider reported that a usage limit had been reached …") result with the host retrieval time and
+each reported window ("<bucket> primary|secondary window: P% used", marking "(warning reached)"). A result is classified
+only when it is dated, internally consistent and for exactly the saved percentage shown; anything else is "could not be
+verified", never Below. While a check is pending, and after a failed one, no earlier classification is shown. Windows are
+never summed, and a result never says an account is eligible, ready, has remaining capacity or live usage; it describes the
+host's Codex account, not usage attributable to this run.
+
+Ownership: the draft, pending state, errors, duplicate protection and last observation belong to the committed run plus the
+authoritative saved warning (state and percent), not to a parent `key`. A different run or a different saved warning ends the
+owner and starts a new one with no observation; returning to an earlier run and warning (A to B to A) is a new owner too; a
+retained handler of an ended owner is inert; a late or overlapping completion of an ended owner is ignored (the accepted
+server operation still stands and the next authoritative read shows it); an unmount drops a pending check without a state
+update. A reload keeps the saved setting and the stop but not the observation, and reads nothing by itself. The warning is
+advisory: it changes no claim, dispatch, budget, grant, permission, stop or invocation behavior, and no event, attempt or
+observation history is recorded for a check. Claude account usage keeps its "not yet collected" placeholder. See
+["Run-scoped advisory Codex account-usage warning"](../architecture/agent-collaboration-protocol.md#run-scoped-advisory-codex-account-usage-warning).
+
 ### Per-provider token-activity warnings
 
 A "Token-activity warnings (advisory)" panel gives Codex and Claude Code each their own optional threshold
@@ -1018,15 +1061,25 @@ claims, authorizations and accepted settings; this contract governs only what th
 
 ### Provider account usage guardrails
 
-This remains the target end state the observation above is one step toward;
-none of the warning/stop enforcement below is implemented yet. Account usage
-is a provider-reported, time-windowed allowance snapshot. Each provider and
-window records value, reset time, retrieval time, and confidence.
+Account usage is a provider-reported, time-windowed allowance snapshot.
 Unavailable data is shown as `Unknown`, never as zero.
 
-The user can configure warning and stop thresholds independently for Codex and
-Claude. The MVP default is an 80% warning and a 90% stop threshold for every
-reported window. When any hard threshold is reached:
+**Implemented today (Codex only, explicit and null by default).** A run may carry an optional, run-scoped Codex
+account-usage **stop** ([ADR-0025](../decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md))
+and, independently, an optional advisory **warning**
+([ADR-0026](../decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)), each a whole percentage from 1
+through 100 that is absent unless the owner saves it. The stop is enforced at claim and again before dispatch and ends a
+claimed attempt before dispatch with a recorded decision; the warning is shown only when the owner explicitly checks it
+and never refuses, stops or reorders anything. Neither has a default, and neither is an eligibility, readiness or
+capacity claim. See
+["Codex account-usage warning (advisory, explicit check)"](#codex-account-usage-warning-advisory-explicit-check).
+
+**Not implemented (target end state).** The following remains future behavior and nothing in the cockpit does it today:
+Claude account-usage observation, warning and stop thresholds (no bounded machine-readable observation exists for this
+host); an 80% warning and 90% stop **default** for every reported window; thresholds applied to every reported window
+as a provider-wide policy rather than a per-run setting; a provider-guardrail waiting state for affected runs;
+resumption on a fresh allowance snapshot; and a scoped human override. When any hard threshold is reached the target
+behavior is:
 
 - no new attempt starts for the affected provider;
 - the active attempt may finish by default, unless a stricter cancellation

@@ -1320,6 +1320,10 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("CodexAccountUsageStopPercent");
 
+                    b.Property<string>("_codexAccountUsageWarningPercent")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("CodexAccountUsageWarningPercent");
+
                     b.Property<string>("_executionModeStored")
                         .IsConcurrencyToken()
                         .IsRequired()

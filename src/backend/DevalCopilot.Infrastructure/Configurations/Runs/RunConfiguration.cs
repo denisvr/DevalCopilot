@@ -94,6 +94,14 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
             .IsConcurrencyToken()
             .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
 
+        // The owner's optional advisory Codex account-usage warning (ADR-0026): no default and no backfill, stored exactly like the
+        // stop above so a malformed value is read as malformed and round-trips for repair. Deliberately NOT a concurrency token: an
+        // advisory write must never make a claim's own Run UPDATE fail, and no claim, gate or invocation path reads it.
+        builder.Property<string?>(Run.CodexAccountUsageWarningStorageProperty)
+            .HasColumnName("CodexAccountUsageWarningPercent")
+            .HasColumnType("INTEGER")
+            .Metadata.SetTypeMapping(new ExactStoredIntegerTextTypeMapping());
+
         // Advisory token-warning thresholds: no default, no backfill (a historical run has none),
         // and deliberately NOT concurrency tokens, so writing one can never make a claim's own Run
         // UPDATE fail (see SetTokenWarningThresholdCommandHandler).

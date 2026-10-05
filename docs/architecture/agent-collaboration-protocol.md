@@ -2277,6 +2277,40 @@ The cockpit shows the setting (`codexAccountUsageStop`) separately from token ac
 attempt evidence shows `accountUsageStop` and `accountUsageDecision`. Below-threshold evidence is never described as eligibility,
 remaining quota or live capacity, and an already dispatched attempt is never cancelled.
 
+### Run-scoped advisory Codex account-usage warning
+
+An owner may set or clear an optional integer from 1 to 100 on an active Run (`Run.CodexAccountUsageWarningPercent`) through one
+protected MVC operation (`POST /api/runs/{runId}/codex-account-usage-warning`, strict body `{ "percent": integer | null }` bounded to
+8 KiB; one human event per change, committed atomically with the value). Only a Created or Running run whose freshly read execution
+mode admits Agent work is editable, a same-value request is lifecycle-guarded, and the operation contacts no provider. The stored text
+uses the exact-integer mapping: a malformed value reads as `Unknown`, is never disabled or coerced, and is repaired by a valid set or
+clear. Historical runs stay null. The column is deliberately not an EF concurrency token and no claim, gate, dispatch, supervisor,
+stop, budget, lease, permission, invocation or context path reads it; the Attempt schema is unchanged. Warning and stop are
+independent, with no required ordering. The cockpit exposes the saved setting (`codexAccountUsageWarning`) and performs no provider
+work.
+
+A separate protected operation, `GET /api/runs/{runId}/codex-account-usage-warning`, performs one explicit advisory check
+([ADR-0026](../decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)):
+
+1. It reads the stored setting, execution mode and vetted Codex launch afresh and untracked. No setting, a malformed setting, an
+   unadmitted run or no launch causes no observation; no caller input influences it.
+2. Otherwise it makes exactly one bounded observation through `IAccountUsageObserver` outside every transaction, then re-reads the
+   setting, the exact stored mode (still Agent-admitting and unchanged) and launch; replaced authority is `Unavailable`
+   (`ConfigurationChanged`) without windows or an observation time, never an applicable result.
+3. A dedicated pure policy evaluates every bucket and window: a percentage at or above the saved percentage or a provider-reported
+   reached state is `Reached`, otherwise `Below`. Invalid, partial, unavailable or expired evidence (a retrieval instant outside the
+   read interval or in the future, older than 30 seconds at evaluation, or a passed reset) is `Unavailable`, with no valid subset,
+   credit override, sum or inferred zero.
+4. The answer carries only the saved percentage, bounded bucket identifiers, window kinds, reported percentages, per-window reached
+   flags, the provider-reached flag and the host retrieval time. The check writes no event, attempt, reservation, grant, manifest
+   change, cache or observation history, and reuses neither the stop's gate, facts or decisions nor the display-only allowance.
+
+The Usage & Evidence rail shows the setting and a "Check Codex account warning" action beside the stop control; nothing reads the
+account on mount, save, clear, selection, cockpit catch-up or polling. The control owns its draft, pending state, errors, duplicate
+protection and last observation by the committed run plus the authoritative saved warning, and a result is never described as
+eligibility, readiness, remaining capacity or usage attributable to the run. Claude account usage, session resume and manual
+compaction remain open.
+
 ### One manual Codex Planner format repair
 
 A human may request **one** repair of a Codex Planner attempt whose recorded outcome is exactly

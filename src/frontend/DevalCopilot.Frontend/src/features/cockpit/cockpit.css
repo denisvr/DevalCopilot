@@ -968,3 +968,35 @@
   margin: 0.15rem 0;
   overflow-wrap: anywhere;
 }
+
+/* Codex account-usage warning: an advisory, explicitly checked threshold, visibly separate from the stop. */
+.dc-codex-account-usage-warning,
+.dc-codex-account-usage-warning-check {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--dc-border, currentColor);
+}
+
+.dc-codex-account-usage-warning-title {
+  font-weight: 600;
+}
+
+.dc-codex-account-usage-warning-note,
+.dc-codex-account-usage-warning-readonly,
+.dc-codex-account-usage-warning-result {
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-codex-account-usage-warning-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow-wrap: anywhere;
+}
+
+.dc-codex-account-usage-warning-error {
+  color: var(--dc-danger, #b3261e);
+}

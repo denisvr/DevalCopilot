@@ -375,6 +375,43 @@ public sealed partial class CreateClaudeCriticalReviewAttemptCommandHandlerTests
         Assert.Equal("haiku", await ClaudeModelPreferenceTestSupport.ReadAttemptModelAsync(_fixture, result.Value.AttemptId));
     }
 
+    [Theory]
+    [InlineData("abc")]
+    [InlineData(3.5)]
+    [InlineData(101)]
+    public async Task HandleAsync_is_unaffected_by_malformed_advisory_codex_warning_storage(object stored)
+    {
+        var (runId, proposalMessageId) = await SeedClaudeModelScenarioAsync(initialAlias: null);
+        await AccountUsageStopTestSupport.SetStoredWarningAsync(_fixture, runId, stored);
+        await using var handlerContext = _fixture.CreateContext();
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(
+            handlerContext, FakeGitWorkspaceEvidenceReader.MatchingCheckpoint(Fingerprint), new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verify = _fixture.CreateContext();
+        var run = await verify.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == runId);
+        Assert.True(run.ReadCodexAccountUsageWarningPercent().IsMalformed);
+    }
+
+    [Fact]
+    public async Task HandleAsync_commits_despite_an_advisory_codex_warning_change_during_evidence_capture_and_keeps_it()
+    {
+        var (runId, proposalMessageId) = await SeedClaudeModelScenarioAsync(initialAlias: null);
+        await using var handlerContext = _fixture.CreateContext();
+        var evidenceReader = new RaceInjectingEvidenceReader(
+            new GitWorkspaceEvidenceResult(GitWorkspaceEvidenceOutcome.Success, new string('a', 40), Fingerprint, [], null),
+            _ => AccountUsageStopTestSupport.SetWarningAsync(_fixture, runId, 33));
+        var handler = new CreateClaudeCriticalReviewAttemptCommandHandler(handlerContext, evidenceReader, new FakeArtifactStore(), new FixedTimeProvider(Now), DurabilityProbe);
+
+        var result = await handler.HandleAsync(new CreateClaudeCriticalReviewAttemptCommand(runId, proposalMessageId), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        await using var verify = _fixture.CreateContext();
+        var run = await verify.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == runId);
+        Assert.Equal(33, run.ReadCodexAccountUsageWarningPercent().Value);
+    }
 
     [Theory]
     [InlineData("sonnet", "low")]

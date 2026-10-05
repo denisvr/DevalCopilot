@@ -52,4 +52,21 @@ public static class AccountUsageStopTestSupport
             .ToListAsync();
         return attempts.Where(candidate => role is null || candidate.AgentRole == role).OrderByDescending(candidate => candidate.AttemptNumber).FirstOrDefault();
     }
+
+    /// <summary>The owner's advisory warning set/clear (ADR-0026) through the real Domain method in its own context.</summary>
+    public static async Task SetWarningAsync(SqliteDatabaseFixture fixture, Guid runId, int? percent)
+    {
+        await using var context = fixture.CreateContext();
+        var run = await context.Runs.SingleAsync(candidate => candidate.Id == runId);
+        run.SetCodexAccountUsageWarningPercent(percent);
+        context.Entry(run).Property(Run.CodexAccountUsageWarningStorageProperty).IsModified = true;
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Overwrites the stored advisory warning with a value of any SQLite storage class.</summary>
+    public static async Task SetStoredWarningAsync(SqliteDatabaseFixture fixture, Guid runId, object? stored)
+    {
+        await using var context = fixture.CreateContext();
+        await context.Database.ExecuteSqlInterpolatedAsync($"UPDATE runs SET CodexAccountUsageWarningPercent = {stored} WHERE Id = {runId}");
+    }
 }

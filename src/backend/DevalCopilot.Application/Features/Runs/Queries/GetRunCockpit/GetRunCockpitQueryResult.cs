@@ -34,4 +34,5 @@ public sealed record GetRunCockpitQueryResult(
     IReadOnlyList<AgentTokenStopEvaluation>? TokenStops = null,
     ClaudeMutationTurnLimitFact? ClaudeTurnLimitRequest = null,
     RunExecutionMode? ExecutionMode = null,
-    CodexAccountUsageStopFact? CodexAccountUsageStop = null);
+    CodexAccountUsageStopFact? CodexAccountUsageStop = null,
+    CodexAccountUsageWarningFact? CodexAccountUsageWarning = null);

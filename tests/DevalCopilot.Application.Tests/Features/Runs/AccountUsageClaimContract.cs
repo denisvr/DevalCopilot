@@ -244,4 +244,43 @@ public static class AccountUsageClaimContract
 
         Assert.True(outcome.Success, outcome.ErrorCode);
     }
+
+    public static async Task A_malformed_advisory_warning_storage_never_affects_the_claim_or_the_stop(AccountUsageClaimHarness h, object stored)
+    {
+        var (runId, _) = await ConfiguredAsync(h, 80);
+        await AccountUsageStopTestSupport.SetStoredWarningAsync(h.Fixture, runId, stored);
+        var adapter = StubAccountUsageAdapter.Always(AccountUsageStopTestSupport.Observation(h.Now, primary: 79));
+
+        var outcome = await h.ClaimAsync(runId, adapter);
+
+        Assert.True(outcome.Success, outcome.ErrorCode);
+        Assert.Equal(1, adapter.Calls);
+        Assert.Equal(80, (await AccountUsageStopTestSupport.NewestAttemptAsync(h.Fixture, runId))!.ReadAgentCodexAccountUsageStopPercent().Value);
+    }
+
+    public static async Task A_reached_or_disabled_stop_is_decided_by_the_stop_alone_whatever_the_warning_says(AccountUsageClaimHarness h)
+    {
+        var runId = await h.SeedRunAsync();
+        await AccountUsageStopTestSupport.SetWarningAsync(h.Fixture, runId, 1);
+        var adapter = StubAccountUsageAdapter.Always(AccountUsageStopTestSupport.Observation(h.Now, primary: 100));
+
+        var outcome = await h.ClaimAsync(runId, adapter);
+
+        Assert.True(outcome.Success, outcome.ErrorCode);
+        Assert.Equal(0, adapter.Calls);
+    }
+
+    public static async Task An_advisory_warning_change_during_the_claim_neither_refuses_nor_is_overwritten(AccountUsageClaimHarness h)
+    {
+        var (runId, _) = await ConfiguredAsync(h, 80);
+        var adapter = StubAccountUsageAdapter.Always(AccountUsageStopTestSupport.Observation(h.Now, primary: 1));
+
+        var outcome = await h.ClaimAsync(runId, adapter, async _ => await AccountUsageStopTestSupport.SetWarningAsync(h.Fixture, runId, 7));
+
+        Assert.True(outcome.Success, outcome.ErrorCode);
+        await using var context = h.Fixture.CreateContext();
+        var run = await context.Runs.AsNoTracking().SingleAsync(candidate => candidate.Id == runId);
+        Assert.Equal(7, run.ReadCodexAccountUsageWarningPercent().Value);
+        Assert.Equal(80, run.ReadCodexAccountUsageStopPercent().Value);
+    }
 }

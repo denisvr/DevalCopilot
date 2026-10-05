@@ -478,6 +478,9 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
           codexAccountUsageStop={cockpit.runId === runId ? cockpit.codexAccountUsageStop : null}
           accountUsageStopEditable={cockpit.lifecycle === 'Created' || cockpit.lifecycle === 'Running'}
           onAccountUsageStopSaved={refresh}
+          codexAccountUsageWarning={cockpit.runId === runId ? cockpit.codexAccountUsageWarning : null}
+          accountUsageWarningEditable={cockpit.lifecycle === 'Created' || cockpit.lifecycle === 'Running'}
+          onAccountUsageWarningSaved={refresh}
         />
       </div>
       <LiveOutputDrawer runId={runId} attemptId={currentProcessAttemptId} />

@@ -244,6 +244,7 @@ public sealed class GetRunCockpitQueryHandler(IDevalCopilotDbContext dbContext, 
                 ],
                 ClaudeMutationTurnLimitFact.ForRun(run),
                 run.ExecutionMode,
-                CodexAccountUsageStopFact.ForRun(run)));
+                CodexAccountUsageStopFact.ForRun(run),
+                CodexAccountUsageWarningFact.ForRun(run)));
     }
 }

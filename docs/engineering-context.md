@@ -76,6 +76,9 @@
 - [ADR-0025](decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md):
   Stop new Codex attempts at an explicit account-usage percentage (additive; it adds an optional run-scoped guard
   for Codex claims and pre-dispatch and changes no existing authority decision).
+- [ADR-0026](decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md):
+  Warn explicitly about a Codex account-usage percentage (additive; an optional run-scoped advisory percentage, checked only on
+  explicit request, independent of the ADR-0025 stop, and it changes no existing authority decision).
 
 ## Product-specific architecture
 
@@ -184,6 +187,11 @@
   allowance projection; reaching it, or failing to observe it, ends a claimed attempt before dispatch with a
   bounded recorded decision. It is a local guard over a provider-reported percentage, not eligibility or capacity
   ([ADR-0025](decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)).
+  A separate, optional, run-scoped advisory Codex warning percentage (1 through 100, independent of the stop with no required
+  ordering) is read only by one explicit "Check Codex account warning" request, which makes at most one strict observation and
+  writes nothing; no claim, gate, dispatch or invocation path reads it, and a warning never refuses or stops anything
+  ([ADR-0026](decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)). Claude account usage, session resume and
+  manual compaction remain open.
 - The three Claude adapters also read the optional `modelUsage` map of the one clean-exit, untruncated result envelope
   and keep only each model identifier with its reported context-window and maximum-output limits, admitted whole or not
   at all (at most 16 unique ASCII identifiers, positive 32-bit integers, output not above the window) and independent of

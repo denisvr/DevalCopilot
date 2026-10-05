@@ -41,6 +41,9 @@ supersedes it.
   (it narrowly advances ADR-0021 and ADR-0022 for new tracked delivery only and changes no existing authority decision)
 - [ADR-0025: Stop new Codex attempts at an explicit account-usage percentage](0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)
   (additive; an optional run-scoped Codex guard at claim and before dispatch that changes no existing authority decision)
+- [ADR-0026: Warn explicitly about a Codex account-usage percentage](0026-warn-explicitly-about-a-codex-account-usage-percentage.md)
+  (additive; an optional run-scoped advisory percentage checked only on explicit request, independent of the ADR-0025 stop and
+  changing no existing authority decision)
 
 ## Status values
 

@@ -435,7 +435,8 @@ public sealed class AddCodexAccountUsageStopMigrationTests : IAsyncLifetime
 
         var runColumnsAfter = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
         var attemptColumnsAfter = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
-        Assert.Equal(["CodexAccountUsageStopPercent"], runColumnsBefore.Except(runColumnsAfter));
+        // The database is at the latest migration, so the later AddCodexAccountUsageWarning run column is dropped on the way down too.
+        Assert.Equal(["CodexAccountUsageStopPercent", "CodexAccountUsageWarningPercent"], runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
         Assert.Equal(
             ["AgentAccountUsageDecisionSnapshot", "AgentCodexAccountUsageStopPercent"],

@@ -217,7 +217,7 @@ public sealed class AddDirectHumanGuidanceMigrationTests : IAsyncLifetime
         }
 
         var after = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
-        // The database is at the latest migration, so the later AddAgentModelContextLimits and AddCodexAccountUsageStop columns are dropped on the way down too.
+        // The database is at the latest migration, so the later AddAgentModelContextLimits, AddCodexAccountUsageStop and AddCodexAccountUsageWarning columns are dropped on the way down too.
         Assert.Equal(
             ["AgentAccountUsageDecisionSnapshot", "AgentCodexAccountUsageStopPercent", "AgentDirectHumanGuidance", "AgentModelContextLimitsSnapshot"],
             before.Except(after).Order());
