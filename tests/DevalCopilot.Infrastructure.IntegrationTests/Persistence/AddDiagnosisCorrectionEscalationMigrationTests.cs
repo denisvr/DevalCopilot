@@ -331,7 +331,11 @@ public sealed class AddDiagnosisCorrectionEscalationMigrationTests : IAsyncLifet
         }
 
         var tablesAfter = await ReadSchemaNamesAsync("table");
-        Assert.Equal(["diagnosis_correction_escalations"], tablesBefore.Except(tablesAfter));
+        // Downgrading to this historical migration removes its table and every later migration's tables, including ADR-0029's
+        // durable local-commit operation storage; it must never leave a later schema object behind.
+        Assert.Equal(
+            ["diagnosis_correction_escalations", "local_commit_authority_members", "local_commit_operations"],
+            tablesBefore.Except(tablesAfter).OrderBy(name => name));
         Assert.Empty(tablesAfter.Except(tablesBefore));
         await using var reopened = CreateContext();
         Assert.Equal(1, await reopened.Runs.CountAsync());

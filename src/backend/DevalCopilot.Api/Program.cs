@@ -18,6 +18,7 @@ using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVe
 using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
+using DevalCopilot.Application.Features.Runs.Commands.RecoverLocalCommitOperations;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedImplementationAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
@@ -145,6 +146,14 @@ builder.Services.AddSingleton<IGitWorkspaceEvidenceReader, GitWorkspaceEvidenceR
 builder.Services.AddSingleton<IWorkspaceOwnershipMarkerStore, WorkspaceOwnershipMarkerStore>();
 builder.Services.AddSingleton<IWorkspaceRootPathProvider, WorkspaceRootPathProvider>();
 builder.Services.AddHostedService<VerificationExecutionSupervisor>();
+
+// The explicit local commit (ADR-0029): one Git adapter behind two narrow Application ports, its owned storage, and the supervisor
+// that executes only durably admitted operations. Recovery runs at startup, before workspace reconciliation and before this starts.
+builder.Services.AddSingleton<LocalCommitStorage>();
+builder.Services.AddSingleton<LocalCommitGit>();
+builder.Services.AddSingleton<ILocalCommitPreparer>(services => services.GetRequiredService<LocalCommitGit>());
+builder.Services.AddSingleton<ILocalCommitRepository>(services => services.GetRequiredService<LocalCommitGit>());
+builder.Services.AddHostedService<LocalCommitSupervisor>();
 
 // Codex planning: composed on top of IProcessExecutionAdapter, IArtifactStore, and
 // IGitWorkspaceEvidenceReader above — never a second child-process or Git evidence path.
@@ -290,6 +299,7 @@ if (!isSideEffectFreeComposition)
     // Evidence-driven workspace reconciliation: must complete before any new preparation
     // request is accepted, so a workspace from a prior host instance is never silently
     // adopted, orphaned, or double-leased.
+    await mediator.SendAsync(new RecoverLocalCommitOperationsCommand(), CancellationToken.None);
     await mediator.SendAsync(new ReconcileWorkspacesCommand(), CancellationToken.None);
     // Recover only sealed verification output for executions that are still Running. This
     // must precede interruption reconciliation so a crash after sealing but before result

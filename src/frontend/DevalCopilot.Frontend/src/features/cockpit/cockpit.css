@@ -1022,3 +1022,46 @@
 .dc-codex-account-usage-warning-error {
   color: var(--dc-danger, #b3261e);
 }
+
+/* Local commit: an explicit, irreversible-to-admit, local-only operation with its recorded evidence. */
+.dc-local-commit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--dc-border, currentColor);
+}
+
+.dc-local-commit h3,
+.dc-local-commit p {
+  margin: 0;
+}
+
+.dc-local-commit label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dc-local-commit-explanation,
+.dc-local-commit-note {
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-local-commit-operation dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0.3rem 0 0;
+}
+
+.dc-local-commit-operation dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--dc-mono, monospace);
+}
+
+.dc-local-commit-error {
+  color: var(--dc-danger, #b3261e);
+}

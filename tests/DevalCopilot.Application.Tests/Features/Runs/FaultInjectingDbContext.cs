@@ -117,6 +117,10 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public DbSet<PlanningImplementationAuthorization> PlanningImplementationAuthorizations => inner.PlanningImplementationAuthorizations;
 
+    public DbSet<LocalCommitOperation> LocalCommitOperations => inner.LocalCommitOperations;
+
+    public DbSet<LocalCommitAuthorityMember> LocalCommitAuthorityMembers => inner.LocalCommitAuthorityMembers;
+
     public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class => inner.Entry(entity);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)

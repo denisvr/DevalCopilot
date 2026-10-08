@@ -89,6 +89,12 @@
 
 ## Product-specific architecture
 
+- [ADR-0029](decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md) permits the selected explicit
+  local-commit slice before Increment 4's unproven provider contracts close. It requires exact physically admitted snapshot bytes,
+  current passing verification, Agent and human approval, exclusive durable intent, hook-free unsigned Git execution and exact
+  restart reconciliation. The slice is selected, not implemented; Increment 4 remains incomplete. Only a recorded host commit may
+  extend the expected worktree HEAD, and remote publication and automatic orchestration remain separately gated.
+
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.
 - Tauri owns window lifecycle, sidecar lifecycle, packaging, and narrowly

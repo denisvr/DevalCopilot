@@ -1083,6 +1083,232 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("diagnosis_correction_escalations", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalCommitAuthorityMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CommandId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Digest")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("SubjectId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId", "Kind", "Sequence")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_commit_authority_members_position");
+
+                    b.ToTable("local_commit_authority_members", (string)null);
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalCommitOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AgentCheckpointReviewId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthorEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthorName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthoritySha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BranchName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ChangedPathCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CheckpointFingerprintSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CheckpointNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("CodeReviewApprovalMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CodeReviewAttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommitSha")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CommitTimeUnixSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ExecutionReportMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ExecutionStartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GitCheckpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GitWorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("HumanCheckpointReviewId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("IndexAcquiredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IndexAdministrativeDirectoryIdentity")
+                        .HasMaxLength(49)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IndexLockIdentity")
+                        .HasMaxLength(49)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("IndexLockLength")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("IndexPreimageIdentity")
+                        .HasMaxLength(49)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("IndexPreimageLength")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("IndexPreimageSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IndexQuarantineName")
+                        .HasMaxLength(240)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("IndexReplacementPlannedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedMessage")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OutcomeReasonCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParentCommitSha")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreparedIndexArtifactIdentity")
+                        .HasMaxLength(49)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("PreparedIndexArtifactLength")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PreparedIndexRelativePath")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreparedIndexSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RepositoryMutationLeaseId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("TotalBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TreeSha")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgentCheckpointReviewId");
+
+                    b.HasIndex("CodeReviewAttemptId");
+
+                    b.HasIndex("GitCheckpointId");
+
+                    b.HasIndex("GitWorkspaceId")
+                        .HasDatabaseName("ix_local_commit_operations_workspace");
+
+                    b.HasIndex("HumanCheckpointReviewId");
+
+                    b.HasIndex("RepositoryMutationLeaseId");
+
+                    b.HasIndex("RunId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_local_commit_operations_run");
+
+                    b.ToTable("local_commit_operations", (string)null);
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningImplementationAuthorization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1624,6 +1850,60 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalCommitAuthorityMember", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalCommitOperation", null)
+                        .WithMany("Members")
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalCommitOperation", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.CheckpointReview", null)
+                        .WithMany()
+                        .HasForeignKey("AgentCheckpointReviewId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("CodeReviewAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
+                        .WithMany()
+                        .HasForeignKey("GitCheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitWorkspace", null)
+                        .WithMany()
+                        .HasForeignKey("GitWorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.CheckpointReview", null)
+                        .WithMany()
+                        .HasForeignKey("HumanCheckpointReviewId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.RepositoryMutationLease", null)
+                        .WithMany()
+                        .HasForeignKey("RepositoryMutationLeaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningImplementationAuthorization", b =>
                 {
                     b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
@@ -1734,6 +2014,11 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("DevalCopilot.Domain.Features.Projects.GitCheckpoint", b =>
                 {
                     b.Navigation("ChangedFiles");
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalCommitOperation", b =>
+                {
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }

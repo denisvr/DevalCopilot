@@ -2,7 +2,9 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Policies.LocalCommit;
 using DevalCopilot.Domain.Features.Projects;
+using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
 namespace DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
@@ -99,8 +101,20 @@ public sealed class ReconcileWorkspacesCommandHandler(
         }
 
         var headResult = await gitWorktreeAdapter.GetHeadCommitShaAsync(workspace.WorkspacePath, cancellationToken);
+        // A preparing workspace has no commits yet. Otherwise only the unique coherent chain of completed recorded local commits
+        // rooted at the immutable SourceCommitSha extends the expected tip (ADR-0029); a broken chain expects nothing and fails
+        // closed, and an unrecorded advance never matches.
+        var expectedHead = workspace.SourceCommitSha;
+        if (workspace.Status != WorkspaceStatus.Preparing)
+        {
+            var completed = await dbContext.LocalCommitOperations.AsNoTracking()
+                .Where(operation => operation.GitWorkspaceId == workspace.Id && operation.Status == LocalCommitStatus.Completed)
+                .ToListAsync(cancellationToken);
+            expectedHead = LocalCommitHeadChain.ResolveTip(workspace.SourceCommitSha, completed) ?? string.Empty;
+        }
+
         var headMatches = headResult.Outcome == GitWorktreeHeadOutcome.Resolved
-            && string.Equals(headResult.CommitSha, workspace.SourceCommitSha, StringComparison.Ordinal);
+            && string.Equals(headResult.CommitSha, expectedHead, StringComparison.Ordinal);
 
         if (workspace.Status == WorkspaceStatus.Preparing)
         {

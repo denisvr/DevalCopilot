@@ -15,4 +15,8 @@ public enum WorkspaceStatus
     MissingExternally = 3,
     AlteredExternally = 4,
     NeedsAttention = 5,
+
+    /// <summary>Reserved for exactly one explicit local-commit operation (ADR-0029): every Agent, verification, checkpoint,
+    /// review and recipe write refuses it, and the lease stays Active.</summary>
+    Committing = 6,
 }

@@ -74,4 +74,23 @@ public static class RunEventType
     /// <summary>The owner set or cleared the run-scoped advisory Codex account-usage warning percentage (ADR-0026). The payload carries
     /// only the new percentage (null when cleared); the event never records an observation.</summary>
     public const string CodexAccountUsageWarningChanged = "run.codex_account_usage_warning_changed";
+
+    /// <summary>A human-requested local commit was durably admitted and its workspace reserved (ADR-0029). The payload carries
+    /// the operation, checkpoint and recorded parent/tree/commit identities, never message text or a path.</summary>
+    public const string LocalCommitAdmitted = "local_commit.admitted";
+
+    /// <summary>The single-use execution marker was recorded: the host is about to move the owned branch.</summary>
+    public const string LocalCommitExecuting = "local_commit.executing";
+
+    /// <summary>The recorded commit, tree, branch and index were proven; the run is completed by the same save.</summary>
+    public const string LocalCommitCompleted = "local_commit.completed";
+
+    /// <summary>The operation definitely did not promote; the run is failed by the same save.</summary>
+    public const string LocalCommitFailed = "local_commit.failed";
+
+    /// <summary>A startup interruption was proven unpromoted; the run is interrupted by the same save.</summary>
+    public const string LocalCommitInterrupted = "local_commit.interrupted";
+
+    /// <summary>The outcome is ambiguous; nothing is retried and the run stays nonterminal.</summary>
+    public const string LocalCommitNeedsAttention = "local_commit.needs_attention";
 }

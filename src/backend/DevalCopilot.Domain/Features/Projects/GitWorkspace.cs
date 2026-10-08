@@ -79,6 +79,14 @@ public sealed class GitWorkspace
     /// <see cref="WorkspaceStatus.Ready"/>.</summary>
     public string? LastFailureReasonCode { get; private set; }
 
+    public const string LocalCommitAttentionPrefix = "local_commit.";
+
+    /// <summary>True only for the NeedsAttention an ambiguous local commit itself set, which exact reconciliation of that same
+    /// operation may release. Every other NeedsAttention stays unrepaired.</summary>
+    public bool IsAttentionFromLocalCommit =>
+        Status == WorkspaceStatus.NeedsAttention
+        && LastFailureReasonCode?.StartsWith(LocalCommitAttentionPrefix, StringComparison.Ordinal) == true;
+
     public int ReserveCheckpointNumber()
     {
         var checkpointNumber = NextCheckpointNumber;
@@ -151,12 +159,38 @@ public sealed class GitWorkspace
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reasonCode);
 
-        if (Status != WorkspaceStatus.Ready)
+        if (Status is not (WorkspaceStatus.Ready or WorkspaceStatus.Committing))
         {
             throw new InvalidOperationException($"Cannot flag needs-attention for a workspace that is {Status}.");
         }
 
         Status = WorkspaceStatus.NeedsAttention;
         LastFailureReasonCode = reasonCode;
+    }
+
+    /// <summary>The durable reservation of an explicit local commit (ADR-0029). Only a Ready workspace can be reserved, and the
+    /// reservation is taken in a write-locked transaction that has just re-read every competing fact.</summary>
+    public void BeginCommit()
+    {
+        if (Status != WorkspaceStatus.Ready)
+        {
+            throw new InvalidOperationException($"Cannot reserve a workspace that is {Status} for a commit.");
+        }
+
+        Status = WorkspaceStatus.Committing;
+    }
+
+    /// <summary>The reservation ends because the operation was proven delivered or proven unpromoted, with ownership and the
+    /// source observation consistent. Anything less is <see cref="MarkNeedsAttention"/>.</summary>
+    public void FinishCommit()
+    {
+        if (Status != WorkspaceStatus.Committing && !IsAttentionFromLocalCommit)
+        {
+            throw new InvalidOperationException($"Cannot release a commit reservation of a workspace that is {Status}.");
+        }
+
+        LastFailureReasonCode = null;
+
+        Status = WorkspaceStatus.Ready;
     }
 }

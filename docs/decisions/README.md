@@ -51,6 +51,10 @@ supersedes it.
   (it narrowly advances ADR-0012, ADR-0013 and ADR-0014's fixed-default creation behavior for new manual runs only and changes
   no claim, immutability, consumption or historical-policy decision)
 
+- [ADR-0029: Deliver an explicit local commit before closing provider contract gaps](0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md)
+  (it narrowly supersedes ADR-0009's increment ordering and extends ADR-0008's expected-HEAD reconciliation for exact recorded host
+  commits; provider requirements and other authority rules remain intact)
+
 ## Status values
 
 - `Proposed`

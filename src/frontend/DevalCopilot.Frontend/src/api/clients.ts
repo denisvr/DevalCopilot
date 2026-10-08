@@ -63,6 +63,8 @@ import {
   RequestDiagnosisCorrectionEndpointClient,
   AuthorizePlanningImplementationEndpointClient,
   GetPlanningImplementationAuthorizationEndpointClient,
+  RequestLocalCommitEndpointClient,
+  GetLocalCommitStatusEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -132,6 +134,8 @@ export const verificationDiagnosisStatusClient = () => new GetVerificationDiagno
 export const requestDiagnosisCorrectionClient = () => new RequestDiagnosisCorrectionEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const authorizePlanningImplementationClient = () => new AuthorizePlanningImplementationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const planningImplementationAuthorizationClient = () => new GetPlanningImplementationAuthorizationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const requestLocalCommitClient = () => new RequestLocalCommitEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const localCommitStatusClient = () => new GetLocalCommitStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -214,6 +218,8 @@ export type {
   RunCockpitAgentAttemptResponse,
   RunTokenUsageSummaryResponse,
   AgentClaimPathTimeFitResponse,
+  LocalCommitOperationResponse,
+  GetLocalCommitStatusResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,
@@ -227,4 +233,5 @@ export {
   RequestVerificationDiagnosisRequest,
   RequestDiagnosisCorrectionRequest,
   SetCodexAssignmentPreferenceRequest,
+  RequestLocalCommitRequest,
 } from './generated/api-client'

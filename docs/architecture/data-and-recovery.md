@@ -155,6 +155,42 @@ Startup performs these steps before scheduling new work:
 9. expose required recovery choices;
 10. schedule only work proven safe to continue.
 
+### Explicit local commit recovery
+
+An explicit local commit ([ADR-0029](../decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md))
+records its immutable intent (parent, tree, commit, branch, author, message and the real-index preimage and prepared-index
+identities), a single-use execution marker, the physical receipt of its exclusive index-lock acquisition and the planned index
+replacement before each external effect. Startup recovery runs before workspace reconciliation and before any supervisor
+dispatch and decides only from those facts plus one exact, read-only inspection of the branch, HEAD binding, ownership marker,
+commit object, index and locks. Before any of the decisions below, the inspection must also positively prove that the reference-lock
+namespace of the transaction is clear: neither the lock of the owned branch reference in the proven common Git directory nor
+`HEAD.lock` in the proven linked-worktree administrative directory exists, observed through a redirection-free path. A lock that
+exists, or a namespace that cannot be read or represented, is unknown and is `NeedsAttention` for every other rule, including
+normal safe release after a refused execution. Such a lock is never adopted, removed or renamed, and nothing is inferred from its
+bytes, process id or age:
+
+- an unstarted or unpromoted operation whose branch is still the parent, whose index is still the preimage and whose index lock
+  is absent is recorded `Interrupted` (and its run interrupted);
+- a promoted operation whose branch tip, commit object and index are exactly the recorded ones is recorded `Completed` once; the
+  workspace returns to `Ready` only when the working files also still equal the delivered tree, otherwise it stays under
+  attention;
+- an executing operation with a durable replacement plan, a promoted reference, the preimage index and no lock may be finished
+  only through a NEW exclusive acquisition, never by adopting an old lock;
+- every other shape (an unknown lock or quarantine, a rebound HEAD, a replaced ownership marker, an unrecognized tip, an
+  unrecognized index, an unobservable repository) is `NeedsAttention`: the run stays nonterminal, the workspace stays reserved and
+  no Git mutation is retried or resent.
+
+While an operation is open, the exclusion of competing writers covers the whole admitted reservation: the workspace is `Committing`,
+or `NeedsAttention` while an operation of that exact workspace and project is not yet `Completed`, `Failed` or `Interrupted`.
+Recipe changes, checkpoint capture, review recording, verification claims and Agent claims are refused for it by an early check
+and by database guards inside their own write transactions (`workspaces.committing`). A workspace flagged for any other reason, a
+terminal operation and every other project are never blocked, and a proven terminal release ends the exclusion.
+
+A lock capability lives only in the process that created it. After a restart an extant `index.lock` is never adopted, promoted
+or removed because its bytes or file id match, and `NeedsAttention` for a pending index promotion is sticky: there is no manual
+takeover path. The expected worktree tip of a later run is the unique coherent chain of completed recorded parent-to-commit
+edges rooted at the workspace's immutable source commit; any gap, fork or cycle has no tip and fails closed.
+
 ## Retention and deletion
 
 MVP retention is explicit even for a local tool:

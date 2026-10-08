@@ -55,6 +55,10 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<PlanningImplementationAuthorization> PlanningImplementationAuthorizations => Set<PlanningImplementationAuthorization>();
 
+    public DbSet<LocalCommitOperation> LocalCommitOperations => Set<LocalCommitOperation>();
+
+    public DbSet<LocalCommitAuthorityMember> LocalCommitAuthorityMembers => Set<LocalCommitAuthorityMember>();
+
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
         Database.BeginTransactionAsync(cancellationToken);
 

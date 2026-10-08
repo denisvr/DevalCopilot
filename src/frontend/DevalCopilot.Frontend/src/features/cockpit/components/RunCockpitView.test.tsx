@@ -47,6 +47,8 @@ import * as useRequestCodeReviewRepairAttemptModule from '../hooks/useRequestCod
 import * as useVerificationDiagnosisStatusModule from '../hooks/useVerificationDiagnosisStatus'
 import * as useRequestVerificationDiagnosisModule from '../hooks/useRequestVerificationDiagnosis'
 import * as useRequestDiagnosisCorrectionModule from '../hooks/useRequestDiagnosisCorrection'
+import * as useLocalCommitStatusModule from '../hooks/useLocalCommitStatus'
+import * as useRequestLocalCommitModule from '../hooks/useRequestLocalCommit'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -74,6 +76,8 @@ vi.mock('../hooks/useRequestVerificationDiagnosis')
 vi.mock('../hooks/useRequestDiagnosisCorrection')
 vi.mock('../hooks/usePlanningImplementationAuthorization')
 vi.mock('../hooks/useAuthorizePlanningImplementation')
+vi.mock('../hooks/useLocalCommitStatus')
+vi.mock('../hooks/useRequestLocalCommit')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   planningImplementationAuthorizationClient: vi.fn(),
@@ -91,6 +95,8 @@ vi.mock('../../../api/clients', () => ({
   })),
 }))
 
+const useLocalCommitStatusMock = vi.mocked(useLocalCommitStatusModule.useLocalCommitStatus)
+const useRequestLocalCommitMock = vi.mocked(useRequestLocalCommitModule.useRequestLocalCommit)
 const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)
 const useCollaborationTimelineMock = vi.mocked(useCollaborationTimelineModule.useCollaborationTimeline)
 const useAgentAttemptStatusMock = vi.mocked(useAgentAttemptStatusModule.useAgentAttemptStatus)
@@ -152,6 +158,8 @@ function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineC
 }
 
 beforeEach(() => {
+  useLocalCommitStatusMock.mockReturnValue({ status: null, loading: true, error: null, current: false, refresh: vi.fn() })
+  useRequestLocalCommitMock.mockReturnValue({ requesting: false, error: null, submit: vi.fn() })
   useCollaborationTimelineMock.mockReturnValue({
     cards: [],
     loading: false,
@@ -2982,5 +2990,50 @@ describe('RunCockpitView verification diagnosis', () => {
     expect(useRequestCodeReviewMock).toHaveBeenCalledWith('run-1', expect.any(Function), 4)
     expect(useAgentAttemptStatusMock).toHaveBeenCalledWith('run-1', 2)
     expect(useReviewCorrectionAttemptStatusMock).toHaveBeenCalledWith('run-1', 2)
+  })
+})
+
+describe('RunCockpitView local commit composition', () => {
+  function mockCockpit(overrides: Record<string, unknown> = {}) {
+    const refresh = vi.fn(async () => true)
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, ...overrides } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh,
+    })
+    return refresh
+  }
+
+  it('mounts the panel for the selected manual Agent run with the cockpit sequence, the evidence generation and the cockpit refresh', () => {
+    const refresh = mockCockpit()
+
+    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={3} />)
+
+    expect(screen.getByRole('region', { name: 'Local commit' })).toBeInTheDocument()
+    expect(useLocalCommitStatusMock).toHaveBeenCalledWith('run-1', 2, 3)
+    expect(useRequestLocalCommitMock).toHaveBeenCalledWith('run-1', '', 0, expect.any(Function), refresh)
+  })
+
+  it('does not mount the panel for a simulated or unrecognized execution mode', () => {
+    mockCockpit({ executionMode: 'Simulated' })
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
+
+    mockCockpit({ executionMode: 'SomethingNew' })
+    rerender(<RunCockpitView runId="run-1" />)
+    expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
+  })
+
+  it('never shows a projection held from another run as the selected run\'s local commit', () => {
+    mockCockpit({ runId: 'run-1' })
+
+    render(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
+    expect(useLocalCommitStatusMock).not.toHaveBeenCalledWith('run-2', expect.anything(), expect.anything())
   })
 })

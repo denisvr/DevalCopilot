@@ -668,6 +668,106 @@ export class GetReviewCorrectionAttemptStatusEndpointClient {
     }
 }
 
+export class RequestLocalCommitEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    requestLocalCommit(runId: string, request: RequestLocalCommitRequest): Promise<LocalCommitOperationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-commit";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRequestLocalCommit(_response);
+        });
+    }
+
+    protected processRequestLocalCommit(response: Response): Promise<LocalCommitOperationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = LocalCommitOperationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<LocalCommitOperationResponse>(null as any);
+    }
+}
+
+export class GetLocalCommitStatusEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalCommitStatus(runId: string): Promise<GetLocalCommitStatusResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-commit";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalCommitStatus(_response);
+        });
+    }
+
+    protected processGetLocalCommitStatus(response: Response): Promise<GetLocalCommitStatusResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalCommitStatusResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalCommitStatusResponse>(null as any);
+    }
+}
+
 export class RequestImplementationEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -4152,6 +4252,146 @@ export interface IRequestReviewCorrectionRequest {
     guidance?: string | undefined;
 }
 
+export class LocalCommitOperationResponse implements ILocalCommitOperationResponse {
+    operationId?: string;
+    status?: string;
+    outcomeReasonCode?: string | undefined;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    codeReviewAttemptId?: string;
+    humanCheckpointReviewId?: string;
+    branchName?: string;
+    parentCommitSha?: string;
+    treeSha?: string;
+    commitSha?: string | undefined;
+    changedPathCount?: number;
+    createdAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+
+    constructor(data?: ILocalCommitOperationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.status = _data["status"];
+            this.outcomeReasonCode = _data["outcomeReasonCode"];
+            this.checkpointId = _data["checkpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.codeReviewAttemptId = _data["codeReviewAttemptId"];
+            this.humanCheckpointReviewId = _data["humanCheckpointReviewId"];
+            this.branchName = _data["branchName"];
+            this.parentCommitSha = _data["parentCommitSha"];
+            this.treeSha = _data["treeSha"];
+            this.commitSha = _data["commitSha"];
+            this.changedPathCount = _data["changedPathCount"];
+            this.createdAtUtc = _data["createdAtUtc"] ? new Date(_data["createdAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): LocalCommitOperationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalCommitOperationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["status"] = this.status;
+        data["outcomeReasonCode"] = this.outcomeReasonCode;
+        data["checkpointId"] = this.checkpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["codeReviewAttemptId"] = this.codeReviewAttemptId;
+        data["humanCheckpointReviewId"] = this.humanCheckpointReviewId;
+        data["branchName"] = this.branchName;
+        data["parentCommitSha"] = this.parentCommitSha;
+        data["treeSha"] = this.treeSha;
+        data["commitSha"] = this.commitSha;
+        data["changedPathCount"] = this.changedPathCount;
+        data["createdAtUtc"] = this.createdAtUtc ? this.createdAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface ILocalCommitOperationResponse {
+    operationId?: string;
+    status?: string;
+    outcomeReasonCode?: string | undefined;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    codeReviewAttemptId?: string;
+    humanCheckpointReviewId?: string;
+    branchName?: string;
+    parentCommitSha?: string;
+    treeSha?: string;
+    commitSha?: string | undefined;
+    changedPathCount?: number;
+    createdAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+}
+
+export class RequestLocalCommitRequest implements IRequestLocalCommitRequest {
+    operationId!: string;
+    checkpointId!: string;
+    codeReviewAttemptId!: string;
+    humanCheckpointReviewId!: string;
+    message!: string;
+
+    constructor(data?: IRequestLocalCommitRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.checkpointId = _data["checkpointId"];
+            this.codeReviewAttemptId = _data["codeReviewAttemptId"];
+            this.humanCheckpointReviewId = _data["humanCheckpointReviewId"];
+            this.message = _data["message"];
+        }
+    }
+
+    static fromJS(data: any): RequestLocalCommitRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RequestLocalCommitRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["checkpointId"] = this.checkpointId;
+        data["codeReviewAttemptId"] = this.codeReviewAttemptId;
+        data["humanCheckpointReviewId"] = this.humanCheckpointReviewId;
+        data["message"] = this.message;
+        return data;
+    }
+}
+
+export interface IRequestLocalCommitRequest {
+    operationId: string;
+    checkpointId: string;
+    codeReviewAttemptId: string;
+    humanCheckpointReviewId: string;
+    message: string;
+}
+
 export class RequestImplementationResponse implements IRequestImplementationResponse {
     attemptId?: string;
     attemptNumber?: number;
@@ -6474,6 +6714,70 @@ export interface IPlanningImplementationAuthorizationResponse {
     authorizedAtUtc?: Date | undefined;
     consumedByAttemptId?: string | undefined;
     consumedAtUtc?: Date | undefined;
+}
+
+export class GetLocalCommitStatusResponse implements IGetLocalCommitStatusResponse {
+    eligible?: boolean;
+    refusalCode?: string | undefined;
+    checkpointId?: string | undefined;
+    checkpointNumber?: number | undefined;
+    codeReviewAttemptId?: string | undefined;
+    humanCheckpointReviewId?: string | undefined;
+    operation?: LocalCommitOperationResponse | undefined;
+    latestEventSequence?: number;
+
+    constructor(data?: IGetLocalCommitStatusResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.eligible = _data["eligible"];
+            this.refusalCode = _data["refusalCode"];
+            this.checkpointId = _data["checkpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.codeReviewAttemptId = _data["codeReviewAttemptId"];
+            this.humanCheckpointReviewId = _data["humanCheckpointReviewId"];
+            this.operation = _data["operation"] ? LocalCommitOperationResponse.fromJS(_data["operation"]) : undefined as any;
+            this.latestEventSequence = _data["latestEventSequence"];
+        }
+    }
+
+    static fromJS(data: any): GetLocalCommitStatusResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalCommitStatusResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["eligible"] = this.eligible;
+        data["refusalCode"] = this.refusalCode;
+        data["checkpointId"] = this.checkpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["codeReviewAttemptId"] = this.codeReviewAttemptId;
+        data["humanCheckpointReviewId"] = this.humanCheckpointReviewId;
+        data["operation"] = this.operation ? this.operation.toJSON() : undefined as any;
+        data["latestEventSequence"] = this.latestEventSequence;
+        return data;
+    }
+}
+
+export interface IGetLocalCommitStatusResponse {
+    eligible?: boolean;
+    refusalCode?: string | undefined;
+    checkpointId?: string | undefined;
+    checkpointNumber?: number | undefined;
+    codeReviewAttemptId?: string | undefined;
+    humanCheckpointReviewId?: string | undefined;
+    operation?: LocalCommitOperationResponse | undefined;
+    latestEventSequence?: number;
 }
 
 export class ImplementationAttemptStatusResponse implements IImplementationAttemptStatusResponse {

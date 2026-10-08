@@ -59,6 +59,7 @@ import { VerificationDiagnosisAction } from './VerificationDiagnosisAction'
 import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
+import { LocalCommitPanel } from './LocalCommitPanel'
 import { OneAgentClaimSlotRemainingWarning } from './OneAgentClaimSlotRemainingWarning'
 import { ProviderTokenUsageSummaries } from './ProviderTokenUsageSummaries'
 import { RunExecutionModeNotice } from './RunExecutionModeNotice'
@@ -470,6 +471,15 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
             <p className="dc-run-agent-actions-note">
               {executionMode.agentActionsNote}
             </p>
+          )}
+          {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
+            <LocalCommitPanel
+              key={runId}
+              runId={runId}
+              latestSequence={cockpit.latestSequence}
+              evidenceRefreshGeneration={evidenceRefreshGeneration}
+              onSaved={refresh}
+            />
           )}
           <AgentCollaboration runId={runId} {...collaborationTimeline} />
         </div>

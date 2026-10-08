@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
@@ -67,7 +68,10 @@ public sealed class CaptureGitWorkspaceCheckpointCommandHandler(
 
         dbContext.GitCheckpoints.Add(checkpoint);
         dbContext.GitChangedFiles.AddRange(changedFiles);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (await CommitReservation.TrySaveAsync(dbContext, command.ProjectId, cancellationToken) is { } conflict)
+        {
+            return Result<CaptureGitWorkspaceCheckpointCommandResult>.Failure(conflict);
+        }
 
         return Result<CaptureGitWorkspaceCheckpointCommandResult>.Success(new(
             checkpoint.Id,

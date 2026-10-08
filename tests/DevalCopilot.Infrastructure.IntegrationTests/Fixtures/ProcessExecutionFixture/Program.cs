@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 
 // A deterministic executable test double for DevalCopilot.Infrastructure.IntegrationTests: it
@@ -133,11 +134,21 @@ static async Task<int> RunAppServerScriptAsync(string scriptPath)
 
     if (script.ChildPidFilePath is not null)
     {
+        if (script.ChildHoldsOutputOnly)
+        {
+            // Windows lets every inheritable handle of this process reach the descendant, so this process's own standard error
+            // handle is made non-inheritable first; only standard output then stays open in the descendant.
+            NativeHandles.DisableInheritance(NativeHandles.StandardErrorHandle);
+        }
+
         var childStart = new ProcessStartInfo
         {
             FileName = Environment.ProcessPath!,
             UseShellExecute = false,
             CreateNoWindow = true,
+            // A descendant that keeps only this process's standard output open (its own standard error is a private pipe) lets a test
+            // prove that a stdout stream which never reaches EOF is not treated as confirmed.
+            RedirectStandardError = script.ChildHoldsOutputOnly,
         };
         childStart.ArgumentList.Add("sleep-ms");
         childStart.ArgumentList.Add("30000");
@@ -186,12 +197,25 @@ static async Task<int> RunAppServerScriptAsync(string scriptPath)
             buffer.Write(System.Text.Encoding.UTF8.GetBytes(step.WriteRaw));
         }
 
+        if (step.WriteBase64 is not null)
+        {
+            buffer.Write(Convert.FromBase64String(step.WriteBase64));
+        }
+
         if (buffer.Length > 0)
         {
             await output.WriteAsync(buffer.ToArray());
         }
 
         await output.FlushAsync();
+
+        if (step.WriteStderr is not null)
+        {
+            var errorBytes = System.Text.Encoding.UTF8.GetBytes(step.WriteStderr);
+            await using var error = Console.OpenStandardError();
+            await error.WriteAsync(errorBytes);
+            await error.FlushAsync();
+        }
     }
 
     if (script.ThenHang)
@@ -199,7 +223,15 @@ static async Task<int> RunAppServerScriptAsync(string scriptPath)
         await Task.Delay(Timeout.Infinite);
     }
 
-    return 0;
+    if (script.ThenWaitForEof)
+    {
+        // Mirrors a child such as `git update-ref --stdin`, which only exits once the parent closes the actual pipe.
+        while (await reader.ReadLineAsync() is not null)
+        {
+        }
+    }
+
+    return script.ExitCode;
 }
 
 static int SpawnTree(int sleepMilliseconds)
@@ -224,6 +256,31 @@ static int SpawnTree(int sleepMilliseconds)
     return 0;
 }
 
+internal static class NativeHandles
+{
+    internal const int StandardErrorHandle = -12;
+
+    private const uint HandleFlagInherit = 1;
+
+    internal static void DisableInheritance(int standardHandle)
+    {
+        var handle = GetStdHandle(standardHandle);
+        if (handle == IntPtr.Zero || handle == new IntPtr(-1) || !SetHandleInformation(handle, HandleFlagInherit, 0))
+        {
+            throw new InvalidOperationException("The standard handle could not be made non-inheritable.");
+        }
+    }
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GetStdHandle(int standardHandle);
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
+}
+
 /// <summary>One scripted App Server interaction, deserialized from a per-test JSON fixture file.
 /// <see cref="AppServerStep.ReadLines"/> lines are consumed from stdin (never validated — the
 /// calling test already controls exactly what the adapter under test writes) before
@@ -232,6 +289,11 @@ static int SpawnTree(int sleepMilliseconds)
 /// a deliberately unterminated or oversized "line") are written back.</summary>
 internal sealed record AppServerScript(
     List<AppServerStep> Steps, bool ThenHang = false, string? PidFilePath = null,
-    string? ChildPidFilePath = null, string? RequestLogPath = null);
+    string? ChildPidFilePath = null, string? RequestLogPath = null, bool ThenWaitForEof = false, int ExitCode = 0,
+    bool ChildHoldsOutputOnly = false);
 
-internal sealed record AppServerStep(int ReadLines, List<string>? WriteLines = null, string? WriteRaw = null, int SleepMs = 0);
+/// <summary><see cref="WriteBase64"/> adds exact bytes (for invalid UTF-8 or control bytes a JSON string cannot carry) and
+/// <see cref="WriteStderr"/> writes to the standard error stream after that step's standard output.</summary>
+internal sealed record AppServerStep(
+    int ReadLines, List<string>? WriteLines = null, string? WriteRaw = null, int SleepMs = 0,
+    string? WriteBase64 = null, string? WriteStderr = null);

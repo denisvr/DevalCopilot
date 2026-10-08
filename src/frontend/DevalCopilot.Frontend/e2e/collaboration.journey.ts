@@ -501,12 +501,67 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(refs.filter((line) => line.includes('refs/heads/devalcopilot/workspace/'))).toHaveLength(1)
   expect(refs.every((line) => line.endsWith(` ${repository.baselineCommit}`))).toBe(true)
 
+  // 14. The explicitly approved checkpoint is delivered only through the rendered local-commit control. The host creates the
+  // unsigned, hook-free commit on its owned branch; the source repository stays untouched and no remote is added or pushed.
+  const localCommit = page.getByRole('region', { name: 'Local commit' })
+  await expect(localCommit.getByRole('button', { name: 'Commit locally' })).toBeVisible({ timeout: 30_000 })
+  await localCommit.getByLabel('Commit message').fill('Deliver the verified local change')
+  await expect(localCommit.getByRole('button', { name: 'Commit locally' })).toBeEnabled()
+  const localCommitResponse = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && /\/api\/runs\/[^/]+\/local-commit$/.test(new URL(response.url()).pathname),
+  )
+  await localCommit.getByRole('button', { name: 'Commit locally' }).click()
+  expect((await localCommitResponse).status()).toBe(200)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 60_000 })
+  await expect(page.getByText('Completed · Completed')).toBeVisible()
+
+  const deliveredCommit = git('rev-parse', 'HEAD')
+  expect(deliveredCommit).not.toBe(repository.baselineCommit)
+  expect(git('rev-list', '--count', 'HEAD')).toBe('2')
+  expect(git('log', '-1', '--format=%B')).toContain('DevalCopilot-Operation:')
+  expect(git('remote')).toBe('')
+  expect(readFileSync(join(worktree, 'src', 'Feature.cs'), 'utf8')).toContain('return left + right;')
+
+  const sourceAfterCommit = repositorySnapshot(repository.path)
+  expect(sourceAfterCommit.head).toBe(sourceBefore.head)
+  expect(sourceAfterCommit.status).toBe(sourceBefore.status)
+  expect(sourceAfterCommit.candidate).toBe(sourceBefore.candidate)
+  const deliveredRefs = sourceAfterCommit.branches.split('\n').filter((line) => line.length > 0)
+  expect(deliveredRefs.filter((line) => !line.includes('refs/heads/devalcopilot/workspace/'))).toEqual(
+    sourceBefore.branches.split('\n').filter((line) => line.length > 0),
+  )
+  expect(deliveredRefs.filter((line) => line.includes('refs/heads/devalcopilot/workspace/'))).toEqual([
+    expect.stringMatching(new RegExp(` ${deliveredCommit}$`)),
+  ])
+
+  // The operation and terminal run remain visible after a real reload; the browser never resubmits it.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await expect(page.getByText('Completed · Completed')).toBeVisible()
+  expect(git('rev-parse', 'HEAD')).toBe(deliveredCommit)
+
   // The launch secret never reached the page URL, browser storage, or any file under the owned root.
   expect(page.url()).not.toContain(journeySecret())
   expect(await page.evaluate(() => JSON.stringify(window.localStorage) + JSON.stringify(window.sessionStorage))).not.toContain(journeySecret())
   const secret = Buffer.from(journeySecret())
   const walk = (directory: string): string[] =>
     readdirSync(directory, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(join(directory, entry.name)) : [join(directory, entry.name)]))
-  const leaking = walk(journeyRoot().root).filter((file) => !file.includes(`${join('workspaces')}`) && readFileSync(file).includes(secret))
+  const leaking = walk(journeyRoot().root).filter((file) => {
+    if (file.includes(`${join('workspaces')}`)) {
+      return false
+    }
+
+    try {
+      return readFileSync(file).includes(secret)
+    } catch (error: unknown) {
+      // Git's exclusively created index lock can disappear between directory enumeration and this read. It is a transient artifact,
+      // never a stable place to retain the session secret; any other read failure remains a test failure.
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return false
+      }
+
+      throw error
+    }
+  })
   expect(leaking).toEqual([])
 })

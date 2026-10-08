@@ -55,6 +55,10 @@ public interface IDevalCopilotDbContext
 
     DbSet<PlanningImplementationAuthorization> PlanningImplementationAuthorizations { get; }
 
+    DbSet<LocalCommitOperation> LocalCommitOperations { get; }
+
+    DbSet<LocalCommitAuthorityMember> LocalCommitAuthorityMembers { get; }
+
     /// <summary>
     /// Change-tracker access for the one claim-time guard that must mark an already-tracked Run's
     /// concurrency-token column as modified (see <c>CurrentClaudeModelPreference</c>).

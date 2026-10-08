@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies;
 using Microsoft.EntityFrameworkCore;
 
 namespace DevalCopilot.Application.Features.Projects.Commands.UpdateVerificationCommand;
@@ -18,6 +19,11 @@ public sealed class UpdateVerificationCommandCommandHandler(IDevalCopilotDbConte
             return Result.Failure(Error.NotFound("verification_commands.not_found", "This verification command does not exist."));
         }
 
+        if (await CommitReservation.IsProjectReservedAsync(dbContext, command.ProjectId, cancellationToken))
+        {
+            return Result.Failure(CommitReservation.WorkspaceCommitting());
+        }
+
         verificationCommand.Update(
             command.Name,
             command.ExecutablePath,
@@ -26,6 +32,8 @@ public sealed class UpdateVerificationCommandCommandHandler(IDevalCopilotDbConte
             command.IsEnabled,
             timeProvider.GetUtcNow());
 
-        return Result.Success();
+        return await CommitReservation.TrySaveAsync(dbContext, command.ProjectId, cancellationToken) is { } conflict
+            ? Result.Failure(conflict)
+            : Result.Success();
     }
 }

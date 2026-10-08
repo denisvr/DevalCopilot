@@ -1056,6 +1056,24 @@ selected execution afresh inside one short write-locked transaction (see the
 [workflow model](../architecture/workflow-model.md#current-verification-configuration-and-execution-boundary)); a change committed
 after the panel's read, or while the host observed Git, is refused rather than recorded against a newer checkpoint or workspace.
 
+### Explicit local commit
+
+For a selected `ManualAgent` run, the cockpit can show a **Local commit** panel after a settled, successful read proves the current
+checkpoint, current Passed verification membership, the latest applicable CodeReviewer approval and coherent Human Approved review
+evidence. The panel is advisory: the protected request reads every authority fact again, and a pending or failed status read never
+authorizes submission. It accepts only a bounded human commit message; the host derives all paths, branch, parent and Git arguments.
+
+The panel explains that execution is local only, unsigned and hook-free, that admission is irreversible for that run, and that a
+conversion of approved bytes is refused instead of normalized. Its draft, operation UUID, pending state, errors and callbacks belong
+to the exact run/checkpoint/review identity and draft version. A replacement, A-to-B-to-A return, unmount or obsolete callback cannot
+submit or update another interaction. A repeated request is never sent automatically. If the HTTP outcome is unknown, the panel reads
+the recorded status only; it never retries a Git mutation.
+
+The recorded operation shows its lifecycle (`Prepared`, `Executing`, `Completed`, `Failed`, `Interrupted` or `Needs attention`) and
+safe facts: checkpoint, branch, parent/tree and, after completion, the local commit SHA. `Completed` means the owned local branch
+advanced and the operation was recorded; it never means a push, a clean unrelated workspace or provider reliability. A reload shows
+the same durable outcome. Ambiguous evidence remains `Needs attention` and is never represented as a retry, success or failure.
+
 ### Run-isolated asynchronous controls
 
 Every asynchronous control that changes a run's Agent work or settings — the six ordinary requests (Planner,
