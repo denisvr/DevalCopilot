@@ -46,6 +46,14 @@ switch (args[0])
         Thread.Sleep(int.Parse(args[1]));
         return 0;
 
+    case "sleep-after-marker":
+        // Writes its marker (a path relative to the working directory) before sleeping, so a test can request cancellation only
+        // once this real child process has demonstrably started instead of racing a wall-clock timer against the caller's own
+        // preparation work.
+        File.WriteAllText(args[1], Environment.ProcessId.ToString());
+        Thread.Sleep(int.Parse(args[2]));
+        return 0;
+
     case "write-bytes":
         WriteBytes(Console.OpenStandardOutput(), int.Parse(args[1]));
         WriteBytes(Console.OpenStandardError(), int.Parse(args[2]));

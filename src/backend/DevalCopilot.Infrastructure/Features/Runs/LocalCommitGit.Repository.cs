@@ -93,7 +93,7 @@ public sealed partial class LocalCommitGit
         if (tip.Ok && LocalCommitOperation.IsObjectId(tip.Value) && indexSha is not null)
         {
             var observation = await ObserveControlledAsync(
-                gitPath, workspacePath, commonDirectory, tip.Value!, indexPath, facts.OperationId, cancellationToken);
+                gitPath, workspacePath, commonDirectory, tip.Value!, indexPath, null, cancellationToken);
             sourceConsistent = observation.Proven && observation.Clean;
         }
 
@@ -131,7 +131,10 @@ public sealed partial class LocalCommitGit
             }
         }
 
-        TryDeleteDirectory(storage.OperationDirectory(facts.OperationId));
+        // Only the artifact this operation recorded is removed: its file and then its own directory when empty. A legacy
+        // operation-named directory and a current-layout leaf are both addressed through the recorded path, and a sibling
+        // preparation of the same operation (admitted or not) is never reached through an operation-level ancestor.
+        storage.TryRemoveRecordedArtifact(facts.PreparedIndexRelativePath);
         return true;
     }
 

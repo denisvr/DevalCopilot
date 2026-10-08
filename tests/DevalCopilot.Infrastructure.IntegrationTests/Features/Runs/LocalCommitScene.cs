@@ -82,6 +82,17 @@ internal sealed class LocalCommitScene : IDisposable
 
     public LocalCommitStorage Storage { get; }
 
+    /// <summary>The directory that holds the artifact an operation recorded (its own leaf, or a legacy operation-named directory).</summary>
+    public string ArtifactLeaf(string relativePath) => Path.GetDirectoryName(Storage.ResolveArtifact(relativePath)!)!;
+
+    /// <summary>Every first-level directory under the host-owned work and operations folders: the scratch and artifact leaves.</summary>
+    public string[] StorageLeaves() =>
+        new[] { "work", "operations" }
+            .Select(folder => Path.Combine(Storage.Root, folder))
+            .Where(Directory.Exists)
+            .SelectMany(Directory.GetDirectories)
+            .ToArray();
+
     public GitWorktreeAdapter Worktrees { get; }
 
     public WorkspaceOwnershipMarkerStore Markers { get; }
@@ -124,7 +135,8 @@ internal sealed class LocalCommitScene : IDisposable
     }
 
     public async Task<(LocalCommitPreparationResult Result, LocalCommitPreparationRequest Request)> PrepareAsync(
-        Guid? operationId = null, string? fingerprintOverride = null, IReadOnlyList<LocalCommitChangedPath>? changesOverride = null)
+        Guid? operationId = null, string? fingerprintOverride = null, IReadOnlyList<LocalCommitChangedPath>? changesOverride = null,
+        LocalCommitGit? git = null, CancellationToken cancellationToken = default)
     {
         var (fingerprint, changes) = fingerprintOverride is not null && changesOverride is not null
             ? (fingerprintOverride, changesOverride)
@@ -140,7 +152,7 @@ internal sealed class LocalCommitScene : IDisposable
             Message,
             Ownership,
             DateTimeOffset.FromUnixTimeSeconds(1_800_000_000));
-        return (await Git.PrepareAsync(request, CancellationToken.None), request);
+        return (await (git ?? Git).PrepareAsync(request, cancellationToken), request);
     }
 
     public LocalCommitFacts FactsFor(LocalCommitPreparationRequest request, LocalCommitPreparedFacts prepared) => new(

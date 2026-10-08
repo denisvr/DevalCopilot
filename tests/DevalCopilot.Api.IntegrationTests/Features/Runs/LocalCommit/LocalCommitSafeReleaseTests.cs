@@ -130,7 +130,7 @@ public sealed class LocalCommitSafeReleaseTests : LocalCommitTestBase
         Assert.Equal(
             ["local_commit.admitted", "local_commit.executing", "local_commit.failed"],
             (await EventTypeRowsAsync(ids.RunId)).Where(type => type.StartsWith("local_commit.", StringComparison.Ordinal)));
-        Assert.False(Directory.Exists(Scene.Storage.OperationDirectory(operation.Id)));
+        Assert.False(Directory.Exists(Scene.ArtifactLeaf(operation.PreparedIndexRelativePath)));
 
         // A failed operation never authorizes another commit for that run.
         var again = await PostAsync(host, ids.RunId, ids);
@@ -226,7 +226,7 @@ public sealed class LocalCommitSafeReleaseTests : LocalCommitTestBase
         Assert.Equal(Scene.BaselineCommit, BranchTip());
         Assert.False(File.Exists(Scene.IndexPath + ".lock"), "the host's own index lock was released by handle");
         Assert.Equal(mainBefore, Scene.MainRepositoryFingerprint());
-        Assert.True(Directory.Exists(Scene.Storage.OperationDirectory(operation.Id)), "evidence is kept while unresolved");
+        Assert.True(Directory.Exists(Scene.ArtifactLeaf(operation.PreparedIndexRelativePath)), "evidence is kept while unresolved");
     }
 
     public enum Refusal
@@ -279,7 +279,7 @@ public sealed class LocalCommitSafeReleaseTests : LocalCommitTestBase
             Assert.Equal(WorkspaceStatus.NeedsAttention, (await WorkspaceRowAsync(ids.WorkspaceId)).Status);
             Assert.Equal(RunLifecycle.Running, (await RunRowAsync(ids.RunId)).Lifecycle);
             Assert.Equal(["local_commit.admitted", "local_commit.needs_attention"], events);
-            Assert.True(Directory.Exists(Scene.Storage.OperationDirectory(operation.Id)), "evidence is kept while unresolved");
+            Assert.True(Directory.Exists(Scene.ArtifactLeaf(operation.PreparedIndexRelativePath)), "evidence is kept while unresolved");
         }
         else
         {
@@ -287,7 +287,7 @@ public sealed class LocalCommitSafeReleaseTests : LocalCommitTestBase
             Assert.Equal("local_commit.authority_changed", operation.OutcomeReasonCode);
             Assert.Equal(WorkspaceStatus.Ready, (await WorkspaceRowAsync(ids.WorkspaceId)).Status);
             Assert.Equal(["local_commit.admitted", "local_commit.failed"], events);
-            Assert.False(Directory.Exists(Scene.Storage.OperationDirectory(operation.Id)));
+            Assert.False(Directory.Exists(Scene.ArtifactLeaf(operation.PreparedIndexRelativePath)));
             Assert.Equal(Scene.BaselineCommit, BranchTip());
         }
 

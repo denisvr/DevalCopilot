@@ -180,6 +180,17 @@ bytes, process id or age:
   unrecognized index, an unobservable repository) is `NeedsAttention`: the run stays nonterminal, the workspace stays reserved and
   no Git mutation is retried or resent.
 
+Preparation runs before admission, so several preparations of one operation (identical or competing requests, which legitimately arrive
+together) can be in flight at once. Each preparation invocation therefore owns a fresh scratch leaf (`work/<preparation>`) and a fresh
+prepared-artifact leaf (`operations/<preparation>/prepared.index`), both named by a preparation identifier that is independent of the
+operation identifier; the artifact is created exclusively and the admitted operation records its exact relative path in the existing
+`PreparedIndexRelativePath` fact. A preparation, an observation and a terminal cleanup remove only the leaf they created or the one
+artifact the operation recorded (its file, then its own directory only when empty), validated inside the owned storage root; no cleanup
+addresses an operation-level ancestor, so it can never delete another preparation's files. Paths recorded by earlier operations
+(`operations/<operation>/prepared.index`) resolve, execute, recover and clean exactly as before. A preparation that is not admitted
+(the loser of a race, a refusal after success, an abandoned request) may leave its prepared artifact behind: it is referenced by no
+row, carries no authority and is never read, and there is deliberately no janitor or deletion authority for it.
+
 While an operation is open, the exclusion of competing writers covers the whole admitted reservation: the workspace is `Committing`,
 or `NeedsAttention` while an operation of that exact workspace and project is not yet `Completed`, `Failed` or `Interrupted`.
 Recipe changes, checkpoint capture, review recording, verification claims and Agent claims are refused for it by an early check

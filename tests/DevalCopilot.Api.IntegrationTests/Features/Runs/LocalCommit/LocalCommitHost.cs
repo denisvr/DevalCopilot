@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 
@@ -34,6 +35,11 @@ internal sealed class LocalCommitHost(
     : WebApplicationFactory<Program>
 {
     public const string Secret = ApiWebApplicationFactory.ValidSecret;
+
+    /// <summary>The server errors this host logged, bounded and sanitized, for failure messages of unexpected statuses.</summary>
+    public CapturedServerErrors ServerErrors { get; } = new(
+        [Secret],
+        [(scene.Root, "<scene>"), (databasePath, "<db>"), (Path.GetTempPath(), "<tmp>\\")]);
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -59,6 +65,7 @@ internal sealed class LocalCommitHost(
                 services.Remove(hostedService);
             }
 
+            services.AddSingleton<ILoggerProvider>(ServerErrors);
             services.RemoveAll<IToolDiscoveryAdapter>();
             services.AddSingleton<IToolDiscoveryAdapter>(new ApiWebApplicationFactory.ThrowOnUseToolDiscoveryAdapter());
             services.RemoveAll<IArtifactStore>();

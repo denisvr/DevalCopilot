@@ -91,6 +91,17 @@ internal sealed class LocalCommitScene : IDisposable
 
     public LocalCommitStorage Storage { get; }
 
+    /// <summary>The directory that holds the artifact an operation recorded (its own leaf, or a legacy operation-named directory).</summary>
+    public string ArtifactLeaf(string relativePath) => Path.GetDirectoryName(Storage.ResolveArtifact(relativePath)!)!;
+
+    /// <summary>Every first-level directory under the host-owned work and operations folders: the scratch and artifact leaves.</summary>
+    public string[] StorageLeaves() =>
+        new[] { "work", "operations" }
+            .Select(folder => Path.Combine(Storage.Root, folder))
+            .Where(Directory.Exists)
+            .SelectMany(Directory.GetDirectories)
+            .ToArray();
+
     public GitWorktreeAdapter Worktrees { get; }
 
     public WorkspaceOwnershipMarkerStore Markers { get; }

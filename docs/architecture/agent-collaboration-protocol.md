@@ -3064,6 +3064,30 @@ ADR-0024 backs that route, with the Agent-only concerns left out.
   included: the raw patch, alias enumeration, a minimal-diff optimizer, paging and any change to fingerprints, checkpoints, Agent
   manifests or replay.
 
+### Complete-set Human approval for local delivery
+
+The explicit local commit ([ADR-0029](../decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md))
+needs a Human approval whose verification membership equals the CodeReviewer approval's and the complete set of enabled recipes.
+[ADR-0030](../decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md) lets the existing manual review operation
+carry that membership. It is an authenticated Human decision about the checkpoint and its verification evidence only: it is not
+provider output, never synthesizes an Agent approval, claims no attempt or budget and starts no stage.
+
+- **Request.** The optional `verificationExecutionIds` array (at most 32 unique nonempty UUIDs; an 8 KiB request body) is the Human
+  execution-set form. The scalar `verificationExecutionId` is the unchanged legacy form; two non-null forms are refused as ambiguous,
+  never merged, deduplicated or truncated, a non-Human reviewer cannot use the set form, a decided review needs at least one member and
+  `Pending` carries none.
+- **Complete approval.** `Approved` requires exactly the latest, coherent clean `Passed` execution of every currently enabled recipe
+  for the current checkpoint and fingerprint, with a matching current command snapshot; any subset, extra, disabled, repeated or stale
+  member is refused (`reviews.approval_requires_complete_verification_set`). The members are saved with
+  the review in one transaction after fresh untracked re-reads under the write lock; no Git or provider work happens inside it. They have
+  no stored sequence: the host derives the canonical `CommandNumber` order (then execution number) when it presents them.
+- **Bundle.** `GET .../checkpoints/{checkpointId}/approval-evidence` returns the source identities and fingerprint and, per enabled
+  recipe in command order, its command and execution identities, recipe label and execution number, or a fixed refusal; it is
+  derived from the recipes and their latest executions, not from the bounded execution history, and it authorizes nothing.
+- **Unchanged.** Historical rows and sealed manifests, FutureAgent provenance, the mixed-Human-decision gate, the local commit's
+  reservation, digest, seam and recovery rules and every other authority decision. A Pending, Changes-requested or Escalated Human
+  decision still blocks local delivery.
+
 ### Project instruction context in Agent manifests
 
 Every manifest used to carry the same three fixed DevalCopilot documentation names as "instruction references" whatever the

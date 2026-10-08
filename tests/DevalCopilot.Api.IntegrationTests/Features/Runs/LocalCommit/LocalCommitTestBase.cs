@@ -18,6 +18,7 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 public abstract partial class LocalCommitTestBase : IDisposable
 {
     private readonly List<LocalCommitHost> _hosts = [];
+    private readonly List<ScriptedLocalCommitRepository> _scripts = [];
 
     internal LocalCommitScene Scene { get; } = new();
 
@@ -154,6 +155,23 @@ public abstract partial class LocalCommitTestBase : IDisposable
         foreach (var host in _hosts)
         {
             host.Dispose();
+        }
+
+        // Failure-safe: a failed assertion must not leave a capability this fixture deliberately retained (a simulated host loss
+        // keeps the live lock and artifact handles) open under the scene, or its teardown fails a second time and hides the first
+        // failure. The hosts are stopped first; then each retained capability is released through the repository's own release API,
+        // which deletes a lock only through the handle that created it. A capability already released, never held, or replaced by a
+        // foreign lock is refused by that API (false) and nothing is touched; no lock is ever adopted or deleted by its pathname.
+        foreach (var script in _scripts)
+        {
+            try
+            {
+                script.ReleaseRetainedAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception exception) when (exception is IOException or ObjectDisposedException or UnauthorizedAccessException)
+            {
+                // Best effort; the original test failure stays the visible one.
+            }
         }
 
         SqliteConnection.ClearPool(new SqliteConnection($"Data Source={DatabasePath}"));

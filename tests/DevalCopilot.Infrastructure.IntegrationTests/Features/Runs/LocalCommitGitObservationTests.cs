@@ -94,7 +94,7 @@ public sealed class LocalCommitGitObservationTests : IDisposable
 
         Assert.NotEqual(LocalCommitPreparationOutcome.Prepared, result.Outcome);
         Assert.Equal(_scene.BaselineCommit, _scene.RunWorkspaceGit("rev-parse", "refs/heads/" + _scene.BranchName).Trim());
-        Assert.False(Directory.Exists(_scene.Storage.OperationDirectory(request.OperationId)));
+        Assert.Empty(_scene.StorageLeaves());
     }
 
     [Fact]

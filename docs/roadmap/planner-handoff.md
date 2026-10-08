@@ -5,7 +5,524 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current decision (2026-10-08): local-commit publication GO
+## Current decision (2026-10-08): complete human verification-set approval for local delivery
+
+Exactly one new slice is selected: make the existing explicit local-delivery
+journey usable with several enabled verification recipes, from settled human
+approval evidence through one atomic human review, the existing local commit,
+and persisted results after reload. Claude is executor; Codex retains planning,
+architecture and acceptance. This is implementation authorization only: no
+staging, commit, push, remote publication, autonomy or next-slice GO.
+
+### Independently verified baseline and previous delivery
+
+Branch main; HEAD, local origin/main and live refs/heads/main are
+426463717c0e724780b511763681630c1a5b63a7. The checkout was clean, with nothing
+staged, unstaged or untracked, before this planner edit. The substantive commit
+5319975b1b80988aeb1c2cba8c570fe2197ef2a8 has the expected parent
+a9e0e2b0b3b05bd54d8d45aec6258c035a02e930.
+The closure has that substantive parent and changes only current-work.md
+(4 insertions). The published 149 paths equal the approved manifest; all
+148 working-file hashes outside current-work.md still equal its entries.
+The planner verified Git, the manifest comparison and the closure diff; the
+post-publication suite counts remain executor-reported evidence, not newly
+rerun tests. ADR-0029 and the generated client retain their reviewed hashes.
+Expected executor start after this selection: the same branch/HEAD, an empty
+index, only docs/roadmap/planner-handoff.md modified, and no untracked files.
+
+### Why this candidate
+
+The Domain CheckpointReview and its relational evidence already support several
+unique command/execution members. Code-review claims order all enabled recipes
+by CommandNumber, and completion records all their members. LocalCommitAuthorityReader
+already requires the complete current verification set and exact matching human
+membership. However, RecordCheckpointReviewRequest, its command/handler and the
+panel submit only one VerificationExecutionId. That transport/UI gap blocks the
+ordinary tests-plus-lint case with membership_mismatch; disabling a recipe or
+combining separate human reviews would weaken or change the accepted gate.
+
+This closes a concrete limitation of the authorized manual local-delivery path.
+A remote push/draft-PR slice needs separate publication authority and ambiguous
+remote-effect reconciliation; automatic coordination needs its own dispatch,
+lease and recovery contract. Unproven Claude account enforcement, provider
+resume and compaction still lack safe contracts. More context sampling would
+not close any of these gaps. None is selected here. This choice grants no new
+Git mutation capability and declares no increment or MVP complete.
+
+### Selected architecture and contract
+
+1. Extend the existing protected POST /api/projects/{projectId}/reviews with
+   an optional verificationExecutionIds array, bounded to 32 nonempty unique
+   UUIDs and an 8 KiB request body. Preserve the existing scalar field and its
+   behavior for callers and historical facts. Two non-null evidence forms are
+   ambiguous and refused, never merged or deduplicated silently. A decided
+   array must contain 1..32 IDs; Pending has no evidence members. Null/omitted
+   array uses the legacy form; an empty array may represent only Pending.
+2. The new array form is for Human reviews. Approved in that form means exactly
+   the full currently enabled recipe set: one latest Passed execution for each,
+   same project/workspace/current checkpoint and fingerprint, coherent clean
+   completion and matching current command snapshot. No subset or overlap,
+   fallback to an older Passed execution, missing recipe, repeated command,
+   or silent truncation qualifies. Order is derived by the host's CommandNumber,
+   never by caller array order, timestamps or UUID chronology. ChangesRequested
+   and Escalated may cite a bounded set of coherent terminal executions under
+   the existing rules. Legacy scalar approvals stay checkpoint-bound facts;
+   they gain no additional delivery authority. Existing FutureAgent/provider
+   provenance rules and provider-written review completion remain intact.
+3. Keep one normal review plus relational CheckpointReviewEvidence rows, saved
+   atomically through the existing manual transaction. Observe source outside
+   the transaction; after acquiring the write lock, re-read every source,
+   selected execution and, for complete approval, enabled recipe and latest
+   execution fresh and untracked. A changed selection is refused, never
+   silently retargeted. Existing Ready/lease/current-source checks and all
+   local-commit reservation write guards remain mandatory. No new persistence
+   representation, chronology, migration or generic approval framework is needed.
+4. Add one protected read-only MVC operation, GET
+   /api/projects/{projectId}/checkpoints/{checkpointId}/approval-evidence,
+   dispatched as GetCheckpointApprovalEvidenceQuery. It returns a bounded,
+   complete eligible Passed bundle with source identities/fingerprint and
+   ordered command/execution identities, recipe labels and execution numbers,
+   or a fixed safe refusal. Require current owned Ready source and coherent
+   current verification, including command snapshots and completion fingerprint.
+   It must not use the history GET's latest-20 window as the recipe universe.
+   More than 32 enabled recipes refuses explicitly; no success-shaped partial
+   bundle. The query writes nothing, claims nothing, invokes no provider and
+   authorizes nothing; the POST independently decides again. Use existing
+   bounded source observation and perform no Git work inside a transaction.
+5. Add an explicit Human action, "Approve all enabled checks", in the existing
+   checkpoint review surface. Show the exact bundle it will submit. Offer it
+   only for settled successful source/bundle reads belonging to the same
+   project/workspace/checkpoint/fingerprint. Pending or failed refresh and
+   inconsistent responses withhold it; an obsolete callback starts no request.
+   Own pending guards and continuations by the committed source/bundle lifetime,
+   including A-to-B-to-A, unmount, changed members and overlapping refreshes.
+   An accepted POST stays real; a refresh failure must not relabel it a failed
+   approval or cause automatic retry. Preserve the legacy decision controls
+   and make the complete-set action's local-delivery meaning clear.
+6. Use the generated client, regenerated by the normal Api build, for both
+   operations. Extend the existing production-written collaboration journey
+   to enable and run two distinct recipes, obtain the real CodeReviewer's
+   approval of both, approve both through the rendered Human action, request
+   the existing explicit local commit, and confirm memberships/commit/completed
+   run after reload. No raw-SQL approval or fake-Git substitute proves this.
+7. Record ADR-0030 for the additive complete-set Human approval contract and
+   compatibility, following this planner decision. Do not rewrite ADR-0029.
+   Update the narrow workflow/cockpit/protocol descriptions, engineering context
+   and roadmap to distinguish the published local commit from this selection.
+   Include the commit-ready current-work.md entry with actual checks and limits.
+
+### Boundaries, stop gates and acceptance
+
+No remote push/PR/CI, orchestration, scheduling, cancellation/takeover, provider
+controls, new approval supersession, merged human decisions, lock adoption,
+Git adapter/protocol redesign, branch/worktree cleanup or unrelated hardening.
+Keep the full human-decision gate: Pending or a conflicting decision still
+blocks local delivery. Historical rows and sealed manifests are never rewritten.
+
+Stop and report if completion requires loosening exact verification membership,
+using a bounded history page as complete evidence, synthesizing Agent approval,
+relaxing reservation/physical-source/recovery proof, changing accepted Git
+execution, adding a migration or expanding the transaction over external work.
+A protected endpoint/schema/client mismatch is a defect to fix within this
+boundary, never a reason to use raw fetch or disable authentication.
+
+Acceptance must include failing-first proof of the current single-member gap;
+legacy scalar/one-recipe controls; array binding/body/count/duplicate/cross-owner
+refusals with no rows; real file-backed SQLite multi-member atomicity and rollback;
+source/recipe/latest-execution changes at the write seam with populated trackers;
+reservation exclusion; exact full-set local-commit admission, digest/seam refusal
+and restart/reload preservation; history beyond 20 executions; frontend settled
+read and lifetime/accepted-operation cases; and the production browser journey
+through two verified recipes and the real local commit with the main checkout
+unchanged. Detect mutations that admit a subset, omit one member, trust a stale
+recipe/execution or accept obsolete UI ownership. Rebuild every backend mutant,
+restore source hashes, then build clean before final validation.
+
+Run affected checks first, then relevant full .NET suites sequentially after a
+successful solution build; frontend Vitest/typecheck/lint/build, strict e2e tsc,
+harness and one canonical test:e2e:all after the harness succeeds. Check generated
+client reproduction, formatter scope/baseline, audits, links and all tracked plus
+untracked whitespace/NUL/EOF. Preserve failures and distinguish fresh from
+retained evidence; do not rerun unchanged failures just to obtain green.
+Return the complete unstaged, uncommitted, unpushed diff, exact inventory and
+commit-ready ledger to Codex GO/NO-GO. Do not edit this planner-owned record.
+
+The previous publication GO and its review findings below are historical and
+apply only to the now-published 149-path snapshot, not this new slice.
+
+## Review decision (2026-10-08): NO-GO for the complete-set approval return
+
+The selected slice remains active. No staging, commit, push or next-slice GO is
+given. Claude must correct this same diff and return it for review.
+
+Codex independently verified main, HEAD/local origin/main/live refs/heads/main
+at 426463717c0e724780b511763681630c1a5b63a7, an empty index and 47 paths:
+26 modified tracked and 21 untracked. Before this review edit the planner hash
+was 8c3e8c3347a71b28d3fd602119d721c97b19a4adc3a126b3dc9a39a1aa4dd65e.
+ADR-0029 remains cf9a28d43ebc6b07ed1ed7daf01813348c9974b899e1c750461c584bf3f8b294;
+the independently regenerated client remains
+46036f0fe25f99a3fec4ad1984d7d7d2995e6f7aa616a88551a8a3c31f641bac.
+The expected correction start is the same branch/HEAD and inventory, with no
+staged changes and this newly edited planner record preserved.
+
+### R1: own approval by the committed bundle lifetime
+
+useCheckpointApprovalEvidence owns actions only by project/checkpoint/fingerprint.
+A member replacement does not end the pending action; equality of bundle keys
+also reactivates an obsolete callback after a same-source A-to-B-to-A replacement.
+The handler does not itself refuse another approval of its accepted bundle.
+Independent probes reproduced an old failure appearing on replacement members,
+an obsolete A callback submitting after A-to-B-to-A, and two POSTs from a retained
+callback after the first acceptance. End action ownership on committed bundle
+replacement, even when returning to an earlier identity. Own duplicate protection
+and accepted-operation guards by that lifetime. An obsolete completion must not
+write replacement errors, clear its pending guard or refresh it; an already
+accepted server operation remains real. Preserve current unchanged-owner behavior.
+
+### R2: bind the bundle to the full observed source
+
+ApprovalBundleSource and the panel omit the observed workspace and checkpoint
+number. The decoder ignores response.workspaceId and only checks that the
+response checkpoint number is positive. Real-panel probes kept the action enabled
+for a foreign workspace, an absent workspace and checkpoint number 999 against
+source checkpoint 2. Require the full admitted source identity, including workspace
+and checkpoint number, in decoding and committed lifetime ownership. Missing,
+malformed or mismatching facts withhold the action; never repair them or silently
+retarget. Add replacement and valid-control coverage without weakening fixtures.
+
+### R3: resolve the acceptance-evidence gaps without green retries
+
+Two full Api runs returned HTTP 500 from
+LocalCommitEndpointTests.Concurrent_identical_and_competing_requests_admit_exactly_one_operation.
+Later passing runs and unchanged admission code do not explain those responses;
+no response body or server exception was captured. Add bounded sanitized failure
+diagnostics and obtain a defensible cause or comparative evidence before claiming
+this acceptance complete. Do not serialize the suite globally, retry, sleep,
+ignore failures or weaken the concurrency assertion. A production admission/Git
+change outside this slice requires a new planner decision.
+
+The full Infrastructure run also failed the real cancellation test. Its captured
+stack is TaskCanceledException at CodexProcessInvoker.cs:141 while writing the
+schema, before starting the child process. The one-second timer is armed before
+that preparation; isolated passes do not prove it reached a running child in the
+failed run. Establish the test's cancellation phase deterministically, or provide
+bounded evidence that distinguishes a pre-existing preparation issue from the
+claimed running-process evidence. Do not invent process evidence for a child
+that never ran. Preserve both original failures and distinguish diagnosis,
+corrective runs and retained results.
+
+### Documentation and independent evidence
+
+CommandNumber ordering in the review-history projection is a reasonable bounded
+presentation change. ADR-0030 must not claim relational members are persisted in
+that order: there is no persisted sequence. State host-derived canonical
+presentation/order instead, and align the UI contract with R1/R2.
+
+Codex ran a successful solution build (0 warnings/errors, client identical),
+Application selected tests 82/82, Api selected tests 36/36, Infrastructure review
+transaction tests 6/6 and Architecture 40/40, all without skips.
+An isolated ignored reviewer Vitest harness reproduced six new failing cases
+above while its 41 copied existing cases passed. The final valid output is under
+frontend/node_modules/.cache/codex-approval-review-20261008/reviewer-output-r3.txt;
+an earlier harness-cache startup failure is not product evidence. Convert the
+reproductions into normal regression tests, then run affected checks before the
+relevant full validation. Preserve fresh versus retained evidence and all failed
+runs in the commit-ready current-work.md entry. No full Infrastructure pass or
+publication readiness is asserted by this review.
+
+## Correction review (2026-10-08): NO-GO; isolate concurrent preparation artifacts
+
+The slice remains active in the same executor chat. Codex authorizes the bounded
+production correction below within this slice, not staging, commit, push or a
+new slice. This resolves the earlier R3 stop gate; routine owner approval is not
+needed for this implementation decision.
+
+Codex independently verified main, HEAD/local origin/main/live refs/heads/main
+at 426463717c0e724780b511763681630c1a5b63a7, an empty index and 53 paths:
+30 modified tracked and 23 untracked. Before this planner edit the handoff hash
+was 47c84942495982e9dc44a58b9982d05d77b84d6f57e17b9cbd8322bb42fac571.
+ADR-0029 and the generated client retain the exact hashes above.
+Expected correction start is that same branch/HEAD/inventory, with this new
+planner edit preserved.
+
+### Assessment of R1, R2 and R3 diagnosis
+
+The inspected UI now includes workspace and checkpoint number in its source
+identity, and separates source-read ownership from committed member-set action
+ownership. Codex ran the three focused ordinary frontend files: 109/109 passed,
+including the converted ownership, duplicate-acceptance and identity regressions.
+The bounded child-start cancellation test and its two pre-launch characterization
+cases are appropriate test corrections; the Infrastructure class passed 12/12.
+The diagnostic host tests passed 5/5. An independent sequential solution build
+passed with 0 warnings/errors and reproduced the client. The first focused Vitest
+invocation encountered a stale sandbox module-cache ENOENT; an isolated owned
+cache resolved that tooling failure, and it is not product evidence.
+
+Codex inspected the retained concurrency diagnostics and production code.
+PrepareOnWindowsAsync shares work and operation directories by OperationId;
+its finally recursively deletes those shared directories. File.Copy at line 219
+was observed failing for both promotion.index and prepared.index. Preparation
+occurs before database admission, so concurrent identical requests legitimately
+reach that code together. Later passing Api runs do not remove this defect.
+One admitted row proves admission arbitration, not that its prepared artifact
+cannot be deleted or overwritten by another preparation. Publication remains
+NO-GO pending a production correction and discriminating evidence.
+
+### Authorized bounded correction
+
+Give each preparation invocation its own host-owned scratch and prepared-artifact
+leaf, with a fresh preparation identity independent of the caller's OperationId.
+Different preparer instances must not share mutable leaves merely because their
+requests have the same operation ID. Keep the operation ID and request identity
+unchanged. Persist the winning leaf's exact relative artifact path through the
+existing PreparedIndexRelativePath fact; no migration or port-shape change is
+needed. Preserve exclusive creation/no unintended replacement and validate every
+cleanup target inside the owned storage root.
+
+A preparation cleans only scratch/artifacts it owns. Controlled-observation
+scratch must not be removed through a competing preparation's ancestor cleanup.
+Terminal cleanup must address the recorded artifact, without recursively deleting
+siblings belonging to another in-flight preparation. Existing recorded legacy
+artifact paths must remain readable/executable/recoverable and safely cleanable.
+An unadmitted successful preparation may leave inert unreachable artifacts;
+report that limit rather than introduce a general janitor or deletion authority.
+
+This change may touch LocalCommitStorage and the preparer's, observation's and
+repository's artifact allocation/cleanup paths, plus focused tests and docs.
+Keep database admission/idempotent replay, authority gates, commit construction,
+hash checks, prepared ref protocol, HEAD protection, native index effects and
+lock/recovery authority unchanged. No process-local mutex or mapping the
+exception to a conflict is an adequate substitute for isolated artifact ownership.
+No new global serialization, retries, sleeps, overwrite or lock adoption.
+
+### Required evidence and stop gates
+
+Write bounded deterministic failing-first interleavings through real Git, with
+two preparation instances sharing the same storage root. Cover identical
+operation IDs, competing requests and refusal/cancellation cleanup while another
+preparation is active. Assert scratch independence, distinct immutable artifact
+paths, exact hashes and survival of the admitted artifact after the loser finishes
+or fails. Detect restoring shared scratch, shared prepared-artifact paths or
+ancestor cleanup; source restores must be byte-identical and rebuilt.
+
+Retain the real protected endpoint race assertions (OK or Conflict only, exactly
+one durable operation and admission event). Prove execution/restart recovery of
+the admitted operation after the competing preparation completes, and legacy-path
+compatibility and main-checkout preservation. Counts or repeated probabilistic
+green runs alone do not establish ownership.
+
+Run affected checks first, then relevant full backend suites sequentially after
+a clean build, followed by the established frontend/harness/canonical browser
+checks. Keep original failures and label fresh versus retained evidence in the
+commit-ready current-work.md. Stop if this needs new admission semantics, a
+migration, Git/native protocol changes or weaker ownership proof; return the
+specific remaining gap for planner judgment. Return the whole unstaged,
+uncommitted, unpushed diff for GO/NO-GO.
+
+## Publication decision (2026-10-08): GO for complete human verification-set approval
+
+R1-R5 are accepted. GO applies only to the reviewed 75-path working snapshot,
+including this planner decision and the commit-ready current-work.md entry.
+It authorizes the substantive commit, normal fast-forward main publication,
+the checks below and one tightly bounded factual documentation closure.
+It does not select another slice or declare any increment or MVP complete.
+
+Codex verified main, HEAD/local origin/main/live refs/heads/main at
+426463717c0e724780b511763681630c1a5b63a7, empty index and 75 paths:
+46 modified tracked and 29 untracked. The R5 split reconstructed the exact
+previous ScriptedLocalCommitRepository.cs SHA-256,
+ff29ad0e469ece1dd8a45b1ce8808268fc884726b29a09ae1ec5c48c12d7f4fe.
+No logic changed. Fresh independent solution build: 0 warnings/errors;
+Architecture: 40/40. The earlier independent completed-boundary selection
+passed 42/42. The executor's after-split 42/42 log was inspected rather than
+rerun. Full Api 1341/1341 and the R4 eight-mutant matrix remain inspected,
+retained evidence. All earlier validation retains its stated scope.
+The original failed independent selection and unproven historical native
+outcome remain disclosed. The preparation collision guard's surviving mutant
+is not represented as equivalent or proven by an unexercised collision case.
+
+Before this GO edit, the planner hash was
+9c8e9dec170b28e1669745b02b5d71288b8c9646726ace88e466ad895dd5356d.
+Current-work.md remains
+a29ba8d55c298143d06093df21bbb0d2d1bdeca4cb6ec728db6ba35647bad643.
+ADR-0029 remains
+cf9a28d43ebc6b07ed1ed7daf01813348c9974b899e1c750461c584bf3f8b294.
+The generated client remains
+46036f0fe25f99a3fec4ad1984d7d7d2995e6f7aa616a88551a8a3c31f641bac.
+A separate ignored publication manifest freezes the final raw hashes, sizes
+and Git statuses of all 75 paths after this edit. Verify its announced hash,
+exact inventory and every entry before staging; do not regenerate it.
+
+Stage only those reviewed paths, verify the staged inventory with no renames
+and require git diff --cached --check to pass. Make no snapshot edits.
+Commit the substantive slice, including current-work.md and this record,
+with the verified baseline as its parent. Push main normally to origin/main.
+Fetch and independently query live refs/heads/main; require HEAD, local
+origin/main and live main to equal the substantive commit, with a clean tree.
+Stop on divergence or failure; no amend, force push or history reconciliation.
+
+Post-publication checks use fresh logs and run sequentially after a serial
+solution build (--no-restore, UseSharedCompilation=false, -m:1):
+Application RecordCheckpointReviewCompleteSetTests and
+GetCheckpointApprovalEvidenceQueryHandlerTests;
+Infrastructure LocalCommitGitPreparationIsolationTests and
+LocalCommitStorageOwnershipTests;
+Api Features.Runs.LocalCommit plus CheckpointApprovalEvidenceEndpointTests;
+full Architecture. Tests use --no-build --no-restore.
+Then full Vitest, typecheck, lint, production build, harness, and exactly one
+canonical test:e2e:all after the harness succeeds, with normal authentication,
+host composition and all supervisors. Report actual counts and skips; preserve
+the complete browser output. Verify the client hash, diff and clean checkout.
+Stop and preserve a failure; do not rerun unchanged failures for green.
+The full backend suites, audits, formatter and mutation matrices may remain
+retained evidence with their exact scope.
+
+Only after these checks succeed, edit current-work.md within this slice's
+entry to record the substantive SHA, verified publication, actual fresh checks
+and retained evidence, historical planner hashes and inventories, and unchanged
+limits. Preserve all failure evidence. Do not embed the closure's own SHA.
+Commit that file alone, push normally, then fetch/query the live ref and verify
+all three refs equal the closure with a clean checkout. Any material change
+to the reviewed snapshot requires renewed review before publication.
+
+## Previous correction review (2026-10-08): R4 accepted; bounded organization correction remains
+
+The completed-boundary signalling and failure-safe owned-capability cleanup
+satisfy R4 in the inspected code, deterministic tests and mutation evidence.
+R1/R2, preparation isolation and the cancellation correction remain accepted.
+No production ref, native or recovery defect is claimed fixed or disproven:
+the original independent failure's native result was not captured. Preserve
+that failure and the earlier limits. No next slice is selected.
+
+Codex independently verified main, HEAD/local origin/main/live refs/heads/main
+at 426463717c0e724780b511763681630c1a5b63a7, empty index and 73 paths:
+46 modified tracked and 27 untracked. Before this review edit the planner hash
+was 3c38e4f9c5726559b8b3c51d3e6e74ab2a31e702b42cd22f8602e6f52fa06ecb.
+The current-work.md hash is
+fe9b4b9c37389ee51a3aedd693665135820329718486f35cd5d433377d2c4d2c.
+ADR-0029 and the generated client retain their protected exact hashes.
+
+Fresh independent validation after a serial solution build: 0 warnings/errors;
+ScriptedLocalCommitRepositoryTests plus LocalCommitRestartRecoveryTests 42/42,
+0 skipped, including all six restart boundaries; Architecture 40/40.
+Tracked diff and all 73 working files have no whitespace or NUL findings.
+Codex inspected the executor's full Api log (1341/1341) and eight detected
+R4 mutants, and independently matched the three restored target hashes.
+That full suite and mutation matrix are inspected executor evidence, not
+newly rerun by Codex. Unchanged earlier evidence remains retained with its
+recorded scope.
+
+### R5: one top-level C# type per file
+
+Publication remains NO-GO solely for this mechanical organization correction.
+ENGINEERING.md line 95 explicitly requires "Keep one top-level C# type per file."
+ScriptedLocalCommitRepository.cs introduces LossPoint and LossReport beside
+the decorator. Move each new type, with its existing documentation and unchanged
+namespace, visibility, members and semantics, to LossPoint.cs and LossReport.cs
+in the same LocalCommit test folder. Leave the decorator in its existing file.
+Do not alter any logic or move unrelated pre-existing types.
+
+Expected correction start: the same branch/HEAD, empty index and 73-path
+inventory, preserving this newly edited planner record. A pure split adds two
+untracked files; expected return is 75 paths, 46 modified and 29 untracked.
+Update only the current-work.md inventory and correction/evidence wording.
+Keep its original failure and fresh-versus-retained distinctions.
+
+After the mechanical split, run a serial solution build, the same affected
+42-test selection and Architecture, plus tracked/untracked hygiene. Verify
+the generated client and ADR-0029 remain identical. Retain the full Api,
+frontend/browser and mutation results; no repeated full suite or mutation
+matrix is required for this unchanged logic. A failure or a required behavioral
+change returns for judgment, never for an unchanged green retry. Return the
+complete unstaged, uncommitted, unpushed diff. No staging, commit or push is
+authorized until the resulting snapshot is reviewed.
+
+## Previous correction review (2026-10-08): NO-GO on restart-boundary evidence
+
+The preparation isolation correction is sound in the inspected code and its
+deterministic interleavings. R1/R2 and the earlier cancellation correction remain
+accepted within this review. Publication is still NO-GO because the independent
+Api acceptance selection failed once. Correct this same slice; no next work,
+staging, commit or push is authorized.
+
+Codex verified main, HEAD/local origin/main/live refs/heads/main at
+426463717c0e724780b511763681630c1a5b63a7, empty index and 69 paths:
+43 modified tracked and 26 untracked. The planner hash before this edit was
+41aa6002fbe971e804995e00c25b30f0d9c2c6b150afb66113dc4c06a72314d9.
+ADR-0029 and the generated client still retain their exact protected hashes.
+Expected correction start is the same branch/HEAD/inventory, preserving this
+new planner edit and the factual current-work.md edits below.
+
+### Fresh independent result and precise gap
+
+The solution built with 0 warnings/errors and the client remained identical.
+Application selected tests passed 82/82; Infrastructure isolation/storage/Git
+execution/observation/review transaction/process evidence passed 69/69;
+Architecture passed 40/40; the three focused frontend files passed 109/109.
+Codex inspected the executor's full-suite logs and canonical browser output:
+the reported full counts and Chromium 13 plus journeys 4 are present. Those logs
+do not override the following fresh failure.
+
+Command:
+dotnet test tests/DevalCopilot.Api.IntegrationTests/DevalCopilot.Api.IntegrationTests.csproj --no-build --no-restore --filter "FullyQualifiedName~Features.Runs.LocalCommit|FullyQualifiedName~CheckpointApprovalEvidenceEndpointTests" --logger "console;verbosity=minimal"
+
+Result: 134 passed, 1 failed, 0 skipped of 135, in 4 minutes 45 seconds.
+The failure was LocalCommitRestartRecoveryTests.
+Restart_after_each_boundary_decides_only_from_exact_recorded_evidence,
+AfterRefBeforePlan. At AssertFlightAsync line 86 the expected recorded CommitSha
+was 901a6a8ba39064b9676779f6f70124144ad0e027, while the observed tip was
+c9087bb3ead0a9a47cc476b7d07edf3ca0d2df66. Teardown additionally failed at
+LocalCommitScene.Dispose line 261 because prepared.index was still open.
+The test was not rerun for a green outcome.
+
+CrashAtAsync waits for Calls to contain PromoteRefAsync, then delays 800 ms
+before disposing the host. ScriptedLocalCommitRepository records that call on
+entry, before awaiting the real effect. This does not prove the selected
+AfterRefBeforePlan loss boundary was reached; stopping the host can precede
+completion. The code establishes the synchronization gap, but the actual native
+outcome of the failed run was not captured. Do not declare a production ref or
+recovery defect fixed or disproven without that evidence.
+
+### Authorized R4: bounded test-fixture correction
+
+Replace call-entry-plus-sleep synchronization with explicit, bounded signals at
+the actual selected before/after-effect loss hook. For after-effect boundaries,
+capture and require the real successful effect/result before signalling host
+loss; a refusal or native failure is a diagnosable failure of reaching that
+boundary, not a simulated promoted state. Wait for the executing path to unwind
+or otherwise prove no child/effect remains in flight before teardown/restart.
+Preserve every expected ref/index/receipt/journal/recovery outcome.
+
+Release capabilities deliberately retained by the test through the existing
+owned acquisition/release API in failure-safe fixture cleanup, after stopping
+the host. Never adopt a lock, delete a lock by pathname, remove foreign locks or
+weaken recovery assertions. A failed assertion must not bypass owned-handle
+cleanup and cause a second teardown exception. Preserve the simulated foreign
+lock across restart assertions until the test releases its own capability.
+
+Scope is the restart test, its scripted repository/helper lifecycle and focused
+regressions. No production Git/native/ref/lock/recovery change is authorized.
+If the synchronized seam still returns an unexpected real outcome,
+capture its bounded reason and stop for planner judgment.
+
+Prove deterministically that method entry alone cannot satisfy the after-effect
+boundary, including an outstanding effect, and that assertion-failure cleanup
+releases only the fixture-owned capability. Cover all six existing boundaries.
+Detect replacing completed-boundary signalling with entry signalling. No sleeps,
+retries, skips, global test serialization or weakened assertions.
+
+Run affected checks first, then the full Api suite after a clean build, plus
+Architecture and hygiene. Unchanged Domain/Application/Infrastructure/frontend/
+browser results may be retained with exact scope; do not rerun unchanged
+failures just to obtain green. Preserve this failed selection in current-work.md
+alongside the earlier failures, and return the complete unstaged diff.
+
+Codex also corrected only the ledger's P6 wording: the overwrite mutation
+survived a matrix that never created an existing destination; it is not proven
+equivalent or impossible to exercise. Exclusive creation remains in the source.
+No executable file was changed by this review.
+
+## Previous decision (2026-10-08): local-commit publication GO
 
 The owner authorized bounded Increment 5 work while the unproven Increment 4
 provider contracts remain open. Codex selected exactly one slice: an explicit,

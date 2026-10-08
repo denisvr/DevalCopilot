@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Projects.Policies;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
@@ -15,18 +16,21 @@ public sealed class RecordCheckpointReviewCommandHandler(
 {
     /// <summary>Manual transaction is required so the fresh Git capture is never performed while a transaction is open.
     /// Untracked reads decide the source before the capture; after it, one short write-locked transaction re-reads every
-    /// authority fact untracked, applies the same gates and records the review with its evidence member atomically. The Git
-    /// observation is a point-in-time read of the working tree: it does not freeze the filesystem through the commit, so a
-    /// later source change leaves the recorded review as a stale historical fact, never a retroactive one.</summary>
+    /// authority fact untracked (the source, the selected executions and, for a complete-set approval, the enabled recipes with their
+    /// latest executions), applies the same gates and records the review with all of its evidence members atomically. A changed
+    /// selection is refused, never retargeted. The Git observation is a point-in-time read of the working tree: it does not freeze the
+    /// filesystem through the commit, so a later source change leaves the recorded review as a stale historical fact, never a
+    /// retroactive one.</summary>
     public async Task<Result<RecordCheckpointReviewCommandResult>> HandleAsync(
         RecordCheckpointReviewCommand command, CancellationToken cancellationToken)
     {
-        if (command.Decision == ReviewDecision.Pending && command.VerificationExecutionId.HasValue)
+        var selection = CheckpointReviewEvidenceSelection.Resolve(command);
+        if (selection.Error is { } selectionError)
         {
-            return Failure(Error.Conflict("reviews.pending_cannot_include_evidence", "A pending review cannot include verification evidence."));
+            return Failure(selectionError);
         }
 
-        var early = await ReadSourceAsync(command, cancellationToken);
+        var early = await CheckpointReviewSource.ReadAsync(dbContext, command.ProjectId, command.GitCheckpointId, cancellationToken);
         if (early.Source is not { } observed)
         {
             return Failure(early.Error!);
@@ -35,7 +39,7 @@ public sealed class RecordCheckpointReviewCommandHandler(
         var evidence = await evidenceReader.CaptureAsync(observed.WorkspacePath, cancellationToken);
         if (evidence.Outcome != GitWorkspaceEvidenceOutcome.Success || evidence.FingerprintSha256 != observed.FingerprintSha256)
         {
-            return Failure(CheckpointNotCurrent());
+            return Failure(CheckpointReviewSource.CheckpointNotCurrent());
         }
 
         await using var transaction = await dbContext.BeginTransactionAsync(cancellationToken);
@@ -47,10 +51,10 @@ public sealed class RecordCheckpointReviewCommandHandler(
             .ExecuteUpdateAsync(setters => setters.SetProperty(candidate => candidate.Name, candidate => candidate.Name), cancellationToken);
         if (locked != 1)
         {
-            return Failure(NotFound());
+            return Failure(CheckpointReviewSource.NotFound());
         }
 
-        var fresh = await ReadSourceAsync(command, cancellationToken);
+        var fresh = await CheckpointReviewSource.ReadAsync(dbContext, command.ProjectId, command.GitCheckpointId, cancellationToken);
         if (fresh.Error is { } freshError)
         {
             return Failure(freshError);
@@ -58,42 +62,15 @@ public sealed class RecordCheckpointReviewCommandHandler(
 
         if (fresh.Source != observed)
         {
-            return Failure(CheckpointNotCurrent());
+            return Failure(CheckpointReviewSource.CheckpointNotCurrent());
         }
 
-        var execution = command.Decision == ReviewDecision.Pending
-            ? null
-            : await dbContext.VerificationExecutions
-                .AsNoTracking()
-                .Where(candidate => candidate.Id == command.VerificationExecutionId
-                    && candidate.ProjectId == command.ProjectId
-                    && candidate.GitWorkspaceId == observed.WorkspaceId
-                    && candidate.GitCheckpointId == observed.CheckpointId
-                    && candidate.CheckpointFingerprintSha256 == observed.FingerprintSha256)
-                .Select(candidate => new
-                {
-                    candidate.Id,
-                    candidate.VerificationCommandId,
-                    candidate.ExecutionNumber,
-                    candidate.CheckpointFingerprintSha256,
-                    candidate.Status,
-                    candidate.Outcome,
-                    candidate.ExitCode,
-                })
-                .SingleOrDefaultAsync(cancellationToken);
-        if (command.Decision != ReviewDecision.Pending && execution is null)
+        var resolved = command.Decision == ReviewDecision.Pending
+            ? new ResolvedEvidence(null, [])
+            : await ResolveEvidenceAsync(command, selection, observed, cancellationToken);
+        if (resolved.Error is { } evidenceError)
         {
-            return Failure(Error.NotFound("reviews.evidence_not_found", "The verification evidence was not found for this checkpoint."));
-        }
-
-        if (execution is not null && execution.Status == VerificationExecutionStatus.Running)
-        {
-            return Failure(EvidenceNotTerminal());
-        }
-
-        if (command.Decision == ReviewDecision.Approved && execution?.Status != VerificationExecutionStatus.Passed)
-        {
-            return Failure(Error.Conflict("reviews.approval_requires_passed_verification", "Approval requires a passed verification execution."));
+            return Failure(evidenceError);
         }
 
         var reviewId = Guid.NewGuid();
@@ -101,21 +78,16 @@ public sealed class RecordCheckpointReviewCommandHandler(
         CheckpointReview review;
         try
         {
-            evidenceMembers = execution is null
-                ? []
-                :
-                [
-                    CheckpointReviewEvidence.Observe(
-                        Guid.NewGuid(),
-                        reviewId,
-                        execution.VerificationCommandId,
-                        execution.Id,
-                        execution.ExecutionNumber,
-                        execution.CheckpointFingerprintSha256,
-                        execution.Status,
-                        execution.Outcome,
-                        execution.ExitCode),
-                ];
+            evidenceMembers = resolved.Facts.Select(fact => CheckpointReviewEvidence.Observe(
+                Guid.NewGuid(),
+                reviewId,
+                fact.VerificationCommandId,
+                fact.Id,
+                fact.ExecutionNumber,
+                fact.CheckpointFingerprintSha256,
+                fact.Status,
+                fact.Outcome,
+                fact.ExitCode)).ToArray();
             review = CheckpointReview.Record(
                 reviewId,
                 command.ProjectId,
@@ -142,57 +114,108 @@ public sealed class RecordCheckpointReviewCommandHandler(
         return Result<RecordCheckpointReviewCommandResult>.Success(new(review.Id, review.Decision));
     }
 
-    /// <summary>The project, its latest workspace and that workspace's exact current checkpoint, read untracked and decided by
-    /// the existing gates: a ready workspace with an active lease, and a selected checkpoint that is the current one.</summary>
-    private async Task<SourceRead> ReadSourceAsync(RecordCheckpointReviewCommand command, CancellationToken cancellationToken)
+    /// <summary>The selected executions of a decided review, read fresh and untracked under the write lock, each bound to the exact
+    /// owned current checkpoint and fingerprint, in the host's canonical CommandNumber order. An approval in the set form additionally
+    /// requires exactly the complete current verification set; the legacy single form keeps its checkpoint-bound meaning.</summary>
+    private async Task<ResolvedEvidence> ResolveEvidenceAsync(
+        RecordCheckpointReviewCommand command,
+        CheckpointReviewEvidenceSelection.Selection selection,
+        CheckpointReviewSource.Authority observed,
+        CancellationToken cancellationToken)
     {
-        var projectExists = await dbContext.Projects.AsNoTracking().AnyAsync(project => project.Id == command.ProjectId, cancellationToken);
-        var workspace = await dbContext.GitWorkspaces
+        if (selection.ExecutionIds.Count == 0)
+        {
+            return ResolvedEvidence.Refused(EvidenceNotFound());
+        }
+
+        var ids = selection.ExecutionIds.ToArray();
+        var found = await dbContext.VerificationExecutions
             .AsNoTracking()
-            .Where(candidate => candidate.ProjectId == command.ProjectId)
-            .OrderByDescending(candidate => candidate.WorkspaceNumber)
-            .Select(candidate => new { candidate.Id, candidate.Status, candidate.WorkspacePath })
-            .FirstOrDefaultAsync(cancellationToken);
-        if (!projectExists || workspace is null)
+            .Where(candidate => ids.Contains(candidate.Id)
+                && candidate.ProjectId == command.ProjectId
+                && candidate.GitWorkspaceId == observed.WorkspaceId
+                && candidate.GitCheckpointId == observed.CheckpointId
+                && candidate.CheckpointFingerprintSha256 == observed.FingerprintSha256)
+            .Select(candidate => new EvidenceFact(
+                candidate.Id,
+                candidate.VerificationCommandId,
+                candidate.ExecutionNumber,
+                candidate.CheckpointFingerprintSha256,
+                candidate.Status,
+                candidate.Outcome,
+                candidate.ExitCode,
+                int.MaxValue))
+            .ToListAsync(cancellationToken);
+        if (found.Count != ids.Length)
         {
-            return new SourceRead(NotFound(), null);
+            return ResolvedEvidence.Refused(EvidenceNotFound());
         }
 
-        if (workspace.Status != WorkspaceStatus.Ready || !await dbContext.RepositoryMutationLeases.AsNoTracking().AnyAsync(
-                lease => lease.WorkspaceId == workspace.Id && lease.Status == LeaseStatus.Active, cancellationToken))
+        if (found.Any(fact => fact.Status == VerificationExecutionStatus.Running))
         {
-            return new SourceRead(
-                Error.Conflict("reviews.workspace_not_ready", "A ready, owned workspace is required to record a review."), null);
+            return ResolvedEvidence.Refused(EvidenceNotTerminal());
         }
 
-        var current = await dbContext.GitCheckpoints
+        if (command.Decision == ReviewDecision.Approved && found.Any(fact => fact.Status != VerificationExecutionStatus.Passed))
+        {
+            return ResolvedEvidence.Refused(Error.Conflict(
+                "reviews.approval_requires_passed_verification", "Approval requires a passed verification execution."));
+        }
+
+        if (found.Select(fact => fact.VerificationCommandId).Distinct().Count() != found.Count)
+        {
+            return ResolvedEvidence.Refused(Error.Failure(
+                CheckpointReviewEvidenceSelection.InvalidCode,
+                "A verification execution set must not contain more than one execution of the same recipe."));
+        }
+
+        var commandIds = found.Select(fact => fact.VerificationCommandId).ToList();
+        var commandNumbers = await dbContext.VerificationCommands
             .AsNoTracking()
-            .Where(candidate => candidate.WorkspaceId == workspace.Id)
-            .OrderByDescending(candidate => candidate.CheckpointNumber)
-            .Select(candidate => new { candidate.Id, candidate.CheckpointNumber, candidate.FingerprintSha256 })
-            .FirstOrDefaultAsync(cancellationToken);
-        if (current is null || current.Id != command.GitCheckpointId)
+            .Where(candidate => candidate.ProjectId == command.ProjectId && commandIds.Contains(candidate.Id))
+            .Select(candidate => new { candidate.Id, candidate.CommandNumber })
+            .ToDictionaryAsync(candidate => candidate.Id, candidate => candidate.CommandNumber, cancellationToken);
+        var ordered = found
+            .Select(fact => fact with { CommandNumber = commandNumbers.GetValueOrDefault(fact.VerificationCommandId, int.MaxValue) })
+            .OrderBy(fact => fact.CommandNumber)
+            .ThenBy(fact => fact.VerificationCommandId)
+            .ToList();
+
+        if (selection.UsesSet && command.Decision == ReviewDecision.Approved)
         {
-            return new SourceRead(
-                Error.Conflict("reviews.checkpoint_not_current", "Only the current source checkpoint may be reviewed."), null);
+            var complete = await CompleteVerificationSet.ReadAsync(dbContext, observed, cancellationToken);
+            if (complete.Refusal is not null
+                || !complete.Members.Select(member => member.Execution.Id).ToHashSet().SetEquals(ordered.Select(fact => fact.Id)))
+            {
+                return ResolvedEvidence.Refused(Error.Conflict(
+                    "reviews.approval_requires_complete_verification_set",
+                    "Approval requires exactly one passed latest execution for every enabled verification recipe."));
+            }
         }
 
-        return new SourceRead(
-            null, new SourceAuthority(workspace.Id, workspace.WorkspacePath, current.Id, current.CheckpointNumber, current.FingerprintSha256));
+        return new ResolvedEvidence(null, ordered);
     }
 
     private static Result<RecordCheckpointReviewCommandResult> Failure(Error error) => Result<RecordCheckpointReviewCommandResult>.Failure(error);
 
-    private static Error NotFound() => Error.NotFound("reviews.not_found", "The project or isolated workspace was not found.");
-
-    private static Error CheckpointNotCurrent() =>
-        Error.Conflict("reviews.checkpoint_not_current", "The selected source checkpoint is no longer current.");
+    private static Error EvidenceNotFound() =>
+        Error.NotFound("reviews.evidence_not_found", "The verification evidence was not found for this checkpoint.");
 
     private static Error EvidenceNotTerminal() =>
         Error.Conflict("reviews.evidence_not_terminal", "A completed verification execution is required for this review decision.");
 
-    private sealed record SourceAuthority(
-        Guid WorkspaceId, string WorkspacePath, Guid CheckpointId, int CheckpointNumber, string FingerprintSha256);
+    private sealed record EvidenceFact(
+        Guid Id,
+        Guid VerificationCommandId,
+        int ExecutionNumber,
+        string CheckpointFingerprintSha256,
+        VerificationExecutionStatus Status,
+        VerificationExecutionOutcome? Outcome,
+        int? ExitCode,
+        int CommandNumber);
 
-    private sealed record SourceRead(Error? Error, SourceAuthority? Source);
+    private sealed record ResolvedEvidence(Error? Error, IReadOnlyList<EvidenceFact> Facts)
+    {
+        public static ResolvedEvidence Refused(Error error) => new(error, []);
+    }
 }

@@ -122,7 +122,8 @@ the isolated workspace is `Ready`, its lease is active, the selected checkpoint 
 persisted checkpoint for that workspace, and a fresh bounded source capture still matches it.
 `Pending` is an execution-free recorded review state. `ChangesRequested` and `Escalated` may cite
 any terminal execution for that exact checkpoint; `Approved` additionally requires a passed
-execution. The selected execution need not be the newest and the review need not cover every enabled recipe. Review reads re-capture
+execution. In this legacy single-execution form the selected execution need not be the newest and the review need not cover every
+enabled recipe. Review reads re-capture
 current source evidence: an older approval remains historical evidence but is marked not applicable with a fixed stale reason when a
 newer checkpoint exists or the source fingerprint has drifted.
 
@@ -138,6 +139,19 @@ an authority read. No Git, filesystem or provider work happens under the lock. T
 not freeze the working tree through the commit, so a later source change leaves a recorded review a stale historical fact, never a
 retroactive one. A manual `Human` review is a checkpoint-bound fact only: it is not provider provenance, consumes no claim or
 grant, authorizes no publication and does not complete the run.
+
+[ADR-0030](../decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md) adds an optional Human execution-set form
+to the same operation (`verificationExecutionIds`, 1 to 32 unique nonempty identifiers, an 8 KiB body; never merged with the scalar and
+valid only for a Human review; an empty set is only `Pending`). In it `Approved` means exactly one latest, coherent clean `Passed`
+execution for every currently enabled recipe (same project, workspace and workspace path, the current checkpoint and fingerprint, a
+completion fingerprint equal to the checkpoint's, and a command snapshot equal to the current recipe), recorded as one review whose
+members saved together inside the same short write-locked transaction (the rows carry no sequence; the host derives the canonical
+`CommandNumber` presentation order when it reads them). The source, the selected executions and
+the enabled recipes with their latest executions are re-read untracked after the lock, and a changed selection is refused, never
+retargeted. `ChangesRequested` and `Escalated` may cite a bounded coherent terminal set with at most one execution per recipe. The
+read-only `GET /api/projects/{projectId}/checkpoints/{checkpointId}/approval-evidence` returns the same complete bundle (never
+derived from the bounded history page; more than 32 enabled recipes is refused) or a fixed refusal and authorizes nothing. This is
+the Human membership the explicit local commit requires; the legacy scalar approval keeps its single-member meaning.
 
 ### Current agent-implementation boundary
 

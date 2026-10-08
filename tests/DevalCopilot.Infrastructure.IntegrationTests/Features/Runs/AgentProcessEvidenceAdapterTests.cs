@@ -57,16 +57,69 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
     [Fact]
     public async Task A_real_cancelled_codex_process_reports_cancelled_evidence_rather_than_throwing()
     {
+        // The cancellation is requested only after the real child has proven that it started (it writes its marker first), so the
+        // evidence below belongs to a running process. A wall-clock timer armed before the invocation's own preparation (manifest
+        // read, scratch directory, schema write) can fire before any child exists, which is a different phase with different
+        // semantics (see the pre-launch case below).
+        var markerName = $"started-{Guid.NewGuid():N}.marker";
+        var markerPath = Path.Combine(_workspacePath, markerName);
         using var cancellation = new CancellationTokenSource();
-        cancellation.CancelAfter(TimeSpan.FromSeconds(1));
+        var invocation = InvokeCodexPlanningWithRealProcessAsync(
+            $"sleep-after-marker {markerName} 30000", TimeSpan.FromSeconds(60), cancellation.Token);
 
-        var result = await InvokeCodexPlanningWithRealProcessAsync("sleep-ms 30000", TimeSpan.FromSeconds(30), cancellation.Token);
+        await WaitForChildStartAsync(markerPath, invocation);
+        cancellation.Cancel();
+        var result = await invocation;
 
+        Assert.True(File.Exists(markerPath));
         Assert.Equal(CodexPlanningInvocationOutcome.Failed, result.Outcome);
         Assert.NotNull(result.ProcessEvidence);
         Assert.Equal(ProcessExecutionOutcome.Cancelled, result.ProcessEvidence.Outcome);
         Assert.Null(result.ProcessEvidence.ExitCode);
         Assert.True(result.ProcessEvidence.Duration > TimeSpan.Zero);
+    }
+
+    [Fact]
+    public async Task A_cancellation_requested_before_any_child_launches_propagates_and_creates_no_process_evidence()
+    {
+        // This is the pre-existing preparation-phase behavior (the observed failure of the timer-armed variant above): cancellation
+        // seen while the invocation is still preparing throws, no process is launched and nothing claims process evidence.
+        var (runId, attemptId, manifest) = await NewInvocationAsync();
+        var process = new ScriptedProcessExecutionAdapter(_ => throw new InvalidOperationException("No child may be launched."));
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new CodexPlanningAdapter(process, _artifactStore).InvokeAsync(
+            new CodexPlanningInvocationRequest(
+                runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
+                CreateLaunchFile(), null, TimeSpan.FromSeconds(30), 65536, 131072),
+            cancellation.Token));
+
+        Assert.Equal(0, process.CallCount);
+    }
+
+    [Fact]
+    public async Task A_cancellation_between_the_manifest_read_and_the_launch_fails_at_the_schema_write_with_no_child_and_no_evidence()
+    {
+        // The exact phase of the retained failure of the timer-armed variant: the sealed manifest was read, the schema file is being
+        // written, and no child exists yet. The artifact store cancels the token right after the manifest read completes.
+        var (runId, attemptId, manifest) = await NewInvocationAsync();
+        var process = new ScriptedProcessExecutionAdapter(_ => throw new InvalidOperationException("No child may be launched."));
+        using var cancellation = new CancellationTokenSource();
+        var store = System.Reflection.DispatchProxy.Create<IArtifactStore, CancelAfterManifestReadStore>();
+        var configured = (CancelAfterManifestReadStore)(object)store;
+        configured.Inner = _artifactStore;
+        configured.Cancellation = cancellation;
+
+        var thrown = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new CodexPlanningAdapter(process, store).InvokeAsync(
+            new CodexPlanningInvocationRequest(
+                runId, attemptId, _workspacePath, manifest.RelativeStoragePath, manifest.ByteLength, manifest.ContentHash,
+                CreateLaunchFile(), null, TimeSpan.FromSeconds(30), 65536, 131072),
+            cancellation.Token));
+
+        Assert.Contains("CodexProcessInvoker.InvokeAsync", thrown.StackTrace, StringComparison.Ordinal);
+        Assert.DoesNotContain("VerifyAndReadSealedAsync", thrown.StackTrace, StringComparison.Ordinal);
+        Assert.Equal(0, process.CallCount);
     }
 
     [Theory]
@@ -157,6 +210,29 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
         }
 
         Assert.Equal(0, neverCalled.CallCount);
+    }
+
+    /// <summary>Waits, event-driven and bounded, until the real child has written its marker (so it demonstrably started). An
+    /// invocation that ends first, or a child that never reports, fails the test instead of being retried.</summary>
+    private static async Task WaitForChildStartAsync(string markerPath, Task invocation)
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var watcher = new FileSystemWatcher(Path.GetDirectoryName(markerPath)!, Path.GetFileName(markerPath));
+        watcher.Created += (_, _) => started.TrySetResult();
+        watcher.Changed += (_, _) => started.TrySetResult();
+        watcher.EnableRaisingEvents = true;
+        if (File.Exists(markerPath))
+        {
+            started.TrySetResult();
+        }
+
+        var finished = await Task.WhenAny(started.Task, invocation, Task.Delay(TimeSpan.FromSeconds(60)));
+        if (ReferenceEquals(finished, invocation))
+        {
+            await invocation;
+        }
+
+        Assert.True(ReferenceEquals(finished, started.Task), "The real child process never reported that it started.");
     }
 
     private async Task<CodexPlanningInvocationResult> InvokeCodexPlanningWithRealProcessAsync(
@@ -269,6 +345,29 @@ public sealed class AgentProcessEvidenceAdapterTests : IDisposable
         StandardErrorTruncated = false,
         Duration = duration,
     };
+
+    /// <summary>Forwards every call to the real store and cancels the invocation's token the moment the sealed manifest read completes.</summary>
+    public class CancelAfterManifestReadStore : System.Reflection.DispatchProxy
+    {
+        public IArtifactStore Inner { get; set; } = null!;
+
+        public CancellationTokenSource Cancellation { get; set; } = null!;
+
+        protected override object? Invoke(System.Reflection.MethodInfo? targetMethod, object?[]? args)
+        {
+            var result = targetMethod!.Invoke(Inner, args);
+            return targetMethod.Name == nameof(IArtifactStore.VerifyAndReadSealedAsync)
+                ? CancelAfterAsync((Task<SealedReadWindow>)result!)
+                : result;
+        }
+
+        private async Task<SealedReadWindow> CancelAfterAsync(Task<SealedReadWindow> read)
+        {
+            var window = await read;
+            await Cancellation.CancelAsync();
+            return window;
+        }
+    }
 
     private sealed class ScriptedProcessExecutionAdapter(Func<ProcessExecutionRequest, ProcessExecutionResult> onExecute)
         : IProcessExecutionAdapter

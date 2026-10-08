@@ -486,9 +486,12 @@ describe('the journey data scope and the invocation interval', () => {
       create table attempts (Id text, RunId text, AttemptNumber integer, AgentRole text, AgentResponseContract text, AgentOutcome text, Status text, AgentBudgetSlot integer, AgentDirectHumanGuidance text);
       create table collaboration_messages (Id text, RunId text, AttemptId text, Type text, InReplyToMessageId text, Summary text, Sequence integer, StructuredContentJson text, Provenance text);
       create table attempt_input_messages (AttemptId text, CollaborationMessageId text, Sequence integer);
-      create table verification_executions (Id text, ProjectId text, ExecutionNumber integer, Status text, ExitCode integer, GitCheckpointId text, CompletionFingerprintSha256 text);
+      create table verification_commands (Id text, ProjectId text, CommandNumber integer, Name text, IsEnabled integer);
+      create table local_commit_operations (Id text, RunId text);
+      create table local_commit_authority_members (OperationId text, Kind text, Sequence integer, SubjectId text, CommandId text);
+      create table verification_executions (Id text, ProjectId text, VerificationCommandId text, ExecutionNumber integer, Status text, ExitCode integer, GitCheckpointId text, CompletionFingerprintSha256 text);
       create table checkpoint_reviews (Id text, ProjectId text, GitCheckpointId text, CheckpointNumber integer, CheckpointFingerprintSha256 text, ActorKind text, Decision text, RecordedAtUtcTicks integer);
-      create table checkpoint_review_evidence (CheckpointReviewId text, VerificationExecutionId text, VerificationExecutionNumber integer, VerificationExecutionCheckpointFingerprintSha256 text, VerificationExecutionStatus text, VerificationExecutionExitCode integer);
+      create table checkpoint_review_evidence (CheckpointReviewId text, VerificationCommandId text, VerificationExecutionId text, VerificationExecutionNumber integer, VerificationExecutionCheckpointFingerprintSha256 text, VerificationExecutionStatus text, VerificationExecutionExitCode integer);
       create table planning_implementation_authorizations (Id text, RunId text, EscalationMessageId text, FinalProposalMessageId text, HumanInstructionMessageId text, ConsumedByAttemptId text);
       create table artifacts (Id text, RunId text, AttemptId text, Purpose text, ContentHash text, ByteLength integer, RelativeStoragePath text);
     `)
@@ -502,9 +505,13 @@ describe('the journey data scope and the invocation interval', () => {
         db.prepare('insert into attempts values (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(`at-${tag}-${number}`, `run-${tag}`, number, 'Planner', 'Proposal', 'Proposed', 'Completed', number, null)
         db.prepare('insert into collaboration_messages values (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(`m-${tag}-${number}`, `run-${tag}`, `at-${tag}-${number}`, 'Proposal', null, `Plan ${tag}`, number, '{}', 'ProviderObserved')
         db.prepare('insert into attempt_input_messages values (?, ?, ?)').run(`at-${tag}-${number}`, `m-${tag}-${number}`, 0)
-        db.prepare('insert into verification_executions values (?, ?, ?, ?, ?, ?, ?)').run(`ex-${tag}-${number}`, tag, number, 'Passed', 0, `cp-${tag}-${number}`, `fp-${tag}-${number}`)
+        db.prepare('insert into verification_commands values (?, ?, ?, ?, ?)').run(`cm-${tag}-${number}`, tag, number, `Recipe ${number}`, 1)
+        db.prepare('insert into verification_executions values (?, ?, ?, ?, ?, ?, ?, ?)').run(`ex-${tag}-${number}`, tag, `cm-${tag}-${number}`, number, 'Passed', 0, `cp-${tag}-${number}`, `fp-${tag}-${number}`)
         db.prepare('insert into checkpoint_reviews values (?, ?, ?, ?, ?, ?, ?, ?)').run(`rv-${tag}-${number}`, tag, `cp-${tag}-${number}`, number, `fp-${tag}-${number}`, 'Human', 'Approved', number)
-        db.prepare('insert into checkpoint_review_evidence values (?, ?, ?, ?, ?, ?)').run(`rv-${tag}-${number}`, `ex-${tag}-${number}`, number, `fp-${tag}-${number}`, 'Passed', 0)
+        db.prepare('insert into checkpoint_review_evidence values (?, ?, ?, ?, ?, ?, ?)').run(`rv-${tag}-${number}`, `cm-${tag}-${number}`, `ex-${tag}-${number}`, number, `fp-${tag}-${number}`, 'Passed', 0)
+        db.prepare('insert into local_commit_operations values (?, ?)').run(`op-${tag}-${number}`, `run-${tag}`)
+        db.prepare('insert into local_commit_authority_members values (?, ?, ?, ?, ?)').run(`op-${tag}-${number}`, 'Verification', 0, `ex-${tag}-${number}`, `cm-${tag}-${number}`)
+        db.prepare('insert into local_commit_authority_members values (?, ?, ?, ?, ?)').run(`op-${tag}-${number}`, 'HumanReview', 0, `rv-${tag}-${number}`, null)
         db.prepare('insert into artifacts values (?, ?, ?, ?, ?, ?, ?)').run(`ar-${tag}-${number}`, `run-${tag}`, `at-${tag}-${number}`, 'AgentContextManifest', 'hash', 10, `run-${tag}\\at-${tag}-${number}\\AgentContextManifest.sealed`)
       }
       db.prepare('insert into planning_implementation_authorizations values (?, ?, ?, ?, ?, ?)').run(`gr-${tag}`, `run-${tag}`, 'esc', 'final', 'ins', null)
@@ -531,6 +538,13 @@ describe('the journey data scope and the invocation interval', () => {
       assert.deepEqual(escalatedData.messages().map((row) => row.Id), ['m-p1-1', 'm-p1-2'])
       assert.deepEqual(ordinary.checkpointReviews().map((row) => row.Id), ['rv-p0-1'])
       assert.deepEqual(escalatedData.checkpointReviewEvidence().map((row) => row.CheckpointReviewId), ['rv-p1-1', 'rv-p1-2'])
+      assert.deepEqual(escalatedData.checkpointReviewEvidence().map((row) => row.VerificationCommandId), ['cm-p1-1', 'cm-p1-2'])
+      assert.deepEqual(escalatedData.executions().map((row) => row.VerificationCommandId), ['cm-p1-1', 'cm-p1-2'])
+      assert.deepEqual(ordinary.recipes().map((row) => row.Id), ['cm-p0-1'])
+      assert.deepEqual(escalatedData.recipes().map((row) => [row.Id, row.CommandNumber, row.Name]), [['cm-p1-1', 1, 'Recipe 1'], ['cm-p1-2', 2, 'Recipe 2']])
+      // Only the verification members of this journey's own run are visible, never the human-review members or another run's.
+      assert.deepEqual(ordinary.localCommitVerificationMembers().map((row) => row.SubjectId), ['ex-p0-1'])
+      assert.deepEqual(escalatedData.localCommitVerificationMembers().map((row) => [row.SubjectId, row.CommandId]), [['ex-p1-1', 'cm-p1-1'], ['ex-p1-2', 'cm-p1-2']])
       assert.deepEqual(escalatedData.planningAuthorizations().map((row) => row.Id), ['gr-p1'])
       assert.deepEqual(ordinary.manifestArtifacts().map((row) => row.AttemptId), ['at-p0-1'])
       assert.deepEqual(escalatedData.inputsOf('at-p1-1').map((row) => row.CollaborationMessageId), ['m-p1-1'])

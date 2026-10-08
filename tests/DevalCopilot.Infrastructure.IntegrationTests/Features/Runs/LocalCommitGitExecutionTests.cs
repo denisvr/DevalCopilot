@@ -271,7 +271,9 @@ public sealed class LocalCommitGitExecutionTests : IDisposable
         Assert.Equal(LocalCommitObjectState.ExactMatch, inspection.CommitObject);
         Assert.True(inspection.PreparedArtifactIntact);
         Assert.True(await _scene.Git.CleanupAsync(facts, removeOwnedLock: false, CancellationToken.None));
-        Assert.False(Directory.Exists(_scene.Storage.OperationDirectory(facts.OperationId)));
+        Assert.False(File.Exists(_scene.Storage.ResolveArtifact(facts.PreparedIndexRelativePath)));
+        Assert.False(Directory.Exists(_scene.ArtifactLeaf(facts.PreparedIndexRelativePath)));
+        Assert.Empty(_scene.StorageLeaves());
     }
 
     [Fact]

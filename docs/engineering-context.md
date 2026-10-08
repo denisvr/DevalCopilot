@@ -86,14 +86,30 @@
   Let the owner choose immutable run budgets at manual intake (it narrowly advances the fixed-default creation behavior of
   ADR-0012, ADR-0013 and ADR-0014 for new manual runs only and changes no claim, immutability, consumption or historical-policy
   decision).
+- [ADR-0029](decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md): Deliver an explicit local
+  commit before closing provider contract gaps (it narrowly supersedes ADR-0009's increment ordering and extends ADR-0008's
+  expected-HEAD reconciliation for exact recorded host commits only).
+- [ADR-0030](decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md): Approve the complete verification set as
+  one Human decision (additive; an optional Human execution-set form of the existing review plus a read-only approval bundle, with no
+  change to ADR-0029's authority, reservation, recovery or mixed-decision rules).
 
 ## Product-specific architecture
 
 - [ADR-0029](decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md) permits the selected explicit
   local-commit slice before Increment 4's unproven provider contracts close. It requires exact physically admitted snapshot bytes,
   current passing verification, Agent and human approval, exclusive durable intent, hook-free unsigned Git execution and exact
-  restart reconciliation. The slice is selected, not implemented; Increment 4 remains incomplete. Only a recorded host commit may
-  extend the expected worktree HEAD, and remote publication and automatic orchestration remain separately gated.
+  restart reconciliation. The slice is delivered and published to `origin/main` (see `docs/roadmap/current-work.md` for its
+  evidence and limits); Increment 4 remains incomplete. Only a recorded host commit may extend the expected worktree HEAD, and
+  remote publication and automatic orchestration remain separately gated.
+- [ADR-0030](decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md) makes that local commit usable with
+  several enabled verification recipes. The existing protected manual review accepts an optional Human execution-set form
+  (1 to 32 unique identifiers, an 8 KiB body, never merged with the legacy scalar); `Approved` in that form means exactly one latest,
+  coherent clean `Passed` execution for every currently enabled recipe of the current checkpoint and fingerprint, saved as one review
+  with its members in `CommandNumber` order inside the existing manual transaction after fresh untracked re-reads under the write
+  lock. A protected read-only `GET /api/projects/{projectId}/checkpoints/{checkpointId}/approval-evidence` returns that complete
+  bundle (never derived from the latest-20 history window; more than 32 recipes is refused) and grants no authority. The cockpit adds
+  one explicit "Approve all enabled checks" action bound to the full observed source identity and owned by the committed bundle's lifetime. Legacy scalar approvals stay single-member
+  facts without delivery authority for several recipes; nothing is published, combined or autonomous.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

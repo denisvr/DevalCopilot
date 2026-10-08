@@ -290,7 +290,7 @@ test('the escalated journey: an authorized final plan through failed verificatio
   await expect(diagnosis.getByRole('button', { name: 'Diagnose failed verification with Codex' })).toBeEnabled({ timeout: 30_000 })
   await expect(verification).toContainText('Last run: Failed')
   await expect(manual.getByRole('button', { name: 'Changes requested' })).toBeEnabled({ timeout: 30_000 })
-  await expect(manual.getByRole('button', { name: 'Approve' })).toBeDisabled()
+  await expect(manual.getByRole('button', { name: 'Approve', exact: true })).toBeDisabled()
   expect(agentContracts()).toHaveLength(6)
   expect(data.checkpoints()).toHaveLength(2)
 
@@ -340,7 +340,7 @@ test('the escalated journey: an authorized final plan through failed verificatio
   await expect(review).not.toContainText('has not Passed for the current checkpoint', { timeout: 30_000 })
   await expect(review.getByRole('button', { name: 'Request code review' })).toBeEnabled()
   await expect(diagnosis.getByRole('button', { name: 'Diagnose failed verification with Codex' })).toHaveCount(0)
-  await expect(manual.getByRole('button', { name: 'Approve' })).toBeEnabled({ timeout: 30_000 })
+  await expect(manual.getByRole('button', { name: 'Approve', exact: true })).toBeEnabled({ timeout: 30_000 })
   expect(data.checkpointReviews()).toEqual([]) // no review of any kind exists yet, and the refreshes recorded none
   expect(agentContracts()).toHaveLength(8)
   expect(data.checkpoints()).toHaveLength(3)
@@ -357,12 +357,12 @@ test('the escalated journey: an authorized final plan through failed verificatio
   expect(agentReviews.map((row) => [row.ActorKind, row.Decision, row.CheckpointNumber])).toEqual([['FutureAgent', 'Approved', 3]])
   const beforeManual = { attempts: data.attempts().length, messages: data.messages().length, invocations: stageInvocations().length }
   await page.getByRole('button', { name: 'Refresh evidence' }).click()
-  await expect(manual.getByRole('button', { name: 'Approve' })).toBeEnabled({ timeout: 30_000 })
+  await expect(manual.getByRole('button', { name: 'Approve', exact: true })).toBeEnabled({ timeout: 30_000 })
   await expect(manual).not.toContainText('could not be refreshed')
   await expect(manual.getByLabel('Reviewer')).toHaveValue('Human')
   expect(data.checkpointReviews()).toEqual(agentReviews) // the refresh recorded nothing
   const manualRecorded = page.waitForResponse((response) => response.request().method() === 'POST' && CHECKPOINT_REVIEW_PATH.test(new URL(response.url()).pathname))
-  await manual.getByRole('button', { name: 'Approve' }).click()
+  await manual.getByRole('button', { name: 'Approve', exact: true }).click()
   expect((await manualRecorded).status()).toBe(201)
   await expect(manual).toContainText('Approved')
   await expect(manual).toContainText('Checkpoint #3 · verification #2 · Human')

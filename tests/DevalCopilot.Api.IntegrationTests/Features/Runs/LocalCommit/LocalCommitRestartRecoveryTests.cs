@@ -25,55 +25,60 @@ public sealed class LocalCommitRestartRecoveryTests : LocalCommitTestBase
         AfterIndexBeforeOutcome,
     }
 
-    private static Task Lose(LocalCommitFacts _) => throw new OperationCanceledException("The host was lost.");
+    /// <summary>The scripted loss point of each boundary. Before-effect boundaries lose the host at the hook that precedes the real
+    /// effect; after-effect boundaries only after the real effect has returned, and the report says what it returned.</summary>
+    private static LossPoint? LossPointOf(Boundary boundary) => boundary switch
+    {
+        Boundary.BeforeMarker => null,
+        Boundary.AfterMarkerBeforeAcquire => LossPoint.BeforeAcquire,
+        Boundary.AfterAcquireBeforeRef => LossPoint.BeforePromoteRef,
+        Boundary.AfterRefBeforePlan => LossPoint.AfterPromoteRef,
+        Boundary.AfterPlanBeforeIndex => LossPoint.BeforePromoteHeldIndex,
+        _ => LossPoint.AfterPromoteHeldIndex,
+    };
 
-    private static Task<LocalCommitExecutionResult> LoseAfter(LocalCommitFacts _, LocalCommitExecutionResult __) =>
-        throw new OperationCanceledException("The host was lost.");
+    private static readonly TimeSpan LossBound = TimeSpan.FromSeconds(60);
 
-    /// <summary>Seeds a lineage, admits the one operation and loses the host at <paramref name="boundary"/>.</summary>
+    /// <summary>Seeds a lineage, admits the one operation and loses the host at <paramref name="boundary"/>. The host is stopped only
+    /// after the scripted repository signalled that exact point: an after-effect boundary requires the REAL effect to have returned
+    /// successfully (a refusal or failure is reported with its bounded outcome, never taken as a promotion), and no real effect may
+    /// be in flight when the host is stopped or after it. Nothing sleeps and nothing polls.</summary>
     private async Task<(LocalCommitLineageIds Ids, ScriptedLocalCommitRepository Script, LocalCommitOperation Operation)> CrashAtAsync(
         Boundary boundary, bool disposeHost = true)
     {
         var (host, script) = StartScripted(supervisor: boundary != Boundary.BeforeMarker);
         var ids = await LocalCommitLineage.SeedAsync(host, Scene);
-        switch (boundary)
+        var point = LossPointOf(boundary);
+        if (point is { } armed)
         {
-            case Boundary.AfterMarkerBeforeAcquire:
-                script.BeforeAcquire = Lose;
-                break;
-            case Boundary.AfterAcquireBeforeRef:
-                script.BeforePromoteRef = Lose;
-                break;
-            case Boundary.AfterRefBeforePlan:
-                script.AfterPromoteRef = LoseAfter;
-                break;
-            case Boundary.AfterPlanBeforeIndex:
-                script.BeforePromoteHeldIndex = Lose;
-                break;
-            case Boundary.AfterIndexBeforeOutcome:
-                script.AfterPromoteHeldIndex = LoseAfter;
-                break;
+            script.ArmLoss(armed);
         }
 
         Assert.Equal(HttpStatusCode.OK, (await PostAsync(host, ids.RunId, ids)).StatusCode);
         var operation = await OperationRowAsync(ids.RunId);
-        if (boundary != Boundary.BeforeMarker)
+        if (point is not null)
         {
-            var expectedCall = boundary switch
+            LossReport report;
+            try
             {
-                Boundary.AfterMarkerBeforeAcquire => nameof(ILocalCommitRepository.AcquireIndexEffectsAsync),
-                Boundary.AfterAcquireBeforeRef => nameof(ILocalCommitRepository.PromoteRefAsync),
-                Boundary.AfterRefBeforePlan => nameof(ILocalCommitRepository.PromoteRefAsync),
-                Boundary.AfterPlanBeforeIndex => nameof(ILocalCommitRepository.PromoteHeldIndexAsync),
-                _ => nameof(ILocalCommitRepository.PromoteHeldIndexAsync),
-            };
-            await WaitUntilAsync(() => Task.FromResult(script.Calls.Contains(expectedCall)));
-            await Task.Delay(800);
+                report = await script.LossReached.WaitAsync(LossBound);
+            }
+            catch (TimeoutException)
+            {
+                throw new Xunit.Sdk.XunitException(
+                    $"The {point} loss point was not reached within {LossBound.TotalSeconds:0} s; calls: {string.Join(", ", script.Calls)}.");
+            }
+
+            Assert.True(report.Satisfied, "The selected boundary was not reached: " + report.Detail);
+            Assert.Equal(0, report.OutstandingEffects);
+            Assert.Equal(0, script.OutstandingEffects);
         }
 
         if (disposeHost)
         {
             host.Dispose();
+            Assert.Equal(0, script.OutstandingEffects);
+            Assert.Empty(script.CallsAfterLoss);
         }
 
         return (ids, script, operation);
@@ -174,7 +179,7 @@ public sealed class LocalCommitRestartRecoveryTests : LocalCommitTestBase
         Assert.False(File.Exists(Scene.IndexPath + ".lock"));
         Assert.Equal(1, await EventCountAsync(ids.RunId, "local_commit.completed"));
         Assert.NotNull(operation.IndexAcquiredAtUtc);
-        Assert.False(Directory.Exists(Scene.Storage.OperationDirectory(prepared.Id)));
+        Assert.False(Directory.Exists(Scene.ArtifactLeaf(prepared.PreparedIndexRelativePath)));
     }
 
     [Fact]
@@ -281,7 +286,7 @@ public sealed class LocalCommitRestartRecoveryTests : LocalCommitTestBase
         Assert.Equal(Sentinel, File.ReadAllText(lockPath));
         Assert.Equal(0, await EventCountAsync(ids.RunId, "local_commit.completed"));
         Assert.Equal(1, await EventCountAsync(ids.RunId, "local_commit.needs_attention"));
-        Assert.True(Directory.Exists(Scene.Storage.OperationDirectory(prepared.Id)), "preparation evidence is kept while unresolved");
+        Assert.True(Directory.Exists(Scene.ArtifactLeaf(prepared.PreparedIndexRelativePath)), "preparation evidence is kept while unresolved");
     }
 
     [Theory]
@@ -467,5 +472,44 @@ public sealed class LocalCommitRestartRecoveryTests : LocalCommitTestBase
         var workspace = await WorkspaceRowAsync(ids.WorkspaceId);
         Assert.Equal(WorkspaceStatus.NeedsAttention, workspace.Status);
         Assert.Equal("workspaces.reconciliation_head_diverged", workspace.LastFailureReasonCode);
+    }
+
+    [Fact]
+    public async Task Failure_cleanup_releases_the_retained_capability_so_teardown_cannot_fail_a_second_time()
+    {
+        // A fixture whose test fails right after a simulated host loss never reaches its own explicit release. Its teardown must
+        // still release the capability it deliberately retained (through the repository's own release API, after stopping the host);
+        // otherwise the open handle on the prepared artifact makes the scene's teardown throw and hides the real failure.
+        var probe = new LocalCommitRestartRecoveryTests();
+        var (_, script, _) = await probe.CrashAtAsync(Boundary.AfterAcquireBeforeRef);
+        var sceneRoot = probe.Scene.Root;
+        Assert.True(File.Exists(probe.Scene.IndexPath + ".lock"), "the fixture holds the live lock capability");
+        Assert.Equal(0, script.OutstandingEffects);
+
+        var teardown = Record.Exception(probe.Dispose);
+
+        Assert.Null(teardown);
+        Assert.False(Directory.Exists(sceneRoot), "the scene was removed completely");
+    }
+
+    [Fact]
+    public async Task Releasing_the_retained_capability_releases_only_what_the_fixture_owns()
+    {
+        var (_, script, _) = await CrashAtAsync(Boundary.AfterAcquireBeforeRef);
+        var foreignReference = PlaceForeignLock(ForeignLock.Reference);
+        var indexLock = Scene.IndexPath + ".lock";
+        Assert.True(File.Exists(indexLock));
+
+        // The owned capability goes through its own handle; the foreign reference lock beside it is left exactly as it was.
+        Assert.True(await script.ReleaseRetainedAsync());
+        Assert.False(File.Exists(indexLock));
+        Assert.Equal(Sentinel, File.ReadAllText(foreignReference));
+
+        // Once released the capability is not held any more: a second release is refused, and a lock that appears at the same
+        // pathname afterwards is foreign and is never adopted or removed (the fixture teardown calls the same API once more).
+        File.WriteAllText(indexLock, "another process");
+        Assert.False(await script.ReleaseRetainedAsync());
+        Assert.Equal("another process", File.ReadAllText(indexLock));
+        Assert.Equal(Sentinel, File.ReadAllText(foreignReference));
     }
 }

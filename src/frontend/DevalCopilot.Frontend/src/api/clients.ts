@@ -12,6 +12,7 @@ import {
   GetProjectVerificationCommandsEndpointClient,
   GetProjectVerificationExecutionsEndpointClient,
   GetProjectCheckpointReviewsEndpointClient,
+  GetCheckpointApprovalEvidenceEndpointClient,
   UpdateVerificationCommandEndpointClient,
   GetProjectRunSummariesEndpointClient,
   GetProjectWorkspaceEndpointClient,
@@ -105,6 +106,7 @@ export const gitCheckpointDiffClient = () => new GetGitCheckpointDiffEndpointCli
 export const projectVerificationCommandsClient = () => new GetProjectVerificationCommandsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectVerificationExecutionsClient = () => new GetProjectVerificationExecutionsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const projectCheckpointReviewsClient = () => new GetProjectCheckpointReviewsEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const checkpointApprovalEvidenceClient = () => new GetCheckpointApprovalEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const configureVerificationCommandClient = () => new ConfigureVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const updateVerificationCommandClient = () => new UpdateVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const deleteVerificationCommandClient = () => new DeleteVerificationCommandEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -189,6 +191,8 @@ export type {
   VerificationCommandResponse,
   VerificationExecutionResponse,
   CheckpointReviewResponse,
+  CheckpointApprovalEvidenceResponse,
+  CheckpointApprovalEvidenceMemberResponse,
   RequestCodexPlanningAttemptResponse,
   RequestCodexPlanningRepairAttemptResponse,
   AgentAttemptStatusResponse,

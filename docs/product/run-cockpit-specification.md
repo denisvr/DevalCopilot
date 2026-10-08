@@ -1034,7 +1034,30 @@ The host answers the protected `POST /api/projects/{projectId}/reviews` with **2
 the review identity and decision. The generated client treats exactly that status as success, so an accepted decision is never
 reported as a failed submission and is never sent again. A known refusal keeps its Problem Details (`reviews.not_found`,
 `reviews.workspace_not_ready`, `reviews.checkpoint_not_current`, `reviews.evidence_not_found`, `reviews.evidence_not_terminal`,
-`reviews.approval_requires_passed_verification`, `reviews.pending_cannot_include_evidence`).
+`reviews.approval_requires_passed_verification`, `reviews.pending_cannot_include_evidence`, and for the execution-set form below
+`reviews.evidence_forms_ambiguous`, `reviews.evidence_selection_invalid`, `reviews.evidence_set_requires_human` and
+`reviews.approval_requires_complete_verification_set`).
+
+**Approve all enabled checks** ([ADR-0030](../decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md)). The
+single-run decision buttons record one selected execution, which cannot satisfy the local commit when several recipes are enabled.
+For a Human reviewer the panel therefore also shows a "Complete verification set" group: the exact bundle the host offers (each
+enabled recipe in command order with its latest Passed execution of this checkpoint, read from the protected, read-only
+`GET /api/projects/{projectId}/checkpoints/{checkpointId}/approval-evidence`, never from the bounded execution history) and one
+"Approve all enabled checks" action. The action is offered only when the source read and the bundle read both settled successfully
+for the displayed refresh generation and the bundle names exactly the displayed project, workspace, checkpoint, checkpoint number and
+fingerprint (a missing, malformed or mismatching identity fact withholds it and is never repaired); while either read
+is pending or failed, after a malformed, partial or inconsistent answer, for a non-Human reviewer, while another decision is pending
+and after the same bundle was accepted, it is withheld with a fixed explanation (no recipe enabled, more than 32 enabled, an enabled
+recipe without a passing latest run, or unavailable) and never the host's own text. Clicking it submits exactly the displayed bundle as
+one Human `Approved` review through the existing review operation (its `verificationExecutionIds` array, never the scalar), which the
+host decides again from fresh facts: a rerun, a recipe change or a newer execution after the read is refused and the owner refreshes
+the evidence. The reads belong to the committed source's lifetime (replacement, A to B to A, unmount and overlapping reads); the
+approval action, its pending guard, error, continuation and accepted result belong to the committed bundle's lifetime: replacing the
+members ends it, a return to an earlier member set is a new lifetime, and an equal refresh keeps it. An obsolete completion writes
+nothing onto, clears no guard of and refreshes nothing for its replacement, ownership is checked again before the deferred review-list
+refresh, and a retained handler of an earlier or an already accepted bundle starts no request. An accepted approval is never reported
+as failed because the follow-up review read failed and is never retried, and approving commits nothing: the explicit local commit below
+is a separate request.
 
 The project's explicit "Refresh evidence" action (one generation per click, owned by the project's lifetime) reads the current
 checkpoint, the verification executions and the review list again; the refresh itself issues no review, verification, capture or
@@ -1060,7 +1083,7 @@ after the panel's read, or while the host observed Git, is refused rather than r
 
 For a selected `ManualAgent` run, the cockpit can show a **Local commit** panel after a settled, successful read proves the current
 checkpoint, current Passed verification membership, the latest applicable CodeReviewer approval and coherent Human Approved review
-evidence. The panel is advisory: the protected request reads every authority fact again, and a pending or failed status read never
+evidence whose membership is exactly the same complete set (with several enabled recipes, the complete-set approval above). The panel is advisory: the protected request reads every authority fact again, and a pending or failed status read never
 authorizes submission. It accepts only a bounded human commit message; the host derives all paths, branch, parent and Git arguments.
 
 The panel explains that execution is local only, unsigned and hook-free, that admission is irreversible for that run, and that a

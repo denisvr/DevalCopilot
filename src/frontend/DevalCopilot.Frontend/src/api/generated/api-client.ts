@@ -3122,6 +3122,57 @@ export class GetGitCheckpointChangedFilesEndpointClient {
     }
 }
 
+export class GetCheckpointApprovalEvidenceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCheckpointApprovalEvidence(projectId: string, checkpointId: string): Promise<CheckpointApprovalEvidenceResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/checkpoints/{checkpointId}/approval-evidence";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        if (checkpointId === undefined || checkpointId === null)
+            throw new globalThis.Error("The parameter 'checkpointId' must be defined.");
+        url_ = url_.replace("{checkpointId}", encodeURIComponent("" + checkpointId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCheckpointApprovalEvidence(_response);
+        });
+    }
+
+    protected processGetCheckpointApprovalEvidence(response: Response): Promise<CheckpointApprovalEvidenceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = CheckpointApprovalEvidenceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CheckpointApprovalEvidenceResponse>(null as any);
+    }
+}
+
 export class ClaimVerificationExecutionEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8697,6 +8748,7 @@ export class RecordCheckpointReviewRequest implements IRecordCheckpointReviewReq
     verificationExecutionId?: string | undefined;
     actorKind?: string;
     decision?: string;
+    verificationExecutionIds?: string[] | undefined;
 
     constructor(data?: IRecordCheckpointReviewRequest) {
         if (data) {
@@ -8713,6 +8765,11 @@ export class RecordCheckpointReviewRequest implements IRecordCheckpointReviewReq
             this.verificationExecutionId = _data["verificationExecutionId"];
             this.actorKind = _data["actorKind"];
             this.decision = _data["decision"];
+            if (Array.isArray(_data["verificationExecutionIds"])) {
+                this.verificationExecutionIds = [] as any;
+                for (let item of _data["verificationExecutionIds"])
+                    this.verificationExecutionIds!.push(item);
+            }
         }
     }
 
@@ -8729,6 +8786,11 @@ export class RecordCheckpointReviewRequest implements IRecordCheckpointReviewReq
         data["verificationExecutionId"] = this.verificationExecutionId;
         data["actorKind"] = this.actorKind;
         data["decision"] = this.decision;
+        if (Array.isArray(this.verificationExecutionIds)) {
+            data["verificationExecutionIds"] = [];
+            for (let item of this.verificationExecutionIds)
+                data["verificationExecutionIds"].push(item);
+        }
         return data;
     }
 }
@@ -8738,6 +8800,7 @@ export interface IRecordCheckpointReviewRequest {
     verificationExecutionId?: string | undefined;
     actorKind?: string;
     decision?: string;
+    verificationExecutionIds?: string[] | undefined;
 }
 
 export class RecheckProjectPhysicalIdentityResponse implements IRecheckProjectPhysicalIdentityResponse {
@@ -9630,6 +9693,122 @@ export interface IGitCheckpointChangedFileResponse {
     previousPath?: string | undefined;
     indexStatus?: string;
     workTreeStatus?: string;
+}
+
+export class CheckpointApprovalEvidenceResponse implements ICheckpointApprovalEvidenceResponse {
+    projectId?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    fingerprintSha256?: string;
+    members?: CheckpointApprovalEvidenceMemberResponse[];
+
+    constructor(data?: ICheckpointApprovalEvidenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.workspaceId = _data["workspaceId"];
+            this.checkpointId = _data["checkpointId"];
+            this.checkpointNumber = _data["checkpointNumber"];
+            this.fingerprintSha256 = _data["fingerprintSha256"];
+            if (Array.isArray(_data["members"])) {
+                this.members = [] as any;
+                for (let item of _data["members"])
+                    this.members!.push(CheckpointApprovalEvidenceMemberResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): CheckpointApprovalEvidenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CheckpointApprovalEvidenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["workspaceId"] = this.workspaceId;
+        data["checkpointId"] = this.checkpointId;
+        data["checkpointNumber"] = this.checkpointNumber;
+        data["fingerprintSha256"] = this.fingerprintSha256;
+        if (Array.isArray(this.members)) {
+            data["members"] = [];
+            for (let item of this.members)
+                data["members"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface ICheckpointApprovalEvidenceResponse {
+    projectId?: string;
+    workspaceId?: string;
+    checkpointId?: string;
+    checkpointNumber?: number;
+    fingerprintSha256?: string;
+    members?: CheckpointApprovalEvidenceMemberResponse[];
+}
+
+export class CheckpointApprovalEvidenceMemberResponse implements ICheckpointApprovalEvidenceMemberResponse {
+    verificationCommandId?: string;
+    commandNumber?: number;
+    recipeLabel?: string;
+    verificationExecutionId?: string;
+    executionNumber?: number;
+
+    constructor(data?: ICheckpointApprovalEvidenceMemberResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.verificationCommandId = _data["verificationCommandId"];
+            this.commandNumber = _data["commandNumber"];
+            this.recipeLabel = _data["recipeLabel"];
+            this.verificationExecutionId = _data["verificationExecutionId"];
+            this.executionNumber = _data["executionNumber"];
+        }
+    }
+
+    static fromJS(data: any): CheckpointApprovalEvidenceMemberResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CheckpointApprovalEvidenceMemberResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["verificationCommandId"] = this.verificationCommandId;
+        data["commandNumber"] = this.commandNumber;
+        data["recipeLabel"] = this.recipeLabel;
+        data["verificationExecutionId"] = this.verificationExecutionId;
+        data["executionNumber"] = this.executionNumber;
+        return data;
+    }
+}
+
+export interface ICheckpointApprovalEvidenceMemberResponse {
+    verificationCommandId?: string;
+    commandNumber?: number;
+    recipeLabel?: string;
+    verificationExecutionId?: string;
+    executionNumber?: number;
 }
 
 export class ConfigureVerificationCommandResponse implements IConfigureVerificationCommandResponse {

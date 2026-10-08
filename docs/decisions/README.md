@@ -54,6 +54,9 @@ supersedes it.
 - [ADR-0029: Deliver an explicit local commit before closing provider contract gaps](0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md)
   (it narrowly supersedes ADR-0009's increment ordering and extends ADR-0008's expected-HEAD reconciliation for exact recorded host
   commits; provider requirements and other authority rules remain intact)
+- [ADR-0030: Approve the complete verification set as one Human decision](0030-approve-the-complete-verification-set-as-one-human-decision.md)
+  (additive; an optional Human execution-set form of the existing review, a read-only approval bundle and one explicit action; it
+  changes no ADR-0029 authority, reservation, recovery or mixed-decision rule)
 
 ## Status values
 

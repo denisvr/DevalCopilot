@@ -309,7 +309,9 @@ On 2026-10-06 the owner authorized one bounded Increment 5 slice before the rema
 an explicit host-executed local commit of the exact verified, Agent-reviewed and human-approved owned-worktree checkpoint,
 including its necessary durable intent and restart recovery. See
 [ADR-0029](../decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md) and
-[the selected planner decision](planner-handoff.md). This is selected work, not a delivered capability or increment completion.
+[the planner handoff](planner-handoff.md). The explicit local commit is delivered as a bounded capability on `origin/main`; that is not
+increment completion. [ADR-0030](../decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md) additionally lets one
+Human approve the complete verification set so the same commit works with several enabled recipes.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

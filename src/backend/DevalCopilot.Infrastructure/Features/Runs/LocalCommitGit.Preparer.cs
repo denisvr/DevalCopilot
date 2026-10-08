@@ -26,13 +26,17 @@ public sealed partial class LocalCommitGit
     private async Task<LocalCommitPreparationResult> PrepareOnWindowsAsync(
         LocalCommitPreparationRequest request, CancellationToken cancellationToken)
     {
-        var workDirectory = storage.WorkDirectory(request.OperationId);
-        var operationDirectory = storage.OperationDirectory(request.OperationId);
+        // Preparation runs before database admission, so several preparations of one operation (identical or competing requests)
+        // can be in flight at once. Each invocation therefore owns a fresh scratch leaf and a fresh artifact leaf named by its own
+        // identifier, never by the operation identifier, and it cleans up only those two leaves.
+        var preparationId = Guid.NewGuid();
+        var workDirectory = storage.ScratchDirectory(preparationId);
+        var artifactDirectory = storage.ArtifactDirectory(preparationId);
         var sources = new List<TrackedFileSourceReader.Source>();
         var prepared = false;
         try
         {
-            var result = await PrepareCoreAsync(request, workDirectory, operationDirectory, sources, cancellationToken);
+            var result = await PrepareCoreAsync(request, preparationId, workDirectory, artifactDirectory, sources, cancellationToken);
             prepared = result.Outcome == LocalCommitPreparationOutcome.Prepared;
             return result;
         }
@@ -43,10 +47,10 @@ public sealed partial class LocalCommitGit
                 source.Dispose();
             }
 
-            TryDeleteDirectory(workDirectory);
+            storage.TryDeleteOwnedLeaf(workDirectory);
             if (!prepared)
             {
-                TryDeleteDirectory(operationDirectory);
+                storage.TryDeleteOwnedLeaf(artifactDirectory);
             }
         }
     }
@@ -54,8 +58,9 @@ public sealed partial class LocalCommitGit
     [SupportedOSPlatform("windows")]
     private async Task<LocalCommitPreparationResult> PrepareCoreAsync(
         LocalCommitPreparationRequest request,
+        Guid preparationId,
         string workDirectory,
-        string operationDirectory,
+        string artifactDirectory,
         List<TrackedFileSourceReader.Source> sources,
         CancellationToken cancellationToken)
     {
@@ -167,7 +172,7 @@ public sealed partial class LocalCommitGit
         // copy of the index, uses the immutable parent attributes, rejects every conversion authority, and brackets the view.
         var observation = await ObserveControlledAsync(
             gitPath, workspacePath, commonDirectory, request.ExpectedParentCommitSha, indexPath,
-            request.OperationId, cancellationToken);
+            workDirectory, cancellationToken);
         if (!observation.Proven)
         {
             return Refuse(LocalCommitPreparationOutcome.GitFailed);
@@ -199,8 +204,9 @@ public sealed partial class LocalCommitGit
             return Refuse(LocalCommitPreparationOutcome.GitFailed);
         }
 
-        Directory.CreateDirectory(operationDirectory);
-        var artifactPath = storage.ResolveArtifact(storage.PreparedIndexRelativePath(request.OperationId));
+        Directory.CreateDirectory(artifactDirectory);
+        var artifactRelativePath = storage.PreparedIndexRelativePath(preparationId);
+        var artifactPath = storage.ResolveArtifact(artifactRelativePath);
         if (artifactPath is null)
         {
             return Refuse(LocalCommitPreparationOutcome.GitFailed);
@@ -216,7 +222,16 @@ public sealed partial class LocalCommitGit
             return Refuse(promotion.Value);
         }
 
-        File.Copy(Path.Combine(workDirectory, "promotion.index"), artifactPath, overwrite: true);
+        // Exclusive creation: the artifact leaf belongs to this invocation alone, so an existing file is never replaced.
+        try
+        {
+            File.Copy(Path.Combine(workDirectory, "promotion.index"), artifactPath, overwrite: false);
+        }
+        catch (IOException)
+        {
+            return Refuse(LocalCommitPreparationOutcome.GitFailed);
+        }
+
         var preparedSha256 = FileSha256(artifactPath);
         if (preparedSha256 is null || !string.Equals(IndexSha256(indexPath), preimageSha256, StringComparison.Ordinal))
         {
@@ -233,7 +248,7 @@ public sealed partial class LocalCommitGit
                 unixSeconds,
                 preimageSha256,
                 preparedSha256,
-                storage.PreparedIndexRelativePath(request.OperationId),
+                artifactRelativePath,
                 plan.Count,
                 totalBytes));
     }
@@ -781,20 +796,5 @@ public sealed partial class LocalCommitGit
         var commitSha = created.Output.Trim();
         var expected = CommitObjectId(BuildCommitObjectContent(treeSha, parentSha, identity.Name, identity.Email, unixSeconds, message));
         return created.Succeeded && string.Equals(commitSha, expected, StringComparison.Ordinal) ? commitSha : null;
-    }
-
-    private static void TryDeleteDirectory(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path))
-            {
-                Directory.Delete(path, recursive: true);
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            // Scratch space is inert; a later preparation of the same operation starts from a fresh directory.
-        }
     }
 }

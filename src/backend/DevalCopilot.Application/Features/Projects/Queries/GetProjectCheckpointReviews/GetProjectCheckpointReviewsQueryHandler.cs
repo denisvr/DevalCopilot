@@ -52,6 +52,14 @@ public sealed class GetProjectCheckpointReviewsQueryHandler(
             .ThenByDescending(review => review.Id)
             .Take(MaximumResults)
             .ToListAsync(cancellationToken);
+        // Evidence members have no stored order, and the database does not return them in insertion order, so a review's members are
+        // presented in the host's canonical CommandNumber order (then execution number), whatever order the caller listed them in.
+        var commandIds = reviews.SelectMany(review => review.Evidence).Select(evidence => evidence.VerificationCommandId).Distinct().ToArray();
+        var commandNumbers = await dbContext.VerificationCommands
+            .AsNoTracking()
+            .Where(command => commandIds.Contains(command.Id))
+            .Select(command => new { command.Id, command.CommandNumber })
+            .ToDictionaryAsync(command => command.Id, command => command.CommandNumber, cancellationToken);
         return Result<IReadOnlyList<CheckpointReviewQueryResult>>.Success(reviews.Select(review =>
         {
             var isCurrentCheckpoint = currentCheckpoint?.Id == review.GitCheckpointId;
@@ -71,6 +79,8 @@ public sealed class GetProjectCheckpointReviewsQueryHandler(
                 review.CheckpointNumber,
                 review.CheckpointFingerprintSha256,
                 review.Evidence
+                    .OrderBy(evidence => commandNumbers.GetValueOrDefault(evidence.VerificationCommandId, int.MaxValue))
+                    .ThenBy(evidence => evidence.VerificationExecutionNumber)
                     .Select(evidence => new CheckpointReviewEvidenceQueryResult(
                         evidence.VerificationCommandId,
                         evidence.VerificationExecutionId,

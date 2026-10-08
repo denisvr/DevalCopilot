@@ -41,6 +41,8 @@ const CORRECTION_GUIDANCE_DRAFT = '  Keep the change inside the one file the fin
 const CORRECTION_GUIDANCE = normalizeGuidance(CORRECTION_GUIDANCE_DRAFT)
 const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/[^/]+\/executions$/
 const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
+// The persisted Human review names both recipes' latest Passed executions of the corrected checkpoint (listed in the host's own order).
+const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
 
 // This journey reads only the rows of its own project and run, and only the doubles' log entries written after it began, so it shares
 // the host, database and log with any other journey without depending on which of them ran first.
@@ -55,6 +57,19 @@ function stageInvocations() {
 function agentContracts(): string[] {
   return data.attempts().map((attempt) => attempt.AgentResponseContract)
 }
+
+// One rendered recipe row of the Verification commands panel: each recipe has its own Run control and last-run status.
+const recipeRow = (verification: Locator, number: number) =>
+  verification.locator('.dc-verification-command').filter({ hasText: `#${number} Candidate` })
+
+// Explicit local verification of one recipe through its own rendered Run control; the host accepts the claim with HTTP 202.
+async function runRecipe(page: Page, verification: Locator, number: number) {
+  const claim = page.waitForResponse((response) => response.request().method() === 'POST' && VERIFICATION_CLAIM_PATH.test(new URL(response.url()).pathname))
+  await recipeRow(verification, number).getByRole('button', { name: 'Run', exact: true }).click()
+  expect((await claim).status()).toBe(202)
+}
+
+const lower = (value: string) => value.toLowerCase()
 
 async function reloadAndReselect(page: Page) {
   await page.reload()
@@ -130,6 +145,12 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await page.getByLabel('Verification arguments').fill('check')
   await page.getByRole('button', { name: 'Add command' }).click()
   await expect(verification).toContainText('#1 Candidate total check')
+  // A second, distinct enabled recipe through the same rendered form: delivery needs the complete verification set.
+  await page.getByLabel('Verification command name').fill('Candidate lint check')
+  await page.getByLabel('Verification executable path').fill(join(journeyRoot().root, 'bin', 'verify.exe'))
+  await page.getByLabel('Verification arguments').fill('check')
+  await page.getByRole('button', { name: 'Add command' }).click()
+  await expect(verification).toContainText('#2 Candidate lint check')
   await page.getByRole('textbox', { name: 'Objective' }).fill(OBJECTIVE)
   await page.getByRole('button', { name: 'Record manual run' }).click()
   await expect(page.getByRole('heading', { name: OBJECTIVE })).toBeVisible({ timeout: 15_000 })
@@ -174,14 +195,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(source).toContainText('Checkpoint #2 · 1 changed files', { timeout: 30_000 })
   expect(data.checkpoints()).toHaveLength(2)
   expect(agentContracts()).toHaveLength(4)
-  const firstClaim = page.waitForResponse((response) => response.request().method() === 'POST' && VERIFICATION_CLAIM_PATH.test(new URL(response.url()).pathname))
-  await verification.getByRole('button', { name: 'Run', exact: true }).click()
-  expect((await firstClaim).status()).toBe(202)
-  await expect(verification).toContainText('Last run: Failed', { timeout: 60_000 })
+  await runRecipe(page, verification, 1)
+  await expect(recipeRow(verification, 1)).toContainText('Last run: Failed', { timeout: 60_000 })
   await expect(verification).toContainText('Verification #1 was requested.')
+  await runRecipe(page, verification, 2)
+  await expect(recipeRow(verification, 2)).toContainText('Last run: Failed', { timeout: 60_000 })
+  await expect(verification).toContainText('Verification #2 was requested.')
   await expect(verification).not.toContainText('This verification could not be started.')
-  expect(data.executions().map((e) => e.Status)).toEqual(['Failed'])
-  await verification.getByRole('button', { name: /Inspect stderr/ }).click()
+  expect(data.executions().map((e) => e.Status)).toEqual(['Failed', 'Failed'])
+  await recipeRow(verification, 1).getByRole('button', { name: /Inspect stderr/ }).click()
   await expect(page.getByText('TOTAL-NOT-SUM').first()).toBeVisible({ timeout: 30_000 })
   expect(agentContracts()).toHaveLength(4)
 
@@ -197,11 +219,11 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(verification).toContainText('Last run: Failed')
   await expect(verification).not.toContainText('Reading verification status…')
   await expect(manual.getByRole('button', { name: 'Changes requested' })).toBeEnabled({ timeout: 30_000 })
-  await expect(manual.getByRole('button', { name: 'Approve' })).toBeDisabled()
+  await expect(manual.getByRole('button', { name: 'Approve', exact: true })).toBeDisabled()
   await expect(manual).not.toContainText('Reading verification evidence…')
   expect(agentContracts()).toHaveLength(4)
   expect(data.checkpoints()).toHaveLength(2)
-  expect(data.executions()).toHaveLength(1)
+  expect(data.executions()).toHaveLength(2)
 
   // 8. Ordinary review is unavailable: the rendered control submits, and the server's non-Passed gate refuses it without creating
   // an attempt or an invocation.
@@ -216,6 +238,7 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await diagnosis.getByRole('button', { name: 'Diagnose failed verification with Codex' }).click()
   await expect(diagnosis).toContainText('Last diagnosis #5: Diagnosis findings recorded.', { timeout: 60_000 })
   await expect(diagnosis).toContainText('#1 Candidate total check · execution 1 · Failed · exit code 1')
+  await expect(diagnosis).toContainText('#2 Candidate lint check · execution 2 · Failed · exit code 1')
   await expect(page.getByText('Total does not add its operands.').first()).toBeVisible()
   expect(agentContracts()).toHaveLength(5)
 
@@ -231,19 +254,20 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(agentContracts()).toEqual([
     'Proposal', 'CriticalReview', 'ChallengeResolution', 'ImplementationReport', 'VerificationDiagnosis', 'ReviewCorrection',
   ])
-  expect(data.executions()).toHaveLength(1) // the correction did not verify itself
+  expect(data.executions()).toHaveLength(2) // the correction did not verify itself
 
   // 11. Refresh the evidence, then fresh verification of the corrected checkpoint passes, observed without a reload.
   await page.getByRole('button', { name: 'Refresh evidence' }).click()
   await expect(source).toContainText('Checkpoint #3', { timeout: 30_000 })
   expect(data.checkpoints()).toHaveLength(3)
-  const secondClaim = page.waitForResponse((response) => response.request().method() === 'POST' && VERIFICATION_CLAIM_PATH.test(new URL(response.url()).pathname))
-  await verification.getByRole('button', { name: 'Run', exact: true }).click()
-  expect((await secondClaim).status()).toBe(202)
-  await expect(verification).toContainText('Last run: Passed', { timeout: 60_000 })
-  await expect(verification).toContainText('Verification #2 was requested.')
+  await runRecipe(page, verification, 1)
+  await expect(recipeRow(verification, 1)).toContainText('Last run: Passed', { timeout: 60_000 })
+  await expect(verification).toContainText('Verification #3 was requested.')
+  await runRecipe(page, verification, 2)
+  await expect(recipeRow(verification, 2)).toContainText('Last run: Passed', { timeout: 60_000 })
+  await expect(verification).toContainText('Verification #4 was requested.')
   await expect(verification).not.toContainText('This verification could not be started.')
-  expect(data.executions().map((e) => e.Status)).toEqual(['Failed', 'Passed'])
+  expect(data.executions().map((e) => e.Status)).toEqual(['Failed', 'Failed', 'Passed', 'Passed'])
   expect(agentContracts()).toHaveLength(6)
 
   // Refresh evidence once more after the terminal verification: the run reads the host's current diagnosis and review status again,
@@ -254,14 +278,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(review.getByRole('button', { name: 'Request code review' })).toBeEnabled()
   await expect(diagnosis.getByRole('button', { name: 'Diagnose failed verification with Codex' })).toHaveCount(0)
   // The Passed verification of the corrected checkpoint is current in both evidence views after this refresh, before any decision.
-  await expect(verification).toContainText('Last run: Passed')
+  await expect(recipeRow(verification, 1)).toContainText('Last run: Passed')
+  await expect(recipeRow(verification, 2)).toContainText('Last run: Passed')
   await expect(verification).not.toContainText('Reading verification status…')
-  await expect(manual.getByRole('button', { name: 'Approve' })).toBeEnabled({ timeout: 30_000 })
+  await expect(manual.getByRole('button', { name: 'Approve', exact: true })).toBeEnabled({ timeout: 30_000 })
   await expect(manual).not.toContainText('Reading verification evidence…')
   expect(data.checkpointReviews()).toEqual([]) // no manual review exists yet, and the refresh recorded none
   expect(agentContracts()).toHaveLength(6)
   expect(data.checkpoints()).toHaveLength(3)
-  expect(data.executions()).toHaveLength(2)
+  expect(data.executions()).toHaveLength(4)
   expect(readInvocations(mark).filter((entry) => entry.contract === 'ImplementationReview')).toEqual([])
 
   // 12. Ordinary Codex review of the corrected report: approval.
@@ -277,19 +302,30 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(agentReviews.map((row) => [row.ActorKind, row.Decision, row.CheckpointNumber])).toEqual([['FutureAgent', 'Approved', 3]])
   const beforeManual = { attempts: data.attempts().length, messages: data.messages().length, invocations: stageInvocations().length }
   await page.getByRole('button', { name: 'Refresh evidence' }).click()
-  await expect(manual.getByRole('button', { name: 'Approve' })).toBeEnabled({ timeout: 30_000 })
+  await expect(manual.getByRole('button', { name: 'Approve', exact: true })).toBeEnabled({ timeout: 30_000 })
   await expect(manual).not.toContainText('Reading verification evidence…')
   await expect(manual).not.toContainText('could not be refreshed')
   await expect(manual.getByLabel('Reviewer')).toHaveValue('Human')
   expect(data.checkpointReviews()).toEqual(agentReviews) // the refresh recorded nothing
   expect(data.attempts()).toHaveLength(beforeManual.attempts)
+  // ADR-0030: the complete Human approval. The rendered action shows the exact bundle it will submit (both enabled recipes, each with
+  // its latest Passed execution of this checkpoint, read from the protected approval-evidence operation), and one click records one
+  // Human review whose members are exactly that bundle. The legacy single-run Approve is left alone.
+  const approveAll = manual.getByRole('button', { name: 'Approve all enabled checks' })
+  await expect(approveAll).toBeEnabled({ timeout: 30_000 })
+  await expect(manual.getByRole('list', { name: 'Verification set to approve' }).getByRole('listitem')).toHaveText([
+    '#1 Candidate total check · execution #3',
+    '#2 Candidate lint check · execution #4',
+  ])
+  await expect(manual).toContainText('The explicit local commit requires this complete approval; approving commits nothing.')
   const manualRecorded = page.waitForResponse(
     (response) => response.request().method() === 'POST' && CHECKPOINT_REVIEW_PATH.test(new URL(response.url()).pathname),
   )
-  await manual.getByRole('button', { name: 'Approve' }).click()
+  await approveAll.click()
   expect((await manualRecorded).status()).toBe(201)
+  await expect(manual).toContainText('Recorded. The Human approval covers these runs.')
   await expect(manual).toContainText('Approved')
-  await expect(manual).toContainText('Checkpoint #3 · verification #2 · Human')
+  await expect(manual).toContainText(HUMAN_BOTH_RUNS)
   await expect(manual).toContainText('Current checkpoint')
   await expect(manual).not.toContainText('This review decision could not be recorded.')
   await expect(manual).not.toContainText('Review evidence could not be loaded.')
@@ -335,7 +371,7 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await reloadAndReselect(page)
   await expect(page.getByRole('heading', { name: OBJECTIVE })).toBeVisible({ timeout: 30_000 })
   await expect(page.getByText('Last attempt #7: Implementation approved.')).toBeVisible()
-  await expect(manual).toContainText('Checkpoint #3 · verification #2 · Human', { timeout: 30_000 })
+  await expect(manual).toContainText(HUMAN_BOTH_RUNS, { timeout: 30_000 })
   await expect(manual).toContainText('Current checkpoint')
   await expect(diagnosis).toContainText('Last correction #6: Correction applied.')
   await expect(page.getByText('Completed · Completed')).toHaveCount(0)
@@ -391,11 +427,17 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(new Set(cps.map((c) => c.FingerprintSha256)).size).toBe(3)
   expect(cps.every((c) => c.HeadCommitSha === repository.baselineCommit)).toBe(true)
   const runs = data.executions()
-  expect(runs.map((e) => [e.Status, e.ExitCode])).toEqual([['Failed', 1], ['Passed', 0]])
-  expect(sameId(runs[0].GitCheckpointId, cps[1].Id)).toBe(true)
-  expect(sameId(runs[1].GitCheckpointId, cps[2].Id)).toBe(true)
-  expect(runs[0].CompletionFingerprintSha256).toBe(cps[1].FingerprintSha256)
-  expect(runs[1].CompletionFingerprintSha256).toBe(cps[2].FingerprintSha256)
+  expect(runs.map((e) => [e.Status, e.ExitCode])).toEqual([['Failed', 1], ['Failed', 1], ['Passed', 0], ['Passed', 0]])
+  const recipes = data.recipes()
+  expect(recipes.map((recipe) => [recipe.CommandNumber, recipe.Name, recipe.IsEnabled])).toEqual([
+    [1, 'Candidate total check', 1],
+    [2, 'Candidate lint check', 1],
+  ])
+  expect(runs.map((e) => lower(e.VerificationCommandId))).toEqual([recipes[0].Id, recipes[1].Id, recipes[0].Id, recipes[1].Id].map(lower))
+  expect([0, 1].every((index) => sameId(runs[index].GitCheckpointId, cps[1].Id))).toBe(true)
+  expect([2, 3].every((index) => sameId(runs[index].GitCheckpointId, cps[2].Id))).toBe(true)
+  expect([0, 1].every((index) => runs[index].CompletionFingerprintSha256 === cps[1].FingerprintSha256)).toBe(true)
+  expect([2, 3].every((index) => runs[index].CompletionFingerprintSha256 === cps[2].FingerprintSha256)).toBe(true)
 
   // The manual review is one persisted Human Approved fact on the exact current checkpoint, binding exactly the Passed execution of that
   // checkpoint (not the earlier Failed one), and it is separate from the ordinary Agent approval: that approval is the seventh attempt's
@@ -407,15 +449,29 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(sameId(manualReview.Id, agentReviews[0].Id)).toBe(false)
   expect(manualReview).toMatchObject({ CheckpointNumber: 3, CheckpointFingerprintSha256: cps[2].FingerprintSha256 })
   expect(sameId(manualReview.GitCheckpointId, cps[2].Id)).toBe(true)
+  // One Human review whose relational members are exactly both recipes' latest Passed executions of that checkpoint (never the
+  // earlier Failed ones), the same membership the Agent's own review claimed.
   const manualEvidence = data.checkpointReviewEvidence().filter((row) => sameId(row.CheckpointReviewId, manualReview.Id))
-  expect(manualEvidence).toHaveLength(1)
-  expect(sameId(manualEvidence[0].VerificationExecutionId, runs[1].Id)).toBe(true)
-  expect(manualEvidence[0]).toMatchObject({
-    VerificationExecutionNumber: 2,
-    VerificationExecutionCheckpointFingerprintSha256: cps[2].FingerprintSha256,
-    VerificationExecutionStatus: 'Passed',
-    VerificationExecutionExitCode: 0,
-  })
+  expect(manualEvidence).toHaveLength(2)
+  const expectedMembers = [
+    [lower(recipes[0].Id), lower(runs[2].Id), 3],
+    [lower(recipes[1].Id), lower(runs[3].Id), 4],
+  ]
+  expect(manualEvidence.map((row) => [lower(row.VerificationCommandId), lower(row.VerificationExecutionId), row.VerificationExecutionNumber])).toEqual(
+    expectedMembers,
+  )
+  for (const member of manualEvidence) {
+    expect(member).toMatchObject({
+      VerificationExecutionCheckpointFingerprintSha256: cps[2].FingerprintSha256,
+      VerificationExecutionStatus: 'Passed',
+      VerificationExecutionExitCode: 0,
+    })
+  }
+
+  const agentEvidence = data.checkpointReviewEvidence().filter((row) => sameId(row.CheckpointReviewId, reviewFacts[0].Id))
+  expect(agentEvidence.map((row) => [lower(row.VerificationCommandId), lower(row.VerificationExecutionId), row.VerificationExecutionNumber])).toEqual(
+    expectedMembers,
+  )
   expect(all.filter((a) => a.AgentOutcome === 'ReviewApproved')).toHaveLength(1) // seven attempts: the manual review claimed none
   expect(all.filter((a) => a.AgentResponseContract === 'ImplementationReview')).toHaveLength(1) // the one Agent review, still Codex's
 
@@ -435,8 +491,8 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
 
   // The doubles' own log: exactly the contracts requested, in order, each served once; the verification executable saw real content.
   expect(invocations.filter((e) => e.kind !== 'probe').map((e) => e.contract ?? `verify:${e.outcome}`)).toEqual([
-    'Proposal', 'CriticalReview', 'ChallengeResolution', 'ImplementationReport', 'verify:failed', 'VerificationDiagnosis', 'ReviewCorrection',
-    'verify:passed', 'ImplementationReview',
+    'Proposal', 'CriticalReview', 'ChallengeResolution', 'ImplementationReport', 'verify:failed', 'verify:failed', 'VerificationDiagnosis',
+    'ReviewCorrection', 'verify:passed', 'verify:passed', 'ImplementationReview',
   ])
 
   // Project instruction context (ADR-0021): every one of the claimed stages received ITS OWN repository's tracked root AGENTS.md and
@@ -514,6 +570,11 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect((await localCommitResponse).status()).toBe(200)
   await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 60_000 })
   await expect(page.getByText('Completed · Completed')).toBeVisible()
+  // The operation recorded exactly the complete verification set the Agent and the Human approved, in the host's command order.
+  expect(data.localCommitVerificationMembers().map((member) => [member.Sequence, lower(member.CommandId), lower(member.SubjectId)])).toEqual([
+    [0, lower(recipes[0].Id), lower(runs[2].Id)],
+    [1, lower(recipes[1].Id), lower(runs[3].Id)],
+  ])
 
   const deliveredCommit = git('rev-parse', 'HEAD')
   expect(deliveredCommit).not.toBe(repository.baselineCommit)
@@ -539,6 +600,10 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
   await expect(page.getByText('Completed · Completed')).toBeVisible()
   expect(git('rev-parse', 'HEAD')).toBe(deliveredCommit)
+  // The persisted memberships are the same after the reload: nothing was re-recorded and nothing was resubmitted.
+  expect(data.localCommitVerificationMembers()).toHaveLength(2)
+  expect(data.checkpointReviewEvidence().filter((row) => sameId(row.CheckpointReviewId, manualReview.Id))).toHaveLength(2)
+  expect(data.checkpointReviews()).toHaveLength(2)
 
   // The launch secret never reached the page URL, browser storage, or any file under the owned root.
   expect(page.url()).not.toContain(journeySecret())

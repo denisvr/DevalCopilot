@@ -20,16 +20,21 @@ public sealed partial class LocalCommitGit
         string commonDirectory,
         string treeSha,
         string realIndexPath,
-        Guid operationId,
+        string? scratchDirectory,
         CancellationToken cancellationToken,
         byte[]? pinnedIndexBytes = null)
     {
+        // The observation's private files live in a leaf this call creates and removes. A caller that already owns a scratch
+        // leaf (the preparation) passes it and the observation leaf nests inside it; any other caller gets a fresh leaf of its own,
+        // so no observation's cleanup can reach a sibling's files.
+        var ownedScratch = scratchDirectory is null ? storage.ScratchDirectory(Guid.NewGuid()) : null;
         var controlledIndex = string.Empty;
         var controlledGitDirectory = string.Empty;
         if (!LocalCommitOperation.IsObjectId(treeSha)
-            || !TryCopyBoundedIndex(realIndexPath, operationId, pinnedIndexBytes, out controlledIndex)
+            || !TryCopyBoundedIndex(realIndexPath, scratchDirectory ?? ownedScratch!, pinnedIndexBytes, out controlledIndex)
             || !TryCreateControlledGitDirectory(commonDirectory, treeSha, Path.GetDirectoryName(controlledIndex)!, out controlledGitDirectory))
         {
+            DeleteObservationLeaf(controlledIndex, ownedScratch);
             return new ControlledObservation(false, null, false, "index_copy_unproven");
         }
 
@@ -92,7 +97,33 @@ public sealed partial class LocalCommitGit
         }
         finally
         {
-            TryDeleteDirectory(Path.GetDirectoryName(controlledIndex)!);
+            DeleteObservationLeaf(controlledIndex, ownedScratch);
+        }
+    }
+
+    /// <summary>Removes the observation's own leaf (and the scratch directory it allocated for itself, if any); never an ancestor
+    /// that a caller or another preparation may also use.</summary>
+    private void DeleteObservationLeaf(string controlledIndex, string? ownedScratch)
+    {
+        if (controlledIndex.Length > 0)
+        {
+            try
+            {
+                var leaf = Path.GetDirectoryName(controlledIndex)!;
+                if (Directory.Exists(leaf))
+                {
+                    Directory.Delete(leaf, recursive: true);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Inert scratch; removing the owning scratch leaf retries it.
+            }
+        }
+
+        if (ownedScratch is not null)
+        {
+            storage.TryDeleteOwnedLeaf(ownedScratch);
         }
     }
 
@@ -155,12 +186,11 @@ public sealed partial class LocalCommitGit
             : null;
     }
 
-    private bool TryCopyBoundedIndex(string indexPath, Guid operationId, byte[]? pinnedIndexBytes, out string controlledIndex)
+    private static bool TryCopyBoundedIndex(string indexPath, string scratchDirectory, byte[]? pinnedIndexBytes, out string controlledIndex)
     {
         // Each immutable observation owns one scratch leaf. A completed Git child may briefly retain the preceding private
         // index on Windows; reusing its pathname would turn harmless delayed cleanup into an observation failure.
-        controlledIndex = Path.Combine(
-            storage.WorkDirectory(operationId), "controlled-observation", Guid.NewGuid().ToString("N"), "index");
+        controlledIndex = Path.Combine(scratchDirectory, "controlled-observation", Guid.NewGuid().ToString("N"), "index");
         try
         {
             if (pinnedIndexBytes is not null && pinnedIndexBytes.LongLength > WindowsIndexEffectHandles.MaximumIndexBytes)

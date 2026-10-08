@@ -1,3 +1,5 @@
+import { toApprovalSource } from '../hooks/checkpointApprovalBundle'
+import { useCheckpointApprovalEvidence } from '../hooks/useCheckpointApprovalEvidence'
 import { useProjectCheckpointReviews } from '../hooks/useProjectCheckpointReviews'
 import { useProjectGitEvidence } from '../hooks/useProjectGitEvidence'
 import { useProjectVerificationExecutions } from '../hooks/useProjectVerificationExecutions'
@@ -40,10 +42,31 @@ function staleReasonDescription(reason: string | undefined): string {
   }
 }
 
+// Why the complete set is not offered right now: still reading, a fixed host refusal, or an unavailable read.
+function describeBundleState(approval: { loading: boolean; readFailed: boolean; refusal: string | null; current: boolean }): string {
+  if (!approval.readFailed) {
+    return approval.current ? 'The complete verification set does not match the source shown here. Use Refresh evidence.' : 'Reading the complete verification set…'
+  }
+
+  switch (approval.refusal) {
+    case 'none':
+      return 'Enable at least one verification check before approving the complete set.'
+    case 'tooMany':
+      return 'More than 32 verification checks are enabled, so the complete set cannot be approved at once.'
+    case 'incomplete':
+      return 'Every enabled check needs a passing latest run for this checkpoint before the complete set can be approved.'
+    default:
+      return 'The complete verification set could not be read. Use Refresh evidence.'
+  }
+}
+
 export function CheckpointReviewPanel({ projectId, refreshGeneration }: CheckpointReviewPanelProps) {
   const { evidence, current: evidenceCurrent, loading: evidenceLoading } = useProjectGitEvidence(projectId, true, refreshGeneration)
   const { executions, current: executionsCurrent, loading: executionsLoading, readFailed: executionsFailed } = useProjectVerificationExecutions(projectId, refreshGeneration)
-  const { reviews, error, saving, record, current: reviewsCurrent, loading: reviewsLoading, readFailed: reviewsFailed } = useProjectCheckpointReviews(projectId, refreshGeneration)
+  const { reviews, error, saving, record, refresh: refreshReviews, current: reviewsCurrent, loading: reviewsLoading, readFailed: reviewsFailed } = useProjectCheckpointReviews(projectId, refreshGeneration)
+  // The complete-set action is bound to every identity fact the evidence admitted; any missing or malformed one withholds it.
+  const source = toApprovalSource(projectId, evidence)
+  const approval = useCheckpointApprovalEvidence(source, refreshGeneration, refreshReviews)
   const lifetime = useOwnedLifetime(projectId)
   const [{ selection, actorKind }, commit] = useOwnedState(lifetime, createChoices)
   const selectedExecutionId = selection && selection.checkpointId === evidence?.checkpointId ? selection.executionId : null
@@ -58,11 +81,27 @@ export function CheckpointReviewPanel({ projectId, refreshGeneration }: Checkpoi
   const selectedExecution = eligibleExecutions.find(execution => execution.verificationExecutionId === selectedExecutionId) ?? eligibleExecutions[0]
   const currentExecution = executionsCurrent ? selectedExecution : undefined
   // A decision names the checkpoint it judged, so none is offered while its current metadata is being read or could not be read.
-  const canDecide = evidenceCurrent && !saving
+  const busy = saving || approval.approving
+  const canDecide = evidenceCurrent && !busy
   const canApprove = currentExecution?.status === 'Passed'
   async function submit(decision: string) {
     if (evidenceCurrent && evidence?.checkpointId && (decision === 'Pending' || (executionsCurrent && currentExecution?.verificationExecutionId))) {
       await record(evidence.checkpointId, decision === 'Pending' ? undefined : currentExecution?.verificationExecutionId, decision, actorKind)
+    }
+  }
+  // The complete-set action is offered only for a settled, successful bundle read that names exactly the source displayed here.
+  const bundle = approval.bundle
+  const bundleMatchesSource = bundle !== null
+    && source !== null
+    && bundle.projectId === source.projectId
+    && bundle.workspaceId === source.workspaceId
+    && bundle.checkpointId === source.checkpointId
+    && bundle.checkpointNumber === source.checkpointNumber
+    && bundle.fingerprintSha256 === source.fingerprintSha256
+  const canApproveAll = canDecide && actorKind === 'Human' && approval.current && bundleMatchesSource && !approval.accepted
+  async function approveAll() {
+    if (canApproveAll) {
+      await approval.approve()
     }
   }
   // A read that is not current is either still being read (including the first frame and a retry) or has settled as failed.
@@ -111,12 +150,48 @@ export function CheckpointReviewPanel({ projectId, refreshGeneration }: Checkpoi
               <option value="FutureAgent">Future agent</option>
             </select>
           </label>
+          {actorKind === 'Human' ? (
+            <div className="dc-verification-command" role="group" aria-label="Complete verification set">
+              <strong>Complete verification set</strong>
+              {approval.current && bundleMatchesSource && bundle ? (
+                <>
+                  <ul aria-label="Verification set to approve">
+                    {bundle.members.map(member => (
+                      <li key={member.executionId}>{`#${member.commandNumber} ${member.recipeLabel} · execution #${member.executionNumber}`}</li>
+                    ))}
+                  </ul>
+                  <span>
+                    Records one Human approval of exactly these runs for Checkpoint #{bundle.checkpointNumber}. The explicit local commit requires
+                    this complete approval; approving commits nothing.
+                  </span>
+                  {approval.accepted ? <span>Recorded. The Human approval covers these runs.</span> : null}
+                </>
+              ) : (
+                <span className="dc-workspace-evidence-empty">
+                  {source === null
+                    ? 'The current source identity is incomplete, so the complete verification set cannot be approved. Use Refresh evidence.'
+                    : describeBundleState(approval)}
+                </span>
+              )}
+              <div className="dc-verification-command-actions">
+                <button type="button" className="dc-button" data-variant="primary" disabled={!canApproveAll} onClick={() => void approveAll()}>
+                  Approve all enabled checks
+                </button>
+              </div>
+              {approval.error ? <span className="dc-candidate-workspace-error">{approval.error}</span> : null}
+            </div>
+          ) : null}
           <div className="dc-verification-command-actions">
           <button type="button" className="dc-button" disabled={!canDecide} onClick={() => void submit('Pending')}>Pending</button>
           <button type="button" className="dc-button" disabled={!currentExecution || !canDecide} onClick={() => void submit('ChangesRequested')}>Changes requested</button>
           <button type="button" className="dc-button" disabled={!currentExecution || !canDecide} onClick={() => void submit('Escalated')}>Escalate</button>
           <button type="button" className="dc-button" data-variant="primary" disabled={!canApprove || !canDecide} onClick={() => void submit('Approved')}>Approve</button>
           </div>
+          {approval.current && bundleMatchesSource && bundle && bundle.members.length > 1 ? (
+            <span className="dc-workspace-evidence-empty">
+              Approve records only the selected run. With several enabled checks, the local commit needs Approve all enabled checks.
+            </span>
+          ) : null}
         </>
       ) : null}
 

@@ -43,6 +43,22 @@ vi.mock('../hooks/useProjectVerificationExecutions', () => ({
   }),
 }))
 
+// The complete-set bundle is covered by CheckpointReviewApproveAll.test.tsx; here it is simply not offered.
+vi.mock('../hooks/useCheckpointApprovalEvidence', () => ({
+  useCheckpointApprovalEvidence: () => ({
+    bundle: null,
+    current: false,
+    loading: true,
+    readFailed: false,
+    refusal: null,
+    approving: false,
+    accepted: false,
+    error: null,
+    refresh: vi.fn(),
+    approve: vi.fn(),
+  }),
+}))
+
 vi.mock('../hooks/useProjectCheckpointReviews', () => ({
   useProjectCheckpointReviews: () => ({
     reviews: [{

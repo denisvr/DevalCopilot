@@ -48,7 +48,7 @@ public sealed class LocalCommitEndpointTests : LocalCommitTestBase
         Assert.Equal(["local_commit.admitted", "local_commit.executing", "local_commit.completed"], local);
         Assert.Equal(mainBefore, Scene.MainRepositoryFingerprint());
         Assert.False(File.Exists(Scene.IndexPath + ".lock"));
-        Assert.False(Directory.Exists(Scene.Storage.OperationDirectory(operationId)));
+        Assert.Empty(Scene.StorageLeaves());
 
         // A replay of the identical operation returns the recorded operation without any further Git execution.
         var replay = await PostAsync(host, ids.RunId, ids, operationId);
@@ -150,10 +150,16 @@ public sealed class LocalCommitEndpointTests : LocalCommitTestBase
             PostAsync(host, ids.RunId, ids, Guid.NewGuid()),
             PostAsync(host, ids.RunId, ids, Guid.NewGuid()));
 
+        // An unexpected status carries the bounded, sanitized head of its body and the server errors the host logged, so a failure of
+        // this race is diagnosable from its own report instead of from a later passing run.
+        var unexpected = new List<string>();
+        foreach (var response in responses.Where(response => response.StatusCode is not (HttpStatusCode.OK or HttpStatusCode.Conflict)))
+        {
+            unexpected.Add(await host.ServerErrors.DescribeAsync(response));
+        }
+
+        Assert.True(unexpected.Count == 0, $"Unexpected response(s): {string.Join(" || ", unexpected)}");
         Assert.Equal(1, await OperationCountAsync(host));
-        Assert.All(responses, response => Assert.True(
-            response.StatusCode is HttpStatusCode.OK or HttpStatusCode.Conflict,
-            $"Unexpected response {response.StatusCode}."));
 
         // The transaction arbitrates all four requests together. Either identical request may be admitted and replayed (two OKs),
         // or either competing UUID may reserve the workspace first (one OK); in both cases one durable operation and event exist.

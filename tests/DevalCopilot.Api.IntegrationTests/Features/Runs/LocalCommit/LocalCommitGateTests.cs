@@ -49,10 +49,11 @@ public sealed class LocalCommitGateTests : LocalCommitTestBase
     }
 
     [Fact]
-    public async Task Two_enabled_recipes_cannot_be_covered_by_the_single_member_human_approval_and_refuse()
+    public async Task Two_enabled_recipes_cannot_be_covered_by_the_legacy_single_member_human_approval_and_refuse()
     {
-        // A human review records exactly one selected execution, while the Agent review claimed both enabled recipes, so the
-        // memberships can never be exactly equal. The refusal is the conservative contract, never a silent partial approval.
+        // The legacy scalar form records exactly one selected execution, while the Agent review claimed both enabled recipes, so
+        // the memberships are not equal. The refusal stays the conservative contract, never a silent partial approval; the complete
+        // Human approval of ADR-0030 (see LocalCommitCompleteSetTests) is the way to cover several recipes.
         using var host = StartHost(runSupervisor: false);
         var ids = await LocalCommitLineage.SeedAsync(host, Scene, recipes: 2);
 

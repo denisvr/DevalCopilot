@@ -28,6 +28,7 @@ export interface CheckpointRow {
 
 export interface ExecutionRow {
   Id: string
+  VerificationCommandId: string
   ExecutionNumber: number
   Status: string
   ExitCode: number | null
@@ -46,6 +47,7 @@ export interface CheckpointReviewRow {
 
 export interface CheckpointReviewEvidenceRow {
   CheckpointReviewId: string
+  VerificationCommandId: string
   VerificationExecutionId: string
   VerificationExecutionNumber: number
   VerificationExecutionCheckpointFingerprintSha256: string
@@ -191,7 +193,7 @@ export class JourneyData {
 
   executions(): ExecutionRow[] {
     return this.all<ExecutionRow>(
-      'select Id, ExecutionNumber, Status, ExitCode, GitCheckpointId, CompletionFingerprintSha256 from verification_executions where ProjectId = ? order by ExecutionNumber',
+      'select Id, VerificationCommandId, ExecutionNumber, Status, ExitCode, GitCheckpointId, CompletionFingerprintSha256 from verification_executions where ProjectId = ? order by ExecutionNumber',
       this.projectId(),
     )
   }
@@ -205,8 +207,24 @@ export class JourneyData {
 
   checkpointReviewEvidence(): CheckpointReviewEvidenceRow[] {
     return this.all<CheckpointReviewEvidenceRow>(
-      'select e.CheckpointReviewId, e.VerificationExecutionId, e.VerificationExecutionNumber, e.VerificationExecutionCheckpointFingerprintSha256, e.VerificationExecutionStatus, e.VerificationExecutionExitCode from checkpoint_review_evidence e join checkpoint_reviews r on r.Id = e.CheckpointReviewId where r.ProjectId = ? order by e.VerificationExecutionNumber',
+      'select e.CheckpointReviewId, e.VerificationCommandId, e.VerificationExecutionId, e.VerificationExecutionNumber, e.VerificationExecutionCheckpointFingerprintSha256, e.VerificationExecutionStatus, e.VerificationExecutionExitCode from checkpoint_review_evidence e join checkpoint_reviews r on r.Id = e.CheckpointReviewId where r.ProjectId = ? order by e.VerificationExecutionNumber',
       this.projectId(),
+    )
+  }
+
+  /** The enabled recipes of the project in the host's own CommandNumber order. */
+  recipes(): { Id: string; CommandNumber: number; Name: string; IsEnabled: number }[] {
+    return this.all(
+      'select Id, CommandNumber, Name, IsEnabled from verification_commands where ProjectId = ? order by CommandNumber',
+      this.projectId(),
+    )
+  }
+
+  /** The verification members the explicit local commit recorded for this run's operation, in their recorded sequence. */
+  localCommitVerificationMembers(): { Sequence: number; SubjectId: string; CommandId: string }[] {
+    return this.all(
+      "select m.Sequence, m.SubjectId, m.CommandId from local_commit_authority_members m join local_commit_operations o on o.Id = m.OperationId where o.RunId = ? and m.Kind = 'Verification' order by m.Sequence",
+      this.runId(),
     )
   }
 

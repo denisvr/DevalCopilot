@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Devalente.Shared.Cqrs;
+using DevalCopilot.Api.Features.Projects.GetCheckpointApprovalEvidence;
 using DevalCopilot.Api.Features.Projects.RecordCheckpointReview;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
@@ -35,7 +36,8 @@ internal sealed record LocalCommitLineageIds(
     Guid ExecutionReportId,
     Guid ExecutionId,
     Guid CommandId,
-    Guid HumanReviewId);
+    Guid HumanReviewId,
+    IReadOnlyList<Guid>? AllExecutionIds = null);
 
 /// <summary>
 /// Seeds one complete, real review lineage through the production command chain against a real Git scene: Codex proposal,
@@ -54,7 +56,7 @@ internal static class LocalCommitLineage
     /// delivery), starting from the workspace's current head, with its own implementation, verification and approvals.</param>
     public static async Task<LocalCommitLineageIds> SeedAsync(
         LocalCommitHost host, LocalCommitScene scene, bool humanApproval = true, int recipes = 1,
-        LocalCommitLineageIds? continueFrom = null)
+        LocalCommitLineageIds? continueFrom = null, bool completeSetHumanApproval = false, int laterRunsOfFirstRecipe = 0)
     {
         await using var scope = host.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<DevalCopilotDbContext>();
@@ -180,6 +182,7 @@ internal static class LocalCommitLineage
 
         Guid firstCommand = Guid.Empty;
         Guid firstExecution = Guid.Empty;
+        var allExecutions = new List<Guid>();
         var existingCommands = continueFrom is null
             ? []
             : await dbContext.VerificationCommands.Where(candidate => candidate.ProjectId == project.Id && candidate.IsEnabled)
@@ -206,11 +209,29 @@ internal static class LocalCommitLineage
             execution.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now);
             dbContext.VerificationExecutions.Add(execution);
             await dbContext.SaveChangesAsync();
+            allExecutions.Add(execution.Id);
             if (number == 1)
             {
                 firstCommand = command.Id;
                 firstExecution = execution.Id;
             }
+        }
+
+        // Later runs of the first recipe push every other recipe's latest execution out of the history endpoint's latest-20 window,
+        // so a complete bundle cannot be derived from that page.
+        for (var later = 0; later < laterRunsOfFirstRecipe; later++)
+        {
+            var trackedWorkspace = await dbContext.GitWorkspaces.SingleAsync(candidate => candidate.Id == workspace.Id);
+            var trackedCheckpoint = await dbContext.GitCheckpoints.SingleAsync(candidate => candidate.Id == checkpoint.Id);
+            var firstRecipe = await dbContext.VerificationCommands.SingleAsync(candidate => candidate.Id == firstCommand);
+            var rerun = VerificationExecution.Claim(
+                Guid.NewGuid(), project.Id, project.ReserveVerificationExecutionNumber(), trackedWorkspace, trackedCheckpoint, firstRecipe, now);
+            rerun.MarkDispatched(now);
+            rerun.Complete(VerificationExecutionOutcome.Exited, 0, checkpoint.FingerprintSha256, now);
+            dbContext.VerificationExecutions.Add(rerun);
+            await dbContext.SaveChangesAsync();
+            firstExecution = rerun.Id;
+            allExecutions[0] = rerun.Id;
         }
 
         var review = await mediator.SendAsync(new CreateCodeReviewAttemptCommand(run.Id, executionReport.Id), CancellationToken.None);
@@ -232,12 +253,30 @@ internal static class LocalCommitLineage
         var humanReviewId = Guid.Empty;
         if (humanApproval)
         {
-            humanReviewId = await RecordHumanApprovalAsync(host, project.Id, checkpoint.Id, firstExecution, "Approved");
+            humanReviewId = completeSetHumanApproval
+                ? await RecordCompleteHumanApprovalAsync(host, project.Id, checkpoint.Id)
+                : await RecordHumanApprovalAsync(host, project.Id, checkpoint.Id, firstExecution, "Approved");
         }
 
         return new LocalCommitLineageIds(
             project.Id, run.Id, workspace.Id, lease.Id, checkpoint.Id, review.Value.AttemptId, executionReport.Id, firstExecution,
-            firstCommand, humanReviewId);
+            firstCommand, humanReviewId, allExecutions);
+    }
+
+    /// <summary>The complete Human approval through the two protected operations the cockpit uses: the read-only approval bundle,
+    /// then one review that submits exactly that bundle's execution identifiers.</summary>
+    public static async Task<Guid> RecordCompleteHumanApprovalAsync(LocalCommitHost host, Guid projectId, Guid checkpointId)
+    {
+        using var client = AuthenticatedClient(host);
+        var bundleResponse = await client.GetAsync($"/api/projects/{projectId}/checkpoints/{checkpointId}/approval-evidence");
+        Assert.Equal(HttpStatusCode.OK, bundleResponse.StatusCode);
+        var bundle = (await bundleResponse.Content.ReadFromJsonAsync<CheckpointApprovalEvidenceResponse>())!;
+        var response = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/reviews",
+            new RecordCheckpointReviewRequest(
+                checkpointId, null, "Human", "Approved", bundle.Members.Select(member => member.VerificationExecutionId).ToArray()));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<RecordCheckpointReviewResponse>())!.ReviewId;
     }
 
     public static async Task<Guid> RecordHumanApprovalAsync(

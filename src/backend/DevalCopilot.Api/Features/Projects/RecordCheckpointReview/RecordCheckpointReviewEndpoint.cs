@@ -10,7 +10,10 @@ public sealed class RecordCheckpointReviewEndpoint(
     IApplicationMediator mediator,
     IResultProblemDetailsFactory problemDetails) : ProjectsBaseEndpoint
 {
+    private const int MaximumRequestBodyBytes = 8 * 1024;
+
     [HttpPost("{projectId:guid}/reviews")]
+    [RequestSizeLimit(MaximumRequestBodyBytes)]
     [ProducesResponseType<RecordCheckpointReviewResponse>(StatusCodes.Status201Created)]
     public async Task<ActionResult<RecordCheckpointReviewResponse>> RecordCheckpointReview(
         Guid projectId,
@@ -26,7 +29,8 @@ public sealed class RecordCheckpointReviewEndpoint(
         }
 
         var result = await mediator.SendAsync(new RecordCheckpointReviewCommand(
-            projectId, request.GitCheckpointId, request.VerificationExecutionId, actorKind, decision), cancellationToken);
+            projectId, request.GitCheckpointId, request.VerificationExecutionId, actorKind, decision,
+            request.VerificationExecutionIds), cancellationToken);
         if (result.IsFailure)
         {
             return problemDetails.CreateResponse(result, HttpContext);

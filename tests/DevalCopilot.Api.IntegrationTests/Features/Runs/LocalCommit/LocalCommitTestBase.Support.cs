@@ -12,6 +12,7 @@ public abstract partial class LocalCommitTestBase
     {
         ScriptedLocalCommitRepository? script = null;
         var host = StartHost(supervisor, inner => script = new ScriptedLocalCommitRepository(inner), configure: configure);
+        _scripts.Add(script!);
         return (host, script!);
     }
 

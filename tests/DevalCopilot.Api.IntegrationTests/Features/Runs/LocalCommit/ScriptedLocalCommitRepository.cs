@@ -4,14 +4,27 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 
 /// <summary>
 /// A transparent decorator over the REAL Git adapter. Every call reaches real Git; a test attaches a hook to place an external
-/// change immediately before an effect, to replace or fault an outcome after the real effect happened, or to simulate host loss by
-/// throwing <see cref="OperationCanceledException"/> (the handler deliberately leaves the durable marker untouched for that).
-/// It records the order of calls and keeps the live acquisition so a test can finally release the in-process capability it
-/// deliberately left held, the way process death would.
+/// change immediately before an effect, to replace or fault an outcome after the real effect happened, or to simulate host loss.
+/// Host loss is armed with <see cref="ArmLoss"/>: the loss is signalled (<see cref="LossReached"/>) at the selected point itself,
+/// for an after-effect point only after the real effect has returned and been captured, and then unwinds the execution with
+/// <see cref="OperationCanceledException"/> (the handler deliberately leaves the durable marker untouched for that). Entering a
+/// method never signals anything. The decorator records the order of calls, counts the real effects in flight, notes any call made
+/// after the loss, and keeps the live acquisition so a test (or the fixture's failure-safe cleanup) can finally release the
+/// in-process capability it deliberately left held, the way process death would.
 /// </summary>
 internal sealed class ScriptedLocalCommitRepository(ILocalCommitRepository inner) : ILocalCommitRepository
 {
+    private const int MaximumDetailCharacters = 200;
+
+    private readonly object _gate = new();
+    private readonly TaskCompletionSource<LossReport> _lossReached = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private LossPoint? _armed;
+    private int _outstanding;
+
     public List<string> Calls { get; } = [];
+
+    /// <summary>Calls the decorator received after the loss was signalled. A lost host performs nothing further.</summary>
+    public List<string> CallsAfterLoss { get; } = [];
 
     public LocalCommitFacts? LastFacts { get; private set; }
 
@@ -31,16 +44,73 @@ internal sealed class ScriptedLocalCommitRepository(ILocalCommitRepository inner
 
     public Func<LocalCommitFacts, LocalCommitInspection, LocalCommitInspection>? InspectOverride { get; set; }
 
+    /// <summary>Completes with the report once the armed loss point is reached; it never completes for method entry alone.</summary>
+    public Task<LossReport> LossReached => _lossReached.Task;
+
+    /// <summary>The number of real external effects (acquire, reference, held index) that were entered and have not returned.</summary>
+    public int OutstandingEffects => Volatile.Read(ref _outstanding);
+
+    public void ArmLoss(LossPoint point) => _armed = point;
+
+    private void Record(string call)
+    {
+        lock (_gate)
+        {
+            Calls.Add(call);
+            if (_lossReached.Task.IsCompleted)
+            {
+                CallsAfterLoss.Add(call);
+            }
+        }
+    }
+
+    /// <summary>Signals the armed loss and unwinds. The result of the real effect is captured first, so a refusal or a failure is
+    /// reported with its bounded outcome and reason and never mistaken for the effect having happened.</summary>
+    private void LoseHost(LossPoint point, LocalCommitExecutionResult? realResult)
+    {
+        var after = point is LossPoint.AfterPromoteRef or LossPoint.AfterPromoteHeldIndex;
+        var satisfied = !after || realResult?.Outcome == LocalCommitExecutionOutcome.Promoted;
+        var detail = after
+            ? $"{point}: the real effect returned {realResult?.Outcome} ({realResult?.ReasonCode})"
+            : $"{point}: reached before the real effect";
+        _lossReached.TrySetResult(new LossReport(
+            point,
+            satisfied,
+            detail.Length <= MaximumDetailCharacters ? detail : detail[..MaximumDetailCharacters],
+            OutstandingEffects));
+        throw new OperationCanceledException("The host was lost.");
+    }
+
+    private bool IsArmed(LossPoint point) => _armed == point;
+
+    private async Task<T> EffectAsync<T>(Func<Task<T>> effect)
+    {
+        Interlocked.Increment(ref _outstanding);
+        try
+        {
+            return await effect();
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _outstanding);
+        }
+    }
+
     public async Task<LocalCommitIndexAcquisition?> AcquireIndexEffectsAsync(LocalCommitFacts facts, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(AcquireIndexEffectsAsync));
+        Record(nameof(AcquireIndexEffectsAsync));
         LastFacts = facts;
         if (BeforeAcquire is not null)
         {
             await BeforeAcquire(facts);
         }
 
-        var acquisition = await inner.AcquireIndexEffectsAsync(facts, cancellationToken);
+        if (IsArmed(LossPoint.BeforeAcquire))
+        {
+            LoseHost(LossPoint.BeforeAcquire, null);
+        }
+
+        var acquisition = await EffectAsync(() => inner.AcquireIndexEffectsAsync(facts, cancellationToken));
         LastAcquisition = acquisition ?? LastAcquisition;
         return acquisition;
     }
@@ -48,52 +118,72 @@ internal sealed class ScriptedLocalCommitRepository(ILocalCommitRepository inner
     public Task<LocalCommitIndexAcquisition?> AcquirePendingIndexEffectsAsync(
         LocalCommitFacts facts, string quarantineName, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(AcquirePendingIndexEffectsAsync));
+        Record(nameof(AcquirePendingIndexEffectsAsync));
         return inner.AcquirePendingIndexEffectsAsync(facts, quarantineName, cancellationToken);
     }
 
     public async Task<LocalCommitExecutionResult> PromoteRefAsync(
         LocalCommitFacts facts, LocalCommitIndexAcquisition acquisition, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(PromoteRefAsync));
+        Record(nameof(PromoteRefAsync));
         if (BeforePromoteRef is not null)
         {
             await BeforePromoteRef(facts);
         }
 
-        var result = await inner.PromoteRefAsync(facts, acquisition, cancellationToken);
+        if (IsArmed(LossPoint.BeforePromoteRef))
+        {
+            LoseHost(LossPoint.BeforePromoteRef, null);
+        }
+
+        var result = await EffectAsync(() => inner.PromoteRefAsync(facts, acquisition, cancellationToken));
+        if (IsArmed(LossPoint.AfterPromoteRef))
+        {
+            LoseHost(LossPoint.AfterPromoteRef, result);
+        }
+
         return AfterPromoteRef is null ? result : await AfterPromoteRef(facts, result);
     }
 
     public async Task<LocalCommitExecutionResult> PromoteHeldIndexAsync(
         LocalCommitFacts facts, LocalCommitIndexAcquisition acquisition, string quarantineName, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(PromoteHeldIndexAsync));
+        Record(nameof(PromoteHeldIndexAsync));
         if (BeforePromoteHeldIndex is not null)
         {
             await BeforePromoteHeldIndex(facts);
         }
 
-        var result = await inner.PromoteHeldIndexAsync(facts, acquisition, quarantineName, cancellationToken);
+        if (IsArmed(LossPoint.BeforePromoteHeldIndex))
+        {
+            LoseHost(LossPoint.BeforePromoteHeldIndex, null);
+        }
+
+        var result = await EffectAsync(() => inner.PromoteHeldIndexAsync(facts, acquisition, quarantineName, cancellationToken));
+        if (IsArmed(LossPoint.AfterPromoteHeldIndex))
+        {
+            LoseHost(LossPoint.AfterPromoteHeldIndex, result);
+        }
+
         return AfterPromoteHeldIndex is null ? result : await AfterPromoteHeldIndex(facts, result);
     }
 
     public Task<bool> ReleaseHeldIndexEffectsAsync(
         LocalCommitFacts facts, LocalCommitIndexAcquisition acquisition, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(ReleaseHeldIndexEffectsAsync));
+        Record(nameof(ReleaseHeldIndexEffectsAsync));
         return inner.ReleaseHeldIndexEffectsAsync(facts, acquisition, cancellationToken);
     }
 
     public Task<LocalCommitExecutionResult> ExecuteAsync(LocalCommitFacts facts, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(ExecuteAsync));
+        Record(nameof(ExecuteAsync));
         return inner.ExecuteAsync(facts, cancellationToken);
     }
 
     public async Task<LocalCommitInspection> InspectAsync(LocalCommitFacts facts, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(InspectAsync));
+        Record(nameof(InspectAsync));
         if (BeforeInspect is not null)
         {
             await BeforeInspect(facts);
@@ -105,18 +195,20 @@ internal sealed class ScriptedLocalCommitRepository(ILocalCommitRepository inner
 
     public Task<LocalCommitExecutionResult> FinishIndexPromotionAsync(LocalCommitFacts facts, CancellationToken cancellationToken)
     {
-        Calls.Add(nameof(FinishIndexPromotionAsync));
+        Record(nameof(FinishIndexPromotionAsync));
         return inner.FinishIndexPromotionAsync(facts, cancellationToken);
     }
 
     public Task<bool> CleanupAsync(LocalCommitFacts facts, bool removeOwnedLock, CancellationToken cancellationToken)
     {
-        Calls.Add($"{nameof(CleanupAsync)}({removeOwnedLock})");
+        Record($"{nameof(CleanupAsync)}({removeOwnedLock})");
         return inner.CleanupAsync(facts, removeOwnedLock, cancellationToken);
     }
 
     /// <summary>Releases the live handles this decorator saw acquired, ending the in-process capability that a simulated host
-    /// loss left behind. It deletes only the lock through its own handle, exactly as the production release does.</summary>
+    /// loss left behind. It goes through the repository's own release API, which deletes the lock only through the handle that
+    /// created it and refuses anything it does not own (a foreign lock, an already released or never held capability returns
+    /// false and nothing is touched). It never deletes a lock by pathname.</summary>
     public async Task<bool> ReleaseRetainedAsync()
     {
         if (LastFacts is null || LastAcquisition is null)

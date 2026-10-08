@@ -177,7 +177,7 @@ public sealed class LocalCommitPersistenceFaultTests : LocalCommitTestBase
         Assert.Equal(WorkspaceStatus.Ready, (await WorkspaceRowAsync(ids.WorkspaceId)).Status);
         Assert.Equal(1, await EventCountAsync(ids.RunId, Completed));
         Assert.Equal(mainBefore, Scene.MainRepositoryFingerprint());
-        Assert.False(Directory.Exists(Scene.Storage.OperationDirectory(prepared.Id)));
+        Assert.False(Directory.Exists(Scene.ArtifactLeaf(prepared.PreparedIndexRelativePath)));
 
         var eventsAfterRecovery = (await EventTypeRowsAsync(ids.RunId)).Length;
         host2.Dispose();

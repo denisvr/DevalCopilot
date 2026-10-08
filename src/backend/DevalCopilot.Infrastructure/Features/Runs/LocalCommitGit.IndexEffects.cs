@@ -302,7 +302,7 @@ public sealed partial class LocalCommitGit
 
             var observation = await ObserveControlledAsync(
                 gitPath, facts.WorkspacePath, commonDirectory, facts.CommitSha,
-                Path.Combine(administrativeDirectory, "index"), facts.OperationId, cancellationToken, pinnedIndex);
+                Path.Combine(administrativeDirectory, "index"), null, cancellationToken, pinnedIndex);
             return observation.Proven
                 ? new LocalCommitExecutionResult(LocalCommitExecutionOutcome.Promoted, "local_commit.promoted", observation.Clean)
                 : Ambiguous("local_commit.terminal_observation_" + observation.Reason);
