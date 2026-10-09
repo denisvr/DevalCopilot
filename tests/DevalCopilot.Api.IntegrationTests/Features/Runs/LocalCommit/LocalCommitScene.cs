@@ -102,6 +102,14 @@ internal sealed class LocalCommitScene : IDisposable
             .SelectMany(Directory.GetDirectories)
             .ToArray();
 
+    /// <summary>The prepared-artifact leaves only (the operations folder). Unlike <see cref="StorageLeaves"/> it never includes a
+    /// transient scratch leaf of an observation, so it can account for preparations' artifacts.</summary>
+    public string[] ArtifactLeaves()
+    {
+        var folder = Path.Combine(Storage.Root, "operations");
+        return Directory.Exists(folder) ? Directory.GetDirectories(folder) : [];
+    }
+
     public GitWorktreeAdapter Worktrees { get; }
 
     public WorkspaceOwnershipMarkerStore Markers { get; }

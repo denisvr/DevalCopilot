@@ -10,7 +10,8 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 /// <see cref="OperationCanceledException"/> (the handler deliberately leaves the durable marker untouched for that). Entering a
 /// method never signals anything. The decorator records the order of calls, counts the real effects in flight, notes any call made
 /// after the loss, and keeps the live acquisition so a test (or the fixture's failure-safe cleanup) can finally release the
-/// in-process capability it deliberately left held, the way process death would.
+/// in-process capability it deliberately left held, the way process death would. It also reports every real cleanup
+/// (<see cref="CleanupReports"/>, <see cref="CleanupReturned"/>) only after that cleanup returned or ended, with its own result.
 /// </summary>
 internal sealed class ScriptedLocalCommitRepository(ILocalCommitRepository inner) : ILocalCommitRepository
 {
@@ -18,10 +19,28 @@ internal sealed class ScriptedLocalCommitRepository(ILocalCommitRepository inner
 
     private readonly object _gate = new();
     private readonly TaskCompletionSource<LossReport> _lossReached = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource<LocalCommitCleanupReport> _cleanupReturned = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly List<LocalCommitCleanupReport> _cleanups = [];
     private LossPoint? _armed;
     private int _outstanding;
 
     public List<string> Calls { get; } = [];
+
+    /// <summary>Completes with the first real cleanup's report once that cleanup returned or ended; entering it signals nothing.
+    /// The report keeps the cleanup's own result and the operation and artifact it addressed, so a failure is never read as success.</summary>
+    public Task<LocalCommitCleanupReport> CleanupReturned => _cleanupReturned.Task;
+
+    /// <summary>Every cleanup that has returned or ended so far, in order.</summary>
+    public IReadOnlyList<LocalCommitCleanupReport> CleanupReports
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return [.. _cleanups];
+            }
+        }
+    }
 
     /// <summary>Calls the decorator received after the loss was signalled. A lost host performs nothing further.</summary>
     public List<string> CallsAfterLoss { get; } = [];
@@ -199,10 +218,29 @@ internal sealed class ScriptedLocalCommitRepository(ILocalCommitRepository inner
         return inner.FinishIndexPromotionAsync(facts, cancellationToken);
     }
 
-    public Task<bool> CleanupAsync(LocalCommitFacts facts, bool removeOwnedLock, CancellationToken cancellationToken)
+    public async Task<bool> CleanupAsync(LocalCommitFacts facts, bool removeOwnedLock, CancellationToken cancellationToken)
     {
         Record($"{nameof(CleanupAsync)}({removeOwnedLock})");
-        return inner.CleanupAsync(facts, removeOwnedLock, cancellationToken);
+        bool? result = null;
+        try
+        {
+            result = await inner.CleanupAsync(facts, removeOwnedLock, cancellationToken);
+            return result.Value;
+        }
+        finally
+        {
+            PublishCleanup(new LocalCommitCleanupReport(facts.OperationId, facts.PreparedIndexRelativePath, removeOwnedLock, result));
+        }
+    }
+
+    private void PublishCleanup(LocalCommitCleanupReport report)
+    {
+        lock (_gate)
+        {
+            _cleanups.Add(report);
+        }
+
+        _cleanupReturned.TrySetResult(report);
     }
 
     /// <summary>Releases the live handles this decorator saw acquired, ending the in-process capability that a simulated host

@@ -189,7 +189,7 @@ public sealed class LocalCommitCompleteSetTests : LocalCommitTestBase
         var preparer = new ScriptedLocalCommitPreparer();
         using var host = StartHost(runSupervisor: false, decoratePreparer: inner => preparer.Attach(inner));
         var ids = await LocalCommitLineage.SeedAsync(host, Scene, recipes: 2, completeSetHumanApproval: true);
-        preparer.AfterPrepare = async () =>
+        preparer.AfterPrepare = async _ =>
         {
             await LocalCommitLineage.RecordCompleteHumanApprovalAsync(host, ids.ProjectId, ids.CheckpointId);
         };

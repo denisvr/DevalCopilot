@@ -159,7 +159,7 @@ public sealed class LocalCommitSeamTests : LocalCommitTestBase
         using var host = StartHost(runSupervisor: false, decoratePreparer: inner => preparer.Attach(inner));
         var ids = await LocalCommitLineage.SeedAsync(host, Scene);
         var preparedInWindow = false;
-        preparer.AfterPrepare = async () =>
+        preparer.AfterPrepare = async _ =>
         {
             preparedInWindow = true;
             using var client = LocalCommitLineage.AuthenticatedClient(host);

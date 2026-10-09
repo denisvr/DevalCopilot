@@ -116,7 +116,7 @@ public sealed class LocalCommitAbandonmentTests : LocalCommitTestBase
         var ids = await LocalCommitLineage.SeedAsync(host, Scene);
         var digest = SourceDigest();
         HttpResponseMessage? abandonment = null;
-        preparer.AfterPrepare = async () => abandonment = await AbandonAsync(host, ids.RunId);
+        preparer.AfterPrepare = async _ => abandonment = await AbandonAsync(host, ids.RunId);
 
         var response = await PostAsync(host, ids.RunId, ids);
 
