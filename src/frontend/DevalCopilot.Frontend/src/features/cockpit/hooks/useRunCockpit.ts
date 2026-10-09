@@ -84,7 +84,7 @@ function toCard(event: RunEventResponse): CollaborationCard {
     attemptId: event.attemptId ?? null,
     eventType: event.eventType ?? '',
     actor: toParticipantIdentity(event.actor),
-    summary: parseEventSummary(event.payloadJson ?? ''),
+    summary: parseEventSummary(event.payloadJson ?? '', event.eventType),
     occurredAtUtc: toUtcText(event.occurredAtUtc),
   }
 }

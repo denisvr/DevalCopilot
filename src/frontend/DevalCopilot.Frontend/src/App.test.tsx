@@ -79,9 +79,57 @@ describe('App run intake availability', () => {
     expect(screen.queryByRole('button', { name: 'Start simulated run' })).toBeNull()
   })
 
+  it('offers intake beside the cockpit when the only run was abandoned', async () => {
+    await renderWithProject({ runId: 'run-1', lifecycle: 'Abandoned', executionMode: 'ManualAgent', canCreateRun: true })
+    expect(screen.getByText('cockpit-stub')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Objective' })).toBeInTheDocument()
+  })
+
+  it('keeps an abandoned run without the availability hint blocked, since the host did not confirm coherent facts', async () => {
+    await renderWithProject({ runId: 'run-1', lifecycle: 'Abandoned', executionMode: 'ManualAgent', canCreateRun: false })
+    expect(screen.queryByRole('textbox', { name: 'Objective' })).toBeNull()
+  })
+
   it('treats a project with a run and no availability hint as blocked', async () => {
     await renderWithProject({ runId: 'run-1', lifecycle: 'Completed' })
     expect(screen.queryByRole('textbox', { name: 'Objective' })).toBeNull()
+  })
+})
+
+describe('App abandonment refresh', () => {
+  it('hands the project list refresh to the cockpit so a recorded abandonment makes normal intake available', async () => {
+    const refresh = vi.fn()
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => 'ready' }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [{ projectId: 'project-1', projectName: 'DevalCopilot', runId: 'run-1', lifecycle: 'Running', capabilities: [] }],
+        loading: false,
+        error: null,
+        refresh,
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({ CandidateWorkspacePanel: () => null }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: { onProjectChanged?: () => void }) => (
+        <button type="button" onClick={props.onProjectChanged}>
+          project changed
+        </button>
+      ),
+    }))
+    const { default: FreshApp } = await import('./App')
+    render(<FreshApp />)
+    refresh.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'project changed' }))
+
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 })
 

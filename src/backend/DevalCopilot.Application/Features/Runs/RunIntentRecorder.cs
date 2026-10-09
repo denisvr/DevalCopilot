@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.Abandonment;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,13 +45,21 @@ public static class RunIntentRecorder
         }
 
         // Filtered in SQL against the terminal set so a stored lifecycle this build does not
-        // recognize is never materialized and still blocks.
+        // recognize is never materialized and still blocks. Abandoned is terminal only through its
+        // coherent facts (ADR-0031): the lifecycle alone never admits another intent.
         var blocked = await dbContext.Runs.AsNoTracking().AnyAsync(
             candidate => candidate.ProjectId == project.Id
                 && candidate.Lifecycle != RunLifecycle.Completed
                 && candidate.Lifecycle != RunLifecycle.Failed
-                && candidate.Lifecycle != RunLifecycle.Interrupted,
+                && candidate.Lifecycle != RunLifecycle.Interrupted
+                && candidate.Lifecycle != RunLifecycle.Abandoned,
             cancellationToken);
+        if (!blocked)
+        {
+            blocked = (await RunAbandonmentReader.ReadForProjectAsync(dbContext, project.Id, cancellationToken))
+                .Any(reading => !reading.Coherent);
+        }
+
         if (blocked)
         {
             return Result<RecordedRunIntent>.Failure(Error.Conflict(

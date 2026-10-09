@@ -358,6 +358,7 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
             bool stopPolicyStillCurrent;
             Error? accountUsageError;
             bool modeStillAdmitted;
+            bool runStillActive;
             Error? lateEligibilityError;
             try
             {
@@ -378,6 +379,10 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 // The execution mode the claim decided against must still admit Agent work: one more atomic
                 // UPDATE ... WHERE inside this same transaction, so a mode change can never confer stale authority.
                 modeStillAdmitted = await CurrentRunExecutionMode.ConfirmAgentAdmittedAsync(dbContext, run, cancellationToken);
+
+                // The run must still be active (ADR-0031): read after the guard writes above took the write lock, so an explicit
+                // abandonment that committed after this claim decided is seen here, atomically with the Attempt insert below.
+                runStillActive = await CurrentRunLifecycle.IsStillActiveAsync(dbContext, run.Id, allowCreated: false, cancellationToken);
 
                 // The two guard writes above already hold the database write lock, so this final
                 // read of the reviewed lineage and of any competing resolution is atomic with the
@@ -407,6 +412,15 @@ public sealed class CreateChallengeResolutionAttemptCommandHandler(
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(
                     Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (!runStillActive)
+            {
+                // The run ended (it was explicitly abandoned) between this claim's decision and its commit. Rolled back before any
+                // insert: no attempt, artifact, reservation, or authorization is consumed, and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
+                return Result<CreateChallengeResolutionAttemptCommandResult>.Failure(CurrentRunLifecycle.NotRunning());
             }
 
             if (!modeStillAdmitted)

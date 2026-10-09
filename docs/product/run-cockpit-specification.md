@@ -1097,6 +1097,28 @@ safe facts: checkpoint, branch, parent/tree and, after completion, the local com
 advanced and the operation was recorded; it never means a push, a clean unrelated workspace or provider reliability. A reload shows
 the same durable outcome. Ambiguous evidence remains `Needs attention` and is never represented as a retry, success or failure.
 
+### Abandon run
+
+For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a
+settled, successful read of the protected, read-only `GET /api/runs/{runId}/abandonment` for that run reports the run eligible; a pending,
+refreshing or failed read withholds it. It explains that abandoning is not a completion, that the history, attempts, messages,
+checkpoints and workspace changes stay as they are, that nothing is cancelled, repaired, released or deleted, that another objective can
+then be recorded and that new work still needs normal checks, and that it is refused while an attempt, verification or local commit of the
+project is active or unclear. The only input is a reason (trimmed, line feeds only, no control or invisible formatting characters, at
+most 2048 bytes); the button is labelled "Abandon run" and the generated client sends only the reason.
+
+The draft, the request guard, the error and every continuation belong to the committed run and eligible-form lifetime and the draft
+version: a replacement, A-to-B-to-A, a refresh that makes the run ineligible, an unmount or an obsolete callback cannot submit or
+update another interaction. The request is never resent automatically. A failure with no response or a 5xx is an unknown outcome: the
+panel says so and only reads the status again. A recorded abandonment refreshes the status and the project list before the ownership
+check, so it stays real even if its form lifetime was replaced, and a failed follow-up refresh never turns it into a reported failure.
+
+A recorded abandonment is shown read-only with its persisted reason (as plain text with its line breaks) and UTC time and the note that
+the objective was not completed; the header badge reads "Abandoned" with the kept stage and a neutral tone, the clock stays frozen,
+the Agent request actions are replaced by a fixed note, and a reload shows the same durable facts. The project list shows the
+`Abandoned` lifecycle and offers the normal intake form again; the new run is a distinct run that inherits nothing from the abandoned
+one.
+
 ### Run-isolated asynchronous controls
 
 Every asynchronous control that changes a run's Agent work or settings — the six ordinary requests (Planner,

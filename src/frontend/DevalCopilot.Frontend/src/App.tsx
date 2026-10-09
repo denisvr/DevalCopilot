@@ -146,6 +146,7 @@ export default function App() {
           key={selectedProject.runId}
           runId={selectedProject.runId}
           evidenceRefreshGeneration={evidenceRefresh.generation}
+          onProjectChanged={refresh}
         />
       ) : selectedProject ? (
         <p className="dc-empty-state">{selectedProject.projectName} has no run yet.</p>

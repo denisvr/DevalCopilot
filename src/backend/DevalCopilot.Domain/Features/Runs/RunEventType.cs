@@ -93,4 +93,8 @@ public static class RunEventType
 
     /// <summary>The outcome is ambiguous; nothing is retried and the run stays nonterminal.</summary>
     public const string LocalCommitNeedsAttention = "local_commit.needs_attention";
+
+    /// <summary>A human explicitly abandoned an inactive manual Agent run (ADR-0031). The payload carries only the normalized human
+    /// reason; the one event is saved atomically with the terminal transition and it never records cancellation, repair or deletion.</summary>
+    public const string RunAbandoned = "run.abandoned";
 }

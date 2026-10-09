@@ -375,7 +375,9 @@ public sealed class AddClaudeMutationTurnLimitMigrationTests : IAsyncLifetime
         var runColumnsAfter = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
         var attemptColumnsAfter = (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray();
         // The database is at the latest migration, so the later AddRunExecutionMode, AddDirectHumanGuidance, AddAgentModelContextLimits, AddCodexAccountUsageStop and AddCodexAccountUsageWarning columns are dropped on the way down too.
-        Assert.Equal(["CodexAccountUsageStopPercent", "CodexAccountUsageWarningPercent", "ExecutionMode", "RequestedClaudeMaxTurns"], runColumnsBefore.Except(runColumnsAfter).Order());
+        Assert.Equal(
+            ["AbandonedAtUtc", "AbandonmentReason", "CodexAccountUsageStopPercent", "CodexAccountUsageWarningPercent", "ExecutionMode", "RequestedClaudeMaxTurns"],
+            runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
         Assert.Equal(
             [

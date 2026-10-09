@@ -116,6 +116,17 @@ public sealed class RunConfiguration : IEntityTypeConfiguration<Run>
         builder.Property(run => run.CodexTokenStopThreshold).IsConcurrencyToken();
         builder.Property(run => run.ClaudeTokenStopThreshold).IsConcurrencyToken();
 
+        // The explicit abandonment of a manual run (ADR-0031): no default and no backfill, so every historical row keeps both
+        // columns NULL and nothing is inferred about it. Written once with the Abandoned lifecycle transition; deliberately NOT
+        // concurrency tokens, because the Lifecycle token already makes any competing write to the same run lose.
+        builder.Property(run => run.AbandonmentReason).HasMaxLength(2048);
+        // Read through the column's own mapping: only a TEXT value in the written form is a time (the type mapping keeps the SQLite
+        // storage class, the converter keeps the exact form); anything else reads as null, so a damaged row is incoherent, never repaired.
+        var abandonedAtConverter = new StoredAbandonmentTimeConverter();
+        builder.Property(run => run.AbandonedAtUtc)
+            .HasConversion(abandonedAtConverter)
+            .Metadata.SetTypeMapping(new StoredAbandonmentTimeTypeMapping().WithComposedConverter(abandonedAtConverter));
+
         builder.HasOne<Project>().WithMany().HasForeignKey(run => run.ProjectId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(run => new { run.ProjectId, run.ExecutionNumber }).IsUnique();
     }

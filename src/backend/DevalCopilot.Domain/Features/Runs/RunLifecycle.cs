@@ -15,4 +15,9 @@ public enum RunLifecycle
     /// process to observe. Terminal for this slice: a later intentional re-run is a new run,
     /// not an automatic retry.</summary>
     Interrupted = 4,
+
+    /// <summary>A human explicitly ended an inactive manual Agent run (ADR-0031). Not successful completion: its
+    /// <see cref="RunStage"/> is preserved, its history stays, and nothing was cancelled, repaired or deleted. It permits a new
+    /// intent only when its recorded abandonment facts are coherent (see <see cref="RunAbandonmentPolicy"/>).</summary>
+    Abandoned = 5,
 }

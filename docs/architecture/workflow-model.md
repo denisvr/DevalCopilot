@@ -29,6 +29,10 @@ Running -> Interrupted -> Running | Failed | Cancelled
 - `Interrupted`: the previous host stopped without a terminal transition and
   reconciliation is required.
 - terminal states are `Completed`, `Failed`, and `Cancelled`.
+- `Abandoned` ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)): the implemented, explicit Human end of an inactive `ManualAgent` run. It is never a
+  success: the stage is kept, the participant is cleared, the clock is frozen and the reason and time are immutable. It is decided
+  under the write lock and refused while any attempt, verification or local commit of the project is active or ambiguous. It admits a
+  new objective for the project only when its recorded facts are coherent.
 
 ### Stage progress
 

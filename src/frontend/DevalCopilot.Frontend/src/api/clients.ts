@@ -66,6 +66,8 @@ import {
   GetPlanningImplementationAuthorizationEndpointClient,
   RequestLocalCommitEndpointClient,
   GetLocalCommitStatusEndpointClient,
+  AbandonManualRunEndpointClient,
+  GetManualRunAbandonmentEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -138,6 +140,8 @@ export const authorizePlanningImplementationClient = () => new AuthorizePlanning
 export const planningImplementationAuthorizationClient = () => new GetPlanningImplementationAuthorizationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestLocalCommitClient = () => new RequestLocalCommitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const localCommitStatusClient = () => new GetLocalCommitStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const abandonManualRunClient = () => new AbandonManualRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const manualRunAbandonmentClient = () => new GetManualRunAbandonmentEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -224,6 +228,9 @@ export type {
   AgentClaimPathTimeFitResponse,
   LocalCommitOperationResponse,
   GetLocalCommitStatusResponse,
+  AbandonManualRunResponse,
+  GetManualRunAbandonmentResponse,
+  ManualRunAbandonmentResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,
@@ -238,4 +245,5 @@ export {
   RequestDiagnosisCorrectionRequest,
   SetCodexAssignmentPreferenceRequest,
   RequestLocalCommitRequest,
+  AbandonManualRunRequest,
 } from './generated/api-client'

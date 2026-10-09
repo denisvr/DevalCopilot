@@ -92,6 +92,9 @@
 - [ADR-0030](decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md): Approve the complete verification set as
   one Human decision (additive; an optional Human execution-set form of the existing review plus a read-only approval bundle, with no
   change to ADR-0029's authority, reservation, recovery or mixed-decision rules).
+- [ADR-0031](decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md): Abandon an inactive manual run through
+  an explicit Human decision (it narrowly extends ADR-0014's intake admission so a coherent Abandoned run is terminal; it cancels, repairs
+  and deletes nothing and changes no claim, reservation, recovery or provider decision).
 
 ## Product-specific architecture
 
@@ -110,6 +113,20 @@
   bundle (never derived from the latest-20 history window; more than 32 recipes is refused) and grants no authority. The cockpit adds
   one explicit "Approve all enabled checks" action bound to the full observed source identity and owned by the committed bundle's lifetime. Legacy scalar approvals stay single-member
   facts without delivery authority for several recipes; nothing is published, combined or autonomous.
+- [ADR-0031](decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md) gives an owner one explicit exit from an
+  inactive manual task. The protected `POST /api/runs/{runId}/abandon` (a required normalized reason of at most 2 KiB UTF-8, an 8 KiB body)
+  atomically ends exactly a `Created` or `Running` `ManualAgent` run as the appended lifecycle `Abandoned` and records the immutable
+  reason, the UTC time and exactly one Human-authored `run.abandoned` event, preserving its `Stage`, clearing its participant and freezing
+  its clock. It is decided from fresh untracked reads under the write lock and refused while any attempt, verification execution or
+  local-commit operation of the project is active, unrecognized or ambiguous (`Prepared`, `Executing` and `NeedsAttention` all block) or
+  any workspace is `Preparing`, `Committing` or unrecognized; it changes no workspace, lease, branch, index, file or artifact and cancels
+  no process. `Lifecycle` is the claim race token: Claude claims and the dispatch marker lose through their Run update, and the Codex
+  planning, challenge-resolution and code-review claims (and their repairs) now re-read the lifecycle inside their write-locked claim
+  transaction. The same normalized reason replays the recorded result; a different one conflicts; incoherent facts are never treated as
+  abandoned. Normal intake treats only a coherent abandonment as terminal and creates a distinct run with fresh budgets that inherits no
+  authority. A protected read-only `GET /api/runs/{runId}/abandonment` reports advisory eligibility and the recorded reason and time;
+  the cockpit adds an "Abandon run" form owned by the committed run and eligible-form lifetime. Nothing is cancelled, repaired,
+  released, deleted, published or created automatically.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

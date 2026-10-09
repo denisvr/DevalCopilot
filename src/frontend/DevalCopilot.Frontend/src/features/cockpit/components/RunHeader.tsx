@@ -9,6 +9,7 @@ interface RunHeaderProps {
 const LIFECYCLE_TONE: Record<string, string> = {
   Running: 'running',
   Completed: 'completed',
+  Abandoned: 'abandoned',
 }
 
 /**

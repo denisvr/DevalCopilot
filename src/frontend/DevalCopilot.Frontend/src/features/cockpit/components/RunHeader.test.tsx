@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GetRunCockpitResponse, ParticipantIdentityResponse } from '../../../api/generated/api-client'
 import { RunHeader } from './RunHeader'
 
@@ -22,6 +22,10 @@ function buildCockpit(overrides: Partial<GetRunCockpitResponse> = {}) {
   })
 }
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('RunHeader', () => {
   it('shows the running state with the objective and lifecycle badge', () => {
     render(<RunHeader cockpit={buildCockpit()} />)
@@ -38,6 +42,25 @@ describe('RunHeader', () => {
     })} />)
 
     expect(screen.getByText('Completed · Completed')).toBeInTheDocument()
+  })
+
+  it('shows an abandoned run as its own terminal state, never as a completion, and keeps its time frozen', () => {
+    vi.useFakeTimers()
+    render(<RunHeader cockpit={buildCockpit({
+      lifecycle: 'Abandoned',
+      stage: 'Plan',
+      autonomousDurationSeconds: 90,
+      activeParticipant: new ParticipantIdentityResponse({ kind: 'None' }),
+    })} />)
+
+    const badge = screen.getByText('Abandoned · Plan')
+    expect(badge).toHaveAttribute('data-tone', 'abandoned')
+    expect(screen.queryByText(/Completed/)).not.toBeInTheDocument()
+    const before = screen.getByTitle('Autonomous session time: excludes paused and terminal time').textContent
+    act(() => {
+      vi.advanceTimersByTime(120_000)
+    })
+    expect(screen.getByTitle('Autonomous session time: excludes paused and terminal time').textContent).toBe(before)
   })
 
   it('renders Pause and Stop as visible but disabled controls', () => {

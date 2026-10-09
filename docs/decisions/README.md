@@ -57,6 +57,9 @@ supersedes it.
 - [ADR-0030: Approve the complete verification set as one Human decision](0030-approve-the-complete-verification-set-as-one-human-decision.md)
   (additive; an optional Human execution-set form of the existing review, a read-only approval bundle and one explicit action; it
   changes no ADR-0029 authority, reservation, recovery or mixed-decision rule)
+- [ADR-0031: Abandon an inactive manual run through an explicit Human decision](0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)
+  (it narrowly extends ADR-0014's intake admission so a coherent Abandoned run is terminal and adds one explicit Human terminal
+  lifecycle; it cancels, repairs and deletes nothing and changes no claim, reservation, recovery or provider decision)
 
 ## Status values
 

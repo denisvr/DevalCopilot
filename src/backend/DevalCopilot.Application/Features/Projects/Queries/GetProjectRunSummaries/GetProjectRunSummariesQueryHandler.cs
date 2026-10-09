@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetHostCapabilityReadiness;
+using DevalCopilot.Application.Features.Runs.Policies.Abandonment;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,7 +28,8 @@ public sealed class GetProjectRunSummariesQueryHandler(IDevalCopilotDbContext db
                 || run.Lifecycle == RunLifecycle.Running
                 || run.Lifecycle == RunLifecycle.Completed
                 || run.Lifecycle == RunLifecycle.Failed
-                || run.Lifecycle == RunLifecycle.Interrupted)
+                || run.Lifecycle == RunLifecycle.Interrupted
+                || run.Lifecycle == RunLifecycle.Abandoned)
             .Select(run => new
             {
                 run.ProjectId,
@@ -47,10 +49,18 @@ public sealed class GetProjectRunSummariesQueryHandler(IDevalCopilotDbContext db
                 && run.Lifecycle != RunLifecycle.Running
                 && run.Lifecycle != RunLifecycle.Completed
                 && run.Lifecycle != RunLifecycle.Failed
-                && run.Lifecycle != RunLifecycle.Interrupted)
+                && run.Lifecycle != RunLifecycle.Interrupted
+                && run.Lifecycle != RunLifecycle.Abandoned)
             .Select(run => run.ProjectId)
             .Distinct()
             .ToListAsync(cancellationToken)).ToHashSet();
+
+        // An Abandoned run permits another objective only through its coherent recorded facts (ADR-0031), decided by the one shared
+        // reader that intake itself uses, so the hint can never be more permissive than the creation it advertises.
+        var coherentAbandonedRunIds = (await RunAbandonmentReader.ReadAllAsync(dbContext, cancellationToken))
+            .Where(reading => reading.Coherent)
+            .Select(reading => reading.RunId)
+            .ToHashSet();
 
         // Every project's baselines, narrowly projected; "current" is picked client-side below
         // as the greatest BaselineNumber — never the latest ObservedAtUtc, which is display
@@ -113,7 +123,8 @@ public sealed class GetProjectRunSummariesQueryHandler(IDevalCopilotDbContext db
                     currentBaseline?.ObservedAtUtc,
                     mostRelevantRun is null ? null : RunExecutionModeStorage.Read(mostRelevantRun.StoredExecutionMode),
                     !projectsWithUnrecognizedLifecycle.Contains(project.Id)
-                        && projectRuns.All(run => RunLifecycleAdmission.PermitsNewIntent(run.Lifecycle))));
+                        && projectRuns.All(run => RunLifecycleAdmission.PermitsNewIntent(
+                            run.Lifecycle, coherentAbandonment: coherentAbandonedRunIds.Contains(run.Id)))));
         }
 
         return results;

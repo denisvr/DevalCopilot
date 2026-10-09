@@ -242,6 +242,19 @@ consumption, and the explicit stage requests keep every existing workspace, chec
 and authorization gate. `CompleteSimulatedRun` accepts only a `Simulated` attempt, so it can never conclude an Agent
 attempt or a manual run.
 
+### Explicit abandonment and the claim paths
+
+A human may end an inactive manual run as `Abandoned` ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)). The protected
+`POST /api/runs/{runId}/abandon` decides only from fresh untracked reads under the write lock and is refused while any attempt of the
+project is not `Completed`, `Failed` or `Interrupted` (including an unrecognized status), so no Agent claim can already be in flight
+when it commits. The other direction is the claim's own guard: the three Claude claim paths (critical review, implementation, review
+correction) and the dispatch marker commit through a Run update that includes the `Lifecycle` concurrency token and therefore lose to a
+concurrent abandonment; the Codex planning, challenge-resolution and code-review claims, which can claim a `Running` run without
+changing a Run column, read the lifecycle untracked inside their short claim transaction after their first guard write took the write
+lock and refuse before any insert (the sealed manifest is removed and nothing is consumed), including their repair variants, with the code
+each already uses for an ended run: `runs.not_active` for planning and `runs.not_running` for challenge resolution and code review; the verification-diagnosis and diagnosis-correction claims already re-read it there. No new claim path, budget slot,
+authorization or provider invocation is created by an abandonment or by reading its status, and an abandoned run offers no Agent request.
+
 ## Message types
 
 ### Proposal

@@ -5,7 +5,380 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current decision (2026-10-08): complete human verification-set approval for local delivery
+## Current decision (2026-10-08): explicitly abandon an inactive manual run
+
+Exactly one next slice is selected: a human can end an inactive ManualAgent run
+as Abandoned, retain its reason and complete history after restart, and then
+record another objective through normal intake. Claude is executor; Codex owns
+planning, architecture and acceptance. This is implementation authorization,
+not staging, commit, push, next-slice or increment-completion GO.
+
+### Final review decision (2026-10-09): GO for the reviewed abandonment slice
+
+Codex independently verified main, HEAD, local origin/main and live
+refs/heads/main at 3603cea9ba0d6e11888e99d4974ce338e4fe34ad; empty index;
+95 status paths (35 modified tracked, 60 untracked). Before this review edit,
+the planner record was preserved at 0986797bb2788264bc2bb50fc9d5199be3e2305ebd17ca3d91787ca3f453dea6.
+The client remains 22074a066c91a1fb1dfc0afc602573f14e72f9c6ffd8047633b2640c20e20b64;
+ADR-0029/0030 have no diff against HEAD. No source or test file was edited by
+the reviewer. Only this decision record and a factual review bullet in the
+ledger were updated before freezing the approved snapshot.
+
+R1-R4, including the remaining R3 storage-class case, are accepted. The new
+provider-side mapping admits only TEXT before the date converter and stays
+confined to AbandonedAtUtc. The independent real SQLite probe now reports
+blob, abandonment_incoherent, no recorded abandonment, failed replay and
+failed intake for the matching date-shaped BLOB. Normal TEXT closure, the
+populated-tracker Run transition and supplementary Format refusals remain
+correct. Fresh reviewer checks: serial solution build 0 warnings/errors;
+Application abandonment selection 253/253; Infrastructure migration/mapping
+selection 25/25; Api abandonment selection 38/38; full Architecture 47/47;
+git diff --check and the changed-file whitespace/NUL scan clean (the existing
+planner/client CRLF notices remain). No skips in those selections. The full
+suites, browser and mutations retain their precisely scoped executor evidence.
+
+Explicit judgment on the reported full Api result: preserve 1378 passed and
+1 failed; do not relabel it green. The failure is the existing competing-
+preparation test's final expectation of one inert artifact, after its commit,
+ref, run, workspace, admission and source-preservation assertions passed.
+The executor reports the same assertion on unchanged HEAD (six class runs),
+and intermittent outcomes on this tree; the historical cause remains unproven.
+This specific result does not block the bounded abandonment slice. It is not
+a blanket waiver for another failure or a required CI job.
+
+The reviewer found that ScriptedLocalCommitPreparer invokes AfterPrepare for
+every outcome, while CompeteAsync assumes the parked result was Prepared.
+In an isolated diagnostic over the real host and Git fixture, two Prepared
+results yielded Completed, parked HTTP 409 and one inert leaf. A controlled
+first CheckpointNotCurrent refusal yielded no facts, the other Prepared
+operation Completed, parked HTTP 409 and zero leaves, reproducing the failed
+assertion's shape without deleting an unadmitted successful artifact. This
+proves the test's unguarded premise can fail for safe behavior, not the event
+order of the historical failing run. Do not claim that run's cause is fixed.
+Source, captured outcome controls and raw logs are ignored scratch under
+frontend node_modules/.cache/codex-competing-review-20261009. Initial diagnostic
+setup had a content-root startup failure, then its own content-root setting
+was corrected; no acceptance failure was rerun to obtain green. A local cached
+restore omitted the probe's audit and makes no audit-cleanliness claim.
+
+Publication authorization covers only the frozen 95-path snapshot, including
+this record and the commit-ready ledger. A raw-hash/size/status manifest is
+stored in ignored frontend node_modules/.cache/codex-abandon-publication-20261009.
+The publication prompt supplies its exact hash and the three final file hashes.
+Verify every entry and the exact Git inventory before staging; stop on any
+material change and return for review. Commit the substantive slice on the
+verified baseline, push main normally, independently verify the live remote,
+and run the prescribed relevant post-publication checks sequentially from
+fresh logs. Preserve failures and stop on a new failed check without retrying
+an unchanged acceptance run. Then make only a tightly bounded current-work.md
+factual closure commit and normal push, verifying the live ref and clean tree.
+Do not amend, force-push, reconcile remote history, alter implementation or
+regenerate the approved manifest. No next slice or increment/MVP completion
+is authorized. The inert-preparation fixture premise remains a bounded follow-up
+candidate for planner selection after verified publication.
+
+### Re-review decision (2026-10-09): NO-GO, R3 storage-class correction only
+
+Codex independently verified main, HEAD, local origin/main and live
+refs/heads/main at 3603cea9ba0d6e11888e99d4974ce338e4fe34ad; empty index;
+93 status paths (35 modified tracked, 58 untracked). Before this review edit,
+the executor preserved the planner record at
+d3711253beb3197282f123a58277a214c37c085cd9b414fd64995adb30535f71.
+The ledger is 0afaf2c7404c977a4dfc7a1c15a5f2401b74823b295c181a6d70c7123469efad;
+the generated client remains
+22074a066c91a1fb1dfc0afc602573f14e72f9c6ffd8047633b2640c20e20b64.
+ADR-0029 and ADR-0030 have no diff against HEAD. Nothing is staged, committed
+or pushed. No publication manifest or next slice is authorized.
+
+R1, R2 and R4 are accepted: the exact Run is reloaded under the existing write
+lock; Unicode scalar categories now refuse supplementary Format characters;
+the externally consumed types are split into their own files, and the two
+refusal codes and native DROP COLUMN explanation are aligned. The previously
+accepted three Codex lifecycle guards stay accepted and unchanged.
+
+Architectural judgment on R3: accept a mapping specific to AbandonedAtUtc,
+rather than a reader-only catch. Whole-row readers such as the cockpit also
+need safe materialization. The current converter, however, sees a string only
+after the SQLite reader has already decoded the stored value. It cannot tell
+a BLOB containing a valid date from valid TEXT. The existing BLOB regression
+uses arbitrary bytes, not the bytes of an admissible timestamp.
+
+Remaining R3 (medium): in an isolated real file-backed SQLite reviewer probe,
+a coherent abandonment's AbandonedAtUtc was replaced with a BLOB containing
+UTF-8 bytes of the exact matching provider-format timestamp. SQLite typeof
+confirmed blob. GET still exposed a coherent recorded abandonment, same-reason
+replay succeeded, and ordinary manual intake created another Run. Thus the
+new mapping admits a malformed stored fact as closure authority, contrary to
+ADR-0031 and its own BLOB-refusal claim. Preserve the actual storage class at
+the column's read boundary: only TEXT with the admitted timestamp form may
+become a recorded time. A non-TEXT value must remain incoherent for that run,
+without throwing through whole-row reads or affecting healthy siblings.
+
+Keep this correction confined to the one new column, its focused regressions
+and matching documentation. No general storage framework, older timestamp
+mapping, column/schema change, Application SQLite-specific persistence port,
+claim redesign, cancellation, workspace/Git/native/lock/recovery change or
+new authorization is selected. Keep valid TEXT writing, precision and offsets
+unchanged, and keep invalid values untouched on refused requests and unrelated
+saves. Do not substitute defaults or silently repair a damaged abandonment.
+
+Write failing-first tests with a BLOB containing an otherwise admissible
+matching timestamp (whole seconds and a fractional/offset control), alongside
+identical TEXT, NULL and malformed values. Cover GET, same/different-reason
+replay, blocked intake, whole-row cockpit, healthy project/sibling isolation
+and a populated tracker. Assert storage class and bytes are retained when
+nothing should write. A mutation that drops the storage-class admission must
+fail these regressions. Preserve every earlier failure and mutation result,
+with fresh versus retained evidence explicit.
+
+Fresh reviewer checks on the corrected submission: serial solution build
+0 warnings/errors; Domain RunAbandonmentTests 54/54; Application abandonment
+selection 223/223; Infrastructure AddRunAbandonmentMigrationTests 16/16;
+Api abandonment selection 36/36; full Architecture 47/47. These all passed
+with no skips. The reviewer probe confirms the previous R1 and R2 reproductions
+are corrected and the original unparsable TEXT now yields the incoherent code,
+but the date-shaped BLOB admits GET/replay/intake. Its source and captured
+output are ignored scratch under frontend node_modules/.cache/
+codex-abandon-review-20261008 (r3-blob-review-output.txt); it uses and removes
+only its own temporary SQLite database. The initial sandbox probe build failed
+without usable diagnostics; the outside-sandbox probe ran successfully, not
+as an acceptance-test rerun. No production or test source was edited by Codex.
+The full suites, frontend, canonical browser and mutation matrices remain
+executor-reported evidence, not reviewer reruns in this round.
+
+Return the full corrected unstaged, uncommitted, unpushed diff in the same
+executor chat with a commit-ready ledger and exact inventory. Run affected
+checks first, rebuild and restore the required mutation, then the relevant
+final validation. Preserve this planner record and ADR-0029/0030. No staging,
+commit, push GO or next-slice authorization is granted by this decision.
+
+### Review decision (2026-10-08): NO-GO, one bounded correction round
+
+Codex independently verified main at
+3603cea9ba0d6e11888e99d4974ce338e4fe34ad, equal to local origin/main and the
+live refs/heads/main; empty index; 84 status paths (35 modified tracked and
+49 untracked). The executor preserved the selection record at
+ce42b149f7ba2085033e54b0ed8210e80136361441c1caa4537bf14510afce63 before this
+review edit. The generated client is
+22074a066c91a1fb1dfc0afc602573f14e72f9c6ffd8047633b2640c20e20b64.
+No staging, commit, push, publication manifest or next slice is authorized.
+
+Architectural judgment on the reported stop gate: accept the three bounded
+Codex claim lifecycle confirmations after their existing write-locking guards.
+They close the demonstrated Running-run gap without redesigning claims,
+reservation, dispatch, Git or recovery. Keep planning's runs.not_active and
+resolution/review's existing runs.not_running refusals, rollback and orphan
+manifest cleanup. The full slice remains NO-GO for the following findings.
+
+R1 (high): AbandonManualRunCommandHandler loads its write target with a tracking
+SingleAsync after fresh admission reads. That query can return an older Run
+already in this context. In a real file-backed SQLite reviewer probe, the
+context held Running/Plan/None, another context committed Running/Critique/Agent,
+and abandonment returned success while persisting Abandoned/Critique/Agent.
+Because clearing None was unchanged relative to the stale tracked original,
+EF did not clear the newer participant. GET then reported
+run_abandonment.abandonment_incoherent. Refresh exactly the Run being mutated
+from the locked database before applying its domain transition and keep its
+original concurrency values aligned; do not clear or disable the whole tracker.
+Add failing-first populated-Run regressions, including stale None to Agent,
+Changed Created to Running, same-lifecycle advances and a current control.
+Require a coherent persisted closure, current stage/clock, cleared participant,
+one event and successful normal intake, or a justified refusal with no writes.
+
+R2 (medium): RunAbandonmentPolicy skips every valid surrogate pair before its
+Unicode-category check. U+E0001 and U+E0020 are Format characters but both are
+admitted by the host, while the client rejects them. Validate Unicode scalar
+categories, preserving valid supplementary text, unpaired-surrogate refusal,
+normalization and the UTF-8 byte bound. Add Domain, command/endpoint no-write
+and frontend agreement regressions with supplementary Format characters and
+ordinary supplementary-text controls. Do not weaken the accepted reason rule.
+
+R3 (medium): RunAbandonmentReader materializes AbandonedAtUtc as DateTimeOffset
+before testing coherence. A reviewer-owned SQLite row with that new column set
+to the TEXT not-a-date throws FormatException through the abandonment query.
+Provide focused defensive reading of this new field so malformed facts remain
+incoherent per run, never become a valid/default timestamp, cannot replay or
+permit intake, and do not break healthy project summaries. Keep normal old
+timestamp mappings and the SQLite write-lock/Git boundaries unchanged. Prove
+GET, replay, intake and a healthy sibling/project, including a populated tracker.
+No generic persistence or stored-state framework is authorized.
+
+R4 (contract): one top-level C# type per file, and nested types may be private
+implementation details only (ENGINEERING.md and csharp-style.md). Split the
+new ManualRunAbandonmentView and ManualRunAbandonmentResponse from their result
+and response files. Move the externally consumed nested Facts/EventFacts,
+Reading and Snapshot from RunAbandonmentPolicy, RunAbandonmentReader and
+AbandonmentScene into descriptive type-owned files with unchanged visibility
+and behavior. Keep JSON names and the generated client contract unchanged.
+Also align ADR-0031's lifecycle-refusal passage with the two actual codes and
+clarify that native DROP COLUMN avoids EF's drop/recreate/rename sequence;
+SQLite still rewrites table content to remove a column. No migration behavior
+change or historical cleanup is requested. See the primary SQLite contract:
+[ALTER TABLE DROP COLUMN](https://www.sqlite.org/lang_altertable.html#alter_table_drop_column).
+
+Reviewer checks on the submitted tree: serial solution build 0 warnings/errors;
+Domain abandonment 42/42; Application abandonment 141/141; Infrastructure
+migration 6/6; Api abandonment 27/27; Architecture boundary 7/7; four affected
+frontend files 88/88 outside the sandbox. The initial sandbox Vitest attempt
+failed three suites on worker temporary-file ENOENT (35 pure tests passed);
+it is environmental evidence, not a code correction or a passing suite.
+The isolated probe initially failed package-audit network access; its local
+cached-package restore omitted that audit and makes no audit-cleanliness claim.
+The reviewer did not rerun the canonical browser or full suites. The
+executor-reported full-suite/browser results remain executor evidence.
+Reviewer probes are ignored scratch work under frontend node_modules/.cache/
+codex-abandon-review-20261008 and use only their own temporary SQLite file;
+no production or test source was edited by Codex.
+
+Return the complete unstaged, uncommitted and unpushed corrected diff in this
+same executor chat with a commit-ready current-work.md entry. Preserve this
+planner record and ADR-0029/0030. Run affected checks first, then the relevant
+full validation on the final code; rebuild every mutation and restore hashes.
+Preserve every failure and distinguish fresh from retained evidence. No retries
+of an unchanged failing acceptance run to obtain green. This is correction of
+the current slice only; no publication or next-slice authorization is granted.
+
+### Independently verified baseline
+
+Branch main; HEAD, local origin/main and live refs/heads/main are
+3603cea9ba0d6e11888e99d4974ce338e4fe34ad. Before this planner edit the checkout
+was clean: nothing staged, unstaged or untracked. Published substantive
+5a36784577358fc31a624220b4264493081e0eb2 has parent
+426463717c0e724780b511763681630c1a5b63a7. Its 75 paths and M/A statuses equal
+the approved manifest; the 74 current working-file hashes outside current-work.md
+still equal that manifest. Closure 3603cea9 has that substantive parent and
+changes only current-work.md (4 additions). Codex verified these facts and
+the closure diff. Reported post-publication counts are executor evidence,
+not tests newly rerun for this selection.
+
+Expected executor start after this edit: same branch/HEAD, empty index,
+only docs/roadmap/planner-handoff.md modified, and no untracked files.
+The generated client baseline is
+46036f0fe25f99a3fec4ad1984d7d7d2995e6f7aa616a88551a8a3c31f641bac.
+
+### Value and architectural judgment
+
+RunIntentRecorder admits another objective only after a recognized terminal
+lifecycle. Manual Agent failures and budget exhaustion do not themselves end
+the run; a successful explicit local commit now can, but an owner has no safe
+production action to abandon a task that will not be delivered. RunLifecycle
+has no Abandoned state. The Lifecycle concurrency token protects claims that
+emit Run updates. The review above confirmed a gap in three Codex claims and
+accepts their focused in-transaction lifecycle confirmations, keeping this
+closure possible without a process-cancellation or Git-recovery mechanism.
+
+This provides an explicit exit from an exhausted, escalated or unwanted manual
+task and proves a second objective can proceed with history intact. More context
+sampling would not solve that usability gap. Remote push/PR and autonomous
+coordination need substantially different external-effect and recovery authority.
+Claude account enforcement, provider-session resume and compaction still lack
+accepted safe contracts. None is selected or inferred from defaults.
+
+This deliberately advances one explicit manual recovery control before closing
+all Increment 4 provider gaps, as ADR-0029 already did for local delivery.
+ADR-0031 must record that narrow ordering and terminal-authority decision,
+extending ADR-0014's intake contract without silently rewriting accepted ADRs.
+
+### Selected contract
+
+1. Add protected MVC POST /api/runs/{runId}/abandon, dispatching one
+   AbandonManualRunCommand. The body contains only a required human reason:
+   trim outer whitespace, normalize CRLF to LF, reject remaining control
+   characters except LF, nonblank and at most 2 KiB UTF-8; body at most 8 KiB.
+   The host determines mode, lifecycle, project, times and participants.
+   Admit only exact stored ManualAgent and Created or Running. Legacy,
+   Simulated, unknown modes/lifecycles and other terminal outcomes refuse.
+2. Append RunLifecycle.Abandoned without renumbering existing values. Preserve
+   Stage: abandonment is not successful objective completion. Clear the active
+   participant, freeze accumulated time (do not count Created time), and persist
+   immutable normalized AbandonmentReason and AbandonedAtUtc on Run. Add the
+   focused nullable-column migration, with no defaults, backfill or historical
+   rewrite. Save the terminal transition and exactly one Human-authored
+   RunAbandoned journal event atomically using normal event sequencing.
+3. Decide again from fresh untracked authority after acquiring the existing
+   short SQLite write transaction. No external work belongs in it. Require no
+   nonterminal or unrecognized Attempt belonging to this project's runs, and
+   no nonterminal or unrecognized project verification execution. Require no
+   nonterminal or unrecognized project local-commit operation: Prepared,
+   Executing and NeedsAttention all block. Preparing or Committing workspaces,
+   and unknown workspace statuses, block as well. A missing workspace is valid
+   for an untouched Created run. Other known workspace states may be retained:
+   this action changes no workspace, lease, marker or source trust.
+4. Serialize duplicate abandonments and races with Agent/local-commit admission.
+   Existing Lifecycle guards must remain effective: if a claim/admission wins,
+   abandonment refuses; if abandonment wins, an already-preparing claim cannot
+   commit an Attempt or operation, dispatch an Agent or promote a ref/index.
+   Preserve orphan-manifest cleanup and any inert-artifact limits. A project
+   verification claimed after closure remains project work under its existing
+   rules, not a resumed abandoned run. This adds no persistent workspace freeze.
+   Same normalized reason on a coherently Abandoned run returns the recorded
+   result without another event or timestamp; a different reason conflicts.
+   A refusal or definitely rolled-back save records nothing.
+5. Extend normal intake to recognize coherent Abandoned facts as terminal.
+   Incoherent new abandonment facts must not authorize another intent or a
+   successful replay. Do not broaden the other terminal or unknown-state rules.
+   No task is created automatically. New intake creates a distinct run, objective,
+   execution number and normal fresh budgets; old consumed slots, reservations,
+   grants, messages, approvals and manifests remain historical and unchanged.
+   Previous-run plans, grants or approvals never become the new run's authority.
+6. Add protected read-only GET /api/runs/{runId}/abandonment through one
+   GetManualRunAbandonmentQuery. It exposes fixed safe eligibility/refusal facts
+   and coherent recorded abandonment reason/time; it writes and invokes nothing.
+   Its eligibility is advisory. Surface Abandoned truthfully in cockpit/history
+   and project intake, with the persisted reason/time after reload.
+7. Add an explicit cockpit form labelled "Abandon run", offered only from settled
+   successful current-run status. Explain that the objective is not completed,
+   existing changes/evidence remain, and new work still needs normal checks.
+   Own drafts, versions, guards and continuations by the committed run/status
+   lifetime, including A-to-B-to-A, unmount, stale callbacks and overlapping reads.
+   Pending/failed reads withhold submission. Never cancel a process or retry an
+   unknown POST automatically; reconcile through the read-only status. Accepted
+   closure stays real even if a later refresh fails. Use only the generated client.
+8. Update ADR-0031/index, engineering context, protocol, workflow/recovery and
+   cockpit/roadmap descriptions narrowly, plus commit-ready current-work.md.
+   Keep ADR-0029/0030 and the planner record unchanged during execution.
+
+### Exclusions, stop gates and evidence
+
+No active-process cancellation, pause/resume, lease release, workspace repair,
+lock adoption, branch/worktree/file/artifact deletion, commit recovery changes,
+remote publication, provider controls, automatic new runs, scheduler or generic
+lifecycle/recovery framework. A workspace does not become Ready because a run
+ended. Abandonment is not an override for ambiguous local delivery.
+
+Stop if safe serialization requires changing Git/native/ref/index recovery,
+loosening a reservation or accepting an unknown effect as finished. Report an
+existing claim-guard gap before redesigning claim or dispatch infrastructure.
+Do not substitute Failed, Interrupted or Completed for this human decision.
+
+Acceptance: failing-first proof that an inactive manual run blocks new intake;
+Created and Running closure, frozen clocks and preserved Stage/history;
+validation, auth, Legacy/Simulated/unknown and active/ambiguous refusals with no
+writes; real file-backed SQLite atomic rollback, populated trackers and exact
+duplicate arbitration; claim-versus-abandonment in both orders across all eight
+Agent paths including repair forms, plus local-commit preparation/admission and
+verification seam controls; unchanged workspace/lease/ref/index/source bytes;
+fresh intake with distinct identity/budgets and no inherited authorization;
+migration upgrade/down preserving old facts; restart and unknown-response
+reconciliation; UI lifetime, accepted-operation and same-text draft edits.
+
+Use a production-written authenticated browser journey to record an objective,
+obtain a terminal process-double planning attempt, abandon through the rendered
+form, reload the durable reason/history, and record a second objective through
+intake in the same project. Confirm the earlier sealed bytes and workspace stay
+unchanged and no extra provider invocation occurs during abandonment/reload.
+Use deterministic seam signals, not sleeps or retries, for race proofs. Detect
+omitted active/ambiguous guards, lost atomic event, duplicate event, stale mode
+or lifecycle admission and obsolete UI ownership with focused mutations.
+
+Run affected checks first, then a serial solution build, relevant full backend
+suites, frontend Vitest/typecheck/lint/build, strict e2e tsc, harness and one
+canonical test:e2e:all after harness succeeds. Reproduce the generated client,
+check baseline-scoped formatting, audits, links and tracked/untracked hygiene.
+Preserve failed outputs and separate fresh from retained evidence. Return the
+complete unstaged, uncommitted, unpushed diff for Codex GO/NO-GO.
+
+## Previous selected slice (2026-10-08): complete human verification-set approval for local delivery
 
 Exactly one new slice is selected: make the existing explicit local-delivery
 journey usable with several enabled verification recipes, from settled human

@@ -202,6 +202,24 @@ or removed because its bytes or file id match, and `NeedsAttention` for a pendin
 takeover path. The expected worktree tip of a later run is the unique coherent chain of completed recorded parent-to-commit
 edges rooted at the workspace's immutable source commit; any gap, fork or cycle has no tip and fails closed.
 
+### Explicit abandonment of an inactive manual run
+
+An explicit abandonment ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) is metadata only. In one short write-locked transaction it saves the run's
+`Abandoned` lifecycle, the immutable `AbandonmentReason` and `AbandonedAtUtc` (two nullable columns, never backfilled) and exactly one
+Human `run.abandoned` event; the decision is made from fresh untracked reads of the project's attempts, verification executions,
+local-commit operations and workspaces, and an unrecognized stored value blocks it like an active one. It releases no lease, repairs or
+recreates no workspace, adopts or removes no lock, moves no ref or index and deletes no branch, worktree, file or artifact, so
+restart reads exactly the recorded facts and no recovery decision changes. An open local-commit operation (`Prepared`, `Executing` or
+`NeedsAttention`) or a `Preparing` or `Committing` workspace blocks it: it is never an override for an ambiguous delivery. Recorded
+facts are coherent only when the row and its single Human event agree; an incoherent one neither answers a replay nor admits another
+objective. A verification claimed after the closure remains project work, and a prepared artifact an admission never reached stays
+inert exactly as before. The recorded time is read through a mapping specific to that column that writes the provider's own text form
+and reads only TEXT in that form (the column's own type mapping keeps the SQLite storage class, so even a BLOB of the exact
+timestamp's bytes is a damaged value) and any damaged value as no time, which is never coherent, so one damaged row stays incoherent without breaking any other read.
+Reversing the migration drops only the two columns, by native `ALTER TABLE ... DROP COLUMN`: unlike the provider's drop, recreate and
+rename of the whole table, which collides with the guard trigger on `attempts`, it keeps every trigger and index, although SQLite still
+rewrites the table content to remove a column.
+
 ## Retention and deletion
 
 MVP retention is explicit even for a local tool:

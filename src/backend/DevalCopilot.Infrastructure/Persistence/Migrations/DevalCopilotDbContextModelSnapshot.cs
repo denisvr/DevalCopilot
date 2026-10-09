@@ -1452,6 +1452,13 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset?>("AbandonedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AbandonmentReason")
+                        .HasMaxLength(2048)
+                        .HasColumnType("TEXT");
+
                     b.Property<double>("AccumulatedAutonomousSeconds")
                         .HasColumnType("REAL");
 

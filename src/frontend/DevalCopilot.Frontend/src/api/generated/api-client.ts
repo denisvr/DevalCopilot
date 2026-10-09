@@ -1853,6 +1853,54 @@ export class AuthorizePlanningImplementationEndpointClient {
     }
 }
 
+export class GetManualRunAbandonmentEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getManualRunAbandonment(runId: string): Promise<GetManualRunAbandonmentResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/abandonment";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetManualRunAbandonment(_response);
+        });
+    }
+
+    protected processGetManualRunAbandonment(response: Response): Promise<GetManualRunAbandonmentResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetManualRunAbandonmentResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetManualRunAbandonmentResponse>(null as any);
+    }
+}
+
 export class GetCollaborationTimelineEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2274,6 +2322,58 @@ export class AuthorizeReviewCorrectionWithGuidanceEndpointClient {
             });
         }
         return Promise.resolve<AuthorizeReviewCorrectionResponse>(null as any);
+    }
+}
+
+export class AbandonManualRunEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    abandonManualRun(runId: string, request: AbandonManualRunRequest): Promise<AbandonManualRunResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/abandon";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processAbandonManualRun(_response);
+        });
+    }
+
+    protected processAbandonManualRun(response: Response): Promise<AbandonManualRunResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = AbandonManualRunResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<AbandonManualRunResponse>(null as any);
     }
 }
 
@@ -6767,6 +6867,94 @@ export interface IPlanningImplementationAuthorizationResponse {
     consumedAtUtc?: Date | undefined;
 }
 
+export class GetManualRunAbandonmentResponse implements IGetManualRunAbandonmentResponse {
+    eligible?: boolean;
+    refusalCode?: string | undefined;
+    abandonment?: ManualRunAbandonmentResponse | undefined;
+    latestEventSequence?: number;
+
+    constructor(data?: IGetManualRunAbandonmentResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.eligible = _data["eligible"];
+            this.refusalCode = _data["refusalCode"];
+            this.abandonment = _data["abandonment"] ? ManualRunAbandonmentResponse.fromJS(_data["abandonment"]) : undefined as any;
+            this.latestEventSequence = _data["latestEventSequence"];
+        }
+    }
+
+    static fromJS(data: any): GetManualRunAbandonmentResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetManualRunAbandonmentResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["eligible"] = this.eligible;
+        data["refusalCode"] = this.refusalCode;
+        data["abandonment"] = this.abandonment ? this.abandonment.toJSON() : undefined as any;
+        data["latestEventSequence"] = this.latestEventSequence;
+        return data;
+    }
+}
+
+export interface IGetManualRunAbandonmentResponse {
+    eligible?: boolean;
+    refusalCode?: string | undefined;
+    abandonment?: ManualRunAbandonmentResponse | undefined;
+    latestEventSequence?: number;
+}
+
+export class ManualRunAbandonmentResponse implements IManualRunAbandonmentResponse {
+    reason?: string;
+    abandonedAtUtc?: Date;
+
+    constructor(data?: IManualRunAbandonmentResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.reason = _data["reason"];
+            this.abandonedAtUtc = _data["abandonedAtUtc"] ? new Date(_data["abandonedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): ManualRunAbandonmentResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ManualRunAbandonmentResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["reason"] = this.reason;
+        data["abandonedAtUtc"] = this.abandonedAtUtc ? this.abandonedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IManualRunAbandonmentResponse {
+    reason?: string;
+    abandonedAtUtc?: Date;
+}
+
 export class GetLocalCommitStatusResponse implements IGetLocalCommitStatusResponse {
     eligible?: boolean;
     refusalCode?: string | undefined;
@@ -8565,6 +8753,90 @@ export class AuthorizePlanningImplementationRequest implements IAuthorizePlannin
 
 export interface IAuthorizePlanningImplementationRequest {
     rationale?: string;
+}
+
+export class AbandonManualRunResponse implements IAbandonManualRunResponse {
+    runId?: string;
+    executionNumber?: number;
+    reason?: string;
+    abandonedAtUtc?: Date;
+
+    constructor(data?: IAbandonManualRunResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.executionNumber = _data["executionNumber"];
+            this.reason = _data["reason"];
+            this.abandonedAtUtc = _data["abandonedAtUtc"] ? new Date(_data["abandonedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): AbandonManualRunResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AbandonManualRunResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["executionNumber"] = this.executionNumber;
+        data["reason"] = this.reason;
+        data["abandonedAtUtc"] = this.abandonedAtUtc ? this.abandonedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IAbandonManualRunResponse {
+    runId?: string;
+    executionNumber?: number;
+    reason?: string;
+    abandonedAtUtc?: Date;
+}
+
+export class AbandonManualRunRequest implements IAbandonManualRunRequest {
+    reason!: string;
+
+    constructor(data?: IAbandonManualRunRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.reason = _data["reason"];
+        }
+    }
+
+    static fromJS(data: any): AbandonManualRunRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new AbandonManualRunRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["reason"] = this.reason;
+        return data;
+    }
+}
+
+export interface IAbandonManualRunRequest {
+    reason: string;
 }
 
 export class UpdateVerificationCommandRequest implements IUpdateVerificationCommandRequest {

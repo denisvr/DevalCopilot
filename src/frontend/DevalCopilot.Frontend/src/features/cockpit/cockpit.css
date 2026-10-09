@@ -122,6 +122,12 @@
   color: #2fb380;
 }
 
+/* An abandoned run ended without completing its objective: never styled as the success tone. */
+.dc-badge[data-tone='abandoned'] {
+  border-style: dashed;
+  color: var(--dc-text-muted);
+}
+
 .dc-run-controls {
   margin-left: auto;
   display: flex;
@@ -1063,5 +1069,51 @@
 }
 
 .dc-local-commit-error {
+  color: var(--dc-danger, #b3261e);
+}
+
+/* Abandon run: an explicit human closure of an inactive manual run, with its recorded reason and time. */
+.dc-run-abandon {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--dc-border, currentColor);
+}
+
+.dc-run-abandon h3,
+.dc-run-abandon p {
+  margin: 0;
+}
+
+.dc-run-abandon label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dc-run-abandon-explanation,
+.dc-run-abandon-note {
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+}
+
+.dc-run-abandoned dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0.3rem 0 0;
+}
+
+.dc-run-abandoned dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dc-run-abandoned-reason {
+  white-space: pre-wrap;
+}
+
+.dc-run-abandon-error {
   color: var(--dc-danger, #b3261e);
 }

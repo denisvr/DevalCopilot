@@ -586,6 +586,48 @@ public sealed class Run
         LastAdvancedAtUtc = nowUtc;
     }
 
+    /// <summary>The immutable, normalized human reason a manual run was abandoned (ADR-0031); <see langword="null"/> for every run that
+    /// was not. It is written once by <see cref="Abandon"/> and never changed, rewritten or backfilled.</summary>
+    public string? AbandonmentReason { get; private set; }
+
+    /// <summary>When the abandonment was recorded; <see langword="null"/> for every run that was not abandoned.</summary>
+    public DateTimeOffset? AbandonedAtUtc { get; private set; }
+
+    /// <summary>
+    /// The explicit human ending of an inactive manual run (ADR-0031). <see cref="Stage"/> is left as-is: abandonment is not
+    /// successful completion and not forward progress. Time accumulated while Running is frozen up to
+    /// <paramref name="nowUtc"/>; time spent Created is never counted. The caller decides, from fresh untracked authority under
+    /// the write lock, that nothing is active or ambiguous; this transition enforces only the run's own invariants.
+    /// </summary>
+    public void Abandon(string normalizedReason, DateTimeOffset nowUtc)
+    {
+        if (Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
+        {
+            throw new InvalidOperationException($"Cannot abandon a run whose lifecycle is {Lifecycle}.");
+        }
+
+        if (ExecutionMode != RunExecutionMode.ManualAgent)
+        {
+            throw new InvalidOperationException("Only a manual Agent run can be abandoned.");
+        }
+
+        if (!RunAbandonmentPolicy.IsCanonicalReason(normalizedReason))
+        {
+            throw new ArgumentException("The abandonment reason must be a nonblank, normalized, bounded human reason.", nameof(normalizedReason));
+        }
+
+        if (Lifecycle == RunLifecycle.Running)
+        {
+            AccumulateAutonomousTime(nowUtc);
+        }
+
+        Lifecycle = RunLifecycle.Abandoned;
+        SetActiveParticipant(ParticipantIdentity.None());
+        LastAdvancedAtUtc = nowUtc;
+        AbandonmentReason = normalizedReason;
+        AbandonedAtUtc = nowUtc;
+    }
+
     private void AccumulateAutonomousTime(DateTimeOffset nowUtc)
     {
         var elapsed = (nowUtc - LastAdvancedAtUtc).TotalSeconds;

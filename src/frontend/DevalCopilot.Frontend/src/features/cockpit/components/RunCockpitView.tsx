@@ -60,6 +60,7 @@ import { ConnectionBanner } from './ConnectionBanner'
 import { LatestAgentAttemptEvidence } from './LatestAgentAttemptEvidence'
 import { LiveOutputDrawer } from './LiveOutputDrawer'
 import { LocalCommitPanel } from './LocalCommitPanel'
+import { AbandonRunPanel } from './AbandonRunPanel'
 import { OneAgentClaimSlotRemainingWarning } from './OneAgentClaimSlotRemainingWarning'
 import { ProviderTokenUsageSummaries } from './ProviderTokenUsageSummaries'
 import { RunExecutionModeNotice } from './RunExecutionModeNotice'
@@ -73,13 +74,16 @@ interface RunCockpitViewProps {
   /** Advanced by the project's explicit Refresh evidence action (owned with this run): the verification-dependent diagnosis and
    * code-review status are read again through their existing reads. Verification completes without a run event. */
   evidenceRefreshGeneration?: number
+  /** Re-reads the project list after the run ended (an abandonment), so normal intake offers another objective. */
+  onProjectChanged?: () => void
 }
 
 const AUTHORIZED_REQUEST_LABEL = 'Implement the human-authorized final plan with Claude'
+const ABANDONED_ACTIONS_NOTE = 'This run was abandoned, so no further requests are available for it. Its history stays below.'
 const AUTHORIZATION_SPENT_NOTE =
   'The human authorization for this final plan was already used by an implementation claim. It cannot be reused, so no new implementation of this plan can be requested through it.'
 
-export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCockpitViewProps) {
+export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProjectChanged }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
   const collaborationTimeline = useCollaborationTimeline(runId, cockpit?.latestSequence)
   const agentAttemptStatus = useAgentAttemptStatus(runId, cockpit?.latestSequence)
@@ -201,7 +205,8 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
   // same requests independently). A projection still held from another run is not this run's mode;
   // that frame is already fail-closed through the claim-block derivation below.
   const executionMode = deriveRunExecutionModeDisclosure(cockpit.executionMode, cockpit.lifecycle)
-  const agentActionsAllowed = cockpit.runId !== runId || executionMode.agentActionsAllowed
+  const abandoned = cockpit.runId === runId && cockpit.lifecycle === 'Abandoned'
+  const agentActionsAllowed = !abandoned && (cockpit.runId !== runId || executionMode.agentActionsAllowed)
   // Recomputed synchronously during render from the currently selected `runId`, never from an
   // effect: a cockpit projection still describing the previously selected run must never be
   // read as this run's budget state, even for one render frame (see `deriveGlobalAgentClaimBlock`).
@@ -469,7 +474,7 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
           </>
           ) : (
             <p className="dc-run-agent-actions-note">
-              {executionMode.agentActionsNote}
+              {abandoned ? ABANDONED_ACTIONS_NOTE : executionMode.agentActionsNote}
             </p>
           )}
           {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
@@ -479,6 +484,16 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0 }: RunCock
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}
               onSaved={refresh}
+            />
+          )}
+          {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
+            <AbandonRunPanel
+              key={runId}
+              runId={runId}
+              latestSequence={cockpit.latestSequence}
+              evidenceRefreshGeneration={evidenceRefreshGeneration}
+              onSaved={refresh}
+              onProjectChanged={onProjectChanged}
             />
           )}
           <AgentCollaboration runId={runId} {...collaborationTimeline} />

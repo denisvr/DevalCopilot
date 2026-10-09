@@ -49,6 +49,8 @@ import * as useRequestVerificationDiagnosisModule from '../hooks/useRequestVerif
 import * as useRequestDiagnosisCorrectionModule from '../hooks/useRequestDiagnosisCorrection'
 import * as useLocalCommitStatusModule from '../hooks/useLocalCommitStatus'
 import * as useRequestLocalCommitModule from '../hooks/useRequestLocalCommit'
+import * as useManualRunAbandonmentModule from '../hooks/useManualRunAbandonment'
+import * as useAbandonManualRunModule from '../hooks/useAbandonManualRun'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -78,6 +80,8 @@ vi.mock('../hooks/usePlanningImplementationAuthorization')
 vi.mock('../hooks/useAuthorizePlanningImplementation')
 vi.mock('../hooks/useLocalCommitStatus')
 vi.mock('../hooks/useRequestLocalCommit')
+vi.mock('../hooks/useManualRunAbandonment')
+vi.mock('../hooks/useAbandonManualRun')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   planningImplementationAuthorizationClient: vi.fn(),
@@ -97,6 +101,8 @@ vi.mock('../../../api/clients', () => ({
 
 const useLocalCommitStatusMock = vi.mocked(useLocalCommitStatusModule.useLocalCommitStatus)
 const useRequestLocalCommitMock = vi.mocked(useRequestLocalCommitModule.useRequestLocalCommit)
+const useManualRunAbandonmentMock = vi.mocked(useManualRunAbandonmentModule.useManualRunAbandonment)
+const useAbandonManualRunMock = vi.mocked(useAbandonManualRunModule.useAbandonManualRun)
 const useRunCockpitMock = vi.mocked(useRunCockpitModule.useRunCockpit)
 const useCollaborationTimelineMock = vi.mocked(useCollaborationTimelineModule.useCollaborationTimeline)
 const useAgentAttemptStatusMock = vi.mocked(useAgentAttemptStatusModule.useAgentAttemptStatus)
@@ -160,6 +166,8 @@ function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineC
 beforeEach(() => {
   useLocalCommitStatusMock.mockReturnValue({ status: null, loading: true, error: null, current: false, refresh: vi.fn() })
   useRequestLocalCommitMock.mockReturnValue({ requesting: false, error: null, submit: vi.fn() })
+  useManualRunAbandonmentMock.mockReturnValue({ status: null, loading: true, error: null, current: false, refresh: vi.fn() })
+  useAbandonManualRunMock.mockReturnValue({ requesting: false, error: null, submit: vi.fn() })
   useCollaborationTimelineMock.mockReturnValue({
     cards: [],
     loading: false,
@@ -3035,5 +3043,71 @@ describe('RunCockpitView local commit composition', () => {
 
     expect(screen.queryByRole('region', { name: 'Local commit' })).not.toBeInTheDocument()
     expect(useLocalCommitStatusMock).not.toHaveBeenCalledWith('run-2', expect.anything(), expect.anything())
+  })
+})
+
+describe('RunCockpitView abandonment composition', () => {
+  function mockCockpit(overrides: Record<string, unknown> = {}) {
+    const refresh = vi.fn(async () => true)
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, ...overrides } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh,
+    })
+    return refresh
+  }
+
+  it('mounts the panel for the selected manual Agent run with the cockpit sequence, the evidence generation, the cockpit refresh and the project refresh', () => {
+    const refresh = mockCockpit()
+    const onProjectChanged = vi.fn()
+
+    render(<RunCockpitView runId="run-1" evidenceRefreshGeneration={3} onProjectChanged={onProjectChanged} />)
+
+    expect(screen.getByRole('region', { name: 'Abandon run' })).toBeInTheDocument()
+    expect(useManualRunAbandonmentMock).toHaveBeenCalledWith('run-1', 2, 3)
+    expect(useAbandonManualRunMock).toHaveBeenCalledWith('run-1', '', 0, expect.any(Function), onProjectChanged, refresh)
+  })
+
+  it('does not mount the panel for a simulated or unrecognized execution mode', () => {
+    mockCockpit({ executionMode: 'Simulated' })
+    const { rerender } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.queryByRole('region', { name: 'Abandon run' })).not.toBeInTheDocument()
+
+    mockCockpit({ executionMode: 'SomethingNew' })
+    rerender(<RunCockpitView runId="run-1" />)
+    expect(screen.queryByRole('region', { name: 'Abandon run' })).not.toBeInTheDocument()
+  })
+
+  it("never shows a projection held from another run as the selected run's abandonment", () => {
+    mockCockpit({ runId: 'run-1' })
+
+    render(<RunCockpitView runId="run-2" />)
+
+    expect(screen.queryByRole('region', { name: 'Abandon run' })).not.toBeInTheDocument()
+    expect(useManualRunAbandonmentMock).not.toHaveBeenCalledWith('run-2', expect.anything(), expect.anything())
+  })
+
+  it('shows an abandoned run truthfully: not as a completion, with no Agent request actions and a fixed note', () => {
+    mockCockpit({ lifecycle: 'Abandoned', stage: 'Plan', activeParticipant: new ParticipantIdentityResponse({ kind: 'None' }) })
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByText('Abandoned · Plan')).toHaveAttribute('data-tone', 'abandoned')
+    expect(screen.queryByRole('button', { name: 'Request Codex plan' })).not.toBeInTheDocument()
+    expect(screen.getByText(/This run was abandoned, so no further requests are available for it/)).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Abandon run' })).toBeInTheDocument()
+  })
+
+  it('keeps the Agent request actions for a running manual run', () => {
+    mockCockpit()
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
+    expect(screen.queryByText(/This run was abandoned/)).not.toBeInTheDocument()
   })
 })

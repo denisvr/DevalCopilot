@@ -307,7 +307,7 @@ public sealed class AddCodexAccountUsageWarningMigrationTests : IAsyncLifetime
         }
 
         var runColumnsAfter = (await ReadColumnsAsync("runs")).Select(column => column.Name).ToArray();
-        Assert.Equal(["CodexAccountUsageWarningPercent"], runColumnsBefore.Except(runColumnsAfter));
+        Assert.Equal(["AbandonedAtUtc", "AbandonmentReason", "CodexAccountUsageWarningPercent"], runColumnsBefore.Except(runColumnsAfter).Order());
         Assert.Empty(runColumnsAfter.Except(runColumnsBefore));
         Assert.Equal(attemptColumnsBefore, (await ReadColumnsAsync("attempts")).Select(column => column.Name).ToArray());
 
