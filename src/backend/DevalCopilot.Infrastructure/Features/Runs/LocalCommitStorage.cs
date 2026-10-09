@@ -32,6 +32,11 @@ public sealed class LocalCommitStorage
 
     public string Root => _root;
 
+    /// <summary>Phase hook of first-use initialization (<c>directories_ready</c>, <c>configuration_opening</c>,
+    /// <c>configuration_opened</c>). It is a deterministic observation seam for tests that must interleave two initializers at an
+    /// exact boundary; production never sets it and it carries no authority.</summary>
+    internal Action<string>? InitializationObserver { get; set; }
+
     public string HooksDirectory => Path.Combine(_root, HooksFolder);
 
     public string EmptyConfigPath => Path.Combine(_root, EmptyConfigFile);
@@ -134,24 +139,31 @@ public sealed class LocalCommitStorage
         return full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? full : null;
     }
 
-    /// <summary>Creates the owned directories and files on first use and proves the hooks directory is empty. False when anything
-    /// is present in it, in which case no Git command may run.</summary>
+    /// <summary>Creates the owned directories and the empty configuration file on first use and proves, on every call, that the
+    /// configuration is empty and the hooks directory holds nothing. False when either is not so or cannot be opened, in which
+    /// case no Git command may run. The file is created and examined through one non-truncating open that lets other initializers
+    /// open it at the same time, so overlapping first uses cannot fail each other; an existing file is never rewritten.</summary>
     public bool TryEnsureHooksDirectoryEmpty()
     {
         try
         {
             Directory.CreateDirectory(_root);
             Directory.CreateDirectory(HooksDirectory);
-            if (!File.Exists(EmptyConfigPath))
-            {
-                File.WriteAllBytes(EmptyConfigPath, []);
-            }
-
-            return !Directory.EnumerateFileSystemEntries(HooksDirectory).Any();
+            InitializationObserver?.Invoke("directories_ready");
+            return OpenedConfigurationIsEmpty() && !Directory.EnumerateFileSystemEntries(HooksDirectory).Any();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return false;
         }
+    }
+
+    private bool OpenedConfigurationIsEmpty()
+    {
+        InitializationObserver?.Invoke("configuration_opening");
+        using var configuration = new FileStream(
+            EmptyConfigPath, FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        InitializationObserver?.Invoke("configuration_opened");
+        return configuration.CanSeek && configuration.Length == 0;
     }
 }

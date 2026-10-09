@@ -23,15 +23,14 @@ public abstract partial class LocalCommitTestBase
     /// by entry ordinal, the calls the real preparer is made to refuse with a non-current checkpoint fingerprint.</summary>
     internal async Task<LocalCommitCompetition> StartCompetitionAsync(bool runSupervisor, Func<int, bool>? refuse = null)
     {
-        // The host-owned storage root is initialized once, sequentially, by the production method before the competition. Two
-        // preparations that are the FIRST use of a fresh root can race inside that initialization (check-then-write of the empty
-        // Git configuration file) and one then returns a real HooksDirectoryNotEmpty refusal; that production behavior is reported
-        // separately and is not what these proofs of competing preparations, artifact ownership and cleanup are about.
-        Assert.True(Scene.Storage.TryEnsureHooksDirectoryEmpty(), "the owned storage root could not be initialized");
         var gate = new PreparationGate(LocalCommitCompetition.Bound);
         var preparer = new ScriptedLocalCommitPreparer { InduceCheckpointNotCurrentFor = refuse, AfterPrepare = gate.ParkAsync };
         var (host, repository) = StartScripted(runSupervisor, decoratePreparer: inner => preparer.Attach(inner));
         var ids = await LocalCommitLineage.SeedAsync(host, Scene);
+
+        // The owned storage root is deliberately cold: the two requests below are the FIRST use of it, so their preparations
+        // contend in the production first-use initialization and neither may be refused for that reason alone.
+        Assert.False(Directory.Exists(Scene.Storage.Root), "the owned storage root must not exist before the first preparation");
         var operationId = Guid.NewGuid();
         Task<HttpResponseMessage>[] requests =
             [PostAsync(host, ids.RunId, ids, operationId), PostAsync(host, ids.RunId, ids, operationId)];
