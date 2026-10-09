@@ -60,6 +60,9 @@ supersedes it.
 - [ADR-0031: Abandon an inactive manual run through an explicit Human decision](0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)
   (it narrowly extends ADR-0014's intake admission so a coherent Abandoned run is terminal and adds one explicit Human terminal
   lifecycle; it cancels, repairs and deletes nothing and changes no claim, reservation, recovery or provider decision)
+- [ADR-0032: Show a recorded local-delivery receipt from pinned evidence](0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md)
+  (additive; one protected read-only receipt reconstructed from the exact rows a completed local commit was admitted against; it
+  adds no persistence and changes no ADR-0029 authority, reservation, recovery or approval decision)
 
 ## Status values
 

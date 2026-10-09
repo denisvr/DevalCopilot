@@ -1072,6 +1072,40 @@
   color: var(--dc-danger, #b3261e);
 }
 
+/* The recorded local-delivery receipt: a read-only historical record beside a completed local commit. */
+.dc-local-delivery-receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--dc-border, currentColor);
+}
+
+.dc-local-delivery-receipt h4,
+.dc-local-delivery-receipt p,
+.dc-local-delivery-receipt ol {
+  margin: 0;
+}
+
+.dc-local-delivery-receipt ol {
+  padding-left: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.dc-local-delivery-receipt dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-local-delivery-receipt dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--dc-mono, monospace);
+}
+
 /* Abandon run: an explicit human closure of an inactive manual run, with its recorded reason and time. */
 .dc-run-abandon {
   display: flex;

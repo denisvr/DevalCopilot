@@ -1097,6 +1097,21 @@ safe facts: checkpoint, branch, parent/tree and, after completion, the local com
 advanced and the operation was recorded; it never means a push, a clean unrelated workspace or provider reliability. A reload shows
 the same durable outcome. Ambiguous evidence remains `Needs attention` and is never represented as a retry, success or failure.
 
+### Local delivery receipt
+
+Beside a `Completed` local-commit operation the cockpit shows a **Local delivery receipt** region
+([ADR-0032](../decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md)) read once, from the protected, read-only
+`GET /api/runs/{runId}/local-delivery-receipt`, for exactly that run and operation. A fixed note says it is a historical record of the
+evidence the commit was delivered against, not the current workspace, branch or eligibility, not a statement that the checks would
+pass now, and not a push. An available receipt lists the recorded local commit, parent, tree, branch, completion time and objective,
+the checkpoint number, fingerprint and changed-path count, the source execution report, the CodeReviewer attempt and its approval
+message, the selected Human review and its `Approved` decision, and every recorded verification member in recorded order with its
+snapshotted command name, `Passed`, exit code 0, execution number, identities and completion time, all as plain text. Loading, a failed
+read (a fixed message and an explicit "Read the receipt again"), an inconsistent answer (nothing of it is shown), an unavailable
+receipt ("cannot be reconstructed"), and the valid receipt are distinct states. The region offers no mutation, never rewrites the
+operation's status, and is never polled; its request and answer belong to the committed run and operation lifetime, so a replacement,
+a return to an earlier one, unmounting or an obsolete read cannot fetch for or show another owner.
+
 ### Abandon run
 
 For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a

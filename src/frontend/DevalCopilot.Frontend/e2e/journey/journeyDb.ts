@@ -55,6 +55,19 @@ export interface CheckpointReviewEvidenceRow {
   VerificationExecutionExitCode: number | null
 }
 
+export interface LocalCommitOperationRow {
+  Id: string
+  Status: string
+  CommitSha: string
+  GitCheckpointId: string
+  CheckpointNumber: number
+  CheckpointFingerprintSha256: string
+  ExecutionReportMessageId: string
+  CodeReviewAttemptId: string
+  CodeReviewApprovalMessageId: string
+  HumanCheckpointReviewId: string
+}
+
 export interface MessageRow {
   Id: string
   AttemptId: string | null
@@ -226,6 +239,24 @@ export class JourneyData {
       "select m.Sequence, m.SubjectId, m.CommandId from local_commit_authority_members m join local_commit_operations o on o.Id = m.OperationId where o.RunId = ? and m.Kind = 'Verification' order by m.Sequence",
       this.runId(),
     )
+  }
+
+  /** The one local-commit operation of this run, with the identities it pinned; null before it is admitted. */
+  localCommitOperation(): LocalCommitOperationRow | null {
+    return (
+      this.all<LocalCommitOperationRow>(
+        'select Id, Status, CommitSha, GitCheckpointId, CheckpointNumber, CheckpointFingerprintSha256, ExecutionReportMessageId, CodeReviewAttemptId, CodeReviewApprovalMessageId, HumanCheckpointReviewId from local_commit_operations where RunId = ?',
+        this.runId(),
+      )[0] ?? null
+    )
+  }
+
+  /** How many local-commit operations exist for this project's workspace, so a read can be proven to create none. */
+  localCommitOperationCount(): number {
+    return this.one<{ Count: number }>(
+      'select count(*) as Count from local_commit_operations o join runs r on r.Id = o.RunId where r.ProjectId = ?',
+      this.projectId(),
+    ).Count
   }
 
   messages(): MessageRow[] {

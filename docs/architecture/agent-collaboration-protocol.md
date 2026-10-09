@@ -3101,6 +3101,25 @@ provider output, never synthesizes an Agent approval, claims no attempt or budge
   reservation, digest, seam and recovery rules and every other authority decision. A Pending, Changes-requested or Escalated Human
   decision still blocks local delivery.
 
+### Recorded local-delivery receipt
+
+A completed explicit local commit ([ADR-0029](../decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md))
+has a protected, read-only historical receipt ([ADR-0032](../decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md)),
+`GET /api/runs/{runId}/local-delivery-receipt`, answering `NotRecorded`, `NotCompleted`, `Unavailable` or `Available` (only the last
+carries the version-1 receipt). Every fact is resolved through the identifier the operation recorded: the pinned execution report, the
+CodeReviewer attempt (launched against exactly that report, with its single provider-observed approval message and no finding), the
+Agent and selected Human checkpoint reviews, and the operation's ordered Verification authority members. Those members must be 1 to
+32 unique, contiguous pairs equal to the CodeReviewer's ordered evidence claim and, as sets, to both reviews' evidence; each execution
+must belong to the recorded project, workspace, checkpoint and command, be `Passed` with a clean exit, and match its recorded member
+digest recomputed from its own immutable command snapshot (the admission digest format, shared and unchanged); the selected Human
+decision must match its recorded digest. The pinned run must record the same completion (lifecycle and stage `Completed`, last advance
+equal to the operation's completion time), the recorded counts and numbers must be in bounds, the approval message must carry the
+attempt's own provider, and both reviews' stored copies of each execution (number, status, outcome, exit code, fingerprint) must equal
+the pinned execution. Any gap makes the whole receipt `Unavailable`. The query is read-only (no filesystem, Git,
+process, provider, lease, event or write) and never substitutes a later report, review, checkpoint, recipe or execution, so reruns and
+recipe edits after delivery leave an intact receipt unchanged. It does not infer the implemented plan from report replies and says
+nothing about current workspace state or remote publication.
+
 ### Project instruction context in Agent manifests
 
 Every manifest used to carry the same three fixed DevalCopilot documentation names as "instruction references" whatever the

@@ -9,8 +9,10 @@ import {
   validateLocalCommitMessage,
 } from '../describeLocalCommit'
 import type { LocalCommitIdentity } from '../describeLocalCommit'
+import { LocalDeliveryReceipt } from './LocalDeliveryReceipt'
 import { useLocalCommitStatus } from '../hooks/useLocalCommitStatus'
 import { useRequestLocalCommit } from '../hooks/useRequestLocalCommit'
+import { toReceiptSource } from '../localDeliveryReceipt'
 
 const EXPLANATION = [
   'The commit is local only: nothing is pushed.',
@@ -121,6 +123,7 @@ export function LocalCommitPanel({ runId, latestSequence, evidenceRefreshGenerat
   const { status, loading, error: statusError, current, refresh } = useLocalCommitStatus(runId, latestSequence, evidenceRefreshGeneration)
   const identity = identityOf(status)
   const identityKey = identity ? localCommitIdentityKey(runId, identity) : null
+  const receiptSource = toReceiptSource(runId, status?.operation)
 
   const [stored, setStored] = useState(() => createOwned(identityKey))
   let owned = stored
@@ -150,6 +153,7 @@ export function LocalCommitPanel({ runId, latestSequence, evidenceRefreshGenerat
       <>
         {!current && <p>{STATUS_REFRESHING}</p>}
         <OperationCard operation={status.operation} />
+        {status.operation.status === 'Completed' && <LocalDeliveryReceipt source={receiptSource} />}
       </>
     )
   } else if (identity) {

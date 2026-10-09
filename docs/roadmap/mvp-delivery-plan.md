@@ -315,6 +315,9 @@ Human approve the complete verification set so the same commit works with severa
 [ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md) gives an owner one explicit, metadata-only
 exit from an inactive manual run (it cancels, repairs and deletes nothing) so another objective can be recorded; it is likewise not
 increment completion.
+[ADR-0032](../decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md) adds a read-only, historical receipt of
+a completed local commit (the exact recorded checkpoint, approvals and ordered verification executions, reconstructed from pinned rows
+with no persistence change); it advances the final evidence summary for local delivery only and is likewise not increment completion.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

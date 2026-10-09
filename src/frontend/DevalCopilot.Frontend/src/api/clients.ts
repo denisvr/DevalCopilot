@@ -66,6 +66,7 @@ import {
   GetPlanningImplementationAuthorizationEndpointClient,
   RequestLocalCommitEndpointClient,
   GetLocalCommitStatusEndpointClient,
+  GetLocalDeliveryReceiptEndpointClient,
   AbandonManualRunEndpointClient,
   GetManualRunAbandonmentEndpointClient,
 } from './generated/api-client'
@@ -140,6 +141,7 @@ export const authorizePlanningImplementationClient = () => new AuthorizePlanning
 export const planningImplementationAuthorizationClient = () => new GetPlanningImplementationAuthorizationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const requestLocalCommitClient = () => new RequestLocalCommitEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const localCommitStatusClient = () => new GetLocalCommitStatusEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const localDeliveryReceiptClient = () => new GetLocalDeliveryReceiptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const abandonManualRunClient = () => new AbandonManualRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const manualRunAbandonmentClient = () => new GetManualRunAbandonmentEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
@@ -228,6 +230,8 @@ export type {
   AgentClaimPathTimeFitResponse,
   LocalCommitOperationResponse,
   GetLocalCommitStatusResponse,
+  GetLocalDeliveryReceiptResponse,
+  LocalDeliveryReceiptResponse,
   AbandonManualRunResponse,
   GetManualRunAbandonmentResponse,
   ManualRunAbandonmentResponse,

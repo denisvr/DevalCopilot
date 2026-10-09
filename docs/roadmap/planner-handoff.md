@@ -5,203 +5,318 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current decision (2026-10-09): GO for race-safe first-use local-commit storage
+## Current decision (2026-10-09): recorded local-delivery receipt
 
-Exactly one bounded slice is accepted: eliminate benign first-use initialization
-refusals in the host-owned local-commit control storage and prove concurrent
-preparation, execution and recovery without fixture pre-initialization.
-Claude is executor; Codex owns architecture and acceptance. Start one new
-executor chat after the verified prior publication. The selection below was
-implementation-only; the reviewed snapshot now has the publication GO below.
+### Review decision: GO for the frozen recorded local-delivery receipt slice
 
-### Review decision and publication authority
+R1-R4 are accepted. Publish only the reviewed 50-path snapshot (14 modified,
+36 added at staging), including this planner record and the factual review
+entry in current-work.md. Codex independently verified main, HEAD/local
+origin/main/live main at 0505e26cb572b7e6fbb0c81d970747bbaed2310a and an
+empty index before this decision. The client remains
+1620e821b9dac08bda208fc23c94ecb1b8537a739b68cd298c3b19d23b763cf8.
 
-Codex gives GO for the complete six-path unstaged diff on main at
-34f56b918a7eb6812282ed095d6ef52f37462754, including this review record and
-the factual ledger edits. Local and live origin/main match; the index is empty.
-Four tracked paths are modified and two test files are untracked. No source or
-test correction was required at review. ADR-0029/0030/0031 and the generated
-client are unchanged.
+Fresh independent review: serial solution build 0 warnings/errors; receipt Api
+16/16; literal member-digest tests 4/4; full Architecture 52/52; five frontend
+receipt files 103/103. All four unchanged independent frontend refusal probes
+now pass. The real-host/Git reviewer probe's seven original single corruptions
+all return Unavailable; baseline and every restoration return Available. No
+production or executor test source was modified by Codex. The ignored probe
+build emitted two cached NU1900 audit-source warnings, distinct from the clean
+solution build and not fresh dependency-audit evidence. The executor's full
+Application 4943, Api 1418, Vitest 2561 and canonical Chromium 13/journeys 5
+are reported final-tree evidence, not independently repeated full suites.
 
-The non-truncating read open inspects the actual handle's length, allows
-overlapping initializers, refuses occupied configuration/hooks and rechecks
-every call. The internal observer is bounded test synchronization, not authority.
-The cold Api fixture keeps the previous exact outcome, artifact, admission,
-cleanup and restart assertions. Read/write/delete sharing is accepted within
-this contract; it does not freeze a pathname against later hostile replacement.
-The surviving Delete-sharing mutant is not evidence of a required product
-behavior, and no broader filesystem or recovery guarantee is granted.
+The pinned run's recorded completion, scalar bounds, approval provider and
+both review evidence snapshots now agree with the operation and executions.
+The frontend refuses unsafe integers and non-null Unavailable payloads, and
+ReceiptReading is in its own file. Digest formats, admission, storage, Git,
+recovery and historical rows are unchanged. The receipt remains a check of
+recorded consistency, not proof of repository reality or provider reliability;
+mutually consistent corruption and the lack of approval digests remain limits.
+All earlier failed evidence and mutation qualifications remain recorded.
 
-Fresh independent Codex checks, each once, sequentially: solution build
---no-restore -p:UseSharedCompilation=false -m:1 (0 warnings, 0 errors);
-Infrastructure initialization, invalid-control-state, preparation and ownership
-classes (57 passed); Api competition, refused-preparation and restart classes
-(41 passed); full Architecture (47 passed). No failure or skip occurred in
-these selections. Codex inspected the executor's final sequential logs:
-full Infrastructure 1669 passed and four existing symlink-capability skips,
-full Api 1402 passed, Architecture 47 passed, and the rebuilt mutation matrix
-(14 killed, one scoped survivor). Those full runs and mutations remain executor
-evidence, distinct from the independent checks. Historical failures and their
-unproven causes remain recorded.
+Freeze a raw SHA-256/byte-size/status manifest after these two review-doc edits.
+The executor must verify its hash, all 50 entries, exact Git inventory, empty
+index, baseline/live refs and the key file hashes before staging. No snapshot
+edit, regeneration, amend, force-push or remote reconciliation is authorized.
+Commit the substantive slice and push main normally; verify HEAD/local origin
+and independent live ref equality. Run serial build, digest tests 4, receipt
+Api 16, Architecture 52, full frontend 2561, typecheck/lint/build, harness 87,
+then one canonical browser matrix (Chromium 13, journeys 5), with fresh logs
+and checked exit codes. Preserve and stop on any failure, without an unchanged
+rerun for green or a success closure. Client hash and checkout must remain
+unchanged/clean. On success, commit/push a current-work.md-only factual closure
+within this slice's entry, distinguishing fresh and retained evidence, preserving
+historical failures and limits, and embedding no closure commit SHA. Verify
+remote equality again. This grants no next slice or increment/MVP completion.
 
-Codex corrected only two factual ledger phrases: empty read-only files are
-accepted, and the executor's 40-test selection is not assigned an unverified
-class composition. The independent selection and its exact filters are recorded
-separately. No implementation, test, client, dependency or ADR changed.
+### Historical review decision: NO-GO, correction round R1-R4
 
-Publication must use the frozen reviewed six-path manifest, with raw hashes,
-sizes and statuses checked against Git before staging. Commit that substantive
-snapshot, push main normally as a fast-forward, fetch and independently verify
-live origin/main, then run the same build and three test selections on the
-published substantive commit from fresh logs. Preserve any failure and stop;
-do not repeat an unchanged failing acceptance run for green. Only after success
-may the executor make a current-work.md-only factual closure within this entry,
-commit/push it normally and verify all refs and a clean checkout again. No amend,
-force push, history reconciliation or material post-GO edit is authorized.
-Any material change returns for review. No next slice is selected and no
-increment or MVP completion is claimed.
+The returned slice remains UNSTAGED, UNCOMMITTED and UNPUSHED. Keep these
+corrections in the same executor chat; no publication or next slice is granted.
+Codex verified main, HEAD/local origin/main/live main at
+0505e26cb572b7e6fbb0c81d970747bbaed2310a, an empty index and exactly 49 status
+paths (14 modified, 35 untracked). The selection was byte-preserved at
+281df6a2b4f173b8b6b92150c9e88ca3b2a437bbafd64f3e6c854e84edf08333 before
+this review edit. The generated client regenerated to the ledger's reported
+1620e821b9dac08bda208fc23c94ecb1b8537a739b68cd298c3b19d23b763cf8.
 
-### Independently verified start and published predecessor
+Independent checks: serial solution build 0 warnings/errors; receipt Api tests
+15/15; literal member-digest tests 4/4; Architecture 52/52; the five receipt
+frontend test files 87/87. These passing suites do not cover the defects below.
+The initial sandbox testhost run aborted before connection; a frontend attempt
+could not load three suites because worker temporary files were unavailable.
+The checks subsequently ran outside that environment limitation. The reviewer
+probe initially needed its test-host content-root manifest and working directory
+corrected; those setup failures are not production results. Its restore emitted
+NU1900 because package vulnerability sources were unreachable; the solution
+build result above is separate, and no fresh dependency-audit success is claimed.
+
+Codex used an ignored independent probe over the real local-commit host and a
+completed two-recipe delivery. Baseline and every restoration were Available.
+Each following single corruption still incorrectly returned HTTP 200/Available:
+run Lifecycle changed to Running; approval ActorAgentProvider changed from the
+review attempt's Codex to ClaudeCode; selected Human evidence exit changed to
+17 or execution number to 999; Agent review evidence changed to Failed or a
+different fingerprint; operation ChangedPathCount changed to -1. Each table
+was restored through the fixture's reversible corruption helper. No repository
+implementation or executor test was changed by the reviewer.
+
+**R1 - recorded completion and scalar coherence.** The query reads only the
+run's project/objective, and the reader accepts invalid delivered counts.
+Require the pinned run's recorded completion to agree with the completed
+operation and validate the existing scalar bounds of receipt facts, including
+ChangedPathCount 1..LocalCommitOperation.MaximumChangedPaths and positive
+checkpoint/attempt/execution numbers. Classify incoherent stored completion as
+Unavailable/null, including unknown stored lifecycle values, without a 500.
+This is historical record consistency, not current invocation eligibility:
+do not consult the latest run, live Git, a current lease or workspace status.
+Keep legitimate later runs/checkpoints/recipes and historical receipt controls.
+The architecture test's blanket ban on RunLifecycle must not prohibit this
+required pinned-run consistency check; replace that overbroad assertion with
+the actual no-current-eligibility/no-write boundary. Change no writer or recovery
+decision. Add failing-first real-host cases and restoration controls.
+
+**R2 - pinned approval and review snapshot coherence.** Bind the approval
+message's ActorAgentProvider to its recorded CodeReviewer attempt. For both the
+pinned Agent checkpoint review and selected Human review, compare every stored
+verification snapshot to the corresponding pinned execution: command/execution
+identity, execution number, status, fingerprint, outcome and exit code. Membership
+alone, or Human Passed/fingerprint alone, does not prove consistency; the unchanged
+Human member digest does not cover those snapshot fields. Reject the entire
+receipt as Unavailable/null on a mismatch, never overwrite a snapshot or display
+the execution row as a substitute for it. Keep digest bytes and admission
+unchanged. Add each reproduced mismatch plus outcome/missing clean-exit controls
+for both review forms, and prove intact legacy/single and complete-set deliveries
+still read and restore byte-identically.
+
+**R3 - safe frontend integer validation.** Number.isInteger admits values that
+cannot represent exact identities/counts. Independent refusal probes all failed
+for 2**53 in ChangedPathCount, CodeReviewer AttemptNumber and verification
+ExecutionNumber: each normalized as Available. Require safe integers for receipt
+numbers and the source checkpoint number, preserving their positive/nonnegative
+and ordering rules. Reject invalid responses through the existing inconsistent
+state with no receipt facts. Pin the existing changed-path bound and coherent
+controls; no generic decoder or generated-client edit. An additional probe found
+that Unavailable with receipt=0 is accepted by truthiness; reject falsy non-null
+payloads while preserving null/undefined as the generated client's representation
+of an absent receipt. No extra state or retry is needed.
+
+**R4 - one top-level C# type per file.** ReceiptReading is a second top-level
+type in LocalDeliveryReceiptTestBase.cs. Move it verbatim to ReceiptReading.cs
+in the same test folder, with visibility and namespace unchanged. No broad moves.
+
+Write the focused regressions first and capture their failures on this submitted
+tree. After correcting it, run affected tests, a clean serial build and the
+relevant full Application/Api/Architecture and frontend validation prescribed
+below, harness then one canonical browser matrix. Preserve actual failures;
+retain unchanged Domain/Infrastructure/audits with explicit scope. Repeat only
+meaningful affected mutations, restore hashes and distinguish build/setup errors
+from kills. Update ADR-0032/spec/protocol narrowly where claims need clarification
+and current-work.md with fresh versus retained evidence and the new inventory.
+Return the full unstaged diff for review. Do not change this planner record,
+accepted ADRs, admission/digest formats, schema, historical rows or publication
+state. The existing selection and its limits below remain in force.
+
+Select exactly one bounded slice: a read-only historical receipt for a completed
+host-owned local commit, showing its exact recorded checkpoint, review/approval
+identities and verification executions in the cockpit, including after reload.
+Claude implements in one NEW executor chat; Codex owns architecture and review.
+This selection grants no staging, commit, push, next slice or new mutation
+permission. The previous storage slice is published and independently verified.
+
+### Verified baseline and prior publication
 
 Branch main; HEAD, local origin/main and independently queried live
-refs/heads/main are 34f56b918a7eb6812282ed095d6ef52f37462754. Before this
-planner edit the checkout was clean: nothing staged, unstaged or untracked.
-Substantive ffd0be0f8b16558e13fe4e481b23217a568386cb has parent
-c12c7dd5b9c53064be66bd998d966659fdbd9822. Its 18 paths and statuses match
-the approved manifest; the 17 current raw hashes outside the closure ledger
-still match it. Closure 34f56b9 has that substantive parent and changes only
-current-work.md within the slice's entry (5 additions, 1 deletion). Codex
-reviewed the closure and verified the remote. Reported post-publication
-build/Api 1402/Architecture 47 are executor evidence, not new planner test runs.
+refs/heads/main equal 0505e26cb572b7e6fbb0c81d970747bbaed2310a. The checkout
+was clean before this planner edit: nothing staged, unstaged or untracked.
+Substantive c27f6e54164068a5016bc4c91caf1ff5de3f2759 has parent
+34f56b918a7eb6812282ed095d6ef52f37462754. All six committed blobs match the
+frozen reviewed manifest's raw hashes and byte sizes. Closure 0505e26 has that
+substantive parent and changes only current-work.md in its entry (+5/-1), with
+no embedded closure SHA. Codex inspected that closure and verified the remote.
+Reported post-publication build, Infrastructure 57, Api 41 and Architecture 47
+are executor evidence; they were not rerun by the planner after publication.
 
-Expected executor start after this edit: same branch/HEAD and local/live refs,
-empty index, only docs/roadmap/planner-handoff.md modified, no untracked files.
-Generated client SHA-256:
+Expected executor start: this same main/HEAD/local/live baseline, empty index,
+only docs/roadmap/planner-handoff.md modified, no untracked files. Preserve this
+selection and ADR-0029/0030/0031. Generated-client baseline SHA-256:
 22074a066c91a1fb1dfc0afc602573f14e72f9c6ffd8047633b2640c20e20b64.
-Preserve this planner selection and ADR-0029/0030/0031 byte-for-byte.
+The additive receipt endpoint will legitimately regenerate that client.
 
-### Why this candidate
+### Why this outcome and what it does not complete
 
-The previous slice restored precise outcome/artifact proofs, conditional on
-sequential initialization of storage. Production LocalCommitStorage still
-checks File.Exists(empty.gitconfig), then writes/truncates the pathname through
-File.WriteAllBytes. Two first users may race; an IOException returns false and
-is surfaced by the real preparer as HooksDirectoryNotEmpty. The availability
-failure is concrete, not an unproven provider contract or a request for more
-context samples. Removing it makes the existing local-delivery path and its
-concurrency acceptance usable from a fresh installation.
+The existing LocalCommitPanel displays status, checkpoint number, branch,
+parent/tree, changed-path count and the delivered SHA. GetLocalCommitStatus
+returns LocalCommitOperationView; neither contains the exact verification
+execution list or the source report and approval evidence together. Those facts
+are already durably recorded in LocalCommitOperation, LocalCommitAuthorityMember,
+AttemptVerificationEvidence and checkpoint-review evidence. The collaboration
+journey already completes a real local commit against two enabled recipes.
 
-Codex's independent single probe invoked the unchanged Infrastructure method
-through two separate LocalCommitStorage instances sharing each of 300 fresh,
-owned temporary roots: 22 pairs had one false result; later sequential calls
-had no failure. It establishes a reproducible mechanism, not the historical
-Api failure's cause or a production frequency. The probe also confirmed that
-OpenOrCreate with read access can create an empty file, admit an overlapping
-read handle and preserve existing nonempty bytes. It is contract research,
-not an implementation or acceptance result. Ignored source and a result note
-are under frontend node_modules/.cache/codex-cold-storage-selection-20261009.
+One receipt lets the owner answer which recorded checks and decisions supported
+this particular local delivery without reconstructing several current-status
+panels. It advances the roadmap's final evidence summary using the delivered
+local-commit capability, with no autonomous coordinator or external authority.
+It is more useful now than another incidental test-support slice. Claude
+account enforcement, eligible session resume, compaction and permission profiles
+remain unproven; this work establishes none of them. Remote publication and
+broader lifecycle recovery require separate decisions. No increment or MVP
+completion is claimed.
 
-Increment 4 still lacks proven Claude account enforcement, eligible session
-resume, compaction and additional permission contracts. An autonomous
-coordinator, lifecycle recovery controls or remote publication require broader
-authority decisions. This slice removes a demonstrated defect in the already
-accepted ADR-0029 local-delivery path before taking on those larger outcomes.
-No increment or MVP completion is claimed.
+### Selected read contract
 
-### Selected contract and architectural direction
+1. Add one protected, bodyless GET /api/runs/{runId}/local-delivery-receipt,
+   one MVC endpoint sending GetLocalDeliveryReceiptQuery through the mediator,
+   API-owned transport types and a reproducibly generated TypeScript client.
+   No run returns 404. An existing run returns one closed state: NotRecorded
+   (no operation), NotCompleted (known non-completed operation), Unavailable
+   (the completed receipt cannot be reconstructed coherently), or Available.
+   Only Available carries a version-1 receipt; every other state carries null.
+   Unknown or contradictory recorded state is never treated as completion.
+2. Available contains safe historical facts: run/operation identity and objective,
+   completed local commit SHA, parent/tree, owned branch, completion UTC time,
+   checkpoint ID/number/fingerprint and changed-path count; the pinned execution
+   report ID, CodeReviewer attempt ID/number and approval-message ID; the selected
+   Human checkpoint-review ID and Approved decision; and an ordered list of the
+   exact recorded verification command/execution IDs, execution numbers,
+   snapshotted command names, Passed/clean-exit facts and completion UTC times.
+   Do not return executable/workspace paths, arguments, author email, raw messages,
+   provider output, artifacts, lock receipts or credentials. No download/export
+   feature or new history-navigation framework is selected.
+3. Read the operation and its pinned relational sources untracked. Completed
+   operation/run/checkpoint ownership must agree. Resolve the report, actual
+   approval message, CodeReviewer attempt and selected Human review by the
+   recorded IDs, with same-run/project/workspace/checkpoint checks appropriate
+   to each row. Do not substitute the latest report, review, checkpoint, enabled
+   recipe or verification execution. A bare FutureAgent review is not the
+   recorded CodeReviewer approval. Do not infer an implemented-plan identity
+   from report replies or silently upgrade historical root-target reviews.
+4. Verification membership comes from that operation's Verification authority
+   members, ordered by recorded Sequence, not current recipes. Require 1..32
+   unique execution/command pairs with contiguous zero-based order and exact
+   equality to the pinned CodeReviewer's ordered evidence and selected Human
+   review's complete evidence set (the latter is set equality). Each pinned
+   execution must belong to the recorded project/workspace/checkpoint, be
+   Passed with clean exit and coherent recorded fingerprints/completion, and
+   match its recorded member digest using its immutable command snapshot.
+   The selected Human decision and its evidence must match its pinned digest.
+   Missing, foreign, duplicate, reordered, over-limit or inconsistent evidence
+   makes the entire receipt Unavailable; never show a partial Passed receipt,
+   silently truncate, replace a missing member or synthesize zero/defaults.
+5. The digest serialization already used at admission remains unchanged. A
+   minimal pure LocalCommit-specific digest helper may be extracted only to
+   share that same recorded format between admission and historical reading;
+   pin its compatibility. Do not reuse LocalCommitAuthorityReader's current
+   eligibility path or change any admission/execution/recovery decision.
+   The receipt identifies the selected Human decision and verification set;
+   it is not a new audit of every historical Human decision or a new authority
+   snapshot. No new persistence, backfill, migration or event is required.
+6. Read only persisted facts. No Git, filesystem, process, provider, lease
+   acquisition, SaveChanges, event, cleanup or recovery action is triggered.
+   Later recipe edits/disabling/deletion, verification reruns, a newer run or
+   checkpoint, and current workspace/branch changes must not substitute evidence
+   or invalidate an otherwise intact historical receipt. Do not re-prove live
+   physical identity or require the current lease to remain active. The receipt
+   describes recorded delivery, not current cleanliness, invocation eligibility,
+   remote publication, provider obedience or verification re-execution.
+7. Show a clearly named Local delivery receipt region alongside the completed
+   operation. Keep the existing LocalCommitPanel/form and status semantics.
+   Render names/objective as plain text, with a fixed historical/local-only
+   explanation. Loading, failed, unavailable and absent states are explicit,
+   never a success-looking partial summary. A receipt request belongs to the
+   committed run/operation lifetime: replacements, A-B-A, unmount, retained
+   callbacks and overlapping reads cannot fetch for or display an obsolete
+   owner. Reject mismatched run/operation identities or contradictory transport
+   shapes through a small receipt-owned normalizer, not a generic decoder.
+   Reuse existing ownership utilities; no polling, cache, remount workaround,
+   mutation button, automatic claim or automatic retry is added.
 
-1. Concurrent benign first use of one host-owned storage root must initialize
-   its empty configuration without a false refusal caused solely by another
-   initializer. Support independent storage instances sharing that root; a
-   per-instance monitor or fixture warm-up is not the solution.
-2. Use a documented filesystem create/open operation that never truncates or
-   rewrites an existing configuration file. Prefer a single non-truncating
-   open-or-create with read access and compatible reader sharing; inspect the
-   actual opened file's zero length before accepting it. Do not use a separate
-   existence test followed by a write, or introduce retries, sleeps, a global
-   scheduler, a named lock or new recovery authority.
-3. Preserve fail-closed admission: a nonempty or unopenable control file, a
-   directory at its filename, genuine I/O/access failure, or any entry in the
-   hooks directory refuses initialization. Preserve existing bytes and entries:
-   no overwrite, truncate, repair, delete, adoption or replacement. An existing
-   valid empty file remains usable. Recheck the configuration and hooks on
-   every call; a prior successful initialization is not permanent authority.
-   Keep current caller mappings and signatures; improving their coarse refusal
-   name is not selected.
-4. Keep the change local to Infrastructure/Features/Runs/LocalCommitStorage
-   initialization. A small internal, feature-owned collaborator or opening seam
-   is allowed only if necessary for deterministic interleaving/real-I/O tests;
-   the default path must still execute the real filesystem operation. No public
-   production test switch, generic filesystem framework or Application port.
-   This restores ADR-0029's empty controlled environment, not a new ADR reversal.
-5. Remove the previous fixture's sequential initialization in
-   LocalCommitTestBase.Support.StartCompetitionAsync. Establish the cold
-   precondition before requests, then retain both actual Prepared results,
-   captured identities, exact admission, real cleanup, inert-sibling bytes,
-   execution and restart assertions in both orders. Retain the induced-refusal
-   controls and failure-safe release. Do not serialize, retry or manufacture a
-   successful preparation to make a cold-root test pass.
-6. Prove invalid control state prevents the local-commit adapter from issuing
-   Git commands, and sentinel hooks/configuration bytes remain unexecuted and
-   unchanged. A second call after successful initialization must refuse when
-   the control file or hooks directory has become invalid. The source checkout,
-   recorded facts and unadmitted artifacts retain their existing guarantees.
+### Scope, architecture and stop gates
 
-Official .NET 10 contracts checked:
-[FileMode](https://learn.microsoft.com/en-us/dotnet/api/system.io.filemode?view=net-10.0)
-and [FileShare](https://learn.microsoft.com/en-us/dotnet/api/system.io.fileshare?view=net-10.0).
-Create overwrites/truncates, whereas OpenOrCreate opens an existing file without
-that behavior; sharing flags control overlapping opens. Verify the actual
-chosen access/sharing on the Windows host, not from a CLI default or mock.
+Allowed: the Application query and minimal feature-local read/digest policy,
+API endpoint/complete transport mapping, generated client, receipt hook/component
+and their composition, focused tests, a narrow extension of the existing
+collaboration journey and documentation. Add ADR-0032 recording this selected
+additive read-only contract; update its index, engineering context, protocol,
+cockpit spec, roadmap/workflow model only where needed and the delivery ledger.
+Preserve accepted ADRs and previously sealed artifacts/history.
 
-### Boundaries and stop gates
+Excluded: new Domain behavior, schema/migration/snapshot, provider contract or
+model/account control, commands/eligibility/authorization changes, stage
+coordination, lifecycle transitions, Git/native/ref/index/lock/lease behavior,
+artifact cleanup/retention, janitor, paths or raw artifact delivery, project
+publication, new dependencies and generic reporting/export infrastructure.
 
-Allowed: that initialization method, a necessary narrow internal collaborator,
-focused Infrastructure initialization/preparation tests, the cold competition
-fixture and necessary local Api assertions, current-work.md and narrowly
-relevant documentation. No Domain/Application behavior, endpoint/schema/client,
-frontend/browser feature, package, migration, Git arguments or process protocol,
-native/ref/index/lock, artifact layout, reservation, cleanup, recovery, janitor,
-provider policy or remote publication change. ADR-0029/0030/0031 are preserved.
-
-Stop and report if the bounded solution requires clearing occupied state,
-accepting an unproven/nonempty configuration, weakening hooks suppression,
-adopting a foreign lock, broad filesystem containment work, changing a Git or
-recovery authority, or hiding a new Api/Infrastructure failure. Do not repair
-unrelated cancellation or admission failures opportunistically. This does not
-claim to freeze control files against hostile replacement after the final
-check or to prove cross-platform physical containment.
+Stop if historical evidence cannot be identified from the existing pinned rows
+without choosing latest state, inventing authority, altering recorded facts,
+requiring new storage, changing a digest format or adding external work. Report
+that concrete gap rather than displaying a plausible receipt. A pure compatible
+digest extraction is the only allowed admission-source edit. Do not fix an
+unrelated test failure opportunistically or rerun unchanged acceptance for green.
 
 ### Acceptance evidence and return
 
-Write failing-first regressions before production changes. Use finite,
-controlled first-use/sharing interleavings and independent instances; a stress
-sample can supplement them but cannot be the only proof. Keep any test seam
-local and distinguish actual real-I/O evidence from an injected fault. Cover
-fresh initialization, benign overlapping opens, existing empty/nonempty state,
-directory/unopenable state, later hook insertion/configuration change, and
-unchanged sentinel bytes. Keep synchronization and failure cleanup bounded.
+- Write focused regressions before implementation. Demonstrate the new receipt
+  is absent on the parent, then real file-backed SQLite examples for one and
+  several checks, exact order and IDs, legacy single-review and complete-set
+  Human approvals, all four states and unrelated-run isolation. Cover pinned
+  missing/foreign/changed/reordered/extra evidence and digest tampering. A newer
+  verification, recipe change or later checkpoint must leave the historical
+  receipt intact. Prove the query causes no new rows/events or external calls.
+- API evidence uses normal authentication, explicit authorization inventory,
+  404 and closed-state/null contracts, and actual OpenAPI/generated-client
+  serialization. Domain/Application entities must not leak in the transport.
+  Include a completed operation produced through the real local-commit host,
+  not only SQL seeds claiming completion; no real provider is required.
+- UI tests cover owned loading/error/unavailable/valid responses, malformed
+  counts/membership/identities, first-frame A-B and null transitions, A-B-A,
+  obsolete refreshes, unmount and newest-read wins. The completed status still
+  means local delivery only; receipt failure neither rewrites it nor offers a
+  new mutation.
+- Extend collaboration.journey.ts after the existing real local commit: assert
+  the recorded SHA/checkpoint/reviewer/Human decision and both exact execution
+  members/names before and after the existing final reload. Keep its earlier
+  source-isolation, no-Agent-commit and membership assertions. Snapshot that
+  reading the receipt creates no extra Agent, verification or commit operation.
+  Keep normal authentication/composition, all supervisors and owned cleanup.
+- Detect meaningful rebuilt mutations of pinned-vs-latest selection, exact
+  membership/digest/ownership checks, incomplete-as-success and UI lifetime
+  ownership. Restore source hashes; distinguish equivalent survivors and build
+  failures from kills. Avoid a giant matrix of redundant guards.
+- Run affected checks first, then a clean serial solution build, full
+  Application, Api and Architecture suites, full Vitest, typecheck, lint,
+  production build, strict e2e tsc, harness and one canonical test:e2e:all after
+  harness success. If the digest extraction touches an additional consumer,
+  include its affected tests. Retain unchanged Domain/Infrastructure/audits
+  with actual scope. Check affected formatting, tracked and untracked hygiene,
+  links and byte-identical client regeneration on a second generation.
+  Preserve failures and real skips; never claim an unchanged green rerun fixed
+  an intermittent failure or proves real-provider reliability.
 
-Run affected Infrastructure initialization/preparation and Api competition,
-refusal, cleanup and restart classes first. Then run a serial final solution
-build, full Infrastructure, full Api and full Architecture on final code;
-report actual counts/skips. Preserve failures, and stop on an unchanged failing
-acceptance run without repeating for green. Rebuild/restore meaningful mutations:
-destructive open or invalid-file acceptance, incompatible sharing/race-prone
-initialization, and cached/skipped hooks or configuration validation. Explain
-equivalent/surviving mutants and any unproved interleaving, never count a failed
-build as a kill.
-
-The generated client must remain byte-identical. Check tracked/untracked
-whitespace, NUL, type layout, affected formatting and documentation links.
-Retain Domain/Application, unchanged frontend/browser and dependency audits
-with actual scope; no new browser suite or real provider is required. Preserve
-all historical failures and the predecessor's initialized-storage limitation
-as historical evidence, not a retroactive green claim.
-
-Return the complete unstaged, uncommitted, unpushed diff and commit-ready
-current-work.md entry with exact inventory, actual command outcomes, failing
-excerpts, fresh/retained distinction and residual risks. Keep corrections in
-this executor chat. That uncommitted review return has now been accepted above;
-only the frozen snapshot has publication GO. No subsequent slice may be selected
-by the executor.
+Return the complete unstaged, uncommitted and unpushed diff, exact inventory,
+commit-ready current-work.md entry, actual commands/counts, failures, fresh vs
+retained evidence and remaining limits. Do not embed a future SHA. Keep all
+corrections in this executor chat. Codex alone gives GO/NO-GO; selecting this
+slice is not publication authorization.

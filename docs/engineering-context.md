@@ -95,6 +95,9 @@
 - [ADR-0031](decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md): Abandon an inactive manual run through
   an explicit Human decision (it narrowly extends ADR-0014's intake admission so a coherent Abandoned run is terminal; it cancels, repairs
   and deletes nothing and changes no claim, reservation, recovery or provider decision).
+- [ADR-0032](decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md): Show a recorded local-delivery receipt from
+  pinned evidence (additive; one protected read-only receipt of a completed local commit, reconstructed from its pinned rows with no
+  persistence change and no change to ADR-0029's authority, reservation, recovery or approval decisions).
 
 ## Product-specific architecture
 
@@ -127,6 +130,16 @@
   authority. A protected read-only `GET /api/runs/{runId}/abandonment` reports advisory eligibility and the recorded reason and time;
   the cockpit adds an "Abandon run" form owned by the committed run and eligible-form lifetime. Nothing is cancelled, repaired,
   released, deleted, published or created automatically.
+- [ADR-0032](decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md) shows what a completed local commit was
+  delivered against. The protected, bodyless `GET /api/runs/{runId}/local-delivery-receipt` answers one closed state (`NotRecorded`,
+  `NotCompleted`, `Unavailable`, `Available`; only `Available` carries the version-1 receipt) reconstructed only from the operation's
+  pinned rows: its recorded checkpoint, execution report, CodeReviewer attempt and approval message, selected Human review and ordered
+  verification authority members, each execution checked against its own immutable snapshot and recorded digest (the digest
+  serialization of admission, extracted unchanged). Anything missing, foreign, duplicated, reordered, over 32 members or changed makes
+  the whole receipt `Unavailable`; the latest or current records never substitute. It reads no filesystem, Git, process or provider
+  state, writes nothing and needs no migration, and it describes recorded delivery, never current workspace state or remote
+  publication. The cockpit shows a "Local delivery receipt" region beside a Completed operation, owned by the committed run and
+  operation lifetime, read once and never polled.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

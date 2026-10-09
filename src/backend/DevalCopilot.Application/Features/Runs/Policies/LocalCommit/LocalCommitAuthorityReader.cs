@@ -220,13 +220,8 @@ internal sealed class LocalCommitAuthorityReader(IDevalCopilotDbContext dbContex
 
         var humanDecisions = humanRows.OrderBy(candidate => candidate.Id).Select(candidate => new LocalCommitHumanDecision(
             candidate,
-            Sha256($"{candidate.Id:N}|{candidate.Decision}|{candidate.ActorKind}|{candidate.GitCheckpointId:N}"
-                + $"|{candidate.CheckpointFingerprintSha256}|"
-                + string.Join(
-                    ',',
-                    evidenceRows.Where(evidence => evidence.CheckpointReviewId == candidate.Id)
-                        .OrderBy(evidence => evidence.VerificationExecutionId)
-                        .Select(evidence => $"{evidence.VerificationCommandId:N}:{evidence.VerificationExecutionId:N}"))))).ToList();
+            LocalCommitMemberDigests.HumanDecision(
+                candidate, evidenceRows.Where(evidence => evidence.CheckpointReviewId == candidate.Id)))).ToList();
 
         var authoritySha256 = ComputeAuthorityDigest(
             run, workspace, lease, checkpoint, review, approvals[0], report, agentReviews[0], human, humanDecisions, members, expectedParent);
@@ -276,9 +271,9 @@ internal sealed class LocalCommitAuthorityReader(IDevalCopilotDbContext dbContex
                 return new VerificationRead(LocalCommitErrors.VerificationNotCurrent(), null);
             }
 
-            members.Add(new LocalCommitVerificationMember(members.Count, command, execution, Sha256(
-                $"{command.Id:N}|{execution.Id:N}|{execution.ExecutionNumber}|{command.Name}|{command.ExecutablePath}"
-                + $"|{command.TimeoutSeconds}|{string.Join((char)0x1f, command.Arguments)}|{execution.CompletionFingerprintSha256}")));
+            members.Add(new LocalCommitVerificationMember(members.Count, command, execution, LocalCommitMemberDigests.Verification(
+                command.Id, execution.Id, execution.ExecutionNumber, command.Name, command.ExecutablePath, command.TimeoutSeconds,
+                command.Arguments, execution.CompletionFingerprintSha256)));
         }
 
         return new VerificationRead(null, members);

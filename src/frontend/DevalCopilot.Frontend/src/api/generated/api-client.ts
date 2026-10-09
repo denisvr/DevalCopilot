@@ -1901,6 +1901,54 @@ export class GetManualRunAbandonmentEndpointClient {
     }
 }
 
+export class GetLocalDeliveryReceiptEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getLocalDeliveryReceipt(runId: string): Promise<GetLocalDeliveryReceiptResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/local-delivery-receipt";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetLocalDeliveryReceipt(_response);
+        });
+    }
+
+    protected processGetLocalDeliveryReceipt(response: Response): Promise<GetLocalDeliveryReceiptResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetLocalDeliveryReceiptResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetLocalDeliveryReceiptResponse>(null as any);
+    }
+}
+
 export class GetCollaborationTimelineEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -6953,6 +7001,338 @@ export class ManualRunAbandonmentResponse implements IManualRunAbandonmentRespon
 export interface IManualRunAbandonmentResponse {
     reason?: string;
     abandonedAtUtc?: Date;
+}
+
+export class GetLocalDeliveryReceiptResponse implements IGetLocalDeliveryReceiptResponse {
+    state?: string;
+    receipt?: LocalDeliveryReceiptResponse | undefined;
+
+    constructor(data?: IGetLocalDeliveryReceiptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.receipt = _data["receipt"] ? LocalDeliveryReceiptResponse.fromJS(_data["receipt"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetLocalDeliveryReceiptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetLocalDeliveryReceiptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["receipt"] = this.receipt ? this.receipt.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetLocalDeliveryReceiptResponse {
+    state?: string;
+    receipt?: LocalDeliveryReceiptResponse | undefined;
+}
+
+export class LocalDeliveryReceiptResponse implements ILocalDeliveryReceiptResponse {
+    version?: number;
+    runId?: string;
+    operationId?: string;
+    objective?: string;
+    commitSha?: string;
+    parentCommitSha?: string;
+    treeSha?: string;
+    branchName?: string;
+    completedAtUtc?: Date;
+    checkpoint?: LocalDeliveryCheckpointResponse;
+    executionReportMessageId?: string;
+    codeReview?: LocalDeliveryCodeReviewResponse;
+    humanReview?: LocalDeliveryHumanReviewResponse;
+    verification?: LocalDeliveryVerificationResponse[];
+
+    constructor(data?: ILocalDeliveryReceiptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.version = _data["version"];
+            this.runId = _data["runId"];
+            this.operationId = _data["operationId"];
+            this.objective = _data["objective"];
+            this.commitSha = _data["commitSha"];
+            this.parentCommitSha = _data["parentCommitSha"];
+            this.treeSha = _data["treeSha"];
+            this.branchName = _data["branchName"];
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+            this.checkpoint = _data["checkpoint"] ? LocalDeliveryCheckpointResponse.fromJS(_data["checkpoint"]) : undefined as any;
+            this.executionReportMessageId = _data["executionReportMessageId"];
+            this.codeReview = _data["codeReview"] ? LocalDeliveryCodeReviewResponse.fromJS(_data["codeReview"]) : undefined as any;
+            this.humanReview = _data["humanReview"] ? LocalDeliveryHumanReviewResponse.fromJS(_data["humanReview"]) : undefined as any;
+            if (Array.isArray(_data["verification"])) {
+                this.verification = [] as any;
+                for (let item of _data["verification"])
+                    this.verification!.push(LocalDeliveryVerificationResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): LocalDeliveryReceiptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalDeliveryReceiptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["version"] = this.version;
+        data["runId"] = this.runId;
+        data["operationId"] = this.operationId;
+        data["objective"] = this.objective;
+        data["commitSha"] = this.commitSha;
+        data["parentCommitSha"] = this.parentCommitSha;
+        data["treeSha"] = this.treeSha;
+        data["branchName"] = this.branchName;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        data["checkpoint"] = this.checkpoint ? this.checkpoint.toJSON() : undefined as any;
+        data["executionReportMessageId"] = this.executionReportMessageId;
+        data["codeReview"] = this.codeReview ? this.codeReview.toJSON() : undefined as any;
+        data["humanReview"] = this.humanReview ? this.humanReview.toJSON() : undefined as any;
+        if (Array.isArray(this.verification)) {
+            data["verification"] = [];
+            for (let item of this.verification)
+                data["verification"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface ILocalDeliveryReceiptResponse {
+    version?: number;
+    runId?: string;
+    operationId?: string;
+    objective?: string;
+    commitSha?: string;
+    parentCommitSha?: string;
+    treeSha?: string;
+    branchName?: string;
+    completedAtUtc?: Date;
+    checkpoint?: LocalDeliveryCheckpointResponse;
+    executionReportMessageId?: string;
+    codeReview?: LocalDeliveryCodeReviewResponse;
+    humanReview?: LocalDeliveryHumanReviewResponse;
+    verification?: LocalDeliveryVerificationResponse[];
+}
+
+export class LocalDeliveryCheckpointResponse implements ILocalDeliveryCheckpointResponse {
+    id?: string;
+    number?: number;
+    fingerprintSha256?: string;
+    changedPathCount?: number;
+
+    constructor(data?: ILocalDeliveryCheckpointResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.number = _data["number"];
+            this.fingerprintSha256 = _data["fingerprintSha256"];
+            this.changedPathCount = _data["changedPathCount"];
+        }
+    }
+
+    static fromJS(data: any): LocalDeliveryCheckpointResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalDeliveryCheckpointResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["number"] = this.number;
+        data["fingerprintSha256"] = this.fingerprintSha256;
+        data["changedPathCount"] = this.changedPathCount;
+        return data;
+    }
+}
+
+export interface ILocalDeliveryCheckpointResponse {
+    id?: string;
+    number?: number;
+    fingerprintSha256?: string;
+    changedPathCount?: number;
+}
+
+export class LocalDeliveryCodeReviewResponse implements ILocalDeliveryCodeReviewResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    approvalMessageId?: string;
+
+    constructor(data?: ILocalDeliveryCodeReviewResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.approvalMessageId = _data["approvalMessageId"];
+        }
+    }
+
+    static fromJS(data: any): LocalDeliveryCodeReviewResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalDeliveryCodeReviewResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["approvalMessageId"] = this.approvalMessageId;
+        return data;
+    }
+}
+
+export interface ILocalDeliveryCodeReviewResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    approvalMessageId?: string;
+}
+
+export class LocalDeliveryHumanReviewResponse implements ILocalDeliveryHumanReviewResponse {
+    reviewId?: string;
+    decision?: string;
+
+    constructor(data?: ILocalDeliveryHumanReviewResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.reviewId = _data["reviewId"];
+            this.decision = _data["decision"];
+        }
+    }
+
+    static fromJS(data: any): LocalDeliveryHumanReviewResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalDeliveryHumanReviewResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["reviewId"] = this.reviewId;
+        data["decision"] = this.decision;
+        return data;
+    }
+}
+
+export interface ILocalDeliveryHumanReviewResponse {
+    reviewId?: string;
+    decision?: string;
+}
+
+export class LocalDeliveryVerificationResponse implements ILocalDeliveryVerificationResponse {
+    order?: number;
+    commandId?: string;
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    status?: string;
+    exitCode?: number;
+    completedAtUtc?: Date;
+
+    constructor(data?: ILocalDeliveryVerificationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.order = _data["order"];
+            this.commandId = _data["commandId"];
+            this.executionId = _data["executionId"];
+            this.executionNumber = _data["executionNumber"];
+            this.commandName = _data["commandName"];
+            this.status = _data["status"];
+            this.exitCode = _data["exitCode"];
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): LocalDeliveryVerificationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new LocalDeliveryVerificationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["order"] = this.order;
+        data["commandId"] = this.commandId;
+        data["executionId"] = this.executionId;
+        data["executionNumber"] = this.executionNumber;
+        data["commandName"] = this.commandName;
+        data["status"] = this.status;
+        data["exitCode"] = this.exitCode;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface ILocalDeliveryVerificationResponse {
+    order?: number;
+    commandId?: string;
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    status?: string;
+    exitCode?: number;
+    completedAtUtc?: Date;
 }
 
 export class GetLocalCommitStatusResponse implements IGetLocalCommitStatusResponse {

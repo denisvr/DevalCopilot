@@ -41,6 +41,7 @@ const CORRECTION_GUIDANCE_DRAFT = '  Keep the change inside the one file the fin
 const CORRECTION_GUIDANCE = normalizeGuidance(CORRECTION_GUIDANCE_DRAFT)
 const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/[^/]+\/executions$/
 const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
+const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
 // The persisted Human review names both recipes' latest Passed executions of the corrected checkpoint (listed in the host's own order).
 const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
 
@@ -566,6 +567,11 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const localCommitResponse = page.waitForResponse(
     (response) => response.request().method() === 'POST' && /\/api\/runs\/[^/]+\/local-commit$/.test(new URL(response.url()).pathname),
   )
+  // The receipt is read only once the operation is recorded as Completed; that one wire read is observed from here.
+  const receiptWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && RECEIPT_PATH.test(new URL(response.url()).pathname),
+    { timeout: 90_000 },
+  )
   await localCommit.getByRole('button', { name: 'Commit locally' }).click()
   expect((await localCommitResponse).status()).toBe(200)
   await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 60_000 })
@@ -595,11 +601,116 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     expect.stringMatching(new RegExp(` ${deliveredCommit}$`)),
   ])
 
+  // 14b. The recorded local-delivery receipt (ADR-0032) shows, beside the completed operation, exactly what the host recorded for this
+  // delivery: the SHA, the checkpoint, the CodeReviewer approval, the selected Human approval and both verification members in recorded
+  // order. Every identity is compared with the durable rows the delivery itself pinned (never with the latest or current records), and
+  // the earlier failed executions of the same recipes are not part of it. It is read-only: it creates no attempt, message, verification,
+  // review, commit operation or invocation, and it says nothing about remote publication.
+  const operation = data.localCommitOperation()
+  expect(operation).not.toBeNull()
+  const deliveryReview = data.attempts().find((attempt) => attempt.AttemptNumber === 7)!
+  const approvals = data.messages().filter((message) => sameId(message.AttemptId, deliveryReview.Id) && message.Type === 'ReviewApproval')
+  expect(approvals).toHaveLength(1)
+  const reviewedReport = data.inputsOf(deliveryReview.Id)
+  expect(reviewedReport).toHaveLength(1)
+  expect(operation).toMatchObject({ Status: 'Completed', CheckpointNumber: 3, CheckpointFingerprintSha256: cps[2].FingerprintSha256 })
+  expect(lower(operation!.CommitSha)).toBe(deliveredCommit)
+  expect(sameId(operation!.GitCheckpointId, cps[2].Id)).toBe(true)
+  expect(sameId(operation!.CodeReviewAttemptId, deliveryReview.Id)).toBe(true)
+  expect(sameId(operation!.CodeReviewApprovalMessageId, approvals[0].Id)).toBe(true)
+  expect(sameId(operation!.ExecutionReportMessageId, reviewedReport[0].CollaborationMessageId)).toBe(true)
+  expect(sameId(operation!.HumanCheckpointReviewId, manualReview.Id)).toBe(true)
+  const receiptResponse = await receiptWire
+  expect(receiptResponse.status()).toBe(200)
+  const wire = await receiptResponse.json()
+  expect(wire.state).toBe('Available')
+  expect(Object.keys(wire.receipt).sort()).toEqual([
+    'branchName', 'checkpoint', 'codeReview', 'commitSha', 'completedAtUtc', 'executionReportMessageId', 'humanReview', 'objective',
+    'operationId', 'parentCommitSha', 'runId', 'treeSha', 'verification', 'version',
+  ])
+  expect(wire.receipt).toMatchObject({
+    version: 1,
+    objective: OBJECTIVE,
+    commitSha: deliveredCommit,
+    parentCommitSha: repository.baselineCommit,
+    treeSha: git('rev-parse', 'HEAD^{tree}'),
+    branchName: git('rev-parse', '--abbrev-ref', 'HEAD'),
+    checkpoint: { number: 3, fingerprintSha256: cps[2].FingerprintSha256, changedPathCount: 1 },
+    humanReview: { decision: 'Approved' },
+    codeReview: { attemptNumber: 7 },
+  })
+  expect(lower(wire.receipt.operationId)).toBe(lower(operation!.Id))
+  expect(lower(wire.receipt.checkpoint.id)).toBe(lower(cps[2].Id))
+  expect(lower(wire.receipt.executionReportMessageId)).toBe(lower(reviewedReport[0].CollaborationMessageId))
+  expect(lower(wire.receipt.codeReview.attemptId)).toBe(lower(deliveryReview.Id))
+  expect(lower(wire.receipt.codeReview.approvalMessageId)).toBe(lower(approvals[0].Id))
+  expect(lower(wire.receipt.humanReview.reviewId)).toBe(lower(manualReview.Id))
+  expect(
+    wire.receipt.verification.map((member: Record<string, unknown>) => [
+      member.order, lower(String(member.commandId)), lower(String(member.executionId)), member.executionNumber, member.commandName, member.status, member.exitCode,
+    ]),
+  ).toEqual([
+    [0, lower(recipes[0].Id), lower(runs[2].Id), runs[2].ExecutionNumber, 'Candidate total check', 'Passed', 0],
+    [1, lower(recipes[1].Id), lower(runs[3].Id), runs[3].ExecutionNumber, 'Candidate lint check', 'Passed', 0],
+  ])
+  const wireText = JSON.stringify(wire)
+  for (const hidden of [worktree, repository.path, 'dotnet', 'AGENTS.md']) {
+    expect(wireText).not.toContain(hidden)
+  }
+
+  const deliveryReceipt = page.getByRole('region', { name: 'Local delivery receipt' })
+  const assertRenderedReceipt = async () => {
+    await expect(deliveryReceipt).toContainText(deliveredCommit, { timeout: 30_000 })
+    await expect(deliveryReceipt).toContainText('Nothing was pushed')
+    await expect(deliveryReceipt).toContainText(OBJECTIVE)
+    await expect(deliveryReceipt).toContainText('#3')
+    await expect(deliveryReceipt).toContainText(cps[2].FingerprintSha256)
+    await expect(deliveryReceipt).toContainText(lower(reviewedReport[0].CollaborationMessageId))
+    await expect(deliveryReceipt).toContainText(`attempt #7 (${lower(deliveryReview.Id)})`)
+    await expect(deliveryReceipt).toContainText(lower(approvals[0].Id))
+    await expect(deliveryReceipt).toContainText(`${lower(manualReview.Id)} — Approved`)
+    const members = deliveryReceipt.getByRole('listitem')
+    await expect(members).toHaveCount(2)
+    await expect(members.nth(0)).toContainText('Candidate total check — Passed, exit code 0')
+    await expect(members.nth(0)).toContainText(`execution #${runs[2].ExecutionNumber} (${lower(runs[2].Id)})`)
+    await expect(members.nth(1)).toContainText('Candidate lint check — Passed, exit code 0')
+    await expect(members.nth(1)).toContainText(`execution #${runs[3].ExecutionNumber} (${lower(runs[3].Id)})`)
+    await expect(deliveryReceipt).not.toContainText(lower(runs[0].Id))
+    await expect(deliveryReceipt).not.toContainText(lower(runs[1].Id))
+    await expect(deliveryReceipt).not.toContainText('could not be read')
+    await expect(deliveryReceipt.getByRole('button')).toHaveCount(0)
+  }
+  await assertRenderedReceipt()
+  const afterDelivery = {
+    attempts: data.attempts().length,
+    messages: data.messages().length,
+    executions: data.executions().length,
+    operations: data.localCommitOperationCount(),
+    reviews: data.checkpointReviews().length,
+    invocations: stageInvocations().length,
+  }
+  expect(afterDelivery).toMatchObject({ attempts: 7, executions: 4, operations: 1, reviews: 2 })
+
   // The operation and terminal run remain visible after a real reload; the browser never resubmits it.
+  const receiptAfterReload = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && RECEIPT_PATH.test(new URL(response.url()).pathname),
+  )
   await reloadAndReselect(page)
   await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
   await expect(page.getByText('Completed · Completed')).toBeVisible()
   expect(git('rev-parse', 'HEAD')).toBe(deliveredCommit)
+  // The same exact receipt is read again from the persisted rows after the reload, byte for byte, and reading it changed nothing.
+  expect(await (await receiptAfterReload).json()).toEqual(wire)
+  await assertRenderedReceipt()
+  expect({
+    attempts: data.attempts().length,
+    messages: data.messages().length,
+    executions: data.executions().length,
+    operations: data.localCommitOperationCount(),
+    reviews: data.checkpointReviews().length,
+    invocations: stageInvocations().length,
+  }).toEqual(afterDelivery)
+  expect(git('rev-list', '--count', 'HEAD')).toBe('2')
   // The persisted memberships are the same after the reload: nothing was re-recorded and nothing was resubmitted.
   expect(data.localCommitVerificationMembers()).toHaveLength(2)
   expect(data.checkpointReviewEvidence().filter((row) => sameId(row.CheckpointReviewId, manualReview.Id))).toHaveLength(2)
