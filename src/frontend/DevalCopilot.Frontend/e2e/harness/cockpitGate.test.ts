@@ -12,10 +12,14 @@ import type { GatePage, GateResponse, GateRoute } from './cockpitGate.ts'
 // `fallback`), while a handler that throws settles it at once; and `unrouteAll({ behavior: 'wait' })` waits, for the routes that
 // had not already thrown when it was called, for that whole settlement, not merely for the handler callback. (An earlier fake
 // modelled only the callback, which could not show a handler that returned after a failed fulfill leaving shutdown pending.)
+// One more behavior is modelled from the installed source (Page._onRoute, Page._unrouteInternal and the server's
+// removeRequestInterceptor): once no page route is registered, the first handler that returns makes Playwright remove interception
+// and CONTINUE every route still in flight, so that route's later `fulfill` rejects with "Route is already handled!".
 // Every ordering below is driven explicitly: no sleeps, no stress timing; a would-be hang is detected by a bounded count of
 // event-loop turns and by the per-test timeout. The same behavior against real Chromium is at the end of this file.
 
 const RUN = '11111111-1111-1111-1111-111111111111'
+const SLOW_RUN = '22222222-2222-2222-2222-222222222222'
 const TIMEOUT = { timeout: 3_000 }
 
 function deferred<T = void>() {
@@ -50,15 +54,19 @@ class FakeRoute implements GateRoute {
   fetchFailure: Error | null = null
   /** A genuine rejection of `fulfill` that is not a closed context (for example invalid arguments). */
   fulfillFailure: Error | null = null
+  /** Set when Playwright itself continued the route because interception was removed while the route was in flight. */
+  continuedByPlaywright = false
 
   private readonly context: FakeContext
+  private readonly run: string
 
-  constructor(context: FakeContext) {
+  constructor(context: FakeContext, run: string) {
     this.context = context
+    this.run = run
   }
 
   request() {
-    return { url: () => `http://127.0.0.1/api/runs/${RUN}/cockpit` }
+    return { url: () => `http://127.0.0.1/api/runs/${this.run}/cockpit` }
   }
 
   async fetch(): Promise<GateResponse> {
@@ -83,6 +91,9 @@ class FakeRoute implements GateRoute {
     try {
       if (this.context.disposed) {
         throw new Error('route.fulfill: Target page, context or browser has been closed')
+      }
+      if (this.continuedByPlaywright) {
+        throw new Error('route.fulfill: Route is already handled!')
       }
       if (this.fulfillFailure) {
         throw this.fulfillFailure
@@ -114,8 +125,8 @@ class FakePage implements GatePage {
     }
   }
 
-  newRoute() {
-    return new FakeRoute(this.context)
+  newRoute(run = RUN) {
+    return new FakeRoute(this.context, run)
   }
 
   /** The page issues a request: the registered handler starts running (as Playwright would do). */
@@ -126,7 +137,18 @@ class FakePage implements GatePage {
     this.invocations.add(invocation)
     // Playwright awaits the handler AND the route's handling promise together; a throwing handler settles it at once.
     const settled = Promise.all([route.handling.promise, Promise.resolve(handler(route))])
-      .then(([handled]) => handled)
+      .then(([handled]) => {
+        // Page._onRoute: after a handler returned with no page route left, interception is removed and the server continues
+        // every other route that is still in flight.
+        if (this.handlers.length === 0) {
+          for (const other of this.invocations) {
+            if (other !== invocation) {
+              other.route.continuedByPlaywright = true
+            }
+          }
+        }
+        return handled
+      })
       .finally(() => {
         invocation.complete.resolve()
         this.invocations.delete(invocation)
@@ -149,6 +171,33 @@ function holdingRoute(page: FakePage, gate: CockpitGate) {
 }
 
 describe('the cockpit gate lifecycle', () => {
+  it('shutdown never lets Playwright continue a handler that is still in flight when another one finishes first', TIMEOUT, async () => {
+    const page = new FakePage()
+    const gate = new CockpitGate()
+    await gate.attach(page)
+    const held = holdingRoute(page, gate)
+    const slow = page.newRoute(SLOW_RUN) // pass mode: it waits for the host answer, not for a release
+    const heldHandler = page.dispatch(held)
+    const slowHandler = page.dispatch(slow)
+    await until(() => gate.heldCount(RUN) === 1)
+
+    // The explicit order: shutdown starts, the held handler finishes first, and only afterwards does the host answer the other one.
+    const shutdown = gate.shutdown(page)
+    await heldHandler
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    slow.fetched.resolve()
+    slow.bodyReady.resolve()
+    await shutdown
+    page.close()
+
+    await slowHandler
+    assert.equal(slow.continuedByPlaywright, false, 'Playwright did not continue the slower route')
+    assert.deepEqual(slow.fulfilled, [{ status: 200 }])
+    assert.deepEqual(held.fulfilled, [{ status: 200 }])
+    assert.deepEqual(gate.errors, [])
+    assert.equal(page.handlers.length, 0, 'interception is unregistered once nothing is in flight')
+  })
+
   it('shutdown releases work that is already held, before the context closes', TIMEOUT, async () => {
     const page = new FakePage()
     const gate = new CockpitGate()
@@ -359,6 +408,21 @@ describe('the cockpit gate against real Chromium', () => {
     const { result } = run('cancelled')
 
     assert.deepEqual(result, { scenario: 'cancelled', outcome: 'drained', fulfillError: null, gateErrors: 0, held: 0, observed: 'aborted' })
+  })
+
+  it('drains two concurrent routes, one finishing first, without Playwright continuing the slower one', { timeout: 120_000 }, () => {
+    const { result } = run('concurrent')
+
+    // `browserHitsOfSlowRun` is 0: the browser's own copy of the slower request never reached the host, so Playwright never continued it.
+    assert.deepEqual(result, {
+      scenario: 'concurrent',
+      outcome: 'drained',
+      events: ['both-in-flight', 'fulfilled:held', 'held-finished', 'fulfilled:slow'],
+      gateErrors: 0,
+      browserHitsOfSlowRun: 0,
+      hostHitsOfSlowRun: 1,
+      observed: ['{"answer":"from the host"}', '{"answer":"from the host"}'],
+    })
   })
 
   it('settles teardown with a genuine fulfill failure that begins after shutdown starts, and keeps it observable', { timeout: 120_000 }, () => {

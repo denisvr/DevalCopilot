@@ -2,10 +2,12 @@
 // authenticated cockpit request to the real host and only delays or replaces the delivery of its answer. Because a held answer
 // is a pending route handler, the gate must end that work while the browser context is still alive: Playwright disposes a
 // route's fetched response with the context, so a handler still reading `response.body()` afterwards fails with "Response has
-// been disposed". `shutdown` therefore (1) stops new holds, (2) releases every existing hold, (3) unregisters interception with
-// `unrouteAll({ behavior: 'wait' })` — https://playwright.dev/docs/api/class-page#page-unroute-all — and (4) awaits every
-// handler this gate started, all before fixture teardown closes the context. Only the Playwright types are structural here so the
-// lifecycle can be tested deterministically with fakes (see harness.test.ts); the spec passes the real Page and Route.
+// been disposed". `shutdown` therefore (1) stops new holds, (2) releases every existing hold, (3) awaits every handler this gate
+// started, and only then (4) unregisters interception with `unrouteAll({ behavior: 'wait' })` —
+// https://playwright.dev/docs/api/class-page#page-unroute-all — all before fixture teardown closes the context. Interception must
+// outlive the handlers: once no page route is left, the first handler to return makes Playwright remove interception and continue every
+// route still in flight, whose later `fulfill` then fails with "Route is already handled!". Only the Playwright types are structural
+// here so the lifecycle can be tested deterministically with fakes (see cockpitGate.test.ts); the spec passes the real Page and Route.
 
 export type CockpitMode = 'pass' | 'hold' | 'fail'
 
@@ -100,8 +102,14 @@ export class CockpitGate {
     for (const runId of [...this.held.keys()]) {
       this.release(runId)
     }
+    // Every handler must finish BEFORE interception is removed. Playwright removes interception as soon as the last page route is gone
+    // and the first handler returns; the server then continues every route still in flight, so a slower handler's later fulfill fails
+    // with "Route is already handled!" (see the concurrent scenario in cockpitGate.test.ts). No await separates the empty check from
+    // unrouteAll, which drops the page's routes synchronously, so no new handler can start in between.
+    while (this.active.size > 0) {
+      await Promise.allSettled([...this.active])
+    }
     await page.unrouteAll({ behavior: 'wait' })
-    await Promise.allSettled([...this.active])
     if (this.errors.length > 0) {
       throw this.errors.length === 1 ? this.errors[0] : new AggregateError(this.errors, 'The cockpit gate recorded forwarding failures.')
     }

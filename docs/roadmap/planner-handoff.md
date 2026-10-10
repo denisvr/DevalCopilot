@@ -5,7 +5,94 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current review decision (2026-10-10): recorded-event headers GO, published
+## Current selection (2026-10-10): bounded CockpitGate failure diagnosis and correction
+
+Codex verified published closure 09455eec7b4303039d8d6ad78befdfbdf744fa02,
+parent 735f1da86d8967771e1a666026adfe9990346268, message
+`docs: close recorded event headers delivery` and its Co-Authored-By trailer.
+Main, HEAD/local/live origin/main agree, ahead/behind 0/0, index and checkout
+were clean. The two closure paths, blobs and modes match the approved manifest
+(SHA-256 b9359f89...8610). No runtime validation was rerun for this verification.
+
+Select one new Claude executor chat for **diagnosing and, only with reproduced
+mechanism evidence, correcting the project-selection CockpitGate failure**.
+This selection modifies only this planner record. No staging, commit or push is
+authorized. Codex retains planning and final review; no other slice is selected.
+
+### Why this boundary now
+
+The canonical Chromium failure stops the chained journey stage before it runs.
+The same `Route is already handled!` signature is retained in earlier deliveries,
+including ADR-0025; an isolated pass does not establish or remove its cause.
+Restoring trustworthy validation of project isolation is a concrete prerequisite
+for reliable MVP evidence, rather than a general test cleanup. The earlier gate
+correction addressed swallowed fulfill failures stranding teardown, not a proven
+cause of this signature. Preserve that correction and its uncertainty.
+
+Current CockpitGate forwards authenticated real host responses, can hold or fail
+their delivery, tracks active handlers, releases holds and waits before closing
+the context; genuine failures propagate. The existing fake and Chromium scenarios
+cover delivery, cancellation and fulfill rejection, but do not reconstruct this
+intermittent event order. The spec retains A/B late-result isolation assertions.
+Read the installed Playwright implementation and original failure excerpts as
+evidence; do not infer a diagnosis from an error name or manufacture one by
+making an unrelated fake throw the same text.
+
+### Scope and stop gates
+
+Allowed: e2e/harness/cockpitGate.ts, cockpitGate.test.ts, gateRealScenario.ts and
+a narrow project-selection.spec.ts adjustment only if the diagnosed mechanism
+requires it. Temporary ignored diagnostics may record bounded, sanitized route
+identity/phase and explicit event order. Add focused helpers under that harness
+only when necessary. Update current-work.md with evidence and exact scope;
+preserve this selection record byte for byte in the executor chat.
+
+Recover the original failure excerpt if available; otherwise say it is unavailable.
+Build an explicitly ordered reproduction against real Chromium/the installed
+Playwright, then pin the relevant order deterministically in the harness tests.
+A fix requires a failing regression on the unchanged gate and a passing control
+after the smallest correction. Explain what proves the mechanism and what remains
+unknown about the historical failure. If no mechanism can be demonstrated after
+bounded diagnosis, return evidence and an actionable blocker without guessing,
+changing unrelated code or repeatedly rerunning the canonical suite.
+
+Keep real-host forwarding, hold/fail behavior, no A/B leakage, teardown-before-
+context-close and visible genuine errors. No catch-and-ignore of route errors,
+private SDK state writes, retries, sleep-based synchronization, increased timeouts,
+skips or weaker assertions. No dependency/lockfile/configuration change, production
+frontend/backend/API/client/schema change, broad harness rewrite or ADR reversal.
+Stop if the fix requires those changes, cannot preserve the safety assertions,
+or reveals a production isolation defect; bring evidence and a bounded alternative
+to Codex before dependent work. A challenge is welcome; agreement grants neither
+expanded scope nor publication.
+
+### Acceptance and return
+
+Run the focused deterministic and real-Chromium gate regressions first, preserving
+their red-first evidence and existing failure-propagation controls. Then full
+test:harness, strict standalone e2e tsc over every e2e/config source, typecheck,
+lint, and one affected project-selection spec run. After an actual correction,
+run one canonical test:e2e:all on normal authentication/host composition, without
+reusing servers. Preserve any failure; no unchanged repeat for green. If Chromium
+fails and skips journeys, report that chain result and at most one separate
+journey-stage run as separately scoped evidence. Retain unchanged product/backend
+tests, generated-client reproduction and dependency audits with their original
+scope rather than presenting them as fresh checks. Confirm the generated client
+and excluded files remain unchanged; check diff hygiene, sanitized diagnostics
+and local Markdown links. Return an unstaged, uncommitted, unpushed diff or the
+bounded blocker report, with changed files, commands/outcomes and concise excerpts.
+
+This is validation support, not replay, autonomy or MVP completion. Release work
+still includes real installed-provider qualification and unproven Increment 4
+contracts, Increment 5 coordination/concurrency/leases/recovery and full replay,
+Increment 6 scoped remote/CI reconciliation, and Increment 7 packaged self-hosting.
+Optional history export/analytics/redesign are not selected. Real qualification
+remains Blocked/TargetsNotReal, both allowances unused; preserve historical
+failures, ledger and retained roots. No real provider invocation, CLI setup,
+ledger reset, allowance consumption or retained-root cleanup is authorized.
+Normal owned ephemeral browser-test fixture lifecycles remain permitted.
+
+## Verified prior review decision (2026-10-10): recorded-event headers GO, published
 
 The executor published the frozen 47-path diff as
 735f1da86d8967771e1a666026adfe9990346268 (parent 7abe509cd777e52baea249df68bd20426ecdfbb3,
