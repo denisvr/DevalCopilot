@@ -1208,3 +1208,32 @@
 .dc-run-history-error {
   color: var(--dc-danger, #b3261e);
 }
+
+.dc-run-event-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--dc-border, currentColor);
+}
+
+.dc-run-event-history-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dc-run-event-history-body p {
+  margin: 0;
+}
+
+.dc-run-event-history-items {
+  margin: 0;
+  padding-left: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.dc-run-event-history-sequence,
+.dc-run-event-history-type {
+  font-weight: 600;
+}

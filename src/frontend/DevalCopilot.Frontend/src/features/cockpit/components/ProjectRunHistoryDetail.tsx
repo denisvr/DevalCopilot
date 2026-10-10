@@ -3,6 +3,7 @@ import { lifecycleLabel, stageLabel } from '../projectRunHistory'
 import type { RunHistoryEntry } from '../projectRunHistory'
 import { toUtcText } from '../utcText'
 import { LocalDeliveryReceipt } from './LocalDeliveryReceipt'
+import { RunEventHistoryPanel } from './RunEventHistoryPanel'
 
 const SNAPSHOT_NOTE =
   'This is a snapshot of what the host recorded for this run when the history was read. It is not live progress, the current workspace or current verification, and it says nothing about remote publication. A last-advanced time is the time recorded when the run was last advanced, not a sign that work is still in progress.'
@@ -24,9 +25,9 @@ interface ProjectRunHistoryDetailProps {
 }
 
 /**
- * The recorded metadata of one historical run and, when the host located a delivery source for it, the existing local-delivery
- * receipt for exactly that source. It mounts no live cockpit, eligibility, configuration or mutation control. Every value is
- * rendered as text.
+ * The recorded metadata of one historical run, when the host located a delivery source for it the existing local-delivery receipt
+ * for exactly that source, and a collapsed, on-demand list of the run's recorded event headers (ADR-0034) for exactly this run. It
+ * mounts no live cockpit, eligibility, configuration or mutation control. Every value is rendered as text.
  */
 export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDetailProps) {
   const source = entry.receiptSource
@@ -50,6 +51,7 @@ export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDet
         ) : null}
       </dl>
       {source ? <LocalDeliveryReceipt source={source} /> : <p>{NO_SOURCE}</p>}
+      <RunEventHistoryPanel runId={entry.runId} />
       <p>
         <button type="button" onClick={onClose}>
           Close selected run

@@ -321,6 +321,9 @@ with no persistence change); it advances the final evidence summary for local de
 [ADR-0033](../decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md) adds a read-only, cursor-paged history of a
 project's recorded runs that locates an older run's own completed delivery for that receipt; it advances history access for recorded
 runs only (full event replay remains open) and is likewise not increment completion.
+[ADR-0034](../decisions/0034-browse-recorded-event-headers-of-a-historical-run.md) adds a bounded, on-demand, read-only browser of an older
+run's persisted event headers (exact string sequences, closed event and actor disclosures, no payload and no current-state claim); it is a
+first journal browser, not complete replay or envelope completion, and is likewise not increment completion.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

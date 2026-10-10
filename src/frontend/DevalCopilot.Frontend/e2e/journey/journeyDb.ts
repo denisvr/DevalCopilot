@@ -102,6 +102,16 @@ export interface ProjectRunRow {
   ExecutionMode: number | string
 }
 
+export interface EventHeaderRow {
+  Sequence: string
+  Id: string
+  EventType: string
+  ActorKind: string
+  ActorAgentRole: string | null
+  ActorAgentProvider: string | null
+  OccurredAtUtc: string
+}
+
 export interface ProjectTotals {
   runs: number
   attempts: number
@@ -332,6 +342,17 @@ export class JourneyData {
   /** The event types recorded for one run, in their recorded sequence. */
   eventTypesOf(runId: string): string[] {
     return this.all<{ EventType: string }>('select EventType from events where RunId = ? order by Sequence', runId).map((row) => row.EventType)
+  }
+
+  /**
+   * The recorded event headers of one run exactly as stored, newest sequence first: the sequence as exact text and the actor columns.
+   * No payload and no attempt link is read, mirroring what the event-history page may disclose.
+   */
+  eventHeadersOf(runId: string): EventHeaderRow[] {
+    return this.all<EventHeaderRow>(
+      'select cast(e.Sequence as text) as Sequence, e.Id, e.EventType, e.ActorKind, e.ActorAgentRole, e.ActorAgentProvider, e.OccurredAtUtc from events e where e.RunId = ? order by e.Sequence desc',
+      runId,
+    )
   }
 
   /** What this project has recorded across ALL its runs, so a read can be proven to have added no row of any workflow kind. */

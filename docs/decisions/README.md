@@ -66,6 +66,9 @@ supersedes it.
 - [ADR-0033: Browse project run history and locate prior delivery receipts](0033-browse-project-run-history-and-locate-prior-delivery-receipts.md)
   (additive; one protected read-only, cursor-paged list of a project's recorded runs, each optionally locating its own completed local
   delivery for the existing ADR-0032 receipt; it adds no persistence and changes no admission, recovery, approval or digest decision)
+- [ADR-0034: Browse the recorded event headers of a historical run](0034-browse-recorded-event-headers-of-a-historical-run.md)
+  (additive; one protected read-only, cursor-paged list of a run's persisted event headers with exact string sequences and closed
+  disclosures, no payload and no replay claim; it adds no persistence and changes no admission, recovery, approval or digest decision)
 
 ## Status values
 

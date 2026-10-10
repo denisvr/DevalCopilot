@@ -329,6 +329,7 @@ describe('ProjectRunHistoryPanel', () => {
         'Reload latest runs',
         'Inspect run #3',
         'Inspect run #2',
+        'Show recorded events',
         'Close selected run',
       ])
       expect(container.querySelector('form, input, textarea, select, [role="textbox"], [role="combobox"]')).toBeNull()

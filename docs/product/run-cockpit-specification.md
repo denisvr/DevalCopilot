@@ -1130,6 +1130,24 @@ mutation, configuration or live-progress control and does not mount the live coc
 committed project, open and selected-row lifetimes, so another project, closing, reopening, reloading or an obsolete read cannot show
 or fetch for another owner. All values are plain text.
 
+### Recorded events
+
+Inside the selected historical run of the Run history, the cockpit shows a **Recorded events** region
+([ADR-0034](../decisions/0034-browse-recorded-event-headers-of-a-historical-run.md)), collapsed until the owner opens it. Opening it
+requests one page of the protected, read-only `GET /api/runs/{runId}/event-history` (newest first, ten headers); "Load older events",
+"Try the older events again" (the same cursor after a failed older page) and "Reload newest events" are explicit actions, and nothing is
+polled, timed, retried automatically or stored in the browser. A fixed note says only each recorded header is shown and the details of
+an event are omitted, that these are recorded facts and not live status, a current approval or a complete replay, that the order is the
+recorded sequence (numbers can skip and the recorded time does not decide the order) and that the list is not a snapshot of the whole
+run and shows no total. Each row shows the exact sequence text, a fixed label for the event type ("Unrecognized event type" for a value
+this version does not recognize), the actor exactly as recorded ("Agent · Planner role · Codex"; an Agent whose role was not recorded
+reads "role not recorded"; "Unrecognized actor" for an unknown or inconsistent one), the UTC time and the event identity. An empty run, a
+failed read and a page the host answered incoherently (none of it is shown) are distinct states. The region has no selected-event
+action, payload viewer, playback clock or live control and does not mount the live cockpit; the receipt and metadata of the selected
+run are unchanged. Its headers and reads belong to the committed run and open lifetimes, so another run, a return to an earlier one,
+closing the selection, closing, reopening, reloading or an obsolete read cannot show or fetch for another owner. All values are plain
+text.
+
 ### Abandon run
 
 For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a

@@ -5,7 +5,167 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current decision (2026-10-10): substantive delivery verified; GO for factual closure
+## Current review decision (2026-10-10): recorded-event headers GO, publication pending
+
+The owner asked Codex to finish anything interrupted by Claude's credit limit.
+Codex found no unfinished feature implementation, completed the missing link
+verification and independently reviewed the combined diff. Branch main,
+HEAD/local/live origin/main are 7abe509cd777e52baea249df68bd20426ecdfbb3,
+ahead/behind 0/0, index empty; 13 modified and 34 new paths. Nothing is published.
+
+**GO for the frozen 47-path combined diff only**, including this planner review
+record and the completed current-work entry. Publication must first match the
+ignored review manifest's own hash, every path/status, raw hash, size, Git blob
+and mode. A changed inventory or identity voids this GO and returns to review.
+No next slice is selected, and no implementation or unrelated fix is authorized.
+
+Independent evidence: serial solution build, 0 warnings/errors; Application
+event-history 94/94; Api event-history 71/71; full Architecture 64/64; eight
+frontend suites 150/150. The first sandbox frontend invocation failed module
+imports with temporary-file ENOENT (28 tests ran); the same bounded command
+outside that sandbox passed. All 344 pre-existing generated exports have identical
+bodies to HEAD after line-ending normalization; exactly seven new exports were
+added. The client still hashes to 1b6fb24b..., and 281 local Markdown links in nine
+documents passed before this review update. Full executor checks retain their
+recorded scope; unchanged checks were not rerun merely to obtain green.
+
+Accept the UI's ten-header requests within the 1..50 host bound, conservative
+validation of the lookahead row, operation-local canonical scalar binding and
+the pinned constant allow-list. The SQL projection, exact Int64 transport,
+closed disclosure and owned UI lifetimes satisfy the selected boundary. Neither
+surviving mutant proves missing user-visible protection; retain both explanations.
+
+The canonical test:e2e:all result remains **FAILED** (Chromium 12/13;
+project-selection's CockpitGate route already handled; chained journeys skipped).
+The separate journey 5/5 and isolated spec 1/1 are diagnostic evidence, not a
+replacement canonical result. The gate/spec are unchanged and that spec does
+not open historical detail; new client exports leave existing operations intact.
+These facts and the focused safety checks support accepting this bounded feature,
+but do not establish the intermittent failure's cause. Keep it unresolved; this
+GO does not certify clean end-to-end validation or MVP/release acceptance.
+Do not swallow that error, weaken assertions, fix the unrelated harness or rerun
+unchanged validation for green under this publication prompt.
+
+Real qualification remains Blocked/TargetsNotReal, both allowances unused.
+All historical failures, ledger and retained fixture roots remain intact.
+
+## Selected slice (2026-10-10): bounded recorded-event headers for historical runs
+
+Codex independently verified closure
+7abe509cd777e52baea249df68bd20426ecdfbb3, parent
+5fd38cb0f0c6fc50c35d39e6af9c85cc2acf7193, message
+`docs: close project run history delivery`. HEAD/local/live origin/main agree on
+main, ahead/behind is 0/0, index and checkout were clean. Both modified documents,
+their blob identities and unchanged file modes match the frozen closure manifest.
+The initial review-script array comparison was malformed; the corrected check
+confirmed the actual Git inventory without a repository discrepancy.
+
+Select one new Claude executor chat for **on-demand recorded event headers in the
+historical-run detail**. Codex retains planning and final review. This selection
+changes only planner-handoff.md; implementation begins at the closure commit
+with an empty index, no untracked files and only this planner record modified.
+Carry that selection edit into the eventual reviewable combined diff. No staging,
+commit or push is authorized; prior publication GOs apply only to their frozen
+published inventories. Do not edit this planner record in the executor chat.
+
+### Evidence and purpose
+
+ADR-0003 and Increment 5/7 require durable history/replay. ADR-0033 exposes older
+runs and receipts but leaves events inaccessible in that read-only detail.
+GetRunEventsQueryHandler reads all later events without Take; its endpoint also
+returns PayloadJson. parseEventSummary can fall back to raw payload JSON.
+useCollaborationTimeline is a live-event-driven, latest-100 message reader rather
+than a historical journal pager. Reusing those readers would introduce unbounded
+reads or a different surface. Add a separate reader without changing consumers.
+
+RunEvent.Sequence is a globally assigned SQLite Int64 key, and the existing
+(RunId, Sequence) index supports this page. Sequences can contain gaps between
+a run's events; timestamps are not ordering authority. Browser JSON numbers
+cannot preserve the entire Int64 range, so this additive operation uses canonical
+decimal strings for sequence values/cursors. The current record lacks several
+envelope fields described by data-and-recovery.md; this header projection must
+not fabricate versions, persistence times, causation or correlations. Full replay
+and envelope completion remain separate release work.
+
+### Selected contract
+
+- Protected bodyless GET /api/runs/{runId}/event-history through a new mediator
+  query, API-owned response graph and reproducible generated client. Unknown run
+  is safe 404; existing empty run is an empty page. limit defaults to 20, accepts
+  1..50 and is refused rather than clamped. beforeSequence is an optional string:
+  omitted/blank is absent; otherwise canonical ASCII positive decimal, no leading
+  zero, sign, fraction, exponent or padding, at most 9223372036854775807. Use fixed
+  shared 400 errors without rejected-value disclosure and explicit error schemas.
+- Select only this run's headers, untracked, newest first by Sequence, exclusive
+  before cursor, Take(limit + 1), no offset/count/aggregate. HasMore uses the extra
+  row; NextBeforeSequence is the last admitted sequence only when older rows remain.
+  Appends between pages cannot repeat or skip older rows; reload reads current
+  newest headers. Pages do not claim an atomic whole-run snapshot or frozen total.
+- Page carries RunId, entries, HasMore and NextBeforeSequence. Each entry contains
+  only run/event IDs, exact sequence string, occurrence UTC time, known EventType
+  or fixed Unrecognized, and an operation-owned actor disclosure (kind/role/provider).
+  Admit event types only by exact existing RunEventType constants; never return raw
+  unknown values. Classify actor columns without materializing unknown enums or
+  constructing invalid ParticipantIdentity. Preserve valid Agent-with-unknown-role
+  records. Unknown or inconsistent actors become Unrecognized with null role/provider;
+  retain that row and healthy neighbors. Never infer authority or provider success.
+- Do not select/parse/return PayloadJson, AttemptId, message/artifact content, or
+  current-state enrichment. Do not invent absent fields. If a selected persisted
+  event has an empty identity or nonpositive sequence, return one fixed shared 409
+  run_event_history.unavailable, no partial page. Unexpected faults retain the
+  established pipeline; do not mask arbitrary database errors as unavailable.
+- Add a collapsed Recorded events region inside ProjectRunHistoryDetail. Opening
+  requests one page; older pages, same-cursor retry and fresh reload are explicit.
+  Known labels and values are text. State clearly that only recorded headers are
+  shown, newest first, with details omitted and no live/approval/completion claim.
+  No selected-event controls, payload viewer, playback clock or live cockpit hook.
+- Reuse owned lifetimes for committed run/open/reload; A-B-A, close/reopen, null,
+  unmount, retained actions and overlapping reads cannot act on another lifetime.
+  Validate the entire page, exact requested run, nonempty unique IDs, canonical
+  Int64 sequence strings, strict descending order/cursor ceiling, size, dates,
+  closed disclosures and continuation coherence. Compare sequences exactly, never
+  through Number. Gaps are valid. Invalid pages are errors, never partial rows.
+  A failed older page retains valid rows and retries the same cursor.
+
+Allowed: operation-local query/validation/projection, endpoint/transport/binders,
+client generation/factory, historical-detail event components/hooks/decoder/style,
+focused tests, a narrow extension of the existing collaboration journey, ADR-0034
+and narrow index/context/cockpit/roadmap/current-work updates. Preserve accepted
+ADRs 0001..0033, AGENTS.md, slice-start-template.md and the existing receipt.
+Exclude schema/mappings/Domain behavior, existing event/live/message consumers,
+generic history frameworks, new dependencies, providers, mutation/recovery,
+scheduler, Git/remote/CI actions, cleanup and full replay. Stop on an inability
+to honor the bounds or exact disclosure without widening this scope.
+
+### Acceptance and return
+
+Red-first boundary regressions: auth/404/empty; multi-run/project isolation;
+exclusive cursor/extra row/append between pages; Int64 and 2^53 boundaries;
+malformed inputs and fixed typed 400/404/409; all known/unknown event/actor cases;
+malformed payload and secret sentinels never selected or returned; real SQLite
+SQL bounds, no writes/external calls; unknown rows retained; exact client roundtrip.
+UI regressions cover page validation, lifecycle ownership, loading/empty/error,
+older retry, reload and hostile text. Extend the existing older-delivery journey
+through rendered controls to compare headers with durable rows across explicit
+paging and reload, preserving all receipt/no-write/no-provider/no-commit assertions.
+Use a small meaningful rebuilt mutation set, restored hashes and honest survivors.
+
+Run affected tests first; then serial solution build, full Application/Api/
+Architecture/Vitest, typecheck/lint/build, strict e2e tsc, harness followed by one
+canonical test:e2e:all, affected formatting, second client generation, doc links,
+hygiene/secrets and audits. Retain unchanged Domain/Infrastructure evidence with
+its scope. Stop/report unrelated failures; no rerun loop for green or opportunistic
+fix. Return one unstaged, uncommitted, unpushed combined diff with current-work.md,
+exact inventory, commands/outcomes and fresh versus retained evidence.
+
+This advances required history access but does not complete replay or the MVP.
+All provider, coordination/recovery, remote publication and packaging gates below
+remain. Optional export/analytics/redesign and test-reliability improvements are
+not selected instead. Real qualification remains Blocked/TargetsNotReal, both
+allowances unused. Preserve ledger/failures/retained roots; no real provider,
+CLI setup, reset, allowance use or root cleanup is authorized.
+
+## Verified closure decision (2026-10-10): substantive delivery and factual closure published
 
 Codex independently verified substantive commit
 5fd38cb0f0c6fc50c35d39e6af9c85cc2acf7193, parent

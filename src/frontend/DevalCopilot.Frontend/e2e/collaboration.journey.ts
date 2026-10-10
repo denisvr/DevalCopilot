@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import { JourneyData, sameId } from './journey/journeyDb'
+import type { EventHeaderRow } from './journey/journeyDb'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
   CANDIDATE_BASELINE,
@@ -43,6 +44,7 @@ const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/
 const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
 const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
+const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const FOLLOW_UP_OBJECTIVE = 'Plan the follow-up report for the ledger'
 // The persisted Human review names both recipes' latest Passed executions of the corrected checkpoint (listed in the host's own order).
 const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
@@ -749,10 +751,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const historyRows = historyRegion.locator('.dc-run-history-items > li')
   const historyRequests: string[] = []
   const receiptRequests: string[] = []
+  const eventRequests: string[] = []
   page.on('request', (request) => {
-    const path = new URL(request.url()).pathname
+    const { pathname: path, search } = new URL(request.url())
     if (request.method() === 'GET' && HISTORY_PATH.test(path)) {
       historyRequests.push(path)
+    }
+
+    if (request.method() === 'GET' && EVENT_HISTORY_PATH.test(path)) {
+      eventRequests.push(path.toLowerCase() + search)
     }
 
     if (request.method() === 'GET' && RECEIPT_PATH.test(path)) {
@@ -762,6 +769,97 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const firstRunReceiptPath = `/api/runs/${lower(firstRunId)}/local-delivery-receipt`
   await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
   expect(historyRequests).toEqual([])
+  expect(eventRequests).toEqual([])
+
+  // Recorded events (ADR-0034). Every page is read through a rendered control, and what the host returned is compared exactly with
+  // the durable rows (sequence text, identity, type, actor columns and instant) and with what the page renders. Only headers exist:
+  // no payload and no attempt link is returned.
+  const PAGE = 10
+  const instant = (text: string) => Date.parse(text.replace(' ', 'T').replace(/(\.\d{3})\d*/, '$1'))
+  const eventsRegion = () => historyRegion.getByRole('region', { name: 'Selected run' }).getByRole('region', { name: 'Recorded events' })
+  const eventRows = () => eventsRegion().locator('.dc-run-event-history-items > li')
+  const expectCollapsedEvents = async () => {
+    await expect(eventsRegion().getByRole('button', { name: 'Show recorded events' })).toHaveAttribute('aria-expanded', 'false')
+    await expect(eventRows()).toHaveCount(0)
+  }
+
+  const readEventPage = async (runId: string, expectedBefore: string | null, action: () => Promise<void>) => {
+    const answered = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && EVENT_HISTORY_PATH.test(new URL(response.url()).pathname),
+      { timeout: 30_000 },
+    )
+    const before = eventRequests.length
+    await action()
+    const response = await answered
+    expect(response.status()).toBe(200)
+    const url = new URL(response.url())
+    expect(url.pathname.toLowerCase()).toBe(`/api/runs/${lower(runId)}/event-history`)
+    expect([...url.searchParams.keys()].sort()).toEqual(expectedBefore === null ? ['limit'] : ['beforeSequence', 'limit'])
+    expect(url.searchParams.get('limit')).toBe(String(PAGE))
+    expect(url.searchParams.get('beforeSequence')).toBe(expectedBefore)
+    expect(eventRequests).toHaveLength(before + 1)
+    const text = await response.text()
+    for (const hidden of ['payload', 'attemptId', worktree, repository.path]) {
+      expect(text).not.toContain(hidden)
+    }
+
+    return JSON.parse(text)
+  }
+
+  const expectHeaders = (runId: string, entries: Record<string, any>[], durable: EventHeaderRow[]) => {
+    expect(entries).toHaveLength(durable.length)
+    entries.forEach((entry, index) => {
+      const row = durable[index]
+      expect(Object.keys(entry).sort()).toEqual(['actor', 'eventType', 'id', 'occurredAtUtc', 'runId', 'sequence'])
+      expect(Object.keys(entry.actor).sort()).toEqual(['kind', 'provider', 'role'])
+      expect(entry.sequence).toBe(row.Sequence)
+      expect(sameId(entry.id, row.Id)).toBe(true)
+      expect(sameId(entry.runId, runId)).toBe(true)
+      expect(entry.eventType).toBe(row.EventType)
+      expect(entry.actor).toEqual({ kind: row.ActorKind, role: row.ActorAgentRole, provider: row.ActorAgentProvider })
+      expect(instant(entry.occurredAtUtc)).toBe(instant(row.OccurredAtUtc))
+    })
+  }
+
+  const expectRendered = async (entries: Record<string, any>[], rendered: number) => {
+    await expect(eventRows()).toHaveCount(rendered)
+    for (const [index, entry] of entries.entries()) {
+      await expect(eventRows().nth(index)).toHaveText(new RegExp(`^Sequence ${entry.sequence} .* Event ${entry.id}$`))
+    }
+  }
+
+  // Opens the recorded events of the selected run, pages explicitly until the last page, and proves that the pages, in order and
+  // without repetition, are exactly the durable rows of that run. Returns the first (newest) page exactly as the host answered it.
+  const browseRecordedEvents = async (runId: string, durable: EventHeaderRow[], expectPages: number) => {
+    await expectCollapsedEvents()
+    const first = await readEventPage(runId, null, () => eventsRegion().getByRole('button', { name: 'Show recorded events' }).click())
+    expect(Object.keys(first).sort()).toEqual(['entries', 'hasMore', 'nextBeforeSequence', 'runId'])
+    expect(sameId(first.runId, runId)).toBe(true)
+    let collected: Record<string, any>[] = first.entries
+    let body = first
+    let pages = 1
+    expectHeaders(runId, first.entries, durable.slice(0, PAGE))
+    await expectRendered(collected, collected.length)
+    await expect(eventsRegion()).toContainText('details of an event are omitted')
+    while (body.hasMore) {
+      expect(body.entries).toHaveLength(PAGE)
+      expect(body.nextBeforeSequence).toBe(body.entries[PAGE - 1].sequence)
+      const cursor: string = body.nextBeforeSequence
+      body = await readEventPage(runId, cursor, () => eventsRegion().getByRole('button', { name: 'Load older events' }).click())
+      expectHeaders(runId, body.entries, durable.slice(collected.length, collected.length + PAGE))
+      collected = [...collected, ...body.entries]
+      pages += 1
+      await expectRendered(collected, collected.length)
+    }
+
+    expect(body.nextBeforeSequence).toBeNull()
+    expect(pages).toBe(expectPages)
+    expectHeaders(runId, collected, durable)
+    expect(new Set(collected.map((entry) => lower(entry.id))).size).toBe(durable.length)
+    await expect(eventsRegion().getByRole('button', { name: 'Load older events' })).toHaveCount(0)
+    await expect(eventsRegion().getByRole('alert')).toHaveCount(0)
+    return first
+  }
 
   // Opens the history (one page request), checks that page on the wire and in the rendered rows, selects the older delivered run and
   // returns its page and the receipt the host answered for exactly that run.
@@ -771,6 +869,7 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
       { timeout: 30_000 },
     )
     const historyBefore = historyRequests.length
+    const eventsBefore = eventRequests.length
     await historyRegion.getByRole('button', { name: 'Show run history' }).click()
     const answered = await historyResponse
     expect(answered.status()).toBe(200)
@@ -827,8 +926,11 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     await expect(detail).toContainText(lower(firstRunId))
     await expect(detail).toContainText(`commit ${deliveredCommit}, operation ${lower(operation!.Id)}, checkpoint #3 (${lower(cps[2].Id)})`)
     await assertReceiptRegion(detail.getByRole('region', { name: 'Local delivery receipt' }))
-    // The selected historical run offers only its own close control: no mutation, configuration or live-progress control.
-    await expect(detail.getByRole('button')).toHaveCount(1)
+    // The selected historical run offers only its own close control and the collapsed recorded-events toggle, which has read nothing:
+    // no mutation, configuration or live-progress control.
+    expect(await detail.getByRole('button').allTextContents()).toEqual(['Show recorded events', 'Close selected run'])
+    await expectCollapsedEvents()
+    expect(eventRequests).toHaveLength(eventsBefore)
     await expect(historyRegion.getByRole('textbox')).toHaveCount(0)
     await expect(
       historyRegion.getByRole('button', { name: /Commit locally|Request|Approve|Abandon|Record manual|Prepare workspace|Capture checkpoint|Refresh evidence/ }),
@@ -840,6 +942,31 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   // The same exact receipt the delivery showed, read again from the pinned rows after another objective replaced it in the cockpit.
   expect(firstReading.receipt).toEqual(wire)
 
+  // Recorded events of the older delivered run, through the rendered controls only: the newest page on open, every older page on an
+  // explicit request until the last, a reload and a close and reopen. The pages, in order and without repetition, are exactly the
+  // durable rows of that run (more than one page of them), and each read is for exactly this run with the exclusive exact cursor.
+  const durableOlder = data.eventHeadersOf(firstRunId)
+  expect(durableOlder.map((row) => row.EventType)).toEqual([...firstRunEvents].reverse())
+  expect(durableOlder.length, 'the delivered run must record more than one page of events').toBeGreaterThan(PAGE)
+  const olderFirstPage = await browseRecordedEvents(firstRunId, durableOlder, Math.ceil(durableOlder.length / PAGE))
+  expect(olderFirstPage.hasMore).toBe(true)
+  expect(olderFirstPage.nextBeforeSequence).toBe(durableOlder[PAGE - 1].Sequence)
+
+  const reloadedEvents = await readEventPage(firstRunId, null, () =>
+    eventsRegion().getByRole('button', { name: 'Reload newest events' }).click(),
+  )
+  expect(reloadedEvents).toEqual(olderFirstPage)
+  await expectRendered(reloadedEvents.entries, PAGE)
+  await expect(eventsRegion().getByRole('button', { name: 'Load older events' })).toHaveCount(1)
+
+  await eventsRegion().getByRole('button', { name: 'Hide recorded events' }).click()
+  await expectCollapsedEvents()
+  const reopenedEvents = await readEventPage(firstRunId, null, () =>
+    eventsRegion().getByRole('button', { name: 'Show recorded events' }).click(),
+  )
+  expect(reopenedEvents).toEqual(olderFirstPage)
+  await expectRendered(reopenedEvents.entries, PAGE)
+
   // The newer run has no completed delivery source: that is disclosed, no receipt is requested for it, and nothing is inferred.
   const receiptsBeforeNewer = receiptRequests.length
   await historyRegion.getByRole('button', { name: 'Inspect run #2' }).click()
@@ -848,6 +975,21 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(newerDetail).toContainText('No completed delivery source is available in this view')
   await expect(newerDetail.getByRole('region', { name: 'Local delivery receipt' })).toHaveCount(0)
   expect(receiptRequests).toHaveLength(receiptsBeforeNewer)
+
+  // The newer run's events replace the older run's inside the same detail: collapsed first, then only its own durable rows (one page),
+  // and returning to the older run (A to B to A) starts collapsed again without reading anything.
+  const durableNewer = data.eventHeadersOf(followUpRun.Id)
+  expect(durableNewer.map((row) => row.EventType)).toEqual([...intakeEvents].reverse())
+  expect(durableNewer.length).toBeGreaterThan(0)
+  expect(durableNewer.length).toBeLessThanOrEqual(PAGE)
+  const newerFirstPage = await browseRecordedEvents(followUpRun.Id, durableNewer, 1)
+  expect(newerFirstPage.hasMore).toBe(false)
+  expect(newerFirstPage.nextBeforeSequence).toBeNull()
+  const eventReadsBeforeReturn = eventRequests.length
+  await historyRegion.getByRole('button', { name: 'Inspect run #1' }).click()
+  await expect(historyRegion.getByRole('region', { name: 'Selected run' })).toContainText(OBJECTIVE)
+  await expectCollapsedEvents()
+  expect(eventRequests).toHaveLength(eventReadsBeforeReturn)
 
   // Closing discards every row and the selection; reopening reads a fresh first page and the same delivery again.
   await historyRegion.getByRole('button', { name: 'Hide run history' }).click()
@@ -859,10 +1001,12 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
 
   // After a real reload the history is collapsed again and requests nothing until it is opened, then shows the same delivery again.
   const requestsBeforeReload = historyRequests.length
+  const eventRequestsBeforeReload = eventRequests.length
   await reloadAndReselect(page)
   await expect(page.getByRole('heading', { name: FOLLOW_UP_OBJECTIVE })).toBeVisible({ timeout: 30_000 })
   await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
   expect(historyRequests).toHaveLength(requestsBeforeReload)
+  expect(eventRequests).toHaveLength(eventRequestsBeforeReload)
   const afterReload = await openHistoryAndInspectDelivery()
   expect(afterReload.body).toEqual(firstReading.body)
   expect(afterReload.receipt).toEqual(wire)

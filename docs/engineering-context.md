@@ -102,6 +102,10 @@
   delivery receipts (additive; one protected read-only, cursor-paged list of a project's recorded runs, each optionally locating its own
   completed local delivery for the ADR-0032 receipt, with no persistence change and no change to any admission, recovery, approval or
   digest decision).
+- [ADR-0034](decisions/0034-browse-recorded-event-headers-of-a-historical-run.md): Browse the recorded event headers of a historical
+  run (additive; one protected read-only, cursor-paged list of a run's persisted event headers with exact string sequences and closed
+  disclosures, with no payload, no persistence change, no replay claim and no change to any admission, recovery, approval or digest
+  decision).
 
 ## Product-specific architecture
 
@@ -155,6 +159,22 @@
   claims and repairs nothing. The cockpit adds a collapsed "Run history" region for the selected project whose reads and selection belong
   to the committed project, open and selected-row lifetimes; a page is accepted only whole and coherent, older pages and a reload are
   explicit, and the selected row reuses the existing receipt component, hook and normalizer without mounting any live cockpit control.
+- [ADR-0034](decisions/0034-browse-recorded-event-headers-of-a-historical-run.md) lets an owner browse the recorded journal of an older run
+  as bounded headers. The protected, bodyless `GET /api/runs/{runId}/event-history` returns a page of that run's persisted event
+  headers in descending `Sequence` (an exclusive `beforeSequence` cursor that is a canonical positive decimal string up to
+  9223372036854775807, because a browser number cannot carry an Int64; `limit` 20 by default and 1 to 50; neither is clamped, both are
+  refused with the shared Problem Details contract that never repeats the rejected value; a 404 for an unknown run; one fixed 409
+  `run_event_history.unavailable` for a selected header without an identity or a positive sequence, never a partial page; one extra row
+  for `HasMore` over the existing `(RunId, Sequence)` index, no offset, count or draining). Sequences are global, so a run's sequences have
+  valid gaps, timestamps never order, and pages are not an atomic snapshot. An entry carries only the run and event identities, the exact
+  sequence string, the UTC time, an event type admitted only by exact `RunEventType` constant (else the fixed `Unrecognized`) and an
+  actor disclosure classified by the database without materializing a stored enum (a valid Agent with no recorded role is preserved;
+  an unknown or inconsistent actor is `Unrecognized` with no role or provider); it never selects a payload, attempt, message or artifact
+  and invents no version, persistence time, causation or correlation. The existing events route, live notifier and collaboration
+  timeline are neither changed nor reused. The historical run detail adds a collapsed "Recorded events" region whose reads belong to the
+  committed run and open lifetimes (older pages, a same-cursor retry and a reload are explicit; a page is accepted only whole, with
+  exact-integer sequence ordering) and that states it shows recorded headers only, not live status, a current approval or a complete
+  replay. This is a first journal browser: full replay and envelope completion remain open.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.
