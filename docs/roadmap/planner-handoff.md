@@ -5,7 +5,23 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current review decision (2026-10-10): recorded-event headers GO, publication pending
+## Current review decision (2026-10-10): recorded-event headers GO, published
+
+The executor published the frozen 47-path diff as
+735f1da86d8967771e1a666026adfe9990346268 (parent 7abe509cd777e52baea249df68bd20426ecdfbb3,
+`feat: browse recorded event headers of historical runs`) by fast-forward. After the
+push, HEAD, local origin/main and an independently queried live refs/heads/main agreed,
+ahead/behind was 0/0, and the index and checkout were clean. Manifest identity, status,
+hash, size, blob and mode checks passed before staging and after commit. The canonical
+test:e2e:all failure remains unresolved, real qualification remains
+Blocked/TargetsNotReal, and no next slice is selected. Codex independently verified
+the delivered parent, HEAD/local/live remote agreement, 0/0 ahead/behind, empty
+index and exactly these two modified closure documents. All 47 committed paths,
+statuses, blobs and modes match the approved substantive manifest; the closure's
+106 local links and text hygiene passed. **GO for this frozen two-document closure
+diff only**, pending normal fast-forward publication. No runtime checks were
+rerun for this documentation review. The paragraphs below are the substantive
+pre-publication review record.
 
 The owner asked Codex to finish anything interrupted by Claude's credit limit.
 Codex found no unfinished feature implementation, completed the missing link
