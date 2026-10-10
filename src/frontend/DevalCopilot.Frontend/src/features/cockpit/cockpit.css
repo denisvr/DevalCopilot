@@ -1151,3 +1151,60 @@
 .dc-run-abandon-error {
   color: var(--dc-danger, #b3261e);
 }
+
+/* Run history: a collapsed, read-only list of a project's recorded runs; every entry is a recorded snapshot, never live progress. */
+.dc-run-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--dc-border, currentColor);
+}
+
+.dc-run-history-body,
+.dc-run-history-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dc-run-history-body p,
+.dc-run-history-detail h4,
+.dc-run-history-detail p {
+  margin: 0;
+}
+
+.dc-run-history-items {
+  margin: 0;
+  padding-left: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.dc-run-history-number {
+  font-weight: 600;
+}
+
+.dc-run-history-objective {
+  white-space: pre-wrap;
+}
+
+.dc-run-history-detail {
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--dc-border, currentColor);
+}
+
+.dc-run-history-detail dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-run-history-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dc-run-history-error {
+  color: var(--dc-danger, #b3261e);
+}

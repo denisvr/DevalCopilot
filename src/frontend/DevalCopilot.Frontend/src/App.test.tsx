@@ -185,3 +185,67 @@ describe('App evidence refresh connection', () => {
     expect(screen.getByText('cockpit run-a generation 0')).toBeInTheDocument()
   })
 })
+
+describe('App run history composition', () => {
+  async function renderTwoProjectsWithHistory() {
+    const getProjectRunHistory = vi.fn((projectId: string) =>
+      Promise.resolve({ projectId, entries: [], hasMore: false, nextBeforeExecutionNumber: undefined }),
+    )
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => 'ready' }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [
+          { projectId: 'project-a', projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', canCreateRun: false, capabilities: [] },
+          { projectId: 'project-b', projectName: 'Beta', capabilities: [] },
+        ],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({ CandidateWorkspacePanel: () => null }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: { runId: string }) => <p>{`cockpit ${props.runId}`}</p>,
+    }))
+    vi.doMock('./api/clients', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('./api/clients')>()),
+      projectRunHistoryClient: () => ({ getProjectRunHistory }),
+    }))
+    const { default: FreshApp } = await import('./App')
+    return { ...render(<FreshApp />), getProjectRunHistory }
+  }
+
+  it('offers one collapsed Run history for the selected project beside the unchanged live cockpit and requests nothing', async () => {
+    const { getProjectRunHistory } = await renderTwoProjectsWithHistory()
+
+    expect(screen.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByText('cockpit run-a')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Objective' })).toBeNull()
+    expect(getProjectRunHistory).not.toHaveBeenCalled()
+  })
+
+  it('reads the selected project only when opened, leaves the live selection alone and shows another project collapsed', async () => {
+    const { getProjectRunHistory } = await renderTwoProjectsWithHistory()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show run history' }))
+
+    expect(await screen.findByText('No runs have been recorded for this project.')).toBeInTheDocument()
+    expect(getProjectRunHistory).toHaveBeenCalledTimes(1)
+    expect(getProjectRunHistory).toHaveBeenCalledWith('project-a', null, 10)
+    expect(screen.getByText('cockpit run-a')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+
+    expect(screen.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('No runs have been recorded for this project.')).toBeNull()
+    expect(screen.getByText(/Beta has no run yet/)).toBeInTheDocument()
+    expect(getProjectRunHistory).toHaveBeenCalledTimes(1)
+  })
+})

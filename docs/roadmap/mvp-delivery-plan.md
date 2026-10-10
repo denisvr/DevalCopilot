@@ -318,6 +318,9 @@ increment completion.
 [ADR-0032](../decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md) adds a read-only, historical receipt of
 a completed local commit (the exact recorded checkpoint, approvals and ordered verification executions, reconstructed from pinned rows
 with no persistence change); it advances the final evidence summary for local delivery only and is likewise not increment completion.
+[ADR-0033](../decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md) adds a read-only, cursor-paged history of a
+project's recorded runs that locates an older run's own completed delivery for that receipt; it advances history access for recorded
+runs only (full event replay remains open) and is likewise not increment completion.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

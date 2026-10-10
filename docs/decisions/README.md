@@ -63,6 +63,9 @@ supersedes it.
 - [ADR-0032: Show a recorded local-delivery receipt from pinned evidence](0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md)
   (additive; one protected read-only receipt reconstructed from the exact rows a completed local commit was admitted against; it
   adds no persistence and changes no ADR-0029 authority, reservation, recovery or approval decision)
+- [ADR-0033: Browse project run history and locate prior delivery receipts](0033-browse-project-run-history-and-locate-prior-delivery-receipts.md)
+  (additive; one protected read-only, cursor-paged list of a project's recorded runs, each optionally locating its own completed local
+  delivery for the existing ADR-0032 receipt; it adds no persistence and changes no admission, recovery, approval or digest decision)
 
 ## Status values
 

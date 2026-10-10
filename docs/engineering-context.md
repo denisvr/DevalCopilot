@@ -98,6 +98,10 @@
 - [ADR-0032](decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md): Show a recorded local-delivery receipt from
   pinned evidence (additive; one protected read-only receipt of a completed local commit, reconstructed from its pinned rows with no
   persistence change and no change to ADR-0029's authority, reservation, recovery or approval decisions).
+- [ADR-0033](decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md): Browse project run history and locate prior
+  delivery receipts (additive; one protected read-only, cursor-paged list of a project's recorded runs, each optionally locating its own
+  completed local delivery for the ADR-0032 receipt, with no persistence change and no change to any admission, recovery, approval or
+  digest decision).
 
 ## Product-specific architecture
 
@@ -140,6 +144,17 @@
   state, writes nothing and needs no migration, and it describes recorded delivery, never current workspace state or remote
   publication. The cockpit shows a "Local delivery receipt" region beside a Completed operation, owned by the committed run and
   operation lifetime, read once and never polled.
+- [ADR-0033](decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md) lets an owner browse a project's earlier
+  objectives and inspect an older delivery after another run replaced it in the cockpit. The protected, bodyless
+  `GET /api/projects/{projectId}/run-history` returns a page of that project's runs in descending `ExecutionNumber` (an exclusive,
+  positive `beforeExecutionNumber` cursor; `limit` 10 by default and 1 to 20, never clamped and refused with the shared Problem Details contract that never repeats the rejected value, as is a 404; one extra row for `HasMore` over the unique
+  project/number index; no offset, timestamp ordering or count). An entry carries only the identities, number, objective, lifecycle and
+  stage (or the fixed `Unrecognized`), the exact stored mode, the two UTC times and an optional receipt source (the run's own recorded
+  Completed operation's run, operation, commit and checkpoint identities and number) that only locates the ADR-0032 receipt; no coherent
+  source is `null`, which implies nothing about whether a delivery exists, failed or succeeded. It reads persisted rows only and writes,
+  claims and repairs nothing. The cockpit adds a collapsed "Run history" region for the selected project whose reads and selection belong
+  to the committed project, open and selected-row lifetimes; a page is accepted only whole and coherent, older pages and a reload are
+  explicit, and the selected row reuses the existing receipt component, hook and normalizer without mounting any live cockpit control.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

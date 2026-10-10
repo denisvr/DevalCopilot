@@ -15,6 +15,7 @@ import {
   GetCheckpointApprovalEvidenceEndpointClient,
   UpdateVerificationCommandEndpointClient,
   GetProjectRunSummariesEndpointClient,
+  GetProjectRunHistoryEndpointClient,
   GetProjectWorkspaceEndpointClient,
   GetProviderRuntimePreflightEndpointClient,
   GetCodexAccountAllowanceEndpointClient,
@@ -75,7 +76,8 @@ import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
 export const projectsClient = () => new GetProjectRunSummariesEndpointClient(getApiBaseUrl(), authenticatedHttp)
-export const registerProjectClient = () => new RegisterProjectEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const projectRunHistoryClient = () => new GetProjectRunHistoryEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const registerProjectClient =() => new RegisterProjectEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const startSimulatedRunClient = () => new StartSimulatedRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const createManualRunClient = () => new CreateManualRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runCockpitClient = () => new GetRunCockpitEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -231,6 +233,7 @@ export type {
   LocalCommitOperationResponse,
   GetLocalCommitStatusResponse,
   GetLocalDeliveryReceiptResponse,
+  GetProjectRunHistoryResponse,
   LocalDeliveryReceiptResponse,
   AbandonManualRunResponse,
   GetManualRunAbandonmentResponse,

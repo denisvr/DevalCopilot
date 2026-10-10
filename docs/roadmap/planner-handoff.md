@@ -5,9 +5,342 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current decision (2026-10-10): GO for the frozen manual qualification support snapshot
+## Current decision (2026-10-10): GO to publish the corrected run-history slice
 
-### Final review and bounded publication authority
+Codex independently reviewed the combined owner-requested transition documents,
+ADR-0033, history implementation and correction diff. The two correction findings
+are resolved: feature-local scalar binding and fixed validation messages produce
+safe shared errors with explicit 400/404 schemas and generated typed responses;
+detail-close actions have a committed selection lifetime, including A-B-A and
+close/reselect. The existing receipt and workflow authority remain unchanged.
+
+**GO is limited to the reviewed 43 paths**, including this planner decision and
+current-work.md: 15 modified tracked files and 28 new files. The expected branch
+is main, HEAD/local/live origin/main are
+cac61f8a6ea5f4e55d424af0fc6c8c91ff7f9a0f, and the index is empty. AGENTS.md and
+slice-start-template.md retain their accepted owner-requested bytes. A frozen
+publication manifest records each approved path/status/raw hash/size and its
+Git-normalized blob identity; the executor prompt supplies its path and hash.
+Do not edit or regenerate approved bytes before staging. Return material drift
+for review; the old support GO does not authorize this publication.
+
+Fresh independent correction review: serial solution build 0 warnings/errors;
+Application history 14/14, Api error-contract 31/31, Architecture 58/58 and all six
+frontend history files 122/122. Normal build generation reproduces client SHA-256
+513c287e435a3777a8618769648de8128f1080240d0fd3e2b03d507f3e549061.
+The preceding independent Api history 48/48 and code review are retained. The
+executor reports corrected full Application 4957/4957, Api 1788/1788, Architecture
+58/58, Vitest 2685/2685 in 169 files, harness 87/87, Chromium 13/13 and journeys
+5/5, plus the recorded typecheck/build/lint/format/link/hygiene/audit results.
+These full runs are executor evidence, not independently repeated reviewer runs.
+
+The earlier Api 1755/1757 and isolated 2/2 remain historical evidence. Bounded
+diagnostics reproduce OriginUnresolved under ambient orphan process activity,
+but establish neither original cause; the pipe race remains an unconfirmed
+hypothesis. No relevant guard or test was weakened. The corrected full run is
+green, so the review validation gate is satisfied without an unrelated fix or
+failure waiver. Preserve both observations as remaining test reliability risks.
+Existing dependency advisories, capability skips and duplicate-key observations
+retain their recorded scope; this GO does not claim a clean release audit.
+
+Claude may stage only the frozen reviewed inventory, commit the substantive slice
+with current-work.md, then make one normal fast-forward main push and verify
+HEAD/local/live origin/main and the committed inventory. Stop on push failure or
+divergence; no force-push, history reconciliation or unrelated work is authorized.
+After verified publication, prepare only a factual current-work closure diff
+recording the actual substantive commit and remaining state, and return it
+uncommitted for review. Do not place a commit's own SHA in that same commit.
+
+No next slice is selected before publication is independently verified. Codex
+retains the next-slice decision. Real qualification remains Blocked/TargetsNotReal,
+both allowances unused, and all release/MVP gates in the selected-slice assessment
+below remain. No real provider, CLI setup, ledger reset, retained-root cleanup,
+publication/CI feature or increment/MVP completion is authorized or implied.
+
+## Previous review decision (2026-10-10): NO-GO; correct the selected run-history slice
+
+Codex remains planner/reviewer and Claude remains executor. Keep corrections in
+the existing executor chat. No different slice, staging, commit or push is
+authorized. The owner-requested collaboration/transition content remains accepted;
+the combined implementation diff requires the corrections and evidence below.
+
+Independent Git verification found main, HEAD and local/live origin/main at
+cac61f8a6ea5f4e55d424af0fc6c8c91ff7f9a0f, an empty index and 40 changed paths:
+15 modified tracked files and 25 untracked new files. AGENTS.md and
+slice-start-template.md are byte-preserved. The submitted planner record was also
+byte-preserved; this review now updates that record. The inventory is in the
+current-work entry; no executor implementation file is changed by this review.
+
+### Required corrections and validation gate
+
+1. **Safe, explicit HTTP error contract.** Malformed/overflow query scalars must
+   return the shared ApiProblemDetails/ApiError validation contract without
+   echoing rejected values. Declare the actual 400 and 404 schemas in OpenAPI
+   and regenerate the client from the real document. The current int? binding
+   returns framework ValidationProblemDetails with the rejected value; the
+   operation advertises only 200 and its generated error branches are untyped.
+   Follow the engineering results/errors and API-client contracts locally to
+   this feature. Existing routes with the same omission are not a waiver. Do
+   not change global MVC behavior or unrelated routes without discussing scope.
+   Preserve default/range/exclusive-cursor behavior and numeric public scalars.
+2. **Selected-detail lifetime.** A retained detail A close callback currently
+   clears selection B and also a newer selection A after A-B-A. It closes over
+   select(null), which is owned only by the open history lifetime. Give detail
+   actions a committed selected-row lifetime using the existing owned utilities;
+   an ID equality check alone does not cover A-B-A. Preserve receipt behavior
+   and avoid key/remount workarounds. Add regressions through the real panel
+   wiring for both stale-close cases and a working current close.
+3. **Unresolved full Api failures.** Preserve the reported 1755/1757 full run and
+   isolated 2/2 diagnostic. Load sensitivity is a hypothesis, not established
+   cause. Provide original failure excerpts and bounded diagnostic evidence for
+   the fixture stdin pipe closure and native process-origin proof failure. Do not
+   weaken ownership refusal or conservative OriginUnresolved behavior, skip
+   tests, increase retries/timeouts for green, or fix unrelated code in this
+   correction. After the actual corrections, one relevant full Api validation
+   is justified by the changed tree; a repeated unrelated failure remains a
+   stop/report gate requiring a separately reviewed diagnosis or disposition.
+
+### Independent review evidence and next return
+
+Reviewer build: serial solution build, 0 warnings/errors. Submitted history
+tests: Application 14/14, Api 48/48, Architecture 58/58 and frontend 109/109 passed
+independently. Five temporary reviewer
+probes failed as expected on the submitted tree: two retained-detail close cases,
+two missing API response schemas, and one rejected-value disclosure. Those probe
+sources were removed after recording the findings. The frontend host run followed
+a sandbox worker temporary-module failure; that infrastructure failure is not
+reported as a product assertion failure. No full-suite green rerun or real-provider
+qualification was performed by the reviewer. Executor full-suite, journey, mutation
+and audit evidence remains reported evidence with its recorded limits.
+
+Run affected regressions first, then the relevant full validation on the corrected
+tree under the existing selected acceptance contract. Return the complete diff,
+updated current-work evidence, exact inventory and remaining failures/risks for
+planner review. Distinguish new checks from retained checks, and regenerate twice
+to prove client reproducibility. Preserve the transition, qualification ledger,
+historical failures and retained roots. Real qualification remains
+Blocked/TargetsNotReal; both real allowances remain unused. Neither this correction
+decision nor discussion grants publication authority or MVP completion.
+
+## Selected slice (2026-10-10): read-only project run history and prior local-delivery receipts
+
+Codex is the planner/reviewer; Claude remains the executor. The owner-requested
+documentation transition is accepted without correction findings. Its collaboration
+rules preserve the engineering contract and publication boundary. Carry those edits
+into the selected slice for review together with its final diff; no staging, commit
+or push is authorized now. The previous support GO applies only to that published
+support, not these documents or the selected implementation.
+Publication disposition is **NO-GO now**: implement the bounded selection below
+and return the combined diff for review. This is not a defect finding against the
+owner-requested rules; their content is accepted and needs no correction.
+
+### Fresh verified preflight and preserved evidence
+
+Branch main; HEAD, local origin/main and an independently queried live
+refs/heads/main equal cac61f8a6ea5f4e55d424af0fc6c8c91ff7f9a0f. Empty index,
+no untracked paths, exactly four modified tracked documents: AGENTS.md,
+docs/roadmap/current-work.md, docs/roadmap/planner-handoff.md and
+docs/roadmap/slice-start-template.md. This selection changes only this planner
+record and preserves the other three documents. The closure has substantive
+767eede2b252f00bf7df1200a8bd767f292acc7c as its direct parent and changes only
+current-work.md. Git diff hygiene is checked; no runtime suite is rerun for this
+planning/documentation review. The generated-client baseline SHA-256 is
+1620e821b9dac08bda208fc23c94ecb1b8537a739b68cd298c3b19d23b763cf8.
+
+The real qualification remains Blocked/TargetsNotReal, with both real allowances
+unused. No provider relaunch, CLI installation/login/configuration, ledger reset,
+allowance consumption or retained-root cleanup is selected. Preserve the ledger,
+historical failures, observation limits and retained fixtures. Published support
+and deterministic doubles establish neither CLI compatibility nor provider
+reliability, and no increment/MVP completion is claimed.
+
+### Evidence, priority and remaining MVP gates
+
+GetProjectRunSummariesQueryHandler selects one most-relevant run per project.
+App.tsx can open only that run in RunCockpitView. ADR-0014/0031 permit subsequent
+objectives, but there is no project-run-history query or selector. ADR-0003's
+durable records and ADR-0032's pinned receipt remain readable by run identity;
+the owner cannot discover and inspect an older delivery through the normal UI
+after another objective replaces the selected run. Agent attempt history is
+within one run and does not close this gap.
+
+Select the first bounded project-run-history surface: browse persisted objectives
+and inspect an older recorded local-delivery receipt. This advances required MVP
+history access and the already delivered local evidence summary. It adds no
+workflow stage, coordination or mutation and does not extend ADR-0029's sequencing
+exception to autonomous or remote work. A separate read-only region avoids mounting
+RunCockpitView's current eligibility, configuration and mutation controls for an
+historical selection. Full event replay is still open, not implied by this slice.
+
+Release/MVP gates remain: actual installed-provider compatibility and real
+collaboration evidence; the unproven Increment 4 contracts for Claude account
+usage, eligible sessions, compaction and additional safe permission controls;
+Increment 5 coordination, bounded global concurrency/queueing, pause/resume/stop,
+retry/takeover and broader recovery; complete history/replay; Increment 6 scoped
+publication, exact-SHA CI observation/correction and ambiguous-action recovery;
+and Increment 7's stable packaged self-hosting demonstration. Existing claim,
+reserved-time, token-activity and Codex account guards are implemented and are not
+being represented as absent. Runtime preflight still reports unknown capabilities.
+Security-plan rows marked Planned are not proof that their controls are missing:
+release evidence must be reconciled with code/tests. Retained dependency findings
+and capability skips keep their actual scope and need release disposition, not
+an invented clean audit. None of these gates is waived here.
+
+Optional work includes receipt export, analytics, visual redesign, generic history
+infrastructure, Gemini/fallback, parallel candidates, stronger optional OS/container
+isolation and automatic updates. None is selected to displace required MVP work.
+
+### Selected contract and scope
+
+1. Add one protected bodyless GET /api/projects/{projectId}/run-history through
+   GetProjectRunHistoryQuery and the mediator, with API-owned transport types and
+   reproducible generated-client output. Unknown project is 404; an existing empty
+   project is a successful empty page. Use an exclusive beforeExecutionNumber cursor,
+   positive when present, and limit default 10, range 1..20. Order by descending
+   ExecutionNumber, backed by the existing unique project/number index; take one
+   extra row for HasMore and return the last admitted number as the next cursor only
+   when older rows remain. No offset, timestamp ordering, total-count scan, implicit
+   clamping or automatically draining all pages.
+2. Each entry carries only persisted run/project identity, execution number,
+   objective, known lifecycle/stage or fixed Unrecognized disclosures, exact stored
+   execution-mode disclosure, creation and last-advance UTC times, and an optional
+   completed-local-delivery receipt source. Unknown lifecycle/stage/mode must not
+   drop the row, coerce it to a known state or fail healthy neighboring rows. Classify
+   enum columns without materializing an unknown enum; reuse the exact execution-mode
+   storage read. Do not load full Run entities or change storage/mappings.
+3. The optional source contains only run/operation/commit/checkpoint identity and
+   checkpoint number required by the existing ReceiptSource. Read it from that run's
+   own recorded completed operation, with same-project/run ownership, recorded
+   Completed run/stage and structurally valid source fields. It locates a receipt,
+   never certifies its availability or approval. When no coherent completed source
+   can be identified, return null and explain that no completed delivery source is
+   available in this view; never infer no operation, failed delivery or success.
+   Do not duplicate receipt reconstruction/digests or consult current eligibility.
+4. Add a collapsed-by-default Run history region for the selected project. Opening
+   it requests one page; explicit actions read older pages or reload the first page.
+   Selecting a row shows its recorded objective/status/mode/times and, when it has a
+   valid source, the existing LocalDeliveryReceipt component/hook/normalizer.
+   Preserve ADR-0032's exact source checks, read-once behavior, unavailable/error
+   semantics and explicit retry. Do not relax its decoder or change its endpoint.
+   A metadata snapshot is not live progress, delivery success, current workspace,
+   current verification or publication. Keep the live cockpit/current project
+   selection and intake behavior unchanged.
+5. History reads and selection belong to the committed project/open/selected-row
+   lifetimes. A-B-A, close/reopen, null selection, unmount, retained callbacks and
+   overlapping reads must not start obsolete work or display an old owner's frame.
+   Reuse useOwnedLifetime/useOwnedState; no key/remount workaround. Validate response
+   project identity, unique run IDs/numbers, safe positive integers, descending order,
+   page size, cursor coherence and source/run identity before accepting a page. An
+   invalid page is an explicit error, never a plausible partial page. A failed older
+   page retains only valid rows of its own lifetime and retries that same cursor.
+   Reload starts a fresh first-page/selection lifetime. Render all values as text.
+6. New history behavior reads only persisted facts untracked, writes nothing, and
+   invokes no Git, filesystem, provider, process, readiness refresh, lease, recovery
+   or mutation action. No live cockpit/action hooks are mounted for a historical
+   selection. No event playback clock, timeline extension, artifact viewer, current
+   worktree panel, export, router/cache framework or browser persistence is added.
+
+Allowed changes: the Projects history query and operation-local projection/validation,
+its MVC endpoint/transport graph, generated client and client factory, cockpit history
+hooks/normalizer/components/styles and minimal App composition, focused tests and a
+narrow extension of the existing collaboration journey. Add ADR-0033 recording this
+additive contract, update its index/engineering context/cockpit spec/roadmap narrowly,
+and update current-work.md for delivery while preserving its transition and history.
+Do not edit this planner record in the executor chat or the accepted ADRs 0001..0032.
+The pre-existing AGENTS.md and slice-start-template.md edits remain byte-preserved.
+
+Excluded: Domain behavior, schema/migrations/mappings, existing admission/dispatch/
+completion/recovery/approval algorithms, provider contracts or configuration, scheduler,
+autonomy, mutation controls, Git/native/index/ref/lock behavior, cleanup/retention,
+remote publication/CI, full replay, new dependencies or unrelated refactoring.
+
+Stop and report a concrete gap if the existing rows cannot supply this metadata/source
+without inventing history, changing storage, weakening receipt identity/digest rules,
+using latest/current authority, adding external work or expanding a deferred lifecycle.
+Stop on a material Git discrepancy or an unrelated failure; preserve evidence and
+propose a bounded alternative for discussion. Disagreement pauses dependent work;
+neither agreement nor selection grants publication authority.
+
+### Acceptance evidence and return
+
+- Focused regressions before implementation: missing and empty projects, stable
+  project-isolated multi-page ordering/cursors, invalid limits/cursors, new insert
+  between pages, all existing lifecycle/mode disclosures and unknown stored enum/mode
+  controls that retain their row. Use real file-backed SQLite and normal authentication.
+  Show protected absent/wrong-credential behavior, ownership, safe 404/400 contracts,
+  explicit authorization inventory and actual OpenAPI/generated serialization.
+- Prove completed receipt sources use the pinned operation, never another run's
+  delivery or current checkpoint, and null sources are disclosed without inventing an
+  outcome. Include a production-created local commit; reuse the existing fixture and
+  receipt regressions instead of manufacturing SQL approval authority. Verify history
+  and receipt reads create no rows/events/claims and call no external ports.
+- Frontend tests cover empty/loading/error/paging/retry/invalid responses, first-frame
+  project and row replacement, A-B-A, close/reopen, unmount, retained actions, overlapping
+  reads and source changes. The historical region offers no mutation/configuration
+  controls and has no live timer/polling. Existing cockpit actions remain unchanged.
+- Extend collaboration.journey.ts after its real local commit and receipt assertions:
+  create a subsequent manual objective through the normal UI/API, reopen the older run
+  in history, verify the old SHA/checkpoint/exact verification members, reload and repeat.
+  Keep existing isolation and no-Agent-commit checks. Reads add no Agent, verification
+  or local-commit operation; the intentional new run/intake event are distinguished.
+  Use normal Program composition, authentication, all supervisors and owned doubles.
+- Detect a small set of meaningful rebuilt mutations of project scoping, exclusive
+  cursor/pinning and UI lifetime ownership; restore source hashes, distinguish build
+  failures/equivalent survivors from kills. Do not add a redundant guard matrix.
+- Run affected tests first, then a clean serial solution build (normal client generation),
+  full Application, Api and Architecture suites, full Vitest, typecheck, lint, production
+  build, strict e2e tsc, harness and one canonical test:e2e:all after harness success.
+  Include affected formatting, second byte-identical client generation, documentation
+  links, tracked/untracked secret/hygiene checks and dependency audits. Preserve actual
+  advisory/failure/skip results; no unchanged rerun for green. Retain unchanged Domain
+  and Infrastructure evidence explicitly unless touched by the agreed implementation.
+
+Return one complete unstaged, uncommitted, unpushed diff including the four starting
+documents, a short current-work entry with actual commands/counts and fresh versus
+retained evidence, exact changed-file inventory, failure excerpts and remaining limits.
+Keep corrections in this one new Claude executor chat. Codex reviews the combined diff
+and gives explicit GO/NO-GO before any staging, commit or normal main publication.
+
+## Historical transition (2026-10-10): support published; transition to a new planner/reviewer chat
+
+The manual qualification support slice is published. Independent read-only Git
+verification in this transition found branch main, HEAD, local origin/main and
+live refs/heads/main all at
+cac61f8a6ea5f4e55d424af0fc6c8c91ff7f9a0f, with a clean checkout before the
+documentation edits below. Its parent is the substantive support commit
+767eede2b252f00bf7df1200a8bd767f292acc7c, whose parent is
+88b9ffb0dfbf399d93ce4c38c742eb56f95847fb. The closure changes only
+current-work.md. The delivery ledger records the executor's fresh post-publication
+checks and retained evidence; this transition did not repeat runtime checks.
+
+The owner requested new collaboration rules and a new planner/reviewer chat
+before selection of the next slice. [AGENTS.md](../../AGENTS.md) now requires a
+complete copy-and-paste prompt after each planning/review analysis. The executor
+may challenge requests and findings with evidence and alternatives; both roles
+must discuss toward agreement, and the planner must reconsider when warranted.
+Unresolved material choices go to the owner. Scope, safety, quality and explicit
+publication authority remain governed by the standing contract.
+
+The transition is documentation-only and intentionally remains unstaged,
+uncommitted and unpushed on that baseline. Its exact four modified paths are
+AGENTS.md, docs/roadmap/slice-start-template.md, this planner record and
+docs/roadmap/current-work.md; there are no staged or untracked paths. The next
+planner must verify that state, preserve these owner-requested edits, and resolve
+their review/publication separately from selecting implementation work.
+
+No next slice is selected or dispatched here. The new planner/reviewer must read
+the roadmap and accepted ADRs, inspect the current code and evidence, and then
+select a bounded next outcome. Do not present support delivery as qualification
+or increment/MVP completion. The original real session remains
+Blocked/TargetsNotReal and both real allowances are unused, as recorded in the
+delivery ledger. Compatibility of the installed CLIs with the adapters remains
+unproven. A real relaunch or environment installation/login/configuration needs
+a separate decision; this transition authorizes none of them. Preserve the real
+ledger, historical failures, retained evidence and prior fixture roots.
+
+### Historical final review: GO for the frozen manual qualification support snapshot
+
+#### Historical review and bounded publication authority
 
 Codex accepts R1-R5 and both rehearsal corrections. Main, HEAD, local
 origin/main and an independent live refs/heads/main match

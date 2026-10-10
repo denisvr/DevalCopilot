@@ -55,6 +55,34 @@ Respect the role assigned by the project owner for the current workflow.
   availability, context pressure, or provider limits do not implicitly change
   ownership.
 
+### Evidence-based discussion and actionable prompts
+
+The planner/reviewer is fallible. The executor may question a request or finding,
+explain why it is unsafe, contradictory, unnecessary, or impractical, and propose
+a better alternative with evidence and its consequences. A challenge is not
+noncompliance, and a planner instruction is not proof that the proposed solution
+is correct. Both roles must examine the argument, reconsider their assumptions,
+and discuss the tradeoffs until they reach an evidence-based agreement that best
+serves the project. The planner must revise its prompt or finding when the
+evidence warrants it; the executor must revise its proposal on the same basis.
+
+While a material disagreement remains unresolved, pause the dependent work and
+continue independent authorized work where useful. Discussion does not authorize
+scope expansion, a different slice, weaker safety or quality requirements, or
+publication. The planner retains responsibility for the recorded review decision
+and explicit GO. If the contract and evidence cannot resolve a material choice,
+ask the project owner to decide and explain the alternatives. Do not manufacture
+consensus through automatic agreement or treat role ownership as infallibility.
+
+After every planning or review analysis, the planner/reviewer must include a
+complete, directly usable copy-and-paste prompt in that same response. A link to
+a prompt file may supplement it but must not replace it, and the owner must not
+have to ask for the prompt again. Match the prompt to the actual decision: bounded
+execution, review correction, authorized publication, further evidence gathering,
+or chat transition. When a decision is pending, the prompt must preserve that
+boundary rather than imply implementation or publication authority. Include the
+verified Git preflight when the recipient will act on the repository.
+
 ## Cross-chat continuity
 
 When acting as planner/reviewer, also read

@@ -4,6 +4,7 @@ import { CandidateWorkspacePanel } from './features/cockpit/components/Candidate
 import { CapabilityReadinessStrip } from './features/cockpit/components/CapabilityReadinessStrip'
 import { ProviderRuntimePreflight } from './features/cockpit/components/ProviderRuntimePreflight'
 import { ProjectBaselineSummary } from './features/cockpit/components/ProjectBaselineSummary'
+import { ProjectRunHistoryPanel } from './features/cockpit/components/ProjectRunHistoryPanel'
 import { ProjectSwitcher } from './features/cockpit/components/ProjectSwitcher'
 import { RunIntakeForm } from './features/cockpit/components/RunIntakeForm'
 import { RunCockpitView } from './features/cockpit/components/RunCockpitView'
@@ -153,6 +154,8 @@ export default function App() {
       ) : (
         !loading && <p className="dc-empty-state">No projects are registered yet.</p>
       )}
+
+      {selectedProject ? <ProjectRunHistoryPanel projectId={selectedProject.projectId ?? null} /> : null}
     </div>
   )
 }

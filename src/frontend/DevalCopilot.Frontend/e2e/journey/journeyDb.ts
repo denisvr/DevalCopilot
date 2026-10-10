@@ -93,6 +93,26 @@ export interface PlanningAuthorizationRow {
   ConsumedByAttemptId: string | null
 }
 
+export interface ProjectRunRow {
+  Id: string
+  ExecutionNumber: number
+  Objective: string
+  Lifecycle: string
+  Stage: string
+  ExecutionMode: number | string
+}
+
+export interface ProjectTotals {
+  runs: number
+  attempts: number
+  messages: number
+  events: number
+  executions: number
+  operations: number
+  reviews: number
+  checkpoints: number
+}
+
 export interface RunLimitsRow {
   MaximumAgentAttempts: number
   MaximumReviewCorrectionAttempts: number
@@ -296,5 +316,37 @@ export class JourneyData {
 
   runLimits(): RunLimitsRow {
     return this.one<RunLimitsRow>('select MaximumAgentAttempts, MaximumReviewCorrectionAttempts, Lifecycle from runs where Id = ?', this.runId())
+  }
+
+  /**
+   * Every run of this project in execution-number order. Unlike runId(), it stays valid after a SECOND objective was recorded, which is
+   * what the run-history part of the journey needs; the run-scoped readers above must not be called once a project has two runs.
+   */
+  runs(): ProjectRunRow[] {
+    return this.all<ProjectRunRow>(
+      'select Id, ExecutionNumber, Objective, Lifecycle, Stage, ExecutionMode from runs where ProjectId = ? order by ExecutionNumber',
+      this.projectId(),
+    )
+  }
+
+  /** The event types recorded for one run, in their recorded sequence. */
+  eventTypesOf(runId: string): string[] {
+    return this.all<{ EventType: string }>('select EventType from events where RunId = ? order by Sequence', runId).map((row) => row.EventType)
+  }
+
+  /** What this project has recorded across ALL its runs, so a read can be proven to have added no row of any workflow kind. */
+  projectTotals(): ProjectTotals {
+    const projectId = this.projectId()
+    const count = (sql: string) => this.one<{ Count: number }>(sql, projectId).Count
+    return {
+      runs: count('select count(*) as Count from runs where ProjectId = ?'),
+      attempts: count('select count(*) as Count from attempts a join runs r on r.Id = a.RunId where r.ProjectId = ?'),
+      messages: count('select count(*) as Count from collaboration_messages m join runs r on r.Id = m.RunId where r.ProjectId = ?'),
+      events: count('select count(*) as Count from events e join runs r on r.Id = e.RunId where r.ProjectId = ?'),
+      executions: count('select count(*) as Count from verification_executions where ProjectId = ?'),
+      operations: count('select count(*) as Count from local_commit_operations where ProjectId = ?'),
+      reviews: count('select count(*) as Count from checkpoint_reviews where ProjectId = ?'),
+      checkpoints: count('select count(*) as Count from git_checkpoints c join git_workspaces w on w.Id = c.WorkspaceId where w.ProjectId = ?'),
+    }
   }
 }

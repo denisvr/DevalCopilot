@@ -19,6 +19,10 @@ Stop gates: [conditions requiring a blocker report rather than scope expansion].
 Acceptance evidence: [focused cases, relevant full checks, generated artifacts,
 documentation, and diff checks].
 
+If a request or finding is flawed, explain the evidence and propose a bounded
+alternative for discussion before doing dependent work. Agreement does not
+waive the engineering contract or authorize unaccepted scope or publication.
+
 Update docs/roadmap/current-work.md with actual checks and remaining risks.
 Present the complete diff, changed-file summary, concise check outcomes, and
 short failure excerpts, uncommitted and unpushed, for Codex GO/NO-GO. Keep
@@ -29,3 +33,7 @@ After Codex GO, use the same chat to commit only the reviewed substantive diff,
 push `main` normally to `origin/main`, verify the remote commit, and report it.
 A material post-GO change returns for review. These publication rules are
 defined in AGENTS.md; this template does not grant GO.
+
+The planner includes the complete resolved prompt directly after its analysis;
+a file link alone is insufficient. Use the evidence-based discussion rules in
+AGENTS.md when the executor challenges a proposal or review finding.

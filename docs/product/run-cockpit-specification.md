@@ -1112,6 +1112,24 @@ receipt ("cannot be reconstructed"), and the valid receipt are distinct states. 
 operation's status, and is never polled; its request and answer belong to the committed run and operation lifetime, so a replacement,
 a return to an earlier one, unmounting or an obsolete read cannot fetch for or show another owner.
 
+### Run history
+
+For the selected project the cockpit shows a **Run history** region ([ADR-0033](../decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md)),
+collapsed for every project until the owner opens it. Opening it requests one page of the protected, read-only
+`GET /api/projects/{projectId}/run-history` (newest first, ten rows); "Load older runs" and "Reload latest runs" are explicit actions,
+a failed older page keeps the valid rows already shown and offers "Try the older runs again" with the same cursor, and nothing is polled,
+timed, retried automatically or stored in the browser. A fixed note says each entry is a snapshot of what the host recorded, not live
+progress, not the current workspace or current verification and not a remote publication. Each row shows its execution number,
+recorded objective, lifecycle and stage, and execution mode; a value this version does not recognize reads "Unrecognized lifecycle",
+"Unrecognized stage" or "Unrecognized execution mode" and is never worded as a known one. An empty project, a failed read and a page the
+host answered incoherently (none of it is shown) are distinct states. Selecting a row shows its recorded metadata (including both UTC
+times) and, only when the host located a delivery source for it, the existing **Local delivery receipt** region for exactly that source
+(its states and explicit retry unchanged); a run without a source says "No completed delivery source is available in this view" and that
+this does not show that no operation exists, that a delivery failed or that one succeeded, and requests no receipt. The region offers no
+mutation, configuration or live-progress control and does not mount the live cockpit. Its rows, selection and reads belong to the
+committed project, open and selected-row lifetimes, so another project, closing, reopening, reloading or an obsolete read cannot show
+or fetch for another owner. All values are plain text.
+
 ### Abandon run
 
 For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a

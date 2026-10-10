@@ -42,6 +42,8 @@ const CORRECTION_GUIDANCE = normalizeGuidance(CORRECTION_GUIDANCE_DRAFT)
 const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/[^/]+\/executions$/
 const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
 const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
+const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
+const FOLLOW_UP_OBJECTIVE = 'Plan the follow-up report for the ledger'
 // The persisted Human review names both recipes' latest Passed executions of the corrected checkpoint (listed in the host's own order).
 const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
 
@@ -659,27 +661,28 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   }
 
   const deliveryReceipt = page.getByRole('region', { name: 'Local delivery receipt' })
-  const assertRenderedReceipt = async () => {
-    await expect(deliveryReceipt).toContainText(deliveredCommit, { timeout: 30_000 })
-    await expect(deliveryReceipt).toContainText('Nothing was pushed')
-    await expect(deliveryReceipt).toContainText(OBJECTIVE)
-    await expect(deliveryReceipt).toContainText('#3')
-    await expect(deliveryReceipt).toContainText(cps[2].FingerprintSha256)
-    await expect(deliveryReceipt).toContainText(lower(reviewedReport[0].CollaborationMessageId))
-    await expect(deliveryReceipt).toContainText(`attempt #7 (${lower(deliveryReview.Id)})`)
-    await expect(deliveryReceipt).toContainText(lower(approvals[0].Id))
-    await expect(deliveryReceipt).toContainText(`${lower(manualReview.Id)} — Approved`)
-    const members = deliveryReceipt.getByRole('listitem')
+  const assertReceiptRegion = async (receiptRegion: Locator) => {
+    await expect(receiptRegion).toContainText(deliveredCommit, { timeout: 30_000 })
+    await expect(receiptRegion).toContainText('Nothing was pushed')
+    await expect(receiptRegion).toContainText(OBJECTIVE)
+    await expect(receiptRegion).toContainText('#3')
+    await expect(receiptRegion).toContainText(cps[2].FingerprintSha256)
+    await expect(receiptRegion).toContainText(lower(reviewedReport[0].CollaborationMessageId))
+    await expect(receiptRegion).toContainText(`attempt #7 (${lower(deliveryReview.Id)})`)
+    await expect(receiptRegion).toContainText(lower(approvals[0].Id))
+    await expect(receiptRegion).toContainText(`${lower(manualReview.Id)} — Approved`)
+    const members = receiptRegion.getByRole('listitem')
     await expect(members).toHaveCount(2)
     await expect(members.nth(0)).toContainText('Candidate total check — Passed, exit code 0')
     await expect(members.nth(0)).toContainText(`execution #${runs[2].ExecutionNumber} (${lower(runs[2].Id)})`)
     await expect(members.nth(1)).toContainText('Candidate lint check — Passed, exit code 0')
     await expect(members.nth(1)).toContainText(`execution #${runs[3].ExecutionNumber} (${lower(runs[3].Id)})`)
-    await expect(deliveryReceipt).not.toContainText(lower(runs[0].Id))
-    await expect(deliveryReceipt).not.toContainText(lower(runs[1].Id))
-    await expect(deliveryReceipt).not.toContainText('could not be read')
-    await expect(deliveryReceipt.getByRole('button')).toHaveCount(0)
+    await expect(receiptRegion).not.toContainText(lower(runs[0].Id))
+    await expect(receiptRegion).not.toContainText(lower(runs[1].Id))
+    await expect(receiptRegion).not.toContainText('could not be read')
+    await expect(receiptRegion.getByRole('button')).toHaveCount(0)
   }
+  const assertRenderedReceipt = () => assertReceiptRegion(deliveryReceipt)
   await assertRenderedReceipt()
   const afterDelivery = {
     attempts: data.attempts().length,
@@ -715,6 +718,169 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(data.localCommitVerificationMembers()).toHaveLength(2)
   expect(data.checkpointReviewEvidence().filter((row) => sameId(row.CheckpointReviewId, manualReview.Id))).toHaveLength(2)
   expect(data.checkpointReviews()).toHaveLength(2)
+
+  // 15. Run history (ADR-0033). The delivered run is terminal, so the normal intake records a SUBSEQUENT manual objective and the live
+  // cockpit follows that newer run. The older delivery is then reached only through the collapsed, read-only Run history region: its
+  // recorded metadata, its located source and the existing receipt, read again from the persisted rows. The intake adds exactly one
+  // run and its own intake event; every read after it adds no Agent attempt, message, verification, review, checkpoint or local-commit
+  // operation, invokes no provider double and changes neither Git nor the source repository.
+  const firstRunId = data.runs()[0].Id
+  expect(data.runs()).toHaveLength(1)
+  const beforeFollowUp = data.projectTotals()
+  const firstRunEvents = data.eventTypesOf(firstRunId)
+  await page.getByRole('textbox', { name: 'Objective' }).fill(FOLLOW_UP_OBJECTIVE)
+  await page.getByRole('button', { name: 'Record manual run' }).click()
+  await expect(page.getByRole('heading', { name: FOLLOW_UP_OBJECTIVE })).toBeVisible({ timeout: 15_000 })
+  const followUpRun = data.runs()[1]
+  expect(data.runs()).toHaveLength(2)
+  expect(followUpRun).toMatchObject({ ExecutionNumber: 2, Objective: FOLLOW_UP_OBJECTIVE, Lifecycle: 'Created', Stage: 'Intake' })
+  expect(String(followUpRun.ExecutionMode)).toBe('2')
+  const intakeEvents = data.eventTypesOf(followUpRun.Id)
+  expect(intakeEvents.length).toBeGreaterThan(0)
+  // The intentional change is one run and its own intake event(s); nothing of any other workflow kind and nothing of the first run.
+  const afterFollowUp = data.projectTotals()
+  expect(afterFollowUp).toEqual({ ...beforeFollowUp, runs: beforeFollowUp.runs + 1, events: beforeFollowUp.events + intakeEvents.length })
+  expect(data.eventTypesOf(firstRunId)).toEqual(firstRunEvents)
+  expect(stageInvocations()).toHaveLength(afterDelivery.invocations)
+  // The live cockpit follows the newer run: the delivered run's receipt is no longer shown there.
+  await expect(page.getByRole('region', { name: 'Local delivery receipt' })).toHaveCount(0)
+
+  const historyRegion = page.getByRole('region', { name: 'Run history' })
+  const historyRows = historyRegion.locator('.dc-run-history-items > li')
+  const historyRequests: string[] = []
+  const receiptRequests: string[] = []
+  page.on('request', (request) => {
+    const path = new URL(request.url()).pathname
+    if (request.method() === 'GET' && HISTORY_PATH.test(path)) {
+      historyRequests.push(path)
+    }
+
+    if (request.method() === 'GET' && RECEIPT_PATH.test(path)) {
+      receiptRequests.push(path.toLowerCase())
+    }
+  })
+  const firstRunReceiptPath = `/api/runs/${lower(firstRunId)}/local-delivery-receipt`
+  await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
+  expect(historyRequests).toEqual([])
+
+  // Opens the history (one page request), checks that page on the wire and in the rendered rows, selects the older delivered run and
+  // returns its page and the receipt the host answered for exactly that run.
+  const openHistoryAndInspectDelivery = async () => {
+    const historyResponse = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && HISTORY_PATH.test(new URL(response.url()).pathname),
+      { timeout: 30_000 },
+    )
+    const historyBefore = historyRequests.length
+    await historyRegion.getByRole('button', { name: 'Show run history' }).click()
+    const answered = await historyResponse
+    expect(answered.status()).toBe(200)
+    expect(historyRequests).toHaveLength(historyBefore + 1)
+    const body = await answered.json()
+    expect(Object.keys(body).sort()).toEqual(['entries', 'hasMore', 'nextBeforeExecutionNumber', 'projectId'])
+    expect(lower(body.projectId)).toBe(lower(data.projectId()))
+    expect(body.hasMore).toBe(false)
+    expect(body.nextBeforeExecutionNumber).toBeNull()
+    expect(body.entries.map((entry: Record<string, unknown>) => entry.executionNumber)).toEqual([2, 1])
+    const [newer, older] = body.entries
+    const entryKeys = [
+      'createdAtUtc', 'executionMode', 'executionNumber', 'lastAdvancedAtUtc', 'lifecycle', 'objective', 'projectId', 'receiptSource', 'runId', 'stage',
+    ]
+    expect(Object.keys(newer).sort()).toEqual(entryKeys)
+    expect(Object.keys(older).sort()).toEqual(entryKeys)
+    expect(newer).toMatchObject({ objective: FOLLOW_UP_OBJECTIVE, lifecycle: 'Created', stage: 'Intake', executionMode: 'ManualAgent', receiptSource: null })
+    expect(lower(newer.runId)).toBe(lower(followUpRun.Id))
+    expect(older).toMatchObject({ objective: OBJECTIVE, lifecycle: 'Completed', stage: 'Completed', executionMode: 'ManualAgent' })
+    expect(lower(older.runId)).toBe(lower(firstRunId))
+    expect(Object.keys(older.receiptSource).sort()).toEqual(['checkpointId', 'checkpointNumber', 'commitSha', 'operationId', 'runId'])
+    expect(older.receiptSource).toMatchObject({ commitSha: deliveredCommit, checkpointNumber: 3 })
+    expect(lower(older.receiptSource.runId)).toBe(lower(firstRunId))
+    expect(lower(older.receiptSource.operationId)).toBe(lower(operation!.Id))
+    expect(lower(older.receiptSource.checkpointId)).toBe(lower(cps[2].Id))
+    const historyText = JSON.stringify(body)
+    for (const hidden of [worktree, repository.path, 'dotnet', 'AGENTS.md', operation!.CheckpointFingerprintSha256]) {
+      expect(historyText).not.toContain(hidden)
+    }
+
+    await expect(historyRows).toHaveCount(2)
+    await expect(historyRows.nth(0)).toContainText('Run #2')
+    await expect(historyRows.nth(0)).toContainText(FOLLOW_UP_OBJECTIVE)
+    await expect(historyRows.nth(0)).toContainText('Created · Intake')
+    await expect(historyRows.nth(1)).toContainText('Run #1')
+    await expect(historyRows.nth(1)).toContainText(OBJECTIVE)
+    await expect(historyRows.nth(1)).toContainText('Completed · Completed')
+    await expect(historyRegion).toContainText('not live progress')
+    await expect(historyRegion.getByRole('button', { name: 'Load older runs' })).toHaveCount(0)
+
+    const receiptRead = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && new URL(response.url()).pathname.toLowerCase() === firstRunReceiptPath,
+      { timeout: 30_000 },
+    )
+    const receiptsBefore = receiptRequests.length
+    await historyRegion.getByRole('button', { name: 'Inspect run #1' }).click()
+    const receiptAnswer = await receiptRead
+    expect(receiptAnswer.status()).toBe(200)
+    // The dev server runs React's StrictMode, which may repeat a mount-time read; every read is for exactly the selected run.
+    expect(receiptRequests.length).toBeGreaterThan(receiptsBefore)
+    expect(new Set(receiptRequests.slice(receiptsBefore))).toEqual(new Set([firstRunReceiptPath]))
+    const detail = historyRegion.getByRole('region', { name: 'Selected run' })
+    await expect(detail).toContainText(OBJECTIVE)
+    await expect(detail).toContainText(lower(firstRunId))
+    await expect(detail).toContainText(`commit ${deliveredCommit}, operation ${lower(operation!.Id)}, checkpoint #3 (${lower(cps[2].Id)})`)
+    await assertReceiptRegion(detail.getByRole('region', { name: 'Local delivery receipt' }))
+    // The selected historical run offers only its own close control: no mutation, configuration or live-progress control.
+    await expect(detail.getByRole('button')).toHaveCount(1)
+    await expect(historyRegion.getByRole('textbox')).toHaveCount(0)
+    await expect(
+      historyRegion.getByRole('button', { name: /Commit locally|Request|Approve|Abandon|Record manual|Prepare workspace|Capture checkpoint|Refresh evidence/ }),
+    ).toHaveCount(0)
+    return { body, receipt: await receiptAnswer.json() }
+  }
+
+  const firstReading = await openHistoryAndInspectDelivery()
+  // The same exact receipt the delivery showed, read again from the pinned rows after another objective replaced it in the cockpit.
+  expect(firstReading.receipt).toEqual(wire)
+
+  // The newer run has no completed delivery source: that is disclosed, no receipt is requested for it, and nothing is inferred.
+  const receiptsBeforeNewer = receiptRequests.length
+  await historyRegion.getByRole('button', { name: 'Inspect run #2' }).click()
+  const newerDetail = historyRegion.getByRole('region', { name: 'Selected run' })
+  await expect(newerDetail).toContainText(FOLLOW_UP_OBJECTIVE)
+  await expect(newerDetail).toContainText('No completed delivery source is available in this view')
+  await expect(newerDetail.getByRole('region', { name: 'Local delivery receipt' })).toHaveCount(0)
+  expect(receiptRequests).toHaveLength(receiptsBeforeNewer)
+
+  // Closing discards every row and the selection; reopening reads a fresh first page and the same delivery again.
+  await historyRegion.getByRole('button', { name: 'Hide run history' }).click()
+  await expect(historyRows).toHaveCount(0)
+  await expect(historyRegion.getByRole('region', { name: 'Selected run' })).toHaveCount(0)
+  const reopened = await openHistoryAndInspectDelivery()
+  expect(reopened.body).toEqual(firstReading.body)
+  expect(reopened.receipt).toEqual(wire)
+
+  // After a real reload the history is collapsed again and requests nothing until it is opened, then shows the same delivery again.
+  const requestsBeforeReload = historyRequests.length
+  await reloadAndReselect(page)
+  await expect(page.getByRole('heading', { name: FOLLOW_UP_OBJECTIVE })).toBeVisible({ timeout: 30_000 })
+  await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
+  expect(historyRequests).toHaveLength(requestsBeforeReload)
+  const afterReload = await openHistoryAndInspectDelivery()
+  expect(afterReload.body).toEqual(firstReading.body)
+  expect(afterReload.receipt).toEqual(wire)
+
+  // The history reads created nothing: no row of any workflow kind, no provider invocation, no new commit, an untouched source.
+  expect(data.projectTotals()).toEqual(afterFollowUp)
+  expect(data.eventTypesOf(firstRunId)).toEqual(firstRunEvents)
+  expect(data.eventTypesOf(followUpRun.Id)).toEqual(intakeEvents)
+  expect(data.runs().map((run) => [run.ExecutionNumber, run.Lifecycle, run.Stage])).toEqual([[1, 'Completed', 'Completed'], [2, 'Created', 'Intake']])
+  expect(stageInvocations()).toHaveLength(afterDelivery.invocations)
+  expect(git('rev-parse', 'HEAD')).toBe(deliveredCommit)
+  expect(git('rev-list', '--count', 'HEAD')).toBe('2')
+  expect(git('remote')).toBe('')
+  const sourceAfterHistory = repositorySnapshot(repository.path)
+  expect(sourceAfterHistory.head).toBe(sourceBefore.head)
+  expect(sourceAfterHistory.status).toBe(sourceBefore.status)
+  expect(sourceAfterHistory.candidate).toBe(sourceBefore.candidate)
+  expect(sourceAfterHistory.branches).toBe(sourceAfterCommit.branches)
 
   // The launch secret never reached the page URL, browser storage, or any file under the owned root.
   expect(page.url()).not.toContain(journeySecret())
