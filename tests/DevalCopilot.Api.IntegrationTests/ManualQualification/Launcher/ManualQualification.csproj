@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>DevalCopilot.Api.IntegrationTests.ManualQualification</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- SkipNSwag: this reference must not trigger a client regeneration during a support build. -->
+    <ProjectReference Include="..\..\..\..\src\backend\DevalCopilot.Api\DevalCopilot.Api.csproj">
+      <AdditionalProperties>SkipNSwag=True</AdditionalProperties>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The journey's ownership proof, compiled as source so the real-provider launcher carries no fixture executable. -->
+    <Compile Include="..\..\BrowserJourney\Host\OwnedRootGuard.cs" Link="Shared\OwnedRootGuard.cs" />
+    <Compile Include="..\..\BrowserJourney\ProviderFixture\OwnedLocation.cs" Link="Shared\OwnedLocation.cs" />
+    <Compile Include="..\..\BrowserJourney\ProviderFixture\FixtureRefusal.cs" Link="Shared\FixtureRefusal.cs" />
+  </ItemGroup>
+</Project>

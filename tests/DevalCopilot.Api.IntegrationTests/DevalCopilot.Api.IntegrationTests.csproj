@@ -8,6 +8,10 @@
          self-contained file-system helpers are tested here, as source, against the real file system. -->
     <Compile Remove="BrowserJourney\**\*.cs" />
     <Compile Include="BrowserJourney\Host\OwnedRootGuard.cs;BrowserJourney\Host\FixtureInstaller.cs" />
+    <!-- The manual real-provider launcher is its own executable and is never run by a test. Its controls are compiled here as source so
+         the offline regressions can exercise them with deterministic substitutes; its entry point stays out of this assembly. -->
+    <Compile Remove="ManualQualification\**\*.cs" />
+    <Compile Include="ManualQualification\Launcher\*.cs" Exclude="ManualQualification\Launcher\ManualQualificationProgram.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
