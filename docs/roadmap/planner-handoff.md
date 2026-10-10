@@ -5,7 +5,54 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current decision (2026-10-10): GO to publish the corrected run-history slice
+## Current decision (2026-10-10): substantive delivery verified; GO for factual closure
+
+Codex independently verified substantive commit
+5fd38cb0f0c6fc50c35d39e6af9c85cc2acf7193, parent
+cac61f8a6ea5f4e55d424af0fc6c8c91ff7f9a0f, message
+`feat: browse project run history and prior delivery receipts`. Branch main,
+HEAD/local/live origin/main agree and ahead/behind is 0/0. Its 43 committed paths
+(15 modified, 28 added), normalized blob identities and file modes match the held
+publication manifest; no extra path or ignored manifest was committed.
+
+The executor returned only five added lines in current-work.md, unstaged and
+uncommitted, recording the delivered substantive SHA and publication facts.
+The closure correctly distinguishes retained validation from fresh Git checks
+and preserves the historical failures, unconfirmed diagnoses and release limits.
+Codex accepts it without correction and updates this planner decision.
+**GO is only for these two reviewed documentation files**, current-work.md and
+planner-handoff.md, on main at the verified substantive commit, with an empty
+index and no untracked files. The executor prompt supplies the frozen two-path
+manifest and its hash. Stage only those bytes, commit and make one normal
+fast-forward push; stop on drift, failure or divergence. Report the closure
+commit SHA externally, without adding another closure entry for that doc commit.
+No runtime suite is rerun for these documentation changes.
+
+### Next bounded proposal, not a selected slice
+
+The roadmap still requires run replay (Increment 5 and the self-hosting restart
+proof). ADR-0033 delivers metadata/receipt discovery and explicitly leaves full
+event replay open. GetRunEventsQueryHandler currently reads every event after
+AfterSequence with ToListAsync and no Take; useCollaborationTimeline is driven
+by live event changes, so neither is a ready bounded historical reader.
+
+Prepare a separately assessed slice for explicit, bounded pages of persisted
+events for a selected historical run, with stable sequence cursors, safe typed
+disclosures and owned UI lifetimes, without mounting live workflow controls or
+automatically draining the journal. Before selecting it, settle the page/snapshot
+contract, supported event disclosures and compatibility with ADR-0003 and the
+existing consumers. Do not represent a first journal browser as complete replay.
+This proposal advances required history/replay work and avoids a real-provider
+dependency; it does not displace the provider, coordination, recovery, remote
+publication and packaging release gates recorded below. It is not permission
+for executor research or implementation in this chat. After closure publication
+verification, Codex owns the final selection and complete new execution prompt.
+
+Real qualification remains Blocked/TargetsNotReal, both allowances unused.
+Preserve the ledger, historical failures and retained roots. No provider launch,
+CLI setup, reset, cleanup or increment/MVP completion is authorized or implied.
+
+## Substantive publication decision (2026-10-10): GO for the corrected run-history slice
 
 Codex independently reviewed the combined owner-requested transition documents,
 ADR-0033, history implementation and correction diff. The two correction findings
