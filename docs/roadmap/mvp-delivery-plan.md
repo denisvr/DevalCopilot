@@ -324,6 +324,10 @@ runs only (full event replay remains open) and is likewise not increment complet
 [ADR-0034](../decisions/0034-browse-recorded-event-headers-of-a-historical-run.md) adds a bounded, on-demand, read-only browser of an older
 run's persisted event headers (exact string sequences, closed event and actor disclosures, no payload and no current-state claim); it is a
 first journal browser, not complete replay or envelope completion, and is likewise not increment completion.
+[ADR-0035](../decisions/0035-browse-recorded-collaboration-messages-of-a-historical-run.md) adds a bounded, on-demand, read-only browser of an
+older run's persisted collaboration messages (exact string sequences, closed disclosures, content admitted only through the existing content
+policy and shown as unavailable otherwise, no attempt or reply resolution and no current-state claim); full linked replay remains open and
+it is likewise not increment completion.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

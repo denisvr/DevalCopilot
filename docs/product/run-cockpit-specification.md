@@ -1148,6 +1148,24 @@ run are unchanged. Its headers and reads belong to the committed run and open li
 closing the selection, closing, reopening, reloading or an obsolete read cannot show or fetch for another owner. All values are plain
 text.
 
+### Recorded collaboration
+
+Inside the selected historical run of the Run history, beside Recorded events, the cockpit shows a **Recorded collaboration** region
+([ADR-0035](../decisions/0035-browse-recorded-collaboration-messages-of-a-historical-run.md)), collapsed until the owner opens it.
+Opening it requests one page of the protected, read-only `GET /api/runs/{runId}/collaboration-history` (newest first, five messages);
+"Load older messages", "Try the older messages again" (the same cursor after a failed older page) and "Reload newest messages" are
+explicit actions, and nothing is polled, timed, retried automatically or stored in the browser. A fixed note says these are recorded
+facts, not live status, not a current approval and not proof that any provider succeeded, that a message whose recorded details are not
+recognized, safe and within the recorded bounds shows its header only, that the order is the recorded sequence and that the list is not a
+snapshot of the whole run and shows no total. Each message shows the exact sequence text, a fixed label for its type, the protocol
+version, the provenance, the UTC time, the sender and recipient exactly as recorded ("Agent · Planner role · Codex"; "role not
+recorded"; "Unrecognized participant"), its summary and its fields with fixed labels in the closed schema's order, or an explicit
+"Content unavailable" state that shows no text, and the message identity. An empty run, a failed read and a page the host answered
+incoherently (none of it is shown) are distinct states. The region has no selection, reply, evidence or mutation control and does not
+mount the live cockpit or the live collaboration timeline. Its messages and reads belong to the committed run and open lifetimes, so
+another run, a return to an earlier one, closing the selection, closing, reopening, reloading or an obsolete read cannot show or fetch for
+another owner. All values are plain text.
+
 ### Abandon run
 
 For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a

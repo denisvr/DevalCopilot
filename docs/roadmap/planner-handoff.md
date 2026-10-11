@@ -5,7 +5,150 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current selection (2026-10-10): bounded CockpitGate failure diagnosis and correction
+## Current selection (2026-10-10): historical collaboration messages with bounded safe content
+
+### Review decision (2026-10-10): GO for the corrected combined diff
+
+Codex re-reviewed the combined diff on main at 609edddbc03760491710f9d79563fcc5e1ac66c4
+(HEAD/local/live origin/main agree, 0/0, empty index; 15 modified and 34 new paths).
+The three prior NO-GO findings are closed: emitted SQLite guards use
+length(CAST(column AS BLOB)) with 1800/15000-byte caps; real-SQLite NUL
+regressions replay the actual projection; Available transport requires distinct,
+provenance-consistent participants while header-only Unavailable rows remain;
+the journey asserts every fixed field label/value and reopens after browser reload.
+Independent correction checks passed: Application 82, Api 88, Architecture 7
+and frontend 162. The executor records the rerun full validation, canonical
+Chromium 13/journeys 5, and retained checks in current-work.md.
+
+The five-message UI page and byte-cap tradeoff are accepted: some text over
+600/5000 UTF-16 units can be read within the fixed byte caps, then rejected
+before parsing by the unchanged policy. Original red-first evidence remains
+absent; the reported mutation survivors prove only scoped redundancy, and all
+lifetime guards remain. Full linked replay and MVP/increment completion remain
+open. Real qualification stays Blocked/TargetsNotReal, both allowances unused;
+ledger, historical failures and retained fixture roots remain untouched.
+
+Authorize the executor to commit this reviewed combined diff and push main by
+normal fast-forward, verify the delivered SHA against live origin/main, and
+report once. No new checks or separate closure edit/review are required for
+publication. Stop on a changed diff, divergent remote or failed push. Codex
+selects the next bounded slice after independently verifying publication;
+the executor must not select it. No next slice is selected yet.
+
+Codex verified publication 609edddbc03760491710f9d79563fcc5e1ac66c4,
+parent 09455eec7b4303039d8d6ad78befdfbdf744fa02, message
+`test: drain cockpit handlers before removing interception`, exactly five
+reviewed paths and the preserved planner hash. HEAD/local/live origin/main
+agree on main, ahead/behind 0/0, index and checkout were clean. Independent
+review established the installed Playwright mechanism, red-first 12/14 versus
+corrected 14/14, full harness 89/89 and strict e2e tsc over 42 sources. The
+executor's canonical result is Chromium 13 and journeys 5; earlier failures
+and uncertainty about their historical causes remain recorded.
+
+The owner requires immediate next-slice planning after verified publication
+and one commit/push/report step after GO, without a separate closure review.
+AGENTS.md and the slice-start template record that workflow. Their owner-requested
+edits are included in this combined diff. The review decision above controls
+publication; keep this slice's corrections and publication in the same Claude
+executor chat.
+
+### Evidence and outcome
+
+ADR-0003/0004 and Increment 5/7 require access to the durable conversation and
+replay after restart. Historical detail currently exposes metadata, the pinned
+receipt and event headers; it cannot show the recorded proposals, challenges,
+decisions or reviews. GetCollaborationTimelineQueryHandler exposes only the
+latest 100 messages, through a live-event-driven hook, with numeric sequences
+and raw StructuredContentJson. Reusing it would miss older messages and its
+enum/ParticipantIdentity materialization can fail on unknown stored values.
+
+Select a separate, on-demand, bounded historical collaboration browser. The
+existing collaboration_messages (RunId, Sequence) index supports its exclusive
+cursor; sequences are global Int64 values, so gaps are valid and the wire uses
+canonical decimal strings. Existing Domain content policy bounds summary to
+600 characters, JSON to 5000 and fields to 900, with a closed per-type schema.
+SQLite HasMaxLength alone does not enforce those limits on stored rows.
+This slice reuses the existing content policy, not raw transcript parsing.
+
+### Selected contract
+
+- Protected bodyless GET /api/runs/{runId}/collaboration-history via a new
+  mediator query and API-owned response graph; unknown run shared 404, existing
+  empty run empty page. limit default 10, range 1..20, refuse rather than clamp;
+  beforeSequence optional exact canonical positive ASCII Int64 decimal string
+  (blank absent). Fixed shared typed 400/404/409, no rejected-value echo.
+- Untracked reads of this run only, descending sequence, exclusive before,
+  Take(limit + 1), no offset/count/draining/full entities. HasMore from the extra
+  row; next cursor exactly the last admitted sequence when more exists. No
+  atomic snapshot or total claim. Selected empty identity/nonpositive sequence
+  gives fixed 409 collaboration_history.unavailable; never a partial page.
+- Entries: run/message IDs, exact sequence string, UTC occurrence time, closed
+  type/version/provenance disclosures, operation-owned actor and recipient,
+  content status, nullable summary and a list of validated name/value fields.
+  Known protocol version is exactly 1.0; unknown metadata becomes fixed
+  Unrecognized rather than raw stored text. Classify stored enums in SQL;
+  do not materialize unknown enums or construct invalid ParticipantIdentity.
+- Content Available requires recognized version/type/provenance, coherent
+  actor/recipient disclosures, IsSafeSummary and the existing Domain
+  CollaborationMessageContentPolicy.Validate. Read summary/JSON only with
+  database-enforced length guards before materialization; verify limits again
+  before parsing. Handle expected content-validation failure per row. Unknown,
+  malformed, unsafe or over-bound content retains its header with Unavailable,
+  null summary and no fields. Healthy neighbors remain. Never truncate, repair
+  or expose malformed content, raw JSON, secret sentinels or unknown field names.
+  Do not turn arbitrary query faults into content-unavailable or shared 409.
+- This is recorded content, not a fresh approval, validated author authority or
+  provider-success proof. No attempt/evidence/artifact lookup, reply resolution,
+  current-state enrichment or new protocol/envelope fields. No AttemptId or
+  reply target in this first response; full linked replay remains open.
+- Add collapsed Recorded collaboration inside ProjectRunHistoryDetail. Open
+  one page; older, same-cursor retry and fresh reload are explicit. Render only
+  text with fixed labels for admitted types/fields and an explicit unavailable
+  state per row. No markdown/HTML rendering, live hooks, polling, automatic
+  retries, persistent browser cache or mutation/configuration controls.
+- Reuse owned lifetimes for committed run/open/reload; stale reads/actions,
+  A-B-A, close/reopen, null and unmount cannot cross lifetimes. Validate complete
+  pages: exact run, unique nonempty IDs, exact Int64 order/cursor, page bound,
+  dates, closed metadata, content shape/limits and continuation coherence.
+  Invalid transport is a whole-page error; a valid Unavailable row is retained.
+
+Allowed: operation-local query/binders/transport, generated client/factory,
+historical detail component/hook/decoder/style, focused tests, narrow extension
+of the existing collaboration journey, ADR-0035 and narrow decision index,
+engineering-context, cockpit-specification, roadmap and current-work updates.
+Preserve receipts, event-history and live timeline behavior. No Domain/schema/
+mapping/migration change, dependencies, generic history framework, provider
+execution, authority/recovery/scheduler change, remote/CI feature or root cleanup.
+Stop and discuss evidence if these bounds cannot be met; do not broaden scope.
+
+### Acceptance, remaining gates and publication
+
+Prove auth, fixed safe errors, run isolation, empty pages, exclusive cursor/
+lookahead/appends/gaps, 2^53 and Int64 boundaries, all current message schemas,
+unknown enums/version/actors, malformed/duplicate/extra fields, unsafe summary/
+fields and oversized persisted text without selecting that text. Inspect real
+SQLite SQL bounds/projection; reads write nothing and call no external port.
+Cover UI ownership, coherent/unavailable/error pages, retry/reload and hostile
+text. Extend the prior-delivery journey to inspect the older run's actual durable
+messages across paging/reopen/reload, retaining receipt and no-write/no-provider/
+no-commit assertions. Use a small meaningful red-first/mutation selection;
+report real kills, survivors and restored source identities without full-tree
+mutation work. Run affected checks, then serial solution build, full Application/
+Api/Architecture/Vitest, typecheck/lint/build, strict e2e tsc, harness and one
+canonical e2e:all, affected format, reproducible client generation, links,
+hygiene/secrets and audits. Retain unchanged Domain/Infrastructure scope.
+Stop/report unrelated failures; no unchanged rerun loop for green.
+
+Return one unstaged, uncommitted, unpushed combined diff for Codex GO/NO-GO.
+After GO the executor commits/pushes that reviewed diff and reports the verified
+SHA once; no separate closure edit. Codex immediately plans the next slice.
+Real qualification remains Blocked/TargetsNotReal, both allowances unused;
+preserve historical failures, ledger and retained roots. Full replay, unproven
+Increment 4 contracts, Increment 5 autonomous coordination/concurrency/recovery,
+Increment 6 remote/CI reconciliation and Increment 7 packaged self-hosting remain
+release gates. Export/analytics/redesign are optional and not selected.
+
+## Previous selection (2026-10-10): bounded CockpitGate failure diagnosis and correction
 
 Codex verified published closure 09455eec7b4303039d8d6ad78befdfbdf744fa02,
 parent 735f1da86d8967771e1a666026adfe9990346268, message

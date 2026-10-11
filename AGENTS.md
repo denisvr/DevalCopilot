@@ -113,6 +113,10 @@ has diverged, stop and report the discrepancy; do not force-push or reconcile
 remote history without planner/reviewer direction. The planner/reviewer owns
 next-slice selection; the executor reports facts but cannot select its own
 next plan.
+After GO, finish commit, push and remote verification in that same executor
+turn and report the published SHA. Do not create a separate closure-document
+diff or approval round. The planner carries the delivered facts forward in
+its next selection record; publication discrepancies still require a report.
 On resume, compare HEAD, branch, and staged/unstaged/untracked changes with the
 handoff before editing. Investigate discrepancies; Git and code prevail over
 a stale summary.
@@ -140,7 +144,10 @@ discrepancy rather than assuming a stale prompt still applies. Do not try to
 embed a commit's own SHA in that same commit's documentation.
 
 At an uncommitted slice's review, the planner/reviewer decides GO/NO-GO from
-Git, code, and evidence. After GO and verified publication, it also prepares
-the next bounded proposal when a safe candidate is identifiable, and may
-select and dispatch it. A NO-GO remains a correction of the current slice,
+Git, code, and evidence. After independently verifying publication, it
+immediately begins planning the next slice in that same response and selects
+and dispatches a safe bounded candidate with the complete executor prompt.
+If evidence or a material owner decision prevents selection, state the
+specific blocker and give a bounded evidence-gathering or decision prompt;
+do not stop at acknowledging delivery. A NO-GO remains a correction of the current slice,
 not permission for the executor to start a different one.

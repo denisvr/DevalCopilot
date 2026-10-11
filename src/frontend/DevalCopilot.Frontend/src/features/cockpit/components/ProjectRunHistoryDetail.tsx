@@ -3,6 +3,7 @@ import { lifecycleLabel, stageLabel } from '../projectRunHistory'
 import type { RunHistoryEntry } from '../projectRunHistory'
 import { toUtcText } from '../utcText'
 import { LocalDeliveryReceipt } from './LocalDeliveryReceipt'
+import { CollaborationHistoryPanel } from './CollaborationHistoryPanel'
 import { RunEventHistoryPanel } from './RunEventHistoryPanel'
 
 const SNAPSHOT_NOTE =
@@ -26,7 +27,7 @@ interface ProjectRunHistoryDetailProps {
 
 /**
  * The recorded metadata of one historical run, when the host located a delivery source for it the existing local-delivery receipt
- * for exactly that source, and a collapsed, on-demand list of the run's recorded event headers (ADR-0034) for exactly this run. It
+ * for exactly that source, and collapsed, on-demand lists of the run's recorded event headers (ADR-0034) and recorded collaboration messages (ADR-0035) for exactly this run. It
  * mounts no live cockpit, eligibility, configuration or mutation control. Every value is rendered as text.
  */
 export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDetailProps) {
@@ -52,6 +53,7 @@ export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDet
       </dl>
       {source ? <LocalDeliveryReceipt source={source} /> : <p>{NO_SOURCE}</p>}
       <RunEventHistoryPanel runId={entry.runId} />
+      <CollaborationHistoryPanel runId={entry.runId} />
       <p>
         <button type="button" onClick={onClose}>
           Close selected run

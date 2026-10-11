@@ -31,6 +31,8 @@ corrections in this chat. Do not select the next slice.
 
 After Codex GO, use the same chat to commit only the reviewed substantive diff,
 push `main` normally to `origin/main`, verify the remote commit, and report it.
+No separate closure-document diff or approval round follows. The planner
+verifies publication and immediately plans and dispatches the next safe slice.
 A material post-GO change returns for review. These publication rules are
 defined in AGENTS.md; this template does not grant GO.
 

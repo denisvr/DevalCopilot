@@ -330,6 +330,7 @@ describe('ProjectRunHistoryPanel', () => {
         'Inspect run #3',
         'Inspect run #2',
         'Show recorded events',
+        'Show recorded collaboration',
         'Close selected run',
       ])
       expect(container.querySelector('form, input, textarea, select, [role="textbox"], [role="combobox"]')).toBeNull()

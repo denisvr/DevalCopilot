@@ -1237,3 +1237,44 @@
 .dc-run-event-history-type {
   font-weight: 600;
 }
+
+.dc-collaboration-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--dc-border, currentColor);
+}
+
+.dc-collaboration-history-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dc-collaboration-history-body p {
+  margin: 0;
+}
+
+.dc-collaboration-history-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.dc-collaboration-history-items dl {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+}
+
+.dc-collaboration-history-sequence,
+.dc-collaboration-history-type {
+  font-weight: 600;
+}
+
+.dc-collaboration-history-error {
+  color: var(--dc-danger, #b3261e);
+}

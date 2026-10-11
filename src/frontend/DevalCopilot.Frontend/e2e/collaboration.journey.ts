@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
 import { JourneyData, sameId } from './journey/journeyDb'
-import type { EventHeaderRow } from './journey/journeyDb'
+import type { CollaborationHistoryRow, EventHeaderRow } from './journey/journeyDb'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
   CANDIDATE_BASELINE,
@@ -45,6 +45,7 @@ const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
 const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
+const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
 const FOLLOW_UP_OBJECTIVE = 'Plan the follow-up report for the ledger'
 // The persisted Human review names both recipes' latest Passed executions of the corrected checkpoint (listed in the host's own order).
 const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
@@ -752,10 +753,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const historyRequests: string[] = []
   const receiptRequests: string[] = []
   const eventRequests: string[] = []
+  const messageRequests: string[] = []
   page.on('request', (request) => {
     const { pathname: path, search } = new URL(request.url())
     if (request.method() === 'GET' && HISTORY_PATH.test(path)) {
       historyRequests.push(path)
+    }
+
+    if (request.method() === 'GET' && COLLABORATION_HISTORY_PATH.test(path)) {
+      messageRequests.push(path.toLowerCase() + search)
     }
 
     if (request.method() === 'GET' && EVENT_HISTORY_PATH.test(path)) {
@@ -770,6 +776,7 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
   expect(historyRequests).toEqual([])
   expect(eventRequests).toEqual([])
+  expect(messageRequests).toEqual([])
 
   // Recorded events (ADR-0034). Every page is read through a rendered control, and what the host returned is compared exactly with
   // the durable rows (sequence text, identity, type, actor columns and instant) and with what the page renders. Only headers exist:
@@ -861,6 +868,154 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     return first
   }
 
+  // The collaboration region asks for 5 messages per page (the host default is 10) so the delivered run's 9 durable messages need a
+  // second page and explicit older paging runs through rendered controls without seeding rows.
+  const MESSAGE_PAGE = 5
+  // Recorded collaboration (ADR-0035), through rendered controls only. What the host returned is compared exactly with the durable
+  // messages (sequence text, identity, closed metadata, summary and every structured field) and with what the page renders. Content
+  // is never an attempt link, a reply target or raw JSON, and every durable message of this journey passes the existing content policy.
+  const messagesRegion = () => historyRegion.getByRole('region', { name: 'Selected run' }).getByRole('region', { name: 'Recorded collaboration' })
+  const messageRows = () => messagesRegion().locator('.dc-collaboration-history-items > li')
+  const expectCollapsedMessages = async () => {
+    await expect(messagesRegion().getByRole('button', { name: 'Show recorded collaboration' })).toHaveAttribute('aria-expanded', 'false')
+    await expect(messageRows()).toHaveCount(0)
+  }
+
+  const readMessagePage = async (runId: string, expectedBefore: string | null, action: () => Promise<void>) => {
+    const answered = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && COLLABORATION_HISTORY_PATH.test(new URL(response.url()).pathname),
+      { timeout: 30_000 },
+    )
+    const before = messageRequests.length
+    await action()
+    const response = await answered
+    expect(response.status()).toBe(200)
+    const url = new URL(response.url())
+    expect(url.pathname.toLowerCase()).toBe(`/api/runs/${lower(runId)}/collaboration-history`)
+    expect([...url.searchParams.keys()].sort()).toEqual(expectedBefore === null ? ['limit'] : ['beforeSequence', 'limit'])
+    expect(url.searchParams.get('limit')).toBe(String(MESSAGE_PAGE))
+    expect(url.searchParams.get('beforeSequence')).toBe(expectedBefore)
+    expect(messageRequests).toHaveLength(before + 1)
+    const text = await response.text()
+    for (const hidden of ['attemptId', 'inReplyTo', 'structuredContentJson', worktree, repository.path]) {
+      expect(text).not.toContain(hidden)
+    }
+
+    return JSON.parse(text)
+  }
+
+  const expectMessages = (runId: string, entries: Record<string, any>[], durable: CollaborationHistoryRow[]) => {
+    expect(entries).toHaveLength(durable.length)
+    entries.forEach((entry, index) => {
+      const row = durable[index]
+      expect(Object.keys(entry).sort()).toEqual([
+        'actor', 'contentStatus', 'fields', 'id', 'occurredAtUtc', 'protocolVersion', 'provenance', 'recipient', 'runId', 'sequence', 'summary', 'type',
+      ])
+      expect(entry.sequence).toBe(row.Sequence)
+      expect(sameId(entry.id, row.Id)).toBe(true)
+      expect(sameId(entry.runId, runId)).toBe(true)
+      expect(entry.type).toBe(row.Type)
+      expect(entry.protocolVersion).toBe(row.ProtocolVersion)
+      expect(entry.provenance).toBe(row.Provenance)
+      expect(entry.actor).toEqual({ kind: row.ActorKind, role: row.ActorAgentRole, provider: row.ActorAgentProvider })
+      expect(entry.recipient).toEqual({ kind: row.RecipientKind, role: row.RecipientAgentRole, provider: row.RecipientAgentProvider })
+      expect(instant(entry.occurredAtUtc)).toBe(instant(row.OccurredAtUtc))
+      expect(entry.contentStatus, `message ${row.Sequence} (${row.Type}) must be available`).toBe('Available')
+      expect(entry.summary).toBe(row.Summary)
+      expect(entry.fields).toEqual(Object.entries(JSON.parse(row.StructuredContentJson)).map(([name, value]) => ({ name, value })))
+    })
+  }
+
+  // The fixed labels of the closed protocol, restated here independently of the cockpit source: the rendered text must agree with them.
+  const TYPE_LABELS: Record<string, string> = {
+    Proposal: 'Proposal', Acceptance: 'Acceptance', Challenge: 'Challenge', Question: 'Question', Decision: 'Decision',
+    ExecutionReport: 'Execution report', ReviewFinding: 'Review finding', RevisionResponse: 'Revision response',
+    Escalation: 'Escalation', ReviewApproval: 'Review approval', HumanInstruction: 'Human instruction',
+  }
+  const FIELD_LABELS: Record<string, [string, string][]> = {
+    Proposal: [['scope', 'Scope'], ['implementationSteps', 'Implementation steps'], ['risks', 'Risks'], ['verificationPlan', 'Verification plan'], ['escalationPoints', 'Escalation points']],
+    Acceptance: [['rationale', 'Rationale']],
+    Challenge: [['disputedItem', 'Disputed item'], ['materialImpact', 'Material impact'], ['reasoning', 'Reasoning'], ['alternativeOrQuestion', 'Alternative or question']],
+    Question: [['question', 'Question'], ['why', 'Why it matters']],
+    Decision: [['resolution', 'Resolution'], ['rationale', 'Rationale'], ['resultingPlanChanges', 'Resulting plan changes'], ['nextAction', 'Next action']],
+    ExecutionReport: [['completedWork', 'Completed work'], ['verification', 'Verification']],
+    ReviewFinding: [['severity', 'Severity'], ['category', 'Category'], ['evidence', 'Evidence'], ['requiredChange', 'Required change']],
+    RevisionResponse: [['disposition', 'Disposition'], ['evidence', 'Evidence'], ['resultingSourceChanges', 'Resulting source changes']],
+    Escalation: [['unresolvedDecision', 'Unresolved decision'], ['options', 'Options'], ['consequences', 'Consequences'], ['evidence', 'Evidence'], ['recommendedChoice', 'Recommended choice']],
+    ReviewApproval: [['rationale', 'Rationale'], ['residualRisks', 'Residual risks']],
+    HumanInstruction: [['instruction', 'Instruction'], ['rationale', 'Rationale']],
+  }
+  const PROVENANCE_LABELS: Record<string, string> = {
+    Simulated: 'Simulated', ProviderObserved: 'Provider-observed', HostConstructed: 'Host-constructed', HumanSubmitted: 'Human-submitted',
+  }
+  const ROLE_LABELS: Record<string, string> = {
+    Planner: 'Planner', CriticalReviewer: 'Critical reviewer', Resolver: 'Resolver', Implementer: 'Implementer', CodeReviewer: 'Code reviewer',
+  }
+  const participantText = (participant: { kind: string; role: string | null; provider: string | null }) =>
+    participant.kind === 'Agent'
+      ? `Agent · ${participant.role === null ? 'role not recorded' : `${ROLE_LABELS[participant.role]} role`} · ${participant.provider === 'ClaudeCode' ? 'Claude Code' : participant.provider}`
+      : participant.kind
+
+  // Every rendered message is compared with the host's own page: sequence, type, version, provenance, sender and recipient wording, the
+  // summary and EVERY fixed field label with its exact value, in the closed schema's order and with no field or text beyond it.
+  const expectMessagesRendered = async (entries: Record<string, any>[], rendered: number) => {
+    await expect(messageRows()).toHaveCount(rendered)
+    for (const [index, entry] of entries.entries()) {
+      const row = messageRows().nth(index)
+      await expect(row.locator('.dc-collaboration-history-sequence')).toHaveText(`Sequence ${entry.sequence}`)
+      await expect(row.locator('.dc-collaboration-history-type')).toHaveText(TYPE_LABELS[entry.type])
+      await expect(row.locator('p').first()).toContainText(`Protocol ${entry.protocolVersion}`)
+      await expect(row.locator('p').first()).toContainText(PROVENANCE_LABELS[entry.provenance])
+      await expect(row.locator('p').nth(1)).toHaveText(`From ${participantText(entry.actor)} to ${participantText(entry.recipient)}`)
+      await expect(row.locator('.dc-collaboration-history-summary')).toHaveText(`Summary: ${entry.summary}`)
+      const schema = FIELD_LABELS[entry.type]
+      const byName = new Map<string, string>(entry.fields.map((field: { name: string; value: string }) => [field.name, field.value]))
+      expect(byName.size, `message ${entry.sequence} carries exactly its schema`).toBe(schema.length)
+      const pairs = row.locator('dl > div')
+      await expect(pairs).toHaveCount(schema.length)
+      for (const [position, [name, label]] of schema.entries()) {
+        await expect(pairs.nth(position).locator('dt')).toHaveText(label)
+        await expect(pairs.nth(position).locator('dd')).toHaveText(byName.get(name) as string)
+      }
+
+      await expect(row.locator('.dc-collaboration-history-id')).toHaveText(`Message ${entry.id}`)
+      await expect(row).not.toContainText('Content unavailable')
+    }
+  }
+
+  // Opens the recorded collaboration of the selected run, pages explicitly until the last page, and proves that the pages, in order and
+  // without repetition, are exactly the durable messages of that run. Returns the first (newest) page exactly as the host answered it.
+  const browseRecordedMessages = async (runId: string, durable: CollaborationHistoryRow[], expectPages: number) => {
+    await expectCollapsedMessages()
+    const first = await readMessagePage(runId, null, () => messagesRegion().getByRole('button', { name: 'Show recorded collaboration' }).click())
+    expect(Object.keys(first).sort()).toEqual(['entries', 'hasMore', 'nextBeforeSequence', 'runId'])
+    expect(sameId(first.runId, runId)).toBe(true)
+    let collected: Record<string, any>[] = first.entries
+    let body = first
+    let pages = 1
+    expectMessages(runId, first.entries, durable.slice(0, MESSAGE_PAGE))
+    await expectMessagesRendered(collected, collected.length)
+    await expect(messagesRegion()).toContainText('not proof that any provider succeeded')
+    while (body.hasMore) {
+      expect(body.entries).toHaveLength(MESSAGE_PAGE)
+      expect(body.nextBeforeSequence).toBe(body.entries[MESSAGE_PAGE - 1].sequence)
+      const cursor: string = body.nextBeforeSequence
+      body = await readMessagePage(runId, cursor, () => messagesRegion().getByRole('button', { name: 'Load older messages' }).click())
+      expectMessages(runId, body.entries, durable.slice(collected.length, collected.length + MESSAGE_PAGE))
+      collected = [...collected, ...body.entries]
+      pages += 1
+      await expectMessagesRendered(collected, collected.length)
+    }
+
+    expect(body.nextBeforeSequence).toBeNull()
+    expect(pages).toBe(expectPages)
+    expectMessages(runId, collected, durable)
+    expect(new Set(collected.map((entry) => lower(entry.id))).size).toBe(durable.length)
+    await expect(messagesRegion().getByRole('button', { name: 'Load older messages' })).toHaveCount(0)
+    await expect(messagesRegion().getByRole('alert')).toHaveCount(0)
+    return first
+  }
+
   // Opens the history (one page request), checks that page on the wire and in the rendered rows, selects the older delivered run and
   // returns its page and the receipt the host answered for exactly that run.
   const openHistoryAndInspectDelivery = async () => {
@@ -870,6 +1025,7 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     )
     const historyBefore = historyRequests.length
     const eventsBefore = eventRequests.length
+    const messagesBefore = messageRequests.length
     await historyRegion.getByRole('button', { name: 'Show run history' }).click()
     const answered = await historyResponse
     expect(answered.status()).toBe(200)
@@ -926,11 +1082,13 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     await expect(detail).toContainText(lower(firstRunId))
     await expect(detail).toContainText(`commit ${deliveredCommit}, operation ${lower(operation!.Id)}, checkpoint #3 (${lower(cps[2].Id)})`)
     await assertReceiptRegion(detail.getByRole('region', { name: 'Local delivery receipt' }))
-    // The selected historical run offers only its own close control and the collapsed recorded-events toggle, which has read nothing:
+    // The selected historical run offers only its own close control and the two collapsed toggles (recorded events and recorded collaboration), which have read nothing:
     // no mutation, configuration or live-progress control.
-    expect(await detail.getByRole('button').allTextContents()).toEqual(['Show recorded events', 'Close selected run'])
+    expect(await detail.getByRole('button').allTextContents()).toEqual(['Show recorded events', 'Show recorded collaboration', 'Close selected run'])
     await expectCollapsedEvents()
     expect(eventRequests).toHaveLength(eventsBefore)
+    await expectCollapsedMessages()
+    expect(messageRequests).toHaveLength(messagesBefore)
     await expect(historyRegion.getByRole('textbox')).toHaveCount(0)
     await expect(
       historyRegion.getByRole('button', { name: /Commit locally|Request|Approve|Abandon|Record manual|Prepare workspace|Capture checkpoint|Refresh evidence/ }),
@@ -967,6 +1125,33 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(reopenedEvents).toEqual(olderFirstPage)
   await expectRendered(reopenedEvents.entries, PAGE)
 
+  // Recorded collaboration of the same older run: the actual durable messages of the whole journey (more than one page), read page by
+  // page through rendered controls, then reloaded and closed and reopened. Opening it never changes the recorded events region.
+  const durableMessages = data.collaborationRowsOf(firstRunId)
+  expect(durableMessages.length, 'the delivered run must record more than one page of messages').toBeGreaterThan(MESSAGE_PAGE)
+  expect(new Set(durableMessages.map((row) => row.Type)).size, 'the journey records several message types').toBeGreaterThan(3)
+  const eventReadsBeforeMessages = eventRequests.length
+  const olderMessagesFirstPage = await browseRecordedMessages(firstRunId, durableMessages, Math.ceil(durableMessages.length / MESSAGE_PAGE))
+  expect(olderMessagesFirstPage.hasMore).toBe(true)
+  expect(olderMessagesFirstPage.nextBeforeSequence).toBe(durableMessages[MESSAGE_PAGE - 1].Sequence)
+  expect(eventRequests).toHaveLength(eventReadsBeforeMessages)
+  await expect(eventRows()).toHaveCount(PAGE)
+
+  const reloadedMessages = await readMessagePage(firstRunId, null, () =>
+    messagesRegion().getByRole('button', { name: 'Reload newest messages' }).click(),
+  )
+  expect(reloadedMessages).toEqual(olderMessagesFirstPage)
+  await expectMessagesRendered(reloadedMessages.entries, MESSAGE_PAGE)
+  await expect(messagesRegion().getByRole('button', { name: 'Load older messages' })).toHaveCount(1)
+
+  await messagesRegion().getByRole('button', { name: 'Hide recorded collaboration' }).click()
+  await expectCollapsedMessages()
+  const reopenedMessages = await readMessagePage(firstRunId, null, () =>
+    messagesRegion().getByRole('button', { name: 'Show recorded collaboration' }).click(),
+  )
+  expect(reopenedMessages).toEqual(olderMessagesFirstPage)
+  await expectMessagesRendered(reopenedMessages.entries, MESSAGE_PAGE)
+
   // The newer run has no completed delivery source: that is disclosed, no receipt is requested for it, and nothing is inferred.
   const receiptsBeforeNewer = receiptRequests.length
   await historyRegion.getByRole('button', { name: 'Inspect run #2' }).click()
@@ -985,11 +1170,20 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const newerFirstPage = await browseRecordedEvents(followUpRun.Id, durableNewer, 1)
   expect(newerFirstPage.hasMore).toBe(false)
   expect(newerFirstPage.nextBeforeSequence).toBeNull()
+  // The newer run recorded no collaboration message: its page is explicitly empty (one request), never the older run's messages.
+  expect(data.collaborationRowsOf(followUpRun.Id)).toEqual([])
+  const newerMessagesFirstPage = await browseRecordedMessages(followUpRun.Id, [], 1)
+  expect(newerMessagesFirstPage.entries).toEqual([])
+  expect(newerMessagesFirstPage.hasMore).toBe(false)
+  await expect(messagesRegion()).toContainText('No collaboration messages have been recorded for this run.')
   const eventReadsBeforeReturn = eventRequests.length
+  const messageReadsBeforeReturn = messageRequests.length
   await historyRegion.getByRole('button', { name: 'Inspect run #1' }).click()
   await expect(historyRegion.getByRole('region', { name: 'Selected run' })).toContainText(OBJECTIVE)
   await expectCollapsedEvents()
+  await expectCollapsedMessages()
   expect(eventRequests).toHaveLength(eventReadsBeforeReturn)
+  expect(messageRequests).toHaveLength(messageReadsBeforeReturn)
 
   // Closing discards every row and the selection; reopening reads a fresh first page and the same delivery again.
   await historyRegion.getByRole('button', { name: 'Hide run history' }).click()
@@ -1002,14 +1196,23 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   // After a real reload the history is collapsed again and requests nothing until it is opened, then shows the same delivery again.
   const requestsBeforeReload = historyRequests.length
   const eventRequestsBeforeReload = eventRequests.length
+  const messageRequestsBeforeReload = messageRequests.length
   await reloadAndReselect(page)
   await expect(page.getByRole('heading', { name: FOLLOW_UP_OBJECTIVE })).toBeVisible({ timeout: 30_000 })
   await expect(historyRegion.getByRole('button', { name: 'Show run history' })).toHaveAttribute('aria-expanded', 'false')
   expect(historyRequests).toHaveLength(requestsBeforeReload)
   expect(eventRequests).toHaveLength(eventRequestsBeforeReload)
+  expect(messageRequests).toHaveLength(messageRequestsBeforeReload)
   const afterReload = await openHistoryAndInspectDelivery()
   expect(afterReload.body).toEqual(firstReading.body)
   expect(afterReload.receipt).toEqual(wire)
+
+  // After the real browser reload the recorded collaboration is collapsed and read nothing; opening it again reads the same durable
+  // messages page by page, rendered with the same labels and exact values as before the reload.
+  await expectCollapsedMessages()
+  expect(messageRequests).toHaveLength(messageRequestsBeforeReload)
+  const afterReloadMessages = await browseRecordedMessages(firstRunId, durableMessages, Math.ceil(durableMessages.length / MESSAGE_PAGE))
+  expect(afterReloadMessages).toEqual(olderMessagesFirstPage)
 
   // The history reads created nothing: no row of any workflow kind, no provider invocation, no new commit, an untouched source.
   expect(data.projectTotals()).toEqual(afterFollowUp)

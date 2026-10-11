@@ -69,6 +69,10 @@ supersedes it.
 - [ADR-0034: Browse the recorded event headers of a historical run](0034-browse-recorded-event-headers-of-a-historical-run.md)
   (additive; one protected read-only, cursor-paged list of a run's persisted event headers with exact string sequences and closed
   disclosures, no payload and no replay claim; it adds no persistence and changes no admission, recovery, approval or digest decision)
+- [ADR-0035: Browse the recorded collaboration messages of a historical run](0035-browse-recorded-collaboration-messages-of-a-historical-run.md)
+  (additive; one protected read-only, cursor-paged list of a run's persisted collaboration messages with exact string sequences, closed
+  disclosures and content admitted only through the existing content policy, unavailable rows keeping their header; it adds no
+  persistence and changes no admission, recovery, approval or digest decision)
 
 ## Status values
 

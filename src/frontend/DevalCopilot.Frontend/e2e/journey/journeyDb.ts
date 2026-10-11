@@ -112,6 +112,23 @@ export interface EventHeaderRow {
   OccurredAtUtc: string
 }
 
+export interface CollaborationHistoryRow {
+  Sequence: string
+  Id: string
+  Type: string
+  ProtocolVersion: string
+  Provenance: string
+  ActorKind: string
+  ActorAgentRole: string | null
+  ActorAgentProvider: string | null
+  RecipientKind: string
+  RecipientAgentRole: string | null
+  RecipientAgentProvider: string | null
+  Summary: string
+  StructuredContentJson: string
+  OccurredAtUtc: string
+}
+
 export interface ProjectTotals {
   runs: number
   attempts: number
@@ -351,6 +368,17 @@ export class JourneyData {
   eventHeadersOf(runId: string): EventHeaderRow[] {
     return this.all<EventHeaderRow>(
       'select cast(e.Sequence as text) as Sequence, e.Id, e.EventType, e.ActorKind, e.ActorAgentRole, e.ActorAgentProvider, e.OccurredAtUtc from events e where e.RunId = ? order by e.Sequence desc',
+      runId,
+    )
+  }
+
+  /**
+   * The recorded collaboration messages of one run exactly as stored, newest sequence first: the sequence as exact text, the closed
+   * metadata columns and the bounded content. No attempt or reply link is read, mirroring what the collaboration-history page may disclose.
+   */
+  collaborationRowsOf(runId: string): CollaborationHistoryRow[] {
+    return this.all<CollaborationHistoryRow>(
+      'select cast(m.Sequence as text) as Sequence, m.Id, m.Type, m.ProtocolVersion, m.Provenance, m.ActorKind, m.ActorAgentRole, m.ActorAgentProvider, m.RecipientKind, m.RecipientAgentRole, m.RecipientAgentProvider, m.Summary, m.StructuredContentJson, m.OccurredAtUtc from collaboration_messages m where m.RunId = ? order by m.Sequence desc',
       runId,
     )
   }

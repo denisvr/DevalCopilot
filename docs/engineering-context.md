@@ -106,6 +106,10 @@
   run (additive; one protected read-only, cursor-paged list of a run's persisted event headers with exact string sequences and closed
   disclosures, with no payload, no persistence change, no replay claim and no change to any admission, recovery, approval or digest
   decision).
+- [ADR-0035](decisions/0035-browse-recorded-collaboration-messages-of-a-historical-run.md): Browse the recorded collaboration messages of a
+  historical run (additive; one protected read-only, cursor-paged list of a run's persisted collaboration messages with exact string
+  sequences, closed disclosures and content admitted only through the existing content policy, with no persistence change and no change to
+  any admission, recovery, approval or digest decision).
 
 ## Product-specific architecture
 
@@ -175,6 +179,22 @@
   committed run and open lifetimes (older pages, a same-cursor retry and a reload are explicit; a page is accepted only whole, with
   exact-integer sequence ordering) and that states it shows recorded headers only, not live status, a current approval or a complete
   replay. This is a first journal browser: full replay and envelope completion remain open.
+- [ADR-0035](decisions/0035-browse-recorded-collaboration-messages-of-a-historical-run.md) lets an owner browse the recorded conversation of an
+  older run. The protected, bodyless `GET /api/runs/{runId}/collaboration-history` returns a page of that run's persisted collaboration messages
+  in descending `Sequence` (an exclusive `beforeSequence` cursor that is a canonical positive decimal string up to 9223372036854775807;
+  `limit` 10 by default and 1 to 20; neither is clamped, both are refused with the shared Problem Details contract that never repeats the
+  rejected value; a 404 for an unknown run; one fixed 409 `collaboration_history.unavailable` for a selected row without an identity or a
+  positive sequence, never a partial page; one extra row for `HasMore` over the existing `(RunId, Sequence)` index, no offset, count or
+  draining). An entry carries the identities, the exact sequence string, the UTC time, the version (only `1.0`), type and provenance (else
+  the fixed `Unrecognized`), the sender and recipient classified by the database without materializing a stored enum, a content status, a
+  nullable summary and validated name/value fields. The summary and content JSON are selected under database byte guards (three bytes per admitted character of 600 and
+  5000) and rechecked before parsing; content is `Available` only for recognized, coherent metadata, a safe summary and a content that
+  passes the existing Domain `CollaborationMessageContentPolicy.Validate`, otherwise the row keeps its header as `Unavailable` with no
+  text and its neighbors are unaffected (an unexpected fault is never masked). It returns no attempt, reply target, raw JSON or artifact
+  and states recorded content only, never a current approval or provider success. The historical run detail adds a collapsed "Recorded
+  collaboration" region (five messages per page so the journey's nine-message run needs explicit older paging) with the same owned
+  lifetimes, whole-page validation, explicit older, retry and reload actions as the event headers. The live timeline route and hook are
+  untouched; full linked replay (attempt and reply resolution) remains open.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.
