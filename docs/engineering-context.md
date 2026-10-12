@@ -114,6 +114,10 @@
   historical collaboration message (additive; one protected read-only inspection of one message's own stored reply parent with a closed
   None, Unavailable or Available relationship and the unchanged ADR-0035 entry disclosure, with no persistence change, no chain traversal and
   no change to any admission, recovery, approval or digest decision).
+- [ADR-0037](decisions/0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md): Inspect the recorded
+  Agent-attempt attribution of a historical collaboration message (additive; one protected read-only inspection of the one Agent attempt a
+  message itself references, as a minimal recorded header under the unchanged identity and assignment-snapshot rules, with no persistence change and
+  no change to any admission, claim, dispatch, recovery, approval or digest decision).
 
 ## Product-specific architecture
 
@@ -214,6 +218,25 @@
   source selection, validates the whole answer against the observed source (closed status and target shape, `None` only for a Proposal,
   exact Int64 earlier order, a parent type the restated reply table allows) and reads nothing on render, recursively or by polling. Chain
   traversal, attempt and evidence linkage and complete replay remain open.
+- [ADR-0037](decisions/0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md) lets an owner see which Agent
+  attempt produced a historical provider-observed message. The protected, bodyless
+  `GET /api/runs/{runId}/collaboration-history/{messageId}/attempt` reads the source's own stored metadata and `AttemptId` (never its summary or
+  content JSON) and resolves at most that one attempt within the same run through bounded, untracked scalar projections, never a latest or
+  same-role attempt. Its answer is the exact source sequence string, a closed status (`NoAgentAttempt`: a known version-1.0 message with a recognized
+  provenance other than provider-observed, which is not absence of every attempt; `Unavailable`: every other unusable shape, with no target;
+  `Available`) and, only for `Available`, a minimal header (attempt identity and number, role, provider, response contract, recorded status and
+  claimed, dispatched and completed UTC times). `Available` requires the message's recognized Agent actor to match the attempt's role and provider, a
+  positive number and `AgentAttemptIdentity.IsCoherent`, unchanged. Two narrow extractions share the existing rules with the scalar reader:
+  `AgentAssignmentSnapshotPolicy` (the assignment read-validation `Attempt.GetAssignmentSnapshot` held inline, now delegated to) and a scalar
+  `AgentAttemptIdentity.IsCoherent` overload, with equivalence proved against the original rules. Enums are classified in SQL, every
+  assignment-validation string is selected only under a `length(CAST(... AS BLOB))` guard (three bytes per admitted character) with a flag that
+  distinguishes rejected oversized storage from a legitimate null, and the max-turn storage keeps its exact INTEGER/TEXT/REAL/BLOB form under a small
+  guard. An unknown run and a missing or foreign source are one fixed 404 (`collaboration_attempt.not_found`), an unusable stored source identity or
+  sequence is one fixed 409 (`collaboration_attempt.unavailable`) and a database fault is never masked as a status. The cockpit adds one explicit
+  "Inspect recorded attempt" action per message into one inspector (close and a same-source retry) owned by the committed run's open history lifetime
+  and each source selection (its close bound to its own inspector and serial-guarded), independent of the reply inspector, validating the whole answer
+  against the observed source; it describes recorded attribution only, never current execution, an outcome, an approval or sealed evidence. Message
+  evidence, attempt history, repair lineage and complete replay remain open.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

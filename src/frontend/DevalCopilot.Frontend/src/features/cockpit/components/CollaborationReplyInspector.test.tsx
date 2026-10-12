@@ -274,7 +274,14 @@ describe('the recorded reply inspector', () => {
     fireEvent.click(within(rowOf(30)).getByRole('button', { name: 'Inspect recorded reply' }))
     const buttons = within(region()).getAllByRole('button').map((button) => button.textContent)
     expect([...new Set(buttons)].sort()).toEqual(
-      ['Close recorded reply', 'Hide recorded collaboration', 'Inspect recorded reply', 'Load older messages', 'Reload newest messages'].sort(),
+      [
+        'Close recorded reply',
+        'Hide recorded collaboration',
+        'Inspect recorded attempt',
+        'Inspect recorded reply',
+        'Load older messages',
+        'Reload newest messages',
+      ].sort(),
     )
     expect(region().querySelector('a')).toBeNull()
 

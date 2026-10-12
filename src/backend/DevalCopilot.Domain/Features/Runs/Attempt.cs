@@ -781,8 +781,7 @@ public sealed class Attempt
         }
     }
 
-    private static bool IsValidAssignmentIdentifier(string? value) =>
-        value is null || (!string.IsNullOrWhiteSpace(value) && value.Length <= 128);
+    private static bool IsValidAssignmentIdentifier(string? value) => AgentAssignmentSnapshotPolicy.IsValidIdentifier(value);
 
     /// <summary>Shared cross-field guard for the three current Codex claim factories that accept
     /// an owner-requested model/effort pair: a requested effort is never accepted without a
@@ -1250,38 +1249,16 @@ public sealed class Attempt
 
     /// <summary>Returns the assignment facts without introducing a second persisted aggregate.
     /// Non-Agent attempts have no assignment snapshot.</summary>
-    public AgentAssignmentSnapshot? GetAssignmentSnapshot()
-    {
-        if (Kind != AttemptKind.Agent
-            || AgentProvider is not { } provider
-            || !Enum.IsDefined(provider)
-            || !IsValidAssignmentIdentifier(AgentRequestedModel)
-            || !IsValidAssignmentIdentifier(AgentObservedModel)
-            || !IsValidAssignmentIdentifier(AgentRequestedEffort)
-            || !IsValidAssignmentIdentifier(AgentObservedEffort)
-            || ReadAgentRequestedMaxTurns().IsMalformed
-            || (AgentAdapterContractVersion is { } contractVersion
-                && (string.IsNullOrWhiteSpace(contractVersion) || contractVersion.Length > 128)))
-        {
-            return null;
-        }
-
-        var permissionProfile = AgentPermissionProfile ?? Runs.AgentPermissionProfile.Unknown;
-        if (!Enum.IsDefined(permissionProfile))
-        {
-            return null;
-        }
-
-        return new AgentAssignmentSnapshot(
-            provider,
-            AgentRequestedModel,
-            AgentObservedModel,
-            AgentRequestedEffort,
-            AgentObservedEffort,
-            permissionProfile,
-            AgentAdapterContractVersion,
-            ReadAgentRequestedMaxTurns().Value);
-    }
+    public AgentAssignmentSnapshot? GetAssignmentSnapshot() => AgentAssignmentSnapshotPolicy.Read(
+        Kind,
+        AgentProvider,
+        AgentRequestedModel,
+        AgentObservedModel,
+        AgentRequestedEffort,
+        AgentObservedEffort,
+        AgentPermissionProfile,
+        AgentAdapterContractVersion,
+        ReadAgentRequestedMaxTurns());
 
     /// <summary>Records provider-reported assignment facts exactly once. A provider that does
     /// not authoritatively report model or effort leaves both values null and records nothing.</summary>

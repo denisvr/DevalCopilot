@@ -332,6 +332,10 @@ it is likewise not increment completion.
 one recorded message's own stored reply parent (a closed None, Unavailable or Available relationship, the parent under the unchanged ADR-0035
 disclosure, no chain traversal, attempt or evidence linkage and no current-state claim); full linked replay remains open and it is likewise
 not increment completion.
+[ADR-0037](../decisions/0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md) adds an explicit, read-only
+inspection of the one Agent attempt a recorded message itself references (a minimal recorded header under the unchanged attempt identity and
+assignment-snapshot rules, bounded scalar projections, a closed NoAgentAttempt, Unavailable or Available status, and no outcome, evidence, artifact
+or current-state claim); full linked replay remains open and it is likewise not increment completion.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

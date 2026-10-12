@@ -1303,3 +1303,27 @@
   margin: 0.2rem 0 0;
   white-space: pre-wrap;
 }
+
+.dc-collaboration-attempt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0 0.4rem 0.6rem;
+  border-left: 2px dotted var(--dc-border, currentColor);
+}
+
+.dc-collaboration-attempt p {
+  margin: 0;
+}
+
+.dc-collaboration-attempt-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.dc-collaboration-attempt-header dl {
+  margin: 0.2rem 0 0;
+}

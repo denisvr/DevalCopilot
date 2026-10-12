@@ -154,7 +154,7 @@ describe('CollaborationHistoryPanel', () => {
     ])
   })
 
-  it('offers only the one explicit reply inspection per message, no evidence or mutation control, and plain text rows', async () => {
+  it('offers only the explicit reply and attempt inspections per message, no evidence or mutation control, and plain text rows', async () => {
     install(() => Promise.resolve(collaborationPageOf(descendingSequences(30, 26), { hasMore: true })))
     render(<CollaborationHistoryPanel runId="run-1" />)
     open()
@@ -163,12 +163,12 @@ describe('CollaborationHistoryPanel', () => {
     expect(within(region()).getAllByRole('button').map((button) => button.textContent)).toEqual([
       'Hide recorded collaboration',
       'Reload newest messages',
-      ...Array<string>(5).fill('Inspect recorded reply'),
+      ...Array.from({ length: 5 }, () => ['Inspect recorded reply', 'Inspect recorded attempt']).flat(),
       'Load older messages',
     ])
     expect(within(region()).queryAllByRole('textbox')).toHaveLength(0)
     expect(within(region()).queryAllByRole('link')).toHaveLength(0)
-    expect(within(items()[0]).getAllByRole('button').map((button) => button.textContent)).toEqual(['Inspect recorded reply'])
+    expect(within(items()[0]).getAllByRole('button').map((button) => button.textContent)).toEqual(['Inspect recorded reply', 'Inspect recorded attempt'])
   })
 
   it('renders hostile identities, summaries and field values strictly as text', async () => {

@@ -137,6 +137,24 @@ export interface CollaborationReplyLinkRow {
   InReplyToMessageId: string | null
 }
 
+/** One message with the attempt row its own stored AttemptId references (null columns when it references none), for ADR-0037. */
+export interface CollaborationAttemptLinkRow {
+  MessageId: string
+  Provenance: string
+  AttemptId: string | null
+  AttemptRowId: string | null
+  AttemptRunId: string | null
+  AttemptNumber: number | null
+  Kind: string | null
+  Status: string | null
+  AgentRole: string | null
+  AgentProvider: string | null
+  AgentResponseContract: string | null
+  ClaimedAtUtc: string | null
+  AgentDispatchedAtUtc: string | null
+  CompletedAtUtc: string | null
+}
+
 export interface ProjectTotals {
   runs: number
   attempts: number
@@ -398,6 +416,17 @@ export class JourneyData {
   collaborationReplyLinksOf(runId: string): CollaborationReplyLinkRow[] {
     return this.all<CollaborationReplyLinkRow>(
       "select m.Id, cast(m.Sequence as text) as Sequence, m.Type, m.InReplyToMessageId from collaboration_messages m where m.RunId = ? order by m.Sequence desc",
+      runId,
+    )
+  }
+
+  /**
+   * Every message of one run with the attempt row its own stored AttemptId references, newest sequence first, exactly as stored. The
+   * journey never seeds or edits it: it is the attribution the recorded-attempt inspection must resolve (ADR-0037).
+   */
+  collaborationAttemptLinksOf(runId: string): CollaborationAttemptLinkRow[] {
+    return this.all<CollaborationAttemptLinkRow>(
+      'select m.Id as MessageId, m.Provenance, m.AttemptId, a.Id as AttemptRowId, a.RunId as AttemptRunId, a.AttemptNumber, a.Kind, a.Status, a.AgentRole, a.AgentProvider, a.AgentResponseContract, a.ClaimedAtUtc, a.AgentDispatchedAtUtc, a.CompletedAtUtc from collaboration_messages m left join attempts a on a.Id = m.AttemptId where m.RunId = ? order by m.Sequence desc',
       runId,
     )
   }

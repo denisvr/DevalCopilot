@@ -5,7 +5,162 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current selection (2026-10-12): inspect one recorded historical reply parent
+## Current selection (2026-10-12): inspect a historical message's own Agent attempt attribution
+
+### Review decision (2026-10-12): GO for the combined diff
+
+Codex verified main HEAD/local/live origin/main at
+3f79af59c7aa77d5a62671d3dd2331fdaba75535, 0/0, empty index; the combined
+diff has 44 files (18 modified, 26 new). The executor preserved the starting
+planner hash 9d358c5e3d9f34793783bd1e0a01e3dcc5784e81dea85379039630b2db0dc56e.
+
+Code review confirms exact own-attempt/run scoping, SQL enum classification,
+bounded assignment reads with oversized-versus-null flags, max-turn storage
+class preservation and unchanged assignment/identity rules. Independent checks
+passed: Domain 8, Application 94, Api 11, Architecture 6 and frontend 166.
+The journey checks actual durable attribution and exact rendered facts before
+and after browser reload, while retaining reply/receipt/paging and no-write,
+no-provider/no-commit assertions. The executor's full validation remains its
+recorded evidence, not independently rerun full-suite evidence.
+
+Accept the 384-byte assignment and 64-byte max-turn caps, with exact admission
+after bounded reading; malformed GUID storage remains a fault. NoAgentAttempt
+and Unavailable need not be manufactured in the provider-only journey: focused
+host/API/UI tests cover them. Missing original frontend red-first evidence and
+the mutation-set corrections are honestly disclosed. Initial byte-guard survival
+and compile-error mutants remain recorded; only the corrected runs count as kills.
+Codex clarified only documentation and a comment: the source reference is read,
+but NoAgentAttempt resolves no attempt row. No behavior changed. Existing audit
+advisory, console warnings and Blocked/TargetsNotReal remain; both allowances
+are unused. Ledger, historical failures and retained roots remain untouched.
+
+Authorize one commit of this exact reviewed combined diff, including Codex's
+review edits, then a normal fast-forward push to origin/main, live remote
+verification and one SHA report in the same executor chat. No additional checks
+or separate closure diff/review are required. Stop on changed identities,
+divergence or failed push; no force-push. No provider work, allowance use,
+ledger reset or root cleanup is authorized. No subsequent slice is selected;
+Codex selects it after independently verifying publication.
+
+### Publication verified and selected outcome
+
+Codex independently verified publication 3f79af59c7aa77d5a62671d3dd2331fdaba75535,
+parent e8ae2da199ea21756a29f054677191ff1bd9bf48, message
+`feat: inspect recorded historical reply parents` and its Co-Authored-By trailer.
+All 42 manifest entries match working-tree hashes/sizes and committed paths,
+statuses, blobs and modes; manifest SHA-256 is
+f52a260d25cfde27eade89b97db56f252ae5c53a357a9b89f7a2e54f30036c4d.
+Main HEAD/local/live origin/main agree, 0/0, clean index and working tree before
+this selection edit. No validation was rerun for publication; no closure is needed.
+
+Select a new Claude executor chat for explicit inspection of a historical
+message's own Agent attempt attribution with minimal recorded metadata.
+ADR-0003/0004/0009 and Increments 5/7 require attributable linked replay.
+History now shows safe messages and reply parents, but cannot identify the
+attempt that produced a historical provider-observed message. Existing
+GetCollaborationMessageEvidence reads full message/attempt entities and more
+evidence than this view needs; AgentAttemptRead likewise materializes a full
+attempt. Neither is a bounded projection for this new historical surface.
+Use the stored AttemptId, not a latest-role/provider/number search.
+
+This closes one attribution access gap, not complete replay or any increment.
+Real qualification remains Blocked/TargetsNotReal, both allowances unused.
+Provider compatibility/reliability, remaining Increment 4 contracts, Increment
+5 coordination/concurrency/recovery, Increment 6 remote/CI reconciliation and
+Increment 7 packaged self-hosting remain release gates. Export, analytics and
+redesign are optional. Preserve ledger, failures and retained roots.
+
+### Selected contract
+
+- Protected bodyless GET /api/runs/{runId}/collaboration-history/{messageId}/attempt,
+  one new mediator query and MVC endpoint, API-owned transport. Fixed shared
+  404 collaboration_attempt.not_found for unknown run or missing/foreign source;
+  fixed 409 collaboration_attempt.unavailable for unusable source ID/sequence.
+  Other database/materialization faults propagate; no rejected-value echo.
+- Return run/source IDs, exact source sequence text, closed status
+  NoAgentAttempt/Unavailable/Available and a nullable attempt header. Read only
+  the exact source's metadata and reference, never summary/content JSON. Known
+  version-1.0/type and recognized Simulated/HostConstructed/HumanSubmitted
+  provenance mean NoAgentAttempt under this attribution contract, not absence
+  of every attempt (a simulated message can have a simulated attempt).
+  Unknown version/type/provenance is Unavailable, with no target disclosed.
+- ProviderObserved requires a recognized Agent actor with non-null known role
+  and provider and its own nonempty AttemptId. Resolve at most that single row
+  in this run. Missing/foreign/non-Agent/invalid identity or a role/provider
+  mismatch is Unavailable with no attempt ID or metadata. Never substitute,
+  traverse repairs or inputs, drain history, or resolve a reply parent here.
+- Available requires the existing AgentAttemptIdentity.IsCoherent semantics
+  unchanged, plus exact source-actor matching and a positive attempt number.
+  Preserve supported role/provider pairs, contract-to-role validation and the
+  complete assignment-snapshot validation, including malformed max-turn storage.
+  Do not invent a weaker identity check just for this surface.
+- The header contains only attempt ID/number, role, provider, response contract,
+  recorded status, claimed UTC and nullable dispatched/completed UTC times.
+  No outcome, model/effort/profile text, session IDs, checkpoints, raw JSON,
+  prompts, arguments, paths, artifacts, token/account data or input references.
+  Describe recorded attribution, not current execution, approval, full sealed
+  evidence, provider capability or provider reliability.
+- Query untracked scalar projections only. Classify stored enums in SQL and
+  never materialize unknown strings into enums. Read assignment-validation
+  strings only within fixed byte caps before materialization, retaining a flag
+  that distinguishes rejected oversized storage from legitimate null. Preserve
+  the exact max-turn storage reader, including INTEGER versus TEXT/REAL/BLOB;
+  never coerce malformed storage into a valid or absent request. Validate all
+  exact existing character/semantic limits before admitting the header. No full
+  entity or unrelated attempt text/JSON is selected; no external call or write.
+
+### Scope, ownership and evidence
+
+Allow one narrow read-policy extraction: Domain's existing assignment-snapshot
+validation may be extracted without semantic change so Attempt.GetAssignmentSnapshot
+and this projection use one policy; AgentAttemptIdentity may gain a scalar
+overload used by its existing Attempt overload. Prove equivalence, retaining
+all existing callers' behavior. Put new shared read-policy types in explicit
+policy folders, not a generic framework. No Domain write/claim/dispatch policy
+change, persistence/mapping/migration/dependency change or broad refactor.
+If EF cannot preserve the exact storage semantics within the bounded projection,
+stop with evidence rather than add raw SQL to Application or weaken admission.
+
+Add explicit Inspect recorded attempt to each history message, with one
+inspector, current close and same-source retry. Use history-open and selection
+owned lifetimes, including serial-guarded updates for same-batch replacement.
+No automatic reads, key/remount/reset effects, polling, live hooks or mutation
+controls. Keep paging, reply inspector, receipt and current evidence readers
+unchanged in behavior; both inspections must remain independent.
+Decoder checks exact selected run/source/sequence, closed status/header shape,
+recognized source provenance, Agent actor matching, role/contract compatibility,
+positive bounded attempt number and valid timestamps. Render fixed labels/plain
+text. Invalid transport is one whole-inspection error, never partial metadata.
+
+Allowed: new query/endpoint/transport, narrow identity/read-policy extraction,
+generated client/factory, history inspector/hook/decoder/styles, focused tests,
+existing collaboration journey extension, additive ADR-0037 and narrow index,
+engineering-context/cockpit-specification/roadmap/current-work updates.
+Preserve this planner selection byte for byte. No providers, allowances, ledger
+reset, retained-root cleanup, authority, scheduler, recovery or remote feature.
+
+Start with meaningful failing regressions. Real SQLite tests must prove exact
+own-link/run scope, duplicate same-role alternatives not substituted, all status
+shapes, actor mismatch, unsupported identity/contract/snapshot, unknown enums,
+large/NUL storage bounded before reading, exact max-turn storage kinds, no writes
+and fault propagation. Prove extracted policy equivalence and test existing
+callers. API proves auth, fixed errors, wire shape and source Int64 boundaries.
+UI proves whole-response rejection and pending/settled stale callbacks including
+A-B-A, close/reopen, reload/unmount and same-batch changes.
+Journey uses actual durable AttemptId and compares exact rendered header facts
+with stored rows, repeating after browser reload/reopen. Keep receipt, paging,
+reply and no-write/no-provider/no-commit assertions; no seeding or provider launch.
+
+Run affected checks then clean serial build, full Domain/Application/Api/
+Architecture/Vitest, typecheck/lint/build, strict e2e tsc, harness and one canonical
+e2e:all; affected format, reproducible client, links/hygiene/secrets/audits.
+Retain unchanged Infrastructure results unless scope changes. Use a small
+meaningful mutation set for link/identity/bounds/lifetime guards; preserve all
+failures and survivors, with no unchanged rerun loop for green.
+Return one unstaged, uncommitted, unpushed combined diff for Codex review.
+No commit/push or subsequent slice is authorized by this selection.
+
+## Previous selection (2026-10-12): inspect one recorded historical reply parent
 
 ### Review decision (2026-10-12): GO for the corrected combined diff
 

@@ -77,6 +77,10 @@ supersedes it.
   (additive; one protected read-only inspection of one message's own stored reply parent, resolved by exact identity within the run, with a
   closed None/Unavailable/Available relationship and the unchanged ADR-0035 entry disclosure; it adds no persistence, traverses no chain
   and changes no admission, recovery, approval or digest decision)
+- [ADR-0037: Inspect the recorded Agent-attempt attribution of a historical collaboration message](0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md)
+  (additive; one protected read-only inspection of the one Agent attempt a message itself references, as a minimal recorded header under the
+  unchanged attempt identity and assignment-snapshot rules, read through bounded scalar projections with a closed NoAgentAttempt, Unavailable or
+  Available status; it adds no persistence and changes no admission, claim, dispatch, recovery, approval or digest decision)
 
 ## Status values
 

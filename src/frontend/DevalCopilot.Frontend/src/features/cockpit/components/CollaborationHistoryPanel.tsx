@@ -1,6 +1,10 @@
 import { useCollaborationHistory } from '../hooks/useCollaborationHistory'
 import { useCollaborationReply } from '../hooks/useCollaborationReply'
 import type { UseCollaborationReplyResult } from '../hooks/useCollaborationReply'
+import { useCollaborationAttempt } from '../hooks/useCollaborationAttempt'
+import type { UseCollaborationAttemptResult } from '../hooks/useCollaborationAttempt'
+import { attemptContractLabel, attemptProviderLabel, attemptRoleLabel } from '../collaborationAttempt'
+import type { CollaborationAttemptHeader } from '../collaborationAttempt'
 import { messageTypeLabel, participantLabel, protocolVersionLabel, provenanceLabel } from '../collaborationHistory'
 import type { CollaborationHistoryEntry } from '../collaborationHistory'
 import { toUtcText } from '../utcText'
@@ -15,6 +19,17 @@ const REPLY_MESSAGES = {
   read: 'The recorded reply could not be read.',
   invalid: 'The host answered with a recorded reply that is not coherent for this message, so none of it is shown.',
 } as const
+const ATTEMPT_NOTE =
+  'The recorded attempt shows the one Agent attempt this message itself references, read once when requested. It is recorded attribution only: not current execution, not an outcome, not an approval, not provider capability or reliability and not the sealed evidence of the attempt. A recorded reference that is not recognized, coherent with this message and its sender, and valid is reported as unavailable without naming a target.'
+const ATTEMPT_NONE =
+  'No Agent attempt is attributed: this recorded message was not provider-observed, so it names none. This does not say that no attempt exists in this run.'
+const ATTEMPT_UNAVAILABLE =
+  'Attempt attribution unavailable: the recorded reference is not recognized, coherent with this message or valid, so no attempt is shown.'
+const ATTEMPT_MESSAGES = {
+  read: 'The recorded attempt could not be read.',
+  invalid: 'The host answered with a recorded attempt that is not coherent for this message, so none of it is shown.',
+} as const
+const NOT_RECORDED = 'Not recorded'
 const UNAVAILABLE = 'Content unavailable: the recorded content is not recognized, coherent, safe or within the recorded bounds, so none of it is shown.'
 
 const MESSAGES = {
@@ -97,17 +112,96 @@ function ReplyInspector({ inspector }: { inspector: UseCollaborationReplyResult 
   )
 }
 
+function AttemptHeader({ header }: { header: CollaborationAttemptHeader }) {
+  return (
+    <dl>
+      <div>
+        <dt>Attempt</dt>
+        <dd>{header.id}</dd>
+      </div>
+      <div>
+        <dt>Attempt number</dt>
+        <dd>{header.attemptNumber}</dd>
+      </div>
+      <div>
+        <dt>Role</dt>
+        <dd>{attemptRoleLabel(header.role)}</dd>
+      </div>
+      <div>
+        <dt>Provider</dt>
+        <dd>{attemptProviderLabel(header.provider)}</dd>
+      </div>
+      <div>
+        <dt>Response contract</dt>
+        <dd>{attemptContractLabel(header.responseContract)}</dd>
+      </div>
+      <div>
+        <dt>Recorded status</dt>
+        <dd>{header.status}</dd>
+      </div>
+      <div>
+        <dt>Claimed</dt>
+        <dd>{toUtcText(header.claimedAtUtc)}</dd>
+      </div>
+      <div>
+        <dt>Dispatched</dt>
+        <dd>{header.dispatchedAtUtc === null ? NOT_RECORDED : toUtcText(header.dispatchedAtUtc)}</dd>
+      </div>
+      <div>
+        <dt>Completed</dt>
+        <dd>{header.completedAtUtc === null ? NOT_RECORDED : toUtcText(header.completedAtUtc)}</dd>
+      </div>
+    </dl>
+  )
+}
+
+function AttemptInspector({ inspector }: { inspector: UseCollaborationAttemptResult }) {
+  const { source, pending, attempt, failure, close, retry } = inspector
+  return (
+    <section className="dc-collaboration-attempt" aria-label="Recorded attempt">
+      <p className="dc-local-commit-note">{ATTEMPT_NOTE}</p>
+      <p>Recorded attempt of sequence {source?.sequence}</p>
+      {pending ? <p className="dc-empty-state">Loading the recorded attempt…</p> : null}
+      {failure !== null ? (
+        <>
+          <p className="dc-collaboration-history-error" role="alert">
+            {ATTEMPT_MESSAGES[failure]}
+          </p>
+          <button type="button" onClick={retry}>
+            Try the recorded attempt again
+          </button>
+        </>
+      ) : null}
+      {attempt?.status === 'NoAgentAttempt' ? <p>{ATTEMPT_NONE}</p> : null}
+      {attempt?.status === 'Unavailable' ? <p className="dc-collaboration-history-unavailable">{ATTEMPT_UNAVAILABLE}</p> : null}
+      {attempt?.status === 'Available' ? (
+        <div className="dc-collaboration-attempt-header">
+          <p>Recorded attempt header</p>
+          <AttemptHeader header={attempt.attempt} />
+        </div>
+      ) : null}
+      <button type="button" onClick={close}>
+        Close recorded attempt
+      </button>
+    </section>
+  )
+}
+
 /**
  * Read-only, on-demand recorded collaboration of one historical run, newest first (ADR-0035). It is collapsed for every run until the
  * owner opens it, then reads one page; older pages, a retry of a failed older page and a reload of the newest page are explicit
  * actions and nothing is polled. Messages, reads and errors belong to the committed run and open lifetime, so another run, closing,
  * reopening or reloading shows none of the previous ones. Each message has one explicit "Inspect recorded reply"
  * action (ADR-0036) that reads only that message's own recorded parent, once, into the single inspector (close and a same-source
- * retry); it never follows a chain. There is no evidence lookup or mutation control, and every value is rendered as plain text.
+ * retry); it never follows a chain. Each message also has one explicit "Inspect recorded attempt" action (ADR-0037) into its own single
+ * inspector (close and a same-source retry) that reads only the Agent attempt that message itself references and shows its minimal
+ * recorded header; the two inspectors are independent. There is no evidence lookup or mutation control, and every value is rendered as
+ * plain text.
  */
 export function CollaborationHistoryPanel({ runId }: CollaborationHistoryPanelProps) {
   const { open, lifetimeKey, setOpen, rows, pending, failure, failedPage, hasMore, loadOlder, reload } = useCollaborationHistory(runId)
   const inspector = useCollaborationReply(lifetimeKey)
+  const attemptInspector = useCollaborationAttempt(lifetimeKey)
 
   return (
     <section className="dc-collaboration-history" aria-label="Recorded collaboration">
@@ -152,6 +246,26 @@ export function CollaborationHistoryPanel({ runId }: CollaborationHistoryPanelPr
                       }
                     >
                       Inspect recorded reply
+                    </button>
+                  )}
+                  {attemptInspector.source?.messageId === row.id ? (
+                    <AttemptInspector inspector={attemptInspector} />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        attemptInspector.inspect({
+                          runId: row.runId,
+                          messageId: row.id,
+                          sequence: row.sequence,
+                          type: row.type,
+                          protocolVersion: row.protocolVersion,
+                          provenance: row.provenance,
+                          actor: row.actor,
+                        })
+                      }
+                    >
+                      Inspect recorded attempt
                     </button>
                   )}
                 </li>

@@ -47,6 +47,7 @@ const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
 const REPLY_PATH = /\/api\/runs\/[^/]+\/collaboration-history\/[^/]+\/reply$/
+const ATTEMPT_PATH = /\/api\/runs\/[^/]+\/collaboration-history\/[^/]+\/attempt$/
 const FOLLOW_UP_OBJECTIVE = 'Plan the follow-up report for the ledger'
 // The persisted Human review names both recipes' latest Passed executions of the corrected checkpoint (listed in the host's own order).
 const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
@@ -756,10 +757,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const eventRequests: string[] = []
   const messageRequests: string[] = []
   const replyRequests: { method: string; path: string; search: string; body: string | null }[] = []
+  const attemptRequests: { method: string; path: string; search: string; body: string | null }[] = []
   page.on('request', (request) => {
     const { pathname: path, search } = new URL(request.url())
     if (request.method() === 'GET' && HISTORY_PATH.test(path)) {
       historyRequests.push(path)
+    }
+
+    if (ATTEMPT_PATH.test(path)) {
+      attemptRequests.push({ method: request.method(), path: path.toLowerCase(), search, body: request.postData() })
     }
 
     if (REPLY_PATH.test(path)) {
@@ -1105,6 +1111,115 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     return { body, parentRow, inspector }
   }
 
+  // Recorded attempt (ADR-0037). One explicit action per loaded message reads exactly the Agent attempt that message itself references.
+  // The answer is compared with the durable message and attempt rows (never seeded or edited) and with what the single attempt
+  // inspector renders; the reply inspector, the loaded pages, their cursor and every other history request stay untouched.
+  const CONTRACT_LABELS: Record<string, string> = {
+    Proposal: 'Proposal', CriticalReview: 'Critical review', ChallengeResolution: 'Challenge resolution',
+    ImplementationReport: 'Implementation report', ImplementationReview: 'Implementation review', ReviewCorrection: 'Review correction',
+    VerificationDiagnosis: 'Verification diagnosis',
+  }
+  const expectAttemptHeaderRendered = async (inspector: Locator, header: Record<string, any>) => {
+    const box = inspector.locator('.dc-collaboration-attempt-header')
+    await expect(box).toHaveCount(1)
+    await expect(box.locator('p').first()).toHaveText('Recorded attempt header')
+    const iso = (value: string | null) => (value === null ? 'Not recorded' : new Date(value).toISOString())
+    const rows: [string, string][] = [
+      ['Attempt', header.id],
+      ['Attempt number', String(header.attemptNumber)],
+      ['Role', ROLE_LABELS[header.role]],
+      ['Provider', header.provider === 'ClaudeCode' ? 'Claude Code' : header.provider],
+      ['Response contract', CONTRACT_LABELS[header.responseContract]],
+      ['Recorded status', header.status],
+      ['Claimed', iso(header.claimedAtUtc)],
+      ['Dispatched', iso(header.dispatchedAtUtc)],
+      ['Completed', iso(header.completedAtUtc)],
+    ]
+    await expect(box.locator('dl > div')).toHaveCount(rows.length)
+    for (const [position, [label, value]] of rows.entries()) {
+      await expect(box.locator('dl > div').nth(position).locator('dt')).toHaveText(label)
+      await expect(box.locator('dl > div').nth(position).locator('dd')).toHaveText(value)
+    }
+
+    await expect(box.getByRole('button')).toHaveCount(0)
+  }
+
+  let attemptsInspected = 0
+  const inspectRecordedAttempt = async (runId: string, index: number, loaded: number, durable: CollaborationHistoryRow[]) => {
+    const source = durable[index]
+    const stored = data.collaborationAttemptLinksOf(runId).find((candidate) => sameId(candidate.MessageId, source.Id))!
+    const providerObserved = stored.Provenance === 'ProviderObserved'
+    if (providerObserved) {
+      expect(stored.AttemptRowId, 'a provider-observed journey message references an attempt row').not.toBeNull()
+      expect(sameId(stored.AttemptRunId, runId)).toBe(true)
+      expect(stored.Kind).toBe('Agent')
+    }
+
+    const expectedStatus = providerObserved ? 'Available' : 'NoAgentAttempt'
+    const row = messageRows().nth(index)
+    await expect(messageRows()).toHaveCount(loaded)
+    await expect(row.locator('p').first().locator('.dc-collaboration-history-sequence')).toHaveText(`Sequence ${source.Sequence}`)
+    const answered = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && ATTEMPT_PATH.test(new URL(response.url()).pathname),
+      { timeout: 30_000 },
+    )
+    const pagesBefore = messageRequests.length
+    const repliesBefore = replyRequests.length
+    const attemptsBefore = attemptRequests.length
+    await row.getByRole('button', { name: 'Inspect recorded attempt' }).click()
+    const response = await answered
+    expect(response.status()).toBe(200)
+    const url = new URL(response.url())
+    expect(url.pathname.toLowerCase()).toBe(`/api/runs/${lower(runId)}/collaboration-history/${lower(source.Id)}/attempt`)
+    expect(url.search).toBe('')
+    expect(response.request().postData()).toBeNull()
+    expect(attemptRequests).toHaveLength(attemptsBefore + 1)
+    attemptsInspected += 1
+    const text = await response.text()
+    for (const hidden of ['summary', 'structuredContent', 'inReplyTo', 'outcome', 'sessionId', 'checkpoint', 'fingerprint', worktree, repository.path]) {
+      expect(text).not.toContain(hidden)
+    }
+
+    const body = JSON.parse(text)
+    expect(Object.keys(body).sort()).toEqual(['attempt', 'messageId', 'runId', 'sourceSequence', 'status'])
+    expect(sameId(body.runId, runId)).toBe(true)
+    expect(sameId(body.messageId, source.Id)).toBe(true)
+    expect(body.sourceSequence).toBe(source.Sequence)
+    expect(body.status).toBe(expectedStatus)
+    const inspector = row.getByRole('region', { name: 'Recorded attempt' })
+    await expect(messagesRegion().getByRole('region', { name: 'Recorded attempt' })).toHaveCount(1)
+    await expect(inspector.locator('p').nth(1)).toHaveText(`Recorded attempt of sequence ${source.Sequence}`)
+    if (providerObserved) {
+      expect(Object.keys(body.attempt).sort()).toEqual([
+        'attemptNumber', 'claimedAtUtc', 'completedAtUtc', 'dispatchedAtUtc', 'id', 'provider', 'responseContract', 'role', 'status',
+      ])
+      expect(sameId(body.attempt.id, stored.AttemptRowId)).toBe(true)
+      expect(body.attempt.attemptNumber).toBe(stored.AttemptNumber)
+      expect(body.attempt.role).toBe(stored.AgentRole)
+      expect(body.attempt.provider).toBe(stored.AgentProvider)
+      expect(body.attempt.responseContract).toBe(stored.AgentResponseContract)
+      expect(body.attempt.status).toBe(stored.Status)
+      expect(instant(body.attempt.claimedAtUtc)).toBe(instant(stored.ClaimedAtUtc!))
+      expect(body.attempt.dispatchedAtUtc === null ? null : instant(body.attempt.dispatchedAtUtc)).toBe(
+        stored.AgentDispatchedAtUtc === null ? null : instant(stored.AgentDispatchedAtUtc),
+      )
+      expect(body.attempt.completedAtUtc === null ? null : instant(body.attempt.completedAtUtc)).toBe(
+        stored.CompletedAtUtc === null ? null : instant(stored.CompletedAtUtc),
+      )
+      await expectAttemptHeaderRendered(inspector, body.attempt)
+    } else {
+      expect(body.attempt).toBeNull()
+      await expect(inspector).toContainText('No Agent attempt is attributed')
+      await expect(inspector.locator('.dc-collaboration-attempt-header')).toHaveCount(0)
+    }
+
+    // Reading an attribution never changes the loaded pages, their cursor, the reply reads or any other history read.
+    expect(messageRequests).toHaveLength(pagesBefore)
+    expect(replyRequests).toHaveLength(repliesBefore)
+    await expect(messageRows()).toHaveCount(loaded)
+    return { body, stored, inspector }
+  }
+
   // Opens the history (one page request), checks that page on the wire and in the rendered rows, selects the older delivered run and
   // returns its page and the receipt the host answered for exactly that run.
   const openHistoryAndInspectDelivery = async () => {
@@ -1279,6 +1394,37 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const outsideReopened = await inspectRecordedReply(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
   expect(outsideReopened.body).toEqual(outside.body)
 
+  // Recorded attempt of a loaded message (pre-reload). The reply inspector of the same row is open: the two inspectors are independent.
+  expect(attemptRequests).toEqual([])
+  const outsideReplyBody = outsideReopened.body
+  const attemptFirst = await inspectRecordedAttempt(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(attemptFirst.body.status).toBe('Available')
+  await expect(messageRows().nth(outsideIndex).getByRole('region', { name: 'Recorded reply' })).toHaveCount(1)
+  await expect(messageRows().nth(outsideIndex).getByRole('region', { name: 'Recorded reply' }).locator('.dc-collaboration-reply-parent')).toHaveCount(1)
+
+  // Closing ends the attempt inspector without a request or touching the reply inspector; inspecting again reads the same answer.
+  const attemptsBeforeClose = attemptRequests.length
+  await attemptFirst.inspector.getByRole('button', { name: 'Close recorded attempt' }).click()
+  await expect(messagesRegion().getByRole('region', { name: 'Recorded attempt' })).toHaveCount(0)
+  await expect(messageRows().nth(outsideIndex).getByRole('region', { name: 'Recorded reply' })).toHaveCount(1)
+  expect(attemptRequests).toHaveLength(attemptsBeforeClose)
+  const attemptAgain = await inspectRecordedAttempt(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(attemptAgain.body).toEqual(attemptFirst.body)
+
+  // Hiding the recorded collaboration ends both inspectors; reopening starts with neither and no attempt read.
+  const attemptsBeforeHide = attemptRequests.length
+  await messagesRegion().getByRole('button', { name: 'Hide recorded collaboration' }).click()
+  await expectCollapsedMessages()
+  const reopenedAfterAttempt = await readMessagePage(firstRunId, null, () =>
+    messagesRegion().getByRole('button', { name: 'Show recorded collaboration' }).click(),
+  )
+  expect(reopenedAfterAttempt).toEqual(olderMessagesFirstPage)
+  await expect(messagesRegion().getByRole('region', { name: 'Recorded attempt' })).toHaveCount(0)
+  expect(attemptRequests).toHaveLength(attemptsBeforeHide)
+  const attemptReopened = await inspectRecordedAttempt(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(attemptReopened.body).toEqual(attemptFirst.body)
+  expect(outsideReplyBody).toEqual(outside.body)
+
   // The newer run has no completed delivery source: that is disclosed, no receipt is requested for it, and nothing is inferred.
   const receiptsBeforeNewer = receiptRequests.length
   await historyRegion.getByRole('button', { name: 'Inspect run #2' }).click()
@@ -1360,6 +1506,50 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(replyRequests).toHaveLength(repliesInspected)
   expect(
     replyRequests.every(
+      (request) =>
+        request.method === 'GET'
+        && request.search === ''
+        && request.body === null
+        && request.path.startsWith(`/api/runs/${lower(firstRunId)}/collaboration-history/`),
+    ),
+  ).toBe(true)
+
+  // Recorded attempt after the real browser reload: a message on an older page that references a DIFFERENT durable attempt is read once
+  // its page is loaded (this run records only provider-observed messages, and nothing is seeded, so the non-provider status is covered by
+  // the host and UI tests); then the same newest-page attribution is read again from a fresh open and the host answers as before.
+  const attemptLinks = data.collaborationAttemptLinksOf(firstRunId)
+  const olderAttemptIndex = durableMessages.findIndex(
+    (row, index) =>
+      index >= MESSAGE_PAGE
+      && attemptLinks.find((link) => sameId(link.MessageId, row.Id))?.Provenance === 'ProviderObserved'
+      && !sameId(attemptLinks.find((link) => sameId(link.MessageId, row.Id))?.AttemptId, attemptFirst.stored.AttemptId),
+  )
+  expect(olderAttemptIndex, 'an older message references a different durable attempt').toBeGreaterThanOrEqual(0)
+  await messagesRegion().getByRole('button', { name: 'Hide recorded collaboration' }).click()
+  await expectCollapsedMessages()
+  await readMessagePage(firstRunId, null, () => messagesRegion().getByRole('button', { name: 'Show recorded collaboration' }).click())
+  let loadedForNonProvider = MESSAGE_PAGE
+  let cursor: string | null = olderMessagesFirstPage.nextBeforeSequence
+  while (olderAttemptIndex >= loadedForNonProvider) {
+    const older = await readMessagePage(firstRunId, cursor, () => messagesRegion().getByRole('button', { name: 'Load older messages' }).click())
+    loadedForNonProvider += older.entries.length
+    cursor = older.nextBeforeSequence
+  }
+
+  const olderAttempt = await inspectRecordedAttempt(firstRunId, olderAttemptIndex, loadedForNonProvider, durableMessages)
+  expect(olderAttempt.body.status).toBe('Available')
+  expect(sameId(olderAttempt.body.attempt.id, attemptFirst.body.attempt.id)).toBe(false)
+  await messagesRegion().getByRole('button', { name: 'Hide recorded collaboration' }).click()
+  await expectCollapsedMessages()
+  const reopenedAttemptAfterReload = await readMessagePage(firstRunId, null, () =>
+    messagesRegion().getByRole('button', { name: 'Show recorded collaboration' }).click(),
+  )
+  expect(reopenedAttemptAfterReload).toEqual(olderMessagesFirstPage)
+  const attemptAfterReload = await inspectRecordedAttempt(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(attemptAfterReload.body).toEqual(attemptFirst.body)
+  expect(attemptRequests).toHaveLength(attemptsInspected)
+  expect(
+    attemptRequests.every(
       (request) =>
         request.method === 'GET'
         && request.search === ''

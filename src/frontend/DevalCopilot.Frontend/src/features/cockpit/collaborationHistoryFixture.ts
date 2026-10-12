@@ -1,11 +1,14 @@
 import {
+  CollaborationAttemptHeaderResponse,
   CollaborationHistoryEntryResponse,
   CollaborationHistoryFieldResponse,
   CollaborationHistoryParticipantResponse,
+  GetCollaborationHistoryAttemptResponse,
   GetCollaborationHistoryReplyResponse,
   GetCollaborationHistoryResponse,
 } from '../../api/generated/api-client'
 import type {
+  ICollaborationAttemptHeaderResponse,
   ICollaborationHistoryEntryResponse,
   ICollaborationHistoryParticipantResponse,
 } from '../../api/generated/api-client'
@@ -76,4 +79,33 @@ export const replyFor = (
     sourceSequence: String(source.sequence),
     status,
     parent,
+  })
+
+/** A coherent recorded attempt header (a Planner on Codex under the Proposal contract); every field can be replaced to build a contradiction. */
+export const attemptHeaderFor = (patch: Partial<ICollaborationAttemptHeaderResponse> = {}) =>
+  new CollaborationAttemptHeaderResponse({
+    id: 'attempt-7',
+    attemptNumber: 3,
+    role: 'Planner',
+    provider: 'Codex',
+    responseContract: 'Proposal',
+    status: 'Completed',
+    claimedAtUtc: new Date(Date.UTC(2026, 9, 12, 9, 0, 0)),
+    dispatchedAtUtc: new Date(Date.UTC(2026, 9, 12, 9, 1, 2)),
+    completedAtUtc: new Date(Date.UTC(2026, 9, 12, 9, 7, 8)),
+    ...patch,
+  })
+
+/** A coherent attempt-attribution response for the observed source. */
+export const attemptAnswerFor = (
+  source: { id?: string; sequence: Sequence; runId?: string },
+  status: 'NoAgentAttempt' | 'Unavailable' | 'Available' | string,
+  attempt?: CollaborationAttemptHeaderResponse,
+) =>
+  new GetCollaborationHistoryAttemptResponse({
+    runId: source.runId ?? MESSAGE_RUN,
+    messageId: source.id ?? `message-${source.sequence}`,
+    sourceSequence: String(source.sequence),
+    status,
+    attempt,
   })

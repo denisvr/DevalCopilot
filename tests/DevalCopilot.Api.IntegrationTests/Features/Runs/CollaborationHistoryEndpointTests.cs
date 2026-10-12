@@ -46,8 +46,11 @@ public sealed class CollaborationHistoryEndpointTests(ApiWebApplicationFactory f
             .Where(endpoint => endpoint.RoutePattern.RawText?.Contains("collaboration-history", StringComparison.OrdinalIgnoreCase) == true)
             .ToList();
 
-        // The ADR-0036 reply inspection has its own route and its own test; this one pins the page route alone.
-        var endpoint = Assert.Single(endpoints, candidate => !candidate.RoutePattern.RawText!.EndsWith("/reply", StringComparison.Ordinal));
+        // The ADR-0036 reply and ADR-0037 attempt inspections have their own routes and tests; this one pins the page route alone.
+        var endpoint = Assert.Single(
+            endpoints,
+            candidate => !candidate.RoutePattern.RawText!.EndsWith("/reply", StringComparison.Ordinal)
+                && !candidate.RoutePattern.RawText.EndsWith("/attempt", StringComparison.Ordinal));
         Assert.Equal("api/runs/{runId:guid}/collaboration-history", endpoint.RoutePattern.RawText);
         Assert.Equal(["GET"], endpoint.Metadata.GetOrderedMetadata<HttpMethodMetadata>().Single().HttpMethods);
         Assert.NotEmpty(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>());

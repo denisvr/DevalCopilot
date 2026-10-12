@@ -13,23 +13,37 @@ namespace DevalCopilot.Application.Features.Runs;
 /// </summary>
 public static class AgentAttemptIdentity
 {
-    public static bool IsCoherent(Attempt attempt)
+    public static bool IsCoherent(Attempt attempt) => IsCoherent(
+        attempt.Kind, attempt.Status, attempt.AgentRole, attempt.AgentProvider, attempt.AgentResponseContract, attempt.GetAssignmentSnapshot());
+
+    /// <summary>The same rule over already-read scalar facts, for a reader that judges a bounded projection without materializing an
+    /// <see cref="Attempt"/>. A stored value that is not a defined member is passed as <see langword="null"/>, which fails exactly as an
+    /// undefined member does. <paramref name="assignment"/> is the result of <see cref="AgentAssignmentSnapshotPolicy.Read"/> over the
+    /// same stored facts (null when they are not a well-formed snapshot).</summary>
+    public static bool IsCoherent(
+        AttemptKind kind,
+        AttemptStatus? status,
+        AgentRole? role,
+        AgentProvider? provider,
+        AgentResponseContract? responseContract,
+        AgentAssignmentSnapshot? assignment)
     {
-        if (attempt.Kind != AttemptKind.Agent
-            || !Enum.IsDefined(attempt.Status)
-            || attempt.AgentRole is not { } role
-            || attempt.AgentProvider is not { } provider
-            || attempt.AgentResponseContract is not { } responseContract
-            || !Enum.IsDefined(role)
-            || !Enum.IsDefined(provider)
-            || !Enum.IsDefined(responseContract)
-            || !IsSupportedPair(role, provider)
-            || !ContractBelongsToRole(responseContract, role))
+        if (kind != AttemptKind.Agent
+            || status is not { } recordedStatus
+            || !Enum.IsDefined(recordedStatus)
+            || role is not { } agentRole
+            || provider is not { } agentProvider
+            || responseContract is not { } contract
+            || !Enum.IsDefined(agentRole)
+            || !Enum.IsDefined(agentProvider)
+            || !Enum.IsDefined(contract)
+            || !IsSupportedPair(agentRole, agentProvider)
+            || !ContractBelongsToRole(contract, agentRole))
         {
             return false;
         }
 
-        return attempt.GetAssignmentSnapshot() is not null;
+        return assignment is not null;
     }
 
     private static bool IsSupportedPair(AgentRole role, AgentProvider provider) => (role, provider) switch

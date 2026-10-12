@@ -1180,6 +1180,20 @@ render, followed recursively, polled or retried automatically, and the loaded pa
 changed. The inspector belongs to the committed run's open history lifetime and to each selection: another run, closing, reopening,
 reloading, another message, or closing and inspecting the same one again cannot show or settle another owner's answer.
 
+Each message in the Recorded collaboration region also offers one explicit **Inspect recorded attempt** action
+([ADR-0037](../decisions/0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md)) beside "Inspect recorded
+reply". It reads once, through the protected, read-only `GET /api/runs/{runId}/collaboration-history/{messageId}/attempt`, the one Agent attempt
+that message itself references and shows it in one inspector under that message: "Recorded attempt of sequence N", a fixed note that this is
+recorded attribution only (not current execution, an outcome, an approval, provider capability or reliability or the sealed evidence of the attempt),
+then either the minimal header (Attempt, Attempt number, Role, Provider, Response contract, Recorded status, Claimed, Dispatched, Completed, with
+"Not recorded" for an absent time, as plain text), "No Agent attempt is attributed: this recorded message was not provider-observed, so it names none"
+(which does not say that no attempt exists in this run), or "Attempt attribution unavailable" without naming any target. A failed or incoherent read
+shows a fixed error and "Try the recorded attempt again" reads the same source once more; "Close recorded attempt" ends the inspector, and using the
+action on another message replaces it. The attempt and reply inspectors are independent. Nothing is requested for a row on render, followed,
+polled or retried automatically, and the loaded pages, their cursor and "Load older messages" are not changed. The inspector belongs to the committed
+run's open history lifetime and to each selection: another run, closing, reopening, reloading, another message, or closing and inspecting the same one
+again cannot show or settle another owner's answer, and a retained close of an ended inspector cannot close its successor.
+
 ### Abandon run
 
 For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a

@@ -2266,6 +2266,71 @@ export class GetCollaborationHistoryReplyEndpointClient {
     }
 }
 
+export class GetCollaborationHistoryAttemptEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getCollaborationHistoryAttempt(runId: string, messageId: string): Promise<GetCollaborationHistoryAttemptResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/collaboration-history/{messageId}/attempt";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (messageId === undefined || messageId === null)
+            throw new globalThis.Error("The parameter 'messageId' must be defined.");
+        url_ = url_.replace("{messageId}", encodeURIComponent("" + messageId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetCollaborationHistoryAttempt(_response);
+        });
+    }
+
+    protected processGetCollaborationHistoryAttempt(response: Response): Promise<GetCollaborationHistoryAttemptResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetCollaborationHistoryAttemptResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ApiProblemDetails.fromJS(resultData409);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result409);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetCollaborationHistoryAttemptResponse>(null as any);
+    }
+}
+
 export class GetAgentAttemptHistoryEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8758,6 +8823,126 @@ export interface IGetCollaborationHistoryReplyResponse {
     sourceSequence?: string;
     status?: string;
     parent?: CollaborationHistoryEntryResponse | undefined;
+}
+
+export class GetCollaborationHistoryAttemptResponse implements IGetCollaborationHistoryAttemptResponse {
+    runId?: string;
+    messageId?: string;
+    sourceSequence?: string;
+    status?: string;
+    attempt?: CollaborationAttemptHeaderResponse | undefined;
+
+    constructor(data?: IGetCollaborationHistoryAttemptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.messageId = _data["messageId"];
+            this.sourceSequence = _data["sourceSequence"];
+            this.status = _data["status"];
+            this.attempt = _data["attempt"] ? CollaborationAttemptHeaderResponse.fromJS(_data["attempt"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetCollaborationHistoryAttemptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetCollaborationHistoryAttemptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["messageId"] = this.messageId;
+        data["sourceSequence"] = this.sourceSequence;
+        data["status"] = this.status;
+        data["attempt"] = this.attempt ? this.attempt.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetCollaborationHistoryAttemptResponse {
+    runId?: string;
+    messageId?: string;
+    sourceSequence?: string;
+    status?: string;
+    attempt?: CollaborationAttemptHeaderResponse | undefined;
+}
+
+export class CollaborationAttemptHeaderResponse implements ICollaborationAttemptHeaderResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+    status?: string;
+    claimedAtUtc?: Date;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
+
+    constructor(data?: ICollaborationAttemptHeaderResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+            this.status = _data["status"];
+            this.claimedAtUtc = _data["claimedAtUtc"] ? new Date(_data["claimedAtUtc"].toString()) : undefined as any;
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"] ? new Date(_data["dispatchedAtUtc"].toString()) : undefined as any;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): CollaborationAttemptHeaderResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new CollaborationAttemptHeaderResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        data["status"] = this.status;
+        data["claimedAtUtc"] = this.claimedAtUtc ? this.claimedAtUtc.toISOString() : undefined as any;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc ? this.dispatchedAtUtc.toISOString() : undefined as any;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface ICollaborationAttemptHeaderResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+    status?: string;
+    claimedAtUtc?: Date;
+    dispatchedAtUtc?: Date | undefined;
+    completedAtUtc?: Date | undefined;
 }
 
 export class GetCodexAccountUsageWarningResponse implements IGetCodexAccountUsageWarningResponse {
