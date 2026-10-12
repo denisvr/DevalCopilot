@@ -97,4 +97,8 @@ public static class RunEventType
     /// <summary>A human explicitly abandoned an inactive manual Agent run (ADR-0031). The payload carries only the normalized human
     /// reason; the one event is saved atomically with the terminal transition and it never records cancellation, repair or deletion.</summary>
     public const string RunAbandoned = "run.abandoned";
+
+    /// <summary>A Human explicitly recorded the immutable GitHub observation scope of a completed local delivery (ADR-0040). The
+    /// payload is the bounded canonical version-1 form of the target; it never records remote verification, permission, CI or authority.</summary>
+    public const string GitHubObservationTargetRecorded = "run.github_observation_target_recorded";
 }

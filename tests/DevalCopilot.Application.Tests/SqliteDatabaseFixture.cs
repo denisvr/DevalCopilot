@@ -14,6 +14,9 @@ public sealed class SqliteDatabaseFixture : IAsyncLifetime
 {
     private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"devalcopilot-app-tests-{Guid.NewGuid():N}.db");
 
+    /// <summary>The connection string of this fixture's own database file, for tests that edit or probe stored values directly.</summary>
+    public string ConnectionString => $"Data Source={_databasePath}";
+
     /// <summary>The same connection string every <see cref="CreateContext"/> call uses, exposed so a
     /// test can build its own independent, genuinely separate <c>DevalCopilotDbContext</c> against
     /// this fixture's own database file — e.g. a real <c>AttemptDurabilityProbe</c>, which must use a

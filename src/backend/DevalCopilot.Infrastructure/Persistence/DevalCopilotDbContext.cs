@@ -59,6 +59,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<LocalCommitAuthorityMember> LocalCommitAuthorityMembers => Set<LocalCommitAuthorityMember>();
 
+    public DbSet<GitHubObservationTarget> GitHubObservationTargets => Set<GitHubObservationTarget>();
+
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
         Database.BeginTransactionAsync(cancellationToken);
 

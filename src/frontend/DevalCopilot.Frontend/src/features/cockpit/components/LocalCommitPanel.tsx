@@ -9,9 +9,11 @@ import {
   validateLocalCommitMessage,
 } from '../describeLocalCommit'
 import type { LocalCommitIdentity } from '../describeLocalCommit'
+import { GitHubObservationTargetPanel } from './GitHubObservationTargetPanel'
 import { LocalDeliveryReceipt } from './LocalDeliveryReceipt'
 import { useLocalCommitStatus } from '../hooks/useLocalCommitStatus'
 import { useRequestLocalCommit } from '../hooks/useRequestLocalCommit'
+import { toObservationSource } from '../gitHubObservationTarget'
 import { toReceiptSource } from '../localDeliveryReceipt'
 
 const EXPLANATION = [
@@ -124,6 +126,7 @@ export function LocalCommitPanel({ runId, latestSequence, evidenceRefreshGenerat
   const identity = identityOf(status)
   const identityKey = identity ? localCommitIdentityKey(runId, identity) : null
   const receiptSource = toReceiptSource(runId, status?.operation)
+  const observationSource = toObservationSource(runId, status?.operation)
 
   const [stored, setStored] = useState(() => createOwned(identityKey))
   let owned = stored
@@ -193,10 +196,17 @@ export function LocalCommitPanel({ runId, latestSequence, evidenceRefreshGenerat
     body = <p>{describeLocalCommitRefusal(status.refusalCode)}</p>
   }
 
+  // Beside the commit region, never inside it: the region stays a read-only record, and the explicit GitHub observation target
+  // selection (ADR-0040) is a separate region offered only for a Completed operation of a settled status read.
+  const selection = !statusError && status?.operation?.status === 'Completed' ? <GitHubObservationTargetPanel source={observationSource} /> : null
+
   return (
-    <section className="dc-local-commit" aria-label="Local commit">
-      <h3>Local commit</h3>
-      {body}
-    </section>
+    <>
+      <section className="dc-local-commit" aria-label="Local commit">
+        <h3>Local commit</h3>
+        {body}
+      </section>
+      {selection}
+    </>
   )
 }

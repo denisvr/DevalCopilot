@@ -1520,6 +1520,127 @@ export class RequestChallengeResolutionRepairAttemptEndpointClient {
     }
 }
 
+export class RecordGitHubObservationTargetEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    recordGitHubObservationTarget(runId: string, request: RecordGitHubObservationTargetRequest): Promise<RecordGitHubObservationTargetResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-observation-target";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRecordGitHubObservationTarget(_response);
+        });
+    }
+
+    protected processRecordGitHubObservationTarget(response: Response): Promise<RecordGitHubObservationTargetResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RecordGitHubObservationTargetResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ApiProblemDetails.fromJS(resultData409);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result409);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RecordGitHubObservationTargetResponse>(null as any);
+    }
+}
+
+export class GetGitHubObservationTargetEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitHubObservationTarget(runId: string): Promise<GetGitHubObservationTargetResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-observation-target";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitHubObservationTarget(_response);
+        });
+    }
+
+    protected processGetGitHubObservationTarget(response: Response): Promise<GetGitHubObservationTargetResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetGitHubObservationTargetResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetGitHubObservationTargetResponse>(null as any);
+    }
+}
+
 export class GetSealedAgentArtifactWindowEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -5653,6 +5774,382 @@ export interface IRequestChallengeResolutionRepairAttemptResponse {
     repairSourceAttemptId?: string;
 }
 
+export class RecordGitHubObservationTargetResponse implements IRecordGitHubObservationTargetResponse {
+    runId?: string;
+    source?: GitHubObservationSourceResponse;
+    target?: GitHubObservationScopeResponse;
+
+    constructor(data?: IRecordGitHubObservationTargetResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.source = _data["source"] ? GitHubObservationSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubObservationScopeResponse.fromJS(_data["target"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): RecordGitHubObservationTargetResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecordGitHubObservationTargetResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IRecordGitHubObservationTargetResponse {
+    runId?: string;
+    source?: GitHubObservationSourceResponse;
+    target?: GitHubObservationScopeResponse;
+}
+
+export class GitHubObservationSourceResponse implements IGitHubObservationSourceResponse {
+    operationId?: string;
+    commitSha?: string;
+    branchName?: string;
+
+    constructor(data?: IGitHubObservationSourceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.commitSha = _data["commitSha"];
+            this.branchName = _data["branchName"];
+        }
+    }
+
+    static fromJS(data: any): GitHubObservationSourceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubObservationSourceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["commitSha"] = this.commitSha;
+        data["branchName"] = this.branchName;
+        return data;
+    }
+}
+
+export interface IGitHubObservationSourceResponse {
+    operationId?: string;
+    commitSha?: string;
+    branchName?: string;
+}
+
+export class GitHubObservationScopeResponse implements IGitHubObservationScopeResponse {
+    id?: string;
+    eventId?: string;
+    host?: string;
+    owner?: string;
+    repository?: string;
+    recordedAtUtc?: Date;
+
+    constructor(data?: IGitHubObservationScopeResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.eventId = _data["eventId"];
+            this.host = _data["host"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.recordedAtUtc = _data["recordedAtUtc"] ? new Date(_data["recordedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubObservationScopeResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubObservationScopeResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["eventId"] = this.eventId;
+        data["host"] = this.host;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["recordedAtUtc"] = this.recordedAtUtc ? this.recordedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubObservationScopeResponse {
+    id?: string;
+    eventId?: string;
+    host?: string;
+    owner?: string;
+    repository?: string;
+    recordedAtUtc?: Date;
+}
+
+export class ProblemDetails implements IProblemDetails {
+    type?: string | undefined;
+    title?: string | undefined;
+    status?: number | undefined;
+    detail?: string | undefined;
+    instance?: string | undefined;
+
+    [key: string]: any;
+
+    constructor(data?: IProblemDetails) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            for (var property in _data) {
+                if (_data.hasOwnProperty(property))
+                    this[property] = _data[property];
+            }
+            this.type = _data["type"];
+            this.title = _data["title"];
+            this.status = _data["status"];
+            this.detail = _data["detail"];
+            this.instance = _data["instance"];
+        }
+    }
+
+    static fromJS(data: any): ProblemDetails {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProblemDetails();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        for (var property in this) {
+            if (this.hasOwnProperty(property))
+                data[property] = this[property];
+        }
+        data["type"] = this.type;
+        data["title"] = this.title;
+        data["status"] = this.status;
+        data["detail"] = this.detail;
+        data["instance"] = this.instance;
+        return data;
+    }
+}
+
+export interface IProblemDetails {
+    type?: string | undefined;
+    title?: string | undefined;
+    status?: number | undefined;
+    detail?: string | undefined;
+    instance?: string | undefined;
+
+    [key: string]: any;
+}
+
+export class ApiProblemDetails extends ProblemDetails implements IApiProblemDetails {
+    errors!: ApiError[];
+    traceId!: string;
+
+    [key: string]: any;
+
+    constructor(data?: IApiProblemDetails) {
+        super(data);
+        if (!data) {
+            this.errors = [];
+        }
+    }
+
+    override init(_data?: any) {
+        super.init(_data);
+        if (_data) {
+            for (var property in _data) {
+                if (_data.hasOwnProperty(property))
+                    this[property] = _data[property];
+            }
+            if (Array.isArray(_data["errors"])) {
+                this.errors = [] as any;
+                for (let item of _data["errors"])
+                    this.errors!.push(ApiError.fromJS(item));
+            }
+            this.traceId = _data["traceId"];
+        }
+    }
+
+    static override fromJS(data: any): ApiProblemDetails {
+        data = typeof data === 'object' ? data : {};
+        let result = new ApiProblemDetails();
+        result.init(data);
+        return result;
+    }
+
+    override toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        for (var property in this) {
+            if (this.hasOwnProperty(property))
+                data[property] = this[property];
+        }
+        if (Array.isArray(this.errors)) {
+            data["errors"] = [];
+            for (let item of this.errors)
+                data["errors"].push(item ? item.toJSON() : undefined as any);
+        }
+        data["traceId"] = this.traceId;
+        super.toJSON(data);
+        return data;
+    }
+}
+
+export interface IApiProblemDetails extends IProblemDetails {
+    errors: ApiError[];
+    traceId: string;
+
+    [key: string]: any;
+}
+
+export class ApiError implements IApiError {
+    code?: string;
+    detail?: string;
+    pointer?: string | undefined;
+    parameters?: { [key: string]: any; } | undefined;
+
+    constructor(data?: IApiError) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.code = _data["code"];
+            this.detail = _data["detail"];
+            this.pointer = _data["pointer"];
+            if (_data["parameters"]) {
+                this.parameters = {} as any;
+                for (let key in _data["parameters"]) {
+                    if (_data["parameters"].hasOwnProperty(key))
+                        (this.parameters as any)![key] = _data["parameters"][key];
+                }
+            }
+        }
+    }
+
+    static fromJS(data: any): ApiError {
+        data = typeof data === 'object' ? data : {};
+        let result = new ApiError();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["code"] = this.code;
+        data["detail"] = this.detail;
+        data["pointer"] = this.pointer;
+        if (this.parameters) {
+            data["parameters"] = {};
+            for (let key in this.parameters) {
+                if (this.parameters.hasOwnProperty(key))
+                    (data["parameters"] as any)[key] = (this.parameters as any)[key];
+            }
+        }
+        return data;
+    }
+}
+
+export interface IApiError {
+    code?: string;
+    detail?: string;
+    pointer?: string | undefined;
+    parameters?: { [key: string]: any; } | undefined;
+}
+
+export class RecordGitHubObservationTargetRequest implements IRecordGitHubObservationTargetRequest {
+    operationId!: string;
+    commitSha!: string;
+    owner!: string;
+    repository!: string;
+
+    constructor(data?: IRecordGitHubObservationTargetRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.commitSha = _data["commitSha"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+        }
+    }
+
+    static fromJS(data: any): RecordGitHubObservationTargetRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecordGitHubObservationTargetRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["commitSha"] = this.commitSha;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        return data;
+    }
+}
+
+export interface IRecordGitHubObservationTargetRequest {
+    operationId: string;
+    commitSha: string;
+    owner: string;
+    repository: string;
+}
+
 export class VerificationDiagnosisStatusResponse implements IVerificationDiagnosisStatusResponse {
     hasAttempt?: boolean;
     attemptId?: string | undefined;
@@ -6371,190 +6868,6 @@ export interface IRunEventHistoryActorResponse {
     kind?: string;
     role?: string | undefined;
     provider?: string | undefined;
-}
-
-export class ProblemDetails implements IProblemDetails {
-    type?: string | undefined;
-    title?: string | undefined;
-    status?: number | undefined;
-    detail?: string | undefined;
-    instance?: string | undefined;
-
-    [key: string]: any;
-
-    constructor(data?: IProblemDetails) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            for (var property in _data) {
-                if (_data.hasOwnProperty(property))
-                    this[property] = _data[property];
-            }
-            this.type = _data["type"];
-            this.title = _data["title"];
-            this.status = _data["status"];
-            this.detail = _data["detail"];
-            this.instance = _data["instance"];
-        }
-    }
-
-    static fromJS(data: any): ProblemDetails {
-        data = typeof data === 'object' ? data : {};
-        let result = new ProblemDetails();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        for (var property in this) {
-            if (this.hasOwnProperty(property))
-                data[property] = this[property];
-        }
-        data["type"] = this.type;
-        data["title"] = this.title;
-        data["status"] = this.status;
-        data["detail"] = this.detail;
-        data["instance"] = this.instance;
-        return data;
-    }
-}
-
-export interface IProblemDetails {
-    type?: string | undefined;
-    title?: string | undefined;
-    status?: number | undefined;
-    detail?: string | undefined;
-    instance?: string | undefined;
-
-    [key: string]: any;
-}
-
-export class ApiProblemDetails extends ProblemDetails implements IApiProblemDetails {
-    errors!: ApiError[];
-    traceId!: string;
-
-    [key: string]: any;
-
-    constructor(data?: IApiProblemDetails) {
-        super(data);
-        if (!data) {
-            this.errors = [];
-        }
-    }
-
-    override init(_data?: any) {
-        super.init(_data);
-        if (_data) {
-            for (var property in _data) {
-                if (_data.hasOwnProperty(property))
-                    this[property] = _data[property];
-            }
-            if (Array.isArray(_data["errors"])) {
-                this.errors = [] as any;
-                for (let item of _data["errors"])
-                    this.errors!.push(ApiError.fromJS(item));
-            }
-            this.traceId = _data["traceId"];
-        }
-    }
-
-    static override fromJS(data: any): ApiProblemDetails {
-        data = typeof data === 'object' ? data : {};
-        let result = new ApiProblemDetails();
-        result.init(data);
-        return result;
-    }
-
-    override toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        for (var property in this) {
-            if (this.hasOwnProperty(property))
-                data[property] = this[property];
-        }
-        if (Array.isArray(this.errors)) {
-            data["errors"] = [];
-            for (let item of this.errors)
-                data["errors"].push(item ? item.toJSON() : undefined as any);
-        }
-        data["traceId"] = this.traceId;
-        super.toJSON(data);
-        return data;
-    }
-}
-
-export interface IApiProblemDetails extends IProblemDetails {
-    errors: ApiError[];
-    traceId: string;
-
-    [key: string]: any;
-}
-
-export class ApiError implements IApiError {
-    code?: string;
-    detail?: string;
-    pointer?: string | undefined;
-    parameters?: { [key: string]: any; } | undefined;
-
-    constructor(data?: IApiError) {
-        if (data) {
-            for (var property in data) {
-                if (data.hasOwnProperty(property))
-                    (this as any)[property] = (data as any)[property];
-            }
-        }
-    }
-
-    init(_data?: any) {
-        if (_data) {
-            this.code = _data["code"];
-            this.detail = _data["detail"];
-            this.pointer = _data["pointer"];
-            if (_data["parameters"]) {
-                this.parameters = {} as any;
-                for (let key in _data["parameters"]) {
-                    if (_data["parameters"].hasOwnProperty(key))
-                        (this.parameters as any)![key] = _data["parameters"][key];
-                }
-            }
-        }
-    }
-
-    static fromJS(data: any): ApiError {
-        data = typeof data === 'object' ? data : {};
-        let result = new ApiError();
-        result.init(data);
-        return result;
-    }
-
-    toJSON(data?: any) {
-        data = typeof data === 'object' ? data : {};
-        data["code"] = this.code;
-        data["detail"] = this.detail;
-        data["pointer"] = this.pointer;
-        if (this.parameters) {
-            data["parameters"] = {};
-            for (let key in this.parameters) {
-                if (this.parameters.hasOwnProperty(key))
-                    (data["parameters"] as any)[key] = (this.parameters as any)[key];
-            }
-        }
-        return data;
-    }
-}
-
-export interface IApiError {
-    code?: string;
-    detail?: string;
-    pointer?: string | undefined;
-    parameters?: { [key: string]: any; } | undefined;
 }
 
 export class GetRunCockpitResponse implements IGetRunCockpitResponse {
@@ -8363,6 +8676,54 @@ export interface IImplementationAttemptStatusResponse {
     runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
     attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
+}
+
+export class GetGitHubObservationTargetResponse implements IGetGitHubObservationTargetResponse {
+    runId?: string;
+    state?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+
+    constructor(data?: IGetGitHubObservationTargetResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.state = _data["state"];
+            this.source = _data["source"] ? GitHubObservationSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubObservationScopeResponse.fromJS(_data["target"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetGitHubObservationTargetResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitHubObservationTargetResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["state"] = this.state;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetGitHubObservationTargetResponse {
+    runId?: string;
+    state?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {

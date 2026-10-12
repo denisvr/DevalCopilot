@@ -61,6 +61,16 @@ github.com spellings, a normalized owner and repository. This is configured scop
 persisted, and exact-SHA CI correlation, publication policy, push, pull request and reconciliation still require an explicit, verified repository
 binding that a later decision must define.
 
+## Recorded observation scope
+
+[ADR-0040](../decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md) lets the Human record, once and immutably, the
+GitHub `owner` and `repository` (fixed host `github.com`, purpose `CiObservation`) meant for the exact commit and branch of a completed manual local
+delivery, derived from the pinned ADR-0032 receipt and workspace rows and saved with one Human event. It is the local half of the correlation rules below:
+it fixes which repository scope is meant for which exact branch and commit, and nothing more. It does not verify that the repository exists, that the
+account may use it or that a remote ref matches, it observes nothing and authorizes no push, pull request or CI observation. Remote identity
+verification, exact-SHA CI observation, scoped publication and reconciliation remain later, separately gated slices that must treat the record as a
+Human-selected input, never as evidence of any remote fact.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

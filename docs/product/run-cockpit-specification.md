@@ -145,6 +145,23 @@ on mount, opening, a project change, a reconnect, a timer or a background refres
 a return to an earlier one, closing and reopening each start collapsed and unchecked, a late answer of an ended or superseded lifetime is ignored, and
 a close is bound to its own opening. Agent readiness, claim eligibility, budgets, history and local delivery are unaffected.
 
+## GitHub observation target
+
+A collapsed region beside the Completed local-commit region
+([ADR-0040](../decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md); a sibling of it, never inside it, so the commit and
+receipt regions stay read-only) offers "Show GitHub observation target", "Load GitHub observation target" (then "Reload"), "Close GitHub observation
+target" and a separate "Record GitHub observation target" action. It reads only through the protected, bodyless
+`GET /api/runs/{runId}/github-observation-target` when the owner loads, and writes only through the protected `POST` of the same route when the owner records.
+It shows the exact branch and local commit, a fixed disclosure that recording is a local Human selection that is not verified remote identity, permission, CI
+success or publication authority and cannot be changed afterwards, and, for a `NotRecorded` answer that names this exact source, blank "GitHub owner" and
+"GitHub repository" fields (nothing is defaulted from the origin or authentication observations; nothing is trimmed or converted) with the selection to be
+recorded shown before submission. An `Available` answer shows the host, owner, repository, recording time and the one recording event as plain text; an
+`Unavailable` answer says only that the recorded facts do not agree. Nothing is read or recorded on mount, opening, a source change, a reconnect, a timer or a
+background refresh. The committed source (run, operation, commit and branch) and each opening own the draft, reads and write: another source, a return to an
+earlier one, closing and reopening each start collapsed, blank and unloaded; a late answer of an ended or superseded lifetime is ignored; a duplicate
+activation, two in one batch and any activation after a close in the same batch send nothing. Every answer is accepted only whole and only for this source,
+and after any failed, refused or incoherent recording an explicit reload must read what the host recorded before another recording is possible.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

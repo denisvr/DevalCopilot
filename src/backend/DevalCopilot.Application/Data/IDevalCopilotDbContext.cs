@@ -59,6 +59,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<LocalCommitAuthorityMember> LocalCommitAuthorityMembers { get; }
 
+    DbSet<GitHubObservationTarget> GitHubObservationTargets { get; }
+
     /// <summary>
     /// Change-tracker access for the one claim-time guard that must mark an already-tracked Run's
     /// concurrency-token column as modified (see <c>CurrentClaudeModelPreference</c>).

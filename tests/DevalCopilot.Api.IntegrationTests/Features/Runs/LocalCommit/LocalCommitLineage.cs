@@ -69,7 +69,7 @@ internal static class LocalCommitLineage
         RepositoryMutationLease lease;
         if (continueFrom is null)
         {
-            project = Project.Register(Guid.NewGuid(), "Local commit project", scene.MainPath, now);
+            project = Project.Register(scene.ProjectId, "Local commit project", scene.MainPath, now);
             dbContext.Projects.Add(project);
             workspace = GitWorkspace.Prepare(
                 Guid.NewGuid(), project.Id, 1, scene.WorkspacePath, scene.BranchName, scene.BaselineCommit, "main", now);

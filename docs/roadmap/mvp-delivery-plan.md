@@ -344,6 +344,10 @@ permission or publication authority, and the push, pull request, CI and reconcil
 project's own repository-local `origin` URL (two fixed local Git invocations, a closed status and a normalized github.com target for a small supported
 subset, no remote, network, credential or persistence); it supplies a bounded input for later repository scoping only, is not remote identity, binding,
 permission or publication authority, and the remote binding, exact-SHA CI, push, pull request and reconciliation deliverables remain open.
+[ADR-0040](../decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md) adds the explicit, immutable Human selection of the
+GitHub owner and repository (fixed host) for the exact branch and commit of a completed manual local delivery, recorded with one Human event from pinned
+rows; it is local scope selection only, verifies no remote repository or permission, and grants no publication or automatic observation authority. Remote
+identity verification, exact-SHA CI, scoped publication and reconciliation remain open, separately gated slices.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

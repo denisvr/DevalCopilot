@@ -19,6 +19,7 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Persistence;
 public sealed class AddRunAbandonmentMigrationTests : IAsyncLifetime
 {
     private const string PriorMigration = "20261008090914_AddLocalCommitAttentionExclusion";
+    private const string OwnMigration = "20261008192030_AddRunAbandonment";
 
     private static readonly DateTimeOffset Now = new(2026, 10, 8, 12, 0, 0, TimeSpan.Zero);
 
@@ -103,7 +104,7 @@ public sealed class AddRunAbandonmentMigrationTests : IAsyncLifetime
         var objectsBefore = await ReadSchemaObjectsAsync();
         await using (var upgraded = CreateContext())
         {
-            await upgraded.Database.MigrateAsync();
+            await upgraded.Database.GetService<IMigrator>().MigrateAsync(OwnMigration);
         }
 
         await using var reopened = CreateContext();
@@ -235,7 +236,7 @@ public sealed class AddRunAbandonmentMigrationTests : IAsyncLifetime
         Guid runId;
         await using (var context = CreateContext())
         {
-            await context.Database.MigrateAsync();
+            await context.Database.GetService<IMigrator>().MigrateAsync(OwnMigration);
             var project = Project.Register(projectId, "Project", $@"C:\repos\{Guid.NewGuid():N}", Now);
             var run = Run.RecordClassifiedIntent(
                 Guid.NewGuid(), projectId, project.ReserveExecutionNumber(), RunExecutionMode.ManualAgent, "Kept objective", Now);

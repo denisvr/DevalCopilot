@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Ports;
+using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Projects;
@@ -27,7 +28,8 @@ internal sealed class LocalCommitScene : IDisposable
         Directory.CreateDirectory(_root);
         MainPath = Path.Combine(_root, "main");
         WorkspacePath = Path.Combine(_root, "workspace");
-        BranchName = "devalcopilot/workspace/test/1";
+        ProjectId = Guid.NewGuid();
+        BranchName = WorkspaceBranchNamePolicy.Compute(ProjectId, 1);
         Storage = new LocalCommitStorage(Path.Combine(_root, "local-commit"));
         Worktrees = new GitWorktreeAdapter(_process);
         Markers = new WorkspaceOwnershipMarkerStore();
@@ -78,6 +80,10 @@ internal sealed class LocalCommitScene : IDisposable
     public string MainPath { get; }
 
     public string WorkspacePath { get; }
+
+    /// <summary>The project the seeded lineage registers, fixed up front so the workspace branch is the one the production
+    /// <see cref="WorkspaceBranchNamePolicy"/> computes for it and its first workspace number.</summary>
+    public Guid ProjectId { get; }
 
     public string BranchName { get; }
 

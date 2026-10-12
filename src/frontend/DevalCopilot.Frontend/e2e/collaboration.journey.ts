@@ -43,6 +43,7 @@ const CORRECTION_GUIDANCE = normalizeGuidance(CORRECTION_GUIDANCE_DRAFT)
 const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/[^/]+\/executions$/
 const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
 const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
+const OBSERVATION_TARGET_PATH = /\/api\/runs\/[^/]+\/github-observation-target$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
@@ -689,6 +690,154 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   }
   const assertRenderedReceipt = () => assertReceiptRegion(deliveryReceipt)
   await assertRenderedReceipt()
+
+  // 14c. The explicit, local Human selection of the delivery's GitHub observation scope (ADR-0040). The collapsed region beside the
+  // completed commit reads and writes nothing until the owner opens, loads and records through its own rendered controls, with blank
+  // typed names. The host derives the project, workspace and branch from pinned rows and records exactly one immutable target and
+  // one Human event. Nothing is verified, pushed, observed or authorized: no remote exists, no process or provider is invoked, and no
+  // other row, Git ref or file changes. A real reload and a reopening read the same persisted record back; nothing is recorded twice.
+  const observationRequests: { method: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    if (OBSERVATION_TARGET_PATH.test(new URL(request.url()).pathname)) {
+      observationRequests.push({ method: request.method(), body: request.postData() })
+    }
+  })
+  const observation = page.getByRole('region', { name: 'GitHub observation target' })
+  const observationOwner = 'journey-owner'
+  const observationRepository = 'journey.repository'
+  const deliveryBranch = git('rev-parse', '--abbrev-ref', 'HEAD')
+  const beforeTarget = {
+    attempts: data.attempts().length,
+    messages: data.messages().length,
+    executions: data.executions().length,
+    operations: data.localCommitOperationCount(),
+    reviews: data.checkpointReviews().length,
+    invocations: stageInvocations().length,
+    source: repositorySnapshot(repository.path),
+    head: git('rev-parse', 'HEAD'),
+  }
+  await expect(observation.getByRole('button', { name: 'Show GitHub observation target' })).toBeVisible()
+  await expect(observation.getByLabel('GitHub owner')).toHaveCount(0)
+  expect(observationRequests).toEqual([])
+  expect(data.gitHubObservationTargets()).toEqual([])
+  expect(data.gitHubObservationEvents()).toEqual([])
+
+  const openObservation = async () => {
+    await observation.getByRole('button', { name: 'Show GitHub observation target' }).click()
+    // Opening reads and writes nothing; only the explicit load does.
+    await expect(observation).toContainText('Not loaded.')
+    await expect(observation).toContainText(deliveredCommit)
+    await expect(observation).toContainText(deliveryBranch)
+  }
+  await openObservation()
+  expect(observationRequests).toEqual([])
+  const loadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && OBSERVATION_TARGET_PATH.test(new URL(response.url()).pathname),
+  )
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  const notRecorded = await loadWire
+  expect(notRecorded.status()).toBe(200)
+  const notRecordedBody = await notRecorded.json()
+  expect(Object.keys(notRecordedBody).sort()).toEqual(['runId', 'source', 'state', 'target'])
+  expect(notRecordedBody.state).toBe('NotRecorded')
+  expect(notRecordedBody.target ?? null).toBeNull()
+  expect(lower(notRecordedBody.runId)).toBe(lower(data.runs()[0].Id))
+  expect(notRecordedBody.source).toEqual({ operationId: expect.any(String), commitSha: deliveredCommit, branchName: deliveryBranch })
+  expect(lower(notRecordedBody.source.operationId)).toBe(lower(operation!.Id))
+  await expect(observation.getByLabel('GitHub owner')).toHaveValue('')
+  await expect(observation.getByLabel('GitHub repository')).toHaveValue('')
+  const recordTarget = observation.getByRole('button', { name: 'Record GitHub observation target' })
+  await expect(recordTarget).toBeDisabled()
+  await observation.getByLabel('GitHub owner').fill(observationOwner)
+  await observation.getByLabel('GitHub repository').fill(observationRepository)
+  await expect(observation).toContainText(
+    `Selection to record: github.com / ${observationOwner} / ${observationRepository} for the local commit ${deliveredCommit} on the branch ${deliveryBranch}.`,
+  )
+  await expect(recordTarget).toBeEnabled()
+  expect(data.gitHubObservationTargets()).toEqual([])
+
+  const recordWire = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && OBSERVATION_TARGET_PATH.test(new URL(response.url()).pathname),
+  )
+  await recordTarget.click()
+  const recorded = await recordWire
+  expect(recorded.status()).toBe(200)
+  const recordedBody = await recorded.json()
+  expect(Object.keys(recordedBody).sort()).toEqual(['runId', 'source', 'target'])
+  expect(recordedBody.source).toEqual(notRecordedBody.source)
+  expect(Object.keys(recordedBody.target).sort()).toEqual(['eventId', 'host', 'id', 'owner', 'recordedAtUtc', 'repository'])
+  expect(recordedBody.target).toMatchObject({ host: 'github.com', owner: observationOwner, repository: observationRepository })
+  expect(observationRequests.map((request) => request.method)).toEqual(['GET', 'POST'])
+  expect(Object.keys(JSON.parse(observationRequests[1].body ?? '{}')).sort()).toEqual(['commitSha', 'operationId', 'owner', 'repository'])
+  expect(JSON.parse(observationRequests[1].body ?? '{}')).toMatchObject({ commitSha: deliveredCommit, owner: observationOwner, repository: observationRepository })
+
+  // Exactly one immutable target and one Human event, written by the host from pinned rows and agreeing with each other.
+  const targetRows = data.gitHubObservationTargets()
+  expect(targetRows).toHaveLength(1)
+  const targetRow = targetRows[0]
+  expect(lower(targetRow.Id)).toBe(lower(recordedBody.target.id))
+  expect(lower(targetRow.EventId)).toBe(lower(recordedBody.target.eventId))
+  expect(lower(targetRow.RunId)).toBe(lower(recordedBody.runId))
+  expect(lower(targetRow.LocalCommitOperationId)).toBe(lower(operation!.Id))
+  expect(targetRow).toMatchObject({ CommitSha: deliveredCommit, BranchName: deliveryBranch, Owner: observationOwner, Repository: observationRepository })
+  const targetEvents = data.gitHubObservationEvents()
+  expect(targetEvents).toHaveLength(1)
+  expect(targetEvents[0]).toMatchObject({ ActorKind: 'Human', ActorAgentRole: null, ActorAgentProvider: null, AttemptId: null })
+  expect(lower(targetEvents[0].Id)).toBe(lower(targetRow.EventId))
+  expect(Date.parse(targetEvents[0].OccurredAtUtc)).toBe(Date.parse(targetRow.RecordedAtUtc))
+  expect(JSON.parse(targetEvents[0].PayloadJson)).toEqual({
+    version: 1,
+    targetId: lower(targetRow.Id),
+    operationId: lower(operation!.Id),
+    commitSha: deliveredCommit,
+    branchName: deliveryBranch,
+    host: 'github.com',
+    owner: observationOwner,
+    repository: observationRepository,
+  })
+  await expect(observation).toContainText('recorded for this local delivery and is immutable')
+  await expect(observation).toContainText(`${observationOwner}`)
+  await expect(observation).toContainText(lower(targetRow.EventId))
+  await expect(observation.getByLabel('GitHub owner')).toHaveCount(0)
+  await expect(observation.getByRole('button', { name: 'Record GitHub observation target' })).toHaveCount(0)
+
+  const assertNothingElseChanged = () => {
+    expect({
+      attempts: data.attempts().length,
+      messages: data.messages().length,
+      executions: data.executions().length,
+      operations: data.localCommitOperationCount(),
+      reviews: data.checkpointReviews().length,
+      invocations: stageInvocations().length,
+      source: repositorySnapshot(repository.path),
+      head: git('rev-parse', 'HEAD'),
+    }).toEqual(beforeTarget)
+    expect(git('rev-list', '--count', 'HEAD')).toBe('2')
+    expect(git('remote')).toBe('')
+  }
+  assertNothingElseChanged()
+
+  // A real reload and a reopening read the same persisted record back; nothing is recorded again and no external work happens.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await expect(observation.getByRole('button', { name: 'Show GitHub observation target' })).toBeVisible({ timeout: 30_000 })
+  await expect(observation.getByLabel('GitHub owner')).toHaveCount(0)
+  expect(observationRequests.map((request) => request.method)).toEqual(['GET', 'POST'])
+  await openObservation()
+  const reloadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && OBSERVATION_TARGET_PATH.test(new URL(response.url()).pathname),
+  )
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  const available = await (await reloadWire).json()
+  expect(available).toEqual({ runId: recordedBody.runId, state: 'Available', source: recordedBody.source, target: recordedBody.target })
+  await expect(observation).toContainText('recorded for this local delivery and is immutable')
+  await expect(observation).toContainText(observationRepository)
+  await expect(observation.getByRole('button', { name: 'Record GitHub observation target' })).toHaveCount(0)
+  expect(observationRequests.map((request) => request.method)).toEqual(['GET', 'POST', 'GET'])
+  expect(data.gitHubObservationTargets()).toEqual(targetRows)
+  expect(data.gitHubObservationEvents()).toEqual(targetEvents)
+  assertNothingElseChanged()
+
   const afterDelivery = {
     attempts: data.attempts().length,
     messages: data.messages().length,

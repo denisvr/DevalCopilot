@@ -5,7 +5,196 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current selection (2026-10-12): observe the project's locally configured GitHub origin
+## Current selection (2026-10-12): record an immutable GitHub observation scope for a completed local delivery
+
+### Review decision (2026-10-12): GO, corrected immutable observation scope
+
+Codex independently verified main HEAD/local/live origin/main at
+27e8b02d85e0d11fa92c52b166c4aa95f9886be7, 0/0, empty index and the combined
+81-path inventory (33 modified, 48 new). The executor preserved the prior
+NO-GO planner hash 53db629dafad46c54926f08420e6ee8b3fb45b781f3969d795bb2104a65e1743.
+This review decision replaces that checkpoint and is included in the approved diff.
+
+Both blocking corrections are accepted. The new target reader classifies the
+exact Human/no-role/no-provider/no-attempt shape in SQL without converting
+unknown actor enums. Commit, branch, owner, repository and event payload are
+bounded by stored bytes before materialization; oversize/NUL-hidden suffixes
+make the whole reading incoherent. Canonical source/event admission remains
+intact, and genuine faults and cancellation propagate. The hook synchronously
+advances a draft revision on edits and rejects retained submit callbacks,
+including same-batch edits; a current edited draft still submits once. Source,
+opening, duplicate, armed and ambiguous-outcome guards remain in place.
+
+Independent correction checks passed: Application target tests 24/24 (19 new
+storage-admission cases plus five persistence cases), Api reversible corruption
+classes 2/2, frontend decoder/hook/panel 54/54. git diff --check has no error;
+the generated client's existing CRLF-to-LF notice is retained. The executor's
+full correction results and earlier retained build, Domain, Infrastructure,
+migration, generated-client, browser, audit and hygiene evidence remain in
+[current-work.md](current-work.md); historical failures are not erased.
+
+Mutation judgments now agree with evidence: F4 is killed by the successor
+arming regression; B7 survives exclusion checks because this provider's ordinary
+transaction already excludes an independent writer before the no-op statement.
+Keep the explicit no-op pattern and uniqueness as separate protection; no
+provider-independent equivalence is claimed. Six correction mutants are reported
+killed with restored source hashes. One nonblocking test-description mismatch
+remains: the row labelled repository A-B-A actually edits the owner then restores
+the repository's unchanged value. Repository edits, owner A-B-A, same-batch
+invalidation and current-draft submission are independently covered, and the
+shared revision logic applies to both setters. Do not count that row as a direct
+repository A-B-A demonstration; this does not block acceptance.
+
+Accept four restrictive target FKs plus exact logical event validation, avoiding
+a wider events-table rebuild. The database does not prevent direct event deletion
+or alteration; GET and replay refuse missing, foreign or altered events. The
+sibling panel, policy-conformant fixture branch, narrow migration/event allow-list
+expectations and unchanged legacy snapshot line remain accepted. The selection
+is irreversible and local only: no remote identity, permission, publication or
+CI claim. Real qualification remains Blocked/TargetsNotReal; both allowances,
+the ledger, historical failures and retained roots remain unchanged.
+
+GO authorizes only this frozen combined diff, including this planner update and
+current-work.md. Verify the ignored publication manifest and all entries before
+staging, then commit, normal fast-forward push and independently verify the live
+remote in the same executor turn. Stop on any identity/content discrepancy or
+remote divergence; no force-push, edits, new validation, closure diff or next
+slice. Nothing is published by this decision itself. Codex will verify delivery
+and select the next bounded MVP prerequisite after the publication report.
+
+### Publication verified and next MVP prerequisite
+
+Codex independently verified ADR-0039 at
+27e8b02d85e0d11fa92c52b166c4aa95f9886be7, parent
+b8a1f328bde674dd581a8cb15e0760cb678c092a, expected message and trailer.
+Main HEAD/local/live origin/main agree, 0/0, empty index and clean working tree
+before this selection edit. All 41 manifest entries match committed paths,
+blobs/modes and raw hashes/sizes; manifest SHA-256 is
+152ff34079c39a373d0528e4ae11c5a6cd4a322bfb4b7314bcc6cbd18e128095.
+No validation was rerun for publication and no closure diff is needed.
+Preserve Windows/CLI/alias/symlink/mutation limits from the accepted review.
+
+Select one new Claude chat for a local, explicit Human selection of immutable
+GitHub repository scope for the exact SHA and branch of a completed manual
+local delivery. ADR-0005 and github-ci-integration require repository/branch/SHA
+correlation; ADR-0039 observes configuration but deliberately supplies no durable
+binding. LocalCommitOperation and ADR-0032 already supply exact completed source
+and branch; there is no remote binding, push/PR/CI adapter or observation target.
+This records Human-selected scope only. It verifies no remote repository or
+permission and grants no publication or automatic observation authority. Remote
+identity verification and exact-SHA CI are later slices, followed by scoped
+publication and reconciliation. Remaining Increment 4 contracts/qualification,
+Increment 5 coordination/concurrency/recovery, complete replay and packaged
+self-hosting remain release gates. Additional browsing/export/analytics and
+provider expansion are optional, not selected.
+
+### Selected contract
+
+- New Domain GitHubObservationTarget, immutable and at most one per run/local
+  operation. Store host-owned id, run/project/local-operation/workspace ids,
+  exact 40-character commit SHA, recorded branch, supported owner/repository,
+  UTC recorded time and the one Human event id. Purpose CiObservation and host
+  github.com are fixed project contract, never client choices. No status that
+  implies remote verification, authorization, push, PR or CI success.
+- Add one table, mapping, DbSet and additive migration with uniqueness for run,
+  operation and event. Retain forever with the run history in this slice; no
+  update, replacement, deletion, backfill, override or cleanup operation. Define
+  restrictive foreign-key deletion behavior; no cascade that silently removes
+  the new record or its event. Existing rows remain unchanged and unbound.
+- Protected POST /api/runs/{runId}/github-observation-target: body at most 8 KiB,
+  only operationId, commitSha, owner, repository. SHA is exact lowercase 40-hex;
+  names use the unchanged ADR-0039 conservative ASCII subset, with no trim,
+  decoding or arbitrary URL/host/branch. Use fixed validation/404/409 errors,
+  never echo rejected values. Unknown run: github_observation_target.not_found;
+  unusable/mismatched source: github_observation_target.unavailable; conflicting
+  immutable selection: github_observation_target.conflict.
+- In a manual command's short write-locked transaction, use the established
+  no-op Run write-lock pattern and fresh untracked reads. Require ManualAgent
+  mode and an Available ADR-0032 receipt for that exact run, matching the
+  submitted operation id and SHA. Derive project/workspace/branch from pinned
+  rows only. Verify the workspace number and WorkspaceBranchNamePolicy.Compute
+  agree with the recorded branch; never accept a client branch or current HEAD.
+  Reuse LocalDeliveryReceiptReader unchanged; do not dispatch a nested query or
+  weaken receipt/digest admission. This is historical recorded source, not fresh
+  workspace cleanliness or remote-publication eligibility.
+- Atomically insert the target and exactly one version-1 Human event
+  run.github_observation_target_recorded, with bounded canonical payload agreeing
+  with the target's identities, repository, branch and SHA. Notify only after
+  commit. No lifecycle/stage/participant/clock/LastAdvancedAtUtc or source-row
+  change; only the no-op lock, target and event belong to this operation.
+- Exact same coherent selection replays the original record/time/event without
+  another insert or event; a different selection conflicts. Separate-context
+  concurrency must serialize to one target and one event. Corrupt, foreign or
+  inconsistent existing target/event/receipt never becomes a successful replay.
+  Cancellation/save failure rolls back both inserts; unexpected faults propagate.
+- Protected bodyless GET at the same route: closed NotRecorded/Unavailable/
+  Available. Unknown run uses the same fixed 404. NotRecorded carries no target;
+  it may carry only {operationId, commitSha, branchName} as source when the exact
+  receipt and workspace branch are admissible. Available carries that source and
+  the coherent version-1 target {id, eventId, host, owner, repository,
+  recordedAtUtc}. Unavailable carries neither. Read untracked persisted rows
+  only, no writes/locks/external work; validate target/source/event together,
+  bounded projections, no latest substitution or partial result. No record can
+  be inferred from origin or auth observations.
+
+### UI and allowed implementation
+
+Add a collapsed panel beside the live Completed LocalCommitPanel, with explicit
+load/reload, close, blank owner/repository fields and a separate explicit Record
+GitHub observation target action. Show the exact branch/SHA and immutable target
+before recording, with fixed disclosure: local Human selection, no remote
+verification, permission, CI result or publication authority; it cannot be
+changed by this operation. No default from origin/auth, background probe, URL,
+copy/open remote action or automatic recording. A failed/ambiguous POST gets
+an explicit reload action before another submit; reload may find the original
+record and the same body remains safely replayable. Validate the whole response
+against the observed run/operation/SHA/branch and closed name/time/version shape.
+Own form/read/write/close lifetimes by committed run/source/open/draft, with
+serial guards and same-batch/in-flight protection. No keys/remount/reset effects.
+Keep LocalDeliveryReceipt and historical panels read-only and unchanged.
+
+Allowed: new Domain entity and narrow pure name policy, mapping/migration/
+DbSets, two vertical slices and MVC endpoints, event constant/classification,
+generated client, live panel/hook/decoder, tests/journey, additive ADR-0040 and
+narrow decisions/context/cockpit/GitHub architecture/roadmap/security/current-work
+docs. Extract the unchanged owner/repository checks from the origin parser into
+that Domain policy for both consumers; prove original origin outputs unchanged.
+No general repository abstraction, target registry, project-wide policy or
+refactor of authority/receipt/commit code. Preserve this selection byte for byte.
+
+### Acceptance and stop gates
+
+Failing tests first. Domain bounds/immutability; real SQLite migration leaves
+old runs unbound, key/FK enforcement, exactly one record/event, same retry,
+conflicting retry and concurrent same/different bodies using separate contexts,
+rollback/cancellation/restart, stale/foreign/not-completed source, malformed mode
+and storage, altered receipt/digest/branch/event and unknown run. Prove all
+source/workspace/lease/budget/attempt/clock rows and filesystem/Git/provider state
+unchanged. API normal auth, body/method/error limits and exact closed wire.
+Frontend source/whole-response validation and stale draft/run A-B-A, close/reopen,
+same-batch close/submit, duplicate clicks, late answers and ambiguous response.
+Extend the real-auth collaboration journey after its actual local commit:
+record an explicitly typed target, check exact SHA/branch and one Human event,
+reload/reopen, verify persistence and no second record/event or external work.
+Retain historical read no-write assertions with the baseline taken after the
+intentional target/event writes. No fixture-seeded completion or remote account.
+Use a small meaningful mutation set for source, idempotence, atomicity and lifetime.
+
+Run affected checks, clean serial build, full Domain/Application/Infrastructure/
+Api/Architecture/Vitest, typecheck/lint/build, exact strict e2e tsc, harness and
+one canonical e2e:all; reproducible client, scoped format, migration evidence,
+links/hygiene/secrets/audits. Keep failures and actual capability skips explicit.
+Stop and discuss if coherent receipt reuse, transaction serialization or this
+minimal immutable record requires broader policy/schema/authority changes.
+No Git/gh/process/network/provider call from the new operations, no credentials,
+remote verification, push/PR/CI adapter, scheduler/recovery/claim/approval change,
+CLI setup or cleanup. Real qualification remains Blocked/TargetsNotReal, both
+allowances unused; ledger, historical failures and retained roots preserved.
+Return one unstaged, uncommitted, unpushed diff for Codex GO/NO-GO. No publication
+or subsequent slice is authorized. Challenge a flawed requirement with evidence
+before dependent work; discussion does not authorize expansion.
+
+## Previous selection (2026-10-12): observe the project's locally configured GitHub origin
 
 ### Review decision (2026-10-12): GO for the corrected combined diff
 

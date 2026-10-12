@@ -28,3 +28,31 @@ describe('parseEventSummary', () => {
     expect(parseEventSummary('garbage', 'run.abandoned')).toBe('garbage')
   })
 })
+
+describe('parseEventSummary for the GitHub observation target event', () => {
+  const payload = JSON.stringify({
+    version: 1,
+    targetId: 't',
+    operationId: 'o',
+    commitSha: 'a'.repeat(40),
+    branchName: 'devalcopilot/workspace/x/1',
+    host: 'github.com',
+    owner: 'octo-cat',
+    repository: 'hello.world',
+  })
+
+  it('words it from its type and its own text members as a local selection only', () => {
+    expect(parseEventSummary(payload, 'run.github_observation_target_recorded')).toBe(
+      `GitHub observation target selected by the owner (local selection only): github.com/octo-cat/hello.world for local commit ${'a'.repeat(40)}.`,
+    )
+  })
+
+  it('never words another event type, or an incomplete or non-text payload, as a selection', () => {
+    expect(parseEventSummary(payload, 'run.completed')).toBe(payload)
+    expect(parseEventSummary('{"owner":"x","repository":"y"}', 'run.github_observation_target_recorded')).toBe('{"owner":"x","repository":"y"}')
+    expect(parseEventSummary('{"owner":1,"repository":"y","commitSha":"z"}', 'run.github_observation_target_recorded')).toBe(
+      '{"owner":1,"repository":"y","commitSha":"z"}',
+    )
+    expect(parseEventSummary('garbage', 'run.github_observation_target_recorded')).toBe('garbage')
+  })
+})

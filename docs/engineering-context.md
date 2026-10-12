@@ -124,6 +124,10 @@
 - [ADR-0039](decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md): Observe the project's local GitHub origin on explicit
   request (additive; one protected read-only observation of the registered project's own repository-local origin URL, a normalized github.com target for a
   small supported subset, no remote, network or credential operation, no persistence and no remote identity, permission, CI or publication authority).
+- [ADR-0040](decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md): Record an immutable GitHub observation scope for a
+  completed local delivery (additive; one protected Human selection of the fixed-host owner and repository for the exact recorded commit and branch, one
+  immutable record and one Human event saved atomically from pinned rows, no remote, process, credential or network operation and no remote identity,
+  permission, CI, publication or automatic observation authority).
 
 ## Product-specific architecture
 
@@ -273,6 +277,23 @@
   `Unavailable` without exposing the raw value. The cockpit adds a collapsed project-level region read only by its explicit inspect and recheck
   actions, owned by the committed project and each opening. It is configured scope, never verified remote identity, permission, CI success or publication
   authority.
+- [ADR-0040](decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md) lets the Human record, once and immutably, which
+  GitHub repository scope is meant for the exact branch and commit of a completed manual local delivery. `POST /api/runs/{runId}/github-observation-target`
+  (body at most 8 KiB: only `operationId`, an exact lowercase 40-hex `commitSha`, `owner` and `repository` in the unchanged ADR-0039 ASCII subset, shared as
+  one Domain policy; no trimming, URL, host, branch or credential) takes one short manual write-locked transaction (the existing no-op Run write), reads fresh
+  and untracked a ManualAgent run, an Available ADR-0032 receipt from the unchanged `LocalDeliveryReceiptReader` for that exact operation and commit, and the
+  pinned operation and workspace rows whose number reproduces the recorded branch through `WorkspaceBranchNamePolicy` (never a client branch, `HEAD` or a
+  latest record), then inserts one `GitHubObservationTarget` (host `github.com` and purpose `CiObservation` fixed; unique per run, operation and event;
+  restrictive foreign keys; no update, replacement, deletion or backfill; existing runs stay unbound) and exactly one version-1 Human event
+  `run.github_observation_target_recorded` with a bounded canonical payload, notifying after the commit and changing no lifecycle, stage, participant,
+  clock, workspace, lease, approval or budget. The same coherent selection replays its original record, time and event; a different one is the fixed 409
+  `github_observation_target.conflict`; an unusable or mismatched source is `github_observation_target.unavailable` (409); an unknown run is
+  `github_observation_target.not_found` (404); no error echoes a value. The protected bodyless `GET` at the same route reads persisted rows only and answers
+  a closed `NotRecorded` (source only when admissible), `Unavailable` (neither) or `Available` (source and the coherent target validated with its one Human
+  event). The cockpit adds a collapsed region beside, not inside, the Completed local-commit region with explicit load, reload, close and a separate record
+  action over blank owner and repository fields, showing the exact branch and commit and the immutable selection before submission, owned by the committed
+  source and each opening, and requiring an explicit reload after any failed or ambiguous recording. It is local scope selection, never verified remote
+  identity, permission, CI success, publication approval or automatic observation authority.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

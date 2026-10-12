@@ -1,4 +1,5 @@
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
+using DevalCopilot.Domain.Features.Projects;
 
 namespace DevalCopilot.Infrastructure.Features.Projects;
 
@@ -12,8 +13,6 @@ namespace DevalCopilot.Infrastructure.Features.Projects;
 /// </summary>
 internal static class GitHubOriginUrlParser
 {
-    private const int MaxOwnerLength = 39;
-    private const int MaxRepositoryLength = 100;
     private const string GitSuffix = ".git";
 
     private static readonly string[] Prefixes =
@@ -40,7 +39,7 @@ internal static class GitHubOriginUrlParser
             repository = repository[..^GitSuffix.Length];
         }
 
-        return IsOwner(owner) && IsRepository(repository) ? new GitHubOriginTarget(owner, repository) : null;
+        return GitHubRepositoryNamePolicy.IsOwner(owner) && GitHubRepositoryNamePolicy.IsRepository(repository) ? new GitHubOriginTarget(owner, repository) : null;
     }
 
     private static string? StripPrefix(string rawValue)
@@ -56,17 +55,4 @@ internal static class GitHubOriginUrlParser
         return null;
     }
 
-    private static bool IsOwner(string owner) =>
-        owner.Length is >= 1 and <= MaxOwnerLength
-        && IsAsciiAlphanumeric(owner[0])
-        && IsAsciiAlphanumeric(owner[^1])
-        && owner.All(character => IsAsciiAlphanumeric(character) || character == '-');
-
-    private static bool IsRepository(string repository) =>
-        repository.Length is >= 1 and <= MaxRepositoryLength
-        && IsAsciiAlphanumeric(repository[0])
-        && repository.All(character => IsAsciiAlphanumeric(character) || character is '.' or '_' or '-');
-
-    private static bool IsAsciiAlphanumeric(char character) =>
-        character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9';
 }

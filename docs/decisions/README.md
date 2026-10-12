@@ -88,6 +88,10 @@ supersedes it.
   (additive; one protected read-only observation of the registered project's own repository-local origin URL through two fixed local Git invocations,
   with a closed status and a normalized github.com target for a small supported subset, no remote, network, credential or global/included/worktree
   observation, no persistence and no remote identity, permission, CI or publication authority)
+- [ADR-0040: Record an immutable GitHub observation scope for a completed local delivery](0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md)
+  (additive; one protected Human selection of the host-fixed github.com owner and repository for the exact recorded commit and branch of a completed
+  manual local delivery, one immutable record and one Human event saved atomically from pinned rows, and a protected read of it; local scope selection
+  only, with no remote, process, credential or network operation and no remote identity, permission, CI, publication or automatic observation authority)
 
 ## Status values
 

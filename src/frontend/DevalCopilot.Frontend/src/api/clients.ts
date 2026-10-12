@@ -76,6 +76,8 @@ import {
   GetLocalDeliveryReceiptEndpointClient,
   AbandonManualRunEndpointClient,
   GetManualRunAbandonmentEndpointClient,
+  RecordGitHubObservationTargetEndpointClient,
+  GetGitHubObservationTargetEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -158,6 +160,8 @@ export const localCommitStatusClient = () => new GetLocalCommitStatusEndpointCli
 export const localDeliveryReceiptClient = () => new GetLocalDeliveryReceiptEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const abandonManualRunClient = () => new AbandonManualRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const manualRunAbandonmentClient = () => new GetManualRunAbandonmentEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const recordGitHubObservationTargetClient = () => new RecordGitHubObservationTargetEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubObservationTargetClient = () => new GetGitHubObservationTargetEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -257,6 +261,8 @@ export type {
   AbandonManualRunResponse,
   GetManualRunAbandonmentResponse,
   ManualRunAbandonmentResponse,
+  GetGitHubObservationTargetResponse,
+  RecordGitHubObservationTargetResponse,
 } from './generated/api-client'
 export {
   ClaimVerificationExecutionRequest,
@@ -272,4 +278,5 @@ export {
   SetCodexAssignmentPreferenceRequest,
   RequestLocalCommitRequest,
   AbandonManualRunRequest,
+  RecordGitHubObservationTargetRequest,
 } from './generated/api-client'

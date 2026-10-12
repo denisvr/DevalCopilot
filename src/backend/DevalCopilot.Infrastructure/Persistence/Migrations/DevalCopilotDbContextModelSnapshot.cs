@@ -1083,6 +1083,71 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("diagnosis_correction_escalations", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.GitHubObservationTarget", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BranchName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommitSha")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GitWorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("LocalCommitOperationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(39)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("RecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Repository")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_observation_targets_event");
+
+                    b.HasIndex("GitWorkspaceId");
+
+                    b.HasIndex("LocalCommitOperationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_observation_targets_operation");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("RunId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_observation_targets_run");
+
+                    b.ToTable("github_observation_targets", (string)null);
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.LocalCommitAuthorityMember", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1854,6 +1919,33 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("VerificationDiagnosisAttemptId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.GitHubObservationTarget", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitWorkspace", null)
+                        .WithMany()
+                        .HasForeignKey("GitWorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalCommitOperation", null)
+                        .WithMany()
+                        .HasForeignKey("LocalCommitOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

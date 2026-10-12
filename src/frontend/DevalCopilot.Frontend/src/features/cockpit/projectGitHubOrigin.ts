@@ -1,4 +1,5 @@
 import type { ProjectGitHubOriginResponse } from '../../api/clients'
+import { isGitHubOwner, isGitHubRepository } from './gitHubRepositoryNames'
 
 /** The closed states of the explicit repository-local GitHub origin observation (ADR-0039). */
 export type ProjectGitHubOriginStatus = 'Unavailable' | 'NotConfigured' | 'Available'
@@ -19,9 +20,6 @@ export interface ProjectGitHubOrigin {
 export const ORIGIN_SOURCE = 'RepositoryLocalConfig'
 export const ORIGIN_HOST = 'github.com'
 
-const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/
-const REPOSITORY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/
-
 const isAbsent = (value: unknown) => value === null || value === undefined
 
 const isValidDate = (value: unknown): value is Date => value instanceof Date && !Number.isNaN(value.getTime())
@@ -36,7 +34,7 @@ function toTarget(value: unknown): ProjectGitHubOriginTarget | null {
     return null
   }
 
-  return OWNER.test(owner) && REPOSITORY.test(repository) ? { owner, repository } : null
+  return isGitHubOwner(owner) && isGitHubRepository(repository) ? { owner, repository } : null
 }
 
 /**

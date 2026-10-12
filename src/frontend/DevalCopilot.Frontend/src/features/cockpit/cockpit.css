@@ -1409,3 +1409,52 @@
   border-left: 3px solid var(--dc-warning);
   padding-left: 0.5rem;
 }
+
+.dc-github-target {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--dc-border);
+  font-size: 0.75rem;
+}
+
+.dc-github-target-body {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-target h4,
+.dc-github-target p {
+  margin: 0;
+}
+
+.dc-github-target-note,
+.dc-github-target-state,
+.dc-github-target-review {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-target-source,
+.dc-github-target-selection {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-github-target-source dd,
+.dc-github-target-selection dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dc-github-target-result {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-target-result label {
+  display: grid;
+  gap: 0.15rem;
+}

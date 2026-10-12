@@ -118,7 +118,7 @@ public abstract class LocalDeliveryReceiptTestBase : LocalCommitTestBase
     }
 
     /// <summary>A content hash of every row of every table, so a read can be proven to have written nothing at all.</summary>
-    internal async Task<string> DatabaseFingerprintAsync()
+    internal async Task<string> DatabaseFingerprintAsync(IReadOnlyCollection<string>? excludedTables = null, string? excludedEventType = null)
     {
         await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
         await connection.OpenAsync();
@@ -129,7 +129,10 @@ public abstract class LocalDeliveryReceiptTestBase : LocalCommitTestBase
             await using var reader = await list.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
-                tables.Add(reader.GetString(0));
+                if (excludedTables?.Contains(reader.GetString(0)) != true)
+                {
+                    tables.Add(reader.GetString(0));
+                }
             }
         }
 
@@ -138,8 +141,15 @@ public abstract class LocalDeliveryReceiptTestBase : LocalCommitTestBase
         {
             await using var command = connection.CreateCommand();
 #pragma warning disable CA2100 // Table names come from sqlite_master.
-            command.CommandText = $"SELECT * FROM \"{table}\"";
+            command.CommandText = table == "events" && excludedEventType is not null
+                ? "SELECT * FROM \"events\" WHERE \"EventType\" <> $excluded"
+                : $"SELECT * FROM \"{table}\"";
 #pragma warning restore CA2100
+            if (table == "events" && excludedEventType is not null)
+            {
+                command.Parameters.AddWithValue("$excluded", excludedEventType);
+            }
+
             await using var reader = await command.ExecuteReaderAsync();
             builder.Append(table).Append(':');
             while (await reader.ReadAsync())

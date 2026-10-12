@@ -68,6 +68,30 @@ export interface LocalCommitOperationRow {
   HumanCheckpointReviewId: string
 }
 
+export interface GitHubObservationTargetRow {
+  Id: string
+  RunId: string
+  ProjectId: string
+  LocalCommitOperationId: string
+  GitWorkspaceId: string
+  CommitSha: string
+  BranchName: string
+  Owner: string
+  Repository: string
+  RecordedAtUtc: string
+  EventId: string
+}
+
+export interface GitHubObservationEventRow {
+  Id: string
+  AttemptId: string | null
+  ActorKind: string
+  ActorAgentRole: string | null
+  ActorAgentProvider: string | null
+  PayloadJson: string
+  OccurredAtUtc: string
+}
+
 export interface MessageRow {
   Id: string
   AttemptId: string | null
@@ -331,6 +355,23 @@ export class JourneyData {
       this.projectId(),
     ).Count
   }
+
+  /** The GitHub observation targets recorded for this journey's own run (ADR-0040): at most one, and none unless the page recorded it. */
+  gitHubObservationTargets(): GitHubObservationTargetRow[] {
+    return this.all<GitHubObservationTargetRow>(
+      'select Id, RunId, ProjectId, LocalCommitOperationId, GitWorkspaceId, CommitSha, BranchName, Owner, Repository, RecordedAtUtc, EventId from github_observation_targets where RunId = ?',
+      this.runId(),
+    )
+  }
+
+  /** The Human events of the recorded type this journey's own run owns, with the columns that prove who authored them and what they say. */
+  gitHubObservationEvents(): GitHubObservationEventRow[] {
+    return this.all<GitHubObservationEventRow>(
+      "select Id, AttemptId, ActorKind, ActorAgentRole, ActorAgentProvider, PayloadJson, OccurredAtUtc from events where RunId = ? and EventType = 'run.github_observation_target_recorded' order by Sequence",
+      this.runId(),
+    )
+  }
+
 
   messages(): MessageRow[] {
     return this.all<MessageRow>(
