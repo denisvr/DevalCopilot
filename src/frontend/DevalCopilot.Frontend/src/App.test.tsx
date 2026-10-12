@@ -249,3 +249,61 @@ describe('App run history composition', () => {
     expect(getProjectRunHistory).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('App GitHub stored authentication composition', () => {
+  async function renderWithClient() {
+    const getGitHubStoredAuthentication = vi.fn(() =>
+      Promise.resolve({ host: 'github.com', context: 'StoredDefaultConfig', status: 'Authenticated', observedAtUtc: new Date('2026-10-12T09:00:00Z') }),
+    )
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => 'ready' }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [
+          { projectId: 'project-a', projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', canCreateRun: false, capabilities: [] },
+          { projectId: 'project-b', projectName: 'Beta', capabilities: [] },
+        ],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({ CandidateWorkspacePanel: () => null }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: { runId: string }) => <p>{`cockpit ${props.runId}`}</p>,
+    }))
+    vi.doMock('./api/clients', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('./api/clients')>()),
+      gitHubStoredAuthenticationClient: () => ({ getGitHubStoredAuthentication }),
+    }))
+    const { default: FreshApp } = await import('./App')
+    return { ...render(<FreshApp />), getGitHubStoredAuthentication }
+  }
+
+  it('offers one collapsed host-level region that reads nothing on mount and leaves the live cockpit unchanged', async () => {
+    const { getGitHubStoredAuthentication } = await renderWithClient()
+
+    expect(screen.getByRole('button', { name: 'Show GitHub stored authentication' })).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a')).toBeInTheDocument()
+    expect(getGitHubStoredAuthentication).not.toHaveBeenCalled()
+  })
+
+  it('reads only on the explicit check, keeps its answer across a project change and never reads again by itself', async () => {
+    const { getGitHubStoredAuthentication } = await renderWithClient()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show GitHub stored authentication' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Check stored authentication' }))
+    expect(await screen.findByText('An active stored account is authenticated for github.com.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+
+    expect(screen.getByText('An active stored account is authenticated for github.com.')).toBeInTheDocument()
+    expect(screen.getByText(/Beta has no run yet/)).toBeInTheDocument()
+    expect(getGitHubStoredAuthentication).toHaveBeenCalledTimes(1)
+  })
+})

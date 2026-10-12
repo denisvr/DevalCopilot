@@ -81,6 +81,9 @@ supersedes it.
   (additive; one protected read-only inspection of the one Agent attempt a message itself references, as a minimal recorded header under the
   unchanged attempt identity and assignment-snapshot rules, read through bounded scalar projections with a closed NoAgentAttempt, Unavailable or
   Available status; it adds no persistence and changes no admission, claim, dispatch, recovery, approval or digest decision)
+- [ADR-0038: Observe stored GitHub CLI authentication on explicit request](0038-observe-stored-github-cli-authentication-on-explicit-request.md)
+  (additive; one protected read-only observation of the default stored GitHub CLI authentication of github.com through one fixed privacy-filtered
+  command, with a closed status, no credential, environment-token or custom-config observation, no persistence and no repository or publication authority)
 
 ## Status values
 

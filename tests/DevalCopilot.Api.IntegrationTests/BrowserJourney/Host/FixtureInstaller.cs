@@ -1,13 +1,13 @@
 namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.Host;
 
 /// <summary>
-/// Installs the one deterministic fixture executable into the owned root's bin directory under the three names the workflow
-/// launches (codex, claude, verify). The apphost locates its assembly by relative name, so the assembly and its runtime files
+/// Installs the one deterministic fixture executable into the owned root's bin directory under the four names the workflow
+/// launches (codex, claude, verify, gh). The apphost locates its assembly by relative name, so the assembly and its runtime files
 /// are copied beside every renamed apphost unchanged.
 /// </summary>
 public static class FixtureInstaller
 {
-    public static readonly IReadOnlyList<string> RoleNames = ["codex", "claude", "verify"];
+    public static readonly IReadOnlyList<string> RoleNames = ["codex", "claude", "verify", "gh"];
 
     private static readonly string[] RuntimeFiles = ["ProviderFixture.dll", "ProviderFixture.runtimeconfig.json", "ProviderFixture.deps.json"];
 

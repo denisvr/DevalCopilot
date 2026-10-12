@@ -35,7 +35,7 @@
 | Codex CLI | Existing provider-managed session | Scoped agent attempt | Codex CLI and user | Provider policy |
 | Claude Code CLI | Existing provider-managed session | Scoped agent attempt | Claude Code and user | Provider policy |
 | Git | Existing Git and SSH configuration | Policy-authorized repository operations | Git/SSH tooling and user | Provider policy |
-| GitHub CLI | Existing CLI-managed session | Policy-authorized GitHub operations | GitHub CLI and user | GitHub policy |
+| GitHub CLI | Existing CLI-managed session | Policy-authorized GitHub operations; an explicit read-only stored-authentication observation ([ADR-0038](../decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md)) that never extracts the token and grants no authority | GitHub CLI and user | GitHub policy |
 
 No agent response is an identity or authorization decision.
 

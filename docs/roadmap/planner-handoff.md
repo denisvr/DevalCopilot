@@ -5,7 +5,170 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current selection (2026-10-12): inspect a historical message's own Agent attempt attribution
+## Current selection (2026-10-12): explicitly observe stored GitHub CLI authentication
+
+### Review decision (2026-10-12): GO for the corrected combined diff
+
+Codex re-verified main HEAD/local/live origin/main at
+7be3b05d3ac2654d08e8cd9ee2f5d189561c89b2, 0/0, empty index, exactly 40 files
+(18 modified, 22 new). The executor preserved the prior planner record hash
+e5c83ef42d5524ee65738c21d589f06f5eac017332f8707111853a24f3c864d8.
+
+Both prior blocking findings are corrected: the privacy selector admits an
+empty hosts object as NoActiveAccount while malformed shapes remain Unknown;
+the process exception boundary handles only the identified OS/start failures
+and propagates unexpected faults and cancellation, releasing the slot in
+finally. The ExecutablePath argument filter agrees with the shared executor's
+absolute-path and missing-file validation; the process engine is unchanged.
+Codex independently reran Infrastructure adapter 96/96 and Api endpoint 9/9.
+The earlier independent Application 20 and frontend/App 42 results remain
+applicable. The current-work correction records red-first 15/96, three killed
+mutants and the executor's full corrected validation; retained checks are
+explicitly distinguished. No additional blocking finding was identified.
+
+Accept the disclosed fixture-only limits: the actual jq evaluator, installed
+CLI formatting and environment compatibility remain unverified. This supports
+an advisory observation, not real CLI qualification, repository permission,
+publication permission in the product, or Increment 6/MVP completion. Preserve
+red-run and mutation limitations, existing warnings/audit advisory and capability
+skips. Real qualification remains Blocked/TargetsNotReal, both allowances unused;
+ledger, historical failures and retained roots stay intact.
+
+GO authorizes only this corrected 40-file diff, including this planner update.
+Freeze the publication manifest under ignored logs/planner-review, verify all
+entries against Git and publish the exact reviewed diff in the same executor
+turn: commit, normal fast-forward push to origin/main, remote verification,
+then report the delivered SHA. Stop for any identity mismatch or divergence;
+no force-push, new edits, validation reruns, separate closure diff or next-slice
+selection. Codex will independently verify publication and select the next
+bounded slice. No real gh authentication, provider work, CLI installation or
+configuration, allowance use, ledger reset or root cleanup is authorized.
+
+### Publication verified and priority
+
+Codex independently verified publication 7be3b05d3ac2654d08e8cd9ee2f5d189561c89b2,
+parent 3f79af59c7aa77d5a62671d3dd2331fdaba75535, message
+`feat: inspect historical message attempt attribution` and Co-Authored-By trailer.
+All 44 manifest entries match paths/statuses, raw hashes/sizes and committed
+blobs/modes; manifest SHA-256 is
+50d7b1a4152920f42fcb2ffcbaac09018570ebb292a00d31a2f08805d0d88d49.
+Main HEAD/local/live origin/main agree, 0/0, index and working tree clean before
+this selection edit. No validation was rerun and no closure edit is needed.
+
+Select a new Claude executor chat for one explicit observation of existing,
+stored GitHub CLI authentication for github.com. ADR-0005 and Increment 6
+require GitHub authentication health without extracting the CLI token. The
+current capability descriptor probes gh.exe --version only; there is no
+authentication observer or remote/CI loop. This advances a release prerequisite
+outside the blocked Agent qualification and avoids treating binary discovery
+as authentication. Further history browsing, export and analytics are not
+selected. Auth health is not repository permission, publication authority or
+Increment 6 completion. Replay, remaining Increment 4 contracts, Increment 5
+coordination/concurrency/recovery, remote/CI reconciliation and packaged
+self-hosting remain release gates. Real qualification remains
+Blocked/TargetsNotReal; both allowances unused, ledger/failures/roots preserved.
+
+### Selected contract
+
+- Add protected, bodyless GET /api/environment/github-stored-authentication via
+  a new mediator query and one MVC endpoint with API-owned transport. It returns
+  only fixed host github.com, fixed context StoredDefaultConfig, a closed status
+  CliUnavailable/Unknown/NoActiveAccount/Authenticated/IssueReported and nullable
+  ObservedAtUtc. Only the last three states carry an observation timestamp.
+  No persisted auth snapshot, run/attempt/event row, settings or schema change.
+- The query owns its untracked lookup of the existing GitHubCli capability.
+  Use only a coherent direct executable target from successful discovery;
+  do not discover, refresh or install tools inside this query. Respect existing
+  readiness freshness semantics. Missing, invalid or stale target gives
+  CliUnavailable and invokes nothing. Database faults keep the normal pipeline.
+- Application owns a narrow provider-neutral authentication-observation port;
+  Infrastructure owns the GitHub CLI protocol and its adapter. Reuse the existing
+  IProcessExecutionAdapter and host-owned scratch working directory, never a
+  repository, shell, private provider invoker or second process engine.
+- One command, literal arguments: auth status --hostname github.com --active
+  --json hosts --jq <fixed privacy projection>. No --show-token or auth token;
+  no fallback to human output or alternate command. The constant jq expression
+  must validate the hosts/object and target/array shape before producing only
+  an entries array of active/state pairs. Preserve invalid input as an invalid
+  marker, never an empty success. No login, token, tokenSource, scopes, error
+  text, URLs or other account fields reach the parent stdout.
+- Interpret only a coherent empty array as NoActiveAccount, exactly one active
+  entry with state success as Authenticated, and exactly one with state error
+  as IssueReported. Timeout, unknown state, invalid/duplicate fields, inactive
+  or multiple entries, malformed/oversized/truncated output, nonzero exit,
+  process failure or unsupported flags gives Unknown with no timestamp. JSON
+  mode can exit zero while reporting an auth issue: exit zero alone never
+  establishes authentication. Unexpected application faults are not swallowed.
+- Probe only the default stored credential context. Do not read auth files,
+  tokens or credential values; gh accesses its own store. The child receives
+  only selected non-secret OS/profile/temp variables and fixed controls disabling
+  prompting, CLI/extension update notification and telemetry. No ambient token,
+  debug, proxy, custom config/host, browser or pager overrides are copied.
+  Disclose that environment-token and custom-config contexts are excluded;
+  do not present this as the user's complete ambient CLI session.
+- Bound each probe to 15 seconds, 8 KiB per stream and 16 KiB combined, with
+  existing process cleanup/cancellation. No raw stream/artifact sink, provider
+  payload log or raw diagnostic in errors/API/UI/docs. Discard stderr content.
+  One in-flight auth probe per host instance through singleton adapter ownership;
+  a concurrent request returns Unknown immediately, with no queue/retry/spawn.
+
+### UI, scope and stop gates
+
+Add a compact host-level GitHub stored-authentication region near readiness,
+with explicit check/recheck and close. Nothing probes on mount, project changes,
+reconnect, timer or background refresh. Loading/error/not-checked/result states
+are explicit; current session/open/check owned lifetimes prevent stale response
+or retained callbacks crossing close/reopen/recheck/session end/unmount.
+Use fixed English labels/plain text and validate the entire fixed-context
+response/status/timestamp shape. Explain the stored-only scope and that it
+grants no repository permission or publication authority. Keep Agent readiness,
+claim eligibility, budgets, history and local delivery unchanged.
+
+Allowed: the query/port/adapter/endpoint, narrow DI composition, generated client,
+readiness component/hook/decoder/styles, focused tests and isolated CLI fixture,
+one browser scenario on normal authentication using a test-host observer/fixture,
+ADR-0038 and narrow decisions/context/cockpit/roadmap/security/current-work docs.
+No Domain policy/schema/mapping/migration/dependency change, generic remote
+gateway, repository/PR/CI read or mutation, scheduler/recovery change or CLI
+installation/configuration/login/switch/refresh. Never invoke real gh auth or
+Agent providers during implementation/validation; use local fixtures only.
+Preserve this selection byte for byte. Stop and discuss before any broader
+credential, environment, process or authority change. No commit/push authorized.
+
+### Acceptance and authoritative evidence
+
+Write meaningful failing tests before implementation. Prove query target
+admission/no-call refusal, real process request argv/environment/root/caps,
+single-flight concurrency and release after failure, cancellation/timeout and
+cleanup. Test zero-exit error, empty/success/timeout/multiple/inactive cases,
+unsupported flags, duplicate/extra fields, truncation and hostile sentinels.
+Pin the exact privacy selector/argv and independently restate its expected safe
+payloads for synthetic unfiltered CLI responses. Exercise the actual expression
+if an authoritative evaluator is already available without installation or new
+dependencies; otherwise explicitly retain unverified formatter/installed-CLI
+compatibility. A fixture that prints filtered JSON proves the process boundary,
+not actual CLI formatting. No actual account or secret is test data.
+API tests prove normal auth, no body/client-supplied host, minimal closed wire
+and zero writes. UI/browser tests prove explicit-only reads, stale ownership,
+exact states and no impact on Agent/local-delivery/history behavior. All tests
+must run without GitHub/account/network access; no real compatibility claim.
+
+Run affected checks then clean serial build, full Application/Infrastructure/
+Api/Architecture/Vitest, typecheck/lint/build, strict e2e tsc, harness and one
+canonical e2e:all; format, reproducible client, links/hygiene/secrets/audits.
+Retain unchanged Domain results explicitly. Use a small meaningful mutation
+set for state/privacy/target/concurrency/ownership guards. Preserve failures;
+no unchanged rerun loop for green. Return one unstaged, uncommitted, unpushed
+combined diff with actual checks and retained limitations for Codex review.
+
+Protocol verified against the [official auth-status manual](https://cli.github.com/manual/gh_auth_status),
+[environment manual](https://cli.github.com/manual/gh_help_environment) and
+[CLI implementation](https://github.com/cli/cli/blob/trunk/pkg/cmd/auth/status/status.go)
+on 2026-10-12. Older/incompatible binaries must remain Unknown, never trigger
+installation or fallback. Neither this selection nor its discussion grants
+remote publication authority or selects any subsequent slice.
+
+## Previous selection (2026-10-12): inspect a historical message's own Agent attempt attribution
 
 ### Review decision (2026-10-12): GO for the combined diff
 

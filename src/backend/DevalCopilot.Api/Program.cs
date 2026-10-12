@@ -12,6 +12,7 @@ using DevalCopilot.Application.Features.EnvironmentReadiness.Commands.ReconcileI
 using DevalCopilot.Application.Features.EnvironmentReadiness.Ports;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexAccountAllowance;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetCodexModelCatalog;
+using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetGitHubStoredAuthentication;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVerificationExecutions;
@@ -132,6 +133,10 @@ builder.Services.AddSingleton<CodexAccountUsageDispatchGuard>();
 // reuses the same duplex process/handshake/cleanup mechanics as the allowance adapter above
 // (via the shared CodexAppServerSession), never a new process contract of its own.
 builder.Services.AddSingleton<ICodexModelCatalogAdapter, CodexModelCatalogAdapter>();
+
+// Explicit stored GitHub CLI authentication observation (ADR-0038): one fixed read-only `gh auth status` composed on
+// IProcessExecutionAdapter above. A singleton on purpose: the instance owns the single in-flight probe slot of this host.
+builder.Services.AddSingleton<IGitHubStoredAuthenticationObserver, GitHubStoredAuthenticationAdapter>();
 
 // Repository registration: filesystem classification is pure, stateless logic; Git inspection
 // is composed on top of IProcessExecutionAdapter above, never a second child-process path.

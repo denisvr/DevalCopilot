@@ -73,6 +73,11 @@ switch (args[0])
         Console.WriteLine(Environment.GetEnvironmentVariable(args[1]) ?? "<unset>");
         return 0;
 
+    case "auth":
+        // The isolated GitHub CLI double: reads the scripted behavior from the working directory, records the argv and
+        // environment it was launched with, and answers like a (filtered) `gh auth status`. No account, credential or network.
+        return await RunGitHubAuthDoubleAsync(args);
+
     case "spawn-tree":
         return SpawnTree(int.Parse(args[1]));
 
@@ -242,6 +247,49 @@ static async Task<int> RunAppServerScriptAsync(string scriptPath)
     return script.ExitCode;
 }
 
+static async Task<int> RunGitHubAuthDoubleAsync(string[] arguments)
+{
+    var behavior = JsonSerializer.Deserialize<GitHubAuthBehavior>(File.ReadAllText("gh-auth-behavior.json"))
+        ?? throw new InvalidOperationException("Empty gh auth behavior.");
+
+    var environment = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+    {
+        environment[(string)entry.Key] = (string?)entry.Value ?? string.Empty;
+    }
+
+    File.WriteAllText("gh-auth-invocation.json", JsonSerializer.Serialize(new { arguments, environment, Environment.ProcessId }));
+    if (behavior.PidFile is not null)
+    {
+        File.WriteAllText(behavior.PidFile, Environment.ProcessId.ToString());
+    }
+
+    if (behavior.SleepMs > 0)
+    {
+        await Task.Delay(behavior.SleepMs);
+    }
+
+    await using var output = Console.OpenStandardOutput();
+    if (behavior.Stdout is not null)
+    {
+        await output.WriteAsync(System.Text.Encoding.UTF8.GetBytes(behavior.Stdout));
+    }
+
+    if (behavior.StdoutBytes > 0)
+    {
+        WriteBytes(output, behavior.StdoutBytes);
+    }
+
+    await output.FlushAsync();
+    if (behavior.Stderr is not null)
+    {
+        await using var error = Console.OpenStandardError();
+        await error.WriteAsync(System.Text.Encoding.UTF8.GetBytes(behavior.Stderr));
+    }
+
+    return behavior.ExitCode;
+}
+
 static int SpawnTree(int sleepMilliseconds)
 {
     var startInfo = new ProcessStartInfo
@@ -305,3 +353,7 @@ internal sealed record AppServerScript(
 internal sealed record AppServerStep(
     int ReadLines, List<string>? WriteLines = null, string? WriteRaw = null, int SleepMs = 0,
     string? WriteBase64 = null, string? WriteStderr = null);
+
+/// <summary>The scripted answer of the isolated GitHub CLI double, deserialized from <c>gh-auth-behavior.json</c>.</summary>
+internal sealed record GitHubAuthBehavior(
+    string? Stdout = null, string? Stderr = null, int ExitCode = 0, int SleepMs = 0, int StdoutBytes = 0, string? PidFile = null);

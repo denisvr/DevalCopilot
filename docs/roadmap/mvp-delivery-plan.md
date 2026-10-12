@@ -336,6 +336,10 @@ not increment completion.
 inspection of the one Agent attempt a recorded message itself references (a minimal recorded header under the unchanged attempt identity and
 assignment-snapshot rules, bounded scalar projections, a closed NoAgentAttempt, Unavailable or Available status, and no outcome, evidence, artifact
 or current-state claim); full linked replay remains open and it is likewise not increment completion.
+[ADR-0038](../decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md) adds an explicit, read-only observation of the default
+stored GitHub CLI authentication of github.com (one fixed privacy-filtered `gh auth status`, a closed status, no credential, environment-token or
+custom-config observation, no persistence); it is the authentication-health part of Increment 6's first deliverable only, grants no repository
+permission or publication authority, and the push, pull request, CI and reconciliation deliverables remain open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

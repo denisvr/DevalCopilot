@@ -66,7 +66,7 @@ public sealed partial class ProviderFixtureContractTests : IDisposable
             File.Copy(Path.Combine(source, file), Path.Combine(bin, file));
         }
 
-        foreach (var role in new[] { "codex", "claude", "verify" })
+        foreach (var role in new[] { "codex", "claude", "verify", "gh" })
         {
             File.Copy(Path.Combine(source, "ProviderFixture.exe"), Path.Combine(bin, role + ".exe"));
         }

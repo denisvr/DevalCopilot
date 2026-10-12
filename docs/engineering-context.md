@@ -118,6 +118,9 @@
   Agent-attempt attribution of a historical collaboration message (additive; one protected read-only inspection of the one Agent attempt a
   message itself references, as a minimal recorded header under the unchanged identity and assignment-snapshot rules, with no persistence change and
   no change to any admission, claim, dispatch, recovery, approval or digest decision).
+- [ADR-0038](decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md): Observe stored GitHub CLI authentication on explicit
+  request (additive; one protected read-only observation of the default stored github.com authentication, with no credential, environment-token or
+  custom-config observation, no persistence and no repository or publication authority).
 
 ## Product-specific architecture
 
@@ -237,6 +240,19 @@
   and each source selection (its close bound to its own inspector and serial-guarded), independent of the reply inspector, validating the whole answer
   against the observed source; it describes recorded attribution only, never current execution, an outcome, an approval or sealed evidence. Message
   evidence, attempt history, repair lineage and complete replay remain open.
+- [ADR-0038](decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md) lets an owner see whether the GitHub CLI's default
+  stored authentication for github.com is active, absent or reporting a problem, because discovery alone proves only that a binary exists. The
+  protected, bodyless `GET /api/environment/github-stored-authentication` returns the fixed host `github.com`, the fixed context
+  `StoredDefaultConfig`, a closed status (`CliUnavailable`, `Unknown`, `NoActiveAccount`, `Authenticated`, `IssueReported`) and an observation time for the
+  last three only. It invokes one fixed `gh auth status --hostname github.com --active --json hosts --jq <selector>` (a constant privacy projection
+  that emits only active/state pairs, with an empty-`hosts` branch for the no-account answer and an `invalid` marker for an unexpected shape) through the existing process executor in the host scratch
+  directory, only for a current, successful, direct-executable GitHubCli discovery snapshot (anything else is `CliUnavailable` with nothing invoked;
+  it never discovers, refreshes or installs). The child gets only non-secret OS/profile/temp variables and fixed prompt, update and telemetry controls,
+  never an ambient token, host, config, debug, proxy, browser or pager value, so environment-token and custom-config contexts are not observed and
+  are disclosed. Probes are bounded to 15 s, 8 KiB per stream and 16 KiB combined, a singleton adapter permits one in-flight probe (a concurrent
+  request is `Unknown`), and exit zero alone never proves authentication. It writes nothing and needs no migration. The cockpit adds a collapsed
+  host-level region read only by its explicit check and recheck actions, owned by the mounted component and each opening. It is neither repository
+  permission nor publication authority; selector evaluation and installed-CLI formatting are not verified without a real `gh`.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

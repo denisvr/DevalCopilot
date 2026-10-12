@@ -1327,3 +1327,38 @@
 .dc-collaboration-attempt-header dl {
   margin: 0.2rem 0 0;
 }
+
+.dc-github-auth {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--dc-border);
+  font-size: 0.75rem;
+}
+
+.dc-github-auth-body {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-auth h2,
+.dc-github-auth p {
+  margin: 0;
+}
+
+.dc-github-auth h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dc-text-muted);
+}
+
+.dc-github-auth-note,
+.dc-github-auth-state {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-auth-result[data-status='IssueReported'] {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}

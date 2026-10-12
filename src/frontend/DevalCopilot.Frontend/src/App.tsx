@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { AddProjectForm } from './features/cockpit/components/AddProjectForm'
 import { CandidateWorkspacePanel } from './features/cockpit/components/CandidateWorkspacePanel'
 import { CapabilityReadinessStrip } from './features/cockpit/components/CapabilityReadinessStrip'
+import { GitHubStoredAuthenticationPanel } from './features/cockpit/components/GitHubStoredAuthenticationPanel'
 import { ProviderRuntimePreflight } from './features/cockpit/components/ProviderRuntimePreflight'
 import { ProjectBaselineSummary } from './features/cockpit/components/ProjectBaselineSummary'
 import { ProjectRunHistoryPanel } from './features/cockpit/components/ProjectRunHistoryPanel'
@@ -133,6 +134,8 @@ export default function App() {
         refreshingCapability={refreshingCapability}
         onRefresh={requestRefresh}
       />
+
+      <GitHubStoredAuthenticationPanel />
 
       {selectedProject ? (
         <RunIntakeForm

@@ -29,6 +29,10 @@ public static class HostCapabilityReadinessProjector
     /// </summary>
     private static readonly TimeSpan StalenessGrace = TimeSpan.FromMinutes(2);
 
+    /// <summary>The one freshness rule of host evidence: stale once the due time plus the grace has passed.</summary>
+    public static bool IsStale(HostCapabilitySnapshot snapshot, DateTimeOffset nowUtc) =>
+        nowUtc > snapshot.NextProbeDueAtUtc + StalenessGrace;
+
     public static IReadOnlyList<CapabilityReadinessQueryResult> Project(
         IReadOnlyList<HostCapabilitySnapshot> snapshots, DateTimeOffset nowUtc)
     {
@@ -54,7 +58,7 @@ public static class HostCapabilityReadinessProjector
         }
 
         var displayStatus = MapDisplayStatus(snapshot.ReasonCode, isRequired);
-        var isStale = nowUtc > snapshot.NextProbeDueAtUtc + StalenessGrace;
+        var isStale = IsStale(snapshot, nowUtc);
 
         return new CapabilityReadinessQueryResult(
             capability,

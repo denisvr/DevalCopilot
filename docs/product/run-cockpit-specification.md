@@ -130,6 +130,19 @@ confirmation and becomes terminal only after active external state is
 reconciled. Controls must never imply immediate cancellation when the provider
 cannot prove it.
 
+## GitHub stored authentication
+
+A compact host-level region beside the provider runtimes
+([ADR-0038](../decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md)) is collapsed until opened. It offers
+"Check stored authentication" (then "Check again") and "Close GitHub stored authentication", reads only through the protected,
+read-only `GET /api/environment/github-stored-authentication` when the owner presses a check, and shows one fixed statement per closed status
+(`CliUnavailable`, `Unknown`, `NoActiveAccount`, `Authenticated`, `IssueReported`) with an observation time for the last three only. A fixed note
+states that only the default credentials the GitHub CLI stored for github.com are observed, that an environment-supplied token and a custom CLI
+configuration are not, and that authentication proves neither repository permission nor publication authority. Nothing is requested on mount,
+opening, a project change, a reconnect, a timer or a background refresh. The mounted component and each opening own the reads: closing and reopening
+starts unchecked, and a late answer of an ended or superseded lifetime is ignored. Agent readiness, claim eligibility, budgets, history and local
+delivery are unaffected.
+
 ## Agent runtime strip
 
 Codex and Claude each have one compact, single-line runtime control. The line

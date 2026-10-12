@@ -24,6 +24,7 @@ import {
   GetProviderRuntimePreflightEndpointClient,
   GetCodexAccountAllowanceEndpointClient,
   GetCodexModelCatalogEndpointClient,
+  GetGitHubStoredAuthenticationEndpointClient,
   SetCodexAssignmentPreferenceEndpointClient,
   SetClaudeModelPreferenceEndpointClient,
   SetClaudeMutationTurnLimitEndpointClient,
@@ -100,6 +101,7 @@ export const environmentClient = () => new RequestHostCapabilityRefreshEndpointC
 export const providerRuntimePreflightClient = () => new GetProviderRuntimePreflightEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const codexAccountAllowanceClient = () => new GetCodexAccountAllowanceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const codexModelCatalogClient = () => new GetCodexModelCatalogEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubStoredAuthenticationClient = () => new GetGitHubStoredAuthenticationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setCodexAssignmentPreferenceClient = () => new SetCodexAssignmentPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setClaudeModelPreferenceClient = () => new SetClaudeModelPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setClaudeMutationTurnLimitClient = () => new SetClaudeMutationTurnLimitEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -175,6 +177,7 @@ export type {
   CodexAllowanceWindowResponse,
   CodexModelCatalogResponse,
   CodexModelCatalogEntryResponse,
+  GitHubStoredAuthenticationResponse,
   SetCodexAssignmentPreferenceResponse,
   SetClaudeModelPreferenceResponse,
   SetClaudeMutationTurnLimitResponse,
