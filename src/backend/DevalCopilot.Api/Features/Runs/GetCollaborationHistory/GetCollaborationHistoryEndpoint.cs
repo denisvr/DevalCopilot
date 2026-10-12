@@ -16,10 +16,6 @@ namespace DevalCopilot.Api.Features.Runs.GetCollaborationHistory;
 public sealed class GetCollaborationHistoryEndpoint(
     IApplicationMediator mediator, IResultProblemDetailsFactory problemDetails) : RunsBaseEndpoint
 {
-    private const string Unrecognized = "Unrecognized";
-    private const string Available = "Available";
-    private const string Unavailable = "Unavailable";
-
     [HttpGet("{runId:guid}/collaboration-history")]
     [ProducesResponseType<GetCollaborationHistoryResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ApiProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -40,25 +36,8 @@ public sealed class GetCollaborationHistoryEndpoint(
         var value = result.Value;
         return Ok(new GetCollaborationHistoryResponse(
             value.RunId,
-            value.Entries.Select(Map).ToArray(),
+            value.Entries.Select(CollaborationHistoryEntryMapper.Map).ToArray(),
             value.HasMore,
             value.NextBeforeSequence is { } next ? CollaborationHistoryCursor.Format(next) : null));
     }
-
-    private static CollaborationHistoryEntryResponse Map(CollaborationHistoryEntry entry) => new(
-        entry.RunId,
-        entry.Id,
-        CollaborationHistoryCursor.Format(entry.Sequence),
-        entry.OccurredAtUtc,
-        entry.ProtocolVersion ?? Unrecognized,
-        entry.Type ?? Unrecognized,
-        entry.Provenance ?? Unrecognized,
-        MapParticipant(entry.Actor),
-        MapParticipant(entry.Recipient),
-        entry.ContentAvailable ? Available : Unavailable,
-        entry.Summary,
-        entry.Fields.Select(field => new CollaborationHistoryFieldResponse(field.Name, field.Value)).ToArray());
-
-    private static CollaborationHistoryParticipantResponse MapParticipant(CollaborationHistoryParticipant participant) => new(
-        participant.Kind?.ToString() ?? Unrecognized, participant.Role?.ToString(), participant.Provider?.ToString());
 }

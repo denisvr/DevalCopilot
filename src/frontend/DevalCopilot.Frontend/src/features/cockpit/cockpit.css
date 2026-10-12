@@ -1278,3 +1278,28 @@
 .dc-collaboration-history-error {
   color: var(--dc-danger, #b3261e);
 }
+
+.dc-collaboration-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0 0.4rem 0.6rem;
+  border-left: 2px solid var(--dc-border, currentColor);
+}
+
+.dc-collaboration-reply p {
+  margin: 0;
+}
+
+.dc-collaboration-reply-parent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.dc-collaboration-reply-parent dl {
+  margin: 0.2rem 0 0;
+  white-space: pre-wrap;
+}

@@ -129,6 +129,14 @@ export interface CollaborationHistoryRow {
   OccurredAtUtc: string
 }
 
+/** One message and the reply parent its own row stores (null for a root), read only to compare with the reply inspection. */
+export interface CollaborationReplyLinkRow {
+  Id: string
+  Sequence: string
+  Type: string
+  InReplyToMessageId: string | null
+}
+
 export interface ProjectTotals {
   runs: number
   attempts: number
@@ -379,6 +387,17 @@ export class JourneyData {
   collaborationRowsOf(runId: string): CollaborationHistoryRow[] {
     return this.all<CollaborationHistoryRow>(
       'select cast(m.Sequence as text) as Sequence, m.Id, m.Type, m.ProtocolVersion, m.Provenance, m.ActorKind, m.ActorAgentRole, m.ActorAgentProvider, m.RecipientKind, m.RecipientAgentRole, m.RecipientAgentProvider, m.Summary, m.StructuredContentJson, m.OccurredAtUtc from collaboration_messages m where m.RunId = ? order by m.Sequence desc',
+      runId,
+    )
+  }
+
+  /**
+   * The stored reply reference of every message of one run, newest sequence first, exactly as the durable row records it. The journey
+   * never seeds or edits it: it is the reply identity the recorded-reply inspection must resolve (ADR-0036).
+   */
+  collaborationReplyLinksOf(runId: string): CollaborationReplyLinkRow[] {
+    return this.all<CollaborationReplyLinkRow>(
+      "select m.Id, cast(m.Sequence as text) as Sequence, m.Type, m.InReplyToMessageId from collaboration_messages m where m.RunId = ? order by m.Sequence desc",
       runId,
     )
   }

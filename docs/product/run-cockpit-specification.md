@@ -1166,6 +1166,20 @@ mount the live cockpit or the live collaboration timeline. Its messages and read
 another run, a return to an earlier one, closing the selection, closing, reopening, reloading or an obsolete read cannot show or fetch for
 another owner. All values are plain text.
 
+Each message in the Recorded collaboration region also offers one explicit **Inspect recorded reply** action
+([ADR-0036](../decisions/0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md)); this narrowly replaces the
+statement above that the region has no reply control. It reads once, through the protected, read-only
+`GET /api/runs/{runId}/collaboration-history/{messageId}/reply`, that message's own recorded parent, which may be on a page that has not
+been loaded, and shows it in one inspector under that message: "Recorded reply of sequence N", a fixed note that this is the recorded
+relationship only (the content of the parent is separate and nothing is a current approval or provider success), then either the parent
+exactly as a recorded message is shown (the same fixed labels, summary and fields, or "Content unavailable") without an inspect action of
+its own, "No reply parent is recorded: this message is a version 1.0 proposal that starts a thread", or "Reply parent unavailable" without
+naming any target. A failed or incoherent read shows a fixed error and "Try the recorded reply again" reads the same source once more;
+"Close recorded reply" ends the inspector. Using the action on another message replaces the inspector. Nothing is requested for a row on
+render, followed recursively, polled or retried automatically, and the loaded pages, their cursor and "Load older messages" are not
+changed. The inspector belongs to the committed run's open history lifetime and to each selection: another run, closing, reopening,
+reloading, another message, or closing and inspecting the same one again cannot show or settle another owner's answer.
+
 ### Abandon run
 
 For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a

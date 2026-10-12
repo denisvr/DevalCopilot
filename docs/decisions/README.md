@@ -73,6 +73,10 @@ supersedes it.
   (additive; one protected read-only, cursor-paged list of a run's persisted collaboration messages with exact string sequences, closed
   disclosures and content admitted only through the existing content policy, unavailable rows keeping their header; it adds no
   persistence and changes no admission, recovery, approval or digest decision)
+- [ADR-0036: Inspect the recorded reply parent of a historical collaboration message](0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md)
+  (additive; one protected read-only inspection of one message's own stored reply parent, resolved by exact identity within the run, with a
+  closed None/Unavailable/Available relationship and the unchanged ADR-0035 entry disclosure; it adds no persistence, traverses no chain
+  and changes no admission, recovery, approval or digest decision)
 
 ## Status values
 

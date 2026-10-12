@@ -5,7 +5,146 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current selection (2026-10-10): historical collaboration messages with bounded safe content
+## Current selection (2026-10-12): inspect one recorded historical reply parent
+
+### Review decision (2026-10-12): GO for the corrected combined diff
+
+Codex verified main HEAD/local/live origin/main at
+e8ae2da199ea21756a29f054677191ff1bd9bf48, ahead/behind 0/0, empty index.
+The combined diff has 42 actual files (19 modified, 23 untracked when expanded
+with --untracked-files=all). The executor preserved the NO-GO planner record
+SHA-256 3aad67ebdeaf4685b176dd1a28f49eb676ba11e49d9107b0b5b904586d270b8d
+before this review decision update.
+
+The single NO-GO finding is closed: useCollaborationReply.close now checks its
+inspector owner and guards the selection update by its captured serial. An
+ended inspector cannot close a successor, including a replacement queued in
+the same React batch. Durable regressions cover settled/pending successors,
+A-B-A, close/reopen, batching and current close behavior. The executor records
+ten failing-first regressions and a killed serial-guard mutant. Codex independently
+ran the corrected hook and inspector suites: 46/46 passed. The original ignored
+probe remains evidence; no temporary source is included in the reviewed diff.
+
+Earlier independent checks passed: Application CollaborationHistory 250/250
+and four frontend reply suites 183/183. Code review
+supports the exact source/parent scope, earlier Int64 order, shared bounded
+content admission, fixed errors, decoder coherence and journey's actual parent
+outside the page plus post-reload assertions. The correction's full Vitest
+3167/3167, typecheck/lint/build, strict e2e tsc, harness 89/89 and canonical
+Chromium 13/journeys 5 are executor evidence, not newly rerun reviewer evidence.
+Backend and generated-client checks are retained. The earlier relocation is narrow;
+the missing original red-first run and mutation survivor remain disclosed.
+Malformed GUID-column materialization surfacing as a fault is an accepted
+limitation here, not permission to swallow database faults. Existing advisory,
+console warnings and Blocked/TargetsNotReal remain unchanged.
+
+Authorize publication of this exact reviewed combined diff, including this
+planner decision update, in the same executor chat: one substantive commit,
+normal fast-forward push to origin/main, live remote verification and one SHA
+report. No additional checks or separate closure edit/review are required.
+Stop on changed identities, divergence or failed push; no force-push or repair
+of remote history. No provider work, allowance use, ledger reset or root cleanup
+is authorized. No subsequent slice is selected; Codex selects it immediately
+after independently verifying publication.
+
+### Verified publication and decision
+
+Codex independently verified ADR-0035 publication e8ae2da199ea21756a29f054677191ff1bd9bf48,
+parent 609edddbc03760491710f9d79563fcc5e1ac66c4, the substantive message and
+Co-Authored-By trailer. The frozen manifest SHA-256 is
+522e6d2c1e721ef0e38f98fdb0132a61f19669429cb0ec1b57cc547c6885a2fc.
+All 49 paths match their working-tree SHA-256 and size and committed blob and
+mode; the committed path set is exact. Main HEAD/local/live origin/main agree,
+ahead/behind 0/0, index and working tree were clean. No validation was rerun.
+The prior GO is fulfilled; no closure edit or approval round is needed.
+
+Select a new Claude executor chat for one explicit, read-only inspection of a
+historical message's own recorded reply parent. ADR-0003/0004 and Increments
+5/7 require intelligible durable replay. ADR-0035 now exposes safe message
+content, but not the relationship between a challenge, decision or review and
+its parent. The live timeline resolves only parents in its latest-100 window;
+it returns raw JSON and materializes stored enums, so it is not this reader.
+CollaborationMessage.InReplyToMessageId and the existing reply policy provide
+the durable identity and protocol semantics. No new persistence is needed.
+
+This is a bounded advance toward linked replay, not complete replay or MVP
+completion. Real-provider compatibility/reliability and remaining Increment 4
+contracts, Increment 5 coordination/concurrency/recovery, Increment 6 scoped
+remote/CI reconciliation and Increment 7 packaged self-hosting remain release
+gates. History export, analytics and redesign are optional and not selected.
+Real qualification remains Blocked/TargetsNotReal with both allowances unused;
+preserve the ledger, historical failures and retained fixture roots.
+
+### Selected contract and scope
+
+- Add protected bodyless GET /api/runs/{runId}/collaboration-history/{messageId}/reply
+  through a new mediator query and one MVC endpoint, with API-owned transport.
+  Unknown run or missing/foreign source is a fixed shared 404 with no rejected
+  value echo; an unusable stored source identity/sequence is a fixed shared 409
+  collaboration_reply.unavailable. Return run/source identities, exact source sequence text, a closed
+  status (None, Unavailable, Available), and nullable parent entry.
+- Read the exact source's header/reference only, scoped by run and message.
+  None means a recognized version-1.0 Proposal with no reply reference. An
+  unknown source type/version, missing required
+  reference, empty/self/missing/foreign/forward target or disallowed parent type
+  yields Unavailable and no target identity/content. Never substitute a latest,
+  same-role or same-type message. Resolve at most one parent, by its stored ID
+  within this run, strictly earlier, version 1.0, with the existing Domain
+  CollaborationMessageReplyPolicy.Evaluate; no chain, search or page draining.
+- Available describes that recorded protocol relationship only. Its one parent
+  uses ADR-0035's safe entry disclosure and content admission unchanged: SQL enum
+  classification, 1800/15000-byte BLOB guards, exact character limits, existing
+  content policy, and header-only Unavailable content. Link availability and
+  content availability are distinct. No raw JSON or foreign/damaged pointer
+  disclosure. Query faults propagate; no broad catch converts them to a status.
+- Add an explicit per-message Inspect recorded reply action in Recorded
+  collaboration, with one inspector, close and same-source retry. Nothing reads
+  on initial render or for every row. No recursive navigation, auto-follow,
+  polling or cross-lifetime cache. Preserve loaded pages and cursor. Parent
+  facts are plain text with the same exact labels; no live or mutation controls.
+- Decoder validates the whole response against the selected run/source ID and
+  observed exact sequence; status/target coherence, earlier exact Int64 order,
+  recognized compatible parent type/version and all ADR-0035 entry rules.
+  Owned lifetimes cover committed run, history open/reload and source selection;
+  A-B-A, close/reopen, reload, replacement, null and unmount end prior work and
+  stale callbacks. Do not use key/remount or effect-driven reset workarounds.
+
+Allowed: the new query/endpoint/DTOs, small history-owned extraction only where
+both readers must share the same admission policy, generated client/factory,
+history inspector/hook/decoder/styles, focused tests and narrow extension of
+the existing collaboration journey. Record additive ADR-0036 and narrow index,
+engineering-context, cockpit-specification, roadmap and current-work changes.
+Keep ADR-0035 paging, live timeline, evidence/artifact readers and receipts
+unchanged in behavior. No Domain/schema/mapping/migration/dependency change,
+generic history framework, authority, provider, scheduler, recovery or remote
+feature. Preserve this planner selection byte for byte in the executor chat.
+Stop and discuss if bounds require expansion or accepted policy reversal.
+
+### Acceptance and return
+
+Start with meaningful failing regressions. Real SQLite/API evidence must prove
+auth, scoped 404, root versus broken reference, all reply-policy combinations,
+exact own earlier target beyond loaded pages, gaps/2^53/Int64 boundaries,
+unknown stored enums/version, unsafe/malformed/NUL/oversized parent content,
+healthy header-only parent, SQL projection bounds and zero writes/external calls.
+Frontend evidence must cover contradictory responses, exact text, explicit
+request/retry/close, unchanged paging and stale ownership including A-B-A.
+Extend the existing journey using its actual stored reply ID (no seeded rows),
+inspect a parent absent from the initial page, assert its ID/sequence and exact
+field labels/values, repeat after browser reload/reopen, and retain the no-write,
+no-provider, no-commit and pinned receipt assertions.
+
+Run affected checks first, then clean serial solution build, full Application,
+Api, Architecture and Vitest, typecheck/lint/build, strict e2e tsc, harness and
+one canonical e2e:all; affected format, reproducible generated client, links,
+hygiene/secrets and audits. Retain unchanged Domain/Infrastructure results
+explicitly; rerun if their scope changes. Use only a small meaningful mutation
+selection for own-link, ordering and lifetime guards; report survivors honestly.
+Preserve failures; no unchanged loop for green. Return one unstaged,
+uncommitted, unpushed combined diff with current-work evidence for Codex review.
+This selection grants no commit/push authority and selects no subsequent slice.
+
+## Previous selection (2026-10-10): historical collaboration messages with bounded safe content
 
 ### Review decision (2026-10-10): GO for the corrected combined diff
 

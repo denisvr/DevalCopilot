@@ -46,6 +46,7 @@ const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
+const REPLY_PATH = /\/api\/runs\/[^/]+\/collaboration-history\/[^/]+\/reply$/
 const FOLLOW_UP_OBJECTIVE = 'Plan the follow-up report for the ledger'
 // The persisted Human review names both recipes' latest Passed executions of the corrected checkpoint (listed in the host's own order).
 const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
@@ -754,10 +755,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const receiptRequests: string[] = []
   const eventRequests: string[] = []
   const messageRequests: string[] = []
+  const replyRequests: { method: string; path: string; search: string; body: string | null }[] = []
   page.on('request', (request) => {
     const { pathname: path, search } = new URL(request.url())
     if (request.method() === 'GET' && HISTORY_PATH.test(path)) {
       historyRequests.push(path)
+    }
+
+    if (REPLY_PATH.test(path)) {
+      replyRequests.push({ method: request.method(), path: path.toLowerCase(), search, body: request.postData() })
     }
 
     if (request.method() === 'GET' && COLLABORATION_HISTORY_PATH.test(path)) {
@@ -1016,6 +1022,89 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     return first
   }
 
+  // Recorded reply (ADR-0036). One explicit action per loaded message reads exactly that message's own stored reply parent, even when the
+  // parent lies outside the pages loaded so far. The answer is compared with the durable rows (never seeded or edited) and with what the
+  // single inspector renders; loaded pages, the cursor and every other history request stay untouched.
+  const expectParentRendered = async (inspector: Locator, entry: Record<string, any>) => {
+    const parent = inspector.locator('.dc-collaboration-reply-parent')
+    await expect(parent).toHaveCount(1)
+    await expect(parent.locator('p').first()).toHaveText('Recorded reply parent')
+    await expect(parent.locator('.dc-collaboration-history-sequence')).toHaveText(`Sequence ${entry.sequence}`)
+    await expect(parent.locator('.dc-collaboration-history-type')).toHaveText(TYPE_LABELS[entry.type])
+    await expect(parent.locator('p').nth(1)).toContainText(`Protocol ${entry.protocolVersion}`)
+    await expect(parent.locator('p').nth(1)).toContainText(PROVENANCE_LABELS[entry.provenance])
+    await expect(parent.locator('p').nth(2)).toHaveText(`From ${participantText(entry.actor)} to ${participantText(entry.recipient)}`)
+    await expect(parent.locator('.dc-collaboration-history-summary')).toHaveText(`Summary: ${entry.summary}`)
+    const schema = FIELD_LABELS[entry.type]
+    const byName = new Map<string, string>(entry.fields.map((field: { name: string; value: string }) => [field.name, field.value]))
+    expect(byName.size, `parent ${entry.sequence} carries exactly its schema`).toBe(schema.length)
+    const pairs = parent.locator('dl > div')
+    await expect(pairs).toHaveCount(schema.length)
+    for (const [position, [name, label]] of schema.entries()) {
+      await expect(pairs.nth(position).locator('dt')).toHaveText(label)
+      await expect(pairs.nth(position).locator('dd')).toHaveText(byName.get(name) as string)
+    }
+
+    await expect(parent.locator('.dc-collaboration-history-id')).toHaveText(`Message ${entry.id}`)
+    await expect(parent).not.toContainText('Content unavailable')
+    await expect(parent.getByRole('button')).toHaveCount(0)
+  }
+
+  let repliesInspected = 0
+  const inspectRecordedReply = async (runId: string, index: number, loaded: number, durable: CollaborationHistoryRow[]) => {
+    const links = data.collaborationReplyLinksOf(runId)
+    const source = durable[index]
+    const link = links.find((candidate) => sameId(candidate.Id, source.Id))!
+    const parentRow = link.InReplyToMessageId === null ? null : durable.find((row) => sameId(row.Id, link.InReplyToMessageId))
+    expect(link.InReplyToMessageId === null || parentRow !== undefined, 'the stored reply target belongs to this run').toBe(true)
+    const expectedStatus = link.InReplyToMessageId !== null ? 'Available' : source.Type === 'Proposal' ? 'None' : 'Unavailable'
+    const row = messageRows().nth(index)
+    await expect(messageRows()).toHaveCount(loaded)
+    await expect(row.locator('p').first().locator('.dc-collaboration-history-sequence')).toHaveText(`Sequence ${source.Sequence}`)
+    const answered = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && REPLY_PATH.test(new URL(response.url()).pathname),
+      { timeout: 30_000 },
+    )
+    const pagesBefore = messageRequests.length
+    const repliesBefore = replyRequests.length
+    await row.getByRole('button', { name: 'Inspect recorded reply' }).click()
+    const response = await answered
+    expect(response.status()).toBe(200)
+    const url = new URL(response.url())
+    expect(url.pathname.toLowerCase()).toBe(`/api/runs/${lower(runId)}/collaboration-history/${lower(source.Id)}/reply`)
+    expect(url.search).toBe('')
+    expect(response.request().postData()).toBeNull()
+    expect(replyRequests).toHaveLength(repliesBefore + 1)
+    repliesInspected += 1
+    const text = await response.text()
+    for (const hidden of ['attemptId', 'inReplyTo', 'structuredContentJson', worktree, repository.path]) {
+      expect(text).not.toContain(hidden)
+    }
+
+    const body = JSON.parse(text)
+    expect(Object.keys(body).sort()).toEqual(['messageId', 'parent', 'runId', 'sourceSequence', 'status'])
+    expect(sameId(body.runId, runId)).toBe(true)
+    expect(sameId(body.messageId, source.Id)).toBe(true)
+    expect(body.sourceSequence).toBe(source.Sequence)
+    expect(body.status).toBe(expectedStatus)
+    const inspector = row.getByRole('region', { name: 'Recorded reply' })
+    await expect(messagesRegion().getByRole('region', { name: 'Recorded reply' })).toHaveCount(1)
+    await expect(inspector.locator('p').nth(1)).toHaveText(`Recorded reply of sequence ${source.Sequence}`)
+    if (parentRow) {
+      expectMessages(runId, [body.parent], [parentRow])
+      await expectParentRendered(inspector, body.parent)
+    } else {
+      expect(body.parent).toBeNull()
+      await expect(inspector).toContainText(expectedStatus === 'None' ? 'No reply parent is recorded' : 'Reply parent unavailable')
+      await expect(inspector.locator('.dc-collaboration-reply-parent')).toHaveCount(0)
+    }
+
+    // Reading a parent never changes the loaded pages, their cursor or any other history read.
+    expect(messageRequests).toHaveLength(pagesBefore)
+    await expect(messageRows()).toHaveCount(loaded)
+    return { body, parentRow, inspector }
+  }
+
   // Opens the history (one page request), checks that page on the wire and in the rendered rows, selects the older delivered run and
   // returns its page and the receipt the host answered for exactly that run.
   const openHistoryAndInspectDelivery = async () => {
@@ -1152,6 +1241,44 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(reopenedMessages).toEqual(olderMessagesFirstPage)
   await expectMessagesRendered(reopenedMessages.entries, MESSAGE_PAGE)
 
+  // Recorded reply of a loaded message whose own stored parent lies OUTSIDE the loaded page (only the newest page is loaded here, and
+  // the parent is never seeded: it is the actual durable reply identity of the journey's own message).
+  const newestPage = durableMessages.slice(0, MESSAGE_PAGE)
+  const newestIds = new Set(newestPage.map((row) => lower(row.Id)))
+  const outsideIndex = newestPage.findIndex((row) => {
+    const target = data.collaborationReplyLinksOf(firstRunId).find((link) => sameId(link.Id, row.Id))!.InReplyToMessageId
+    return target !== null && !newestIds.has(lower(target))
+  })
+  expect(outsideIndex, 'a message of the newest page must reply to a parent outside that page').toBeGreaterThanOrEqual(0)
+  expect(replyRequests).toEqual([])
+  const outside = await inspectRecordedReply(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(outside.parentRow).toBeTruthy()
+  expect(newestIds.has(lower(outside.parentRow!.Id))).toBe(false)
+  await expect(messagesRegion().getByRole('button', { name: 'Load older messages' })).toHaveCount(1)
+
+  // Closing ends the inspector without a request; inspecting again reads the same answer.
+  const repliesBeforeClose = replyRequests.length
+  await outside.inspector.getByRole('button', { name: 'Close recorded reply' }).click()
+  await expect(messagesRegion().getByRole('region', { name: 'Recorded reply' })).toHaveCount(0)
+  expect(replyRequests).toHaveLength(repliesBeforeClose)
+  await expect(messageRows()).toHaveCount(MESSAGE_PAGE)
+  const outsideAgain = await inspectRecordedReply(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(outsideAgain.body).toEqual(outside.body)
+
+  // Hiding the recorded collaboration ends the inspector; reopening reads the newest page again with no inspector and no reply read.
+  const repliesBeforeHide = replyRequests.length
+  await messagesRegion().getByRole('button', { name: 'Hide recorded collaboration' }).click()
+  await expectCollapsedMessages()
+  await expect(messagesRegion().getByRole('region', { name: 'Recorded reply' })).toHaveCount(0)
+  const reopenedAfterReply = await readMessagePage(firstRunId, null, () =>
+    messagesRegion().getByRole('button', { name: 'Show recorded collaboration' }).click(),
+  )
+  expect(reopenedAfterReply).toEqual(olderMessagesFirstPage)
+  await expect(messagesRegion().getByRole('region', { name: 'Recorded reply' })).toHaveCount(0)
+  expect(replyRequests).toHaveLength(repliesBeforeHide)
+  const outsideReopened = await inspectRecordedReply(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(outsideReopened.body).toEqual(outside.body)
+
   // The newer run has no completed delivery source: that is disclosed, no receipt is requested for it, and nothing is inferred.
   const receiptsBeforeNewer = receiptRequests.length
   await historyRegion.getByRole('button', { name: 'Inspect run #2' }).click()
@@ -1213,6 +1340,33 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(messageRequests).toHaveLength(messageRequestsBeforeReload)
   const afterReloadMessages = await browseRecordedMessages(firstRunId, durableMessages, Math.ceil(durableMessages.length / MESSAGE_PAGE))
   expect(afterReloadMessages).toEqual(olderMessagesFirstPage)
+
+  // With every page loaded, a root Proposal's recorded reply is None (no parent is implied). Then, after a real browser reload, the
+  // same parent outside the newest page is inspected again from a fresh newest-page open and the host answers exactly as before.
+  const rootIndex = durableMessages.findIndex(
+    (row) => row.Type === 'Proposal' && data.collaborationReplyLinksOf(firstRunId).find((link) => sameId(link.Id, row.Id))!.InReplyToMessageId === null,
+  )
+  expect(rootIndex, 'the journey records a root proposal').toBeGreaterThanOrEqual(0)
+  const root = await inspectRecordedReply(firstRunId, rootIndex, durableMessages.length, durableMessages)
+  expect(root.body.status).toBe('None')
+  await messagesRegion().getByRole('button', { name: 'Hide recorded collaboration' }).click()
+  await expectCollapsedMessages()
+  const reopenedAfterReload = await readMessagePage(firstRunId, null, () =>
+    messagesRegion().getByRole('button', { name: 'Show recorded collaboration' }).click(),
+  )
+  expect(reopenedAfterReload).toEqual(olderMessagesFirstPage)
+  const outsideAfterReload = await inspectRecordedReply(firstRunId, outsideIndex, MESSAGE_PAGE, durableMessages)
+  expect(outsideAfterReload.body).toEqual(outside.body)
+  expect(replyRequests).toHaveLength(repliesInspected)
+  expect(
+    replyRequests.every(
+      (request) =>
+        request.method === 'GET'
+        && request.search === ''
+        && request.body === null
+        && request.path.startsWith(`/api/runs/${lower(firstRunId)}/collaboration-history/`),
+    ),
+  ).toBe(true)
 
   // The history reads created nothing: no row of any workflow kind, no provider invocation, no new commit, an untouched source.
   expect(data.projectTotals()).toEqual(afterFollowUp)

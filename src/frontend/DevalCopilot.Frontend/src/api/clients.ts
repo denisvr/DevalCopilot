@@ -18,6 +18,7 @@ import {
   GetProjectRunHistoryEndpointClient,
   GetRunEventHistoryEndpointClient,
   GetCollaborationHistoryEndpointClient,
+  GetCollaborationHistoryReplyEndpointClient,
   GetProjectWorkspaceEndpointClient,
   GetProviderRuntimePreflightEndpointClient,
   GetCodexAccountAllowanceEndpointClient,
@@ -81,6 +82,7 @@ export const projectsClient = () => new GetProjectRunSummariesEndpointClient(get
 export const projectRunHistoryClient = () => new GetProjectRunHistoryEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventHistoryClient = () => new GetRunEventHistoryEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const collaborationHistoryClient = () => new GetCollaborationHistoryEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const collaborationReplyClient = () => new GetCollaborationHistoryReplyEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const registerProjectClient =() => new RegisterProjectEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const startSimulatedRunClient = () => new StartSimulatedRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const createManualRunClient = () => new CreateManualRunEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -240,6 +242,7 @@ export type {
   GetProjectRunHistoryResponse,
   GetRunEventHistoryResponse,
   GetCollaborationHistoryResponse,
+  GetCollaborationHistoryReplyResponse,
   LocalDeliveryReceiptResponse,
   AbandonManualRunResponse,
   GetManualRunAbandonmentResponse,

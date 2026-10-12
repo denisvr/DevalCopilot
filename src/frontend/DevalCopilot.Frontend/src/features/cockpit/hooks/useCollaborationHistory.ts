@@ -12,6 +12,8 @@ export type CollaborationHistoryPending = 'first' | 'older'
 export interface UseCollaborationHistoryResult {
   /** Whether the recorded-collaboration region is expanded; false (collapsed) for every newly committed run. */
   open: boolean
+  /** The key of the committed run's current open lifetime (null while collapsed): what lifetimes nested in a history read belong to. */
+  lifetimeKey: string | null
   /** Expands (one newest-page read) or collapses (every row, error and pending read are discarded). */
   setOpen: (next: boolean) => void
   /** The messages this open lifetime accepted, newest first; only validated pages ever contribute. */
@@ -155,6 +157,7 @@ export function useCollaborationHistory(runId: string | null): UseCollaborationH
 
   return {
     open,
+    lifetimeKey: open ? owner.key : null,
     setOpen,
     rows: open ? frame.rows : [],
     pending: open ? frame.pending : null,

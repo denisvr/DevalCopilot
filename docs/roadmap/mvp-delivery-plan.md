@@ -328,6 +328,10 @@ first journal browser, not complete replay or envelope completion, and is likewi
 older run's persisted collaboration messages (exact string sequences, closed disclosures, content admitted only through the existing content
 policy and shown as unavailable otherwise, no attempt or reply resolution and no current-state claim); full linked replay remains open and
 it is likewise not increment completion.
+[ADR-0036](../decisions/0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md) adds an explicit, read-only inspection of
+one recorded message's own stored reply parent (a closed None, Unavailable or Available relationship, the parent under the unchanged ADR-0035
+disclosure, no chain traversal, attempt or evidence linkage and no current-state claim); full linked replay remains open and it is likewise
+not increment completion.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

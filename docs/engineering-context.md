@@ -110,6 +110,10 @@
   historical run (additive; one protected read-only, cursor-paged list of a run's persisted collaboration messages with exact string
   sequences, closed disclosures and content admitted only through the existing content policy, with no persistence change and no change to
   any admission, recovery, approval or digest decision).
+- [ADR-0036](decisions/0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md): Inspect the recorded reply parent of a
+  historical collaboration message (additive; one protected read-only inspection of one message's own stored reply parent with a closed
+  None, Unavailable or Available relationship and the unchanged ADR-0035 entry disclosure, with no persistence change, no chain traversal and
+  no change to any admission, recovery, approval or digest decision).
 
 ## Product-specific architecture
 
@@ -195,6 +199,21 @@
   collaboration" region (five messages per page so the journey's nine-message run needs explicit older paging) with the same owned
   lifetimes, whole-page validation, explicit older, retry and reload actions as the event headers. The live timeline route and hook are
   untouched; full linked replay (attempt and reply resolution) remains open.
+- [ADR-0036](decisions/0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md) lets an owner see which recorded message
+  another message replied to, even when that parent is on a page that was never loaded. The protected, bodyless
+  `GET /api/runs/{runId}/collaboration-history/{messageId}/reply` reads the source's own stored header and reply reference (no text column) by
+  exact run and message identity and resolves at most one parent by its stored identity: same run, strictly earlier, version 1.0, a type
+  the existing `CollaborationMessageReplyPolicy.Evaluate` allows for the source's type. It never substitutes another message, drains pages or
+  follows a chain. The answer is the exact source sequence string, a closed status (`None`: a recognized version-1.0 Proposal with no
+  reference; `Unavailable`: every other unusable shape, with no target identity or content; `Available`) and, only for `Available`, the
+  parent under the unchanged ADR-0035 disclosure (so the relationship and the content availability are distinct). An unknown run and a
+  missing or foreign source are one fixed 404 (`collaboration_reply.not_found`), an unusable stored source identity or sequence is one fixed
+  409 (`collaboration_reply.unavailable`) and a database fault is never masked as a status. The history's projection and entry builder are
+  one small shared extraction, so the page and the inspection admit a message identically. The cockpit adds one explicit "Inspect recorded
+  reply" action per message into one inspector (close and a same-source retry) owned by the committed run's open history lifetime and each
+  source selection, validates the whole answer against the observed source (closed status and target shape, `None` only for a Proposal,
+  exact Int64 earlier order, a parent type the restated reply table allows) and reads nothing on render, recursively or by polling. Chain
+  traversal, attempt and evidence linkage and complete replay remain open.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

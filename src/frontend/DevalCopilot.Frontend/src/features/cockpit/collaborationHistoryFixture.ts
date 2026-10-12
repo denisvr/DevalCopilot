@@ -2,6 +2,7 @@ import {
   CollaborationHistoryEntryResponse,
   CollaborationHistoryFieldResponse,
   CollaborationHistoryParticipantResponse,
+  GetCollaborationHistoryReplyResponse,
   GetCollaborationHistoryResponse,
 } from '../../api/generated/api-client'
 import type {
@@ -62,3 +63,17 @@ export const collaborationPageOf = (
 
 /** Sequence numbers from `from` down to `to`, inclusive. */
 export const descendingSequences = (from: number, to: number) => Array.from({ length: from - to + 1 }, (_, index) => from - index)
+
+/** A coherent reply-inspection response for the observed source; `parent` is the recorded parent entry (omitted unless Available). */
+export const replyFor = (
+  source: { id?: string; sequence: Sequence; runId?: string },
+  status: 'None' | 'Unavailable' | 'Available' | string,
+  parent?: CollaborationHistoryEntryResponse,
+) =>
+  new GetCollaborationHistoryReplyResponse({
+    runId: source.runId ?? MESSAGE_RUN,
+    messageId: source.id ?? `message-${source.sequence}`,
+    sourceSequence: String(source.sequence),
+    status,
+    parent,
+  })

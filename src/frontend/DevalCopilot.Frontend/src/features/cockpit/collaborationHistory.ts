@@ -247,7 +247,7 @@ function isCoherentEnvelope(actor: CollaborationParticipant, recipient: Collabor
   }
 }
 
-function toEntry(entry: unknown, runId: string): { entry: CollaborationHistoryEntry; sequence: bigint } | null {
+export function toCollaborationHistoryEntry(entry: unknown, runId: string): { entry: CollaborationHistoryEntry; sequence: bigint } | null {
   if (!entry || typeof entry !== 'object') {
     return null
   }
@@ -333,7 +333,7 @@ export function toCollaborationHistoryPage(
 
   const entries: CollaborationHistoryEntry[] = []
   for (const item of raw) {
-    const decoded = toEntry(item, request.runId)
+    const decoded = toCollaborationHistoryEntry(item, request.runId)
     if (!decoded || ids.has(decoded.entry.id) || decoded.sequence >= ceiling) {
       return null
     }
