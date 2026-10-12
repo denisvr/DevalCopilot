@@ -25,6 +25,7 @@ import {
   GetCodexAccountAllowanceEndpointClient,
   GetCodexModelCatalogEndpointClient,
   GetGitHubStoredAuthenticationEndpointClient,
+  GetProjectGitHubOriginEndpointClient,
   SetCodexAssignmentPreferenceEndpointClient,
   SetClaudeModelPreferenceEndpointClient,
   SetClaudeMutationTurnLimitEndpointClient,
@@ -102,6 +103,7 @@ export const providerRuntimePreflightClient = () => new GetProviderRuntimePrefli
 export const codexAccountAllowanceClient = () => new GetCodexAccountAllowanceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const codexModelCatalogClient = () => new GetCodexModelCatalogEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubStoredAuthenticationClient = () => new GetGitHubStoredAuthenticationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const projectGitHubOriginClient = () => new GetProjectGitHubOriginEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setCodexAssignmentPreferenceClient = () => new SetCodexAssignmentPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setClaudeModelPreferenceClient = () => new SetClaudeModelPreferenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const setClaudeMutationTurnLimitClient = () => new SetClaudeMutationTurnLimitEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -178,6 +180,8 @@ export type {
   CodexModelCatalogResponse,
   CodexModelCatalogEntryResponse,
   GitHubStoredAuthenticationResponse,
+  ProjectGitHubOriginResponse,
+  GitHubOriginTargetResponse,
   SetCodexAssignmentPreferenceResponse,
   SetClaudeModelPreferenceResponse,
   SetClaudeMutationTurnLimitResponse,

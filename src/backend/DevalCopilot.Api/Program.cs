@@ -18,6 +18,7 @@ using DevalCopilot.Application.Features.Projects.Commands.ReconcileWorkspaces;
 using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVerificationExecutions;
 using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecoverLocalCommitOperations;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedImplementationAttempts;
@@ -142,6 +143,10 @@ builder.Services.AddSingleton<IGitHubStoredAuthenticationObserver, GitHubStoredA
 // is composed on top of IProcessExecutionAdapter above, never a second child-process path.
 builder.Services.AddSingleton<IRepositoryRootPathInspector, RepositoryRootPathInspector>();
 builder.Services.AddSingleton<IGitRepositoryInspector, GitRepositoryInspector>();
+
+// Explicit repository-local GitHub origin observation (ADR-0039): two fixed read-only Git invocations composed on
+// IProcessExecutionAdapter above, never a second process path and never a remote, network or credential operation.
+builder.Services.AddSingleton<IGitHubOriginObserver, GitHubOriginAdapter>();
 
 // Workspace preparation: physical identity resolution, worktree creation, and the ownership
 // marker are each a narrow, independent Infrastructure capability behind their own port.

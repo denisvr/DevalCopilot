@@ -3,6 +3,7 @@ import { AddProjectForm } from './features/cockpit/components/AddProjectForm'
 import { CandidateWorkspacePanel } from './features/cockpit/components/CandidateWorkspacePanel'
 import { CapabilityReadinessStrip } from './features/cockpit/components/CapabilityReadinessStrip'
 import { GitHubStoredAuthenticationPanel } from './features/cockpit/components/GitHubStoredAuthenticationPanel'
+import { ProjectGitHubOriginPanel } from './features/cockpit/components/ProjectGitHubOriginPanel'
 import { ProviderRuntimePreflight } from './features/cockpit/components/ProviderRuntimePreflight'
 import { ProjectBaselineSummary } from './features/cockpit/components/ProjectBaselineSummary'
 import { ProjectRunHistoryPanel } from './features/cockpit/components/ProjectRunHistoryPanel'
@@ -136,6 +137,8 @@ export default function App() {
       />
 
       <GitHubStoredAuthenticationPanel />
+
+      {selectedProject ? <ProjectGitHubOriginPanel projectId={selectedProject.projectId ?? null} /> : null}
 
       {selectedProject ? (
         <RunIntakeForm

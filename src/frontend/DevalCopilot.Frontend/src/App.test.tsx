@@ -307,3 +307,71 @@ describe('App GitHub stored authentication composition', () => {
     expect(getGitHubStoredAuthentication).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('App project GitHub origin composition', () => {
+  async function renderWithClient() {
+    const getProjectGitHubOrigin = vi.fn((projectId: string) =>
+      Promise.resolve({
+        projectId,
+        source: 'RepositoryLocalConfig',
+        status: 'Available',
+        observedAtUtc: new Date('2026-10-12T09:00:00Z'),
+        target: { host: 'github.com', owner: projectId === 'project-a' ? 'alpha' : 'beta', repository: 'widgets' },
+      }),
+    )
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => 'ready' }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [
+          { projectId: 'project-a', projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', canCreateRun: false, capabilities: [] },
+          { projectId: 'project-b', projectName: 'Beta', capabilities: [] },
+        ],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({ CandidateWorkspacePanel: () => null }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: { runId: string }) => <p>{`cockpit ${props.runId}`}</p>,
+    }))
+    vi.doMock('./api/clients', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('./api/clients')>()),
+      projectGitHubOriginClient: () => ({ getProjectGitHubOrigin }),
+    }))
+    const { default: FreshApp } = await import('./App')
+    return { ...render(<FreshApp />), getProjectGitHubOrigin }
+  }
+
+  it('offers one collapsed project-level region that reads nothing on mount or on selecting another project', async () => {
+    const { getProjectGitHubOrigin } = await renderWithClient()
+
+    expect(screen.getByRole('button', { name: 'Show project GitHub origin' })).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+
+    expect(screen.getByRole('button', { name: 'Show project GitHub origin' })).toBeInTheDocument()
+    expect(getProjectGitHubOrigin).not.toHaveBeenCalled()
+  })
+
+  it('reads only the explicit inspection of the selected project and drops the answer when another project is selected', async () => {
+    const { getProjectGitHubOrigin } = await renderWithClient()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show project GitHub origin' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect GitHub origin' }))
+    expect(await screen.findByText('alpha')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+
+    expect(screen.queryByText('alpha')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Show project GitHub origin' })).toBeInTheDocument()
+    expect(getProjectGitHubOrigin).toHaveBeenCalledTimes(1)
+    expect(getProjectGitHubOrigin).toHaveBeenCalledWith('project-a')
+  })
+})

@@ -121,6 +121,9 @@
 - [ADR-0038](decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md): Observe stored GitHub CLI authentication on explicit
   request (additive; one protected read-only observation of the default stored github.com authentication, with no credential, environment-token or
   custom-config observation, no persistence and no repository or publication authority).
+- [ADR-0039](decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md): Observe the project's local GitHub origin on explicit
+  request (additive; one protected read-only observation of the registered project's own repository-local origin URL, a normalized github.com target for a
+  small supported subset, no remote, network or credential operation, no persistence and no remote identity, permission, CI or publication authority).
 
 ## Product-specific architecture
 
@@ -253,6 +256,23 @@
   request is `Unknown`), and exit zero alone never proves authentication. It writes nothing and needs no migration. The cockpit adds a collapsed
   host-level region read only by its explicit check and recheck actions, owned by the mounted component and each opening. It is neither repository
   permission nor publication authority; selector evaluation and installed-CLI formatting are not verified without a real `gh`.
+- [ADR-0039](decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md) lets an owner see which GitHub repository a registered project's
+  own local Git configuration names as `origin`, as an input for later repository scoping. The protected, bodyless
+  `GET /api/projects/{projectId}/github-origin` returns the project, the fixed source `RepositoryLocalConfig`, a closed status (`Unavailable`,
+  `NotConfigured`, `Available`), a time for the last two and a normalized `{host: github.com, owner, repository}` target for `Available` alone; an
+  unknown project is the fixed 404 `projects.not_found`. It runs only for a current, successful, direct-executable `Git` snapshot and a stored resolved
+  physical identity that the current root still matches before and after the observation (never rechecking, updating or backfilling an identity), and
+  it invokes two fixed read-only commands through the existing process executor inside the project root: `rev-parse` as a minimal shape check (the
+  root's own main repository only: no parent fallback, linked worktree, bare repository, submodule or separate Git directory) and `config --file
+  <root>\.git\config --no-includes --null --get-all remote.origin.url` against a read-only hold on that validated, non-reparse file that pins the
+  administrative scope for the whole observation (a replaced, redirected or vanished scope is `Unavailable`), under 15 s, 8 KiB per stream and 16 KiB combined, with only fixed Git controls in the child
+  environment. Global, system, included, worktree-scope and command-line values, URL rewrites and `pushurl` are never candidates, nothing contacts a
+  network, credential helper or hook, and nothing is written. Exit 1 with empty output is `NotConfigured`; exactly one non-empty NUL-terminated value
+  in one of three literal spellings (`https://github.com/o/r`, `git@github.com:o/r`, `ssh://git@github.com/o/r`, one optional `.git`, conservative
+  ASCII owner and repository rules) is `Available`; everything else (duplicates, credentials, ports, escapes, other hosts, truncation, timeouts) is
+  `Unavailable` without exposing the raw value. The cockpit adds a collapsed project-level region read only by its explicit inspect and recheck
+  actions, owned by the committed project and each opening. It is configured scope, never verified remote identity, permission, CI success or publication
+  authority.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

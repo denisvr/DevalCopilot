@@ -52,6 +52,15 @@ sequenceDiagram
     end
 ```
 
+## Repository-local origin observation
+
+[ADR-0039](../decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md) adds one explicit, read-only observation of the registered
+project's own repository-local `remote.origin.url` (two fixed local Git invocations through the existing process executor, never `gh`, `remote
+get-url`, a network or a credential helper). It yields a closed `Unavailable`, `NotConfigured` or `Available` status and, for a small literal subset of
+github.com spellings, a normalized owner and repository. This is configured scope only: it is not remote repository identity, binding or permission, it is not
+persisted, and exact-SHA CI correlation, publication policy, push, pull request and reconciliation still require an explicit, verified repository
+binding that a later decision must define.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

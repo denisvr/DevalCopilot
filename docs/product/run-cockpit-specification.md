@@ -130,6 +130,21 @@ confirmation and becomes terminal only after active external state is
 reconciled. Controls must never imply immediate cancellation when the provider
 cannot prove it.
 
+## Project GitHub origin
+
+A collapsed project-level region
+([ADR-0039](../decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md)) offers "Show project GitHub origin", "Inspect GitHub
+origin" (then "Inspect again") and "Close project GitHub origin". It reads only through the protected, bodyless
+`GET /api/projects/{projectId}/github-origin` when the owner presses an inspection, and shows plain text only: a fixed statement per closed status
+(`Unavailable`, `NotConfigured`, `Available`), the host, owner and repository of an `Available` target and the observation time for the observed two.
+A fixed note states that only the origin URL in the repository's own local Git configuration is read, that global, system, included and worktree
+settings, URL rewrite rules and a separate push destination are ignored, and that nothing contacts GitHub, so the result is not a verified remote
+identity, permission, CI result or publication authority. `Unavailable` lists possible causes (an unverified Git tool or project physical identity, a
+layout other than the project's own main repository, a missing, duplicate or unsupported origin value) without saying which applies. Nothing is requested
+on mount, opening, a project change, a reconnect, a timer or a background refresh. The committed project and each opening own the reads: another project,
+a return to an earlier one, closing and reopening each start collapsed and unchecked, a late answer of an ended or superseded lifetime is ignored, and
+a close is bound to its own opening. Agent readiness, claim eligibility, budgets, history and local delivery are unaffected.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

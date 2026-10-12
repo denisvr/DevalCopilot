@@ -5,7 +5,179 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current selection (2026-10-12): explicitly observe stored GitHub CLI authentication
+## Current selection (2026-10-12): observe the project's locally configured GitHub origin
+
+### Review decision (2026-10-12): GO for the corrected combined diff
+
+Codex re-verified main HEAD/local/live origin/main at
+b8a1f328bde674dd581a8cb15e0760cb678c092a, 0/0, empty index. The corrected
+combined inventory is 41 files (14 modified, 27 new): the two additional
+Infrastructure scope files account for the increase from 39. The executor
+preserved the prior planner hash
+80615ea93a2eb6591224864aeba525c4dff2d227b3843f7ab86e5b61d4d4f95e.
+
+The prior scope race is corrected: the second invocation reads the admitted
+config file explicitly with --file instead of rediscovering a repository.
+GitHubOriginScopePin rejects a gitfile/reparse directory and missing, directory
+or reparse config, holds config read-only without delete sharing before both
+invocations, rechecks admission and releases through using on all outcomes.
+Real-Git regressions prove the original replacement/parent-fallback attempts
+are blocked; foreign junction and missing-config cases are refused. An intact
+config without the key remains NotConfigured. The budget, environment, two
+invocations, fault propagation, UI, endpoint, Domain and identity behavior stand.
+
+Codex independently ran the two adapter classes: 194/194 by the test runner
+(the executor reported 193), and Architecture boundary 7/7. Earlier independent
+Application 31, Api 10 and frontend decoder/hook/panel 68 remain applicable.
+The current-work correction records five red-first failures and the executor's
+full corrected checks, exact strict e2e tsc command and retained evidence.
+An additional ancestor-junction probe stopped at baseline Unavailable before
+configuration reading; it did not exercise an alias race and supplies no wider
+alias guarantee. Its source remains ignored at
+logs/planner-review/github-origin-ancestor-race-probe.cs, the temporary project
+copy was removed, and the ordinary Infrastructure assembly rebuilt cleanly.
+Original scope probe and disposable review fixtures remain retained.
+
+Accept Windows/Git-version/short-path/locked-config limits and the stricter
+layout and resolved-identity prerequisites. The file-symlink test returns without
+exercising its assertion when link creation is unavailable; the green aggregate
+is not evidence that this case executed. Static no-delete-sharing and acquisition-
+order assertions are source checks, not killed behavioral mutants; the failed-
+compilation variant is not a mutation kill. Preserve those disclosed gaps,
+remaining survivors, existing skips/warnings/audit advisory and red-run incidents.
+This advisory read proves no remote identity, permission, publication authority,
+actual provider qualification or MVP completion. No further blocker was found.
+
+GO authorizes only this corrected 41-file combined diff, including this planner
+update and the factual current-work inventory clarification. Freeze an ignored
+publication manifest after these edits. Verify every entry, commit, normal
+fast-forward push to origin/main and remote verification in the same executor
+turn; report the published SHA. Stop on mismatch, divergence or publication
+failure. No new edits/checks, force-push, closure diff or next-slice selection.
+Codex will verify publication and select the next slice. Real qualification stays
+Blocked/TargetsNotReal, both allowances unused; ledger/failures/roots unchanged.
+No gh/provider work, CLI installation/configuration or cleanup is authorized.
+
+### Publication verified and MVP priority
+
+Codex independently verified ADR-0038 publication at
+b8a1f328bde674dd581a8cb15e0760cb678c092a, parent
+7be3b05d3ac2654d08e8cd9ee2f5d189561c89b2, expected message and trailer.
+Main HEAD/local/live origin/main agree, 0/0, empty index and clean working tree
+before this selection edit. All 40 reviewed manifest entries match committed
+paths, blobs/modes and working-file raw hashes/sizes. No validation was rerun
+for publication and no closure edit is needed. Fixture-backed authentication
+observation is delivered; actual jq/installed-CLI/environment compatibility
+remains unverified. It proves no remote permission or MVP completion.
+
+Select one new Claude executor chat for a protected, explicit, read-only
+observation of the registered project's repository-local origin configuration.
+ADR-0005 and github-ci-integration require explicit repository scoping before
+exact-SHA CI or remote mutation. Project currently stores local/physical identity,
+not a GitHub target; no push/PR/CI adapter exists. Authentication alone supplies
+neither target nor authority. This slice establishes a bounded normalized input
+for later repository scoping, not remote identity verification or a publication
+contract. Remote binding, exact-SHA CI, publication policy and reconciliation
+remain later release gates. Increment 4 qualification/remaining contracts,
+Increment 5 coordination/concurrency/recovery, complete replay and packaged
+self-hosting also remain release gates. Extra history browsers, analytics,
+export and provider expansion are optional and are not selected.
+
+### Selected contract and scope
+
+- Protected bodyless GET /api/projects/{projectId}/github-origin through one
+  MVC endpoint and mediator query; fixed 404 projects.not_found for an unknown
+  project. Response: projectId, fixed source RepositoryLocalConfig, closed
+  Unavailable/NotConfigured/Available status, nullable observedAtUtc and target.
+  Only Available has target {host: github.com, owner, repository}; Available
+  and NotConfigured have time, Unavailable has neither time nor target.
+- Untracked project and existing Git capability reads. A successful, fresh,
+  coherent direct-executable snapshot is required; no discovery or refresh.
+  Require the stored resolved physical identity and validate the current root
+  and tuple before and after the observation using existing read-only ports.
+  Unresolved, unavailable, changed or malformed identity returns Unavailable;
+  no recheck command, backfill, identity update or lease/ownership mutation.
+- A narrow Application observation port returns normalized facts only.
+  Infrastructure uses the existing process engine and vetted Git executable,
+  fixed read-only argv, approved project root and bounded output. Admit only
+  the main repository's own root/config scope, never parent-directory fallback,
+  a linked worktree, bare repository, arbitrary path or client-supplied remote.
+  Use minimal repository-shape checks, not status/diff/checkpoint capture.
+- The one configuration lookup is config --local --no-includes --null --get-all
+  remote.origin.url under the established Git hardening discipline. No global,
+  system, included or worktree config value is a candidate. Keep ambient Git
+  config/path/credential/SSH/proxy overrides out of the child; fixed environment
+  controls may disable global/system config, prompting and optional locks.
+  No remote get-url, effective URL rewrite, pushurl lookup, credential helper,
+  network, shell, hook, pager, fetch, ls-remote or config write.
+- Strict NUL-framed output: exit 1 plus empty untruncated stdout means no local
+  key (NotConfigured); exit 0 requires exactly one nonempty value. Duplicate
+  values, even equal, malformed framing, invalid config, other exits, timeout,
+  truncation or expected launch failure are Unavailable. Cancellation and
+  unexpected faults propagate. Bound the whole observation to 15 seconds,
+  each stream to 8 KiB and combined capture to 16 KiB per invocation; a fixed
+  finite command set, no retry, queue, fallback or raw artifact/log sink.
+- Admit only literal https://github.com/owner/repository,
+  git@github.com:owner/repository or ssh://git@github.com/owner/repository,
+  with one optional terminal .git removed. Host spelling is exact; owner is
+  1..39 ASCII alphanumeric/hyphen, beginning/ending alphanumeric; repository
+  is 1..100 ASCII alphanumeric/dot/underscore/hyphen, beginning alphanumeric,
+  excluding dot segments. These are a conservative supported subset, not the
+  full GitHub naming policy. No trim, percent decoding, URI normalization,
+  credentials in HTTPS, alternate SSH user, port, query, fragment, slash suffix,
+  control/whitespace, additional segment, other host/protocol or local path.
+  Reject unsupported input without exposing it. Raw URL/stderr/config text
+  remains transient inside Infrastructure, never returned, logged or stored.
+- Project-level collapsed panel: explicit inspect/recheck/close only; fixed
+  English copy explains local origin configuration, ignored overrides/rewrite/
+  push destination, no remote verification, permission, CI or publication claim.
+  Plain text target, no arbitrary URL/action. Reuse owned-lifetime/state hooks
+  with project/open/request ownership and serial-guarded close. No mount,
+  project-change, reconnect, timer or automatic remote work; validate the whole
+  response against the observed project and closed shape.
+
+Allowed: query/port/adapter/endpoint, narrow DI, generated client, panel/hook/
+decoder and focused integration, frontend and browser fixtures; additive ADR-0039
+and narrow decisions/context/cockpit/GitHub architecture/roadmap/security docs,
+plus current-work evidence. Preserve this planner selection byte for byte.
+No Domain/write-policy/schema/mapping/migration/dependency changes; no generic
+Git gateway or rewrite of existing inspectors/process engine. No gh invocation,
+remote binding/persistence, permission check, push/PR/CI adapter, publication
+policy, scheduler, recovery, Agent eligibility or historical-reader change.
+
+### Acceptance and stop gates
+
+Failing tests first for admission, exact scopes/argv/environment/NUL framing,
+closed parsing and ownership. Disposable real Git repositories prove missing,
+one/multiple local origins, ignored global/include/worktree definitions and
+URL rewrites, malicious sentinel URLs and refusal of parent/linked/bare roots.
+Use process doubles for bounds/launch/timeout/cancellation and no unexpected
+fault swallowing; prove physical identity before/after and no Git call when
+admission fails. API auth/404/closed wire and database no-write fingerprint;
+UI decoder plus stale A-B-A, close/reopen, same-batch close, recheck and unmount.
+One normal-auth browser scenario proves exact target, explicit-only inspection,
+project isolation and no database/working-tree/index/commit/provider changes.
+No real remote/credential account is test data. Use a small meaningful mutation
+set for scope, single-value admission, credentials, identity and lifetime guards.
+
+Run affected checks, then clean serial build, full Application/Infrastructure/
+Api/Architecture/Vitest, typecheck/lint/build, strict e2e tsc, harness and one
+canonical e2e:all. Check reproducible generated client, scoped format, links,
+diff hygiene, secrets and dependency audits; explicitly retain unchanged Domain
+evidence and existing skips/warnings/advisories. Keep all failures and limits.
+Stop and discuss if safe local scope/root/process isolation needs broader changes,
+if an unexpected protocol shape lacks evidence, or any remote/secret/authority
+work becomes necessary. Challenge a flawed requirement with bounded evidence;
+do not silently weaken it. Return one unstaged, uncommitted, unpushed diff.
+
+Real qualification stays Blocked/TargetsNotReal, both allowances unused;
+ledger, historical failures and retained roots are preserved. No providers,
+CLI installation/configuration or cleanup. This selection grants no commit/push
+or subsequent slice authority. Protocol basis: the official git-config manual
+(https://git-scm.com/docs/git-config), checked on 2026-10-12; local scope,
+no-includes, NUL framing and missing-key exit still require real boundary tests.
+
+## Previous selection (2026-10-12): explicitly observe stored GitHub CLI authentication
 
 ### Review decision (2026-10-12): GO for the corrected combined diff
 

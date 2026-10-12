@@ -84,6 +84,10 @@ supersedes it.
 - [ADR-0038: Observe stored GitHub CLI authentication on explicit request](0038-observe-stored-github-cli-authentication-on-explicit-request.md)
   (additive; one protected read-only observation of the default stored GitHub CLI authentication of github.com through one fixed privacy-filtered
   command, with a closed status, no credential, environment-token or custom-config observation, no persistence and no repository or publication authority)
+- [ADR-0039: Observe the project's local GitHub origin on explicit request](0039-observe-the-project-local-github-origin-on-explicit-request.md)
+  (additive; one protected read-only observation of the registered project's own repository-local origin URL through two fixed local Git invocations,
+  with a closed status and a normalized github.com target for a small supported subset, no remote, network, credential or global/included/worktree
+  observation, no persistence and no remote identity, permission, CI or publication authority)
 
 ## Status values
 

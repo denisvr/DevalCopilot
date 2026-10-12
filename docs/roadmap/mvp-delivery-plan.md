@@ -340,6 +340,10 @@ or current-state claim); full linked replay remains open and it is likewise not 
 stored GitHub CLI authentication of github.com (one fixed privacy-filtered `gh auth status`, a closed status, no credential, environment-token or
 custom-config observation, no persistence); it is the authentication-health part of Increment 6's first deliverable only, grants no repository
 permission or publication authority, and the push, pull request, CI and reconciliation deliverables remain open.
+[ADR-0039](../decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md) adds an explicit, read-only observation of the registered
+project's own repository-local `origin` URL (two fixed local Git invocations, a closed status and a normalized github.com target for a small supported
+subset, no remote, network, credential or persistence); it supplies a bounded input for later repository scoping only, is not remote identity, binding,
+permission or publication authority, and the remote binding, exact-SHA CI, push, pull request and reconciliation deliverables remain open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

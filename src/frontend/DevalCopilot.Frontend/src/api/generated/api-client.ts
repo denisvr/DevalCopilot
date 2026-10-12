@@ -3455,6 +3455,61 @@ export class GetProjectRunHistoryEndpointClient {
     }
 }
 
+export class GetProjectGitHubOriginEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getProjectGitHubOrigin(projectId: string): Promise<ProjectGitHubOriginResponse> {
+        let url_ = this.baseUrl + "/api/projects/{projectId}/github-origin";
+        if (projectId === undefined || projectId === null)
+            throw new globalThis.Error("The parameter 'projectId' must be defined.");
+        url_ = url_.replace("{projectId}", encodeURIComponent("" + projectId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetProjectGitHubOrigin(_response);
+        });
+    }
+
+    protected processGetProjectGitHubOrigin(response: Response): Promise<ProjectGitHubOriginResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ProjectGitHubOriginResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ProjectGitHubOriginResponse>(null as any);
+    }
+}
+
 export class GetProjectGitEvidenceEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -11304,6 +11359,102 @@ export interface IProjectRunHistoryReceiptSourceResponse {
     commitSha?: string;
     checkpointId?: string;
     checkpointNumber?: number;
+}
+
+export class ProjectGitHubOriginResponse implements IProjectGitHubOriginResponse {
+    projectId?: string;
+    source?: string;
+    status?: string;
+    observedAtUtc?: Date | undefined;
+    target?: GitHubOriginTargetResponse | undefined;
+
+    constructor(data?: IProjectGitHubOriginResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.projectId = _data["projectId"];
+            this.source = _data["source"];
+            this.status = _data["status"];
+            this.observedAtUtc = _data["observedAtUtc"] ? new Date(_data["observedAtUtc"].toString()) : undefined as any;
+            this.target = _data["target"] ? GitHubOriginTargetResponse.fromJS(_data["target"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): ProjectGitHubOriginResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new ProjectGitHubOriginResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["projectId"] = this.projectId;
+        data["source"] = this.source;
+        data["status"] = this.status;
+        data["observedAtUtc"] = this.observedAtUtc ? this.observedAtUtc.toISOString() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IProjectGitHubOriginResponse {
+    projectId?: string;
+    source?: string;
+    status?: string;
+    observedAtUtc?: Date | undefined;
+    target?: GitHubOriginTargetResponse | undefined;
+}
+
+export class GitHubOriginTargetResponse implements IGitHubOriginTargetResponse {
+    host?: string;
+    owner?: string;
+    repository?: string;
+
+    constructor(data?: IGitHubOriginTargetResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.host = _data["host"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+        }
+    }
+
+    static fromJS(data: any): GitHubOriginTargetResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubOriginTargetResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["host"] = this.host;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        return data;
+    }
+}
+
+export interface IGitHubOriginTargetResponse {
+    host?: string;
+    owner?: string;
+    repository?: string;
 }
 
 export class GetProjectGitEvidenceResponse implements IGetProjectGitEvidenceResponse {
