@@ -264,6 +264,35 @@ public sealed class GitHubRepositoryIdentityAdapterTests : IDisposable
         Assert.Null(await ObserveStdoutAsync(Answer(id: id)));
     }
 
+    // A pipe stands for the backslash so the source holds no raw JSON escape sequence.
+    [Theory]
+    [InlineData("data", "|u0064ata")]
+    [InlineData("repository", "|u0072epository")]
+    [InlineData("id", "|u0069d")]
+    [InlineData("name", "|u006eame")]
+    [InlineData("nameWithOwner", "name|u0057ithOwner")]
+    public async Task An_escaped_property_name_at_any_level_is_refused_whole_while_the_literal_answer_is_admitted(
+        string key, string escapedKey)
+    {
+        var literal = Answer();
+        Assert.NotNull(await ObserveStdoutAsync(literal));
+
+        var mutated = literal.Replace($"\"{key}\":", $"\"{escapedKey.Replace('|', '\\')}\":", StringComparison.Ordinal);
+
+        Assert.NotEqual(literal, mutated);
+        Assert.Null(await ObserveStdoutAsync(mutated));
+        Assert.Null(await ObserveStdoutAsync(mutated.Replace("\"data\":{", "\"data\": {", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Whitespace_and_property_order_controls_stay_admitted_beside_the_escape_refusal()
+    {
+        var reordered = "{ \"data\" : { \"repository\" : { \"nameWithOwner\" : \"octo-cat/hello.world\","
+            + " \"name\" : \"hello.world\", \"id\" : \"R_kgDOExample01\" } } }\n";
+
+        Assert.Equal(new GitHubRepositoryIdentity("R_kgDOExample01", Owner, Repository), await ObserveStdoutAsync(reordered));
+    }
+
     [Theory]
     [InlineData("""{"data":{"repository":{"id":"R_x","name":"hello.world","nameWithOwner":"octo-cat/hello.world"}},"errors":[{"message":"x"}]}""")]
     [InlineData("""{"errors":[{"message":"Could not resolve to a Repository"}],"data":{"repository":null}}""")]

@@ -191,6 +191,12 @@ public sealed class GitHubRepositoryIdentityAdapter : IGitHubRepositoryIdentityO
     /// <summary>Only the exact shape is accepted; null is unknown. Duplicate properties are rejected, not merged.</summary>
     private static GitHubRepositoryIdentity? Interpret(string standardOutput)
     {
+        // JsonProperty.Name decodes escaped keys, so a literal backslash anywhere (key or value) is refused before parsing.
+        if (standardOutput.Contains('\\', StringComparison.Ordinal))
+        {
+            return null;
+        }
+
         try
         {
             using var document = JsonDocument.Parse(standardOutput, StrictJson);

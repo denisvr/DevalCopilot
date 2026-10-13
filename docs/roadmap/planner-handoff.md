@@ -5,6 +5,133 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## Review decision (2026-10-13): GO for the ADR-0041 identity escape correction
+
+The bounded correction is accepted for publication. Claude remains executor;
+no next slice or MVP/release completion is granted. Verified main with HEAD,
+local origin/main and live refs/heads/main equal to
+a634e35499ff5a5dd0bdc84b074afb0529947180, 0/0, empty index, no untracked
+files and exactly four modified files: this planner record, current-work,
+GitHubRepositoryIdentityAdapter and its tests. Before this GO insertion the
+planner hash remained
+5ffabd94b21d8d4951538b9abea15d99969edeb84d4e218bcedf963673da76fb;
+all prior selection, owner transition and review bytes are preserved below.
+
+The production diff is only the six-line pre-parse backslash guard; no query,
+argv, environment, bounds, slot, fault/cancellation, API, frontend, persistence
+or authority change exists. Five public-observer regressions were genuinely
+red (5 failed, 118 passed), green 123/123 and killed the compiling guard-removal
+mutant (5 failed, 118 passed). The no-match sed attempt is not counted.
+Restored source SHA-256 independently matches both recorded hashes:
+c061f5a6b921f6826f48ecc435fcdc6c28cb02867be7524f7be13b08afbd6efd.
+Codex rebuilt serially (incremental, zero warnings/errors), ran both full
+observer adapter classes 311/311 and full Architecture 106/106, and repeated
+its original compiled-parser probe: all five escaped keys and the escaped
+value are refused; baseline, literal whitespace/order and restoration pass.
+Complete reviewer logs, TRX and probe results remain under ignored
+logs/planner-review/adr42 (identity-correction-review and corrected probe).
+
+Codex inspected the executor's retained red/green/mutant TRX and named cases,
+clean serial build log, full Infrastructure 2274 plus four skips, Api
+2098/2098, Architecture 106/106 and affected collaboration journey 1/1.
+The generated client independently remains byte-identical at
+8d2108a7909de924312790975c3dc02723a8c56547a05e8e213d90d13413059b.
+Codex did not repeat full Infrastructure, Api or browser validation; the
+executor evidence and explicitly retained unchanged boundaries are accepted.
+Existing journey duplicate-key and stopped-negotiation diagnostics are
+visible in the retained log; the journey passes, and no new causal inference
+or resolution of earlier limitations is claimed.
+
+Publication authority is limited to the frozen four-file manifest supplied
+with the complete executor prompt: stage those paths, verify modes/blobs,
+commit the reviewed correction and handoffs together, normally fast-forward
+push main, and verify live refs/heads/main equals the delivered commit in
+the same turn. Material content drift, push failure or remote divergence
+stops publication; no force, rebase, merge or history reconciliation. No
+implementation edits, regeneration, closure diff, cleanup or next selection.
+
+The old unnamed Api 2067/2068 failure stays unexplained; later passes establish
+neither flakiness nor irrelevance. Preserve every recorded limitation,
+historical failure, ledger, retained root and ignored artifact. Qualification
+remains Blocked/TargetsNotReal with both allowances unused; no real gh/provider
+invocation, CLI setup, ledger reset or cleanup is authorized. Future failures
+require complete logs and named results. No separate closure publication.
+
+## Selected next slice (2026-10-13): close ADR-0041 escaped-property admission
+
+ADR-0042 publication is independently verified at
+a634e35499ff5a5dd0bdc84b074afb0529947180, parent
+7ccbcafb9295f33144b636ad7912d44cb2862d7e. Main, HEAD, local origin/main and
+live refs/heads/main agree, ahead/behind is 0/0, index and tracked/untracked
+state were clean before this selection. The commit message is "feat: observe
+recorded GitHub branch tip" with the reported Claude Sonnet 5.5 co-author.
+The frozen manifest SHA-256 remains
+3b4cfb463b4bfdb22781f3dfb53d4a0d2bdf0169060815ac9a2b55cda7fdd4be;
+all 44 paths (17 modified, 27 added), change types, modes and normalized blobs,
+and all working-file raw hashes and byte counts match the reviewed manifest.
+No publication discrepancy, closure diff or new validation claim is recorded.
+The published planner hash was
+f700064ccbc2fcdee9d5797f0f6a5de82948d137f1aff247b3a099054c0f16a9;
+its owner transition, prior selections and review records remain verbatim below.
+
+Assessment: Increment 4 real qualification and remaining provider usage,
+session/compaction/permission controls, Increment 5 end-to-end coordination,
+multi-project scheduling, lifecycle/recovery and complete linked replay,
+Increment 6 durable remote binding, scoped publication/reconciliation and
+exact-SHA CI, and Increment 7 packaged self-hosting proof remain MVP/release
+gates. Existing shell/sidecar implementation and local/manual delivery do not
+close those gates. Extra history drilldown, export, analytics, broader providers
+and a journal migration remain optional/deferred work, not accepted selections.
+
+The leading candidate was explicit durable repository identity binding, because
+ADR-0040 supplies immutable local scope and ADR-0041/0042 supply only ephemeral
+remote facts. Code inspection and an independent compiled-parser probe exposed
+a prerequisite contract defect: GitHubRepositoryIdentityAdapter admits escaped
+keys at all five levels/names (data, repository, id, name, nameWithOwner) through
+JsonProperty.Name decoding. All five were admitted; literal baseline, reordered
+whitespace and restoration were admitted; an escaped value was refused. Its
+existing public adapter tests still pass 117/117. Complete named TRX/log and
+probe source/results are retained under ignored logs/planner-review/adr42
+(identity-baseline and identity-escaped-properties-probe). This establishes a
+strict-response admission defect, not a demonstrated authority bypass or a
+real-GitHub compatibility result. ADR-0042's corrected parser remains accepted.
+
+Decision revised on that evidence: select only the ADR-0041 identity parser
+correction and its regression evidence before promoting that observer into any
+durable binding. Claude remains executor; use a new executor chat for this new
+slice. Changes are limited to the identity adapter, its tests and current-work;
+preserve this planner edit byte-for-byte. Refuse any backslash in stdout before
+parsing (same bounded guard as the branch adapter), covering property names and
+values at every level. Keep literal order/whitespace controls, public-observer
+red-first regressions for every key, a guard-removal compiling mutant and a
+hash-verified restoration. No new ADR is needed to restore ADR-0041's already
+accepted no-escapes contract. Durable binding is a candidate only; its storage,
+authority and UI contract are not selected. No next remote capability, schema,
+API, frontend, query/argv, environment, bounds, slot or authority change belongs
+to this correction. Planning grants no staging, commit or push authority.
+
+Acceptance: affected red/green and mutation evidence first, then clean serial
+solution build, unchanged generated-client hash
+8d2108a7909de924312790975c3dc02723a8c56547a05e8e213d90d13413059b,
+fresh full Infrastructure, Api and Architecture suites and the affected normal
+authenticated collaboration journey with owned doubles. Formatter, diff/secret
+checks and edited-document links must pass. Unchanged Domain, Application,
+frontend and other browser evidence may be retained with its exact boundary;
+do not invent fresh runs. Preserve complete logs and named TRX results for every
+future validation failure; an abort's active test is not a proven cause.
+Material discrepancies, contract challenges or changes beyond this bounded fix
+stop dependent work for planner review; unresolved material choices go to owner.
+
+The unnamed Api 2067/2068 failure remains unexplained; subsequent executor and
+independent 2068/2068 and later 2098/2098 passes prove neither flakiness nor
+irrelevance. All recorded limitations remain, including missing original
+frontend red-first evidence, bounded mutation coverage, skips, advisory,
+deleted-dump/history facts and real CLI formatting/authentication uncertainty.
+Qualification remains Blocked/TargetsNotReal with both allowances unused.
+Preserve ledger, historical failures, retained roots and ignored review
+artifacts. No real gh/provider invocation, CLI setup, ledger reset or cleanup
+without a separate explicit decision. No separate closure publication is needed.
+
 ## Review decision (2026-10-13): GO for the corrected ADR-0042 diff
 
 R1, R2 and R3 are accepted. This supersedes the NO-GO below for the reviewed
