@@ -76,7 +76,12 @@ switch (args[0])
     case "auth":
         // The isolated GitHub CLI double: reads the scripted behavior from the working directory, records the argv and
         // environment it was launched with, and answers like a (filtered) `gh auth status`. No account, credential or network.
-        return await RunGitHubAuthDoubleAsync(args);
+        return await RunGitHubAuthDoubleAsync(args, "gh-auth");
+
+    case "api":
+        // The same isolated GitHub CLI double for the repository identity query (`gh api graphql ...`): its own scripted behavior and
+        // invocation record, no account, credential or network.
+        return await RunGitHubAuthDoubleAsync(args, "gh-api");
 
     case "spawn-tree":
         return SpawnTree(int.Parse(args[1]));
@@ -247,9 +252,9 @@ static async Task<int> RunAppServerScriptAsync(string scriptPath)
     return script.ExitCode;
 }
 
-static async Task<int> RunGitHubAuthDoubleAsync(string[] arguments)
+static async Task<int> RunGitHubAuthDoubleAsync(string[] arguments, string prefix)
 {
-    var behavior = JsonSerializer.Deserialize<GitHubAuthBehavior>(File.ReadAllText("gh-auth-behavior.json"))
+    var behavior = JsonSerializer.Deserialize<GitHubAuthBehavior>(File.ReadAllText(prefix + "-behavior.json"))
         ?? throw new InvalidOperationException("Empty gh auth behavior.");
 
     var environment = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -258,7 +263,7 @@ static async Task<int> RunGitHubAuthDoubleAsync(string[] arguments)
         environment[(string)entry.Key] = (string?)entry.Value ?? string.Empty;
     }
 
-    File.WriteAllText("gh-auth-invocation.json", JsonSerializer.Serialize(new { arguments, environment, Environment.ProcessId }));
+    File.WriteAllText(prefix + "-invocation.json", JsonSerializer.Serialize(new { arguments, environment, Environment.ProcessId }));
     if (behavior.PidFile is not null)
     {
         File.WriteAllText(behavior.PidFile, Environment.ProcessId.ToString());

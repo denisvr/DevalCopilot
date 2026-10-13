@@ -348,6 +348,9 @@ permission or publication authority, and the remote binding, exact-SHA CI, push,
 GitHub owner and repository (fixed host) for the exact branch and commit of a completed manual local delivery, recorded with one Human event from pinned
 rows; it is local scope selection only, verifies no remote repository or permission, and grants no publication or automatic observation authority. Remote
 identity verification, exact-SHA CI, scoped publication and reconciliation remain open, separately gated slices.
+[ADR-0041](../decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds one explicit, read-only observation
+of the opaque ID and names GitHub reports for that recorded owner and repository (one fixed `gh api graphql` query through the stored default authentication; not
+persisted, no binding); it proves no remote branch or commit, permission, CI result or publication approval, so the remaining deliverables stay open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

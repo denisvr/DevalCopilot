@@ -5,7 +5,186 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
-## Current selection (2026-10-12): record an immutable GitHub observation scope for a completed local delivery
+## Current selection (2026-10-12): explicitly observe the recorded GitHub repository identity
+
+### Review decision (2026-10-13): GO, corrected repository identity observation
+
+Verified main HEAD/local/live origin/main at
+8c7eb3c4c5584683ef51aefb8c921331101cf370, 0/0, empty index and exactly
+43 combined paths (18 modified, 25 new). The executor preserved the prior
+NO-GO planner hash
+845253975cf34cbb3afc2475e45f51761a2733b468e05d4b3bdcdd89529638ed.
+This decision replaces that checkpoint and belongs to the approved diff.
+
+All three bounded corrections are accepted. Permanent hook regressions prove
+that late reads preserve a pending successor's in-flight guard across A-B,
+close/reopen and A-B-A, then accept the successor's distinct ID. Real-SQLite
+Api cases refuse relative executable paths and NULL/empty/blank versions with
+CliUnavailable, no observation, no observer call and no write. The empty
+chunked request is fixed body_not_allowed 400 with zero observation/write.
+The corresponding F15, H5, H6, E3 and E5 mutants are reported killed with
+restored source hashes; the production guards remain unchanged. Current-work
+now correctly records 63 killed and nine survivors from the 72-ID matrix;
+compile-error variants count only through their final compiling replacement.
+Remaining layered defenses are retained; their equivalence is argued in the
+current contract, not proved generally. The absence of original red-first
+runs and every initial incident remain historical facts.
+
+Independent correction evidence: frontend decoder/hook/panel 39/39, and one
+full Api run 2068/2068 with zero failed or skipped, including all 17 observation
+cases. Complete log and TRX were retained under ignored logs/planner-review:
+adr41-correction-review-20261013.log and
+adr41-correction-review/adr41-correction-review-20261013.trx.
+The executable test names and outcomes were checked in the TRX. No repeated
+independent Api run was used to obtain green. The executor's first full
+correction run still failed one unidentified test (2067/2068), losing the name
+by retaining only the tail; its second run passed. The failure is unexplained,
+not established flakiness and not established to be unrelated to this slice.
+It remains a test/host reliability risk despite the subsequent passing evidence.
+Future failed validations must retain complete output and named results.
+
+Prior independent review evidence remains Application 21, Infrastructure
+adapter 117, Api endpoint 11, Architecture five and frontend 36, plus the
+original/mutant comparison and SQLite/body probes recorded in the previous
+correction record. Full executor validation, retained checks, existing npm
+advisory, privilege skips, initial failures and CLI/environment limits remain
+in current-work.md. Client SHA-256 is unchanged at
+29c2c551d813550ca166e23d01122843e2e27a2472bc6ae686c6e3733ca368a8.
+
+Accept the fixed authenticated read-only GraphQL invocation, bounded isolated
+process, pre/post coherent local scope, strict whole-response admission and
+explicit owned UI. No Domain/schema/migration/journal/dependency change is
+introduced. Observation remains ephemeral advisory evidence of repository ID
+and names only, not branch/SHA correlation, permission, CI, durable binding or
+publication authority. Real qualification remains Blocked/TargetsNotReal with
+both allowances unused; ledger, historical failures and retained roots remain.
+
+GO authorizes only the frozen combined 43-path diff including this planner
+update and current-work.md. Verify manifest identity and all entries, stage
+exactly those files, commit, normal fast-forward push and independently verify
+the live remote in the same executor turn. Stop on any content/identity drift
+or divergence. No edits, validation reruns, closure diff, force-push or next
+slice. Codex will verify publication and select the next bounded slice after
+the delivery report. This decision itself does not publish anything or certify
+an increment/MVP/release as complete.
+
+### Prior publication independently verified
+
+ADR-0040 is delivered at 8c7eb3c4c5584683ef51aefb8c921331101cf370,
+parent 27e8b02d85e0d11fa92c52b166c4aa95f9886be7, with the approved feature
+message and Co-Authored-By trailer. Main HEAD/local/live origin/main agree,
+0/0, empty index and clean working tree before this selection edit. All 81
+committed paths, blobs/modes and working-tree SHA-256/size values match the
+frozen manifest; its hash remains
+1e697a8a153faf40768b90f9f735818d4810c93102875672caf5b1d078201a56.
+No validation was rerun for publication. Prior correction evidence, initial
+failures and limits remain in current-work.md and the previous selection below.
+No closure diff is required.
+
+### Evidence and roadmap disposition
+
+ADR-0005 and github-ci-integration require explicit repository identity before
+remote correlation; ADR-0040 supplies only immutable Human-selected names tied
+to the recorded branch/SHA. Code has no remote repository observer, durable
+remote identity binding, CI observer or publication adapter. Select one bounded
+read-only identity observation through the existing CLI/process capability and
+normal authenticated cockpit. It is a prerequisite, not an Increment 6 exit or
+a persistent remote binding. Exact branch/SHA existence, identity persistence,
+CI correlation/monitoring, scoped publication and recovery remain later work.
+
+Release gates remain real Codex/Claude qualification and remaining Increment 4
+contracts, Increment 5 coordination/concurrency/recovery and complete replay,
+remote CI/publication/reconciliation, packaged shell and self-hosting proof.
+Real qualification stays Blocked/TargetsNotReal with both allowances unused.
+Additional browsing, exports, analytics, provider expansion and strengthening
+ADR-0040's event reference with a wider journal migration are not selected.
+
+### Selected contract
+
+- Protected bodyless GET /api/runs/{runId}/github-repository-observation,
+  MVC to one mediator query and an operation-owned Application port. Unknown
+  run: fixed 404 github_repository_observation.not_found. Known run: closed
+  NotRecorded, Unavailable, CliUnavailable, Unknown or Observed, HTTP 200.
+- Read the existing source/target policies unchanged, untracked, before any
+  external work. NotRecorded/Unavailable carry no scope or observation and
+  invoke nothing. Other statuses carry the exact coherent local source and
+  target; only Observed carries repositoryNodeId, observed owner/repository and
+  observedAtUtc. No client URL, owner, repository, branch, SHA, executable or
+  credentials. No persistence, event, mutation, lock or transaction.
+- Require the same current successful direct-executable GitHubCli snapshot
+  gates as ADR-0038 (absolute executable, no script, observed version/time,
+  no probe failure/staleness), otherwise CliUnavailable with no invocation.
+  No discovery, refresh, install, auth-status prerequisite or origin lookup.
+- Infrastructure executes one fixed gh api graphql query on github.com, in
+  host scratch through IProcessExecutionAdapter. Use --method POST and -f raw
+  string fields for a compile-time query and the validated stored owner/name.
+  The query is only repository(owner:$owner,name:$name){id name nameWithOwner}.
+  HTTP POST transports this read-only GraphQL query; no mutation operation,
+  interpolation, client query, endpoint placeholder, shell, jq, pagination,
+  cache, retry, browser, arbitrary field or additional invocation is allowed.
+- Preserve ADR-0038's non-secret OS/profile/temp environment allowlist and
+  fixed controls, discarding ambient token/host/config/debug/proxy/pager/browser
+  overrides. No credential extraction, raw sinks, output logs or artifacts.
+  One 15-second process budget, 8 KiB per stream and 16 KiB combined; one
+  singleton in-flight slot, concurrent requests immediately Unknown.
+- Accept only the exact bounded data.repository JSON shape with three fields,
+  no errors/extensions/duplicates/extra fields or partial success. Require
+  conservative opaque ASCII node id (1..256 letters/digits/_-/+=), supported
+  names, one owner/name split and internally coherent name/nameWithOwner.
+  Observed names must match stored scope with ordinal ASCII case-insensitive
+  comparison; no trim, decoding, .git removal, redirect/rename/transfer adoption.
+  Unknown for missing/inaccessible repository, nonzero exit, timeout, truncation
+  or invalid/foreign answer; no permission/nonexistence inference. Expected OS
+  start failures may be Unknown as in ADR-0038; cancellation and unexpected
+  faults propagate, with slot released in every case.
+- Independently normalize the port result. Re-read source and target after the
+  external call; any lost/changed/incoherent local scope yields Unavailable
+  without remote data. No database transaction across external work. Observation
+  is current response evidence only, not immutable remote identity or proof of
+  remote branch/SHA, permission, CI, push/PR approval or automatic observation.
+- Add a collapsed remote identity region only beside an Available ADR-0040
+  target. Show, explicit Check/Check again, close. Nothing reads on opening,
+  mount, project/run/target change, reconnect or timer. Owned source+opening
+  lifetimes, serial-guarded close, same-batch/in-flight guards, whole-response
+  decoding against the observed source/target, no key/remount/reset effect or
+  browser persistence. Plain inert bounded text; opening again starts unchecked.
+- Add ADR-0041 and narrow index/context/cockpit/roadmap/security/GitHub note
+  updates, generated client and focused tests. Keep ADR-0040 records/readers,
+  receipt, auth and origin behavior unchanged; no Domain/schema/migration or
+  journal changes. Extend the collaboration journey after its real local target
+  record, with the native gh double only, exact wire/render/source checks and
+  zero database/Git/provider changes across identity reads.
+
+### Evidence and stop gates
+
+Capture meaningful red-first cases for gates, GraphQL envelope/source admission,
+late answers/close and same-batch actions. Cover parser errors/partial data,
+case-only names, actual rename/foreign scope, exact literal variables (including
+numeric-looking names and .git suffix), stream bounds, cancellation, slot release
+and unexpected faults through real process doubles. Prove pre/post-read scope
+corruption refuses answers and unauthorized/body/method requests never invoke.
+Use focused compilable mutations for these guards, report survivors honestly,
+and restore sources by hashes. Test doubles do not prove real CLI formatting,
+default authentication/environment compatibility or GitHub reliability.
+
+Run affected checks first, then clean serial build, relevant full Application,
+Infrastructure, Api, Architecture and Vitest; typecheck/lint/build, exact strict
+e2e tsc, harness and one canonical e2e:all. Regenerate client twice and compare;
+format changed C#, links, secrets, diff hygiene and dependency audits. Retain
+unchanged Domain/migration evidence explicitly; rerun if touched. No new package
+or standards change. Stop and discuss any required scope widening, real account/
+CLI use, persistence, changed ADR admission, or inability to keep the fixed
+query/envelope/process boundary. Preserve allowance ledger and fixture roots.
+
+Start one new Claude executor chat. Expected HEAD/main is the published 8c7eb3c
+above; empty index, no untracked files, only this planner-handoff selection edit
+unstaged. Preserve it and report the completed combined diff with current-work.md
+uncommitted and unpushed for Codex GO/NO-GO. No publication authority is granted.
+
+Protocol reference: [GitHub CLI api manual](https://cli.github.com/manual/gh_api)
+documents raw string fields, GraphQL variables, fixed hostname and POST transport.
+
+## Previous selection (2026-10-12, published): record an immutable GitHub observation scope for a completed local delivery
 
 ### Review decision (2026-10-12): GO, corrected immutable observation scope
 

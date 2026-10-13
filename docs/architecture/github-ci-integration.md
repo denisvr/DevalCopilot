@@ -71,6 +71,15 @@ account may use it or that a remote ref matches, it observes nothing and authori
 verification, exact-SHA CI observation, scoped publication and reconciliation remain later, separately gated slices that must treat the record as a
 Human-selected input, never as evidence of any remote fact.
 
+## Repository identity observation
+
+[ADR-0041](../decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds the first remote fact, and only
+that one: on explicit request the host asks GitHub, through one fixed read-only `gh api graphql` query and the CLI's default stored authentication, for the opaque
+ID and the names of the repository the recorded ADR-0040 owner and repository name, and compares the names with the record (ignoring only ASCII case; a rename or
+transfer is never adopted). The answer is a point-in-time observation: it is not persisted, binds nothing, and proves no remote branch or commit, permission, CI
+result or publication approval. Remote ref and SHA correlation, exact-SHA CI observation, scoped publication, reconciliation and any durable repository binding
+remain later, separately gated slices.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

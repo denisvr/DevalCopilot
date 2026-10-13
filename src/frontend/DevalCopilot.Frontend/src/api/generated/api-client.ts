@@ -2143,6 +2143,68 @@ export class GetLocalDeliveryReceiptEndpointClient {
     }
 }
 
+export class GetGitHubRepositoryObservationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitHubRepositoryObservation(runId: string): Promise<GetGitHubRepositoryObservationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-repository-observation";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitHubRepositoryObservation(_response);
+        });
+    }
+
+    protected processGetGitHubRepositoryObservation(response: Response): Promise<GetGitHubRepositoryObservationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetGitHubRepositoryObservationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetGitHubRepositoryObservationResponse>(null as any);
+    }
+}
+
 export class GetCollaborationTimelineEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8676,6 +8738,106 @@ export interface IImplementationAttemptStatusResponse {
     runTurnLimitRequest?: ClaudeMutationTurnLimitResponse | undefined;
     attemptTurnLimit?: ClaudeMutationTurnLimitResponse | undefined;
     directGuidance?: DirectHumanGuidanceResponse | undefined;
+}
+
+export class GetGitHubRepositoryObservationResponse implements IGetGitHubRepositoryObservationResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    observation?: GitHubRepositoryIdentityResponse | undefined;
+
+    constructor(data?: IGetGitHubRepositoryObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.source = _data["source"] ? GitHubObservationSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubObservationScopeResponse.fromJS(_data["target"]) : undefined as any;
+            this.observation = _data["observation"] ? GitHubRepositoryIdentityResponse.fromJS(_data["observation"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetGitHubRepositoryObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitHubRepositoryObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        data["observation"] = this.observation ? this.observation.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetGitHubRepositoryObservationResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    observation?: GitHubRepositoryIdentityResponse | undefined;
+}
+
+export class GitHubRepositoryIdentityResponse implements IGitHubRepositoryIdentityResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+
+    constructor(data?: IGitHubRepositoryIdentityResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.repositoryNodeId = _data["repositoryNodeId"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.observedAtUtc = _data["observedAtUtc"] ? new Date(_data["observedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubRepositoryIdentityResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubRepositoryIdentityResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["repositoryNodeId"] = this.repositoryNodeId;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["observedAtUtc"] = this.observedAtUtc ? this.observedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubRepositoryIdentityResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
 }
 
 export class GetGitHubObservationTargetResponse implements IGetGitHubObservationTargetResponse {

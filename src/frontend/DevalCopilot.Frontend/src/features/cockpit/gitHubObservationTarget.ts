@@ -66,7 +66,7 @@ export function toObservationSource(runId: string, operation: LocalCommitOperati
 export const observationSourceKey = (source: ObservationSource): string =>
   JSON.stringify([source.runId, source.operationId, source.commitSha, source.branchName])
 
-function matchesSource(value: unknown, expected: ObservationSource): boolean {
+export function matchesSource(value: unknown, expected: ObservationSource): boolean {
   if (!value || typeof value !== 'object') {
     return false
   }
@@ -75,7 +75,7 @@ function matchesSource(value: unknown, expected: ObservationSource): boolean {
   return sameId(operationId, expected.operationId) && commitSha === expected.commitSha && branchName === expected.branchName
 }
 
-function toScope(value: unknown): ObservationScope | null {
+export function toScope(value: unknown): ObservationScope | null {
   if (!value || typeof value !== 'object') {
     return null
   }

@@ -128,6 +128,10 @@
   completed local delivery (additive; one protected Human selection of the fixed-host owner and repository for the exact recorded commit and branch, one
   immutable record and one Human event saved atomically from pinned rows, no remote, process, credential or network operation and no remote identity,
   permission, CI, publication or automatic observation authority).
+- [ADR-0041](decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md): Observe the GitHub repository
+  identity of a recorded observation target on explicit request (additive; one protected, bodyless, read-only observation of the opaque ID and names GitHub
+  reports for the recorded owner and repository through one fixed `gh api graphql` invocation and the stored default authentication, no persistence and no
+  remote branch, commit, permission, CI, publication or binding authority).
 
 ## Product-specific architecture
 
@@ -294,6 +298,20 @@
   action over blank owner and repository fields, showing the exact branch and commit and the immutable selection before submission, owned by the committed
   source and each opening, and requiring an explicit reload after any failed or ambiguous recording. It is local scope selection, never verified remote
   identity, permission, CI success, publication approval or automatic observation authority.
+- [ADR-0041](decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds one explicit, read-only
+  observation of the identity GitHub reports for that recorded target. The protected, bodyless `GET /api/runs/{runId}/github-repository-observation`
+  (`GetGitHubRepositoryObservationQuery` through the mediator; any request body is refused before anything is observed with the fixed 400
+  `github_repository_observation.body_not_allowed`; an unknown run is the fixed 404 `github_repository_observation.not_found`) reads the scope with the
+  unchanged ADR-0040 source and target readers and answers a closed `NotRecorded` or `Unavailable` (no scope, nothing invoked), `CliUnavailable` (no fresh,
+  successful, direct-executable `GitHubCli` snapshot; nothing invoked, nothing discovered), `Unknown` or `Observed` (only then the opaque repository node ID,
+  the observed names and the host time). It re-reads the scope after the external work and refuses the answer when it was lost, changed or became incoherent,
+  and validates the port's result independently (conservative ID, supported names equal to the recorded ones ignoring only ASCII case, never a rename). The
+  operation-owned port `IGitHubRepositoryIdentityObserver` is implemented by `GitHubRepositoryIdentityAdapter` on the existing process executor: one fixed
+  `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository>` in the host scratch
+  directory, the ADR-0038 environment allowlist, 15 seconds, 8 KiB per stream, no sinks, stderr discarded, one single-flight slot, and exact-JSON admission.
+  Nothing is written, persisted, bound or locked. The cockpit adds a collapsed identity region inside an Available target's result with explicit Show, Check
+  (then Recheck) and Close, owned by the committed source and target and each opening, showing inert text. It proves no remote branch, commit, permission, CI
+  result, publication approval or permanent binding.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

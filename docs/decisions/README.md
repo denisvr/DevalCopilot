@@ -92,6 +92,10 @@ supersedes it.
   (additive; one protected Human selection of the host-fixed github.com owner and repository for the exact recorded commit and branch of a completed
   manual local delivery, one immutable record and one Human event saved atomically from pinned rows, and a protected read of it; local scope selection
   only, with no remote, process, credential or network operation and no remote identity, permission, CI, publication or automatic observation authority)
+- [ADR-0041: Observe the GitHub repository identity of a recorded observation target on explicit request](0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md)
+  (additive; one protected, bodyless, read-only observation of the opaque ID and names that GitHub reports for the recorded ADR-0040 owner and repository,
+  through one fixed read-only `gh api graphql` invocation and the stored default authentication; no remote branch, commit, permission, CI result, publication
+  approval, persistence or permanent binding)
 
 ## Status values
 

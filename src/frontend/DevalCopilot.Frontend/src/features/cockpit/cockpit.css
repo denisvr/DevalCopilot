@@ -1458,3 +1458,46 @@
   display: grid;
   gap: 0.15rem;
 }
+
+.dc-github-identity {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--dc-border);
+}
+
+.dc-github-identity-body,
+.dc-github-identity-result {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-identity h5,
+.dc-github-identity p {
+  margin: 0;
+}
+
+.dc-github-identity-note,
+.dc-github-identity-state {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-identity-scope,
+.dc-github-identity-observation {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-github-identity-scope dd,
+.dc-github-identity-observation dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dc-github-identity-state[data-status='Unavailable'] {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}

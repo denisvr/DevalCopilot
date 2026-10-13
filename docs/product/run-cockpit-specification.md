@@ -162,6 +162,20 @@ earlier one, closing and reopening each start collapsed, blank and unloaded; a l
 activation, two in one batch and any activation after a close in the same batch send nothing. Every answer is accepted only whole and only for this source,
 and after any failed, refused or incoherent recording an explicit reload must read what the host recorded before another recording is possible.
 
+## GitHub repository identity
+
+Beside an `Available` target, inside its result, a collapsed region
+([ADR-0041](../decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md)) offers "Show GitHub repository
+identity", "Check GitHub repository identity" (then "Recheck") and "Close GitHub repository identity". It shows the exact branch, local commit and recorded owner
+and repository, and a fixed disclosure that Check queries GitHub through the CLI's default stored authentication, reads only the repository ID and names, and is not
+proof of a remote branch or commit, a permission, a CI result or publication approval. It reads only through the protected, bodyless
+`GET /api/runs/{runId}/github-repository-observation` when the owner presses a check, and shows one fixed statement per closed status (`CliUnavailable`,
+`Unknown`, `NotRecorded`, `Unavailable`) or, for `Observed`, the repository ID, the names GitHub returned and the host's observation time as inert text with no link
+or copy action. Nothing is read on mount, opening, a project, run or target change, a reconnect or a timer, and nothing is retried. The committed source and target
+and each opening own the region: another source or target, a return to an earlier one, closing and reopening each start collapsed and unchecked, reloading or
+closing the target ends it, a late answer of an ended or superseded lifetime is ignored, a duplicate activation, two in one batch and any activation after a close in
+the same batch send nothing, and every answer is accepted only whole and only for exactly this source and target.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

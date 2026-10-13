@@ -44,6 +44,7 @@ const VERIFICATION_CLAIM_PATH = /\/api\/projects\/[^/]+\/verification-commands\/
 const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
 const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
 const OBSERVATION_TARGET_PATH = /\/api\/runs\/[^/]+\/github-observation-target$/
+const IDENTITY_PATH = /\/api\/runs\/[^/]+\/github-repository-observation$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
@@ -58,9 +59,10 @@ const HUMAN_BOTH_RUNS = /Checkpoint #3 · verification (#3, #4|#4, #3) · Human/
 const data = new JourneyData(PROJECT)
 let mark = 0
 
-// The doubles' stage invocations (the capability probes of the host's own supervisors are not workflow stages).
+// The provider doubles' stage invocations (the capability probes of the host's own supervisors are not workflow stages, and the
+// GitHub CLI double is not a provider: its explicit identity calls are counted on their own).
 function stageInvocations() {
-  return readInvocations(mark).filter((entry) => entry.kind !== 'probe')
+  return readInvocations(mark).filter((entry) => entry.kind !== 'probe' && entry.role !== 'gh')
 }
 
 function agentContracts(): string[] {
@@ -837,6 +839,136 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(data.gitHubObservationTargets()).toEqual(targetRows)
   expect(data.gitHubObservationEvents()).toEqual(targetEvents)
   assertNothingElseChanged()
+
+  // 14d. The explicit GitHub repository identity observation of the recorded target (ADR-0041), through the production frontend,
+  // generated client, MVC authentication, mediator, the discovery snapshot, the REAL identity adapter and the REAL process executor.
+  // Only the `gh` executable is the deterministic owned double: it echoes the requested names back with a fixed opaque ID. This proves
+  // the assembled process boundary and explicit-only reads; it proves nothing about how an installed GitHub CLI formats a GraphQL
+  // answer, about stored authentication, a real repository or GitHub itself, and nothing about any remote branch, commit, permission,
+  // CI result or publication. The collapsed region beside the Available target reads nothing until the owner checks. A Check that finds
+  // the double's capability discovery unfinished answers CliUnavailable without invoking anything, so only an explicit recheck is
+  // repeated, within a budget.
+  const identityRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && IDENTITY_PATH.test(new URL(request.url()).pathname)) {
+      identityRequests.push(request.url())
+    }
+  })
+  const identityCalls = () => readInvocations(mark).filter((entry) => entry.role === 'gh' && entry.kind === 'repository-identity').length
+  const identity = observation.getByRole('region', { name: 'GitHub repository identity' })
+  const beforeIdentity = {
+    totals: data.projectTotals(),
+    targets: data.gitHubObservationTargets(),
+    events: data.gitHubObservationEvents(),
+    providerInvocations: stageInvocations().length,
+    source: repositorySnapshot(repository.path),
+    head: git('rev-parse', 'HEAD'),
+  }
+  const assertIdentityReadChangedNothing = () => {
+    expect({
+      totals: data.projectTotals(),
+      targets: data.gitHubObservationTargets(),
+      events: data.gitHubObservationEvents(),
+      providerInvocations: stageInvocations().length,
+      source: repositorySnapshot(repository.path),
+      head: git('rev-parse', 'HEAD'),
+    }).toEqual(beforeIdentity)
+    expect(git('remote')).toBe('')
+  }
+  await expect(identity.getByRole('button', { name: 'Show GitHub repository identity' })).toBeVisible()
+  await expect(identity.getByRole('button', { name: /Check GitHub repository identity|Recheck GitHub repository identity/ })).toHaveCount(0)
+  await identity.getByRole('button', { name: 'Show GitHub repository identity' }).click()
+  await expect(identity).toContainText('Not checked.')
+  await expect(identity).toContainText(`Recorded owner${observationOwner}`)
+  await expect(identity).toContainText(`Recorded repository${observationRepository}`)
+  await expect(identity).toContainText(deliveredCommit)
+  await expect(identity).toContainText(deliveryBranch)
+  await expect(identity).toContainText('default stored authentication')
+  // Opening, waiting and nothing else read nothing and invoke nothing.
+  await page.waitForTimeout(2_000)
+  expect(identityRequests).toEqual([])
+  expect(identityCalls()).toBe(0)
+
+  let identityChecks = 0
+  let identityBody: { runId: string; status: string; source: unknown; target: unknown; observation: unknown } | null = null
+  const identityDeadline = Date.now() + 40_000
+  for (;;) {
+    const checkButton = identity.getByRole('button', { name: identityChecks === 0 ? 'Check GitHub repository identity' : 'Recheck GitHub repository identity' })
+    const identityWire = page.waitForResponse(
+      (response) => response.request().method() === 'GET' && IDENTITY_PATH.test(new URL(response.url()).pathname),
+    )
+    await checkButton.click()
+    identityChecks += 1
+    const identityResponse = await identityWire
+    expect(identityResponse.status()).toBe(200)
+    const body = await identityResponse.json()
+    expect(Object.keys(body).sort()).toEqual(['observation', 'runId', 'source', 'status', 'target'])
+    expect(body.runId).toBe(recordedBody.runId)
+    if (body.status === 'Observed') {
+      identityBody = body
+      break
+    }
+
+    expect(body.status).toBe('CliUnavailable')
+    expect(body.source).toEqual(recordedBody.source)
+    expect(body.target).toEqual(recordedBody.target)
+    expect(body.observation ?? null).toBeNull()
+    await expect(identity).toContainText('not currently available as a vetted direct executable')
+    expect(identityCalls()).toBe(0)
+    expect(Date.now()).toBeLessThan(identityDeadline)
+    await page.waitForTimeout(1_000)
+  }
+
+  expect(identityBody!.source).toEqual(recordedBody.source)
+  expect(identityBody!.target).toEqual(recordedBody.target)
+  expect(Object.keys(identityBody!.observation as object).sort()).toEqual(['observedAtUtc', 'owner', 'repository', 'repositoryNodeId'])
+  expect(identityBody!.observation).toEqual({
+    repositoryNodeId: 'R_kgDOJourneyFx1',
+    owner: observationOwner,
+    repository: observationRepository,
+    observedAtUtc: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|\+00:00)$/),
+  })
+  await expect(identity).toContainText('R_kgDOJourneyFx1')
+  await expect(identity).toContainText(`Owner${observationOwner}`)
+  await expect(identity).toContainText(`Repository${observationRepository}`)
+  await expect(identity).toContainText(/Observed \(UTC\)\d{4}-\d{2}-\d{2}T[\d:.]+Z/)
+  expect(identityRequests).toHaveLength(identityChecks)
+  expect(identityCalls()).toBe(1)
+  assertIdentityReadChangedNothing()
+
+  // An explicit recheck is exactly one more observation; nothing else is read by itself.
+  await identity.getByRole('button', { name: 'Recheck GitHub repository identity' }).click()
+  await expect(identity).toContainText('R_kgDOJourneyFx1')
+  expect(identityCalls()).toBe(2)
+  await page.waitForTimeout(2_000)
+  expect(identityCalls()).toBe(2)
+  expect(identityRequests).toHaveLength(identityChecks + 1)
+  assertIdentityReadChangedNothing()
+
+  // Closing and reopening is a new lifetime that starts unchecked and reads nothing.
+  await identity.getByRole('button', { name: 'Close GitHub repository identity' }).click()
+  await identity.getByRole('button', { name: 'Show GitHub repository identity' }).click()
+  await expect(identity).toContainText('Not checked.')
+  await expect(identity).not.toContainText('R_kgDOJourneyFx1')
+  expect(identityRequests).toHaveLength(identityChecks + 1)
+
+  // A real reload is a new session lifetime: the target is collapsed, loading it shows the identity region collapsed and unchecked.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await openObservation()
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  await expect(identity.getByRole('button', { name: 'Show GitHub repository identity' })).toBeVisible()
+  await page.waitForTimeout(1_000)
+  expect(identityRequests).toHaveLength(identityChecks + 1)
+  expect(identityCalls()).toBe(2)
+  assertIdentityReadChangedNothing()
+  assertNothingElseChanged()
+
+  // The double logs only the kind of its calls, never the names, arguments or any identifier it returned.
+  const ghLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
+  expect(ghLog).not.toContain(observationOwner)
+  expect(ghLog).not.toContain(observationRepository)
+  expect(ghLog).not.toContain('R_kgDOJourneyFx1')
 
   const afterDelivery = {
     attempts: data.attempts().length,
