@@ -4,10 +4,12 @@ namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 
 /// <summary>
 /// The GitHub CLI double: the fixed version probe, the one fixed stored-authentication status contract, which answers an
-/// already-filtered, active, successful account, and the one fixed read-only repository identity contract, which echoes the requested
-/// owner and name back with a fixed opaque identifier. It is only a process-boundary double: it reads no credential, performs no network
+/// already-filtered, active, successful account, the one fixed read-only repository identity contract, which echoes the requested
+/// owner and name back with a fixed opaque identifier, and the one fixed read-only branch contract, which additionally echoes the
+/// requested owned branch with a fixed commit that is never the recorded one. It is only a process-boundary double: it reads no
+/// credential, performs no network
 /// call and does not evaluate the selector or the GraphQL query, so it proves nothing about how an installed GitHub CLI formats or
-/// filters its output or how GitHub answers. Only the status and identity calls are logged (kind only, never an argument), so version
+/// filters its output or how GitHub answers. Only the status, identity and branch calls are logged (kind only, never an argument), so version
 /// probes never change the journeys' invocation evidence.
 /// </summary>
 public static partial class GhRole
@@ -19,12 +21,21 @@ public static partial class GhRole
     private const string IdentityQuery =
         "query=query($owner:String!,$name:String!){repository(owner:$owner,name:$name){id name nameWithOwner}}";
 
+    private const string BranchQuery =
+        "query=query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){id name nameWithOwner "
+        + "ref(qualifiedName:$ref){name prefix target{__typename oid}}}}";
+
+    public const string RemoteBranchCommit = "1234567890abcdef1234567890abcdef12345678";
+
     public const string FilteredAuthenticatedAnswer = "{\"entries\":[{\"active\":true,\"state\":\"success\"}]}\n";
 
     public const string RepositoryNodeId = "R_kgDOJourneyFx1";
 
     [GeneratedRegex("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")]
     private static partial Regex OwnerName();
+
+    [GeneratedRegex("^devalcopilot/workspace/[0-9a-f]{32}/[1-9][0-9]{0,9}$")]
+    private static partial Regex OwnedBranchName();
 
     [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")]
     private static partial Regex RepositoryName();
@@ -61,8 +72,27 @@ public static partial class GhRole
             }
         }
 
+        if (args.Count == 14 && args.Take(IdentityPrefix.Length).SequenceEqual(IdentityPrefix) && args[7] == BranchQuery
+            && args[8] == "-f" && args[9].StartsWith("owner=", StringComparison.Ordinal) && args[10] == "-f"
+            && args[11].StartsWith("name=", StringComparison.Ordinal) && args[12] == "-f"
+            && args[13].StartsWith("ref=refs/heads/", StringComparison.Ordinal))
+        {
+            var owner = args[9]["owner=".Length..];
+            var name = args[11]["name=".Length..];
+            var branch = args[13]["ref=refs/heads/".Length..];
+            if (OwnerName().IsMatch(owner) && RepositoryName().IsMatch(name) && OwnedBranchName().IsMatch(branch))
+            {
+                InvocationLog.Append(location, new Dictionary<string, object?> { ["role"] = "gh", ["kind"] = "branch-observation" });
+                Console.Out.Write(
+                    "{\"data\":{\"repository\":{\"id\":\"" + RepositoryNodeId + "\",\"name\":\"" + name + "\",\"nameWithOwner\":\""
+                    + owner + "/" + name + "\",\"ref\":{\"name\":\"" + branch + "\",\"prefix\":\"refs/heads/\",\"target\":"
+                    + "{\"__typename\":\"Commit\",\"oid\":\"" + RemoteBranchCommit + "\"}}}}}\n");
+                return 0;
+            }
+        }
+
         throw new FixtureRefusal(
             FixtureRefusal.UnsupportedInvocation,
-            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity contract.");
+            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity and branch contracts.");
     }
 }

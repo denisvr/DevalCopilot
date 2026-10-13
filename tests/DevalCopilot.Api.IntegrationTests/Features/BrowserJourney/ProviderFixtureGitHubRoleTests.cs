@@ -88,4 +88,56 @@ public sealed partial class ProviderFixtureContractTests
 
         Assert.Equal(Unsupported, Run("gh", arguments).ExitCode);
     }
+
+    private static readonly string[] GhBranch =
+    [
+        "api", "graphql", "--hostname", "github.com", "--method", "POST",
+        "-f", "query=query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){id name nameWithOwner "
+            + "ref(qualifiedName:$ref){name prefix target{__typename oid}}}}",
+        "-f", "owner=octo-cat", "-f", "name=hello.world", "-f", "ref=refs/heads/devalcopilot/workspace/0123456789abcdef0123456789abcdef/3",
+    ];
+
+    [Fact]
+    public void The_github_double_answers_the_fixed_branch_contract_with_the_echoed_branch_and_a_fixed_commit_and_logs_only_its_kind()
+    {
+        var result = Run("gh", GhBranch);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(
+            "{\"data\":{\"repository\":{\"id\":\"R_kgDOJourneyFx1\",\"name\":\"hello.world\",\"nameWithOwner\":\"octo-cat/hello.world\","
+            + "\"ref\":{\"name\":\"devalcopilot/workspace/0123456789abcdef0123456789abcdef/3\",\"prefix\":\"refs/heads/\","
+            + "\"target\":{\"__typename\":\"Commit\",\"oid\":\"1234567890abcdef1234567890abcdef12345678\"}}}}}\n",
+            result.StandardOutput);
+        var log = Directory.EnumerateFiles(_root, "*.jsonl", SearchOption.AllDirectories).Select(File.ReadAllText).Single();
+        Assert.Contains("\"kind\":\"branch-observation\"", log);
+        Assert.DoesNotContain("octo-cat", log);
+        Assert.DoesNotContain("devalcopilot/workspace", log);
+    }
+
+    [Theory]
+    [InlineData("hostname", "evil.example")]
+    [InlineData("method", "GET")]
+    [InlineData("query", "query{viewer{login}}")]
+    [InlineData("owner", "bad owner")]
+    [InlineData("name", ".git")]
+    [InlineData("ref", "refs/tags/v1")]
+    [InlineData("ref", "refs/heads/main")]
+    [InlineData("ref", "refs/heads/devalcopilot/workspace/0123456789abcdef0123456789abcdef/0")]
+    [InlineData("ref", "refs/heads/devalcopilot/workspace/0123456789ABCDEF0123456789abcdef/3")]
+    [InlineData("ref", "devalcopilot/workspace/0123456789abcdef0123456789abcdef/3")]
+    public void The_github_double_refuses_a_changed_branch_contract(string part, string value)
+    {
+        var arguments = GhBranch.ToArray();
+        switch (part)
+        {
+            case "hostname": arguments[3] = value; break;
+            case "method": arguments[5] = value; break;
+            case "query": arguments[7] = "query=" + value; break;
+            case "owner": arguments[9] = "owner=" + value; break;
+            case "name": arguments[11] = "name=" + value; break;
+            default: arguments[13] = "ref=" + value; break;
+        }
+
+        Assert.Equal(Unsupported, Run("gh", arguments).ExitCode);
+    }
 }

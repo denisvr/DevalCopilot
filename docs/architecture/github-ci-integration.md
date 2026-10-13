@@ -80,6 +80,15 @@ transfer is never adopted). The answer is a point-in-time observation: it is not
 result or publication approval. Remote ref and SHA correlation, exact-SHA CI observation, scoped publication, reconciliation and any durable repository binding
 remain later, separately gated slices.
 
+## Remote branch tip observation
+
+[ADR-0042](../decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md) adds the second remote fact on explicit
+request: in one fixed read-only `gh api graphql` response the host reads the repository identity and the exact ref of the recorded owned branch and compares the
+returned commit with the recorded local commit (`CommitMatched`, `CommitDifferent`, or `RefNotReturned` when GitHub returns no ref). The returned ref is proved exactly
+(prefix, the recorded branch name, a `Commit` target and a 40-character lowercase hexadecimal OID) because GitHub's qualified-name lookup can fall back to short names.
+The answer is a point-in-time observation: it is not persisted, binds nothing, and is not a CI result, a permission, a publication approval or a publication performed
+by DevalCopilot. Exact-SHA CI observation, scoped publication, push, pull request, reconciliation and any durable remote binding remain later, separately gated slices.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

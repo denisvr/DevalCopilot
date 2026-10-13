@@ -176,6 +176,20 @@ and each opening own the region: another source or target, a return to an earlie
 closing the target ends it, a late answer of an ended or superseded lifetime is ignored, a duplicate activation, two in one batch and any activation after a close in
 the same batch send nothing, and every answer is accepted only whole and only for exactly this source and target.
 
+## GitHub remote branch
+
+Beside the identity region and likewise inside an `Available` target's result, a separate collapsed region
+([ADR-0042](../decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md)) offers "Show GitHub remote branch",
+"Check GitHub remote branch" (then "Recheck") and "Close GitHub remote branch". It needs no earlier identity check and shows the exact recorded branch, local
+commit, owner and repository before anything is checked. It reads only through the protected, bodyless `GET /api/runs/{runId}/github-branch-observation` when the
+owner presses a check, and shows one fixed statement per closed status or, for the three ref-bearing statuses, inert text: the GitHub branch and commit (absent when
+no reference was returned), the repository ID and names GitHub returned and the host's observation time in UTC. It distinguishes reference not returned (which does not
+show that the branch does not exist or that a permission is missing), a different commit and a matching commit, and states that a match is only what GitHub reported at
+that time, not a CI result, a permission, a durable binding, a publication approval, a publication performed by DevalCopilot or a promise about the future. Nothing is
+read on mount, opening, a project, run or target change, a reconnect or a timer, and nothing is retried. The committed source and target and each opening own the
+region exactly as for the identity region, a late answer of an ended or superseded lifetime (including one settling while its successor is pending) is ignored, and
+every answer is accepted only whole and only for exactly this source and target, with a ref status that agrees with the recorded commit.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

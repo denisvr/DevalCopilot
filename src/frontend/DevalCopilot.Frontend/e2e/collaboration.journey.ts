@@ -45,6 +45,7 @@ const CHECKPOINT_REVIEW_PATH = /\/api\/projects\/[^/]+\/reviews$/
 const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
 const OBSERVATION_TARGET_PATH = /\/api\/runs\/[^/]+\/github-observation-target$/
 const IDENTITY_PATH = /\/api\/runs\/[^/]+\/github-repository-observation$/
+const BRANCH_PATH = /\/api\/runs\/[^/]+\/github-branch-observation$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
@@ -969,6 +970,129 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(ghLog).not.toContain(observationOwner)
   expect(ghLog).not.toContain(observationRepository)
   expect(ghLog).not.toContain('R_kgDOJourneyFx1')
+
+  // 14e. The explicit GitHub remote branch observation of the recorded target (ADR-0042), through the production frontend, generated
+  // client, MVC authentication, mediator, the discovery snapshot, the REAL branch adapter and the REAL process executor. Only the `gh`
+  // executable is the deterministic owned double: it echoes the requested owned branch back with a FIXED commit that is never the
+  // recorded one, so this journey observes CommitDifferent (the matching and not-returned states are proved against scripted
+  // observers and process doubles). It proves the assembled process boundary and explicit-only reads; it proves nothing about how an
+  // installed GitHub CLI formats a GraphQL answer, about stored authentication, a real repository or GitHub itself, and nothing about
+  // CI, permission, durable binding or publication. The collapsed region reads nothing until the owner checks, and a reload ends it.
+  const branchRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && BRANCH_PATH.test(new URL(request.url()).pathname)) {
+      branchRequests.push(request.url())
+    }
+  })
+  const branchCalls = () => readInvocations(mark).filter((entry) => entry.role === 'gh' && entry.kind === 'branch-observation').length
+  const remoteBranch = observation.getByRole('region', { name: 'GitHub remote branch' })
+  const remoteCommit = '1234567890abcdef1234567890abcdef12345678'
+  expect(deliveredCommit).not.toBe(remoteCommit)
+  await expect(remoteBranch.getByRole('button', { name: 'Show GitHub remote branch' })).toBeVisible()
+  await expect(remoteBranch.getByRole('button', { name: /Check GitHub remote branch|Recheck GitHub remote branch/ })).toHaveCount(0)
+  await remoteBranch.getByRole('button', { name: 'Show GitHub remote branch' }).click()
+  await expect(remoteBranch).toContainText('Not checked.')
+  await expect(remoteBranch).toContainText(`Recorded branch${deliveryBranch}`)
+  await expect(remoteBranch).toContainText(`Recorded local commit${deliveredCommit}`)
+  await expect(remoteBranch).toContainText(`Recorded owner${observationOwner}`)
+  await expect(remoteBranch).toContainText(`Recorded repository${observationRepository}`)
+  await page.waitForTimeout(2_000)
+  expect(branchRequests).toEqual([])
+  expect(branchCalls()).toBe(0)
+
+  const branchWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && BRANCH_PATH.test(new URL(response.url()).pathname),
+  )
+  await remoteBranch.getByRole('button', { name: 'Check GitHub remote branch' }).click()
+  const branchResponse = await branchWire
+  expect(branchResponse.status()).toBe(200)
+  const branchBody = await branchResponse.json()
+  expect(Object.keys(branchBody).sort()).toEqual(['observation', 'runId', 'source', 'status', 'target'])
+  expect(branchBody.runId).toBe(recordedBody.runId)
+  expect(branchBody.status).toBe('CommitDifferent')
+  expect(branchBody.source).toEqual(recordedBody.source)
+  expect(branchBody.target).toEqual(recordedBody.target)
+  expect(Object.keys(branchBody.observation).sort()).toEqual(['observedAtUtc', 'owner', 'ref', 'repository', 'repositoryNodeId'])
+  expect(branchBody.observation).toEqual({
+    repositoryNodeId: 'R_kgDOJourneyFx1',
+    owner: observationOwner,
+    repository: observationRepository,
+    observedAtUtc: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|\+00:00)$/),
+    ref: { branchName: deliveryBranch, commitSha: remoteCommit },
+  })
+  await expect(remoteBranch).toContainText('points at a different commit than the recorded local commit')
+  await expect(remoteBranch).toContainText(`GitHub branch${deliveryBranch}`)
+  await expect(remoteBranch).toContainText(`GitHub commit${remoteCommit}`)
+  await expect(remoteBranch).toContainText('R_kgDOJourneyFx1')
+  await expect(remoteBranch).toContainText(/Observed \(UTC\)\d{4}-\d{2}-\d{2}T[\d:.]+Z/)
+  expect(branchRequests).toHaveLength(1)
+  expect(branchCalls()).toBe(1)
+  assertIdentityReadChangedNothing()
+
+  // An explicit recheck is exactly one more observation; nothing else is read by itself.
+  await remoteBranch.getByRole('button', { name: 'Recheck GitHub remote branch' }).click()
+  await expect(remoteBranch).toContainText(`GitHub commit${remoteCommit}`)
+  expect(branchCalls()).toBe(2)
+  await page.waitForTimeout(2_000)
+  expect(branchCalls()).toBe(2)
+  expect(branchRequests).toHaveLength(2)
+  assertIdentityReadChangedNothing()
+
+  // Closing and reopening is a new lifetime that starts unchecked and reads nothing.
+  await remoteBranch.getByRole('button', { name: 'Close GitHub remote branch' }).click()
+  await remoteBranch.getByRole('button', { name: 'Show GitHub remote branch' }).click()
+  await expect(remoteBranch).toContainText('Not checked.')
+  await expect(remoteBranch).not.toContainText(remoteCommit)
+  expect(branchRequests).toHaveLength(2)
+
+  // A real reload is a new session lifetime: the region is collapsed and unchecked, and an explicit recheck is needed to read again.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await openObservation()
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  await expect(remoteBranch.getByRole('button', { name: 'Show GitHub remote branch' })).toBeVisible()
+  await page.waitForTimeout(1_000)
+  expect(branchRequests).toHaveLength(2)
+  expect(branchCalls()).toBe(2)
+  assertIdentityReadChangedNothing()
+  assertNothingElseChanged()
+
+  // After the reload and the explicit target reload, an explicit Check reads again: exactly one more request and one more process
+  // invocation, with the same exact facts and nothing else changed.
+  await remoteBranch.getByRole('button', { name: 'Show GitHub remote branch' }).click()
+  await expect(remoteBranch).toContainText('Not checked.')
+  await expect(remoteBranch).not.toContainText(remoteCommit)
+  expect(branchRequests).toHaveLength(2)
+  expect(branchCalls()).toBe(2)
+  const reloadedWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && BRANCH_PATH.test(new URL(response.url()).pathname),
+  )
+  await remoteBranch.getByRole('button', { name: 'Check GitHub remote branch' }).click()
+  const reloadedResponse = await reloadedWire
+  expect(reloadedResponse.status()).toBe(200)
+  const reloadedBody = await reloadedResponse.json()
+  expect(reloadedBody.runId).toBe(recordedBody.runId)
+  expect(reloadedBody.status).toBe('CommitDifferent')
+  expect(reloadedBody.source).toEqual(recordedBody.source)
+  expect(reloadedBody.target).toEqual(recordedBody.target)
+  expect(reloadedBody.observation.ref).toEqual({ branchName: deliveryBranch, commitSha: remoteCommit })
+  await expect(remoteBranch).toContainText('points at a different commit than the recorded local commit')
+  await expect(remoteBranch).toContainText(`GitHub branch${deliveryBranch}`)
+  await expect(remoteBranch).toContainText(`GitHub commit${remoteCommit}`)
+  await expect(remoteBranch.getByRole('button', { name: 'Recheck GitHub remote branch' })).toBeEnabled()
+  expect(branchRequests).toHaveLength(3)
+  expect(branchCalls()).toBe(3)
+  await page.waitForTimeout(2_000)
+  expect(branchRequests).toHaveLength(3)
+  expect(branchCalls()).toBe(3)
+  assertIdentityReadChangedNothing()
+  assertNothingElseChanged()
+
+  // Neither double call logs the names, the branch or any commit or identifier it returned.
+  const branchLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
+  expect(branchLog).not.toContain(deliveryBranch)
+  expect(branchLog).not.toContain(remoteCommit)
+  expect(branchLog).not.toContain(deliveredCommit)
 
   const afterDelivery = {
     attempts: data.attempts().length,

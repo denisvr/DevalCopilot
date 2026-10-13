@@ -96,6 +96,10 @@ supersedes it.
   (additive; one protected, bodyless, read-only observation of the opaque ID and names that GitHub reports for the recorded ADR-0040 owner and repository,
   through one fixed read-only `gh api graphql` invocation and the stored default authentication; no remote branch, commit, permission, CI result, publication
   approval, persistence or permanent binding)
+- [ADR-0042: Observe the recorded GitHub branch tip of a recorded observation target on explicit request](0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md)
+  (additive; one protected, bodyless, read-only observation, in one remote response, of the repository identity and the exact recorded branch tip through one fixed
+  `gh api graphql` invocation and the stored default authentication, compared with the recorded local commit; never a fallback ref, durable binding, CI result,
+  permission or publication approval)
 
 ## Status values
 

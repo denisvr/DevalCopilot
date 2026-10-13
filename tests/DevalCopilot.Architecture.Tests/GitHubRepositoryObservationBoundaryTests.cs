@@ -149,7 +149,9 @@ public sealed partial class GitHubRepositoryObservationBoundaryTests
             Assert.DoesNotContain(forbidden, code, StringComparison.Ordinal);
         }
 
-        Assert.Equal([AdapterPath], SourcesContaining("\"graphql\""));
+        Assert.Equal(
+            ["DevalCopilot.Infrastructure/Features/Runs/GitHubBranchObservationAdapter.cs", AdapterPath],
+            SourcesContaining("\"graphql\""));
     }
 
     [Fact]

@@ -79,6 +79,7 @@ import {
   RecordGitHubObservationTargetEndpointClient,
   GetGitHubObservationTargetEndpointClient,
   GetGitHubRepositoryObservationEndpointClient,
+  GetGitHubBranchObservationEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -164,6 +165,7 @@ export const manualRunAbandonmentClient = () => new GetManualRunAbandonmentEndpo
 export const recordGitHubObservationTargetClient = () => new RecordGitHubObservationTargetEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubObservationTargetClient = () => new GetGitHubObservationTargetEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubRepositoryObservationClient = () => new GetGitHubRepositoryObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubBranchObservationClient = () => new GetGitHubBranchObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -266,6 +268,9 @@ export type {
   GetGitHubObservationTargetResponse,
   GetGitHubRepositoryObservationResponse,
   GitHubRepositoryIdentityResponse,
+  GetGitHubBranchObservationResponse,
+  GitHubBranchObservationResponse,
+  GitHubBranchRefResponse,
   RecordGitHubObservationTargetResponse,
 } from './generated/api-client'
 export {

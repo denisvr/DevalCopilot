@@ -2205,6 +2205,68 @@ export class GetGitHubRepositoryObservationEndpointClient {
     }
 }
 
+export class GetGitHubBranchObservationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitHubBranchObservation(runId: string): Promise<GetGitHubBranchObservationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-branch-observation";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitHubBranchObservation(_response);
+        });
+    }
+
+    protected processGetGitHubBranchObservation(response: Response): Promise<GetGitHubBranchObservationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetGitHubBranchObservationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetGitHubBranchObservationResponse>(null as any);
+    }
+}
+
 export class GetCollaborationTimelineEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -8886,6 +8948,150 @@ export interface IGetGitHubObservationTargetResponse {
     state?: string;
     source?: GitHubObservationSourceResponse | undefined;
     target?: GitHubObservationScopeResponse | undefined;
+}
+
+export class GetGitHubBranchObservationResponse implements IGetGitHubBranchObservationResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    observation?: GitHubBranchObservationResponse | undefined;
+
+    constructor(data?: IGetGitHubBranchObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.source = _data["source"] ? GitHubObservationSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubObservationScopeResponse.fromJS(_data["target"]) : undefined as any;
+            this.observation = _data["observation"] ? GitHubBranchObservationResponse.fromJS(_data["observation"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetGitHubBranchObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitHubBranchObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        data["observation"] = this.observation ? this.observation.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetGitHubBranchObservationResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    observation?: GitHubBranchObservationResponse | undefined;
+}
+
+export class GitHubBranchObservationResponse implements IGitHubBranchObservationResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    ref?: GitHubBranchRefResponse | undefined;
+
+    constructor(data?: IGitHubBranchObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.repositoryNodeId = _data["repositoryNodeId"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.observedAtUtc = _data["observedAtUtc"] ? new Date(_data["observedAtUtc"].toString()) : undefined as any;
+            this.ref = _data["ref"] ? GitHubBranchRefResponse.fromJS(_data["ref"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubBranchObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubBranchObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["repositoryNodeId"] = this.repositoryNodeId;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["observedAtUtc"] = this.observedAtUtc ? this.observedAtUtc.toISOString() : undefined as any;
+        data["ref"] = this.ref ? this.ref.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubBranchObservationResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    ref?: GitHubBranchRefResponse | undefined;
+}
+
+export class GitHubBranchRefResponse implements IGitHubBranchRefResponse {
+    branchName?: string;
+    commitSha?: string;
+
+    constructor(data?: IGitHubBranchRefResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.branchName = _data["branchName"];
+            this.commitSha = _data["commitSha"];
+        }
+    }
+
+    static fromJS(data: any): GitHubBranchRefResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubBranchRefResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["branchName"] = this.branchName;
+        data["commitSha"] = this.commitSha;
+        return data;
+    }
+}
+
+export interface IGitHubBranchRefResponse {
+    branchName?: string;
+    commitSha?: string;
 }
 
 export class CollaborationMessageTimelineResponse implements ICollaborationMessageTimelineResponse {

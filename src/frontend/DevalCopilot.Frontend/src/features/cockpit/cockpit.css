@@ -1501,3 +1501,46 @@
   border-left: 3px solid var(--dc-warning);
   padding-left: 0.5rem;
 }
+
+.dc-github-branch {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--dc-border);
+}
+
+.dc-github-branch-body,
+.dc-github-branch-result {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-branch h5,
+.dc-github-branch p {
+  margin: 0;
+}
+
+.dc-github-branch-note,
+.dc-github-branch-state {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-branch-scope,
+.dc-github-branch-observation {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-github-branch-scope dd,
+.dc-github-branch-observation dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dc-github-branch-state[data-status='Unavailable'] {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}

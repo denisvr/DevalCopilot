@@ -351,6 +351,9 @@ identity verification, exact-SHA CI, scoped publication and reconciliation remai
 [ADR-0041](../decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds one explicit, read-only observation
 of the opaque ID and names GitHub reports for that recorded owner and repository (one fixed `gh api graphql` query through the stored default authentication; not
 persisted, no binding); it proves no remote branch or commit, permission, CI result or publication approval, so the remaining deliverables stay open.
+[ADR-0042](../decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md) adds one further explicit, read-only
+observation of the exact recorded branch tip in one remote response and whether it equals the recorded local commit (a point-in-time advisory fact, not persisted, with
+no CI result, permission, durable binding or publication approval), so exact-SHA CI, scoped publication, reconciliation and a durable binding remain open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

@@ -132,6 +132,10 @@
   identity of a recorded observation target on explicit request (additive; one protected, bodyless, read-only observation of the opaque ID and names GitHub
   reports for the recorded owner and repository through one fixed `gh api graphql` invocation and the stored default authentication, no persistence and no
   remote branch, commit, permission, CI, publication or binding authority).
+- [ADR-0042](decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md): Observe the recorded GitHub branch tip
+  of a recorded observation target on explicit request (additive; one protected, bodyless, read-only observation of the repository identity and the exact recorded
+  branch tip, compared with the recorded local commit, through one fixed `gh api graphql` invocation and the stored default authentication, no persistence and no
+  fallback ref, CI, permission, durable binding or publication authority).
 
 ## Product-specific architecture
 
@@ -312,6 +316,20 @@
   Nothing is written, persisted, bound or locked. The cockpit adds a collapsed identity region inside an Available target's result with explicit Show, Check
   (then Recheck) and Close, owned by the committed source and target and each opening, showing inert text. It proves no remote branch, commit, permission, CI
   result, publication approval or permanent binding.
+- [ADR-0042](decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md) adds one further explicit, read-only
+  observation of the exact recorded branch tip. The protected, bodyless `GET /api/runs/{runId}/github-branch-observation`
+  (`GetGitHubBranchObservationQuery` through the mediator; any request body is refused before dispatch with the fixed 400 `github_branch_observation.body_not_allowed`;
+  an unknown run is the fixed 404 `github_branch_observation.not_found`) reuses the unchanged ADR-0040 readers before and after the external call and the ADR-0038
+  `GitHubCli` snapshot gate, and answers `NotRecorded`/`Unavailable` (no scope, nothing invoked), `CliUnavailable`, `Unknown`, `RefNotReturned`, `CommitMatched` or
+  `CommitDifferent` (only these three carry the repository identity and a ref that is null exactly for `RefNotReturned`). The operation-owned port
+  `IGitHubBranchObserver` is implemented by `GitHubBranchObservationAdapter` on the existing process executor: one fixed
+  `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository> -f ref=refs/heads/<recorded owned branch>`
+  with the ADR-0041 environment, bounds and single-flight slot, and a whole-response admission that also proves the returned ref exactly (prefix `refs/heads/`, the
+  recorded branch name, a `Commit` target with a 40-character lowercase hexadecimal OID) because GitHub's `qualifiedName` lookup can fall back to short names. The
+  handler validates the result again and compares the remote SHA with the recorded one ordinally. Nothing is written, persisted, bound or locked. The cockpit adds a
+  separate collapsed remote branch region beside the identity region with Show, Check (then Recheck) and Close, owned by the committed source and target and each
+  opening. A match is only what GitHub reported at that time; it is not CI, a permission, a durable binding, a publication approval or a publication performed by
+  DevalCopilot.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.
