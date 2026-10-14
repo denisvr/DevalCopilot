@@ -204,6 +204,17 @@ ambiguous write an explicit reload, then a new settled candidate check, must com
 change, a reconnect or a timer, nothing is retried or stored in the browser, and every value is inert text with UTC times. A recorded binding is shown as historical
 evidence, not a current check of GitHub, a permission, a branch or commit proof, a CI result or publication authority.
 
+The GitHub commit checks region ([ADR-0044](../decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md)) is a separate collapsed
+region inside an Available target, beside the identity, remote branch and identity binding regions. It offers "Show GitHub commit checks" (which sends nothing),
+"Check GitHub commit checks" (then "Recheck") and "Close GitHub commit checks", shows the exact recorded branch, local commit, owner and repository and the fixed disclosure
+(GitHub's point-in-time aggregate for this commit does not establish complete check or workflow evidence, required-check approval, permission or publication authority)
+before anything is checked, and reads only the protected, bodyless `GET /api/runs/{runId}/github-ci-observation` on its explicit Check or Recheck; the host reads the binding
+itself, and no sibling region's loaded binding or earlier answer is used. The decoder accepts only the documented status, nullability, scope, bound ID, ref, commit, state and
+time combinations; the committed source and target and each opening own callbacks and results (A to B to A, close and reopen, late completions, duplicate activation and a
+close followed by a check in the same batch send nothing and cannot affect a successor), and a pending read or a failure removes the earlier observation. Nothing is read on
+mount, opening, a project, run or target change, a reconnect or a timer, nothing is retried or stored in the browser, and every value (the bound repository ID, the observed
+ref and commit, GitHub's literal state and the UTC time) is inert text. A different commit, a ref that was not returned, an identity change and any drift show no state.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

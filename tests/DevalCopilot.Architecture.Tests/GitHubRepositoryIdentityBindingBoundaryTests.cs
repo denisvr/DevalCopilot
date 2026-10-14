@@ -107,7 +107,7 @@ public sealed partial class GitHubRepositoryIdentityBindingBoundaryTests
         }
 
         Assert.Equal(
-            [Command, Query],
+            [Command, "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCiObservation/GetGitHubCiObservationQueryHandler.cs", Query],
             SourcesContaining("GitHubRepositoryIdentityBindingReader.ReadAsync("));
     }
 

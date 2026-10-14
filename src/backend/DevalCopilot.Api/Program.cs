@@ -26,6 +26,7 @@ using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProces
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubBranchObservation;
+using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCiObservation;
 using DevalCopilot.Application.Security.Ports;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -156,6 +157,11 @@ builder.Services.AddSingleton<IGitHubRepositoryIdentityObserver, GitHubRepositor
 // Explicit GitHub branch observation (ADR-0042): one fixed read-only `gh api graphql` query for the repository identity and the exact
 // recorded branch ref, composed on IProcessExecutionAdapter above. A singleton on purpose: the instance owns its single in-flight slot.
 builder.Services.AddSingleton<IGitHubBranchObserver, GitHubBranchObservationAdapter>();
+
+// Explicit GitHub commit check observation (ADR-0044): one fixed read-only `gh api graphql` query for the repository identity, the exact
+// recorded branch ref and GitHub's aggregate check state of that commit, composed on IProcessExecutionAdapter above. A singleton on purpose:
+// the instance owns its single in-flight slot.
+builder.Services.AddSingleton<IGitHubCiObserver, GitHubCiObservationAdapter>();
 
 // Workspace preparation: physical identity resolution, worktree creation, and the ownership
 // marker are each a narrow, independent Infrastructure capability behind their own port.

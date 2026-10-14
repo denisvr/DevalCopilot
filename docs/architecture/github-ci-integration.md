@@ -97,6 +97,18 @@ Human event after rereading the whole pinned scope under the short write lock. T
 historical identity evidence only: never a permission, branch or commit proof, CI result, publication approval or authority, a project-wide alias or a promise about
 the remote's future state. Exact-SHA CI, scoped publication, reconciliation and any use of the binding as a gate remain later, separately gated slices.
 
+## Explicit commit check observation
+
+[ADR-0044](../decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only observation of GitHub's
+point-in-time aggregate check state (`Commit.statusCheckRollup.state`, which combines check runs and commit statuses) for the exact recorded commit. The host reads the
+unchanged ADR-0040 source and target and the ADR-0043 binding before any process and again after it, invokes one fixed read-only `gh api graphql` query with the stored
+default authentication once, validates the whole answer independently and shows a state only when the freshly observed repository ID equals the immutable binding and the
+exact recorded branch points at the recorded commit. A different commit, a ref that GitHub did not return, an identity change and any scope or binding drift expose no state,
+and GitHub's literal value (`ERROR`, `EXPECTED`, `FAILURE`, `PENDING` or `SUCCESS`) is never translated into passed, approved, ready or green. A missing rollup means only that
+GitHub returned none, never that no checks exist. The aggregate is not required-check policy, complete check or workflow evidence, a permission or publication authority.
+Check and workflow enumeration, required-check and branch-protection policy, scoped publication, push, pull request, automatic monitoring and reconciliation remain later,
+separately gated slices.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

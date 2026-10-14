@@ -103,6 +103,10 @@ supersedes it.
 - [ADR-0043: Bind the GitHub repository identity of a recorded observation target on explicit request](0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md)
   (additive; one protected POST and bodyless GET of an immutable, human-confirmed binding of the opaque repository ID to a recorded ADR-0040 target, recorded only after
   a fresh host observation agrees, with one Human event; historical identity evidence only, never permission, branch or commit proof, CI approval or publication authority)
+- [ADR-0044: Observe the check summary of a bound recorded local commit on explicit request](0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md)
+  (additive; one protected, bodyless, read-only observation, in one remote response, of GitHub's point-in-time aggregate check state for the exact recorded commit, shown only
+  when the freshly observed repository ID equals the immutable ADR-0043 binding and the exact recorded branch points at that commit, through one fixed `gh api graphql`
+  invocation and the stored default authentication; never complete check or workflow evidence, required-check approval, permission, persistence or publication authority)
 
 ## Status values
 

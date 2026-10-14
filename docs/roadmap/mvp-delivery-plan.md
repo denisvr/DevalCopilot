@@ -356,6 +356,10 @@ observation of the exact recorded branch tip in one remote response and whether 
 no CI result, permission, durable binding or publication approval), so exact-SHA CI, scoped publication and reconciliation remain open.
 [ADR-0043](../decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds the first durable remote fact: an explicit, immutable, human-confirmed binding of the opaque repository ID to a recorded target, recorded
 only after a fresh host observation agrees (historical identity evidence, not a permission, branch or commit proof, CI approval or publication authority).
+[ADR-0044](../decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only observation of GitHub's point-in-time
+aggregate check state for the recorded commit, shown only when the freshly observed repository ID equals the immutable binding and the exact recorded branch points at that
+commit (not complete check or workflow evidence, required-check approval, permission or publication authority); required-check policy, check and workflow enumeration, scoped
+publication, automatic monitoring and reconciliation remain open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

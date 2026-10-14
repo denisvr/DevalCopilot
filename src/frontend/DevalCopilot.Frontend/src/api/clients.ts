@@ -80,6 +80,7 @@ import {
   GetGitHubObservationTargetEndpointClient,
   GetGitHubRepositoryObservationEndpointClient,
   GetGitHubBranchObservationEndpointClient,
+  GetGitHubCiObservationEndpointClient,
   BindGitHubRepositoryIdentityEndpointClient,
   GetGitHubRepositoryIdentityBindingEndpointClient,
 } from './generated/api-client'
@@ -168,6 +169,7 @@ export const recordGitHubObservationTargetClient = () => new RecordGitHubObserva
 export const gitHubObservationTargetClient = () => new GetGitHubObservationTargetEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubRepositoryObservationClient = () => new GetGitHubRepositoryObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubBranchObservationClient = () => new GetGitHubBranchObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubCiObservationClient = () => new GetGitHubCiObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const bindGitHubRepositoryIdentityClient = () => new BindGitHubRepositoryIdentityEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubRepositoryIdentityBindingClient = () =>
   new GetGitHubRepositoryIdentityBindingEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -279,6 +281,9 @@ export type {
   GitHubRepositoryIdentityBindingResponse,
   GitHubBranchObservationResponse,
   GitHubBranchRefResponse,
+  GetGitHubCiObservationResponse,
+  GitHubCiObservationResponse,
+  GitHubCiRefResponse,
   RecordGitHubObservationTargetResponse,
 } from './generated/api-client'
 export {

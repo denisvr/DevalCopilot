@@ -2340,6 +2340,68 @@ export class BindGitHubRepositoryIdentityEndpointClient {
     }
 }
 
+export class GetGitHubCiObservationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitHubCiObservation(runId: string): Promise<GetGitHubCiObservationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-ci-observation";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitHubCiObservation(_response);
+        });
+    }
+
+    protected processGetGitHubCiObservation(response: Response): Promise<GetGitHubCiObservationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetGitHubCiObservationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetGitHubCiObservationResponse>(null as any);
+    }
+}
+
 export class GetGitHubBranchObservationEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -9195,6 +9257,158 @@ export interface IGetGitHubObservationTargetResponse {
     state?: string;
     source?: GitHubObservationSourceResponse | undefined;
     target?: GitHubObservationScopeResponse | undefined;
+}
+
+export class GetGitHubCiObservationResponse implements IGetGitHubCiObservationResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    binding?: GitHubRepositoryIdentityBindingResponse | undefined;
+    observation?: GitHubCiObservationResponse | undefined;
+
+    constructor(data?: IGetGitHubCiObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.source = _data["source"] ? GitHubObservationSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubObservationScopeResponse.fromJS(_data["target"]) : undefined as any;
+            this.binding = _data["binding"] ? GitHubRepositoryIdentityBindingResponse.fromJS(_data["binding"]) : undefined as any;
+            this.observation = _data["observation"] ? GitHubCiObservationResponse.fromJS(_data["observation"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetGitHubCiObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitHubCiObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        data["binding"] = this.binding ? this.binding.toJSON() : undefined as any;
+        data["observation"] = this.observation ? this.observation.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetGitHubCiObservationResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    binding?: GitHubRepositoryIdentityBindingResponse | undefined;
+    observation?: GitHubCiObservationResponse | undefined;
+}
+
+export class GitHubCiObservationResponse implements IGitHubCiObservationResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    ref?: GitHubCiRefResponse | undefined;
+    rollupState?: string | undefined;
+
+    constructor(data?: IGitHubCiObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.repositoryNodeId = _data["repositoryNodeId"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.observedAtUtc = _data["observedAtUtc"] ? new Date(_data["observedAtUtc"].toString()) : undefined as any;
+            this.ref = _data["ref"] ? GitHubCiRefResponse.fromJS(_data["ref"]) : undefined as any;
+            this.rollupState = _data["rollupState"];
+        }
+    }
+
+    static fromJS(data: any): GitHubCiObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubCiObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["repositoryNodeId"] = this.repositoryNodeId;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["observedAtUtc"] = this.observedAtUtc ? this.observedAtUtc.toISOString() : undefined as any;
+        data["ref"] = this.ref ? this.ref.toJSON() : undefined as any;
+        data["rollupState"] = this.rollupState;
+        return data;
+    }
+}
+
+export interface IGitHubCiObservationResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    ref?: GitHubCiRefResponse | undefined;
+    rollupState?: string | undefined;
+}
+
+export class GitHubCiRefResponse implements IGitHubCiRefResponse {
+    branchName?: string;
+    commitSha?: string;
+
+    constructor(data?: IGitHubCiRefResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.branchName = _data["branchName"];
+            this.commitSha = _data["commitSha"];
+        }
+    }
+
+    static fromJS(data: any): GitHubCiRefResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubCiRefResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["branchName"] = this.branchName;
+        data["commitSha"] = this.commitSha;
+        return data;
+    }
+}
+
+export interface IGitHubCiRefResponse {
+    branchName?: string;
+    commitSha?: string;
 }
 
 export class GetGitHubBranchObservationResponse implements IGetGitHubBranchObservationResponse {

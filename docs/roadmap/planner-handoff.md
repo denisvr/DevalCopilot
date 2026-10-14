@@ -5,6 +5,311 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## Review decision (2026-10-14): GO for the reviewed ADR-0044 diff
+
+Codex independently reviewed Git, production code, tests, generated-client drift,
+documentation and retained evidence. No blocking finding remains. GO authorizes
+publication only of the exact reviewed inventory frozen after this insertion:
+48 paths (17 modified, 31 added), including current-work and planner-handoff.
+No next slice or Increment 6/MVP/release completion is selected or implied.
+
+Verified main; HEAD/local origin/main/live refs/heads/main all equal
+fda2f2ee36729160fced9b4cad222657d248b877, 0/0, empty index. Before this insertion
+planner SHA-256 remains
+2ae289c4b36efb83b09a64289346d1889c33fb4c0d46f78a7240c4028452ccd5.
+All prior selection, owner-transition and review bytes remain intact below.
+Client SHA-256 independently remains
+c417c9ab1e38255858634d19c981d2750a587dac0dd4e0274a9e9d9aa0fffa8e;
+the generated diff is additive (214 lines, none deleted), with the executor's
+forced NSwag-regeneration evidence inspected. All 47 recorded source hashes
+matched the working files before review; no implementation edit was made.
+
+Accepted behavior: whole-response admission (including escaped property keys),
+canonical local source/target/binding admission before and after one bounded
+remote observation, whole probe validation before classification, ordinal bound
+ID and exact branch/SHA gates, no CI state for a different commit, and only the
+five literal rollup values for the recorded commit. The owned UI accepts only
+coherent status/scope/binding/ref/state/time combinations, removes previous
+observations on pending/failure, and preserves explicit-only actions, stale
+callback protection and independent opening/source lifetimes. No write, lock,
+migration, remote mutation, permission or required-check approval was added.
+
+Executor clarification accepted: the post-call clock is read only when an
+observation would be shown; IdentityChanged carries no observation and requires
+no observation timestamp. Regressed observation time is Unknown without clamping.
+The two architecture inventory changes add only the new GraphQL adapter and
+binding-reader caller and do not weaken the old boundaries. The GhRole extension
+is additive and fixed-query only; the fixed-SHA journey honestly proves
+CommitDifferent with SUCCESS withheld, not matching-SHA CI or real compatibility.
+
+Independent checks (complete logs/TRX under ignored logs/planner-review/adr44):
+incremental serial solution build, 0 warnings/errors (4.4 s); new frontend
+decoder/hook/panel 58/58; complete new CI adapter 235/235; Architecture 120/120;
+four focused real-host API tests 4/4 (23.8 s) proving all five reported states,
+bound-ID mismatch, source/target/binding drift after the call and regressed/equal
+clock readings. This is focused independent validation, not another full matrix.
+
+Preserved independent review failures: the sandbox frontend attempt passed 20
+decoder cases but two suites could not load due to ENOENT for transform files
+under its temporary client directory (frontend.log). The identical command
+outside the sandbox passed 58/58 (frontend-unsandboxed.log). The sandbox API
+attempt aborted because VSTest failed to connect to testhost after 90 seconds:
+api.log/api.trx report zero executed tests, not an unnamed failed test. The same
+four-test filter outside the sandbox passed (api-unsandboxed.log/.trx). These
+outcomes are retained as observed; later passes do not erase them or establish
+flakiness. No timeout was increased, source changed, log removed or test skipped.
+
+Inspected executor final TRX: Application 27, Infrastructure 235, Api including
+auth and three existing regression controls 30, Architecture 120, full fixture
+family 160; no failures/skips in those selected runs. Frontend 242/242, build
+including typecheck, lint (nine existing warnings), strict e2e tsc, affected
+authenticated journey 1/1, formatter, links and diff checks are accepted from
+retained complete logs. Four compiling mutants were killed and source hashes
+restored. Red evidence is correctly limited: tests ran against a compiling
+skeleton after contracts/endpoint/policy existed; the 21 already-green policy
+cases do not gain genuine red-first evidence retroactively. Byte-hygiene flags
+were non-ASCII punctuation matching existing copy conventions, not forbidden
+English text, CR/NUL or secret additions. No arbitrary ASCII-only rule is imposed.
+
+The reported setup-cost percentage is an estimate from skeleton versus complete
+class timings, not direct phase instrumentation or a measured optimization.
+No lineage cache, sharing across tests or cloning is authorized. Unchanged
+Domain/schema/migrations, unrelated suites, full Vitest, harness, other journeys,
+canonical chain and dependency-audit evidence remain retained under the accepted
+proportional matrix; no shared executor/reader/auth/harness/dependency changed.
+Mandatory CI, security, real-provider and release gates remain intact.
+
+Preserve the unnamed Api 2067/2068 failure as unexplained: later passes prove
+neither flakiness nor irrelevance. Preserve four privilege skips, source-map-js
+advisory, original red-first absences, bounded mutation limits, migration-generator
+drift, real CLI/auth/ref/schema limits, browser duplicate-key/negotiation messages
+and the frontend chunk-size advisory. Real qualification stays
+Blocked/TargetsNotReal; both allowances unused. Preserve ledger, historical
+failures, retained roots and ignored logs/TRX/review artifacts. No real gh/provider
+invocation, CLI setup/auth/configuration, ledger reset or cleanup is authorized.
+
+Claude must reverify the frozen manifest, stage only its paths, verify staged
+modes/blobs and --check, make one substantive commit with current-work and planner,
+normally fast-forward push main, and verify live main in that same executor
+turn. Stop on drift/divergence/push failure, with no force, rebase, merge or
+history repair. No edits, regeneration, validation rerun, separate closure diff
+or next-slice selection is authorized. Codex verifies publication before selecting
+the next bounded slice. The full actionable publication prompt is supplied with
+this review decision; the ignored manifest remains outside the commit.
+
+## Selected next slice (2026-10-14): explicitly observe the bound recorded commit's check summary
+
+### Verified publication and MVP assessment
+
+ADR-0043 and the owner-requested validation policy are published as
+fda2f2ee36729160fced9b4cad222657d248b877, parent
+818d67010ce85bc3adb21cab532c88c97ffa1275. Codex independently verified main,
+HEAD/local origin/main/live refs/heads/main equal the published commit, 0/0,
+empty index and clean tracked/untracked state. All 88 manifest paths match the
+commit with rename detection disabled (39 M, four D, 45 A), normalized modes
+and blobs and the working files' raw hashes/lengths. The ignored manifest SHA-256
+remains a946d6211b12f990f2901c5fd17bb1c59f941378926d743b363481208af47143.
+The first sandbox ls-remote failed with getaddrinfo thread startup; the authorized
+read-only live query passed. This is a publication check, not a validation rerun.
+No closure-document diff, Git mutation, regeneration or test rerun was performed.
+The published current-work entry describes its pre-publication review state;
+this verified publication supersedes that status without rewriting its evidence.
+Generated client SHA-256 remains
+d261934c365f6c36bd9eab893a1dd8ad8ed8a48616ec7b93264236b70f2e3126.
+
+The actual roadmap and ADR-0005/0040/0041/0042/0043 still require real provider
+qualification and the remaining Increment 4 provider controls; Increment 5
+coordination, multi-project scheduling, lifecycle/recovery and linked replay;
+Increment 6 policy-scoped push/PR, exact-SHA CI detail and required-check policy,
+diagnosis/correction, automatic monitoring and remote reconciliation; packaged
+shell/release acceptance and self-hosting proof. These remain MVP/release gates.
+Code still composes separate explicit stage supervisors. The source and target
+readers admit pinned historical delivery; the binding reader admits its canonical
+Human event. The two existing GraphQL adapters observe identity/ref only; no CI
+operation exists. No coordinator, publication or qualification is inferred here.
+Extra history drill-down/export, analytics, broader providers and a journal
+migration are optional/deferred. Prior follow-up ideas are not selections.
+
+Select one read-only CI summary because it directly advances exact-SHA evidence
+using the delivered immutable binding and ref admission, without remote mutation
+or autonomous dispatch. A separate bound-ref-only operation would repeat much
+of ADR-0042 without returning CI evidence. Required-check policy and complete
+workflow/check enumeration are deliberately later: an aggregate cannot prove
+required-check satisfaction, completeness, permissions or release readiness.
+Owner-requested faster validation is applied below, not by weakening boundaries.
+
+### Selected contract: ADR-0044
+
+Add GetGitHubCiObservation, a protected bodyless MVC GET
+/api/runs/{runId}/github-ci-observation through the mediator, API-owned full
+transport graph and regenerated additive client. Unknown run: fixed 404
+github_ci_observation.not_found. Any positive declared body length, any transfer
+encoding (including empty chunked), or readable byte: fixed 400
+github_ci_observation.body_not_allowed before dispatch; no rejected value echo.
+Return {runId,status,source,target,binding,observation}. Reuse the existing source,
+target and binding fact shapes through API-owned mapping, never expose Application
+types. The closed statuses and nullable graph are:
+
+- NotRecorded: no target and no binding/event; all four nullable facts absent.
+- Unavailable: any source/target/binding/event corruption, orphan or lost/changed
+  scope; all four nullable facts absent, nothing invoked on initial refusal.
+- BindingNotRecorded: coherent source/target, genuinely no binding/event;
+  source/target present, binding/observation absent, no process.
+- CliUnavailable, Unknown, IdentityChanged: coherent source/target/binding present,
+  observation absent. IdentityChanged is only a whole valid probe whose opaque
+  ID differs ordinally from the recorded binding; never echo the different ID.
+- RefNotReturned: coherent scope/binding and observation, null ref/null rollupState.
+- CommitDifferent: same bound ID and exact recorded branch, a different admitted
+  SHA; observation ref present and rollupState null, even if remote supplied SUCCESS.
+- NoStatusReported: same bound ID/branch/SHA; observation ref present, rollupState null.
+- StatusReported: same bound ID/branch/SHA; observation ref present and rollupState
+  exactly ERROR, EXPECTED, FAILURE, PENDING or SUCCESS. Preserve that literal value.
+
+Only the final four statuses carry observation
+{repositoryNodeId,owner,repository,observedAtUtc,ref,rollupState}; ref when present
+is {branchName,commitSha}. Names are the admitted observed names, never rewritten
+as target names. Null rollup means GitHub returned no rollup, not no checks exist.
+No status is called Passed/Approved/Ready/Green, including SUCCESS. Fixed product
+disclosure: this is GitHub's point-in-time aggregate for this commit, not complete
+check/workflow evidence, required-check approval, permission or publication authority.
+
+Read the unchanged ADR-0040 source/target and ADR-0043 binding readers before any
+process, including binding orphan detection even when source/target is absent.
+Require the unchanged fresh successful DirectExecutable GitHubCli snapshot.
+Invoke one operation-owned provider-neutral IGitHubCiObserver, independently
+validate its entire result, and freshly reread source/target/binding and canonical
+events after it returns. Any changed/lost/incoherent fact takes Unavailable
+precedence over remote outcomes and strips all scope/remote facts. No transaction,
+write lock, persistence or fallback to a cached sibling-panel answer. Validate
+names with the existing ASCII policies and ASCII-case-insensitive target match,
+opaque IDs ordinally, owned branch ordinally, and 40 lowercase hex SHA. Entire
+probe validation precedes identity/SHA classification; malformed states are
+Unknown, never a partially admitted mismatch. Stamp admitted observation from
+the host UTC clock after work; if it precedes binding.RecordedAtUtc, return Unknown
+without observation, never clamp/retry/fabricate a time. Cancellation/unexpected
+faults propagate as on ADR-0042.
+
+Infrastructure GitHubCiObservationAdapter is composed on the existing process
+executor, singleton with one nonqueued slot released in finally, and preserves
+ADR-0041/0042 scratch root, stored-default-auth environment allowlist/fixed
+controls, 15-second timeout, 8 KiB per stream/16 KiB combined, discarded stderr,
+identified start-failure handling and no output sinks/logs/artifacts. Existing
+adapters/ports/queries/statuses are unchanged; do not extract a broad gateway.
+Exactly one command, no shell/jq/cache/pagination/retry/fallback:
+
+gh api graphql --hostname github.com --method POST -f query=<constant> -f owner=<stored owner> -f name=<stored repository> -f ref=refs/heads/<recorded branch>
+
+Constant read-only document (variables only, no interpolation):
+query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){id name nameWithOwner ref(qualifiedName:$ref){name prefix target{__typename ... on Commit{oid statusCheckRollup{state}}}}}}
+
+Strict whole JSON only: root data, data.repository, repository id/name/nameWithOwner/ref;
+ref null or exactly name/prefix/target; target exactly __typename/oid/statusCheckRollup
+for Commit; rollup null or exactly state. Ref prefix must be refs/heads/, name exactly
+the recorded branch. Null/non-Commit target, fallback tag/wrong branch, partial,
+duplicate/extra/missing members at any level, any backslash in stdout (keys or values),
+unknown/nonstring state, malformed JSON/OID/names/ID, truncation, nonzero/timeout
+are refused whole. Literal whitespace/member order controls remain admitted.
+
+Official references checked by Codex on 2026-10-14:
+[GitHub Commit/StatusCheckRollup/StatusState](https://docs.github.com/en/graphql/reference/commits)
+and [gh api](https://cli.github.com/manual/gh_api). Commit.statusCheckRollup is nullable;
+its state covers check runs and statuses and has the five values above. It is
+not a required-check policy. Keep schema/CLI compatibility with installed real
+tools unverified; this selection does not authorize real gh or a provider call.
+
+Cockpit: separate collapsed GitHub commit checks region inside the Available
+target, beside existing regions, with Show/Check/Recheck/Close. Show sends nothing;
+Check owns one request. It does not require or reuse a sibling's loaded binding;
+the server reads that binding each time. Decoder accepts only the exact closed
+status/nullability/scope/ID/ref/SHA/state/time combinations. Lifetime is the full
+committed source/target and each opening, using unchanged owned lifetime/state
+hooks: A-B-A, close/reopen, old callbacks/completions and same-batch duplicate or
+close-then-check send nothing/do not affect successors. Pending/failure removes
+old observations. No effects/remount/reset tricks, storage, timers, retries,
+background requests, links/copy actions or optimistic CI approval. Show exact
+source/target/binding identity, observed ref/SHA, UTC time and literal state as
+inert text with the fixed disclosure; drift/ref absence reveals no CI aggregate.
+
+Add ADR-0044 and update ADR index, engineering context, GitHub architecture,
+cockpit spec, roadmap/security contract and current-work only as necessary.
+Preserve planner-handoff bytes supplied at dispatch. No Domain/schema/migration,
+write/event, remote mutation, PR/permission/protection/workflow policy, diagnostics,
+artifact/log download, scheduler, autonomous monitoring or publication scope.
+
+### Proportional validation and evidence
+
+Development: tests first at the owning boundary; focused named red cases, then
+incremental build and affected classes/files. API pre-dispatch/auth/404 cases
+need no completed delivery. Reuse existing feature-owned lineage builders for
+coherent paths; no mocked database, mutable shared seed/cache/cloning or bypass.
+Pure JSON permutations belong to the adapter, not repeated expensive host cases.
+Use real file-backed SQLite for admission, event corruption and after-call drift;
+at least one full production-command lineage and owned-double journey remains.
+Record setup versus execution cost for classes exceeding the one-minute target.
+Four serial compiling mutants only: remove bound-ID equality, remove SHA gate,
+skip post-call binding reread, admit an ended UI callback. Name killed tests,
+preserve compile/no-op failures separately, restore verified source hashes and
+rebuild before testing restored binaries. Never relabel stub runs as genuine red.
+
+Run the stable final matrix once, using current built binaries and --no-build
+--no-restore for tests. Default one serial incremental solution build/analyzers,
+client reproducibility proof without deletion, new Application CI handler tests,
+new Infrastructure CI adapter class (including real process-double execution),
+new Api GitHubCiObservation family, full Architecture and launch-session auth.
+Regression API controls: ADR-0041 An_observed_identity_is_returned_exactly_with_the_scope_the_vetted_path_the_stored_names_and_no_write;
+ADR-0042 A_remote_tip_equal_to_the_recorded_commit_is_commit_matched_with_the_exact_ref_and_no_write;
+ADR-0043 The_read_returns_the_same_recorded_graph_and_never_observes_or_writes.
+Include a real-host MVC authorization inventory with no anonymous additions.
+For the additive owned GhRole fixed-query extension run the full
+ProviderFixtureContractTests family; leave every other role/command unchanged.
+It may return the existing fixed remote SHA: the authenticated collaboration
+journey must prove CommitDifferent with CI withheld, exact one request/process
+per explicit check/recheck, none on Show/close/reopen/real reload/delay, unchanged
+database/events/Git/Agent counts. StatusReported for all five states, null rollup,
+identity mismatch and exact-SHA drift are proved at adapter, host and UI boundaries;
+do not fabricate a real remote or weaken the journey's fixed SHA.
+
+Frontend final: complete new decoder/hook/panel files and existing identity,
+branch and binding decoder/hook/panel files (composition regression); npm run
+build includes tsc -b, npm run lint; strict e2e tsc when journey changes:
+npx tsc --ignoreConfig --noEmit --strict --target es2023 --module esnext --moduleResolution bundler --skipLibCheck --noUnusedLocals --noUnusedParameters --verbatimModuleSyntax --allowImportingTsExtensions --erasableSyntaxOnly --types node e2e/*.ts e2e/journey/*.ts e2e/harness/*.ts playwright.config.ts playwright.journey.config.ts
+Run the affected collaboration.journey.ts once after binaries stabilize.
+Formatter on changed C#, changed-document links, git diff --check and secret/
+production-bundle checks apply; no new dependency or lockfile change is selected.
+
+Retain unchanged Domain, migrations, unrelated Application/Infrastructure/Api,
+full Vitest, other journeys, harness and dependency-audit evidence from ADR-0043
+with its correction applicability, rather than claiming fresh full runs. Broaden
+for shared executor/environment/policy/reader changes, host/auth/serializer/client
+configuration, uncertain effects or validation failures. Shared journey harness,
+transport/authentication or other provider-role changes require harness plus
+canonical test:e2e:all; GhRole-only additive contract is covered by its full fixture
+family and the affected journey. Dependencies require fresh relevant audits.
+Discuss changed scope/matrix with planner before dependent work. Preserve mandatory
+CI, security, real-provider and release gates; local selection proves none of them.
+No blind reruns or deleted logs. Keep exact commands/filters, times, source hashes,
+complete logs/TRX and named failures in ignored test-results/adr-0044.
+
+### Authority, preserved limitations and return
+
+New executor chat for ADR-0044; review corrections stay in that chat. Expected
+start: main at fda2f2ee36729160fced9b4cad222657d248b877 for HEAD/local/live main,
+0/0, empty index, no untracked files, only planner-handoff.md unstaged modified
+by this selection. Its exact dispatch hash is supplied in the prompt. Verify once
+before editing; report drift. Do not stage, commit, push or select another slice.
+Present uncommitted/unpushed diff and actual current-work evidence for Codex review.
+Evidence-based challenges are welcome; pause dependent work on a material dispute,
+continue independent authorized work and take unresolved material choices to owner.
+
+Real qualification remains Blocked/TargetsNotReal, both allowances unused. No real
+gh/provider call, CLI setup/auth/configuration, ledger reset or cleanup. Preserve
+ledger, retained roots, ignored review artifacts/logs/TRX and historical failures.
+The unnamed Api 2067/2068 failure remains unexplained; later passes prove neither
+flakiness nor irrelevance. Preserve four privilege skips, source-map-js advisory,
+original red-first absences, bounded mutation limits, migration-generator drift,
+real CLI/auth/ref compatibility limits and recorded browser/build diagnostics.
+This is one explicit aggregate observation, not Increment 6/MVP/release completion.
+
 ## Review decision (2026-10-14): GO for corrected ADR-0043 and validation policy
 
 All four findings and the residual R3 stale-read issue are accepted as corrected.

@@ -150,7 +150,11 @@ public sealed partial class GitHubRepositoryObservationBoundaryTests
         }
 
         Assert.Equal(
-            ["DevalCopilot.Infrastructure/Features/Runs/GitHubBranchObservationAdapter.cs", AdapterPath],
+            [
+                "DevalCopilot.Infrastructure/Features/Runs/GitHubBranchObservationAdapter.cs",
+                "DevalCopilot.Infrastructure/Features/Runs/GitHubCiObservationAdapter.cs",
+                AdapterPath,
+            ],
             SourcesContaining("\"graphql\""));
     }
 

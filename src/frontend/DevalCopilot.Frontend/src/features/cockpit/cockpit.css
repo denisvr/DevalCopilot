@@ -1545,6 +1545,52 @@
   padding-left: 0.5rem;
 }
 
+.dc-github-ci {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--dc-border);
+}
+
+.dc-github-ci-body,
+.dc-github-ci-result,
+.dc-github-ci-outcome {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-ci h5,
+.dc-github-ci p {
+  margin: 0;
+}
+
+.dc-github-ci-note,
+.dc-github-ci-state {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-ci-scope,
+.dc-github-ci-observation,
+.dc-github-ci-bound {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-github-ci-scope dd,
+.dc-github-ci-observation dd,
+.dc-github-ci-bound dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dc-github-ci-state[data-status='Unavailable'] {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}
+
 .dc-github-binding {
   display: grid;
   gap: 0.35rem;

@@ -140,6 +140,10 @@
   repository identity of a recorded observation target on explicit request (additive; one protected POST and bodyless GET of an immutable, human-confirmed binding
   of the opaque repository ID, recorded only after a fresh host observation agrees, with one Human event; historical identity evidence only, no permission, branch or
   commit proof, CI approval or publication authority).
+- [ADR-0044](decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md): Observe the check summary of a bound recorded local commit on
+  explicit request (additive; one protected, bodyless, read-only observation of GitHub's point-in-time aggregate check state for the recorded commit, shown only when the
+  freshly observed repository ID equals the ADR-0043 binding and the exact recorded branch points at that commit, through one fixed `gh api graphql` invocation and the stored
+  default authentication; no persistence and no complete check or workflow evidence, required-check approval, permission or publication authority).
 
 ## Product-specific architecture
 
@@ -346,6 +350,21 @@
   `NotRecorded`). The identity port and the node-ID policy moved unchanged to Application `Features/Runs/Ports` and Domain `Features/Projects`. The cockpit adds a
   separate collapsed identity binding region with explicit Show, Load, Check candidate, Bind this repository identity and Close. The record is historical evidence, not
   a current check, permission, branch or commit proof, CI approval or publication authority.
+- [ADR-0044](decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only observation of GitHub's
+  aggregate check state for the recorded commit. The protected, bodyless `GET /api/runs/{runId}/github-ci-observation` (`GetGitHubCiObservationQuery` through the mediator;
+  any request body is refused before dispatch with the fixed 400 `github_ci_observation.body_not_allowed`; an unknown run is the fixed 404
+  `github_ci_observation.not_found`) reads the source, target and binding with the unchanged ADR-0040 and ADR-0043 readers before and after the external call (orphan binding
+  rows and events are `Unavailable`, never `NotRecorded`) and answers a closed `NotRecorded` or `Unavailable` (no fact, nothing invoked), `BindingNotRecorded` (scope only),
+  `CliUnavailable`, `Unknown`, `IdentityChanged` (scope and binding; the other opaque ID is never returned), `RefNotReturned`, `CommitDifferent`, `NoStatusReported` or
+  `StatusReported` (only these four carry an observation; `rollupState` is non-null only for `StatusReported`, exactly one of `ERROR`, `EXPECTED`, `FAILURE`, `PENDING` or
+  `SUCCESS`, and is withheld for a commit that is not the recorded one). The operation-owned port `IGitHubCiObserver` is implemented by `GitHubCiObservationAdapter` on the
+  existing process executor: one fixed `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository> -f ref=refs/heads/<recorded owned branch>`
+  with the ADR-0041 environment, bounds and single-flight slot and a whole-response admission that also proves the ref exactly and admits only a Commit target with an explicit
+  null or exactly `{state}` rollup. The handler validates the whole result again, then compares the opaque ID with the binding and the commit with the recorded commit
+  ordinally, stamps the host clock after the call (earlier than the binding is `Unknown`) and refuses the answer when the scope or binding changed. Nothing is written,
+  persisted or locked. The cockpit adds a separate collapsed commit checks region beside the identity, branch and binding regions with Show, Check (then Recheck) and Close,
+  owned by the committed source and target and each opening, showing inert text and the fixed disclosure. The aggregate is not complete check or workflow evidence,
+  required-check approval, permission or publication authority, and the real installed CLI and schema compatibility remain unverified.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.
