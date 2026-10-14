@@ -153,6 +153,7 @@ public sealed partial class GitHubRepositoryObservationBoundaryTests
             [
                 "DevalCopilot.Infrastructure/Features/Runs/GitHubBranchObservationAdapter.cs",
                 "DevalCopilot.Infrastructure/Features/Runs/GitHubCheckContextsObservationAdapter.cs",
+                "DevalCopilot.Infrastructure/Features/Runs/GitHubCheckRunOutputObservationAdapter.cs",
                 "DevalCopilot.Infrastructure/Features/Runs/GitHubCiObservationAdapter.cs",
                 AdapterPath,
             ],

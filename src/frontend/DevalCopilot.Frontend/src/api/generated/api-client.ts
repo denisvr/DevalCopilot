@@ -2402,6 +2402,70 @@ export class GetGitHubCiObservationEndpointClient {
     }
 }
 
+export class GetGitHubCheckRunOutputObservationEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitHubCheckRunOutputObservation(runId: string, checkRunId: string | null | undefined): Promise<GetGitHubCheckRunOutputObservationResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-check-run-output-observation?";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (checkRunId !== undefined && checkRunId !== null)
+            url_ += "checkRunId=" + encodeURIComponent("" + checkRunId) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitHubCheckRunOutputObservation(_response);
+        });
+    }
+
+    protected processGetGitHubCheckRunOutputObservation(response: Response): Promise<GetGitHubCheckRunOutputObservationResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetGitHubCheckRunOutputObservationResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetGitHubCheckRunOutputObservationResponse>(null as any);
+    }
+}
+
 export class GetGitHubCheckContextsObservationEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -9471,6 +9535,266 @@ export class GitHubCiRefResponse implements IGitHubCiRefResponse {
 export interface IGitHubCiRefResponse {
     branchName?: string;
     commitSha?: string;
+}
+
+export class GetGitHubCheckRunOutputObservationResponse implements IGetGitHubCheckRunOutputObservationResponse {
+    runId?: string;
+    checkRunId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    binding?: GitHubRepositoryIdentityBindingResponse | undefined;
+    observation?: GitHubCheckRunOutputObservationResponse | undefined;
+
+    constructor(data?: IGetGitHubCheckRunOutputObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.checkRunId = _data["checkRunId"];
+            this.status = _data["status"];
+            this.source = _data["source"] ? GitHubObservationSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubObservationScopeResponse.fromJS(_data["target"]) : undefined as any;
+            this.binding = _data["binding"] ? GitHubRepositoryIdentityBindingResponse.fromJS(_data["binding"]) : undefined as any;
+            this.observation = _data["observation"] ? GitHubCheckRunOutputObservationResponse.fromJS(_data["observation"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetGitHubCheckRunOutputObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitHubCheckRunOutputObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["checkRunId"] = this.checkRunId;
+        data["status"] = this.status;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        data["binding"] = this.binding ? this.binding.toJSON() : undefined as any;
+        data["observation"] = this.observation ? this.observation.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetGitHubCheckRunOutputObservationResponse {
+    runId?: string;
+    checkRunId?: string;
+    status?: string;
+    source?: GitHubObservationSourceResponse | undefined;
+    target?: GitHubObservationScopeResponse | undefined;
+    binding?: GitHubRepositoryIdentityBindingResponse | undefined;
+    observation?: GitHubCheckRunOutputObservationResponse | undefined;
+}
+
+export class GitHubCheckRunOutputObservationResponse implements IGitHubCheckRunOutputObservationResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    ref?: GitHubCheckRunOutputRefResponse | undefined;
+    checkRun?: GitHubCheckRunOutputCheckRunResponse | undefined;
+
+    constructor(data?: IGitHubCheckRunOutputObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.repositoryNodeId = _data["repositoryNodeId"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.observedAtUtc = _data["observedAtUtc"] ? new Date(_data["observedAtUtc"].toString()) : undefined as any;
+            this.ref = _data["ref"] ? GitHubCheckRunOutputRefResponse.fromJS(_data["ref"]) : undefined as any;
+            this.checkRun = _data["checkRun"] ? GitHubCheckRunOutputCheckRunResponse.fromJS(_data["checkRun"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubCheckRunOutputObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubCheckRunOutputObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["repositoryNodeId"] = this.repositoryNodeId;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["observedAtUtc"] = this.observedAtUtc ? this.observedAtUtc.toISOString() : undefined as any;
+        data["ref"] = this.ref ? this.ref.toJSON() : undefined as any;
+        data["checkRun"] = this.checkRun ? this.checkRun.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubCheckRunOutputObservationResponse {
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    ref?: GitHubCheckRunOutputRefResponse | undefined;
+    checkRun?: GitHubCheckRunOutputCheckRunResponse | undefined;
+}
+
+export class GitHubCheckRunOutputRefResponse implements IGitHubCheckRunOutputRefResponse {
+    branchName?: string;
+    commitSha?: string;
+
+    constructor(data?: IGitHubCheckRunOutputRefResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.branchName = _data["branchName"];
+            this.commitSha = _data["commitSha"];
+        }
+    }
+
+    static fromJS(data: any): GitHubCheckRunOutputRefResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubCheckRunOutputRefResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["branchName"] = this.branchName;
+        data["commitSha"] = this.commitSha;
+        return data;
+    }
+}
+
+export interface IGitHubCheckRunOutputRefResponse {
+    branchName?: string;
+    commitSha?: string;
+}
+
+export class GitHubCheckRunOutputCheckRunResponse implements IGitHubCheckRunOutputCheckRunResponse {
+    id?: string;
+    checkSuiteId?: string;
+    commitSha?: string;
+    name?: string;
+    status?: string;
+    conclusion?: string | undefined;
+    output?: GitHubCheckRunOutputTextResponse | undefined;
+
+    constructor(data?: IGitHubCheckRunOutputCheckRunResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.checkSuiteId = _data["checkSuiteId"];
+            this.commitSha = _data["commitSha"];
+            this.name = _data["name"];
+            this.status = _data["status"];
+            this.conclusion = _data["conclusion"];
+            this.output = _data["output"] ? GitHubCheckRunOutputTextResponse.fromJS(_data["output"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubCheckRunOutputCheckRunResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubCheckRunOutputCheckRunResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["checkSuiteId"] = this.checkSuiteId;
+        data["commitSha"] = this.commitSha;
+        data["name"] = this.name;
+        data["status"] = this.status;
+        data["conclusion"] = this.conclusion;
+        data["output"] = this.output ? this.output.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubCheckRunOutputCheckRunResponse {
+    id?: string;
+    checkSuiteId?: string;
+    commitSha?: string;
+    name?: string;
+    status?: string;
+    conclusion?: string | undefined;
+    output?: GitHubCheckRunOutputTextResponse | undefined;
+}
+
+export class GitHubCheckRunOutputTextResponse implements IGitHubCheckRunOutputTextResponse {
+    title?: string | undefined;
+    summary?: string | undefined;
+    text?: string | undefined;
+
+    constructor(data?: IGitHubCheckRunOutputTextResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.title = _data["title"];
+            this.summary = _data["summary"];
+            this.text = _data["text"];
+        }
+    }
+
+    static fromJS(data: any): GitHubCheckRunOutputTextResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubCheckRunOutputTextResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["title"] = this.title;
+        data["summary"] = this.summary;
+        data["text"] = this.text;
+        return data;
+    }
+}
+
+export interface IGitHubCheckRunOutputTextResponse {
+    title?: string | undefined;
+    summary?: string | undefined;
+    text?: string | undefined;
 }
 
 export class GetGitHubCheckContextsObservationResponse implements IGetGitHubCheckContextsObservationResponse {

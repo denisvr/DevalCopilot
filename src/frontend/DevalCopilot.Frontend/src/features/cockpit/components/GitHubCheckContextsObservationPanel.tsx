@@ -4,6 +4,7 @@ import type { CheckContextEntry } from '../gitHubCheckContextsObservation'
 import type { ObservationScope, ObservationSource } from '../gitHubObservationTarget'
 import { useGitHubCheckContextsObservation } from '../hooks/useGitHubCheckContextsObservation'
 import { toUtcText } from '../utcText'
+import { GitHubCheckRunOutputPanel } from './GitHubCheckRunOutputPanel'
 
 const CHECK_NOTE =
   'Check queries GitHub (github.com) through the GitHub CLI, using its default stored authentication, for exactly the recorded owner and repository, the recorded branch and the repository identity bound for this target. The host reads that binding itself on every check; nothing another region showed is reused. Only the repository ID, its names, the commit that branch points at and at most 50 of the checks and statuses GitHub lists for that commit are read: their kind, ID, name, status, conclusion and check suite ID. A reading is only what GitHub returned at that moment and says nothing about the future. Nothing is checked until you ask, and nothing is repeated automatically.'
@@ -20,7 +21,15 @@ interface GitHubCheckContextsObservationPanelProps {
   target: ObservationScope
 }
 
-function Entry({ entry }: { entry: CheckContextEntry }) {
+interface EntryProps {
+  entry: CheckContextEntry
+  source: ObservationSource
+  target: ObservationScope
+  /** The contexts reading this entry belongs to; a new reading ends the output region of its check runs. */
+  parent: object
+}
+
+function Entry({ entry, source, target, parent }: EntryProps) {
   return (
     <li data-kind={entry.kind}>
       <dl className="dc-github-contexts-entry">
@@ -41,6 +50,9 @@ function Entry({ entry }: { entry: CheckContextEntry }) {
           </>
         ) : null}
       </dl>
+      {entry.kind === 'CheckRun' ? (
+        <GitHubCheckRunOutputPanel source={source} target={target} checkRunId={entry.id} parent={parent} />
+      ) : null}
     </li>
   )
 }
@@ -151,7 +163,7 @@ export function GitHubCheckContextsObservationPanel({ source, target }: GitHubCh
               {reading.status === 'ContextsReported' && reading.contexts.length > 0 ? (
                 <ol className="dc-github-contexts-entries">
                   {reading.contexts.map((entry) => (
-                    <Entry key={entry.id} entry={entry} />
+                    <Entry key={entry.id} entry={entry} source={source} target={target} parent={reading} />
                   ))}
                 </ol>
               ) : null}

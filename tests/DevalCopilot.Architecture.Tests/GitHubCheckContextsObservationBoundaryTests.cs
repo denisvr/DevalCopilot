@@ -19,6 +19,8 @@ public sealed partial class GitHubCheckContextsObservationBoundaryTests
     private const string NodeIdPolicy = "DevalCopilot.Domain/Features/Projects/GitHubRepositoryNodeIdPolicy.cs";
     private const string BranchPolicy = "DevalCopilot.Application/Features/Runs/Queries/GetGitHubBranchObservation/GitHubOwnedBranchNamePolicy.cs";
     private const string ContextsPolicy = QueryFolder + "/GitHubCheckContextsPolicy.cs";
+    private const string RunOutputPolicy =
+        "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCheckRunOutputObservation/GitHubCheckRunOutputPolicy.cs";
 
     private static string BackendRoot()
     {
@@ -190,7 +192,10 @@ public sealed partial class GitHubCheckContextsObservationBoundaryTests
         }
 
         Assert.Equal(
-            ["DevalCopilot.Infrastructure/Features/Runs/GitHubCheckContextsObservationAdapter.cs"],
+            [
+                "DevalCopilot.Infrastructure/Features/Runs/GitHubCheckContextsObservationAdapter.cs",
+                "DevalCopilot.Infrastructure/Features/Runs/GitHubCheckRunOutputObservationAdapter.cs",
+            ],
             SourcesContaining("new StreamingOutputRedactor()").Where(path => path.Contains("Runs/", StringComparison.Ordinal)));
 
         Assert.Contains(AdapterPath, SourcesContaining("\"graphql\""));
@@ -237,8 +242,8 @@ public sealed partial class GitHubCheckContextsObservationBoundaryTests
         }
 
         // The literal enumerations, the identifier alphabet and the label rules exist once, in the policy, and nowhere else.
-        Assert.Equal([ContextsPolicy], SourcesContaining("\"IN_PROGRESS\""));
-        Assert.Equal([ContextsPolicy], SourcesContaining("\"STARTUP_FAILURE\""));
+        Assert.Equal([ContextsPolicy, RunOutputPolicy], SourcesContaining("\"IN_PROGRESS\""));
+        Assert.Equal([ContextsPolicy, RunOutputPolicy], SourcesContaining("\"STARTUP_FAILURE\""));
         Assert.Contains("UnicodeCategory.Format", CodeOf(ContextsPolicy), StringComparison.Ordinal);
         Assert.DoesNotContain("UnicodeCategory", CodeOf(AdapterPath), StringComparison.Ordinal);
         Assert.DoesNotContain("UnicodeCategory", CodeOf(Handler), StringComparison.Ordinal);

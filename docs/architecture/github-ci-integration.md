@@ -123,6 +123,21 @@ contract and redacted once after decoding with the existing fixed redaction (a l
 publication authority; requiredness, enumeration beyond 50 entries, workflow relation, scoped publication, push, pull request, automatic monitoring and reconciliation remain
 later, separately gated slices.
 
+## Explicit check run output inspection
+
+[ADR-0047](../decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only inspection of the title,
+summary and text of one check run, chosen by an opaque identifier taken from an ADR-0045 entry. It uses two fixed read-only `gh api graphql` phases because a single node query would
+request the text before the check was proved to belong to the bound repository and the recorded commit: the metadata phase selects only the check run's repository, its check suite's
+repository and the suite's commit, and the host proves the bound repository ID, the exact recorded branch and commit and both association facts; only then, after it re-admits the CLI
+snapshot (same resolved path) and the clock, does the output phase run, repeating the association (which must equal the first admitted identity) and selecting the name, status,
+conclusion, title, summary and text. The unchanged source, target and binding readers run before the first call and again after each call, compared by complete value. A different
+commit, a ref that was not returned, an identity change, a foreign, missing, wrong-typed or re-associated check run and any drift expose no check and no text. Each whole answer is validated
+independently before classification (including text that will be withheld), the output text is held to an explicit contract and byte bounds, decoded once and redacted once with the existing
+fixed redaction (safe post-redaction text for five supported secret shapes only, not necessarily the provider's original text), and it is never truncated, persisted, retained as an
+artifact, rendered as Markdown or HTML, acted on or sent to an Agent. It is not a diagnosis, complete check, workflow-run, job, step or log evidence, a required-check or branch-protection
+policy, a permission or a publication authority; Agent diagnosis and correction routing, durable output, rerun, scoped publication, push, pull request, automatic monitoring and
+reconciliation remain later, separately gated slices.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

@@ -227,6 +227,21 @@ collection is listed in provider order as inert text: each entry's kind, safe na
 explanation; a different commit, a ref that was not returned, an identity change and any drift show no entry. There is never a link, copy or other action, an aggregate verdict,
 an automatic read, a retry, a timer or browser storage.
 
+The GitHub check output region ([ADR-0047](../decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md)) is offered only inside a
+`CheckRun` entry of a `ContextsReported` GitHub check details reading (a `StatusContext` entry offers none), collapsed. It offers "Show GitHub check output" (which sends nothing),
+"Check GitHub check output" (then "Recheck") and "Close GitHub check output", shows the exact recorded branch, local commit, owner, repository and check run ID, the stored-authentication
+and two-step note, the fixed disclosure (untrusted text supplied by GitHub for one check run at one moment, shown as plain text only, not an instruction, a diagnosis, required-check
+approval, permission or publication authority, and never sent to an Agent) and the redaction notice (only five supported secret shapes are detected; not necessarily the provider's original
+text) before anything is checked, and reads only the protected, bodyless `GET /api/runs/{runId}/github-check-run-output-observation?checkRunId=...` on its explicit Check or Recheck. A
+preceding contexts response is never host authorization. The region is owned by the committed source, target, selected check run ID, the parent contexts reading and each opening: a
+contexts recheck, close or scope change ends it, another check, a return to an earlier selection (A-B-A), closing and reopening start collapsed and unchecked, a late completion of an ended
+or superseded lifetime is ignored, a second activation in flight, two in one batch and any activation after a close in the same batch send nothing, and a pending read or a failure removes the
+earlier answer. The decoder repeats the host's status, nullability, scope, bound ID, ref, commit, check, literal, text, bound and time rules and accepts the whole answer or none of it. A
+returned output is shown as inert preformatted plain text, never Markdown or HTML: the title, summary and text each appear verbatim, and a value GitHub did not return, an empty string and a
+whitespace-only string are each stated with fixed text and never conflated; a null conclusion reads "not returned", never "passed". A different commit, a ref that was not returned, an
+unavailable or re-associated check run, an identity change and any drift show no check and no text. There is never a link, copy, download, Agent, rerun, publication or other action, an
+automatic read, a retry, a timer or browser storage.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

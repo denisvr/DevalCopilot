@@ -27,6 +27,7 @@ using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubBranchObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckContextsObservation;
+using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckRunOutputObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCiObservation;
 using DevalCopilot.Application.Security.Ports;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
@@ -168,6 +169,11 @@ builder.Services.AddSingleton<IGitHubCiObserver, GitHubCiObservationAdapter>();
 // recorded branch ref and the first bounded page of check and status contexts of that commit, composed on IProcessExecutionAdapter above.
 // A singleton on purpose: the instance owns its single in-flight slot.
 builder.Services.AddSingleton<IGitHubCheckContextsObserver, GitHubCheckContextsObservationAdapter>();
+
+// Explicit GitHub check-run output inspection (ADR-0047): two fixed read-only `gh api graphql` queries (association metadata, then the
+// output of the admitted check run) composed on IProcessExecutionAdapter above. A singleton on purpose: the instance owns its single
+// in-flight slot and holds no state between the two phases.
+builder.Services.AddSingleton<IGitHubCheckRunOutputObserver, GitHubCheckRunOutputObservationAdapter>();
 
 // Workspace preparation: physical identity resolution, worktree creation, and the ownership
 // marker are each a narrow, independent Infrastructure capability behind their own port.

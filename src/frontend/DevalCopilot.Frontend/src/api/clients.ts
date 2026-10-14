@@ -82,6 +82,7 @@ import {
   GetGitHubBranchObservationEndpointClient,
   GetGitHubCiObservationEndpointClient,
   GetGitHubCheckContextsObservationEndpointClient,
+  GetGitHubCheckRunOutputObservationEndpointClient,
   BindGitHubRepositoryIdentityEndpointClient,
   GetGitHubRepositoryIdentityBindingEndpointClient,
 } from './generated/api-client'
@@ -173,6 +174,8 @@ export const gitHubBranchObservationClient = () => new GetGitHubBranchObservatio
 export const gitHubCiObservationClient = () => new GetGitHubCiObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubCheckContextsObservationClient = () =>
   new GetGitHubCheckContextsObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubCheckRunOutputObservationClient = () =>
+  new GetGitHubCheckRunOutputObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const bindGitHubRepositoryIdentityClient = () => new BindGitHubRepositoryIdentityEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubRepositoryIdentityBindingClient = () =>
   new GetGitHubRepositoryIdentityBindingEndpointClient(getApiBaseUrl(), authenticatedHttp)
@@ -291,6 +294,11 @@ export type {
   GitHubCheckContextsObservationResponse,
   GitHubCheckContextsRefResponse,
   GitHubCheckContextResponse,
+  GetGitHubCheckRunOutputObservationResponse,
+  GitHubCheckRunOutputObservationResponse,
+  GitHubCheckRunOutputRefResponse,
+  GitHubCheckRunOutputCheckRunResponse,
+  GitHubCheckRunOutputTextResponse,
   RecordGitHubObservationTargetResponse,
 } from './generated/api-client'
 export {

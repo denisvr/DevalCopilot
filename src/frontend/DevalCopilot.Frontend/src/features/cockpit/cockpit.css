@@ -1647,6 +1647,71 @@
   padding-left: 0.5rem;
 }
 
+.dc-github-output {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px dashed var(--dc-border);
+}
+
+.dc-github-output-body,
+.dc-github-output-result,
+.dc-github-output-outcome {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-output p {
+  margin: 0;
+}
+
+.dc-github-output-note,
+.dc-github-output-state {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-output-scope,
+.dc-github-output-observation,
+.dc-github-output-bound {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-github-output-scope dd,
+.dc-github-output-observation dd,
+.dc-github-output-bound dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.dc-github-output-field {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dc-github-output-field h6 {
+  margin: 0;
+}
+
+.dc-github-output-text {
+  margin: 0;
+  max-height: 24rem;
+  overflow: auto;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--dc-border);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.dc-github-output-state[data-status='Unavailable'] {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}
+
 .dc-github-binding {
   display: grid;
   gap: 0.35rem;

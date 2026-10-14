@@ -152,6 +152,11 @@
 - [ADR-0046](decisions/0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md): Prepare delivery-lineage API tests from a class-owned sealed SQLite
   snapshot (additive test infrastructure for one endpoint class only: one run-local seed of the unchanged production lineage, sealed with SQLite's backup facility and copied per
   fact, with isolation evidence; no production, public-contract, client or dependency change).
+- [ADR-0047](decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md): Inspect the output of one GitHub check run of a
+  bound recorded local commit on explicit request (additive; one protected, bodyless, read-only inspection of the title, summary and text of one check run in two fixed
+  `gh api graphql` phases (association metadata, then output only after the host admitted the association), shown as untrusted post-redaction plain text only when the bound
+  repository ID, the exact recorded branch and the recorded commit all agree in both phases; no persistence, diagnosis, Agent input, complete check or workflow evidence,
+  required-check approval, permission or publication authority).
 
 ## Product-specific architecture
 
@@ -392,6 +397,24 @@
   written, persisted or locked. The cockpit adds a separate collapsed "GitHub check details" region beside the commit checks region with Show, Check (then Recheck) and Close,
   owned by the committed source and target and each opening, showing inert text and the fixed disclosure. The collection is not complete check or workflow evidence, workflow
   history, required-check approval, permission or publication authority, and the real installed CLI and schema compatibility remain unverified.
+- [ADR-0047](decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one further explicit, read-only inspection of
+  the title, summary and text of one check run of the recorded commit. The protected, bodyless `GET /api/runs/{runId}/github-check-run-output-observation?checkRunId=...`
+  (`GetGitHubCheckRunOutputObservationQuery` through the mediator; exactly one query key `checkRunId` with 1 to 256 ASCII identifier characters, otherwise the fixed 400
+  `github_check_run_output_observation.invalid_request`; any request body is refused first with the fixed 400 `github_check_run_output_observation.body_not_allowed`; an unknown run is
+  the fixed 404 `github_check_run_output_observation.not_found`) reads the source, target and binding with the unchanged ADR-0040 and ADR-0043 readers before the metadata call and
+  again, by complete value, after each of its two external calls. It answers one of eleven closed statuses (`NotRecorded`, `Unavailable`, `BindingNotRecorded`, `CliUnavailable`,
+  `Unknown`, `IdentityChanged`, `RefNotReturned`, `CommitDifferent`, `CheckRunUnavailable`, `OutputNotReturned`, `OutputReported`) with exactly their documented facts. The operation-owned
+  port `IGitHubCheckRunOutputObserver` (`ObserveMetadataAsync`, `ObserveOutputAsync`) is implemented by the stateless `GitHubCheckRunOutputObservationAdapter` on the existing process
+  executor: one fixed `gh api graphql` invocation per phase (the ADR-0044 argv shape plus `-f id=`), the ADR-0041 environment and a non-queued single-flight slot per invocation,
+  15 seconds each, the metadata phase with the 8 and 16 KiB caps and only the output phase with 256 KiB per stream, 512 KiB combined and a JSON depth of 8. The output phase is requested
+  only after the handler proved the bound repository ID, the exact recorded branch and commit and the requested check run's repository, suite and suite commit, re-admitted the CLI
+  snapshot on the same resolved path and found the clock not before the binding; it repeats the association, which must equal the first admitted identity. Only the check name, title,
+  summary and text are decoded (once), held to the text contract and byte bounds (title 256 B, summary 8 KiB, text 16 KiB, trio 24 KiB, tab, line feed and carriage return allowed), redacted
+  once with the unchanged fixed redaction and held to the contract again: the text is untrusted, safe post-redaction text, not necessarily the provider's original text, and only five
+  secret shapes are detected. Nothing is written, persisted, retained or sent to an Agent. The cockpit adds, inside each `CheckRun` entry of a `ContextsReported` reading, a collapsed
+  "GitHub check output" region (Show sends nothing; explicit Check, Recheck and Close) owned by the committed source, target, selected check run, parent reading and each opening, showing
+  inert plain text and the fixed untrusted-text disclosure. The output is not a diagnosis, complete check or workflow evidence, required-check approval, permission or publication
+  authority, and the real installed CLI and schema compatibility remain unverified.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.
@@ -560,7 +583,9 @@ source repositories and connected systems.
   under [ADR-0046](decisions/0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md)
   and the [validation policy](roadmap/validation-policy.md), seed it once per class
   execution and give each fact its own SQLite backup; no other form of shared test
-  data or cross-run cache is approved.
+  data or cross-run cache is approved. [ADR-0047](decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md)
+  extends that approval narrowly to one further endpoint class through feature-owned composition of the same producer, with its own fixture instance and the new observer in
+  the sealed-scene refusal inventory; it migrates no other class.
 - Agent, Git, GitHub, and local process adapters use deterministic executable
   test doubles for contract and failure-path tests. Automated tests do not
   call real providers.

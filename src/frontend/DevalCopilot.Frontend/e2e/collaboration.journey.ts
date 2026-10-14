@@ -25,7 +25,7 @@ import { trackedDeliveryProblems } from './journey/trackedDelivery'
 import { planIdentityProblems } from './journey/planIdentity'
 import { canonicalSnapshot, EXPECTED_MODEL_LIMITS, renderedRows, responseMember } from './journey/modelContextLimits'
 import type { ExpectedModelLimit } from './journey/modelContextLimits'
-import { injectJourneySession, registerProject, selectProject, workflowLines } from './journey/journeySupport'
+import { injectJourneySession, readJson, registerProject, selectProject, workflowLines } from './journey/journeySupport'
 
 // The browser-driven local collaboration proof (Increment 4): ONE explicit manual journey through the rendered controls of the
 // production frontend, over the real generated client, MVC authentication, mediator, SQLite, supervisors, provider adapters, process
@@ -49,6 +49,7 @@ const BRANCH_PATH = /\/api\/runs\/[^/]+\/github-branch-observation$/
 const BINDING_PATH = /\/api\/runs\/[^/]+\/github-repository-identity-binding$/
 const CI_PATH = /\/api\/runs\/[^/]+\/github-ci-observation$/
 const CONTEXTS_PATH = /\/api\/runs\/[^/]+\/github-check-contexts-observation$/
+const CHECK_RUN_OUTPUT_PATH = /\/api\/runs\/[^/]+\/github-check-run-output-observation$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
@@ -1576,6 +1577,82 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const contextsLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
   for (const secret of [deliveryBranch, remoteCommit, deliveredCommit, bindingNode, observationOwner, observationRepository, ...fixtureStrings]) {
     expect(contextsLog).not.toContain(secret)
+  }
+
+  // 14i. The explicit GitHub check-run output inspection (ADR-0047), through the production host, MVC authentication, mediator, the unchanged
+  // source, target and binding readers, the REAL check-run adapter and the REAL process executor, with only the `gh` executable the owned
+  // double. The same FIXED remote commit that is never the recorded one keeps this journey on the CommitDifferent path: the contexts
+  // reading above shows no check-run entry, so the rendered cockpit offers no output region, and the ONE explicit check here is an
+  // authenticated request the journey makes itself. It proves that this one request costs exactly one new HTTP request and exactly one
+  // metadata `gh` invocation, that the output query is never run and no output text, check or foreign identity reaches the wire, that
+  // nothing is written, and that a reload or a close starts no work. It does NOT prove a matching-commit inspection (that is proved at the
+  // adapter, production-host and UI boundaries; no recorded-SHA discovery is invented here) and nothing about how an installed GitHub CLI
+  // formats a GraphQL answer, stored authentication, a real repository, GitHub itself, required checks, permission or publication.
+  const outputRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && CHECK_RUN_OUTPUT_PATH.test(new URL(request.url()).pathname)) {
+      outputRequests.push(request.url())
+    }
+  })
+  const metadataCalls = () =>
+    readInvocations(mark).filter((entry) => entry.role === 'gh' && entry.kind === 'check-run-metadata-observation').length
+  const outputCalls = () =>
+    readInvocations(mark).filter((entry) => entry.role === 'gh' && entry.kind === 'check-run-output-observation').length
+  const outputFixtureStrings = ['FX-OUTPUT-TITLE-001', 'FX-OUTPUT-SUMMARY-002', 'FX-OUTPUT-TEXT-003', 'FX-SUITE-001', 'Journey fixture build / unit']
+  const selectedCheck = 'FX-CHECK-ID-001'
+  const contextsBeforeOutput = contextsCalls()
+  expect(metadataCalls()).toBe(0)
+  expect(outputCalls()).toBe(0)
+  await expect(checkDetails.locator('.dc-github-output')).toHaveCount(0)
+  await page.waitForTimeout(1_000)
+  expect(outputRequests).toEqual([])
+  expect(metadataCalls()).toBe(0)
+
+  const outputWire = await readJson<Record<string, unknown>>(
+    page,
+    `/api/runs/${recordedBody.runId}/github-check-run-output-observation?checkRunId=${encodeURIComponent(selectedCheck)}`,
+    'check run output observation',
+  )
+  const outputBodyText = JSON.stringify(outputWire)
+  expect(Object.keys(outputWire).sort()).toEqual(['binding', 'checkRunId', 'observation', 'runId', 'source', 'status', 'target'])
+  expect(outputWire.runId).toBe(recordedBody.runId)
+  expect(outputWire.checkRunId).toBe(selectedCheck)
+  expect(outputWire.status).toBe('CommitDifferent')
+  expect(outputWire.source).toEqual(recordedBody.source)
+  expect(outputWire.target).toEqual(recordedBody.target)
+  expect(outputWire.binding).toEqual(boundBody.binding)
+  const outputObservation = outputWire.observation as Record<string, unknown>
+  expect(Object.keys(outputObservation).sort()).toEqual(['checkRun', 'observedAtUtc', 'owner', 'ref', 'repository', 'repositoryNodeId'])
+  expect(outputObservation.ref).toEqual({ branchName: deliveryBranch, commitSha: remoteCommit })
+  expect(outputObservation.checkRun).toBeNull()
+  expect(Date.parse(String(outputObservation.observedAtUtc))).toBeGreaterThanOrEqual(Date.parse(boundBody.binding.recordedAtUtc))
+  // The double supplied an association and output for a commit that is not the recorded one: no check, suite or output text reaches the wire.
+  for (const text of [...outputFixtureStrings, 'COMPLETED', 'FAILURE']) {
+    expect(outputBodyText).not.toContain(text)
+  }
+  expect(metadataCalls()).toBe(1)
+  expect(outputCalls()).toBe(0)
+  expect(contextsCalls()).toBe(contextsBeforeOutput)
+  expectNoSiblingActivity()
+  assertBindingChangedOnlyItsOwnRows()
+  assertNothingElseChanged()
+  expect(data.gitHubRepositoryIdentityBindings()).toEqual(bindingRows)
+  expect(data.gitHubRepositoryIdentityBindingEvents()).toEqual(bindingEvents)
+
+  // A real reload and a close of the contexts region are not reads: nothing requests or invokes anything by itself.
+  await checkDetails.getByRole('button', { name: 'Close GitHub check details', exact: true }).click()
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await page.waitForTimeout(2_000)
+  expect(outputRequests).toEqual([])
+  expect(metadataCalls()).toBe(1)
+  expect(outputCalls()).toBe(0)
+  expect(contextsCalls()).toBe(contextsBeforeOutput)
+
+  // No double call logs a name, branch, commit, identifier or output.
+  const outputLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
+  for (const secret of [deliveryBranch, remoteCommit, deliveredCommit, bindingNode, observationOwner, observationRepository, selectedCheck, ...outputFixtureStrings]) {
+    expect(outputLog).not.toContain(secret)
   }
 
   const afterDelivery = {

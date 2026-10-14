@@ -115,6 +115,11 @@ supersedes it.
 - [ADR-0046: Prepare delivery-lineage API tests from a class-owned sealed SQLite snapshot](0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md)
   (additive test infrastructure for one endpoint class only; one run-local seed of the unchanged production lineage sealed with SQLite's backup facility and copied per fact, with
   isolation evidence; no production, contract, client or dependency change)
+- [ADR-0047: Inspect the output of one GitHub check run of a bound recorded local commit on explicit request](0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md)
+  (additive; one protected, bodyless, read-only inspection of the title, summary and text of one check run, shown only after a first fixed `gh api graphql` phase proved that the
+  check belongs to the bound repository and recorded commit and a second fixed phase repeated that proof; untrusted, post-redaction plain text, never persisted, interpreted or sent
+  to an Agent, and never complete check or workflow evidence, a diagnosis, required-check approval, permission or publication authority; its one extension of ADR-0046 is a
+  feature-owned fixture instance for its own endpoint class)
 
 ## Status values
 

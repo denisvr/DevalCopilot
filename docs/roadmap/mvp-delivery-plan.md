@@ -364,6 +364,10 @@ publication, automatic monitoring and reconciliation remain open.
 (at most 50) of check-run and commit-status metadata GitHub returns for the recorded commit, shown only under the same identity and exact-branch conditions (not complete check or
 workflow evidence, workflow history, required-check approval, permission or publication authority); required-check policy, enumeration beyond 50 entries, workflow relation,
 failed-check diagnosis, scoped publication, automatic monitoring and reconciliation remain open.
+[ADR-0047](../decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only, two-phase inspection of the
+title, summary and text of one check run of the recorded commit, shown as untrusted post-redaction plain text only after the host proved the check's association with the bound repository and
+the recorded commit (not a diagnosis, complete check or workflow evidence, a log, required-check approval, permission or publication authority, and never persisted or sent to an Agent);
+required-check policy, workflow and log enumeration, durable output, Agent diagnosis and correction routing, rerun, scoped publication, automatic monitoring and reconciliation remain open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

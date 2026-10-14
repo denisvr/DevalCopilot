@@ -3,12 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   gitHubBranchObservationClient,
   gitHubCheckContextsObservationClient,
+  gitHubCheckRunOutputObservationClient,
   gitHubCiObservationClient,
   gitHubObservationTargetClient,
   gitHubRepositoryIdentityBindingClient,
   gitHubRepositoryObservationClient,
 } from '../../../api/clients'
-import type { GetGitHubCheckContextsObservationResponse, GetGitHubObservationTargetResponse } from '../../../api/clients'
+import type {
+  GetGitHubCheckContextsObservationResponse,
+  GetGitHubCheckRunOutputObservationResponse,
+  GetGitHubObservationTargetResponse,
+} from '../../../api/clients'
 import type { ObservationScope, ObservationSource } from '../gitHubObservationTarget'
 import { GitHubObservationTargetPanel } from './GitHubObservationTargetPanel'
 import { GitHubCheckContextsObservationPanel } from './GitHubCheckContextsObservationPanel'
@@ -17,6 +22,7 @@ vi.mock('../../../api/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/clients')>()),
   gitHubObservationTargetClient: vi.fn(),
   gitHubCheckContextsObservationClient: vi.fn(),
+  gitHubCheckRunOutputObservationClient: vi.fn(),
   gitHubCiObservationClient: vi.fn(),
   gitHubBranchObservationClient: vi.fn(),
   gitHubRepositoryObservationClient: vi.fn(),
@@ -191,7 +197,7 @@ describe('GitHubCheckContextsObservationPanel', () => {
     expect(get).toHaveBeenCalledWith('run-a')
     const result = region().querySelector('.dc-github-contexts-result')!
     expect(result.getAttribute('data-status')).toBe('ContextsReported')
-    expect(entries().map((entry) => entry.textContent)).toEqual([
+    expect(entries().map((entry) => entry.querySelector('dl')!.textContent)).toEqual([
       'KindCheckRunNamebuildIDCR_bStatusCOMPLETEDConclusionFAILURECheck suite IDCS_1',
       'KindStatusContextNamebuildIDSC_aStatusERROR',
       'KindCheckRunNamebuildIDCR_aStatusIN_PROGRESSConclusionnot returnedCheck suite IDCS_1',
@@ -204,7 +210,12 @@ describe('GitHubCheckContextsObservationPanel', () => {
     expect(result.textContent).toContain('2026-10-12T21:00:00.000Z')
     expect(result.textContent).not.toMatch(/\b(passed|approved|ready|green)\b/i)
     expect(region().querySelector('a, input, textarea, [contenteditable], img, script')).toBeNull()
-    expect(within(region()).getAllByRole('button')).toHaveLength(2)
+    // The contexts region's own actions are still exactly two; only the two check-run entries (never the status context) add one
+    // collapsed output region each (ADR-0047).
+    const own = within(region()).getAllByRole('button').filter((button) => !button.closest('.dc-github-output'))
+    expect(own).toHaveLength(2)
+    expect(entries().map((entry) => entry.querySelector('.dc-github-output') !== null)).toEqual([true, false, true])
+    expect(region().querySelectorAll('.dc-github-output button')).toHaveLength(2)
     expect(check().textContent).toBe('Recheck GitHub check details')
   })
 
@@ -486,7 +497,7 @@ describe('the check details region beside an Available target', () => {
     await click(show())
     await click(check())
     expect(get).toHaveBeenCalledTimes(1)
-    expect(entries().map((entry) => entry.textContent)).toEqual(['KindCheckRunNameunitIDCR_1StatusCOMPLETEDConclusionSUCCESSCheck suite IDCS_1'])
+    expect(entries().map((entry) => entry.querySelector('dl')!.textContent)).toEqual(['KindCheckRunNameunitIDCR_1StatusCOMPLETEDConclusionSUCCESSCheck suite IDCS_1'])
     expect(identity).not.toHaveBeenCalled()
     expect(branch).not.toHaveBeenCalled()
     expect(binding).not.toHaveBeenCalled()
@@ -525,5 +536,167 @@ describe('the check details region beside an Available target', () => {
     expect(within(region()).getAllByRole('button')).toHaveLength(1)
     expect(region().textContent).not.toContain('unit')
     expect(get).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the output region of a check run entry (ADR-0047)', () => {
+  const outputWire = (checkRunId: string, text: string) =>
+    ({
+      ...withBinding,
+      checkRunId,
+      status: 'OutputReported',
+      observation: {
+        repositoryNodeId: NODE_ID,
+        owner: 'OCTO-cat',
+        repository: 'hello.world',
+        observedAtUtc: OBSERVED,
+        ref: { branchName: source.branchName, commitSha: SHA },
+        checkRun: {
+          id: checkRunId,
+          checkSuiteId: 'CS_1',
+          commitSha: SHA,
+          name: 'unit',
+          status: 'COMPLETED',
+          conclusion: 'FAILURE',
+          output: { title: null, summary: null, text },
+        },
+      },
+    }) as unknown as GetGitHubCheckRunOutputObservationResponse
+
+  function installOutput(read: (runId: string, checkRunId: string) => Promise<GetGitHubCheckRunOutputObservationResponse>) {
+    const getGitHubCheckRunOutputObservation = vi.fn(read)
+    vi.mocked(gitHubCheckRunOutputObservationClient).mockReturnValue(
+      { getGitHubCheckRunOutputObservation } as unknown as ReturnType<typeof gitHubCheckRunOutputObservationClient>,
+    )
+    return getGitHubCheckRunOutputObservation
+  }
+
+  const outputRegion = (checkRunId: string) => screen.getByRole('region', { name: `GitHub check output for check run ${checkRunId}` })
+  const outputShow = (checkRunId: string) => within(outputRegion(checkRunId)).getByRole('button', { name: 'Show GitHub check output' })
+  const outputCheck = (checkRunId: string) =>
+    within(outputRegion(checkRunId)).getByRole('button', { name: /^(Check|Recheck) GitHub check output$/ })
+
+  async function openContexts(contexts: unknown[]) {
+    const get = install(() => Promise.resolve(reported(contexts)))
+    render(<GitHubCheckContextsObservationPanel source={source} target={target} />)
+    await click(show())
+    await click(check())
+    return get
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    cleanup()
+  })
+
+  it('is offered only for check runs, collapsed, and neither the contexts reading nor opening it sends any request', async () => {
+    const contexts = await openContexts([run({ id: 'CR_1' }), statusContext({ id: 'SC_1' }), run({ id: 'CR_2' })])
+    const output = installOutput((_runId, checkRunId) => Promise.resolve(outputWire(checkRunId, 'x')))
+
+    expect(region().querySelectorAll('.dc-github-output')).toHaveLength(2)
+    expect(entries()[1].querySelector('.dc-github-output')).toBeNull()
+    expect(within(outputRegion('CR_1')).getAllByRole('button')).toHaveLength(1)
+
+    await click(outputShow('CR_1'))
+    await click(outputShow('CR_2'))
+
+    expect(output).not.toHaveBeenCalled()
+    expect(contexts).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends one request for exactly the selected check run on its own explicit check, shows only that answer and re-reads nothing else', async () => {
+    const contexts = await openContexts([run({ id: 'CR_1', name: 'unit' }), run({ id: 'CR_2', name: 'lint' })])
+    const output = installOutput((_runId, checkRunId) => Promise.resolve(outputWire(checkRunId, `log of ${checkRunId}`)))
+
+    await click(outputShow('CR_2'))
+    await click(outputCheck('CR_2'))
+
+    expect(output).toHaveBeenCalledTimes(1)
+    expect(output).toHaveBeenCalledWith('run-a', 'CR_2')
+    expect(outputRegion('CR_2').querySelector('[data-field="text"]')?.textContent).toBe('log of CR_2')
+    expect(outputRegion('CR_1').textContent).not.toContain('log of')
+    expect(contexts).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats the preceding contexts reading as no authorization: the host answer alone decides what is shown', async () => {
+    await openContexts([run({ id: 'CR_1', name: 'unit' })])
+    const unavailable = {
+      ...withBinding,
+      checkRunId: 'CR_1',
+      status: 'CheckRunUnavailable',
+      observation: {
+        repositoryNodeId: NODE_ID,
+        owner: 'OCTO-cat',
+        repository: 'hello.world',
+        observedAtUtc: OBSERVED,
+        ref: { branchName: source.branchName, commitSha: SHA },
+        checkRun: null,
+      },
+    } as unknown as GetGitHubCheckRunOutputObservationResponse
+    installOutput(() => Promise.resolve(unavailable))
+
+    await click(outputShow('CR_1'))
+    await click(outputCheck('CR_1'))
+
+    expect(outputRegion('CR_1').textContent).toMatch(/did not show this check run as belonging/)
+    expect(outputRegion('CR_1').querySelector('pre')).toBeNull()
+  })
+
+  it('ends the output region when the contexts are rechecked, and ignores a completion that arrives afterwards', async () => {
+    await openContexts([run({ id: 'CR_1', name: 'unit' })])
+    let release!: (value: GetGitHubCheckRunOutputObservationResponse) => void
+    const output = installOutput(() => new Promise((resolve) => (release = resolve)))
+    await click(outputShow('CR_1'))
+    await click(outputCheck('CR_1'))
+
+    await click(check())
+    await act(async () => release(outputWire('CR_1', 'late output')))
+
+    expect(within(outputRegion('CR_1')).getAllByRole('button')).toHaveLength(1)
+    expect(region().textContent).not.toContain('late output')
+    expect(output).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards an obtained output when the contexts are rechecked or closed and never reads on reopening', async () => {
+    const contexts = await openContexts([run({ id: 'CR_1', name: 'unit' })])
+    const output = installOutput((_runId, checkRunId) => Promise.resolve(outputWire(checkRunId, 'first output')))
+    await click(outputShow('CR_1'))
+    await click(outputCheck('CR_1'))
+    expect(outputRegion('CR_1').textContent).toContain('first output')
+
+    await click(check())
+    expect(outputRegion('CR_1').textContent).not.toContain('first output')
+    expect(within(outputRegion('CR_1')).getAllByRole('button')).toHaveLength(1)
+
+    await click(outputShow('CR_1'))
+    await click(outputCheck('CR_1'))
+    expect(outputRegion('CR_1').textContent).toContain('first output')
+    await click(close())
+    await click(show())
+    await click(check())
+
+    expect(outputRegion('CR_1').textContent).not.toContain('first output')
+    expect(within(outputRegion('CR_1')).getAllByRole('button')).toHaveLength(1)
+    expect(output).toHaveBeenCalledTimes(2)
+    expect(contexts).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps each entry output region independent: one pending read does not block or overwrite another', async () => {
+    await openContexts([run({ id: 'CR_1', name: 'unit' }), run({ id: 'CR_2', name: 'lint' })])
+    const releases = new Map<string, (value: GetGitHubCheckRunOutputObservationResponse) => void>()
+    installOutput((_runId, checkRunId) => new Promise((resolve) => releases.set(checkRunId, resolve)))
+    await click(outputShow('CR_1'))
+    await click(outputShow('CR_2'))
+
+    await click(outputCheck('CR_1'))
+    await click(outputCheck('CR_2'))
+    await act(async () => releases.get('CR_2')!(outputWire('CR_2', 'second finished first')))
+    await act(async () => releases.get('CR_1')!(outputWire('CR_1', 'first finished last')))
+
+    expect(outputRegion('CR_1').querySelector('[data-field="text"]')?.textContent).toBe('first finished last')
+    expect(outputRegion('CR_2').querySelector('[data-field="text"]')?.textContent).toBe('second finished first')
   })
 })

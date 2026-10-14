@@ -5,6 +5,7 @@ using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubBranchObservation;
+using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckRunOutputObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCiObservation;
 using DevalCopilot.Infrastructure.Features.Projects;
 using DevalCopilot.Infrastructure.Features.Runs;
@@ -36,6 +37,7 @@ internal static class SealedSceneGuard
         typeof(IGitHubOriginObserver),
         typeof(IGitHubBranchObserver),
         typeof(IGitHubCiObserver),
+        typeof(IGitHubCheckRunOutputObserver),
         typeof(ILocalCommitPreparer),
     ];
 

@@ -8,7 +8,9 @@ namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 /// owner and name back with a fixed opaque identifier, and the one fixed read-only branch contract, which additionally echoes the
 /// requested owned branch with a fixed commit that is never the recorded one, the one fixed read-only check contract, which answers the
 /// same ref and fixed commit with a fixed SUCCESS rollup, and the one fixed read-only check-contexts contract, which answers the same ref
-/// and fixed commit with three fictitious entries. It is only a process-boundary double: it reads no
+/// and fixed commit with three fictitious entries, and the two fixed read-only check-run contracts (association metadata, then output),
+/// which answer the same ref and fixed commit with an association for any requested identifier (and, for the output contract, three
+/// fictitious output strings). It is only a process-boundary double: it reads no
 /// credential, performs no network
 /// call and does not evaluate the selector or the GraphQL query, so it proves nothing about how an installed GitHub CLI formats or
 /// filters its output or how GitHub answers. Only the status, identity, branch and check calls are logged (kind only, never an argument), so version
@@ -37,6 +39,27 @@ public static partial class GhRole
         + "{totalCount pageInfo{hasNextPage} nodes{__typename ... on CheckRun{id name status conclusion checkSuite{id}} "
         + "... on StatusContext{id context state}}}}}}}}}";
 
+    private const string CheckRunMetadataQuery =
+        "query=query($owner:String!,$name:String!,$ref:String!,$id:ID!){repository(owner:$owner,name:$name){id name nameWithOwner "
+        + "ref(qualifiedName:$ref){name prefix target{__typename ... on Commit{oid}}}} node(id:$id){__typename ... on CheckRun{id "
+        + "repository{id} checkSuite{id repository{id} commit{oid}}}}}";
+
+    private const string CheckRunOutputQuery =
+        "query=query($owner:String!,$name:String!,$ref:String!,$id:ID!){repository(owner:$owner,name:$name){id name nameWithOwner "
+        + "ref(qualifiedName:$ref){name prefix target{__typename ... on Commit{oid}}}} node(id:$id){__typename ... on CheckRun{id "
+        + "repository{id} checkSuite{id repository{id} commit{oid}} name status conclusion title summary text}}}";
+
+    /// <summary>Distinctive fictitious output the check-run output contract returns for any requested check run identifier beside the
+    /// unchanged fixed remote commit, so a journey can prove that none of it is ever requested or shown for a commit that is not the
+    /// recorded one.</summary>
+    public const string CheckRunOutputFixtureTitle = "FX-OUTPUT-TITLE-001";
+
+    public const string CheckRunOutputFixtureSummary = "FX-OUTPUT-SUMMARY-002";
+
+    public const string CheckRunOutputFixtureText = "FX-OUTPUT-TEXT-003";
+
+    public const string CheckRunFixtureSuite = "FX-SUITE-001";
+
     /// <summary>Three fictitious, distinctive entries (a repeated check name with a shared suite, and one status) the contexts contract
     /// returns beside the unchanged fixed remote commit, so a journey can prove they are withheld for a commit that is not the recorded one.</summary>
     public const string ContextsFixtureNodes =
@@ -62,6 +85,9 @@ public static partial class GhRole
 
     [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")]
     private static partial Regex RepositoryName();
+
+    [GeneratedRegex("^[A-Za-z0-9_/+=-]{1,256}$")]
+    private static partial Regex CheckRunIdentifier();
 
     public static int Run(IReadOnlyList<string> args, OwnedLocation location)
     {
@@ -154,8 +180,46 @@ public static partial class GhRole
             }
         }
 
+        if (args.Count == 16 && args.Take(IdentityPrefix.Length).SequenceEqual(IdentityPrefix)
+            && (args[7] == CheckRunMetadataQuery || args[7] == CheckRunOutputQuery)
+            && args[8] == "-f" && args[9].StartsWith("owner=", StringComparison.Ordinal) && args[10] == "-f"
+            && args[11].StartsWith("name=", StringComparison.Ordinal) && args[12] == "-f"
+            && args[13].StartsWith("ref=refs/heads/", StringComparison.Ordinal) && args[14] == "-f"
+            && args[15].StartsWith("id=", StringComparison.Ordinal))
+        {
+            var owner = args[9]["owner=".Length..];
+            var name = args[11]["name=".Length..];
+            var branch = args[13]["ref=refs/heads/".Length..];
+            var checkRunId = args[15]["id=".Length..];
+            if (OwnerName().IsMatch(owner) && RepositoryName().IsMatch(name) && OwnedBranchName().IsMatch(branch)
+                && CheckRunIdentifier().IsMatch(checkRunId))
+            {
+                var output = args[7] == CheckRunOutputQuery;
+                InvocationLog.Append(
+                    location,
+                    new Dictionary<string, object?>
+                    {
+                        ["role"] = "gh",
+                        ["kind"] = output ? "check-run-output-observation" : "check-run-metadata-observation",
+                    });
+                Console.Out.Write(
+                    "{\"data\":{\"repository\":{\"id\":\"" + RepositoryNodeId + "\",\"name\":\"" + name + "\",\"nameWithOwner\":\""
+                    + owner + "/" + name + "\",\"ref\":{\"name\":\"" + branch + "\",\"prefix\":\"refs/heads/\",\"target\":"
+                    + "{\"__typename\":\"Commit\",\"oid\":\"" + RemoteBranchCommit + "\"}}},\"node\":{\"__typename\":\"CheckRun\",\"id\":\""
+                    + checkRunId + "\",\"repository\":{\"id\":\"" + RepositoryNodeId + "\"},\"checkSuite\":{\"id\":\"" + CheckRunFixtureSuite
+                    + "\",\"repository\":{\"id\":\"" + RepositoryNodeId + "\"},\"commit\":{\"oid\":\"" + RemoteBranchCommit + "\"}}"
+                    + (output
+                        ? ",\"name\":\"Journey fixture build / unit\",\"status\":\"COMPLETED\",\"conclusion\":\"FAILURE\",\"title\":\""
+                            + CheckRunOutputFixtureTitle + "\",\"summary\":\"" + CheckRunOutputFixtureSummary + "\",\"text\":\""
+                            + CheckRunOutputFixtureText + "\""
+                        : string.Empty)
+                    + "}}}\n");
+                return 0;
+            }
+        }
+
         throw new FixtureRefusal(
             FixtureRefusal.UnsupportedInvocation,
-            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity, branch, check and check-contexts contracts.");
+            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity, branch, check, check-contexts and check-run metadata and output contracts.");
     }
 }

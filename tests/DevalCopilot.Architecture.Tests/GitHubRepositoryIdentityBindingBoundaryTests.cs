@@ -110,6 +110,7 @@ public sealed partial class GitHubRepositoryIdentityBindingBoundaryTests
             [
                 Command,
                 "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCheckContextsObservation/GetGitHubCheckContextsObservationQueryHandler.cs",
+                "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCheckRunOutputObservation/GetGitHubCheckRunOutputObservationQueryHandler.cs",
                 "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCiObservation/GetGitHubCiObservationQueryHandler.cs",
                 Query,
             ],
