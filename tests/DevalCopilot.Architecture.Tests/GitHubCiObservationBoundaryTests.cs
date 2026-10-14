@@ -167,7 +167,9 @@ public sealed partial class GitHubCiObservationBoundaryTests
         }
 
         Assert.Contains(AdapterPath, SourcesContaining("\"graphql\""));
-        Assert.Equal([AdapterPath], SourcesContaining("statusCheckRollup"));
+        Assert.Equal(
+            ["DevalCopilot.Infrastructure/Features/Runs/GitHubCheckContextsObservationAdapter.cs", AdapterPath],
+            SourcesContaining("statusCheckRollup"));
     }
 
     [Fact]

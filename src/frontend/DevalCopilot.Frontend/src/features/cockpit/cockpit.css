@@ -1591,6 +1591,62 @@
   padding-left: 0.5rem;
 }
 
+.dc-github-contexts {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--dc-border);
+}
+
+.dc-github-contexts-body,
+.dc-github-contexts-result,
+.dc-github-contexts-outcome {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-contexts h5,
+.dc-github-contexts p {
+  margin: 0;
+}
+
+.dc-github-contexts-note,
+.dc-github-contexts-state {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-contexts-scope,
+.dc-github-contexts-observation,
+.dc-github-contexts-bound,
+.dc-github-contexts-entry {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-github-contexts-scope dd,
+.dc-github-contexts-observation dd,
+.dc-github-contexts-bound dd,
+.dc-github-contexts-entry dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.dc-github-contexts-entries {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.dc-github-contexts-state[data-status='Unavailable'] {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}
+
 .dc-github-binding {
   display: grid;
   gap: 0.35rem;

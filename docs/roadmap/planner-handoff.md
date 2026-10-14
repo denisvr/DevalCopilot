@@ -5,6 +5,408 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## ADR-0045 correction review (2026-10-14): GO for the frozen substantive diff
+
+This decision supersedes the NO-GO below; preserve its findings and evidence.
+Codex verified main; HEAD/local origin/main/live main equal
+be3f1ce4a9787f26686e1f431dd11b2aacb06910; 0/0; empty index; the unchanged
+53-path inventory (18 modified, 35 untracked). All 52 correction1 source-hash
+entries match. The planner was byte-identical to the NO-GO record before this
+planner-owned update. Generated client remains
+af681d73f06c3929b40bd773618469403a11e6ee0cf58c2a42f5515c2d12f10b.
+
+R1 is closed: the new adapter decodes labels once, validates the bounded text,
+reapplies the unchanged internal redactor through ProcessChunk/Flush, validates
+the result, and exposes only safe text. Shared execution, older adapters, query,
+argv, capture limits, wire shape and classification are unchanged. Public and
+real-executor/owned-process tests cover both label kinds and all five supported
+shape classes, with literal and escaped controls. The production-host API
+projection and inert UI disclosure are correct; legitimate escaped text and
+single decoding remain covered. The original independent normalization probe
+now passes (literal masked, escaped admitted but masked). M6 compiles and is
+killed by 17 adapter regressions and the API projection regression; restored
+adapter hash is 6c6bfc7c18325de6730b398d1d6983c612742aad6e262c5fa5d68b31208b03c1.
+
+R2 is closed: the new real file-backed database test creates a coherent binding
+and canonical event replacement using the unchanged Domain builder, proves
+Available through the public binding GET, and keeps Bound/source/target valid.
+The same replacement during observation yields Unavailable with every fact
+stripped; the original binding response is restored byte-for-byte. The compiling
+kind/source/target-only M3 mutant is killed by this new case while the older
+drift fact passes. The production handler is unchanged, restored hash
+70dc0f7c1a2b61b68d53945ada73b80eacccc4ad14d9b136e9866cdcdc46604c.
+
+Independent review: incremental serial solution build, zero warnings/errors;
+adapter 270/270; new frontend three files 66/66; the two specific API correction
+regressions 2/2; original redaction probe green. Complete review logs/TRX remain
+under logs/planner-review/adr45/correction1/. Executor final TRX agree with
+270 adapter, 29 new API family and 127 Architecture passes; frontend build/lint
+and 66 tests passed after the disclosed wrong-directory attempt. The affected
+journey also passed once. Retained input-based results are accepted; no broad
+matrix repetition, clean build or shutdown is requested for publication.
+
+Accept the disclosed bounded evidence limits, without erasing them: first red
+assertion printed a fictitious token-shaped value; later assertions are sanitized
+and the first log/TRX remain untouched. The old m3 TRX overwrite is recorded,
+with the surviving m3a copy and m3b log retained; no missing evidence is invented.
+The wrong-directory frontend attempt and its actual rerun are distinguished.
+The scripted API engine starts no process; constructing the real adapter creates
+the existing host scratch directory. These facts grant no cleanup authority.
+Redaction covers only the five documented shapes, not arbitrary unknown secrets.
+
+GO authorizes exactly one substantive commit of the 53 reviewed paths, including
+current-work and this planner record, followed by a normal fast-forward push of
+main to origin/main and live remote verification in the same executor turn.
+Freeze modes/blobs/raw hashes/byte counts/statuses in the ignored
+logs/planner-review/adr45/publication-manifest.json; the complete executor prompt
+identifies its SHA-256. Before staging verify every entry and absence of extras.
+After staging and committing verify exact inventory, modes and blobs against it,
+with exactly one parent at the baseline. No file edit, regeneration, validation
+rerun, separate closure diff or next-slice selection is authorized. A changed
+manifest entry, extra path, baseline/index discrepancy, publication failure or
+remote divergence requires stopping and reporting, without force or reconciliation.
+The planner selects the next slice only after independent publication verification.
+
+The unnamed Api 2067/2068 failure remains unexplained; later passes prove neither
+flakiness nor irrelevance. Preserve all other recorded limits, historical failures,
+ledger, retained roots, logs and ignored artifacts. Qualification remains
+Blocked/TargetsNotReal with both allowances unused. No real gh/provider invocation,
+CLI setup/authentication/configuration, ledger reset or cleanup is authorized.
+
+## ADR-0045 review (2026-10-14): NO-GO, bounded correction only
+
+Codex independently verified main; HEAD/local origin/main/live main equal
+be3f1ce4a9787f26686e1f431dd11b2aacb06910; 0/0; empty index; 18 modified
+and 35 untracked paths, including the preserved planner selection. The 52
+executor source-hash entries match; the separately checked planner was
+7ca7baa76b45fe974f88807deb9ebfa9e411efaa3572102c81e6f441de1fa2e5.
+The additive generated client remains
+af681d73f06c3929b40bd773618469403a11e6ee0cf58c2a42f5515c2d12f10b.
+No staging, commit, push, publication authority or next slice is granted.
+Preserve the prior selection and all delivery evidence below this record.
+
+### R1: decoded labels bypass supported secret-shape redaction (P1)
+
+The unchanged streaming redactor acts on raw JSON before the new adapter's
+Label/GetString decodes escapes. A fictitious classic-token shape is masked
+when literal, but encoding its initial character makes it pass raw redaction
+and reappear in the admitted StatusContext name. The independent probe composes
+the real redactor function with the real adapter parser; it uses no process,
+account, credential or network and does not claim a public-boundary test.
+Its named assertion fails; both the literal control and escaped admission are
+recorded in logs/planner-review/adr45/probe.log with the probe source retained.
+The initial probe-project reference setup failure is retained separately and
+is not a product failure. This is a normalization bypass of existing supported
+shapes, not a demand to detect arbitrary unknown secret formats.
+
+Correct only the new Infrastructure adapter: validate the decoded bounded
+label, reapply the existing fixed redaction after the one JSON decode using
+the unchanged internal redactor, validate the resulting label, and expose only
+that safe text. Do not copy regexes, change the shared executor or old adapters,
+reject all escapes, or perform a second decode. Preserve legitimate escaped
+Unicode, quotes, backslashes and markup as inert text. Explicitly revise the
+unpublished ADR-0045 exact-label claim to safe post-redaction text and disclose
+in the new panel that labels may be redacted by the host. Keep wire shape,
+query, bounds, enums and status/nullability contracts unchanged.
+
+Require red-first public ObserveAsync regressions for both label kinds and
+all five existing supported shape classes using fictitious data, literal and
+escaped controls, plus real-executor/owned-process composition and representative
+API/UI safe projection. Removing the post-decode redaction must compile and be
+killed by the named new regression; restore source hashes and rebuild.
+
+### R2: binding-value comparison remains unproved (P2, evidence gap)
+
+The production full Scope record comparison is correct. The new row-and-event
+deletion case kills source/target-only comparison, but changes ScopeKind too.
+It does not kill the first surviving variant that retains kind, source and
+target comparisons while ignoring binding values. Other current cases make
+the binding incoherent and erase source/target, so they do not close that gap.
+Add an owned file-backed database case replacing the binding and canonical
+event coherently while observation waits: same Bound kind/source/target, changed
+binding identity. Prove the replacement is admitted by the unchanged reader,
+then require Unavailable with every fact stripped, and restoration afterward.
+Use existing test-only corruption/restore helpers; change no production trigger,
+reader, handler, schema or migration. Rerun the kind-retaining M3 variant against
+this case, require a named kill, restore hashes and rebuild. Preserve both prior
+survivors. m3.trx was reused with an overwrite warning; m3a has a retained copy
+and m3b has a retained log, but no distinct m3b TRX was found. Record that limit
+honestly and use unique result paths for every future run.
+
+### Independent evidence and proportional correction validation
+
+Codex incremental serial solution build: 0 warnings/errors. Adapter 250/250,
+new frontend three files 65/65, existing scope-drift host fact 1/1. Complete
+logs/TRX are retained under logs/planner-review/adr45/. Executor final TRX
+counters agree: Application 117, Infrastructure 250, Api 34, Architecture 127,
+fixture contracts 175, all passed. Existing passes do not disprove R1 or R2.
+
+Accept the disclosed skeleton red runs as skeleton evidence, browser/.NET
+Unicode-table fail-closed limit, fixed-SHA journey boundary, measured setup cost
+and unneeded shutdown disclosure; none establishes comprehensive coverage.
+No fixture caching/cloning or test infrastructure optimization is selected.
+Use focused new red tests and the two named compiling mutants during correction.
+After restoration, one incremental solution build and one final matrix: complete
+new adapter class; complete new API admission/endpoint/corruption/drift family
+including representative safe projection; full Architecture; the new frontend
+decoder/hook/panel files; npm build (includes typecheck), lint, changed C# format,
+changed-document links, secret/bundle hygiene and git diff --check. Retain
+unchanged Application, older controls, fixture suite, client reproducibility,
+strict e2e tsc and journey results with input-based reasons. Broaden only for a
+changed shared dependency/fixture/e2e input, a failure or a demonstrated gap;
+pause for planner discussion if fixing either finding needs shared changes.
+
+Preserve the unexplained unnamed Api 2067/2068 failure, four privilege skips,
+source-map-js advisory, original red-first gaps, prior sandbox loading/connection
+failures, migration-generator drift and real-CLI/auth/ref/schema limits, plus
+all other recorded diagnostics. Later passes prove neither flakiness nor
+irrelevance. Complete logs and named results must survive future failures.
+Qualification remains Blocked/TargetsNotReal; both allowances remain unused.
+No real gh/provider invocation, CLI setup, ledger reset, cleanup or alteration
+of historical failures, retained roots or ignored review artifacts is authorized.
+
+## Selected next slice (2026-10-14): explicitly inspect the bound recorded commit's check contexts
+
+### Independently verified publication and priority
+
+ADR-0044 is published as be3f1ce4a9787f26686e1f431dd11b2aacb06910, with exactly
+one parent fda2f2ee36729160fced9b4cad222657d248b877 and the reviewed message and
+executor trailer. Codex verified main, HEAD/local origin/main/live main equal
+that SHA, 0/0, empty index and clean tracked/untracked state. All 48 manifest
+paths match the committed 17 M/31 A inventory, normalized modes/blobs and raw
+working-file hashes/lengths; ignored manifest SHA-256 remains
+8bccfc7c220f8b3ce47a1dc10eced42f6304d62709b2f99f67ea9c594e852f42.
+The client remains c417c9ab1e38255858634d19c981d2750a587dac0dd4e0274a9e9d9aa0fffa8e.
+No implementation edit, regeneration, validation rerun or closure diff was made.
+This verified publication supersedes the pre-publication status in current-work
+without rewriting the delivery evidence. Existing planner bytes are preserved.
+
+Roadmap/ADR-0005/0040-0044 and current code distinguish required gates from
+optional improvements. Real qualification and remaining Increment 4 usage,
+session/compaction and permission contracts; Increment 5 coordination,
+multi-project scheduling, lifecycle/recovery and linked replay; Increment 6
+policy-scoped publication, check/workflow evidence and required-check policy,
+automatic observation, diagnosis/correction and remote reconciliation; packaged
+release acceptance and self-hosting remain required. Existing separate stage
+supervisors are not an end-to-end coordinator. Extra history/export/analytics,
+additional providers and a journal migration remain optional/deferred.
+
+The delivered CI query reports only a rollup, not the identity or conclusion
+of any individual check. Select one explicit bounded collection of CheckRun
+and StatusContext metadata for the exact bound branch/commit: this supplies
+named evidence needed before failed-check diagnosis and required-check policy.
+Do not select durable monitoring/publication or repeat a bound-ref-only panel.
+Real qualification cannot close under the preserved no-real-invocation boundary;
+larger coordination and authority changes need their own bounded contracts.
+Prior ideas and the executor's lineage-cache/cloning proposal are not selected.
+
+### Selected additive ADR-0045 contract
+
+Add GetGitHubCheckContextsObservation, protected bodyless MVC GET
+/api/runs/{runId}/github-check-contexts-observation via the mediator, full
+API-owned DTO graph and regenerated additive client. Fixed 404
+github_check_contexts_observation.not_found; fixed pre-dispatch 400
+github_check_contexts_observation.body_not_allowed for positive declared length,
+any transfer encoding (including empty chunked), or a readable byte. No client
+owner, ID, SHA, branch, cursor, limit, credential, executable or raw query input.
+
+Reuse unchanged ADR-0040 source/target and ADR-0043 binding readers, including
+orphans, and ADR-0044 admission order/CLI snapshot/host clock behavior. Read
+source/target/binding and canonical events freshly before and after exactly one
+observer call, no lock/transaction or write; a changed/lost/incoherent scope takes
+Unavailable precedence and strips all facts. Independently validate the entire
+probe, then compare opaque bound ID and exact recorded owned branch/SHA ordinally.
+Keep observed names exactly, with conservative ASCII scope admission ignoring
+ASCII case only. Only observation-bearing replies read the post-call clock;
+earlier than binding.RecordedAtUtc is Unknown without observation, never clamped.
+Cancellation/unexpected faults propagate. No earlier sibling answer is evidence.
+
+Response {runId,status,source,target,binding,observation}; same source/target/
+binding shapes as ADR-0044, with API-owned mapping. Closed statuses:
+
+- NotRecorded, Unavailable: all four nullable fact groups absent.
+- BindingNotRecorded: coherent source/target only; no process.
+- CliUnavailable, Unknown, IdentityChanged: coherent source/target/binding,
+  no observation; IdentityChanged only for a whole valid foreign-ID probe,
+  without exposing the other ID. Initial refusals invoke nothing.
+- RefNotReturned: observation, null ref/totalCount/contexts.
+- CommitDifferent: observation with exact branch and different admitted SHA,
+  null totalCount/contexts; remote metadata must be withheld, not leaked.
+- NoContextsReturned: matching bound ID/branch/SHA, observation ref present,
+  null totalCount/contexts because GitHub returned null statusCheckRollup.
+- LimitExceeded: matching identity/branch/SHA, observation ref present,
+  totalCount > 50, contexts null; no second page/request.
+- ContextsReported: matching identity/branch/SHA, ref present, totalCount 0..50
+  equal to contexts.Count, contexts an array including an admitted empty array.
+
+Observation is {repositoryNodeId,owner,repository,observedAtUtc,ref,totalCount,contexts}.
+Ref when present is {branchName,commitSha}. Each context is the closed flat shape
+{kind,id,name,status,conclusion,checkSuiteId}:
+CheckRun maps id/name/status/conclusion/checkSuite.id; StatusContext maps
+id/context/state into id/name/status with null conclusion/checkSuiteId.
+IDs are opaque, conservative 1..256 ASCII letters/digits/_-/+=, ordinal and
+never decoded. Repository IDs continue using their unchanged Domain policy;
+context/suite identifier and label rules remain operation-owned, not a new
+global policy. Reject duplicate entry IDs; repeated names and shared suite IDs
+are allowed and preserved in provider order, never sorted, deduplicated by name,
+collapsed into a latest attempt or inferred to be required. No workflow-attempt
+claim follows from these IDs. CheckRun.status admits exactly COMPLETED,
+IN_PROGRESS, PENDING, QUEUED, REQUESTED, WAITING; conclusion is null or exactly
+ACTION_REQUIRED, CANCELLED, FAILURE, NEUTRAL, SKIPPED, STALE, STARTUP_FAILURE,
+SUCCESS, TIMED_OUT. StatusContext.status admits the ADR-0044 five literal states.
+Preserve independent status/conclusion values without inventing undocumented
+pairing rules or inferring success from null. Unknown enums refuse the entire
+answer as Unknown, never normalize to success or silently omit an entry.
+
+New narrow operation-owned IGitHubCheckContextsObserver and Infrastructure
+GitHubCheckContextsObservationAdapter, composed on the existing process engine;
+no existing observer/query/adapter/port/policy or their contracts change. Same
+scratch directory, stored-default-auth allowlist/fixed controls, 15 seconds,
+singleton immediate-refusal slot/finally release, discarded stderr and identified
+start failures as ADR-0044. No output sinks/logs/artifacts, shell/jq/retry/cache,
+automatic work or global process changes. Only this new adapter captures at most
+128 KiB per stream, 256 KiB combined, depth 12: the old 8/16 KiB limits remain
+unchanged. This is a bounded collection-specific increase. A planner sizing
+probe of 50 maximal ASCII IDs/suite IDs and 256-byte labels escaped as six-byte
+Unicode sequences measured 119208 bytes with two-space pretty JSON, below 131072.
+Prove caps, truncation and supported maximum values in tests; oversize is Unknown.
+
+Exactly one command with literal -f values, no -F/interpolation:
+gh api graphql --hostname github.com --method POST -f query=<constant> -f owner=<stored owner> -f name=<stored repository> -f ref=refs/heads/<recorded branch>
+
+Constant read-only document:
+query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){id name nameWithOwner ref(qualifiedName:$ref){name prefix target{__typename ... on Commit{oid statusCheckRollup{contexts(first:50){totalCount pageInfo{hasNextPage} nodes{__typename ... on CheckRun{id name status conclusion checkSuite{id}} ... on StatusContext{id context state}}}}}}}}}
+
+Admit only exact root data/repository/id/name/nameWithOwner/ref; null ref or
+exact name/prefix/target (refs/heads/, ordinal recorded branch); Commit target
+exact __typename/oid/statusCheckRollup; null rollup or exactly contexts; contexts
+exact totalCount/pageInfo/nodes; pageInfo exactly hasNextPage; nodes exactly the
+fields selected for their one known typename, checkSuite exactly id. No missing,
+extra/duplicate/escaped property names anywhere, errors/extensions, unknown
+typenames, partial/null entries, non-Commit/null target or fallback ref. totalCount
+is a nonnegative Int32, nodes length min(totalCount,50), hasNextPage exactly
+(totalCount > 50), without duplicates or invalid entries. Null nodes/connection,
+inconsistent counts/page flags, unknown enums, malformed JSON/values or stream
+failures refuse whole as Unknown. Validate the returned bounded first page even
+when it will be withheld for a foreign ID, different SHA or excessive count.
+
+Labels (only CheckRun.name and StatusContext.context) require a distinct text
+contract: nonblank well-formed Unicode, 1..256 UTF-8 bytes, no Unicode Control,
+Format, Surrogate, LineSeparator or ParagraphSeparator characters, and no U+FFFD.
+Decode valid JSON string escapes once and preserve the exact admitted text,
+including quotes, backslashes, non-ASCII and inert markup. Reject invalid
+surrogates/escapes rather than throwing an unhandled parse fault or replacing
+text. All other string values remain literal/unescaped as in ADR-0044. Check
+raw property spelling at every object: decoded property names alone are not
+proof of literal keys. Do not apply a blanket backslash ban or weaken any old
+adapter; the new labels are an additive, separate untrusted-display contract.
+
+Official GraphQL references checked on 2026-10-14:
+[Commits](https://docs.github.com/en/graphql/reference/commits) defines the mixed
+StatusCheckRollupContext union and connection/page counts;
+[Checks](https://docs.github.com/en/graphql/reference/checks) defines CheckRun,
+its non-null suite and literal status/conclusion enums. This collection is what
+GitHub returned for the commit, not all workflow attempts, required-check policy,
+permission or publication authority. No real CLI/schema compatibility is proved.
+
+### Cockpit, scope and evidence
+
+Separate collapsed GitHub check details region beside the existing GitHub commit
+checks region, inside an Available target; Show/Check/Recheck/Close. Existing
+regions unchanged. Show/mount/reload/reconnect/timer sends nothing. Same full
+source/target and opening ownership, unchanged useOwnedLifetime/useOwnedState,
+single-flight, same-batch/old callback/close-reopen/A-B-A protections. Pending
+or failure clears old observations. Strict decoder repeats source/target/binding,
+ID, count/nullability, literal states, label byte/Unicode and time rules. No
+storage/effects/remount/reset tricks, background reads, pagination, links/copy
+or executable/provider-text interpretation. Show IDs, kind, exact label, literal
+status/conclusion and suite when applicable as bounded inert text. Null conclusion
+is not returned, never passed; empty collection is zero returned, never CI success.
+Render markup-looking names as text. Fixed disclosure: this is the bounded
+collection GitHub returned for this commit, not required-check approval, complete
+workflow history, permission or publication authority. LimitExceeded shows no
+entries and explicitly says the 50-entry bound prevented details; no silent
+truncation, omitted malformed siblings, aggregate verdict or approval action.
+
+Add ADR-0045 and necessary index/context/architecture/cockpit/roadmap/security/
+current-work updates only. No Domain/schema/migration/event, durable evidence,
+required-check classification/branch protection, workflow/job/step/log/artifact
+capture, rerun, push/PR/publication, scheduler or autonomous monitoring. No new
+dependency, global policy/parser or shared test infrastructure is selected.
+
+Follow validation-policy. Tests before behavior implementation, focused named
+red cases, then incremental affected builds. Detailed label/JSON/collection/state
+permutations live in operation policy/adapter tests, not expensive host repeats.
+Predispatch/auth/404 use no delivered lineage. Coherent cases use existing
+feature-owned lineage and real file-backed SQLite/production composition;
+within-test scripted read permutations are fine, no caching/cloning or sharing
+mutable lineage across tests. Group related read cases within their own test,
+retain independent assertions and report direct setup/request timings for any
+class over a minute (skeleton differences alone are estimates).
+
+Five serial targeted compiling mutants: bound-ID equality removed; recorded-SHA
+gate removed; post-call binding reread omitted; incomplete connection admitted;
+escaped-property-name guard removed. Use their named regressions only, restore
+verified hashes/rebuild, and distinguish compilation/no-op failures from kills.
+Keep complete logs/TRX and named results for every failure, no blind rerun.
+
+Final matrix once after stable build: one serial incremental solution build/
+analyzers and reproducible additive NSwag generation without deletion; new
+Application GetGitHubCheckContextsObservation tests; full new Infrastructure
+adapter class with real process-double caps/argv/environment/slot/cancellation;
+new Api family through auth/mediator/SQLite, launch-session auth and real-host
+MVC authorization inventory; full Architecture; full ProviderFixtureContractTests
+for an additive fixed-query GhRole extension, all other roles/contracts unchanged.
+Also run the existing ADR-0044 matching-five-states, different-commit withholding
+and binding-drift tests as regression controls; retain unrelated backend suites.
+New frontend decoder/hook/panel plus existing target/identity/branch/binding/CI
+decoder/hook/panel files; npm run build (includes tsc -b), lint; strict e2e tsc
+for the changed journey; one affected authenticated collaboration journey.
+
+The GhRole extension returns mixed nonempty check/status entries with distinctive
+fictitious IDs/labels but the unchanged fixed remote SHA. The journey must prove
+CommitDifferent with every context/count/label withheld, one request/process per
+explicit Check/Recheck including after real reload, none on Show/close/reopen/
+delay, and unchanged database/events/Git/Agent/sibling observation counts.
+Matching-SHA mixed/empty/limit/null, duplicate-name identity, escaping and malformed
+results are proved at adapter, host and UI boundaries, not falsely claimed for
+the fixed-SHA journey. No real provider/network is invoked by tests.
+
+Formatter on changed C#, changed-document links, diff, secrets/bundle hygiene
+apply. Retain unchanged Domain/migrations/unrelated backend/full Vitest/other
+journeys/harness/dependency-audit evidence with applicability reasoning. Broaden
+for shared reader/policy/executor/environment/auth/serializer/client config,
+uncertain effects or failures; changed harness/transport/auth/other provider roles
+requires harness plus canonical test:e2e:all, dependency changes require audits.
+Max two demonstrably isolated checks after build; one build/generator/mutation
+writer; serialized journeys; no routine clean rebuild or server shutdown.
+Use the allowed outside-sandbox test execution when the known transform-file or
+VSTest connection boundary prevents tests from starting; retain any failures,
+do not silently rerun, increase timeouts or call them flaky.
+
+### Dispatch and limits
+
+One new Claude executor chat for ADR-0045; corrections stay there. Start main at
+be3f1ce4a9787f26686e1f431dd11b2aacb06910 for HEAD/local/live main, 0/0, empty
+index/no untracked files; only planner-handoff.md unstaged modified by selection,
+whose exact hash is supplied in the prompt. Verify once and report drift.
+Preserve this planner file byte-for-byte. Update current-work with actual fresh,
+retained/not-run checks, timings, failure evidence and limits. Return uncommitted
+and unpushed diff for Codex GO/NO-GO. No staging/publication/next-slice authority.
+Challenge unsafe or impractical requirements with evidence before dependent work;
+unresolved material choices go to owner, without blocking independent work.
+
+Preserve unnamed Api 2067/2068 as unexplained; subsequent passes prove neither
+flakiness nor irrelevance. Keep the ADR-0044 review sandbox frontend ENOENT and
+VSTest zero-test connection abort, all historical failures, ledger, retained roots
+and ignored review/log/TRX artifacts. Four privilege skips, source-map-js advisory,
+original red-first gaps, bounded mutation limits, migration-generator drift,
+real CLI/auth/ref/schema limits, browser duplicate-key/negotiation and frontend
+chunk-size diagnostics remain recorded. Qualification remains Blocked/TargetsNotReal,
+both allowances unused. No real gh/provider call, CLI setup/auth/configuration,
+ledger reset or cleanup without a separate explicit decision. This advances one
+CI evidence boundary; no increment/MVP/release completion is claimed.
+
 ## Review decision (2026-10-14): GO for the reviewed ADR-0044 diff
 
 Codex independently reviewed Git, production code, tests, generated-client drift,

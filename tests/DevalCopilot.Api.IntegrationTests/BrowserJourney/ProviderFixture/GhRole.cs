@@ -6,8 +6,9 @@ namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 /// The GitHub CLI double: the fixed version probe, the one fixed stored-authentication status contract, which answers an
 /// already-filtered, active, successful account, the one fixed read-only repository identity contract, which echoes the requested
 /// owner and name back with a fixed opaque identifier, and the one fixed read-only branch contract, which additionally echoes the
-/// requested owned branch with a fixed commit that is never the recorded one, and the one fixed read-only check contract, which answers the
-/// same ref and fixed commit with a fixed SUCCESS rollup. It is only a process-boundary double: it reads no
+/// requested owned branch with a fixed commit that is never the recorded one, the one fixed read-only check contract, which answers the
+/// same ref and fixed commit with a fixed SUCCESS rollup, and the one fixed read-only check-contexts contract, which answers the same ref
+/// and fixed commit with three fictitious entries. It is only a process-boundary double: it reads no
 /// credential, performs no network
 /// call and does not evaluate the selector or the GraphQL query, so it proves nothing about how an installed GitHub CLI formats or
 /// filters its output or how GitHub answers. Only the status, identity, branch and check calls are logged (kind only, never an argument), so version
@@ -29,6 +30,21 @@ public static partial class GhRole
     private const string CiQuery =
         "query=query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){id name nameWithOwner "
         + "ref(qualifiedName:$ref){name prefix target{__typename ... on Commit{oid statusCheckRollup{state}}}}}}";
+
+    private const string ContextsQuery =
+        "query=query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){id name nameWithOwner "
+        + "ref(qualifiedName:$ref){name prefix target{__typename ... on Commit{oid statusCheckRollup{contexts(first:50)"
+        + "{totalCount pageInfo{hasNextPage} nodes{__typename ... on CheckRun{id name status conclusion checkSuite{id}} "
+        + "... on StatusContext{id context state}}}}}}}}}";
+
+    /// <summary>Three fictitious, distinctive entries (a repeated check name with a shared suite, and one status) the contexts contract
+    /// returns beside the unchanged fixed remote commit, so a journey can prove they are withheld for a commit that is not the recorded one.</summary>
+    public const string ContextsFixtureNodes =
+        "[{\"__typename\":\"CheckRun\",\"id\":\"FX-CHECK-ID-001\",\"name\":\"Journey fixture build / unit\",\"status\":\"COMPLETED\","
+        + "\"conclusion\":\"SUCCESS\",\"checkSuite\":{\"id\":\"FX-SUITE-001\"}},"
+        + "{\"__typename\":\"StatusContext\",\"id\":\"FX-STATUS-ID-002\",\"context\":\"journey/legacy-status\",\"state\":\"PENDING\"},"
+        + "{\"__typename\":\"CheckRun\",\"id\":\"FX-CHECK-ID-003\",\"name\":\"Journey fixture build / unit\",\"status\":\"IN_PROGRESS\","
+        + "\"conclusion\":null,\"checkSuite\":{\"id\":\"FX-SUITE-001\"}}]";
 
     public const string RemoteBranchCommit = "1234567890abcdef1234567890abcdef12345678";
 
@@ -118,8 +134,28 @@ public static partial class GhRole
             }
         }
 
+        if (args.Count == 14 && args.Take(IdentityPrefix.Length).SequenceEqual(IdentityPrefix) && args[7] == ContextsQuery
+            && args[8] == "-f" && args[9].StartsWith("owner=", StringComparison.Ordinal) && args[10] == "-f"
+            && args[11].StartsWith("name=", StringComparison.Ordinal) && args[12] == "-f"
+            && args[13].StartsWith("ref=refs/heads/", StringComparison.Ordinal))
+        {
+            var owner = args[9]["owner=".Length..];
+            var name = args[11]["name=".Length..];
+            var branch = args[13]["ref=refs/heads/".Length..];
+            if (OwnerName().IsMatch(owner) && RepositoryName().IsMatch(name) && OwnedBranchName().IsMatch(branch))
+            {
+                InvocationLog.Append(location, new Dictionary<string, object?> { ["role"] = "gh", ["kind"] = "check-contexts-observation" });
+                Console.Out.Write(
+                    "{\"data\":{\"repository\":{\"id\":\"" + RepositoryNodeId + "\",\"name\":\"" + name + "\",\"nameWithOwner\":\""
+                    + owner + "/" + name + "\",\"ref\":{\"name\":\"" + branch + "\",\"prefix\":\"refs/heads/\",\"target\":"
+                    + "{\"__typename\":\"Commit\",\"oid\":\"" + RemoteBranchCommit + "\",\"statusCheckRollup\":{\"contexts\":"
+                    + "{\"totalCount\":3,\"pageInfo\":{\"hasNextPage\":false},\"nodes\":" + ContextsFixtureNodes + "}}}}}}}\n");
+                return 0;
+            }
+        }
+
         throw new FixtureRefusal(
             FixtureRefusal.UnsupportedInvocation,
-            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity, branch and check contracts.");
+            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity, branch, check and check-contexts contracts.");
     }
 }

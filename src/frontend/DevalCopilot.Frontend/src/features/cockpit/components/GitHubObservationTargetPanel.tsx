@@ -7,6 +7,7 @@ import { GitHubRepositoryObservationPanel } from './GitHubRepositoryObservationP
 import { GitHubBranchObservationPanel } from './GitHubBranchObservationPanel'
 import { GitHubRepositoryIdentityBindingPanel } from './GitHubRepositoryIdentityBindingPanel'
 import { GitHubCiObservationPanel } from './GitHubCiObservationPanel'
+import { GitHubCheckContextsObservationPanel } from './GitHubCheckContextsObservationPanel'
 
 const SCOPE_NOTE =
   'Recording is your own local selection of which GitHub repository (on github.com) is later to be observed for this exact local commit. It is not a verified remote identity, a permission, a CI result or publication authority: nothing contacts GitHub, nothing is pushed, and nothing is observed automatically. Once recorded it cannot be changed, replaced or removed by this operation.'
@@ -98,6 +99,7 @@ export function GitHubObservationTargetPanel({ source }: GitHubObservationTarget
               {source ? <GitHubBranchObservationPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubRepositoryIdentityBindingPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubCiObservationPanel source={source} target={reading.target} /> : null}
+              {source ? <GitHubCheckContextsObservationPanel source={source} target={reading.target} /> : null}
             </div>
           ) : null}
           {reading?.kind === 'NotRecorded' ? (

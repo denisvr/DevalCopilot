@@ -144,6 +144,11 @@
   explicit request (additive; one protected, bodyless, read-only observation of GitHub's point-in-time aggregate check state for the recorded commit, shown only when the
   freshly observed repository ID equals the ADR-0043 binding and the exact recorded branch points at that commit, through one fixed `gh api graphql` invocation and the stored
   default authentication; no persistence and no complete check or workflow evidence, required-check approval, permission or publication authority).
+- [ADR-0045](decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md): Inspect the check contexts of a bound recorded local commit on
+  explicit request (additive; one protected, bodyless, read-only observation of the bounded collection of up to 50 check-run and commit-status metadata entries GitHub returns for
+  the recorded commit, shown only when the freshly observed repository ID equals the ADR-0043 binding and the exact recorded branch points at that commit, through one fixed
+  `gh api graphql` invocation and the stored default authentication; no persistence and no complete check or workflow evidence, required-check approval, permission or
+  publication authority).
 
 ## Product-specific architecture
 
@@ -365,6 +370,25 @@
   persisted or locked. The cockpit adds a separate collapsed commit checks region beside the identity, branch and binding regions with Show, Check (then Recheck) and Close,
   owned by the committed source and target and each opening, showing inert text and the fixed disclosure. The aggregate is not complete check or workflow evidence,
   required-check approval, permission or publication authority, and the real installed CLI and schema compatibility remain unverified.
+- [ADR-0045](decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one further explicit, read-only observation of the bounded
+  check and status contexts for the recorded commit. The protected, bodyless `GET /api/runs/{runId}/github-check-contexts-observation`
+  (`GetGitHubCheckContextsObservationQuery` through the mediator; any request body is refused before dispatch with the fixed 400
+  `github_check_contexts_observation.body_not_allowed`; an unknown run is the fixed 404 `github_check_contexts_observation.not_found`) reads the source, target and binding with
+  the unchanged ADR-0040 and ADR-0043 readers before and after the one external call (orphan rows and events are `Unavailable`) and answers a closed `NotRecorded` or
+  `Unavailable` (no fact, nothing invoked), `BindingNotRecorded` (scope only), `CliUnavailable`, `Unknown`, `IdentityChanged` (scope and binding; the other ID is never
+  returned), `RefNotReturned`, `CommitDifferent` (no count or entry, even when GitHub returned some), `NoContextsReturned` (a null rollup, never "no checks"), `LimitExceeded`
+  (a total above 50, no entry, no second page) or `ContextsReported` (a total from 0 to 50 equal to the entries, an array that may be empty). Each context is exactly
+  `{kind, id, name, status, conclusion, checkSuiteId}` (a `StatusContext` maps `context` and `state` into `name` and `status` with a null conclusion and suite), literal values are
+  never translated, paired, deduplicated by name or related to a workflow, and the entry IDs, the label text contract (nonblank, well-formed, 1 to 256 UTF-8 bytes, no control,
+  format, separator, surrogate or replacement character; escapes decoded once, then redacted with the unchanged fixed redaction so a label is safe post-redaction text, not necessarily the provider's original text) and the enumerations are owned by one operation policy, not by the repository node-ID policy. The
+  operation-owned port `IGitHubCheckContextsObserver` is implemented by `GitHubCheckContextsObservationAdapter` on the existing process executor: one fixed `gh api graphql`
+  invocation (the ADR-0044 argv shape with the constant contexts document), the ADR-0041 environment and single-flight slot, 15 seconds, and, for this adapter only, 128 KiB per
+  stream, 256 KiB combined and a JSON depth of 12 (the older observers keep 8 and 16 KiB). The admission is strict and whole (exact members at every level, raw property spelling
+  checked, count and page-flag consistency, duplicate entry IDs refused). The handler validates the whole probe again, compares the opaque ID with the binding and the commit with
+  the recorded commit ordinally, stamps the host clock after the call (earlier than the binding is `Unknown`) and refuses the answer when the scope or binding changed. Nothing is
+  written, persisted or locked. The cockpit adds a separate collapsed "GitHub check details" region beside the commit checks region with Show, Check (then Recheck) and Close,
+  owned by the committed source and target and each opening, showing inert text and the fixed disclosure. The collection is not complete check or workflow evidence, workflow
+  history, required-check approval, permission or publication authority, and the real installed CLI and schema compatibility remain unverified.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

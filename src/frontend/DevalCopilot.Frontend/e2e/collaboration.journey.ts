@@ -48,6 +48,7 @@ const IDENTITY_PATH = /\/api\/runs\/[^/]+\/github-repository-observation$/
 const BRANCH_PATH = /\/api\/runs\/[^/]+\/github-branch-observation$/
 const BINDING_PATH = /\/api\/runs\/[^/]+\/github-repository-identity-binding$/
 const CI_PATH = /\/api\/runs\/[^/]+\/github-ci-observation$/
+const CONTEXTS_PATH = /\/api\/runs\/[^/]+\/github-check-contexts-observation$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
@@ -1417,6 +1418,164 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const ciLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
   for (const secret of [deliveryBranch, remoteCommit, deliveredCommit, bindingNode, observationOwner, observationRepository, 'SUCCESS']) {
     expect(ciLog).not.toContain(secret)
+  }
+
+  // 14h. The explicit GitHub check-context observation of the bound recorded target (ADR-0045), through the production frontend, generated
+  // client, MVC authentication, mediator, the unchanged source, target and binding readers, the REAL contexts adapter and the REAL process
+  // executor. Only the `gh` executable is the deterministic owned double: it echoes the requested owned branch back with the FIXED commit
+  // that is never the recorded one and three fictitious entries, so this journey observes CommitDifferent and proves that the host
+  // withholds every count, entry and label for a commit that is not the recorded one. It does NOT prove a matching-commit collection:
+  // the mixed, empty, exceeded, null, repeated-name, escaping and malformed cases are proved at the adapter (strict JSON admission), host
+  // (production lineage and file-backed SQLite) and UI (decoder, hook and panel) boundaries. It proves the assembled process boundary and
+  // explicit-only reads, and nothing about how an installed GitHub CLI formats a GraphQL answer, stored authentication, a real repository,
+  // GitHub itself, required checks, permission or publication.
+  const contextsRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && CONTEXTS_PATH.test(new URL(request.url()).pathname)) {
+      contextsRequests.push(request.url())
+    }
+  })
+  const contextsCalls = () =>
+    readInvocations(mark).filter((entry) => entry.role === 'gh' && entry.kind === 'check-contexts-observation').length
+  const checkDetails = observation.getByRole('region', { name: 'GitHub check details' })
+  const fixtureStrings = ['FX-CHECK-ID-001', 'FX-CHECK-ID-003', 'FX-STATUS-ID-002', 'FX-SUITE-001', 'Journey fixture build / unit', 'journey/legacy-status']
+  const identityBeforeDetails = identityCalls()
+  const branchBeforeDetails = branchCalls()
+  const ciBeforeDetails = ciCalls()
+  const ciRequestsBeforeDetails = ciRequests.length
+  const bindingRequestsBeforeDetails = bindingRequests.length
+  const expectNoSiblingActivity = () => {
+    expect(identityCalls()).toBe(identityBeforeDetails)
+    expect(branchCalls()).toBe(branchBeforeDetails)
+    expect(ciCalls()).toBe(ciBeforeDetails)
+    expect(ciRequests).toHaveLength(ciRequestsBeforeDetails)
+    expect(bindingRequests).toHaveLength(bindingRequestsBeforeDetails)
+  }
+  const expectNoFixtureText = async () => {
+    for (const text of fixtureStrings) {
+      await expect(checkDetails).not.toContainText(text)
+    }
+  }
+  expect(contextsCalls()).toBe(0)
+  await expect(checkDetails.getByRole('button', { name: 'Show GitHub check details', exact: true })).toBeVisible()
+  await expect(checkDetails.getByRole('button', { name: /Check GitHub check details|Recheck GitHub check details/ })).toHaveCount(0)
+  await checkDetails.getByRole('button', { name: 'Show GitHub check details', exact: true }).click()
+  await expect(checkDetails).toContainText('Not checked.')
+  await expect(checkDetails).toContainText(`Recorded branch${deliveryBranch}`)
+  await expect(checkDetails).toContainText(`Recorded local commit${deliveredCommit}`)
+  await expect(checkDetails).toContainText(`Recorded owner${observationOwner}`)
+  await expect(checkDetails).toContainText(`Recorded repository${observationRepository}`)
+  await expect(checkDetails).toContainText('This is the bounded collection GitHub returned for this commit')
+  await expect(checkDetails).toContainText('not required-check approval, complete workflow history, permission or publication authority')
+  // Opening and waiting read nothing and invoke nothing, and no sibling region is read.
+  await page.waitForTimeout(2_000)
+  expect(contextsRequests).toEqual([])
+  expect(contextsCalls()).toBe(0)
+  expectNoSiblingActivity()
+
+  const contextsWire = page.waitForResponse((response) => response.request().method() === 'GET' && CONTEXTS_PATH.test(new URL(response.url()).pathname))
+  await checkDetails.getByRole('button', { name: 'Check GitHub check details', exact: true }).click()
+  const contextsResponse = await contextsWire
+  expect(contextsResponse.status()).toBe(200)
+  const contextsBodyText = await contextsResponse.text()
+  const contextsBody = JSON.parse(contextsBodyText)
+  expect(Object.keys(contextsBody).sort()).toEqual(['binding', 'observation', 'runId', 'source', 'status', 'target'])
+  expect(contextsBody.runId).toBe(recordedBody.runId)
+  expect(contextsBody.status).toBe('CommitDifferent')
+  expect(contextsBody.source).toEqual(recordedBody.source)
+  expect(contextsBody.target).toEqual(recordedBody.target)
+  expect(contextsBody.binding).toEqual(boundBody.binding)
+  expect(Object.keys(contextsBody.observation).sort()).toEqual([
+    'contexts', 'observedAtUtc', 'owner', 'ref', 'repository', 'repositoryNodeId', 'totalCount',
+  ])
+  expect(contextsBody.observation).toEqual({
+    repositoryNodeId: bindingNode,
+    owner: observationOwner,
+    repository: observationRepository,
+    observedAtUtc: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|\+00:00)$/),
+    ref: { branchName: deliveryBranch, commitSha: remoteCommit },
+    totalCount: null,
+    contexts: null,
+  })
+  expect(Date.parse(contextsBody.observation.observedAtUtc)).toBeGreaterThanOrEqual(Date.parse(boundBody.binding.recordedAtUtc))
+  // The double supplied three entries for a commit that is not the recorded one: no count, id, label or status of them reaches the wire or the page.
+  for (const text of [...fixtureStrings, 'COMPLETED', 'IN_PROGRESS', 'PENDING', 'SUCCESS']) {
+    expect(contextsBodyText).not.toContain(text)
+  }
+  await expect(checkDetails).toContainText('points at a different commit than the recorded local commit')
+  await expect(checkDetails).toContainText('no check details for the recorded commit are shown')
+  await expect(checkDetails).toContainText(`GitHub branch${deliveryBranch}`)
+  await expect(checkDetails).toContainText(`GitHub commit${remoteCommit}`)
+  await expect(checkDetails).toContainText(`Bound repository ID${bindingNode}`)
+  await expect(checkDetails).toContainText(/Observed \(UTC\)\d{4}-\d{2}-\d{2}T[\d:.]+Z/)
+  await expect(checkDetails).not.toContainText('Returned entries')
+  await expect(checkDetails).not.toContainText('Total reported')
+  await expect(checkDetails.locator('li')).toHaveCount(0)
+  await expectNoFixtureText()
+  expect(contextsRequests).toHaveLength(1)
+  expect(contextsCalls()).toBe(1)
+  expectNoSiblingActivity()
+  assertBindingChangedOnlyItsOwnRows()
+  assertNothingElseChanged()
+  expect(data.gitHubRepositoryIdentityBindings()).toEqual(bindingRows)
+  expect(data.gitHubRepositoryIdentityBindingEvents()).toEqual(bindingEvents)
+
+  // An explicit recheck is exactly one more observation; nothing else is read by itself.
+  await checkDetails.getByRole('button', { name: 'Recheck GitHub check details', exact: true }).click()
+  await expect(checkDetails).toContainText(`GitHub commit${remoteCommit}`)
+  expect(contextsCalls()).toBe(2)
+  await page.waitForTimeout(2_000)
+  expect(contextsCalls()).toBe(2)
+  expect(contextsRequests).toHaveLength(2)
+  assertBindingChangedOnlyItsOwnRows()
+
+  // Closing and reopening is a new lifetime that starts unchecked and reads nothing.
+  await checkDetails.getByRole('button', { name: 'Close GitHub check details', exact: true }).click()
+  await checkDetails.getByRole('button', { name: 'Show GitHub check details', exact: true }).click()
+  await expect(checkDetails).toContainText('Not checked.')
+  await expect(checkDetails).not.toContainText(remoteCommit)
+  expect(contextsRequests).toHaveLength(2)
+  expect(contextsCalls()).toBe(2)
+
+  // A real reload is a new session lifetime: the region is collapsed and unchecked, and only an explicit check reads again.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await openObservation()
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  await expect(checkDetails.getByRole('button', { name: 'Show GitHub check details', exact: true })).toBeVisible()
+  await page.waitForTimeout(1_000)
+  expect(contextsRequests).toHaveLength(2)
+  expect(contextsCalls()).toBe(2)
+  await checkDetails.getByRole('button', { name: 'Show GitHub check details', exact: true }).click()
+  await expect(checkDetails).toContainText('Not checked.')
+  expect(contextsRequests).toHaveLength(2)
+  const contextsReloadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && CONTEXTS_PATH.test(new URL(response.url()).pathname),
+  )
+  await checkDetails.getByRole('button', { name: 'Check GitHub check details', exact: true }).click()
+  const contextsReloaded = await (await contextsReloadWire).json()
+  expect(contextsReloaded.status).toBe('CommitDifferent')
+  expect(contextsReloaded.binding).toEqual(boundBody.binding)
+  expect(contextsReloaded.observation.ref).toEqual({ branchName: deliveryBranch, commitSha: remoteCommit })
+  expect(contextsReloaded.observation.totalCount).toBeNull()
+  expect(contextsReloaded.observation.contexts).toBeNull()
+  await expect(checkDetails).toContainText('points at a different commit than the recorded local commit')
+  await expectNoFixtureText()
+  expect(contextsRequests).toHaveLength(3)
+  expect(contextsCalls()).toBe(3)
+  await page.waitForTimeout(2_000)
+  expect(contextsRequests).toHaveLength(3)
+  expect(contextsCalls()).toBe(3)
+  expectNoSiblingActivity()
+  assertBindingChangedOnlyItsOwnRows()
+  assertNothingElseChanged()
+  expect(data.gitHubRepositoryIdentityBindings()).toEqual(bindingRows)
+  expect(data.gitHubRepositoryIdentityBindingEvents()).toEqual(bindingEvents)
+
+  // No double call logs a name, branch, commit, identifier, label or state.
+  const contextsLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
+  for (const secret of [deliveryBranch, remoteCommit, deliveredCommit, bindingNode, observationOwner, observationRepository, ...fixtureStrings]) {
+    expect(contextsLog).not.toContain(secret)
   }
 
   const afterDelivery = {

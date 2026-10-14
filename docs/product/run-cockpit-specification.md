@@ -215,6 +215,18 @@ close followed by a check in the same batch send nothing and cannot affect a suc
 mount, opening, a project, run or target change, a reconnect or a timer, nothing is retried or stored in the browser, and every value (the bound repository ID, the observed
 ref and commit, GitHub's literal state and the UTC time) is inert text. A different commit, a ref that was not returned, an identity change and any drift show no state.
 
+The GitHub check details region ([ADR-0045](../decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md)) is a further separate
+collapsed region inside an Available target, beside the commit checks region. It offers "Show GitHub check details" (which sends nothing), "Check GitHub check details" (then
+"Recheck") and "Close GitHub check details", shows the exact recorded branch, local commit, owner and repository, the stored-authentication and 50-entry notes and the fixed
+disclosure (the bounded collection GitHub returned for this commit, not required-check approval, complete workflow history, permission or publication authority) before anything
+is checked, and reads only the protected, bodyless `GET /api/runs/{runId}/github-check-contexts-observation` on its explicit Check or Recheck; no sibling region's answer is used.
+The decoder repeats the host's status, nullability, scope, bound ID, ref, commit, count, state, label and time rules and accepts the whole answer or none of it; the committed
+source and target and each opening own callbacks and results exactly as for the commit checks region, and a pending read or a failure removes the earlier observation. A returned
+collection is listed in provider order as inert text: each entry's kind, safe name (post-redaction text: the open region discloses that the host may have redacted a name and that it is not necessarily the provider's original text), ID, literal status, literal conclusion (a null conclusion reads "not returned", never
+"passed") and, for a check run, its check suite ID. Zero entries is stated as zero returned and never as success; an exceeded 50-entry bound shows the total, no entry and the
+explanation; a different commit, a ref that was not returned, an identity change and any drift show no entry. There is never a link, copy or other action, an aggregate verdict,
+an automatic read, a retry, a timer or browser storage.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

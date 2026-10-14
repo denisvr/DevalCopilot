@@ -109,6 +109,20 @@ GitHub returned none, never that no checks exist. The aggregate is not required-
 Check and workflow enumeration, required-check and branch-protection policy, scoped publication, push, pull request, automatic monitoring and reconciliation remain later,
 separately gated slices.
 
+## Explicit check context inspection
+
+[ADR-0045](../decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only observation of the bounded
+collection of check-run and commit-status metadata (`Commit.statusCheckRollup.contexts`, the first 50) GitHub returns for the exact recorded commit. It follows the ADR-0044
+order exactly: the unchanged source, target and binding readers before any process and again after it, the same fresh `GitHubCli` snapshot gate, one fixed read-only `gh api
+graphql` invocation with the stored default authentication, an independent validation of the whole probe (including the bounded page even when it will be withheld), and a
+comparison of the opaque ID with the immutable binding and of the commit with the recorded commit, ordinally. Entries are shown only for the recorded commit and only within the
+bound: a different commit, a ref that was not returned, an identity change and any drift expose no entry or count; a total above 50 reports the count and no entry and requests no
+further page; a null rollup means only that GitHub returned none. Each entry is its kind, opaque ID, label, literal status, literal conclusion (or null) and check suite ID,
+preserved in provider order and never translated, paired, deduplicated by name or reduced to a latest attempt, and labels are the only decoded text, held to a strict text
+contract and redacted once after decoding with the existing fixed redaction (a label is safe post-redaction text, not necessarily the provider's original text). The collection is not complete check or workflow evidence, workflow-run, job, step or log history, required-check or branch-protection policy, a permission or a
+publication authority; requiredness, enumeration beyond 50 entries, workflow relation, scoped publication, push, pull request, automatic monitoring and reconciliation remain
+later, separately gated slices.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

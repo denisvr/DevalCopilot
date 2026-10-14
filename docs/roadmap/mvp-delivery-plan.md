@@ -360,6 +360,10 @@ only after a fresh host observation agrees (historical identity evidence, not a 
 aggregate check state for the recorded commit, shown only when the freshly observed repository ID equals the immutable binding and the exact recorded branch points at that
 commit (not complete check or workflow evidence, required-check approval, permission or publication authority); required-check policy, check and workflow enumeration, scoped
 publication, automatic monitoring and reconciliation remain open.
+[ADR-0045](../decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only inspection of the bounded collection
+(at most 50) of check-run and commit-status metadata GitHub returns for the recorded commit, shown only under the same identity and exact-branch conditions (not complete check or
+workflow evidence, workflow history, required-check approval, permission or publication authority); required-check policy, enumeration beyond 50 entries, workflow relation,
+failed-check diagnosis, scoped publication, automatic monitoring and reconciliation remain open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

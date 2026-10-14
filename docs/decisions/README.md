@@ -107,6 +107,11 @@ supersedes it.
   (additive; one protected, bodyless, read-only observation, in one remote response, of GitHub's point-in-time aggregate check state for the exact recorded commit, shown only
   when the freshly observed repository ID equals the immutable ADR-0043 binding and the exact recorded branch points at that commit, through one fixed `gh api graphql`
   invocation and the stored default authentication; never complete check or workflow evidence, required-check approval, permission, persistence or publication authority)
+- [ADR-0045: Inspect the check contexts of a bound recorded local commit on explicit request](0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md)
+  (additive; one protected, bodyless, read-only observation of the bounded collection (at most 50) of check-run and commit-status metadata GitHub returns for the exact recorded
+  commit, shown only when the freshly observed repository ID equals the immutable ADR-0043 binding and the exact recorded branch points at that commit, through one fixed
+  `gh api graphql` invocation and the stored default authentication; never complete check or workflow evidence, required-check approval, permission, persistence or publication
+  authority)
 
 ## Status values
 
