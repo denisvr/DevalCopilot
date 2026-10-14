@@ -94,7 +94,42 @@ not replace file-backed SQLite with mocked DbSets or EF InMemory, weaken
 authentication, skip constraints, remove independent assertions, share mutable
 data across tests or bypass safety invariants for speed. Fixture caching,
 database cloning or broader test-infrastructure changes require a separately
-bounded implementation and isolation evidence; this policy implements none.
+bounded implementation and isolation evidence; this policy implements none
+beyond the one narrow form below.
+
+### Class-owned sealed SQLite snapshot (ADR-0046)
+
+[ADR-0046](../decisions/0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md)
+approves one form of reuse, for one endpoint class at a time. Extending it to
+another class is a separately selected slice. A class that uses it must:
+
+- seed once per execution of that class, through the unchanged production
+  lineage, in a class fixture; cache nothing between class executions or
+  processes and use no global or assembly-wide state;
+- stop every seed host and writer before sealing; seal with SQLite's backup
+  facility, never by copying a live database or WAL; never open the sealed source
+  for writing again;
+- give each fact its own physical database copy, host and dependency container,
+  observers and counters, clock, clients and writable roots, copying scalar
+  identities and capturing any collection the seed hands out (a read-only
+  interface is not immutability) as an immutable copy, never a mutable seed
+  object; refresh time-dependent eligibility
+  (such as CLI snapshot evidence) per fact instead of caching it;
+- keep the shared Git scene read-only: no supervisor, provider or Git writer runs
+  against it, and its fingerprint and the sealed files' hashes are verified when
+  the class ends;
+- keep every fact, its name and every independent assertion, plus a
+  representative proof that the seed executed the production lineage;
+- ship named isolation regressions (distinct databases and writable resources,
+  change containment, a clean later clone, independent observers and clocks,
+  disposal order) and kill compiling shared-database and shared-observer mutants
+  with them; and
+- report a before and after wall time of the unchanged filter, including seed,
+  backup, host startup and disposal, with setup and observation cost reported
+  separately.
+
+Facts that must mutate the scene or run a supervisor or provider keep the
+per-test lineage.
 
 ## Measure and retain evidence
 

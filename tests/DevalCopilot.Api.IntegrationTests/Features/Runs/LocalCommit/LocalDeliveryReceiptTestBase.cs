@@ -14,6 +14,15 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 /// </summary>
 public abstract class LocalDeliveryReceiptTestBase : LocalCommitTestBase
 {
+    protected LocalDeliveryReceiptTestBase()
+    {
+    }
+
+    internal LocalDeliveryReceiptTestBase(LocalCommitBorrowedResources? borrowed)
+        : base(borrowed)
+    {
+    }
+
     internal const string Route = "local-delivery-receipt";
 
     internal static async Task<ReceiptReading> ReceiptAsync(LocalCommitHost host, Guid runId)
@@ -118,9 +127,14 @@ public abstract class LocalDeliveryReceiptTestBase : LocalCommitTestBase
     }
 
     /// <summary>A content hash of every row of every table, so a read can be proven to have written nothing at all.</summary>
-    internal async Task<string> DatabaseFingerprintAsync(IReadOnlyCollection<string>? excludedTables = null, string? excludedEventType = null)
+    internal Task<string> DatabaseFingerprintAsync(IReadOnlyCollection<string>? excludedTables = null, string? excludedEventType = null) =>
+        DatabaseFingerprintAsync(DatabasePath, excludedTables, excludedEventType);
+
+    /// <summary>The same fingerprint of any database file, for an owner that holds no test instance over it.</summary>
+    internal static async Task<string> DatabaseFingerprintAsync(
+        string databasePath, IReadOnlyCollection<string>? excludedTables = null, string? excludedEventType = null)
     {
-        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await using var connection = new SqliteConnection($"Data Source={databasePath}");
         await connection.OpenAsync();
         var tables = new List<string>();
         await using (var list = connection.CreateCommand())

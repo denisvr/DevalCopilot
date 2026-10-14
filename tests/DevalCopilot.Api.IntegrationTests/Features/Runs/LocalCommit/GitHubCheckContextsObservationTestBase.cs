@@ -16,6 +16,15 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 /// </summary>
 public abstract class GitHubCheckContextsObservationTestBase : GitHubRepositoryIdentityBindingTestBase
 {
+    protected GitHubCheckContextsObservationTestBase()
+    {
+    }
+
+    internal GitHubCheckContextsObservationTestBase(LocalCommitBorrowedResources? borrowed)
+        : base(borrowed)
+    {
+    }
+
     internal const string ContextsRoute = "github-check-contexts-observation";
 
     internal const string Sha40 = "0123456789abcdef0123456789abcdef01234567";

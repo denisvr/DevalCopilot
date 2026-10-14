@@ -14,6 +14,15 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 /// </summary>
 public abstract class GitHubObservationTargetTestBase : LocalDeliveryReceiptTestBase
 {
+    protected GitHubObservationTargetTestBase()
+    {
+    }
+
+    internal GitHubObservationTargetTestBase(LocalCommitBorrowedResources? borrowed)
+        : base(borrowed)
+    {
+    }
+
     internal const string TargetRoute = "github-observation-target";
 
     internal const string TargetEventType = RunEventType.GitHubObservationTargetRecorded;

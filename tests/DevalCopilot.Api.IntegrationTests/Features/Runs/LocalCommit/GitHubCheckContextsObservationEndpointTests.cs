@@ -17,9 +17,29 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 /// what) the recorded scope, the binding and the current CLI snapshot admit, to validate the whole probe before classifying it and to
 /// withhold every count and entry unless the bound identity, the exact branch and the recorded commit all agree and the bound allows it.
 /// </summary>
-public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckContextsObservationTestBase
+public sealed class GitHubCheckContextsObservationEndpointTests
+    : GitHubCheckContextsObservationTestBase, IClassFixture<GitHubCheckContextsSealedEvidence>
 {
     private const string Sentinel = "SENTINEL-LABEL";
+
+    private readonly GitHubCheckContextsSealedClone _clone;
+
+    public GitHubCheckContextsObservationEndpointTests(GitHubCheckContextsSealedEvidence evidence)
+        : this(evidence.ReserveClone(), evidence)
+    {
+    }
+
+    private GitHubCheckContextsObservationEndpointTests(GitHubCheckContextsSealedClone clone, GitHubCheckContextsSealedEvidence evidence)
+        : base(new LocalCommitBorrowedResources(evidence.Scene, clone.DatabasePath, clone.WritableRoot, clone))
+    {
+        _clone = clone;
+    }
+
+    /// <summary>This fact's own copy of the class-owned sealed lineage (ADR-0046): the delivery, target and, unless excluded, binding the
+    /// production commands recorded once for the class, with a host, observers, counters and clock that no other fact shares.</summary>
+    private Task<Bound> SnapshotBoundAsync(bool recordBinding = true, IGitHubCheckContextsObserver? observer = null) =>
+        _clone.ProvisionAsync(
+            recordBinding ? GitHubCheckContextsSealedStage.BindingRecorded : GitHubCheckContextsSealedStage.TargetRecorded, observer);
 
     private async Task AssertScopeAsync(ReceiptReading reading, Bound bound, bool binding, string context = "")
     {
@@ -147,7 +167,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_delivery_with_a_recorded_target_and_no_binding_is_binding_not_recorded_with_the_scope_and_nothing_is_invoked_or_written()
     {
-        var bound = await BoundAsync(recordBinding: false);
+        var bound = await SnapshotBoundAsync(recordBinding: false);
         bound.Contexts.Answer = () => ContextsProbe();
         var before = await DatabaseFingerprintAsync();
 
@@ -166,7 +186,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task An_unusable_cli_snapshot_is_cli_unavailable_with_the_scope_and_the_binding_and_nothing_is_invoked()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => ContextsProbe();
         await using (var db = OpenDb())
         {
@@ -196,7 +216,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_stored_snapshot_outside_what_domain_construction_allows_is_cli_unavailable_without_invocation_or_write()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => ContextsProbe();
         (string Column, string Value)[] cases =
         [
@@ -231,7 +251,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_matching_commit_with_a_mixed_collection_reports_every_entry_in_provider_order_with_the_exact_wire_shape_and_no_write()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var entries = new[]
         {
             RunEntry("CR_a", "build", "COMPLETED", "SUCCESS", "CS_1"),
@@ -266,7 +286,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_matching_commit_with_zero_entries_is_contexts_reported_with_a_zero_count_and_an_empty_array_never_a_null_collection()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => ContextsProbe("OCTO-CAT", "Hello.World", reference: Remote(bound), page: PageOf(0));
         var started = DateTimeOffset.UtcNow;
 
@@ -282,7 +302,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task Exactly_fifty_entries_are_reported_and_a_larger_total_is_limit_exceeded_with_every_entry_withheld()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var fifty = SentinelEntries(50);
         bound.Contexts.Answer = () => ContextsProbe("OCTO-CAT", "Hello.World", reference: Remote(bound), page: PageOf(50, fifty));
         var started = DateTimeOffset.UtcNow;
@@ -313,7 +333,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_matching_commit_with_no_rollup_is_no_contexts_returned_with_the_exact_ref_and_a_null_count_and_collection()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => ContextsProbe("OCTO-CAT", "Hello.World", reference: Remote(bound));
         var before = await DatabaseFingerprintAsync();
         var started = DateTimeOffset.UtcNow;
@@ -332,7 +352,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_different_commit_is_commit_different_with_the_exact_ref_and_withholds_every_count_and_entry_even_when_github_supplied_them()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var other = new string('e', 40);
         var before = await DatabaseFingerprintAsync();
         var pages = new GitHubCheckContextsPage?[]
@@ -367,7 +387,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_valid_null_ref_is_ref_not_returned_with_a_null_ref_count_and_collection_and_no_write()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => ContextsProbe("OCTO-CAT", "Hello.World");
         var before = await DatabaseFingerprintAsync();
         var started = DateTimeOffset.UtcNow;
@@ -385,7 +405,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_whole_valid_answer_with_another_opaque_id_is_identity_changed_with_the_binding_and_no_observation_never_echoing_the_id_or_entries()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var before = await DatabaseFingerprintAsync();
         const string Different = "R_kgDODifferent9";
         var answers = new Func<Task<GitHubCheckContextsProbe?>>[]
@@ -420,7 +440,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task An_unusable_foreign_fallback_inconsistent_or_malformed_probe_is_unknown_before_any_classification_whatever_the_identity_or_commit()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var sha = bound.Sha;
         var branch = Scene.BranchName;
         var other = new string('e', 40);
@@ -499,7 +519,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_label_is_returned_as_inert_json_text_exactly_as_admitted_including_quotes_backslashes_markup_and_unicode()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var labels = new[]
         {
             "say \"hi\" and back\\slash",
@@ -523,7 +543,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_clock_reading_that_precedes_the_binding_is_unknown_without_an_observation_and_an_equal_reading_is_admitted()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var recordedAt = await BindingRecordedAtAsync(bound.Ids.RunId);
         var before = await DatabaseFingerprintAsync();
 
@@ -558,7 +578,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task An_identity_change_carries_no_observation_time_and_does_not_depend_on_the_clock_precedence_rule()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var recordedAt = await BindingRecordedAtAsync(bound.Ids.RunId);
         bound.Contexts.Answer = () =>
         {
@@ -576,7 +596,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task Each_request_observes_once_more_and_never_reuses_an_earlier_answer_or_a_sibling_observation()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => ContextsProbe("OCTO-CAT", "Hello.World", reference: Remote(bound), page: PageOf(1, RunEntry(name: "first")));
 
         var first = await ObserveContextsAsync(bound.Host, bound.Ids.RunId);
@@ -596,7 +616,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task The_observation_time_is_stamped_after_the_external_work_and_the_callers_cancellation_reaches_the_observer()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = async () =>
         {
             await Task.Delay(1_200);
@@ -614,7 +634,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task An_unexpected_observer_fault_is_not_converted_into_a_status_and_writes_nothing()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => throw new InvalidOperationException("boom");
         var before = await DatabaseFingerprintAsync();
 
@@ -628,7 +648,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task A_query_string_is_ignored_and_the_observer_receives_only_the_recorded_scope()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         bound.Contexts.Answer = () => ContextsProbe("OCTO-CAT", "Hello.World", reference: Remote(bound), page: PageOf(1, RunEntry()));
 
         var reading = await ObserveContextsAsync(
@@ -702,7 +722,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
                 + "\",\"statusCheckRollup\":{\"contexts\":{\"totalCount\":" + nodes.Count
                 + ",\"pageInfo\":{\"hasNextPage\":false},\"nodes\":[" + string.Join(",", nodes) + "]}}}}}}}";
         });
-        var bound = await BoundAsync(observer: new GitHubCheckContextsObservationAdapter(process));
+        var bound = await SnapshotBoundAsync(observer: new GitHubCheckContextsObservationAdapter(process));
         sha = bound.Sha;
         var before = await DatabaseFingerprintAsync();
 
@@ -728,7 +748,7 @@ public sealed class GitHubCheckContextsObservationEndpointTests : GitHubCheckCon
     [Fact]
     public async Task The_response_never_contains_a_translated_aggregate_or_an_approval_word_for_any_successful_looking_collection()
     {
-        var bound = await BoundAsync();
+        var bound = await SnapshotBoundAsync();
         var entries = new[] { RunEntry("CR_1", "tests", "COMPLETED", "SUCCESS"), StatusEntry("SC_1", "ci", "SUCCESS") };
         bound.Contexts.Answer = () => ContextsProbe("OCTO-CAT", "Hello.World", reference: Remote(bound), page: PageOf(2, entries));
 

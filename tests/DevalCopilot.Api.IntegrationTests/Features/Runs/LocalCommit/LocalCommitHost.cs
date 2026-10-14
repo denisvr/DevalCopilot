@@ -31,7 +31,8 @@ internal sealed class LocalCommitHost(
     bool runSupervisor,
     Func<ILocalCommitRepository, ILocalCommitRepository>? decorateRepository = null,
     Func<ILocalCommitPreparer, ILocalCommitPreparer>? decoratePreparer = null,
-    Action<IServiceCollection>? configure = null)
+    Action<IServiceCollection>? configure = null,
+    string? writableRoot = null)
     : WebApplicationFactory<Program>
 {
     public const string Secret = ApiWebApplicationFactory.ValidSecret;
@@ -71,10 +72,12 @@ internal sealed class LocalCommitHost(
             services.RemoveAll<IArtifactStore>();
             services.RemoveAll<IVerificationOutputArtifactStore>();
             services.RemoveAll<IWorkspaceRootPathProvider>();
-            var artifactStore = new FilesystemArtifactStore(Path.Combine(scene.Root, "artifacts"));
+            // The artifact, workspace and local-commit storage roots sit under the scene unless the owner supplies a root of its own.
+            var root = writableRoot ?? scene.Root;
+            var artifactStore = new FilesystemArtifactStore(Path.Combine(root, "artifacts"));
             services.AddSingleton<IArtifactStore>(artifactStore);
             services.AddSingleton<IVerificationOutputArtifactStore>(artifactStore);
-            services.AddSingleton<IWorkspaceRootPathProvider>(new WorkspaceRootPathProvider(Path.Combine(scene.Root, "workspaces")));
+            services.AddSingleton<IWorkspaceRootPathProvider>(new WorkspaceRootPathProvider(Path.Combine(root, "workspaces")));
 
             configure?.Invoke(services);
 

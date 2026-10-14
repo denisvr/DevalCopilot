@@ -112,6 +112,9 @@ supersedes it.
   commit, shown only when the freshly observed repository ID equals the immutable ADR-0043 binding and the exact recorded branch points at that commit, through one fixed
   `gh api graphql` invocation and the stored default authentication; never complete check or workflow evidence, required-check approval, permission, persistence or publication
   authority)
+- [ADR-0046: Prepare delivery-lineage API tests from a class-owned sealed SQLite snapshot](0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md)
+  (additive test infrastructure for one endpoint class only; one run-local seed of the unchanged production lineage sealed with SQLite's backup facility and copied per fact, with
+  isolation evidence; no production, contract, client or dependency change)
 
 ## Status values
 

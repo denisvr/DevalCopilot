@@ -4,6 +4,7 @@ using System.Text.Json;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Runs;
+using DevalCopilot.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -18,6 +19,15 @@ namespace DevalCopilot.Api.IntegrationTests.Features.Runs.LocalCommit;
 /// </summary>
 public abstract class GitHubRepositoryIdentityBindingTestBase : GitHubObservationTargetTestBase
 {
+    protected GitHubRepositoryIdentityBindingTestBase()
+    {
+    }
+
+    internal GitHubRepositoryIdentityBindingTestBase(LocalCommitBorrowedResources? borrowed)
+        : base(borrowed)
+    {
+    }
+
     internal const string BindingRoute = "github-repository-identity-binding";
 
     internal const string BindingEventType = RunEventType.GitHubRepositoryIdentityBound;
@@ -85,6 +95,14 @@ public abstract class GitHubRepositoryIdentityBindingTestBase : GitHubObservatio
         TimeSpan? evidenceAge = null)
     {
         await using var db = OpenDb();
+        await SeedSnapshotAsync(db, kind, script, failedLast, evidenceAge);
+    }
+
+    /// <summary>Records current CLI evidence in the database the context opens, for an owner that holds no test instance over it.</summary>
+    internal static async Task SeedSnapshotAsync(
+        DevalCopilotDbContext db, CapabilityLaunchKind kind = CapabilityLaunchKind.DirectExecutable, string? script = null,
+        bool failedLast = false, TimeSpan? evidenceAge = null)
+    {
         var now = DateTimeOffset.UtcNow - (evidenceAge ?? TimeSpan.Zero);
         var snapshot = await db.HostCapabilitySnapshots.SingleOrDefaultAsync(candidate => candidate.Capability == Capability.GitHubCli);
         if (snapshot is null)

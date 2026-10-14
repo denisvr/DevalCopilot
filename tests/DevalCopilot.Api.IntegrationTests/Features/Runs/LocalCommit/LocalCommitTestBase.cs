@@ -19,10 +19,25 @@ public abstract partial class LocalCommitTestBase : IDisposable
 {
     private readonly List<LocalCommitHost> _hosts = [];
     private readonly List<ScriptedLocalCommitRepository> _scripts = [];
+    private readonly LocalCommitBorrowedResources? _borrowed;
 
-    internal LocalCommitScene Scene { get; } = new();
+    protected LocalCommitTestBase()
+        : this(null)
+    {
+    }
 
-    internal string DatabasePath { get; } = Path.Combine(Path.GetTempPath(), $"devalcopilot-local-commit-{Guid.NewGuid():N}.db");
+    /// <summary>Borrows a scene, a database file and a writable root that another owner created. Without it the instance creates and
+    /// owns its own scene and database, which is what every existing caller does.</summary>
+    internal LocalCommitTestBase(LocalCommitBorrowedResources? borrowed)
+    {
+        _borrowed = borrowed;
+        Scene = borrowed?.Scene ?? new LocalCommitScene();
+        DatabasePath = borrowed?.DatabasePath ?? Path.Combine(Path.GetTempPath(), $"devalcopilot-local-commit-{Guid.NewGuid():N}.db");
+    }
+
+    internal LocalCommitScene Scene { get; }
+
+    internal string DatabasePath { get; }
 
     internal LocalCommitHost StartHost(
         bool runSupervisor,
@@ -30,7 +45,8 @@ public abstract partial class LocalCommitTestBase : IDisposable
         Func<ILocalCommitPreparer, ILocalCommitPreparer>? decoratePreparer = null,
         Action<IServiceCollection>? configure = null)
     {
-        var host = new LocalCommitHost(Scene, DatabasePath, runSupervisor, decorate, decoratePreparer, configure);
+        var host = new LocalCommitHost(
+            Scene, DatabasePath, runSupervisor, decorate, decoratePreparer, configure, _borrowed?.WritableRoot);
         _hosts.Add(host);
         _ = host.Services;
         return host;
@@ -157,6 +173,9 @@ public abstract partial class LocalCommitTestBase : IDisposable
             host.Dispose();
         }
 
+        // A borrowed set is released by its owner first, so no host of the owner still holds the database this instance deletes below.
+        _borrowed?.Owner.Dispose();
+
         // Failure-safe: a failed assertion must not leave a capability this fixture deliberately retained (a simulated host loss
         // keeps the live lock and artifact handles) open under the scene, or its teardown fails a second time and hides the first
         // failure. The hosts are stopped first; then each retained capability is released through the repository's own release API,
@@ -180,6 +199,9 @@ public abstract partial class LocalCommitTestBase : IDisposable
             File.Delete(DatabasePath);
         }
 
-        Scene.Dispose();
+        if (_borrowed is null)
+        {
+            Scene.Dispose();
+        }
     }
 }

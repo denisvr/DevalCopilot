@@ -149,6 +149,9 @@
   the recorded commit, shown only when the freshly observed repository ID equals the ADR-0043 binding and the exact recorded branch points at that commit, through one fixed
   `gh api graphql` invocation and the stored default authentication; no persistence and no complete check or workflow evidence, required-check approval, permission or
   publication authority).
+- [ADR-0046](decisions/0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md): Prepare delivery-lineage API tests from a class-owned sealed SQLite
+  snapshot (additive test infrastructure for one endpoint class only: one run-local seed of the unchanged production lineage, sealed with SQLite's backup facility and copied per
+  fact, with isolation evidence; no production, public-contract, client or dependency change).
 
 ## Product-specific architecture
 
@@ -553,7 +556,11 @@ source repositories and connected systems.
 - SQLite integration tests use disposable file-backed databases because SQLite
   is the production provider. EF Core InMemory is not provider evidence.
 - MVC integration tests use `WebApplicationFactory` and a disposable SQLite
-  database.
+  database. A class that needs a real delivery lineage for many independent facts may,
+  under [ADR-0046](decisions/0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md)
+  and the [validation policy](roadmap/validation-policy.md), seed it once per class
+  execution and give each fact its own SQLite backup; no other form of shared test
+  data or cross-run cache is approved.
 - Agent, Git, GitHub, and local process adapters use deterministic executable
   test doubles for contract and failure-path tests. Automated tests do not
   call real providers.

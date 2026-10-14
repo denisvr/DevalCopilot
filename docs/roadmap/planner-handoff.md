@@ -5,6 +5,245 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## ADR-0046 correction review (2026-10-14): GO for the frozen substantive diff
+
+This decision supersedes the NO-GO below, preserving its finding and evidence.
+Codex verified main, HEAD/local origin/main/live main equal
+9baf8bc1f2c6ad3d287c54f9e2dfe3ab466cc481; 0/0; empty index; 21 changed
+paths (12 modified including planner, 9 untracked). The planner was byte-identical
+to the NO-GO before this update. Client remains
+af681d73f06c3929b40bd773618469403a11e6ee0cf58c2a42f5515c2d12f10b.
+
+The mutable-membership finding is closed. Capture severs the seed List<Guid>
+alias with an ImmutableArray<Guid>; IdsForClone returns a record copy with
+immutable membership. Scalar identity, ordering, null and empty are preserved;
+the global LocalCommitLineageIds and other classes' defaults are unchanged.
+Three named regressions prove input mutation cannot change the sealed value,
+real live clones cannot mutate siblings or later clones, and values remain
+intact. The original-alias mutant compiled and was killed by exactly these
+three; the seven prior isolation facts passed. Restored identities-file SHA-256:
+4198d0538740587f325b03d392822442bb3e1be2b4aab3c21d8fc84415a7ae51.
+
+Independent correction review: incremental serial solution build, zero warnings
+and errors; full isolation class 10/10. Complete logs/TRX remain under
+logs/planner-review/adr46/correction1/. Executor final logs/TRX agree with
+isolation 10/10, endpoint 20/20 and Architecture 127/127. The final complete-class
+wall time is 17.2724346 s against the retained 120.228545 s baseline (85.6 percent
+reduction). Earlier independent review also ran the preserved 20 facts in 17.700 s.
+No duplicate baseline or full Api run was needed for this local correction.
+Retained unchanged checks and input-based reasons are accepted.
+
+Both sealed stages of one production lineage remain accepted. There is no
+fabricated binding-less state, product endpoint migration or global cache.
+The comparison of a single fact is now correctly inconclusive: 10.68 s after
+was measured, approximately 9 s before was estimated, so neither improvement
+nor regression is established. The seed and per-fact host overhead remain.
+Performance acceptance applies only to this class; no product or release gate
+is closed. Future fixture migrations need separately selected scope and evidence.
+
+Preserve the original alias probe, failing red attempts, compiling mutants,
+compile/script failures, and all other logs. The first correction red attempt
+did not compile and its test output was a stale binary; it is honestly excluded
+from red evidence. The subsequent compiling red and mutation both demonstrate
+the three new regressions. All prior limitations remain, including the bounded
+scene fingerprint's inability to detect a reverted transient write.
+
+GO authorizes exactly one substantive commit of the 21 frozen paths, including
+current-work and this planner decision, followed by a normal fast-forward main
+push and live remote verification in the same executor turn. Freeze the exact
+status/path/raw SHA-256/byte count/Git mode/blob/baseline mode/blob entries in
+logs/planner-review/adr46/publication-manifest.json; the executor prompt supplies
+its SHA-256. Verify every entry and absence of extras before staging, then exact
+staged and committed inventories/modes/blobs, with one parent at the baseline.
+No implementation/documentation edit, regeneration, validation rerun, separate
+closure diff or next-slice selection is authorized. Stop on mismatch, unexpected
+state, push failure or remote divergence; no force, reset, merge or rebase.
+The planner selects the next slice after independent publication verification.
+
+The unnamed Api 2067/2068 failure remains unexplained; later passes prove neither
+flakiness nor irrelevance. Qualification remains Blocked/TargetsNotReal, both
+allowances unused. Preserve ledger, historical failures, retained roots and
+ignored evidence. No real gh/provider invocation, CLI setup or ledger/evidence
+cleanup is authorized. Normal disposal stays confined to new owned test resources.
+
+## ADR-0046 review (2026-10-14): NO-GO for one bounded identity-isolation correction
+
+Codex verified main, HEAD/local origin/main/live main equal
+9baf8bc1f2c6ad3d287c54f9e2dfe3ab466cc481; 0/0; empty index; exactly 21
+changed paths (12 modified including the preserved planner, 9 untracked). The
+planner was byte-identical to the selection before this review update; client
+remains af681d73f06c3929b40bd773618469403a11e6ee0cf58c2a42f5515c2d12f10b.
+No publication or next slice is authorized. Preserve all prior planner bytes.
+
+### Blocking finding: the seed's mutable execution-membership list is shared (P2)
+
+The fixture constructs GitHubCheckContextsSealedIdentities from delivered.Ids
+directly, then ProvisionAsync passes that same Ids object to every Bound.
+LocalCommitLineageIds includes AllExecutionIds, whose actual seed value is a
+List<Guid> returned by LocalCommitLineage.SeedAsync. IReadOnlyList is an interface,
+not an immutable collection; it can be cast back and mutated. Thus the new
+identity graph still aliases a mutable seed object between facts, contrary to
+the selected isolation contract. File/scene hashes do not detect this in-memory
+change. Existing tests check observers, clocks and databases but not membership.
+
+The independent named probe in logs/planner-review/adr46/alias-probe.log uses
+the actual compiled identity and Bound record types with the same assignment as
+ProvisionAsync. It demonstrates that a membership mutation reaches a second
+borrower and the seed. It is a type-level reproduction, not a fixture/host test;
+its source and failing result are retained. Production behavior is unaffected.
+
+Correct only the new sealed-identity/clone construction: sever the seed list
+alias at capture and preserve the complete ordered membership as an immutable
+snapshot. A clone may share genuinely immutable values or receive its own
+read-only copy; no mutable collection may be shared with seed or another clone.
+Preserve every scalar and null/list distinction. Do not change the existing
+global LocalCommitLineageIds or other classes' default setup. Add red-first
+regressions for capture independence from mutable input and for real live clones'
+membership isolation, including a later clone and sealed identities. Reintroducing
+the original mutable alias must compile and be killed by a named regression;
+restore verified hashes and rebuild.
+
+### Accepted adaptation and evidence limits
+
+Accept two sealed stages of the same production lineage: TargetRecorded before
+the binding POST and BindingRecorded afterward. This preserves the binding-less
+fact without fabricated/deleted rows and changes no authority or reuse scope.
+Keep this design; no rework to per-fact binding is requested. The isolation
+validation class creates its own class fixture to test the mechanism, rather
+than migrating another product endpoint or sharing an existing fixture.
+
+The complete-class speedup is supported: paired executor wall logs show
+120.228545 s before and 17.5236708 s after, 20/20 facts both times, 85.4 percent
+reduction. Codex independently built incrementally with zero warnings/errors,
+ran the same 20 facts in 17.700 s wall and ran isolation 7/7. Complete logs/TRX
+remain under logs/planner-review/adr46/. Diff inspection confirms the 20 named
+facts and independent assertions are preserved. Both compiling original mutants
+and restored hashes are verified; the failed compilation/script attempts remain.
+
+Clarify the single-fact report: 10.68 s was measured after; approximately 9 s
+before was only estimated. A single-fact speedup or regression is not established
+by that comparison. Retain the known seed overhead and do not claim either result
+without a paired measurement. No further single-fact benchmark is required here.
+
+### Proportional correction validation
+
+Run the new regressions red first and the one compiling alias mutant serially.
+After restoration run one incremental serial solution build, all isolation
+cases including the new membership cases, the optimized 20-fact endpoint class
+once with full wall timing, full Architecture, changed C# formatting, changed
+document links, secret hygiene and git diff --check. Compare the final class
+time with the retained 120.228545 s baseline; do not repeat that baseline.
+Retain unchanged admission/corruption/drift, default-seam controls, product,
+frontend, journeys, adapter, fixture, client and dependency evidence with reasons.
+Stop for discussion if a fix needs shared lineage changes, production changes or
+wider fixture migration. Present the uncommitted/unpushed correction in this same
+executor chat, with current-work evidence and limitations updated.
+
+Preserve the unexplained Api 2067/2068 failure and every other recorded limit;
+later passes prove neither flakiness nor irrelevance. Future failures keep complete
+logs and named results under unique names. Qualification remains
+Blocked/TargetsNotReal, both allowances unused. No real gh/provider invocation,
+CLI setup, ledger reset or historical/evidence cleanup. Normal test disposal is
+confined to newly created owned disposable resources. No stage, commit or push.
+
+## Next selected slice (2026-10-14): isolated snapshots for check-context API tests
+
+### Verified publication and priority
+
+Codex independently verified ADR-0045 publication at
+9baf8bc1f2c6ad3d287c54f9e2dfe3ab466cc481, one parent
+be3f1ce4a9787f26686e1f431dd11b2aacb06910, the reviewed commit message and
+executor trailer. main, HEAD/local origin/main/live main agree, 0/0, empty
+index and clean tracked/untracked state before this selection. All 53 committed
+paths (18 M/35 A), modes/blobs and raw working-file hashes/lengths match the
+frozen manifest SHA-256
+1c12d4b5bc88f2b055b0cc70f49ffaa24592a28829caf2e9ad3e059538b98464.
+Client remains af681d73f06c3929b40bd773618469403a11e6ee0cf58c2a42f5515c2d12f10b.
+Publication verification reran no validation and edited no implementation.
+
+Required MVP gaps remain: real qualification; Increment 4 Claude usage/session/
+compaction/permission contracts; Increment 5 end-to-end coordination, scheduling,
+lifecycle/recovery and linked replay; Increment 6 scoped publication, workflow
+correlation, required-check policy, automatic observation, diagnostics/correction
+and remote reconciliation; packaged release and self-hosting acceptance. Extra
+history/export/analytics and additional providers remain optional. ADR-0045
+supplies explicit bounded metadata, not complete workflow evidence or authority.
+
+Select one maintenance slice in response to the owner's test-duration request.
+The measured EndpointTests setup cost was 84.5 s of 94.2 s for 19 tests; the
+corrected class now has 20 named facts, and the complete 29-test API family took
+103 s. Repeating production delivery for each read-only scenario is a measured
+iteration bottleneck. This slice supports MVP delivery but closes no product,
+real-provider or release gate. The earlier general cache/cloning ideas are not
+accepted globally: only the class-local contract below is now selected.
+
+### Bounded test-only design
+
+Add ADR-0046 for a run-local, class-owned sealed snapshot used only by
+GitHubCheckContextsObservationEndpointTests. Initialize it once per execution
+of that class through the unchanged production lineage, real Git local commit,
+protected target POST and binding POST. Stop the seed host and all writers before
+sealing; use SQLite's consistent backup facility, not a copy of a live db/WAL.
+Keep the source snapshot unchanged and open it read-only for backups.
+
+Every named fact receives its own physical SQLite backup, fresh production
+WebApplicationFactory/DI scope, observers/counters, clock, clients and writable
+artifact/scratch roots. Only the sealed evidence and its read-only Git scene are
+class-owned; ownership/disposal is explicit. Preserve persisted identity and
+canonical events without rewriting paths or fabricating rows. Fresh CLI evidence
+is per-test; it is not cached eligibility. Copy scalar identities, not the seed's
+Bound, host, observer or clock objects. No supervisor, provider or Git writer
+may mutate the sealed scene during a clone's observation. Other test classes
+keep their existing setup. Cache nothing between executions or processes.
+
+Keep all 20 named facts individually selectable and preserve every independent
+assertion and corruption/fault/clock control. No merged mega-test, reduced matrix,
+mocked reader/DbSet/EF InMemory, authentication bypass, assertion weakening,
+global mutable cache, global parallelism or product behavior change. Permit
+minimal optional test-base/host construction seams only where required to attach
+the owned snapshot; existing callers retain their defaults. Stop for planner
+discussion if the design needs production changes or wider fixture migration.
+
+Prove isolation with two concurrently live clones: distinct files and resources,
+mutated capability/binding/events in A leave B and the sealed source unchanged;
+a subsequent clone starts clean. Observer answers/counters and clock state are
+independent. Disposal of A preserves B/source until their owners finish. The seed
+really executes the production delivery and records coherent target/binding;
+the representative real-adapter projection still passes. Two compiling mutants
+(shared clone database; shared mutable observer/counter) must be killed by named
+isolation cases, with verified hash restoration and rebuild.
+
+### Proportional evidence and stop gates
+
+Measure one baseline of the current 20-fact class, --no-build/--no-restore, with
+complete log/TRX, command wall time and setup/observation breakdown. Compare with
+one final run of the same class after changes, counting seed initialization,
+backup, host startup and disposal rather than moving cost outside measurement.
+Target at least 30 percent reduction and report whether the class is under one
+minute; no speedup is assumed. If gain or isolation cannot be demonstrated, stop
+and report the limitation instead of expanding scope or weakening evidence.
+
+Develop with focused isolation cases. Final checks once on restored stable
+binaries: incremental serial solution build; optimized EndpointTests (also the
+after measurement); remaining check-context admission/corruption/drift family;
+new isolation cases; full Architecture; one representative existing binding and
+local-delivery receipt test if shared test seams change; changed C# formatting,
+changed-document links, secret hygiene and git diff --check. Retain product,
+frontend, journey, provider-fixture, client, dependency and qualification evidence
+because their inputs are unchanged. No full Api or every-suite default. Broaden
+only on changed dependencies, failures or demonstrated coverage gaps.
+
+Document ADR-0046, its index, the narrow validation-policy contract and actual
+results in current-work. Present an unstaged, uncommitted, unpushed diff for review
+in one new executor chat; this selection grants no commit/push or next slice.
+Normal disposal is confined to newly created owned disposable test resources;
+no ledger, retained root, historical failure or ignored evidence cleanup.
+Qualification remains Blocked/TargetsNotReal, both allowances unused. No real
+gh/provider invocation or CLI setup. Preserve the unexplained Api 2067/2068
+failure and every other recorded limit; later passes prove neither flakiness nor
+irrelevance. Future failures retain complete logs and named results, uniquely
+named TRX files and sanitized assertions, including failed performance attempts.
+
 ## ADR-0045 correction review (2026-10-14): GO for the frozen substantive diff
 
 This decision supersedes the NO-GO below; preserve its findings and evidence.
