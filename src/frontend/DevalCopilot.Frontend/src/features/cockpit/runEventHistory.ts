@@ -35,6 +35,7 @@ export const KNOWN_EVENT_TYPES = [
   'local_commit.needs_attention',
   'run.abandoned',
   'run.github_observation_target_recorded',
+  'run.github_repository_identity_bound',
 ] as const
 
 export type KnownEventType = (typeof KNOWN_EVENT_TYPES)[number]
@@ -233,6 +234,7 @@ const EVENT_TYPE_LABELS: Record<KnownEventType, string> = {
   'local_commit.needs_attention': 'Local commit needs attention',
   'run.abandoned': 'Run abandoned',
   'run.github_observation_target_recorded': 'GitHub observation target recorded',
+  'run.github_repository_identity_bound': 'GitHub repository identity bound',
 }
 
 const ROLE_LABELS: Record<RunEventActorRole, string> = {

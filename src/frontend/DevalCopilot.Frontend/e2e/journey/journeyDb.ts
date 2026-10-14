@@ -92,6 +92,23 @@ export interface GitHubObservationEventRow {
   OccurredAtUtc: string
 }
 
+export interface GitHubRepositoryIdentityBindingRow {
+  Id: string
+  RunId: string
+  ProjectId: string
+  LocalCommitOperationId: string
+  GitWorkspaceId: string
+  ObservationTargetId: string
+  CommitSha: string
+  BranchName: string
+  RepositoryNodeId: string
+  Owner: string
+  Repository: string
+  ObservedAtUtc: string
+  RecordedAtUtc: string
+  EventId: string
+}
+
 export interface MessageRow {
   Id: string
   AttemptId: string | null
@@ -372,6 +389,21 @@ export class JourneyData {
     )
   }
 
+  /** The identity bindings recorded for this journey's own run (ADR-0043): at most one, and none unless the page bound it. */
+  gitHubRepositoryIdentityBindings(): GitHubRepositoryIdentityBindingRow[] {
+    return this.all<GitHubRepositoryIdentityBindingRow>(
+      'select Id, RunId, ProjectId, LocalCommitOperationId, GitWorkspaceId, ObservationTargetId, CommitSha, BranchName, RepositoryNodeId, Owner, Repository, ObservedAtUtc, RecordedAtUtc, EventId from github_repository_identity_bindings where RunId = ?',
+      this.runId(),
+    )
+  }
+
+  /** The Human events of the identity-bound type this journey's own run owns, with the columns that prove who authored them. */
+  gitHubRepositoryIdentityBindingEvents(): GitHubObservationEventRow[] {
+    return this.all<GitHubObservationEventRow>(
+      "select Id, AttemptId, ActorKind, ActorAgentRole, ActorAgentProvider, PayloadJson, OccurredAtUtc from events where RunId = ? and EventType = 'run.github_repository_identity_bound' order by Sequence",
+      this.runId(),
+    )
+  }
 
   messages(): MessageRow[] {
     return this.all<MessageRow>(

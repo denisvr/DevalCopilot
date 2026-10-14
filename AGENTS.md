@@ -137,6 +137,14 @@ run affected checks first, then rerun the relevant full validation before
 presenting the final reviewable diff when the change could invalidate earlier
 results. Report which checks were rerun and which earlier results still apply.
 
+For future slice planning, follow
+[the slice validation policy](docs/roadmap/validation-policy.md). Specify focused
+development checks, one proportional final regression matrix, broadening
+triggers and retained evidence; do not default to every suite or repeat passing
+checks on unchanged inputs. Preserve mandatory CI, security, real-provider
+integration and release gates. Already dispatched acceptance requirements stay
+in force until the planner explicitly revises them with evidence.
+
 When dispatching a slice, the planner/reviewer gives the executor the exact
 expected `HEAD` commit, expected branch, and expected staged/unstaged/untracked
 state. The executor verifies these once before editing and reports a material

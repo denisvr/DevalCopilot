@@ -136,6 +136,10 @@
   of a recorded observation target on explicit request (additive; one protected, bodyless, read-only observation of the repository identity and the exact recorded
   branch tip, compared with the recorded local commit, through one fixed `gh api graphql` invocation and the stored default authentication, no persistence and no
   fallback ref, CI, permission, durable binding or publication authority).
+- [ADR-0043](decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md): Bind the GitHub
+  repository identity of a recorded observation target on explicit request (additive; one protected POST and bodyless GET of an immutable, human-confirmed binding
+  of the opaque repository ID, recorded only after a fresh host observation agrees, with one Human event; historical identity evidence only, no permission, branch or
+  commit proof, CI approval or publication authority).
 
 ## Product-specific architecture
 
@@ -330,6 +334,18 @@
   separate collapsed remote branch region beside the identity region with Show, Check (then Recheck) and Close, owned by the committed source and target and each
   opening. A match is only what GitHub reported at that time; it is not CI, a permission, a durable binding, a publication approval or a publication performed by
   DevalCopilot.
+- [ADR-0043](decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds the first durable remote identity fact.
+  The protected `POST /api/runs/{runId}/github-repository-identity-binding` (`BindGitHubRepositoryIdentityCommand`, an `IManualTransactionCommand`; the body holds exactly
+  `operationId`, `commitSha`, `targetId` and `repositoryNodeId`, is bounded to 8 KiB and unknown or duplicate members are refused before dispatch with the fixed 400
+  `github_repository_identity_binding.invalid`) resolves the pinned scope through the unchanged ADR-0040 readers, requires the ADR-0041 CLI snapshot, invokes the
+  existing `IGitHubRepositoryIdentityObserver` once with no transaction or lock held, validates the answer independently and only then saves one immutable
+  `GitHubRepositoryIdentityBinding` (`github_repository_identity_bindings`, restrictive foreign keys, unique target, run, operation and event, no unique node ID) and
+  one Human `run.github_repository_identity_bound` event (canonical payload of at most 4 KiB) in one short write-locked transaction that rereads the whole scope.
+  A coherent same-identifier binding replays without observing; the fixed 409 errors are `unavailable`, `conflict`, `cli_unavailable`, `observation_unknown` and
+  `identity_changed`. The bodyless `GET` of the same route reads persisted evidence only (states `NotRecorded`, `Unavailable`, `Available`; orphans are never
+  `NotRecorded`). The identity port and the node-ID policy moved unchanged to Application `Features/Runs/Ports` and Domain `Features/Projects`. The cockpit adds a
+  separate collapsed identity binding region with explicit Show, Load, Check candidate, Bind this repository identity and Close. The record is historical evidence, not
+  a current check, permission, branch or commit proof, CI approval or publication authority.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

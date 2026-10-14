@@ -89,6 +89,14 @@ returned commit with the recorded local commit (`CommitMatched`, `CommitDifferen
 The answer is a point-in-time observation: it is not persisted, binds nothing, and is not a CI result, a permission, a publication approval or a publication performed
 by DevalCopilot. Exact-SHA CI observation, scoped publication, push, pull request, reconciliation and any durable remote binding remain later, separately gated slices.
 
+## Durable repository identity binding
+
+[ADR-0043](../decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds the first durable remote fact on explicit request: the Human confirms the opaque repository node ID that a fresh host observation
+(the unchanged ADR-0041 observer, invoked once with no transaction or lock held) reported for a recorded target, and the host records one immutable binding and one
+Human event after rereading the whole pinned scope under the short write lock. The binding lets later correlation detect a rename, transfer or replacement by ID. It is
+historical identity evidence only: never a permission, branch or commit proof, CI result, publication approval or authority, a project-wide alias or a promise about
+the remote's future state. Exact-SHA CI, scoped publication, reconciliation and any use of the binding as a gate remain later, separately gated slices.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

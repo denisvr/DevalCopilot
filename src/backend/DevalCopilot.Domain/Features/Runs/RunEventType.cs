@@ -101,4 +101,9 @@ public static class RunEventType
     /// <summary>A Human explicitly recorded the immutable GitHub observation scope of a completed local delivery (ADR-0040). The
     /// payload is the bounded canonical version-1 form of the target; it never records remote verification, permission, CI or authority.</summary>
     public const string GitHubObservationTargetRecorded = "run.github_observation_target_recorded";
+
+    /// <summary>A Human explicitly confirmed, after a fresh host observation agreed, the GitHub repository node identifier of an ADR-0040
+    /// target (ADR-0043). The payload is the bounded canonical version-1 form of the binding; it is historical identity evidence only and
+    /// never records permission, branch or commit proof, CI or publication authority.</summary>
+    public const string GitHubRepositoryIdentityBound = "run.github_repository_identity_bound";
 }

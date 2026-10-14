@@ -1,6 +1,6 @@
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
-using DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryObservation;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 

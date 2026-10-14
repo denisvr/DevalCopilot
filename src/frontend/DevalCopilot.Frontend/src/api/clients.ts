@@ -80,6 +80,8 @@ import {
   GetGitHubObservationTargetEndpointClient,
   GetGitHubRepositoryObservationEndpointClient,
   GetGitHubBranchObservationEndpointClient,
+  BindGitHubRepositoryIdentityEndpointClient,
+  GetGitHubRepositoryIdentityBindingEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -166,6 +168,9 @@ export const recordGitHubObservationTargetClient = () => new RecordGitHubObserva
 export const gitHubObservationTargetClient = () => new GetGitHubObservationTargetEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubRepositoryObservationClient = () => new GetGitHubRepositoryObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubBranchObservationClient = () => new GetGitHubBranchObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const bindGitHubRepositoryIdentityClient = () => new BindGitHubRepositoryIdentityEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubRepositoryIdentityBindingClient = () =>
+  new GetGitHubRepositoryIdentityBindingEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -269,6 +274,9 @@ export type {
   GetGitHubRepositoryObservationResponse,
   GitHubRepositoryIdentityResponse,
   GetGitHubBranchObservationResponse,
+  BindGitHubRepositoryIdentityResponse,
+  GetGitHubRepositoryIdentityBindingResponse,
+  GitHubRepositoryIdentityBindingResponse,
   GitHubBranchObservationResponse,
   GitHubBranchRefResponse,
   RecordGitHubObservationTargetResponse,
@@ -288,4 +296,5 @@ export {
   RequestLocalCommitRequest,
   AbandonManualRunRequest,
   RecordGitHubObservationTargetRequest,
+  BindGitHubRepositoryIdentityRequest,
 } from './generated/api-client'

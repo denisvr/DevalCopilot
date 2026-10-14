@@ -26,7 +26,6 @@ using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProces
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubBranchObservation;
-using DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryObservation;
 using DevalCopilot.Application.Security.Ports;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.Processes;

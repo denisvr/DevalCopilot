@@ -46,6 +46,7 @@ const RECEIPT_PATH = /\/api\/runs\/[^/]+\/local-delivery-receipt$/
 const OBSERVATION_TARGET_PATH = /\/api\/runs\/[^/]+\/github-observation-target$/
 const IDENTITY_PATH = /\/api\/runs\/[^/]+\/github-repository-observation$/
 const BRANCH_PATH = /\/api\/runs\/[^/]+\/github-branch-observation$/
+const BINDING_PATH = /\/api\/runs\/[^/]+\/github-repository-identity-binding$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
@@ -1093,6 +1094,193 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(branchLog).not.toContain(deliveryBranch)
   expect(branchLog).not.toContain(remoteCommit)
   expect(branchLog).not.toContain(deliveredCommit)
+
+  // 14f. The explicit binding of the recorded target's repository identity (ADR-0043), through the production frontend, generated client,
+  // MVC authentication, mediator, the discovery snapshot, the REAL identity adapter and the REAL process executor. Only the `gh`
+  // executable is the deterministic owned double. The owner loads (no process), checks a candidate through ADR-0041 (one invocation) and
+  // binds; the host observes the identity once more itself (a second invocation), saves exactly one immutable binding and one Human
+  // event, and replays/reads it later with no remote call. This proves the assembled process boundary and explicit-only behavior; it is
+  // historical identity evidence only and proves nothing about a real repository, permission, CI, a remote branch or commit, or
+  // publication.
+  const bindingRequests: { method: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    if (BINDING_PATH.test(new URL(request.url()).pathname)) {
+      bindingRequests.push({ method: request.method(), body: request.postData() })
+    }
+  })
+  const bindingRegion = observation.getByRole('region', { name: 'GitHub identity binding' })
+  const bindingNode = 'R_kgDOJourneyFx1'
+  // Binding legitimately adds exactly its own row and its own event (one more event in the totals); nothing else may change.
+  const assertBindingChangedOnlyItsOwnRows = () => {
+    expect({
+      totals: data.projectTotals(),
+      targets: data.gitHubObservationTargets(),
+      events: data.gitHubObservationEvents(),
+      providerInvocations: stageInvocations().length,
+      source: repositorySnapshot(repository.path),
+      head: git('rev-parse', 'HEAD'),
+    }).toEqual({ ...beforeIdentity, totals: { ...beforeIdentity.totals, events: beforeIdentity.totals.events + 1 } })
+    expect(git('remote')).toBe('')
+  }
+  const identityBefore = identityCalls()
+  expect(identityBefore).toBe(2)
+  expect(data.gitHubRepositoryIdentityBindings()).toEqual([])
+  expect(data.gitHubRepositoryIdentityBindingEvents()).toEqual([])
+  await expect(bindingRegion.getByRole('button', { name: 'Show GitHub identity binding' })).toBeVisible()
+  await expect(bindingRegion.getByRole('button', { name: /Load|Reload|Check candidate|Recheck candidate|Bind this/ })).toHaveCount(0)
+  await bindingRegion.getByRole('button', { name: 'Show GitHub identity binding' }).click()
+  await expect(bindingRegion).toContainText('Not loaded.')
+  await expect(bindingRegion).toContainText(`Recorded owner${observationOwner}`)
+  await expect(bindingRegion).toContainText(`Recorded repository${observationRepository}`)
+  await expect(bindingRegion).toContainText(deliveredCommit)
+  await expect(bindingRegion).toContainText(deliveryBranch)
+  await expect(bindingRegion.getByRole('button', { name: 'Bind this repository identity' })).toHaveCount(0)
+  // Opening and waiting read nothing and invoke nothing.
+  await page.waitForTimeout(2_000)
+  expect(bindingRequests).toEqual([])
+  expect(identityCalls()).toBe(identityBefore)
+
+  const bindingLoadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && BINDING_PATH.test(new URL(response.url()).pathname),
+  )
+  await bindingRegion.getByRole('button', { name: 'Load GitHub identity binding' }).click()
+  const bindingLoad = await bindingLoadWire
+  expect(bindingLoad.status()).toBe(200)
+  const bindingLoadBody = await bindingLoad.json()
+  expect(Object.keys(bindingLoadBody).sort()).toEqual(['binding', 'runId', 'source', 'state', 'target'])
+  expect(bindingLoadBody.state).toBe('NotRecorded')
+  expect(bindingLoadBody.binding ?? null).toBeNull()
+  expect(bindingLoadBody.source).toEqual(recordedBody.source)
+  expect(bindingLoadBody.target).toEqual(recordedBody.target)
+  await expect(bindingRegion).toContainText('No repository identity is bound for this recorded target yet.')
+  // Loading never observes, and Bind stays disarmed until an explicit candidate check.
+  expect(identityCalls()).toBe(identityBefore)
+  await expect(bindingRegion.getByRole('button', { name: 'Bind this repository identity' })).toBeDisabled()
+
+  const candidateWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && IDENTITY_PATH.test(new URL(response.url()).pathname),
+  )
+  await bindingRegion.getByRole('button', { name: 'Check candidate identity' }).click()
+  const candidateBody = await (await candidateWire).json()
+  expect(candidateBody.status).toBe('Observed')
+  expect(candidateBody.observation.repositoryNodeId).toBe(bindingNode)
+  expect(identityCalls()).toBe(identityBefore + 1)
+  await expect(bindingRegion).toContainText(
+    `Binding to record: github.com / ${observationOwner} / ${observationRepository} with repository ID ${bindingNode} for the local commit ${deliveredCommit} on the branch ${deliveryBranch}.`,
+  )
+  await expect(bindingRegion).toContainText('historical identity evidence only')
+  expect(bindingRequests.map((request) => request.method)).toEqual(['GET'])
+  expect(data.gitHubRepositoryIdentityBindings()).toEqual([])
+  await expect(bindingRegion.getByRole('button', { name: 'Bind this repository identity' })).toBeEnabled()
+
+  const bindWire = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && BINDING_PATH.test(new URL(response.url()).pathname),
+  )
+  await bindingRegion.getByRole('button', { name: 'Bind this repository identity' }).click()
+  const bound = await bindWire
+  expect(bound.status()).toBe(200)
+  const boundBody = await bound.json()
+  expect(Object.keys(boundBody).sort()).toEqual(['binding', 'runId', 'source', 'target'])
+  expect(boundBody.runId).toBe(recordedBody.runId)
+  expect(boundBody.source).toEqual(recordedBody.source)
+  expect(boundBody.target).toEqual(recordedBody.target)
+  expect(Object.keys(boundBody.binding).sort()).toEqual([
+    'eventId', 'id', 'observedAtUtc', 'owner', 'recordedAtUtc', 'repository', 'repositoryNodeId',
+  ])
+  expect(boundBody.binding).toMatchObject({ repositoryNodeId: bindingNode, owner: observationOwner, repository: observationRepository })
+  expect(bindingRequests.map((request) => request.method)).toEqual(['GET', 'POST'])
+  expect(Object.keys(JSON.parse(bindingRequests[1].body ?? '{}')).sort()).toEqual(['commitSha', 'operationId', 'repositoryNodeId', 'targetId'])
+  expect(JSON.parse(bindingRequests[1].body ?? '{}')).toMatchObject({
+    commitSha: deliveredCommit,
+    targetId: recordedBody.target.id,
+    repositoryNodeId: bindingNode,
+  })
+
+  // Exactly two additional identity invocations (the explicit candidate and the host's own observation while binding), one immutable
+  // binding and one Human event that agree with each other and with the recorded target.
+  expect(identityCalls()).toBe(identityBefore + 2)
+  const bindingRows = data.gitHubRepositoryIdentityBindings()
+  expect(bindingRows).toHaveLength(1)
+  const bindingRow = bindingRows[0]
+  expect(lower(bindingRow.Id)).toBe(lower(boundBody.binding.id))
+  expect(lower(bindingRow.EventId)).toBe(lower(boundBody.binding.eventId))
+  expect(lower(bindingRow.ObservationTargetId)).toBe(lower(recordedBody.target.id))
+  expect(lower(bindingRow.LocalCommitOperationId)).toBe(lower(operation!.Id))
+  expect(bindingRow).toMatchObject({
+    CommitSha: deliveredCommit,
+    BranchName: deliveryBranch,
+    RepositoryNodeId: bindingNode,
+    Owner: observationOwner,
+    Repository: observationRepository,
+  })
+  expect(Date.parse(bindingRow.ObservedAtUtc)).toBeGreaterThanOrEqual(Date.parse(targetRow.RecordedAtUtc))
+  expect(Date.parse(bindingRow.RecordedAtUtc)).toBeGreaterThanOrEqual(Date.parse(bindingRow.ObservedAtUtc))
+  const bindingEvents = data.gitHubRepositoryIdentityBindingEvents()
+  expect(bindingEvents).toHaveLength(1)
+  expect(bindingEvents[0]).toMatchObject({ ActorKind: 'Human', ActorAgentRole: null, ActorAgentProvider: null, AttemptId: null })
+  expect(lower(bindingEvents[0].Id)).toBe(lower(bindingRow.EventId))
+  expect(Date.parse(bindingEvents[0].OccurredAtUtc)).toBe(Date.parse(bindingRow.RecordedAtUtc))
+  expect(JSON.parse(bindingEvents[0].PayloadJson)).toEqual({
+    version: 1,
+    bindingId: lower(bindingRow.Id),
+    targetId: lower(targetRow.Id),
+    operationId: lower(operation!.Id),
+    commitSha: deliveredCommit,
+    branchName: deliveryBranch,
+    host: 'github.com',
+    repositoryNodeId: bindingNode,
+    owner: observationOwner,
+    repository: observationRepository,
+    observedAtUtc: expect.any(String),
+  })
+  await expect(bindingRegion).toContainText('was bound for this recorded target and is immutable')
+  await expect(bindingRegion).toContainText(bindingNode)
+  await expect(bindingRegion.getByRole('button', { name: 'Bind this repository identity' })).toHaveCount(0)
+  // The recorded binding is not a fresh check: nothing reads or observes by itself afterwards.
+  await page.waitForTimeout(2_000)
+  expect(identityCalls()).toBe(identityBefore + 2)
+  expect(bindingRequests).toHaveLength(2)
+  assertBindingChangedOnlyItsOwnRows()
+  assertNothingElseChanged()
+
+  // Closing and reopening is a new lifetime that starts unloaded and reads nothing.
+  await bindingRegion.getByRole('button', { name: 'Close GitHub identity binding' }).click()
+  await bindingRegion.getByRole('button', { name: 'Show GitHub identity binding' }).click()
+  await expect(bindingRegion).toContainText('Not loaded.')
+  await expect(bindingRegion).not.toContainText(bindingNode)
+  expect(bindingRequests).toHaveLength(2)
+
+  // A real reload is a new session lifetime: the region is collapsed, and an explicit load reads the same recorded binding back without
+  // any remote call or write.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await openObservation()
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  await expect(bindingRegion.getByRole('button', { name: 'Show GitHub identity binding' })).toBeVisible()
+  await page.waitForTimeout(1_000)
+  expect(bindingRequests).toHaveLength(2)
+  await bindingRegion.getByRole('button', { name: 'Show GitHub identity binding' }).click()
+  const bindingReloadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && BINDING_PATH.test(new URL(response.url()).pathname),
+  )
+  await bindingRegion.getByRole('button', { name: 'Load GitHub identity binding' }).click()
+  const reloadedBinding = await (await bindingReloadWire).json()
+  expect(reloadedBinding).toEqual({
+    runId: recordedBody.runId,
+    state: 'Available',
+    source: recordedBody.source,
+    target: recordedBody.target,
+    binding: boundBody.binding,
+  })
+  await expect(bindingRegion).toContainText('not a current check of GitHub')
+  await expect(bindingRegion).toContainText(bindingNode)
+  expect(identityCalls()).toBe(identityBefore + 2)
+  expect(bindingRequests.map((request) => request.method)).toEqual(['GET', 'POST', 'GET'])
+  expect(data.gitHubRepositoryIdentityBindings()).toEqual(bindingRows)
+  expect(data.gitHubRepositoryIdentityBindingEvents()).toEqual(bindingEvents)
+  assertBindingChangedOnlyItsOwnRows()
+  assertNothingElseChanged()
+  expect(JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))).not.toContain(bindingNode)
 
   const afterDelivery = {
     attempts: data.attempts().length,

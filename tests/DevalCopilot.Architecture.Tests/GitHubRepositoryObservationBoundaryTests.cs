@@ -13,7 +13,7 @@ public sealed partial class GitHubRepositoryObservationBoundaryTests
     private const string Handler = QueryFolder + "/GetGitHubRepositoryObservationQueryHandler.cs";
     private const string AdapterPath = "DevalCopilot.Infrastructure/Features/Runs/GitHubRepositoryIdentityAdapter.cs";
     private const string Endpoint = "DevalCopilot.Api/Features/Runs/GetGitHubRepositoryObservation/GetGitHubRepositoryObservationEndpoint.cs";
-    private const string NodeIdPolicy = "DevalCopilot.Application/Features/Runs/Queries/GetGitHubRepositoryObservation/GitHubRepositoryNodeIdPolicy.cs";
+    private const string NodeIdPolicy = "DevalCopilot.Domain/Features/Projects/GitHubRepositoryNodeIdPolicy.cs";
 
     private static string BackendRoot()
     {

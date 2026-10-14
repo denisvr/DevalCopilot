@@ -353,7 +353,9 @@ of the opaque ID and names GitHub reports for that recorded owner and repository
 persisted, no binding); it proves no remote branch or commit, permission, CI result or publication approval, so the remaining deliverables stay open.
 [ADR-0042](../decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md) adds one further explicit, read-only
 observation of the exact recorded branch tip in one remote response and whether it equals the recorded local commit (a point-in-time advisory fact, not persisted, with
-no CI result, permission, durable binding or publication approval), so exact-SHA CI, scoped publication, reconciliation and a durable binding remain open.
+no CI result, permission, durable binding or publication approval), so exact-SHA CI, scoped publication and reconciliation remain open.
+[ADR-0043](../decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds the first durable remote fact: an explicit, immutable, human-confirmed binding of the opaque repository ID to a recorded target, recorded
+only after a fresh host observation agrees (historical identity evidence, not a permission, branch or commit proof, CI approval or publication authority).
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

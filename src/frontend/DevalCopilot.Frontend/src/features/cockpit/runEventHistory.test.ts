@@ -197,6 +197,7 @@ describe('event type and actor labels', () => {
     'run.token_stop_threshold_changed', 'run.codex_account_usage_stop_changed', 'run.codex_account_usage_warning_changed',
     'local_commit.admitted', 'local_commit.executing', 'local_commit.completed', 'local_commit.failed', 'local_commit.interrupted',
     'local_commit.needs_attention', 'run.abandoned', 'run.github_observation_target_recorded',
+    'run.github_repository_identity_bound',
   ]
 
   it('names exactly the event types the host admits, each with its own fixed label', () => {

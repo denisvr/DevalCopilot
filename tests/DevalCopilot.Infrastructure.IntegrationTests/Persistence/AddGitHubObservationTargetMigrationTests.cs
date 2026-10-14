@@ -19,6 +19,8 @@ public sealed class AddGitHubObservationTargetMigrationTests : IAsyncLifetime
 {
     private const string PriorMigration = "20261008192030_AddRunAbandonment";
 
+    private const string OwnMigration = "20261012202042_AddGitHubObservationTarget";
+
     private const string Table = "github_observation_targets";
 
     private static readonly DateTimeOffset Now = new(2026, 10, 12, 12, 0, 0, TimeSpan.Zero);
@@ -89,7 +91,7 @@ public sealed class AddGitHubObservationTargetMigrationTests : IAsyncLifetime
         var runsBefore = await QueryAsync("SELECT * FROM runs ORDER BY ExecutionNumber", 16);
         await using (var upgraded = CreateContext())
         {
-            await upgraded.Database.MigrateAsync();
+            await upgraded.Database.GetService<IMigrator>().MigrateAsync(OwnMigration);
         }
 
         var after = await SchemaObjectsAsync();
@@ -111,7 +113,7 @@ public sealed class AddGitHubObservationTargetMigrationTests : IAsyncLifetime
     {
         await using (var context = CreateContext())
         {
-            await context.Database.MigrateAsync();
+            await context.Database.GetService<IMigrator>().MigrateAsync(OwnMigration);
         }
 
         var columns = await QueryAsync($"SELECT name, type, \"notnull\", dflt_value FROM pragma_table_info('{Table}') ORDER BY cid", 4);
@@ -135,7 +137,7 @@ public sealed class AddGitHubObservationTargetMigrationTests : IAsyncLifetime
     {
         await using (var context = CreateContext())
         {
-            await context.Database.MigrateAsync();
+            await context.Database.GetService<IMigrator>().MigrateAsync(OwnMigration);
         }
 
         var unique = await QueryAsync(
@@ -172,7 +174,7 @@ public sealed class AddGitHubObservationTargetMigrationTests : IAsyncLifetime
         var prior = await SchemaObjectsAsync();
         await using (var context = CreateContext())
         {
-            await context.Database.MigrateAsync();
+            await context.Database.GetService<IMigrator>().MigrateAsync(OwnMigration);
         }
 
         Assert.NotEqual(prior, await SchemaObjectsAsync());

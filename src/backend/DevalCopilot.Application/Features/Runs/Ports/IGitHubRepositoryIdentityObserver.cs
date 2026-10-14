@@ -1,4 +1,4 @@
-namespace DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryObservation;
+namespace DevalCopilot.Application.Features.Runs.Ports;
 
 /// <summary>
 /// Observes, once and read-only, the identity of one GitHub repository named by a recorded scope, through one already-vetted direct

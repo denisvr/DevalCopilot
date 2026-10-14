@@ -1,4 +1,4 @@
-namespace DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryObservation;
+namespace DevalCopilot.Domain.Features.Projects;
 
 /// <summary>
 /// The admission rule for the opaque GitHub repository node identifier observed by ADR-0041: 1 to 256 ASCII letters, digits and

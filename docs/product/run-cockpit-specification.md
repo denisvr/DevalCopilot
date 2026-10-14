@@ -190,6 +190,20 @@ read on mount, opening, a project, run or target change, a reconnect or a timer,
 region exactly as for the identity region, a late answer of an ended or superseded lifetime (including one settling while its successor is pending) is ignored, and
 every answer is accepted only whole and only for exactly this source and target, with a ref status that agrees with the recorded commit.
 
+## GitHub identity binding
+
+Beside the identity and branch regions and likewise inside an `Available` target's result, a separate collapsed region
+([ADR-0043](../decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md)) offers "Show GitHub identity binding", "Load GitHub identity binding" (then "Reload"), "Check candidate identity" (then "Recheck",
+through the ADR-0041 observation), "Bind this repository identity" and "Close GitHub identity binding". It shows the exact recorded branch, local commit, owner and
+repository before anything is loaded. Load reads the protected, bodyless `GET /api/runs/{runId}/github-repository-identity-binding` only; checking a candidate reads the
+existing identity observation only. Binding is armed only by a settled coherent "not bound" read for exactly this source and target and an Observed candidate of the
+same opening, and before submission the region shows the source, target, repository ID, names and a fixed immutable and historical disclosure; the POST observes
+again and the browser supplies no proof or timestamp. One in-flight guard covers every action; the committed scope, each opening and the candidate revision own callbacks
+and results, a reload or recheck disarms older callbacks synchronously (including A to B to A, same-batch and same-millisecond cases), and after any failed, refused or
+ambiguous write an explicit reload, then a new settled candidate check, must come before another write (a candidate checked before that reload is discarded). Nothing is read or written on mount, opening, a project, run or target
+change, a reconnect or a timer, nothing is retried or stored in the browser, and every value is inert text with UTC times. A recorded binding is shown as historical
+evidence, not a current check of GitHub, a permission, a branch or commit proof, a CI result or publication authority.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

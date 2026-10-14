@@ -100,6 +100,9 @@ supersedes it.
   (additive; one protected, bodyless, read-only observation, in one remote response, of the repository identity and the exact recorded branch tip through one fixed
   `gh api graphql` invocation and the stored default authentication, compared with the recorded local commit; never a fallback ref, durable binding, CI result,
   permission or publication approval)
+- [ADR-0043: Bind the GitHub repository identity of a recorded observation target on explicit request](0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md)
+  (additive; one protected POST and bodyless GET of an immutable, human-confirmed binding of the opaque repository ID to a recorded ADR-0040 target, recorded only after
+  a fresh host observation agrees, with one Human event; historical identity evidence only, never permission, branch or commit proof, CI approval or publication authority)
 
 ## Status values
 

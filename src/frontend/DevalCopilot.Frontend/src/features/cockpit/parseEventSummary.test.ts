@@ -56,3 +56,36 @@ describe('parseEventSummary for the GitHub observation target event', () => {
     expect(parseEventSummary('garbage', 'run.github_observation_target_recorded')).toBe('garbage')
   })
 })
+
+describe('the GitHub repository identity bound event', () => {
+  const payload = JSON.stringify({
+    version: 1,
+    bindingId: 'b',
+    targetId: 't',
+    operationId: 'o',
+    commitSha: 'a'.repeat(40),
+    branchName: 'devalcopilot/workspace/x/1',
+    host: 'github.com',
+    repositoryNodeId: 'R_kgDOExample01',
+    owner: 'octo-cat',
+    repository: 'hello.world',
+    observedAtUtc: '2026-10-13T12:00:00+00:00',
+  })
+
+  it('words it from its type and its own text members as historical identity evidence only', () => {
+    expect(parseEventSummary(payload, 'run.github_repository_identity_bound')).toBe(
+      `GitHub repository identity bound by the owner (historical identity evidence only): github.com/octo-cat/hello.world with repository ID R_kgDOExample01 for local commit ${'a'.repeat(40)}.`,
+    )
+  })
+
+  it('never words another type, or an incomplete or non-text payload, as a binding', () => {
+    expect(parseEventSummary(payload, 'run.completed')).toBe(payload)
+    expect(parseEventSummary('{"owner":"x","repository":"y","commitSha":"z"}', 'run.github_repository_identity_bound')).toBe(
+      '{"owner":"x","repository":"y","commitSha":"z"}',
+    )
+    expect(parseEventSummary('{"owner":"x","repository":"y","commitSha":"z","repositoryNodeId":1}', 'run.github_repository_identity_bound')).toBe(
+      '{"owner":"x","repository":"y","commitSha":"z","repositoryNodeId":1}',
+    )
+    expect(parseEventSummary('garbage', 'run.github_repository_identity_bound')).toBe('garbage')
+  })
+})

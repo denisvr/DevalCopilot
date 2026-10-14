@@ -4,7 +4,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.EnvironmentReadiness.Queries.GetHostCapabilityReadiness;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.GitHubObservation;
-using DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryObservation;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;

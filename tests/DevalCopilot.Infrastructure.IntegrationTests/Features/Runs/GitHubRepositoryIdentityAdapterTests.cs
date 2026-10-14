@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using DevalCopilot.Application.Features.Processes.Ports;
-using DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryObservation;
+using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Infrastructure.Features.Processes;
 using DevalCopilot.Infrastructure.Features.Runs;
 using Xunit;

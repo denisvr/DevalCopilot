@@ -18,6 +18,11 @@ Exclusions: [nearby behavior and files that must not change].
 Stop gates: [conditions requiring a blocker report rather than scope expansion].
 Acceptance evidence: [focused cases, relevant full checks, generated artifacts,
 documentation, and diff checks].
+Validation matrix: [boundary -> exact focused command/filter -> final regression
+set -> broadening trigger -> retained evidence]. Follow the slice validation
+policy; run focused checks during development and the selected final matrix
+once on stable input. Record elapsed time and do not repeat passing checks
+without changes or unresolved concerns that justify them.
 
 If a request or finding is flawed, explain the evidence and propose a bounded
 alternative for discussion before doing dependent work. Agreement does not
@@ -39,3 +44,7 @@ defined in AGENTS.md; this template does not grant GO.
 The planner includes the complete resolved prompt directly after its analysis;
 a file link alone is insufficient. Use the evidence-based discussion rules in
 AGENTS.md when the executor challenges a proposal or review finding.
+
+Use [the slice validation policy](validation-policy.md) when filling the matrix.
+Avoid a universal list of all suites; choose complete checks for the boundaries
+the diff actually affects and preserve applicable CI and release gates.

@@ -1,7 +1,7 @@
-using DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryObservation;
+using DevalCopilot.Domain.Features.Projects;
 using Xunit;
 
-namespace DevalCopilot.Application.Tests.Features.Runs;
+namespace DevalCopilot.Domain.Tests.Features.Projects;
 
 public sealed class GitHubRepositoryNodeIdPolicyTests
 {

@@ -123,6 +123,8 @@ public sealed class FaultInjectingDbContext(DevalCopilotDbContext inner) : IDeva
 
     public DbSet<GitHubObservationTarget> GitHubObservationTargets => inner.GitHubObservationTargets;
 
+    public DbSet<GitHubRepositoryIdentityBinding> GitHubRepositoryIdentityBindings => inner.GitHubRepositoryIdentityBindings;
+
     public Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class => inner.Entry(entity);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)

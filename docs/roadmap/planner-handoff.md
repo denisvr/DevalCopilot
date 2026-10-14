@@ -5,6 +5,466 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## Review decision (2026-10-14): GO for corrected ADR-0043 and validation policy
+
+All four findings and the residual R3 stale-read issue are accepted as corrected.
+This supersedes the NO-GO records below for the reviewed combined diff only.
+Claude remains executor; no next slice or MVP/release completion is granted.
+Verified main, HEAD/local origin/main/live refs/heads/main equal
+818d67010ce85bc3adb21cab532c88c97ffa1275, 0/0, empty index, exactly 88
+individual changed files: 39 modified, four deleted and 45 untracked. Before
+this GO insertion planner SHA-256 remained
+9ab81963c2515148aa55df8f9ab8c7738a2ed91fd976072147b1e1036e1a3fab;
+all prior selection, owner transition, policy and review bytes remain intact.
+Client independently remains
+d261934c365f6c36bd9eab893a1dd8ad8ed8a48616ec7b93264236b70f2e3126.
+
+Final production correction is only the unsuccessful-write load settlement
+and its explanatory comment. It now clears the previous reading, keeps the
+outcome message and recovering gate, and preserves candidate cleanup, callback
+epochs, lifetime ownership and single flight. Coherent success still displays
+Available; recovery still requires explicit Reload and a new settled Check.
+Six genuine new red cases failed before the fix (four hook/two panel), beside
+37 passing controls; two older expectations of stale readings were corrected.
+Restoring the old load settlement is a compiling mutant killed by eight cases;
+the restored hook hash independently matches both retained hashes:
+50ec78951bc1ef602780c7b0f51537197f2c55902c274719e7e777e069f7182d.
+
+Codex independently ran the full binding decoder/hook/panel 85/85 and both
+public-hook probes 1/1 each. The original probe verifies recovery order; the
+separate probe verifies clearing the read after an ambiguous write. Complete
+logs remain under ignored logs/planner-review/adr43/final-review*. Earlier
+independent correction evidence remains accepted: incremental serial rebuild
+zero warnings/errors, Architecture 114/114 and four names/clock API cases 4/4.
+No new .NET, full frontend or browser run is claimed. Executor round-two
+frontend build (includes typecheck), lint and hygiene evidence was inspected;
+the build's chunk-size advisory and existing lint warnings remain visible.
+Original complete evidence and affected correction evidence retain their actual
+boundaries as current-work records: initial Domain 1430, Application 5505,
+Infrastructure 2278 plus four skips, Api 2155, Architecture 113 and Vitest 3655;
+round one binding API 60, Application persistence 7, Architecture 114,
+frontend 146 and affected journey 1; round two frontend 85 and both probes.
+Unchanged coverage is retained, not represented as rerun after every correction.
+
+The owner-requested validation policy, AGENTS routing and slice-start template
+are included in this substantive reviewed diff. Missing original genuine
+red-first evidence remains a limitation, despite genuine correction regressions
+and bounded mutation evidence. The shorter cockpit label and pre-existing
+AbandonedAtUtc converter/snapshot generator drift remain accepted as documented;
+no unrelated correction or compatibility claim is made. Identity binding is
+historical evidence only, not permission, branch/SHA proof, CI success or
+publication authority.
+
+Publication GO is limited to the frozen 88-entry manifest supplied with the
+complete executor prompt. Stage only its paths, including the four deletions
+and the owner-authored policy/handoffs. Verify staged modes/blobs and exact
+add/modify/delete inventory with rename detection disabled; commit the reviewed
+substantive slice once, normally fast-forward push main, and verify live main
+equals the delivered SHA in the same executor turn. Material content drift,
+commit mismatch, push failure or remote divergence stops publication; no
+force-push, rebase, merge or history reconciliation. No implementation edit,
+regeneration, validation rerun, separate closure diff, cleanup or next selection.
+
+The unnamed Api 2067/2068 failure remains unexplained; later passes establish
+neither flakiness nor irrelevance. Preserve all other recorded limitations,
+historical failures, complete logs, named results, ledger, retained roots and
+ignored artifacts. Qualification stays Blocked/TargetsNotReal, both allowances
+unused. No real gh/provider invocation, CLI setup, ledger reset or cleanup is
+authorized. No separate closure publication is needed.
+
+## Correction review (2026-10-13): R1/R2/R4 accepted; NO-GO for residual R3 read state
+
+Verified main, HEAD/local origin/main/live refs/heads/main
+818d67010ce85bc3adb21cab532c88c97ffa1275, 0/0, empty index and 88 individual
+entries (39 modified, four deleted, 45 untracked). The submitted planner hash
+remained adef1a246f292bc2bce2b3f5d607612be87334d7f8aac8e240fd2cdd12630c85
+before this insertion; all earlier records and owner transition remain verbatim.
+Client remains byte-identical at
+d261934c365f6c36bd9eab893a1dd8ad8ed8a48616ec7b93264236b70f2e3126.
+
+R1 is accepted: admitted observer names are retained through the locked scope
+recheck and recorded exactly in row/response/event/GET/replay, while the target
+keeps its selected names. R2 is accepted: a regressed second clock reading now
+refuses with no insert, with equality and ordered controls. R4 is accepted:
+only the new contracts moved to their selected ownership folders, with a new
+architecture guard and unchanged wire graph. The new genuine red regressions
+and targeted compiling mutations are accepted as correction evidence; the
+absence of original genuine red-first evidence remains a separate limitation.
+
+The R3 recovery order is also accepted. Codex independently repeated its
+original public-hook probe: it now passes, armedAfterReload=false and no second
+POST without the new check. But the previously selected clearing of both read
+and candidate is incomplete: write settle still sets load to
+load ?? previous.load. Following an ambiguous write the earlier NotRecorded
+reading stays visible, so the panel can assert that no identity is bound when
+the host may have recorded it. The hook documentation and ADR-0043 explicitly
+say that the read and candidate are cleared after failed/refused/ambiguous
+writes. This is the remaining part of R3, not a new slice or authority choice.
+
+An independent separate public-hook probe records loadKind=result and
+readingKind=NotRecorded after a lost-response write and fails the required
+idle/unloaded reading assertion. Original order probe/config/logs are preserved;
+new probe/config and complete named failure log are under ignored
+logs/planner-review/adr43/binding-failed-read.test.tsx,
+probe-failed-read.config.ts and correction-failed-read-probe.log. Clear only
+the stale reading on every failed/refused/ambiguous/incoherent write settlement;
+preserve the failure/outcome message, recovering gate, candidate cleanup and
+ownership guards. An explicit reload supplies the next authoritative reading.
+A coherent successful write must still show its Available binding.
+
+Independent checks: incremental serial rebuild zero warnings/errors, full
+Architecture 114/114, four corrected name/clock API cases 4/4, passing original
+recovery-order probe and the one failing read-state probe. Executor correction
+red 2 failed/2 controls passed (API), four reversed-order frontend failures,
+compiling mutation kills/restored hashes, complete binding API 60/60,
+Application persistence 7/7, frontend 146/146, frontend build/lint and affected
+journey 1/1 were inspected. Reviewer logs/TRX remain under ignored
+logs/planner-review/adr43. No independent full matrix or resolved historic
+failure is claimed.
+
+Final correction scope is frontend failure-state clearing and its hook/panel
+regressions, plus current-work and necessary contract wording. Require genuine
+red-before-fix for stale read/display, positive successful-write/ordered-recovery
+controls, one targeted compiling cleanup mutant with restored hash, the full
+binding decoder/hook/panel tests, frontend build (includes typecheck), lint,
+both independent probes, edited links/secrets/diff checks. Assert no automatic
+read or extra POST and no retained old NotRecorded statement after an unknown
+outcome. Do not rerun .NET builds/suites, migrations, full Vitest, harness,
+strict e2e tsc or journeys for this isolated error-settlement change; their
+relevant covered inputs/branches remain unchanged. Broaden if the actual diff
+changes that boundary or leaves a material concern, with planner discussion.
+
+Keep this correction in the same executor chat, uncommitted and unpushed. No
+staging, publication, closure diff, new slice, backend/schema change, real
+gh/provider invocation, CLI setup, ledger reset or cleanup is authorized.
+Preserve policy files, complete logs, named failures, historical failures,
+ledger, retained roots and ignored artifacts. Qualification remains
+Blocked/TargetsNotReal; both allowances unused. The unnamed Api 2067/2068
+failure stays unexplained; later passes prove neither flakiness nor irrelevance.
+Evidence-based challenges remain welcome; unresolved material choices go to owner.
+
+## Review decision (2026-10-13): NO-GO for the submitted ADR-0043 diff
+
+The slice remains uncommitted and unpushed. This is a correction of ADR-0043 in
+the same executor chat, not a next-slice selection. Verified main; HEAD/local
+origin/main/live refs/heads/main equal
+818d67010ce85bc3adb21cab532c88c97ffa1275, 0/0, empty index. Before this review
+insertion the planner remained byte-identical at
+3fb2ad95fe1e4f391324cd9cdd13813f356b4c01a4b4ed7d577cc91d5148386a;
+every previous selection, owner transition and review record is retained below.
+Working inventory is 88 individual entries: 39 modified, four deleted and 45
+untracked files. The reported 43 tracked changes includes four deletions; its
+35 untracked paths counted directories, rather than all individual files.
+The generated client independently matches
+d261934c365f6c36bd9eab893a1dd8ad8ed8a48616ec7b93264236b70f2e3126.
+
+R1 (P2): BindGitHubRepositoryIdentityCommandHandler discards the admitted
+observer result, keeps only a boolean, then persists scope.Target.Owner and
+Repository. With observed OCTO-CAT/Hello.World it records octo-cat/hello.world.
+The current API case explicitly asserts that wrong behavior; Codex ran it
+independently. The selected contract and ADR-0043 describe observed names, not
+copies of the local selection. Keep ASCII-case-insensitive scope admission,
+retain the validated identity through the locked recheck, and persist/reply/
+event exactly its reported names. Reader/replay may compare them to the target
+ignoring ASCII case, but must retain the recorded observation without rewriting.
+Update the wrong expectation and capture genuine correction red-first evidence.
+
+R2 (P2): the handler replaces a regressed recordedAtUtc with observedAtUtc.
+That fabricates a recording timestamp to satisfy the Domain invariant; it is
+neither the returned host clock fact nor the selected refusal of incoherent
+ordered times. On recorded < observed return the fixed Unavailable refusal,
+with no binding/event insert. Do not clamp, reobserve or retry. Add an injected
+clock regression against the current handler before fixing it, plus equality
+and normal ordered controls. Target recorded <= observed remains required.
+
+R3 (P2): after a failed/refused/ambiguous write, a Check before the required
+recovery Reload populates the candidate. Reload retains it, clears write failure
+and rearms a new callback, so a second POST is sent without a new Check after
+Reload. The independent public-hook probe reproduced armedAfterReload=true
+and postCount=2, failing the required recovery-order assertion. The submitted
+three failure tests explicitly authorize that wrong Check -> Reload sequence.
+Enforce Reload -> new settled Check -> Bind for recovery, and clear invalid
+read/candidate state. A pre-reload check or retained callback cannot satisfy
+the new candidate requirement. Preserve no automatic reads/retries and all
+scope/opening/revision/in-flight ownership rules; change neither host authority
+nor ordinary observation semantics. Capture genuine regression evidence for
+refusal, network/server failure and incoherent success with negative reversed
+order/old callback cases and positive ordered recovery.
+
+R4 (P2): new GitHubRepositoryIdentityBindingView (Application) and
+GitHubRepositoryIdentityBindingResponse (Api) were introduced directly under
+Features/Runs, although it already contains operation folders. The routed CQRS
+standard requires a feature-wide contract in an explicit responsibility folder,
+not a new root type. Move only these new types: the Application view to the
+existing Policies/GitHubObservation ownership area; the shared API binding DTO
+to the GetGitHubRepositoryIdentityBinding operation (or a justified explicit
+response-contract area). Update references, preserve wire behavior and add a
+narrow architecture guard. Do not refactor legacy root types in this correction.
+
+Independent review: serial incremental rebuild zero warnings/errors; current
+Architecture 113/113; two focused API cases 2/2 (the wrong-name storage control
+and the genuine independent-writer-during-observation proof). No independent
+full matrix is claimed. The separate hook probe has one genuine behavioral
+failure; its initial external-test mock-import setup failure was corrected and
+retained separately, never counted as a code defect. Complete reviewer build,
+TRX and probe source/config/logs remain under ignored logs/planner-review/adr43.
+Executor final named TRX counters, frontend/canonical logs, mutation result
+and restored source hashes were inspected; passing tests do not establish the
+missing behaviors above. Missing original genuine red-first evidence remains
+an explicit limit (the stub runs occurred after implementation), not something
+that can be reconstructed or relabeled now. New correction regressions can
+and must be red before their fixes.
+
+Accepted deviations: the shorter GitHub identity binding region is clear and
+avoids the existing region's substring selector; no material product/authority
+choice is raised. The new migration only adds its table; the documented
+AbandonedAtUtc converter/snapshot generator drift is retained without an
+unrelated fix. Older migration compatibility lists and event-header summaries
+may add the new table/type without widening payload disclosure. These are not
+GO and do not remove other recorded limits.
+
+Correction validation decision, explicitly replacing routine repetition of the
+original complete matrix for this round: new affected regressions first and
+bounded targeted compiling mutations (names, time clamp, recovery order), then
+one incremental serial solution build, the complete binding API family
+(Endpoint/Corruption/Durability), the binding Application persistence class,
+binding decoder/hook/panel and changed event-summary/history tests, full
+Architecture, frontend build (includes typecheck) and lint, strict e2e tsc if
+e2e input changes, and the affected authenticated collaboration journey.
+Verify regenerated client reproducibility/wire stability, scoped formatter,
+edited links, secrets and diff hygiene. No full Domain, unrelated Application,
+Infrastructure/migration, full Vitest, harness, other browser workflows or
+dependency rerun is required unless the actual correction changes their
+covered inputs or leaves a material concern; retain exact original results
+with reasons. Schema/Domain/migration changes are not selected and require
+discussion. Broadening remains mandatory when evidence warrants it.
+
+Update current-work with the corrections, actual fresh/retained evidence and
+all original evidence limitations. Preserve this planner revision and the
+owner-authored validation policy files. No staging, commit, push, closure diff,
+new slice, real gh/provider, CLI setup, ledger reset or cleanup is authorized.
+Qualification stays Blocked/TargetsNotReal, both allowances unused. Preserve
+ledger, historical failures, retained roots and ignored artifacts. The unnamed
+Api 2067/2068 failure remains unexplained; later passes prove neither flakiness
+nor irrelevance. Future failures require complete logs and named results.
+Evidence-based challenges remain welcome; stop dependent work for material
+disagreement, and unresolved material choices go to the owner.
+
+## Owner-requested decision (2026-10-13): proportional validation for future slices
+
+The owner explicitly requested faster testing for the next slices. Adopt
+[the slice validation policy](validation-policy.md), linked from AGENTS.md and
+the slice-start template, for future planning and review. This replaces the
+planner's routine universal full-suite lists with an explicit boundary/filter,
+final regression, broadening-trigger and retained-evidence matrix. It follows
+the engineering contract's narrowest-boundary rule and changes no mandatory
+CI, security, real-provider fidelity or release/qualification gate.
+
+Evidence: the last isolated parser correction's adapter red/green/mutant
+classes each took about one second, while full Infrastructure took 4m58s and
+Api 6m18s; clean build 45s and the affected journey 58s. In the current binding
+slice, focused Domain 19 took 80ms and Application 7 took 3s, while the 48-case
+API class took 3m54s and 410 migration tests 1m01s. Its API setup performs a
+complete production local delivery and starts two hosts for a prepared scene.
+The initial API run had four failures and the first two journey attempts failed;
+those retained development failures explain additional runs, not flakiness.
+No current delivery/review judgment or new performance measurement is claimed.
+
+Future default: focused incremental edit/test cycles; named regression filters
+for red-first and bounded serial mutations; one proportional final matrix;
+retain passing evidence for unchanged coverage. Use complete relevant projects
+for shared/transversal changes or uncertain impact, rather than all projects
+for every local edit. Avoid redundant clean builds, generation, typechecks and
+reviewer reruns. Only demonstrably isolated checks may run concurrently after
+a stable build (maximum two commands); never overlap source mutations/builds
+against shared outputs. New API refusal tests must not build a complete Git
+delivery unless that boundary needs it. Preserve representative production
+lineage, real SQLite constraints/atomicity, authorization and independent
+assertions. Any fixture/cache/clone optimization needs a separately bounded
+implementation and isolation evidence; none is implemented by this decision.
+
+The active ADR-0043 slice and its already requested final acceptance checks
+remain unchanged. Do not interrupt active validation, rerun passing checks to
+validate these documentation edits, or change its fixtures under this request.
+This intentional planner update supersedes only the old byte-identical planner
+preflight expectation: the preceding 85b9c327...71d8 selection and every earlier
+record/owner transition are retained verbatim. The owner-authorized policy
+files (AGENTS.md, validation-policy.md, slice-start-template.md and this planner
+record) join the current uncommitted diff for the next review; no separate
+publication/closure round and no GO, staging, commit or push is granted.
+
+Verified main and HEAD/local origin/main remain
+818d67010ce85bc3adb21cab532c88c97ffa1275, 0/0, empty index. At the start of this
+policy update the active executor working inventory was 84 entries: 36
+modified, four deleted and 44 untracked. It is ongoing implementation, not a
+frozen publication inventory. All source changes remain executor-owned.
+
+Keep complete logs, named failures and phase durations. The unnamed Api
+2067/2068 failure remains unexplained; later passes prove neither flakiness nor
+irrelevance. Preserve all other recorded limitations, ledger, historical
+failures, retained roots and ignored artifacts. Qualification remains
+Blocked/TargetsNotReal with both allowances unused. No real gh/provider call,
+CLI setup, ledger reset or cleanup is authorized. Profiling targets are not
+timeouts or permission to skip checks; claim speedups only after measurement.
+
+## Selected next slice (2026-10-13): explicitly bind a recorded target's repository identity
+
+Publication of the identity-parser correction is independently verified at
+818d67010ce85bc3adb21cab532c88c97ffa1275, parent
+a634e35499ff5a5dd0bdc84b074afb0529947180. Main, HEAD, local origin/main and
+live refs/heads/main agree, ahead/behind is 0/0, index and tracked/untracked
+state were clean before this selection. Commit message and reported Claude
+Sonnet 5.5 co-author match. The frozen manifest SHA-256 remains
+e6dded429be83adc51f5651e9b46e76bfb52d8556d80dcc13c27e6ee69bc2109;
+all four modified paths, modes, normalized blobs, raw hashes and byte counts
+match. No closure diff, new validation or resolution of prior failures is
+claimed. Published planner hash
+daae6f3cef829fc0982b2fed44c5d66b61adff9600149bb5aafee9539171ce70
+and all its prior records/owner transition are preserved verbatim below.
+
+Decision: select one explicit, immutable, run/target-scoped repository identity
+binding (new additive ADR-0043) as the next Increment 6 prerequisite. Code and
+accepted ADR-0003/0005/0040/0041/0042 provide pinned local scope, a strict
+identity observer, short serialized database writes and owned UI lifetimes;
+no durable remote identity binding exists. The published escape correction
+closes the observed parser prerequisite. Binding now advances the existing
+GitHub/CI architecture's required correlation foundation more directly than
+optional history/export work. Exact-SHA CI or publication would otherwise
+outrun this missing contract; real qualification remains separately blocked.
+No material owner choice is unresolved within this narrow contract. Claude is
+executor, with a new executor chat for this slice; Codex owns review/selection.
+
+MVP/release gates still include Increment 4 real qualification and remaining
+provider usage/session/compaction/permission controls; Increment 5 end-to-end
+coordination, multi-project scheduling, lifecycle/recovery and complete linked
+replay; Increment 6 exact-SHA CI, scoped publication and reconciliation; and
+Increment 7 packaged self-hosting proof. Existing local delivery and shell
+implementation do not close those gates. Extra drilldown, export, analytics,
+broader providers and a journal migration remain optional/deferred. This
+binding is historical identity evidence, never permission, CI, branch/SHA
+proof, publication authority, project-wide alias or a promise of future state.
+
+Selected contract:
+- Protected POST and bodyless GET /api/runs/{runId}/github-repository-identity-binding,
+  one MVC action per operation, mediator commands/queries and API-owned full
+  transport graph. BindGitHubRepositoryIdentityCommand is a manual-transaction
+  command. The POST accepts exactly operationId, commitSha, targetId and
+  repositoryNodeId, bounded to 8 KiB, with unknown/duplicate members refused
+  before dispatch. Fixed invalid-input errors never echo rejected values.
+- The source and target are resolved by the unchanged ADR-0040 readers, not
+  current HEAD, origin, latest rows, submitted names or browser observations.
+  The request must equal the exact recorded operation, commit and target ID.
+  Unknown run: github_repository_identity_binding.not_found (404); invalid
+  body/values: .invalid (400); absent/incoherent/mismatched local scope:
+  .unavailable (409); coherent existing binding with another node ID:
+  .conflict (409). No refusal inserts a binding/event.
+- For a missing binding require ADR-0041's same fresh successful direct CLI
+  snapshot and invoke the existing identity observer once, with no transaction
+  or write lock held. Keep its query, argv, environment, caps, slot, strict
+  parsing and fault/cancellation behavior unchanged. Independently validate
+  node ID and names; names must equal the target ignoring ASCII case only, and
+  node ID must equal the request ordinally. Unusable CLI is .cli_unavailable;
+  null/invalid observation is .observation_unknown; valid different node ID is
+  .identity_changed (all fixed 409, no remote values in errors). Stamp the
+  observation with the host UTC clock after validating and re-reading scope.
+- Enter one short transaction after external work (or directly for a replay),
+  first taking the existing no-op Run write lock, then freshly re-read source,
+  target and binding/event coherence. Require the same entire scope as before
+  the call. Same coherent binding/node ID replays its original record, event
+  and times without another observation or insert; a different binding
+  conflicts. Concurrent calls may contend at the existing observer slot, but
+  cannot create multiple bindings/events. No retry/queue or external call
+  belongs inside a transaction. Failed save/cancellation before commit rolls
+  back both inserts; post-commit notifications are hints, as ADR-0040.
+- New GitHubRepositoryIdentityBinding table github_repository_identity_bindings:
+  host-generated Id and EventId; RunId, ProjectId, LocalCommitOperationId,
+  GitWorkspaceId, ObservationTargetId; pinned CommitSha and BranchName;
+  RepositoryNodeId and observed Owner/Repository; ObservedAtUtc and
+  RecordedAtUtc. Fixed github.com/CiObservation, not caller-controlled columns.
+  Unique target/run/operation/event, no global node-ID uniqueness. Restrictive
+  foreign keys to target/run/project/operation/workspace; retain with history,
+  no update, replacement, deletion, backfill or cleanup path. UTC times must
+  satisfy target recorded <= observed <= binding recorded. One additive
+  migration creates only this table/indexes/FKs, without rebuilding events or
+  changing existing rows/schema. The event ID remains logically validated,
+  not a principal-key migration of events.
+- Exactly one version-1 Human event run.github_repository_identity_bound,
+  atomically saved with the row, same recorded time, no Agent attribution.
+  Canonical UTF-8 payload <= 4 KiB carries version, bindingId, targetId,
+  operationId, commitSha, branchName, host, repositoryNodeId, owner, repository
+  and observedAtUtc. Reader and replay reconstruct/compare exact canonical
+  text and event shape; missing, duplicate, foreign or contradictory rows or
+  events are Unavailable, never repaired. Bound every stored string by bytes
+  before materialization, classify unknown actor forms in SQL, use bounded
+  untracked projections, and propagate genuine faults/cancellation.
+- GET is persisted-only, no lock/write/process. Refuse declared positive
+  length, any transfer encoding (including empty chunked) or readable byte
+  before dispatch: .body_not_allowed (400). Return runId, state, source,
+  target, binding. Closed states: NotRecorded (binding null; scope pair only
+  if coherent target exists), Unavailable (all three null), Available (exact
+  coherent source/target and binding). Orphan binding rows/events are
+  Unavailable, never NotRecorded. Binding wire facts: id, eventId,
+  repositoryNodeId, owner, repository, observedAtUtc, recordedAtUtc. Successful
+  POST returns runId/source/target/binding with that same recorded graph.
+- Promote only the existing identity port/result unchanged to Application
+  Features/Runs/Ports and the opaque-ID policy unchanged to Domain's owning
+  project policy area for genuine shared ownership. Update references and
+  narrow architecture expectations, proving ADR-0041/0042 outputs unchanged;
+  no new observer, broad gateway or shared orchestration. Existing observation
+  endpoints remain ephemeral and ungated by this new record.
+- A separate collapsed identity-binding region beside the identity/branch
+  regions offers Show, explicit Load/Reload, explicit Check/Recheck candidate
+  via ADR-0041 and separate Bind this repository identity, then Close. Binding
+  is armed only by a settled NotRecorded read with exact scope and a coherent
+  Observed candidate; show exact source/target/node/names and immutable/historical
+  disclosure before submission. POST reobserves; the browser supplies no proof
+  or timestamp. No input/node default from another panel, origin or storage.
+  Every action shares a single in-flight guard. Scope/opening/candidate revision
+  own callbacks and results: recheck/reload synchronously disarm old callbacks
+  even A-B-A/same-batch/same-millisecond cases; close/reopen and old settlements
+  cannot act on successors. After any failed/refused/ambiguous write, require
+  explicit Reload and a new candidate check before another write. No automatic
+  read, write, retry, polling, remount/reset effect or browser storage. GET and
+  replay show recorded history, not current verification; inert text/UTC only.
+
+Sizing decision: the planner's retained maximum-value serialization probe
+produced 2100 UTF-8 bytes with a supported 256-character '+' node ID,
+maximum names and the longest owned branch/time. The initial 2 KiB event
+cap was insufficient; it is revised to 4 KiB before dispatch, preserving
+all supported IDs and byte guards. The failed named sizing result remains
+under ignored logs/planner-review/adr42/binding-payload-bound.jsonl.
+
+Evidence: red-first tests for new behavior, Domain invariants, file-backed
+SQLite atomicity/replay/concurrency/corruption and byte guards, migration
+upgrade/reopen/no-backfill/restrictive-FK proof, both protected API contracts,
+architecture, frontend whole-answer admission and lifetime races. Prove a
+second database writer can proceed while the observer is held, not just that
+a transaction property is null. Bounded compiling mutations must detect
+node-ID mismatch, missing post-call locked recheck, event incoherence and stale
+candidate callbacks, with hash-verified restoration. Extend the authenticated
+production collaboration journey with explicit load/candidate/bind, exact two
+additional identity invocations, one row/event, replay/reload without remote
+reads, reopen and actual browser reload; retain original no-other-effect
+assertions. Full serial clean build and reproducible generated client, all
+five .NET suites, Vitest/typecheck/lint/build, exact strict e2e tsc, harness and
+one canonical test:e2e:all; formatter, links, diff/secret/dependency checks.
+Retain complete logs and named results for every future failure; an abort's
+active test does not establish cause. Report actual fresh/retained evidence.
+
+Only ADR-0043/index/context, architecture/cockpit/security/roadmap/current-work
+updates needed for this contract belong with implementation; preserve this
+planner edit byte-for-byte. Material challenges or broader changes stop
+dependent work for planner discussion; unresolved material choices go to owner.
+Planning grants no staging, commit or push authority. No remote mutation,
+branch/SHA/CI approval, reconciliation, polling, provider setup or qualification
+run, scheduler, permissions, budget/claim/approval/receipt change or dependency.
+Preserve the unexplained Api 2067/2068 failure and all other recorded limits;
+later passing runs prove neither flakiness nor irrelevance. Qualification stays
+Blocked/TargetsNotReal, both allowances unused. Preserve ledger, historical
+failures, retained roots and ignored review artifacts. No real gh/provider
+invocation, CLI setup, ledger reset or cleanup without a separate explicit
+decision; no separate closure publication is needed.
+
 ## Review decision (2026-10-13): GO for the ADR-0041 identity escape correction
 
 The bounded correction is accepted for publication. Claude remains executor;

@@ -1544,3 +1544,53 @@
   border-left: 3px solid var(--dc-warning);
   padding-left: 0.5rem;
 }
+
+.dc-github-binding {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--dc-border);
+}
+
+.dc-github-binding-body,
+.dc-github-binding-result,
+.dc-github-binding-candidate {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dc-github-binding h5,
+.dc-github-binding p {
+  margin: 0;
+}
+
+.dc-github-binding-note,
+.dc-github-binding-state {
+  color: var(--dc-text-muted);
+}
+
+.dc-github-binding-scope,
+.dc-github-binding-observation,
+.dc-github-binding-recorded {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+}
+
+.dc-github-binding-scope dd,
+.dc-github-binding-observation dd,
+.dc-github-binding-recorded dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.dc-github-binding-review {
+  overflow-wrap: anywhere;
+}
+
+.dc-github-binding-state[data-status='Unavailable'] {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}

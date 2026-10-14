@@ -61,6 +61,8 @@ public interface IDevalCopilotDbContext
 
     DbSet<GitHubObservationTarget> GitHubObservationTargets { get; }
 
+    DbSet<GitHubRepositoryIdentityBinding> GitHubRepositoryIdentityBindings { get; }
+
     /// <summary>
     /// Change-tracker access for the one claim-time guard that must mark an already-tracked Run's
     /// concurrency-token column as modified (see <c>CurrentClaudeModelPreference</c>).
