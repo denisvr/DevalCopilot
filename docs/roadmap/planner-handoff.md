@@ -5,6 +5,160 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## Static AppContainer audit corrections accepted; GO to publish report only (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+69b2adb9b37675ef0d57b3ebe2e10ae9c3dde757, 0/0; empty index; exactly
+current-work and this planner modified, no untracked paths. Returned planner
+1119fd9c2b342c03c0183fad22a7bf9f5464de2711e9cb568e581e09f608c9fb
+and generated client
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104
+match. All earlier planner bytes are preserved by this insertion.
+
+R1 and R2 are accepted for static reporting. Nine output-failure windows
+now distinguish eventual failure from stopping before process creation,
+resume, profile creation or grants. The future control-only phase ceiling
+is explicit even on unexpected success; F30 separates the control comparison
+from the AppContainer false-pass cell. Helper claims now distinguish failed
+label ACE reads, the unchecked copy source close, ignored grant descriptor
+results and scan continuation with other ACEs still counted. The additional
+X06 finding is supported: a control= prefix admits descriptor error text,
+so patch C does not prove complete snapshot validity. None is asserted as
+an observed canonical-run failure. Frozen patches remain unapplied proposals;
+no A/B/C chain or new gate assertion is accepted for implementation.
+
+Independent re-hashing: correction1 5/5, original audit 9/9, its validation
+1/1, original AppContainer evidence 51/51 and prior correction 4/4 match.
+Correction1 manifest SHA-256:
+7317cf5ce243367290d9a54af37d9baf05f24b9ab0cf7b0adbfee250b44072b5.
+Frozen host and child remain 5492ab0d...2ca9 and 865dd7de...e40b.
+Review artifacts: logs/planner-review/p9-appcontainer-static-audit/review2/.
+No native operation, build, test, profile query or retained-capture reanalysis
+was performed by Codex. Current-work and this insertion pass diff checks;
+executor validation counts apply to its returned correction, separately.
+
+The suggested checked write-ahead arrangement is a deferred design idea,
+not an accepted atomicity or superiority claim. A sticky flag's relevant
+property is where it is checked and whether another failing write can occur
+before the action; the single-threaded source does not establish an inherent
+race that every flag arrangement must have. Neither proposal is selected.
+No owner decision is needed to publish this bounded static report.
+
+GO covers only the two frozen modified paths: docs/roadmap/current-work.md
+and docs/roadmap/planner-handoff.md. Publication manifest:
+logs/planner-review/p9-appcontainer-static-audit/publication-manifest.json.
+Publish one commit, docs: record AppContainer harness static audit,
+with Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com> and sole parent
+equal to the verified baseline. Verify exact status/path/raw hashes/lengths,
+staged and committed modes/blobs and parent baseline entries. Compare baseline
+blobs against the recorded parent, never the new HEAD. Normal fast-forward
+push and live verification only. Stop on discrepancies; if already published,
+verify and report without a duplicate. No edits, manifest refresh, generation,
+validation rerun, closure diff or executor next-slice selection.
+
+No source patch, native experiment, binary reuse, profile query/create/reuse/
+delete, security or credential/helper/provider operation, cleanup or permission
+reset is authorized. The one-profile/two-child authority remains spent. Keep
+all ignored original/correction evidence and retained fixtures/protected DACLs.
+ADR-0050 stays Proposed and P9 unproven. Agent qualification stays
+Blocked/TargetsNotReal, both allowances unused; Git/GitHub qualification is
+separate and unstarted. Preserve every prior capture/redaction limitation and
+v1 stop defect. The concurrent-replay 409, target-test 500, disposal
+NullReferenceException and unnamed Api 2067/2068 stay separately unexplained;
+later passes establish neither flakiness nor irrelevance. Codex selects the
+next bounded work after independently verifying publication.
+
+## Static AppContainer audit: NO-GO for bounded reporting corrections (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+69b2adb9b37675ef0d57b3ebe2e10ae9c3dde757, 0/0, empty index; exactly
+current-work and this planner modified, no untracked paths. Returned planner
+7904e749c1313a83c5f5ca15212af34e65f33b6f480c2605e2adcb06095bdcd0
+and client 8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104
+match. Audit 9/9, validation 1/1, original 51/51 and prior correction 4/4
+manifest entries independently re-hash unchanged. Review record and hashes:
+logs/planner-review/p9-appcontainer-static-audit/review1/.
+
+Expanded static gaps are supported; accept the challenge that the original
+three-item list was insufficient. NO-GO is for report/proposal accuracy only.
+R1: patch B does not stop every consequential action after output failure.
+A failure inside launch_child after its caller's check can precede process
+creation. total is captured before CONTROL-VALIDATION is emitted; a failed
+record there or in the subsequent phase/profile-intent records can precede
+profile creation. A final nonzero exit is not a pre-action stop. Add exact
+static traces and proposed fault cases. Any future control-only variant
+needs an explicit ceiling before profile calls even on unexpected success;
+separate F30's control demonstration from its AppContainer false-pass claim.
+R2: narrow claims that every setup/grant result propagates. Trace read_label's
+GetAce skip, copy_bytes' unchecked source close, grant_app's ignored descriptor
+result, and pkg_ace_scan's GetAce continuation (other ACEs may still count).
+Classify cause-specific indirect coverage instead of blanket fail-closed.
+Correct the current-work abbreviated baseline suffix. These are source-level
+predictions, not evidence that a failure occurred in the canonical run.
+
+Keep originals and their manifests frozen. Add correction1 derived reports,
+trace/fault addenda and a new manifest under the existing ignored audit root;
+update current-work only, preserve this planner byte-identically. No need to
+apply or repair proposed patches. No architecture note/ADR/source change,
+build, run, profile query/reuse/create/delete, security operation, real
+helper/credential/provider/network call, cleanup, commit or push. Remain in
+the current audit executor chat; this is no new slice. All patches including
+C remain unaccepted proposals. Material challenges return to Codex.
+
+ADR-0050 stays Proposed, P9 unproven; the one-profile/two-child authority
+is spent. Agent qualification remains Blocked/TargetsNotReal, both allowances
+unused; Git/GitHub qualification is separate and unstarted. Preserve all
+artifacts, roots/protected DACLs, capture/redaction limits and v1 stop defect.
+The concurrent-replay 409, target-test 500, disposal NullReferenceException
+and unnamed Api 2067/2068 remain separately unexplained; later passes establish
+neither flakiness nor irrelevance. No next implementation or experiment selected.
+
+## AppContainer evidence published; select static guard audit only (2026-10-15)
+
+Independent publication verification: main; HEAD/local origin/main/live main
+all 69b2adb9b37675ef0d57b3ebe2e10ae9c3dde757, 0/0; empty index and clean
+tracked/untracked tree before this planner record. Sole parent is
+750bf6c727908d18c47bda7d73660b8edb2861a3. All three committed paths, modes,
+blobs, parent baselines and working raw hashes/lengths match the frozen
+publication manifest d8f92afa63cc482c7a723ac330af302fc44364c45e3ea6100200bec8d0f82b7e.
+The expected subject and Claude Sonnet 5.5 trailer are present. Generated
+client remains 8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Roadmap assessment: the local foundation and manual collaboration/delivery
+capabilities are substantial; Increment 4 real-provider qualification and
+remaining controls, Increment 5 supervised coordination/recovery, Increment 6
+actual push/draft PR/automatic CI correction, and Increment 7 self-hosting
+remain incomplete. Read-only observations and fixture experiments do not close
+those exits. No completion percentage or delivery date is inferred.
+
+Selected bounded evidence task: static audit of the frozen AppContainer
+harness's native-error and stop propagation, using retained source only.
+Map each unchecked/failure-sensitive call through its callers to the gate
+result; provide minimal proposed patch hunks and proposed fault cases as
+unapplied evidence. Specifically include child CloseHandle, host output and
+capture writes, and GetExitCodeProcess. Preserve every original artifact.
+No architectural mechanism is selected, no patch is applied, and no native
+attempt, build, binary reuse, profile query/create/reuse/delete, security
+operation, provider/helper/credential/network call or cleanup is authorized.
+The result prepares a concrete later correction scope; it cannot prove P9
+or accept production use. Codex retains the next proof design and judgment.
+
+Executor output belongs under ignored logs/executor/p9-appcontainer-static-audit/,
+with unique filenames, exact source hashes and a manifest. Update current-work
+with facts and limitations; leave this planner record untouched. Validate only
+links, whitespace/bytes, secret shapes, protected hashes and inventory. Return
+unstaged/uncommitted/unpushed for review; no commit/push authority is granted.
+
+ADR-0050 remains Proposed; P9 is unproven, supported GCM versions and real
+compatibility remain unqualified, and human rearm/resolution is absent.
+The one-profile/two-child authority is spent. Agent qualification remains
+Blocked/TargetsNotReal with both allowances unused; Git/GitHub qualification
+is separate and unstarted. Preserve every retained root/protected DACL,
+malformed or missing capture, redaction limitation and the v1 stop defect.
+The historical concurrent-replay 409, target-test 500, disposal
+NullReferenceException and unnamed Api 2067/2068 stay separately unexplained;
+later passes establish neither flakiness nor irrelevance.
+
 ## AppContainer report corrections accepted; GO to publish bounded evidence (2026-10-15)
 
 Independent preflight: main; HEAD/local origin/main/live main all
