@@ -5,6 +5,234 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## First-push execution evidence review (2026-10-15): R1-R5 accepted; GO for documentation publication only
+
+Independent preflight: main; HEAD/local origin/main/live refs/heads/main all
+810b99b8e4f9c5e4d1b92266d8039a34f5c7c39e, 0/0, empty index; four paths:
+three modified (architecture index, current-work, planner) and one untracked
+execution-evidence note. Planner before this record:
+680aecfacab77cd2b4ba5256f885ab3662a6480ef160b6bd8277905f1a369b77;
+all earlier bytes remain preserved. Generated client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+R1-R5 are accepted for this evidence-gathering outcome. The correction
+separates pre-launch refusal, post-launch observations and attempt uncertainty;
+restores mandatory repository exclusion; narrows helper and principal claims;
+keeps create-only and execution-location proposals distinct from constraints;
+and corrects marker semantics and capture/source limitations. The distinction
+between an empty synthetic home and an untested no-home environment is now
+explicit. No runtime implementation or accepted execution contract results.
+
+Independent checks: 138 original script/output hashes match, 10 correction
+manifest entries match, and eight source-file hashes match; 154 local links
+resolve, diff whitespace is clean, selected secret-shape checks find nothing.
+Original failures, filtered/truncated/unavailable output and documentation
+version/read limits are disclosed. No probes, builds, suites, mutations,
+journeys or regeneration were repeated. Evidence under
+logs/planner-review/first-push-evidence/r1-acceptance-*.
+
+Codex made two final factual wording corrections in the note: the existing
+equal-SHA lease case is an up-to-date no-op, not a refusal; the observed server
+create refusal concerns a command with an all-zero old value, not a guarantee
+that a plain push cannot fast-forward an existing ancestor. The original
+returned note is preserved as returned-r1-evidence-note.md (SHA-256
+706b8120e2caeb452b083bce7358053e856a58140b50a8cea9249c7a0e131c1f).
+These documentation-only edits invalidate no executable evidence.
+
+GO authorizes Claude to publish only the four reviewed documentation paths
+frozen in logs/planner-review/first-push-evidence/publication-manifest.json:
+3 M and 1 A, including current-work and this planner record. Verify every
+entry before staging, only literal manifest paths, then staged modes/blobs,
+one commit with the exact baseline as its sole parent, normal fast-forward
+push of main and live remote equality. Stop on discrepancy or push failure;
+no force/reset/rebase/merge. No edits, generation, repeated validation, closure
+diff or next-slice selection during publication. An already-published matching
+commit is not an instruction to repeat publication.
+
+This publishes pending-decision evidence only. It does not accept a transport,
+lease syntax, execution location, credential arrangement, risk waiver or new
+ADR, nor authorize product remote mutation or a real-helper/provider probe.
+Codex will resolve technical questions and present concrete residual owner
+choices after publication verification; no new runtime slice is selected here.
+Agent qualification remains Blocked/TargetsNotReal, both allowances unused;
+the separate Git/GitHub compatibility gate is unstarted. Preserve every
+artifact, retained root and recorded limit, including the four separately
+unexplained historical failures. No CLI setup, ledger reset or cleanup.
+Prior records follow unchanged.
+
+
+## First-push execution evidence review (2026-10-15): NO-GO, documentation correction only
+
+Independent preflight: main; HEAD/local origin/main/live main all
+810b99b8e4f9c5e4d1b92266d8039a34f5c7c39e, 0/0, empty index; three modified
+paths (architecture index, current-work, preserved planner) and one untracked
+execution-evidence note. Planner before this record:
+027f7cc53325fc7754f48dda11395a6312b35ff29ec2c7036ec7bdad40976e06;
+all earlier bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+All 138 script/output hashes in the executor manifest match. The review
+checker first used the wrong logical root for out/; corrected mapping gives
+zero discrepancies, recorded under logs/planner-review/first-push-evidence/.
+Inspected scripts and retained P4b logs support late application after kill
+and two receive-pack POSTs after a dropped response on the local double.
+No probes, suites, real gh/provider calls or client generation were repeated.
+
+The evidence is useful but its proposed conclusions are not yet coherent:
+
+- R1 (P1): section 3.2 calls unrecognized output and a changed To line
+  refusals where nothing is sent. These are post-launch observations and can
+  follow an effect. A final rejection plus a later nonmatching/absent ref also
+  cannot exclude an earlier applied-and-moved effect after a transport resend.
+  Classify evidence of each exchange separately from whole-attempt certainty.
+  CAS is not universally harmless if a ref is deleted between repeated creates.
+  Elapsed deadlines likewise prove neither orphan termination nor safe release.
+- R2 (P1): U10/section 2.1 makes the repository lease optional and substitutes
+  uniqueness per approval. ADR-0006/0008 already require repository mutation
+  exclusion for pushes, including across different runs/approvals. Retain that
+  requirement. Scratch bare transport is a proposed execution-location
+  extension of ADR-0008, not presently accepted simply because alternates work.
+- R3 (P2): disabling system/global configuration does not remove local helpers
+  (the executor's own P3 A3 proves this). Narrow the no-helper refusal to the
+  tested synthetic arrangement. Git-native ls-remote uses a candidate transport
+  configuration; it does not prove the future push's authenticated principal
+  or write access and can succeed anonymously. Authentication feasibility and
+  actual compatibility remain unresolved, not a universal impossibility proof.
+- R4 (P2): distinguish constraints from proposals. Create-only was not a
+  selected product requirement. The explicit empty-expectation lease is a
+  meaningful non-overwrite candidate, not authority to allow force modes.
+  There must be a durable conservative may-have-started boundary before launch;
+  this can be the single-use claim itself. A third marker is optional phase
+  detail, not proven mandatory. Marker presence is not evidence of actual launch.
+  Keep real Git/GitHub compatibility gating separate from the existing Agent
+  qualification ledger; neither gate is relaxed or authorized by this review.
+- R5 (P2): correct blanket complete-output claims: scripts use head/tail and
+  killrun.js slices captures; the original capture limits must be disclosed,
+  never reconstructed. Re-read primary sections used for disputed conclusions,
+  qualify versions and unsupported assumptions, and identify exact proposed
+  argv/environment or explicitly name what remains unresolved. Keep all
+  historical attempts and original evidence immutable.
+
+Codex verified primary Git push/config/credential documentation directly:
+an empty explicit lease expectation requires an absent ref; rejected and
+remote-rejected statuses have distinct meanings; NOSYSTEM/global-file settings
+do not disable repository config; credential.helper has an explicit empty
+reset. These facts support the corrections, not an execution authorization.
+
+Select only correction R1-R5 in the SAME evidence executor chat, limited to
+the evidence note and current-work; architecture index stays unless its label
+needs correction. No runtime work, new ADR acceptance or new feature selection.
+No original probe needs repetition merely to correct its claims. Final checks
+are changed-document links, diff/secret hygiene, exact scope and unchanged
+planner/client hashes. Retain executable results on unchanged inputs.
+Review the corrected note before presenting a compact, concrete owner decision
+on credential arrangement, reachable-history exposure and residual identity
+risk; do not ask the owner to adopt thirteen technical design decisions.
+No owner risk acceptance, real-provider permission or publication GO exists.
+Qualification remains Blocked/TargetsNotReal, both allowances unused; keep all
+four historical failures separately unexplained and every other recorded limit.
+Prior records follow unchanged.
+
+
+## ADR-0049 publication verified; first-push execution evidence selected (2026-10-15)
+
+Codex independently verified publication 810b99b8e4f9c5e4d1b92266d8039a34f5c7c39e:
+main, HEAD/local origin/main/live refs/heads/main equal, 0/0, empty index,
+clean tracked/untracked tree. Its sole parent is
+703037925da345a810b3438715403721beea96d5. The frozen ADR-0049 manifest
+(SHA-256 b7d1314e6151702033c851109610c883fecda6e5a423d6e031182c42d0b758bb)
+matches all 51 committed paths (19 M, 32 A), modes/blobs, parent entries and
+working raw hashes/lengths. Message and co-author trailer match. The first
+sandboxed live-ref read failed to resolve the host; the authorized network
+read succeeded. No implementation validation or generation was repeated.
+Evidence: logs/planner-review/adr50/publication-verification.txt. Repeating the
+previous publication prompt is unnecessary and unauthorized on this baseline.
+The planner before this record was
+89c883008871ca1cb22d1a72646496d3b2f60aac87d7748ca03470a9694c9832;
+all earlier bytes remain preserved. The generated client is unchanged at
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Roadmap/code assessment: ADR-0049 closes the explicit reported repository
+access input, not branch-push permission or publication. Increment 6 still
+needs durable push/PR execution and ambiguity reconciliation, automatic
+exact-SHA monitoring and bounded CI diagnosis/correction. Increment 4 provider
+contracts/real qualification, Increment 5 coordination/recovery and Increment 7
+packaging/self-hosting proof also remain release blockers. More observation
+panels, richer CI enumeration/history and additional fixture optimization are
+optional; none is selected here.
+
+The next implementation decision needs concrete transport/recovery evidence.
+LocalCommitGitRunner deliberately sets protocol.allow=never, disables global
+configuration for mutations and uses an empty hooks directory. Its existing
+authentication exception reads author identity only. LocalCommitSupervisor
+and recovery deal with local ref/index effects, not remote send ambiguity;
+there is no publication operation, single-use remote dispatch receipt or
+remote reconciliation implementation to adopt. Copying those paths or merely
+restoring ambient configuration would not prove a safe remote executor.
+
+Official Git documentation confirms URL insteadOf/pushInsteadOf rewriting,
+HTTP redirect configuration, and executable credential helpers (including
+shell snippets); GitHub documents rename redirects and name reuse. These
+features create real destination/authentication boundaries beyond argument
+quoting. Sources inspected by Codex:
+https://git-scm.com/docs/git-push,
+https://git-scm.com/docs/git-config,
+https://git-scm.com/docs/gitcredentials,
+https://docs.github.com/en/repositories/creating-and-managing-repositories/renaming-a-repository.
+No conclusion is made that a GitHub node ID atomically pins a Git name-based
+transport, that Git and gh use the same principal, or that a permission report
+or dry run proves an eventual push will be authorized.
+
+Select ONE bounded evidence-gathering slice before runtime implementation:
+document the feasibility and remaining decisions of the first approved normal
+push under the planner constraints below. Deliver only an execution-evidence
+note, its architecture index link and current-work, leaving this planner file
+byte-identical. Do not reserve or mark an execution ADR Accepted yet, implement
+an adapter/queue/API/schema/UI, or let an executor recommendation become an
+accepted design. This is substantive prerequisite evidence, not a closure diff
+or permission to publish the current repository again. Claude verifies the
+constraints and reports counterevidence; Codex retains architecture, next
+implementation selection and final judgment.
+
+Planner constraints for the evidence: an execution request distinct from
+ADR-0048 consent; exact approved source/target/binding and SHA/owned ref; fresh
+physical ownership and local evidence, remote identity/default-branch and
+authentication/permission checks; existing Git authentication with no token
+extraction or setup; a fixed github.com destination and exact SHA refspec;
+no force, default-branch push, deletion, hook execution, extra refs, PR or
+Agent; durable intent and a single-use claim committed before any remote
+effect, no transaction across external work, repository exclusion and
+read-only recovery after uncertain dispatch. A matching remote SHA is an
+observed fact, not proof of who pushed it. Unknowns fail closed. Do not invent
+an atomic remote identity/ref guarantee or an automatic retry. Identify any
+residual race or required authority change explicitly for planner/owner
+decision instead of accepting it silently.
+
+The evidence must map code reuse/gaps, authentication/configuration isolation,
+URL rewriting and redirect risks, hooks/LFS/submodules and extra-ref effects,
+concurrent ref/default-branch/repository changes, bounded output/time and
+cancellation, and a crash/replay/recovery state table. Every claim needs a code
+anchor, primary source, or an explicitly limited owned-double/local proof;
+unverified real CLI/provider behavior remains unverified. No reading of real
+credential configuration/stores or credential-helper invocation is authorized.
+If synthetic probes are necessary, use only newly owned isolated roots and
+fictitious data, no external endpoint and no production repository mutation;
+retain scripts and complete uniquely named logs. No old cleanup. Existing
+suite evidence is retained because executable inputs must not change. Final
+checks: changed Markdown links, diff/secret hygiene and scope/byte identity.
+No build, full suite, mutation campaign or journey is required for this scope.
+
+Return unstaged, uncommitted and unpushed for Codex review with a bounded
+implementation feasibility conclusion and named unresolved decisions. Evidence
+that contradicts a planner constraint requires discussion; do not broaden the
+slice. Real qualification stays Blocked/TargetsNotReal with both allowances
+unused. Preserve the historical concurrent 409, older target-test 500,
+disposal NullReferenceException and unnamed Api 2067/2068 failure separately
+unexplained, plus all missing/aborted/overwritten-log facts, sandbox failures,
+skips, advisory, migration-generator and real-CLI limits. No real gh/provider,
+CLI setup, ledger reset, retained-root/artifact cleanup or publication authority.
+Prior records follow unchanged.
+
+
 ## ADR-0049 review (2026-10-15): R1 accepted; GO for the frozen substantive diff
 
 Independent preflight: main; HEAD/local origin/main/live main all

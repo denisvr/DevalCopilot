@@ -13,6 +13,9 @@ shared engineering contract.
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote
   publication, check monitoring, and CI correction loops.
+- [GitHub branch publication execution evidence](github-branch-publication-execution-evidence.md)
+  is evidence for a pending planner decision about the first approved normal
+  branch push. It is not an accepted execution contract.
 
 Accepted material choices are recorded separately under
 [`docs/decisions`](../decisions/README.md). Architecture documents explain how
