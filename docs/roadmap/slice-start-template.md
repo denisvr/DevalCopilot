@@ -1,50 +1,49 @@
 # Executor slice-start template
 
-Use one new Claude chat for each selected slice. Keep its implementation and
-review corrections in that chat. The planner replaces every placeholder with
-verified facts and sends only the relevant slice details; standing rules live
-in [AGENTS.md](../../AGENTS.md), not in this prompt.
+Use one executor chat for each selected slice and keep its corrections there.
+The planner replaces every placeholder with verified facts and sends only the
+slice details; standing rules live in [AGENTS.md](../../AGENTS.md) and the
+[development workflow](development-workflow.md), not in this prompt.
 
 ```text
-Implement the bounded slice selected by Codex.
+Implement the bounded slice [slice ID] selected by Codex.
 
-Preflight: expected branch [branch], HEAD [full SHA]; expected staged [state],
-unstaged [state], and untracked [state]. Verify once before editing. Stop and
-report any material discrepancy.
+Preflight: expected branch [branch], HEAD [full SHA], local and live
+origin/main [full SHA]; expected staged [state], unstaged [state] and
+untracked [state]. Verify once before editing. Stop and report any material
+discrepancy.
 
 Objective: [one observable result].
-Scope: [specific path/role/operation and allowed changes].
+Scope: [specific paths/roles/operations and allowed changes].
 Exclusions: [nearby behavior and files that must not change].
 Stop gates: [conditions requiring a blocker report rather than scope expansion].
 Acceptance evidence: [focused cases, relevant full checks, generated artifacts,
-documentation, and diff checks].
-Validation matrix: [boundary -> exact focused command/filter -> final regression
-set -> broadening trigger -> retained evidence]. Follow the slice validation
-policy; run focused checks during development and the selected final matrix
-once on stable input. Record elapsed time and do not repeat passing checks
-without changes or unresolved concerns that justify them.
+documentation and diff checks].
+Validation matrix: [boundary -> focused command/filter -> final regression
+set -> broadening trigger -> retained evidence]. Run focused checks during
+development and the final matrix once on stable input; record elapsed time.
 
-If a request or finding is flawed, explain the evidence and propose a bounded
-alternative for discussion before doing dependent work. Agreement does not
-waive the engineering contract or authorize unaccepted scope or publication.
+Challenge a flawed request or finding with evidence and a bounded alternative
+before doing dependent work. Agreement does not waive the engineering
+contract or authorize unaccepted scope or publication.
 
-Update docs/roadmap/current-work.md with actual checks and remaining risks.
-Present the complete diff, changed-file summary, concise check outcomes, and
-short failure excerpts, uncommitted and unpushed, for Codex GO/NO-GO. Keep
-corrections in this chat. Do not select the next slice.
+Update docs/roadmap/current-work.md. Return the complete diff unstaged,
+uncommitted and unpushed with changed files, exact checks and outcomes,
+fresh versus retained versus not-run evidence, risks and short failure
+excerpts for Codex GO/NO-GO. Keep corrections and finding IDs in this chat.
+Do not select the next slice. This prompt grants no commit or push.
 ```
 
-After Codex GO, use the same chat to commit only the reviewed substantive diff,
-push `main` normally to `origin/main`, verify the remote commit, and report it.
-No separate closure-document diff or approval round follows. The planner
-verifies publication and immediately plans and dispatches the next safe slice.
-A material post-GO change returns for review. These publication rules are
-defined in AGENTS.md; this template does not grant GO.
+After explicit GO, the same executor chat commits the reviewed diff, pushes
+`main` normally to `origin/main`, verifies the live remote and reports the
+SHA; a material post-GO change returns for review. The planner then
+recommends `CONTINUE_THIS_CHAT` or `START_NEW_CHAT` as the workflow defines.
 
-The planner includes the complete resolved prompt directly after its analysis;
-a file link alone is insufficient. Use the evidence-based discussion rules in
-AGENTS.md when the executor challenges a proposal or review finding.
+A `START_NEW_CHAT` transition prompt instead gives the receiving planner the
+verified published baseline, expected Git state, current decisions and
+constraints, authoritative references and remaining objective, preserves the
+current authority boundary and leaves next-slice selection to that planner.
 
-Use [the slice validation policy](validation-policy.md) when filling the matrix.
-Avoid a universal list of all suites; choose complete checks for the boundaries
-the diff actually affects and preserve applicable CI and release gates.
+Use [the slice validation policy](validation-policy.md) when filling the
+matrix; choose checks for the boundaries the diff affects and preserve
+applicable CI, security, real-provider and release gates.
