@@ -5,6 +5,170 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## Candidate-A experimental report accepted; GO to publish evidence only (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+b5f985e25381b3fd990b79b49ed080d6511d33aa, 0/0, empty index; exactly three
+modified documents, no untracked paths. Planner before this record:
+a1524cfd9ee60d7714c0f36b908bfa9be0eca40106e002c311ec3a00616d0e3c;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+R1/R2 accepted for the experimental evidence outcome. The first restricted
+deletion remains a valid counterexample for this configuration; its cause
+remains uninvestigated. The missing first-counterexample stop is disclosed
+as a harness defect and protocol deviation. Restricted S4/H5/H6 and all
+grandchild probes are retained post-stop observations, not dispatched-gate
+acceptance evidence. H5 causal and token-equivalence claims are bounded;
+the warning, lookup failure, build failures and capture limits remain.
+This accepts the report, not P9, the configuration or binary reuse.
+
+Codex made two final wording corrections in section 11 only: removed the
+unsupported general assertion that the launch APIs differ only in token,
+and clarified the private job is per child launch. The executor's returned
+note is retained at logs/planner-review/p9-token-gate/review2/returned-correction1-note.md.
+No harness or experiment changed or ran. Independent final checks: all
+42 evidence entries match the unchanged manifest
+c2b05831d82365c99e97e4de589725cfc19fd606bb6b43947074f31e907fd6ea;
+published sections 1-10 are a byte-identical prefix; 130 local links resolve;
+added-byte/secret-shape checks and diff check pass.
+
+GO covers only the three frozen documentation paths including current-work
+and this planner record. Freeze raw hashes/lengths, normalized modes/blobs
+and baseline entries at logs/planner-review/p9-token-gate/publication-manifest.json.
+Publish one commit: docs: record restricted-token deletion counterexample,
+with the Claude co-author trailer and sole parent equal to the verified
+baseline. Then normal fast-forward push and live remote verification.
+No edits, experiment/build/validation rerun, generation, closure diff or
+next-slice selection by the executor. Stop on any baseline, manifest,
+inventory or remote discrepancy; do not refresh evidence to fit it.
+
+ADR-0050 remains Proposed, P9 unproven and B paused; no different mechanism
+or configuration is selected here. Frozen probe binary remains unapproved
+for reuse. No real Git/GCM/helper/provider or credential operation, setup,
+installation, qualification, ledger reset or cleanup is authorized.
+Owner design-only decisions and all recorded limitations stand. Agent
+qualification remains Blocked/TargetsNotReal with both allowances unused;
+Git/GitHub qualification is separate and unstarted. Preserve all ignored
+evidence and roots and the four separately unexplained historical failures;
+later passes establish neither flakiness nor irrelevance. Codex selects
+the next bounded task after independent publication verification.
+
+## Candidate-A experiment: counterexample verified; NO-GO for reporting correction (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+b5f985e25381b3fd990b79b49ed080d6511d33aa, 0/0, empty index; exactly three
+modified documents and no untracked paths. Planner before this record:
+99b302787d983852c1cffcf7bf9a0ab56e2cc97a50eb8033959a6ac6933053d9;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+All 42 evidence digests match manifest
+c2b05831d82365c99e97e4de589725cfc19fd606bb6b43947074f31e907fd6ea.
+130 local links resolve and diff check passes. Review baseline and returned note:
+logs/planner-review/p9-token-gate/review1/. No experiment was repeated.
+
+Substantive result accepted as bounded evidence: restricted-child S3 reports
+DeleteFileW success, with before/after host snapshots and the retained fixture
+confirming deletion. This exact configuration does not meet P9. The cause
+remains uninvestigated; this is not a conclusion about all restricted tokens.
+The later grandchild deletion is also recorded, but falls after the stop point.
+
+Decision: NO-GO for two bounded reporting corrections; no new experiment.
+R1: the executed harness did not implement the required first-counterexample
+stop. run_ops at lines 140-166 continues from successful restricted deletion
+to S4 and returns TRUE; role_child then runs H5/H6 and spawns a grandchild.
+Only read/scratch failures trigger its operation stop. Remove the statement
+that no harness defect was observed. Disclose the control-flow defect and
+protocol deviation in section 11 and current-work. Mark all restricted
+operations after the first S3 success as post-stop observations, retained
+but not acceptance evidence under the dispatched gate. Do not discard the
+valid initial deletion counterexample, edit the frozen harness or rerun it.
+
+R2: remove the finding that the child wrote only granted scratch; deletion
+is an observed source mutation. H5 establishes only that the supplied
+noninheritable handle value was invalid in this child with both controls in
+place, not the independent causal effect of the explicit handle list. No
+positive inheritance case was run. State the actual launch APIs: control
+CreateProcessW, restricted CreateProcessAsUserW, sharing desktop/list/job
+setup. Keep token equivalence claims bounded to observed metadata and
+identified inheritance reasoning; the grandchild logged only restriction
+status and raw flags. Disclose retained build warning C4189 and the initial
+header-lookup failure/corrected lookup, without repeating the build or fetch.
+
+Correct only section 11 and the current-work entry. Preserve sections 1-10,
+all ignored source/binaries/logs/manifests/fixtures, planner, client, ADRs
+and other tracked files. The current harness is not approved for reuse.
+Rerun changed-doc links, diff/byte and applicable secret checks once, verify
+protected hashes, exact inventory and unchanged evidence digests. No runtime
+code change, build, probe, cause investigation, qualification or cleanup.
+Return unstaged/uncommitted/unpushed for GO/NO-GO; no publication authority.
+
+P9 remains unproven, ADR-0050 Proposed and B paused. No alternative
+configuration or mechanism is selected here. Owner design-only decisions
+stand. Agent qualification stays Blocked/TargetsNotReal with both allowances
+unused; Git/GitHub qualification remains separate and unstarted. Preserve
+all historical evidence and limitations, including the four separately
+unexplained failures; later passes prove neither flakiness nor irrelevance.
+
+## P9 evidence published; selected owned candidate-A viability gate (2026-10-15)
+
+Independent publication verification: main; HEAD/local origin/main/live main all
+b5f985e25381b3fd990b79b49ed080d6511d33aa, 0/0, empty index and clean tracked/
+untracked tree before this record. Sole parent
+58c188f48e6894d4d2d1084336c268d86f51dc8b; subject and co-author match.
+All four paths (3 M, 1 A), committed modes/blobs, parent entries and working
+raw hashes/lengths match manifest
+72a4705986cdc7984bf4fc149598a76c0d61b3108f92eb179194f5cbbc45ebc2.
+Evidence: logs/planner-review/p9-feasibility/publication-verification.json.
+Planner before this record: f77182736b396b005a15b8c6e3bbb5d829812d7ac6267f288bd468dfe3923a47;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Decision: select a bounded owned local experiment for candidate A only,
+not product implementation, mechanism acceptance or the complete PL1-PL7
+matrix. Test whether the unelevated current-user restricted-token launch works,
+permits fixture reads and scratch writes, and denies selected fixture writes.
+An owned host's noninherited writable fixture handle provides one bounded
+handle-duplication challenge. Native metadata concerns only this harness and
+its child tree. No Git/GCM execution, credential inspection or network.
+
+Probe configuration: WRITE_RESTRICTED plus DISABLE_MAX_PRIVILEGE, a fresh
+synthetic restricting SID (no account), scratch-only grants, a private temporary
+desktop, explicit handle inheritance and job containment before resuming.
+This is a falsifiable experimental configuration, not a chosen production
+sandbox. Use only already installed tools; no elevation, new privilege grant,
+alternate-user/service/broker, AppContainer profile or source-repository ACL
+change. Native API/token/ACL operations are authorized only for this experiment's
+own processes, new private kernel objects and newly created fixture paths.
+No owner repository, default desktop, real host process or existing root is a target.
+
+Use at most six named scenario families: unrestricted controls; restricted
+launch/read/scratch; direct fixture create/overwrite/delete/DACL; descendant;
+handle-list isolation; duplication of the owned host's known fixture handle.
+Stop on the first configuration counterexample or unmet launch/containment/
+authority prerequisite; retain the evidence without modifying the configuration
+to force a pass. A code defect may be corrected with the failed attempt retained.
+Every operation needs its raw return/error and an appropriate positive control.
+A pass is bounded evidence, not P9 or GCM compatibility proof.
+
+Keep all harness source, binaries, fixtures, complete unique outputs and
+SHA-256 manifests under ignored logs/executor/p9-token-gate/. Preserve roots;
+no cleanup or global build-server shutdown. Append results and limits to the
+published feasibility note without rewriting its prior sections, add one
+current-work entry, and preserve this planner. Expected tracked inventory:
+three modifications, no new tracked/untracked paths. No other product/ADR edits.
+Build only the dependency-free probe; run one canonical bounded matrix after
+stabilization. No product suites, journeys, mutation campaign or generation.
+Return uncommitted/unpushed for review; no commit/push authority.
+
+P9 remains a release blocker; ADR-0050 stays Proposed and B stays paused.
+No real helper/provider/Git qualification or credential access is authorized.
+Owner design-only decisions stand. Agent qualification stays Blocked/TargetsNotReal
+with both allowances unused; Git/GitHub qualification stays separate and unstarted.
+Preserve all ignored artifacts, retained roots and recorded limitations, including
+the four separately unexplained historical failures and no inference of flakiness
+or irrelevance from later passes. Other runtime blockers remain outside this slice.
+
 ## P9 feasibility evidence accepted; GO to publish documentation only (2026-10-15)
 
 Independent preflight: main; HEAD/local origin/main/live refs/heads/main all

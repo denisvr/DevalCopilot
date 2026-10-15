@@ -269,3 +269,156 @@ the Agent qualification ledger (`Blocked`/`TargetsNotReal`, both allowances unus
 - Agent qualification stays `Blocked`/`TargetsNotReal`, both allowances unused; Git/GitHub qualification is separate and
   unstarted. The historical concurrent-replay 409, target-test 500, disposal `NullReferenceException` and the unnamed Api
   2067/2068 failure remain separately unexplained.
+
+## 11. Experimental results: candidate A local viability (owned harness; one bounded run)
+
+> **Experimental evidence, not a production mechanism and not P9 acceptance.** This section was appended in a later slice.
+> The status block and sections 1 to 10 describe the documentation-only round and are preserved unchanged; their statements
+> that nothing was executed apply to that round. ADR-0050 remains Proposed, P9 remains unproven, B remains paused, and no
+> configuration was changed to force a result.
+>
+> **Read first (correction round 1): the executed harness violated the dispatched stop gate.** It did not stop at the first
+> source-mutation counterexample (the restricted deletion) and went on to further probes and a grandchild; this is a harness
+> control-flow defect and a protocol deviation, described in section 11.7. Only the restricted child's read, scratch write and
+> source create, truncate and delete results (through the first counterexample) are in-gate results; the restricted DACL,
+> H5, H6 and grandchild observations were obtained after the required stop point, are reported as factual observations and are
+> not acceptance evidence under the dispatched gate. The executed binary is frozen and not approved for reuse.
+
+### 11.1 What was run
+
+A dependency-free C harness (`p9probe-v1.c`, built with the installed MSVC 19.51 and Windows SDK 10.0.26100.0, static CRT, no
+package download) on Windows `10.0.26200.9711`. It creates a new run root under ignored `logs/executor/p9-token-gate/`,
+verifies canonical containment and the absence of reparse points from the gate directory down, then runs **one unrestricted
+control child and one restricted child**, each of which spawns **one** grandchild. No command shell, no Git, GCM, helper,
+network, credential, account, service or AppContainer profile; no elevation. The real repository's ACLs, the default desktop and
+every other process were neither inspected nor modified. The harness's own processes, one private desktop, a private job per child launch and
+newly created fixture paths were the only targets. Native signatures and constants were verified by compiling against the
+installed SDK headers (`environment-and-header-verification-20261015.txt`) and against S01, S05 and S06.
+
+| Item | Exact configuration (as run) |
+|---|---|
+| Token | The harness's own unelevated primary token (elevation type Limited, integrity `0x2000`, five privileges, none of them `SE_INCREASE_QUOTA_NAME` or `SE_ASSIGNPRIMARYTOKEN_NAME`); `CreateRestrictedToken` flags `DISABLE_MAX_PRIVILEGE` (0x1) plus `WRITE_RESTRICTED` (0x8); no disabled SIDs |
+| Restricting SID | One fresh synthetic SID (`S-1-5-21-` plus three random sub-authorities and RID `0x7E570000`), created in process, no account |
+| Effective restricted token (recorded by host and child) | `IsTokenRestricted` 1; 1 restricting SID; 1 privilege (`SeChangeNotifyPrivilege`); same 15 groups and integrity as the parent; `TokenAccessInformation.Flags` `0x2a18` against `0x2a00` for the parent (the difference `0x18` is consistent with the ntifs `TOKEN_IS_RESTRICTED` and `TOKEN_WRITE_RESTRICTED` bits; that mapping is not verified in the installed headers). Real user and logon SIDs are redacted in the logs |
+| Launch | **Restricted child: `CreateProcessAsUserW`; unrestricted control child: `CreateProcessW`** (the private desktop, handle-list, flags, environment and job setup below were shared). `bInheritHandles` TRUE with `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` = [anonymous pipe write end, NUL stdin]; flags `EXTENDED_STARTUPINFO_PRESENT`, `CREATE_SUSPENDED`, `CREATE_UNICODE_ENVIRONMENT`, `DETACHED_PROCESS`; explicit private desktop; environment only `SystemRoot`, `TEMP`, `TMP` (scratch); working directory scratch; fixed executable path |
+| Containment | Private unnamed job with kill-on-close and an active-process limit of 2, no breakaway; the suspended child was assigned before `ResumeThread` |
+| Grants | Synthetic SID `FILE_ALL_ACCESS` (container and object inherit) on the **new scratch directory only**; the private desktop's DACL names the current user, the synthetic SID and SYSTEM. No ACE was added to any source fixture by the host |
+| Fixtures | New files per label under `fixture/source/<label>/` inheriting the run root's ordinary-user access (**not** made unwritable), a granted `fixture/scratch/`, and two host-held writable fixture handles per child, explicitly noninheritable |
+| Bounds | 60 s child, 20 s grandchild, 64 KiB captured output; none reached |
+
+### 11.2 Controls and raw outcomes
+
+The unrestricted control child used the same desktop, handle-list, job and environment setup as the restricted child, with the
+ordinary token through `CreateProcessW` (the restricted child used `CreateProcessAsUserW`). The host validated that every
+required control operation succeeded (`CONTROL-VALIDATION: control valid`) before the restricted launch. Raw Win32 codes: 0
+success, 5 `ERROR_ACCESS_DENIED`, 6 `ERROR_INVALID_HANDLE`. The "Gate" column classifies each restricted result against the
+dispatched stop gate (section 11.7): **in-gate** results precede or are the first source-mutation counterexample; **post-stop**
+results were obtained after the point at which the run should have stopped. Raw output: `runs/run-20261015T191251Z-27828/out/` and
+`matrix-run-20261015T191251Z.txt`.
+
+| Family | Operation | Gate | Unrestricted control | Restricted |
+|---|---|---|---|---|
+| 1 and 2 | Launch, containment, privileges (child) | in-gate | created, assigned, resumed; exit 0 | created and run without elevation or the host holding `SE_INCREASE_QUOTA_NAME` or `SE_ASSIGNPRIMARYTOKEN_NAME`; assigned and resumed; exit 0 |
+| 2 | R1: read the synthetic source file (child) | in-gate | succeeded | **succeeded**, content matched |
+| 2 | W1: create, write and read back a granted scratch file (child) | in-gate | succeeded | **succeeded**, content matched |
+| 3 | S1: create a new file in the source directory (child) | in-gate | succeeded | **denied (5)** |
+| 3 | S2: open-truncate an existing source file (child) | in-gate | succeeded | **denied (5)** |
+| 3 | S3: delete a named source file (child) | in-gate: **the first source-mutation counterexample** | succeeded | **SUCCEEDED (0)**, confirmed on disk |
+| 3 | S4: read the file's DACL (child) | post-stop | succeeded | succeeded |
+| 3 | S4: set the file's DACL, add one ACE (child) | post-stop | succeeded | denied (5) |
+| 5 | H5: the host's noninheritable writable fixture handle value, probed in the child | post-stop | value invalid (6) | value invalid (6) |
+| 6 | H6: `OpenProcess(PROCESS_DUP_HANDLE)` on this experiment's own host (child) | post-stop | succeeded; the known fixture handle was duplicated and written through | denied (5); no duplication was attempted |
+| 4 | Grandchild: R1, W1, S1 to S4 | post-stop | as the control child | read and scratch write succeeded, create and truncate denied (5), **delete succeeded (0)**, DACL read succeeded, DACL set denied (5); raw `IsTokenRestricted` 1 and `TokenAccessInformation.Flags` `0x2a18` |
+
+### 11.3 Observed fixture changes (host snapshots, SHA-256 per file, before and after each child)
+
+- **Control:** `new.txt` created, `overwrite.txt` changed, `delete.txt` removed, `dacl.txt` gained one ACE (8 to 9 ACEs, marker SID
+  present) and `h6.txt` changed through the duplicated handle, for the child and (apart from H6) the grandchild; `h5.txt` unchanged.
+- **Restricted:** `read-me.txt`, `overwrite.txt`, `dacl.txt` (still 8 ACEs, no marker), `h5.txt` and `h6.txt` byte-identical;
+  no `new.txt`; **`delete.txt` absent in both the child's and the grandchild's source directory (5 entries after, 6 before)**; scratch
+  gained `res-scratch.txt` and `res-gc-scratch.txt`. The child directory's snapshot corroborates the in-gate deletion and shows
+  the aftermath of the whole child tree: it was taken after the child and its grandchild had exited, so the unchanged
+  `dacl.txt`, `h5.txt` and `h6.txt` reflect post-stop probes as well. The grandchild directory's snapshot corroborates only the
+  post-stop grandchild deletion.
+- Job accounting after each child: `TotalProcesses` 2 and `ActiveProcesses` 0, observed after exit, so termination of these two
+  processes was observed (it says nothing about other runs or hosts).
+
+### 11.4 Findings
+
+1. **In-gate prerequisites met on this host and token:** an unelevated restricted-token launch (`CreateProcessAsUserW`) with the
+   explicit handle list, private desktop and pre-resume job containment worked, and the restricted child **read the source and
+   wrote granted scratch**. Separately, and not as a confinement result, the restricted child also **deleted a source file**
+   (finding 2).
+2. **Counterexample to the denial claim for deletion (in-gate, first source-mutation counterexample).** With this exact
+   configuration the restricted child **deleted a named fixture file** (confirmed on disk), while creating a file and truncating a
+   file were denied. By itself this means the configuration does not deny every write-class effect on a source it can otherwise
+   read. Why `DeleteFileW` succeeded was **not investigated**; a plausible but **untested** hypothesis is that the delete right is
+   not among the rights the write-restricted check treats as write (see unknown 1 of section 7). The unrestricted control proves
+   only that the operation itself works. The configuration was not altered, and this result is not generalized to other
+   restricted-token configurations.
+3. **Post-stop observations (factual, not acceptance evidence under the dispatched gate):** the restricted child's DACL read
+   succeeded and DACL set was denied; the noninheritable host handle value was invalid in the child (H5); `PROCESS_DUP_HANDLE` on
+   the owned host was denied (H6); the restricted grandchild showed the same read, scratch-write, create, truncate, delete and DACL
+   outcomes and reported `IsTokenRestricted` 1 with raw `TokenAccessInformation.Flags` `0x2a18`. The grandchild's token claim is
+   bounded to those observed values together with the separately identified reasoning that a child created by a restricted
+   process inherits the token (S07, S12; not independently verified here); full token equality between child and grandchild was
+   not measured.
+4. **Handle-list isolation (observed case only, post-stop):** a noninheritable host handle value was invalid in the child (6) in
+   both the restricted child and the unrestricted control, and both were launched with the same handle list and the handle's
+   inheritable flag cleared. That is consistent with the flag and the list excluding the handle but does not independently prove
+   the list's causal effect: the positive case (an inheritable writable handle in the list) and the inheritable-but-omitted case
+   were not run.
+5. **Caller privilege (in-gate, this token and Windows build only):** the host token held neither
+   `SE_INCREASE_QUOTA_NAME` nor `SE_ASSIGNPRIMARYTOKEN_NAME` and `CreateProcessAsUserW` with a restricted version of its own token
+   succeeded (partial answer to unknown 9 of section 7).
+
+### 11.5 Coverage limits and what the passing cases do not establish
+
+- One run, one Windows build, one token, one synthetic restricting SID, files only. Not run: append, rename, hard link, junction,
+  alternate data stream, delete-on-close, directory creation and deletion, `FILE_DELETE_CHILD`, owner change, other process rights
+  (`PROCESS_CREATE_PROCESS`, `PROCESS_VM_WRITE`, token open, duplicate or impersonation), parent-process spoofing, window
+  messages (the children never loaded `user32`, so the private desktop was configured but not exercised), a positive
+  inherited-handle case, and any permissive or absent DACL. After H6 was denied at `OpenProcess`, its later steps were not reached.
+- Passing cases (read, scratch write, create denial, truncate denial; and, post-stop, DACL-set denial and the `PROCESS_DUP_HANDLE`
+  denial) are bounded observations. They do not establish P9, do not prove that every write or escape is impossible, and say
+  nothing about Git, Schannel, GCM compatibility, credential retrieval or the real repository's ACLs.
+- A job-accounting observation covers only the processes of this run. The real repository and the source object store were not
+  targets, so nothing here measures their effective access.
+- **Harness defect and protocol deviation (section 11.7):** the executed binary did not stop at the first source-mutation
+  counterexample. This is a recorded defect, not "none observed".
+- Build and lookup record, none repeated: the retained successful build `build-v1-a3` emitted warning C4189 (`waited` is
+  initialized but not referenced, `p9probe-v1.c` line 550), which was left as is. Failed build attempts are retained: `build-v1`
+  (an empty directory from a script abort on a missing `vswhere` path), `build-v1-a2` (a quoting error, `cl` "missing source
+  filename") and the two `.failed` build scripts; the only executed binary is `build-v1-a3`. The header-constant check first looked
+  for `BCRYPT_USE_SYSTEM_PREFERRED_RNG` in `um/bcrypt.h`, which does not exist in the installed SDK (`No such file or directory`),
+  and the corrected lookup found it in `shared/bcrypt.h` as `0x00000002`; both appear in
+  `environment-and-header-verification-20261015.txt`. The command capture `cmd-run1-20261015T201251Z.txt` is named with local time
+  marked as `Z` (the run root's UTC name is `run-20261015T191251Z-27828`); the file holds only `exit=0`.
+- The deletion counterexample is a candidate result and a decision input: the control validated the same operation, and the
+  deletion occurred at the first source-mutation counterexample, before the defect let the run continue. Whether to specify a
+  different configuration or another candidate is for Codex.
+
+### 11.6 Provenance
+
+Retained under ignored `logs/executor/p9-token-gate/` (never staged): `src/p9probe-v1.c` (SHA-256 `03789575...c5cc`),
+`build-v1-a3/p9probe.exe` (`5ff1a0fc...387f`), the build scripts and logs, `runs/run-20261015T191251Z-27828/` (the fixture tree
+and `out/host-results.jsonl` with `child-ctl.out.jsonl` and `child-res.out.jsonl`), `matrix-run-20261015T191251Z.txt`,
+`derive-matrix.sh`, `environment-and-header-verification-20261015.txt`, `header-verification-20261015-pre.txt` and
+`manifest-20261015T191344Z.sha256` (42 entries; its own digest `c2b05831...6ea`). Commands: `./build-p9probe.ps1 v1 a3`, then
+`build-v1-a3\p9probe.exe host`, run once. Fixture roots were preserved; nothing was cleaned up. Correction round 1 changed only
+this section and the handoff entry; it ran no harness, build or probe, and its outputs are under
+`logs/executor/p9-token-gate/correction1/`. The 42-entry evidence manifest is unchanged.
+
+### 11.7 Protocol deviation and harness defect
+
+The dispatch required the run to stop on the first configuration counterexample. In the executed source (`p9probe-v1.c`),
+`run_ops` stops only when the read (R1) or granted-scratch write (W1) fails (`STOP-GATE`, then `return FALSE`). After a source
+operation that succeeds where denial was expected, such as the restricted S3 deletion, it continues to S4 and returns `TRUE`
+(line 171); `role_child` then runs H5, H6 and spawns the grandchild, which runs the same operations again. There is no stop on a
+successful source mutation. This is a **harness control-flow defect** and a **protocol deviation**.
+
+Classification of the restricted results: R1, W1, S1, S2 and S3 (child) precede or are the first counterexample and are in-gate;
+the restricted child's S4, H5 and H6 and every grandchild observation were obtained after the required stop point. Their
+factual results are kept in sections 11.2 to 11.4 and are not presented as acceptance evidence under the dispatched gate. The
+frozen harness was not repaired, rerun or approved for reuse, and no evidence was removed. Host snapshots and job accounting still
+corroborate the in-gate deletion and the observed aftermath.
