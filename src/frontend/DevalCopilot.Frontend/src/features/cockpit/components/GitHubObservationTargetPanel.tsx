@@ -8,6 +8,7 @@ import { GitHubBranchObservationPanel } from './GitHubBranchObservationPanel'
 import { GitHubRepositoryIdentityBindingPanel } from './GitHubRepositoryIdentityBindingPanel'
 import { GitHubCiObservationPanel } from './GitHubCiObservationPanel'
 import { GitHubCheckContextsObservationPanel } from './GitHubCheckContextsObservationPanel'
+import { GitHubBranchPublicationApprovalPanel } from './GitHubBranchPublicationApprovalPanel'
 
 const SCOPE_NOTE =
   'Recording is your own local selection of which GitHub repository (on github.com) is later to be observed for this exact local commit. It is not a verified remote identity, a permission, a CI result or publication authority: nothing contacts GitHub, nothing is pushed, and nothing is observed automatically. Once recorded it cannot be changed, replaced or removed by this operation.'
@@ -26,6 +27,8 @@ const WRITE_FAILURES = {
 } as const
 
 interface GitHubObservationTargetPanelProps {
+  /** The committed project of the run; the publication approval region is offered only when it is known. */
+  projectId?: string
   /** The completed local delivery this selection is for; null when the operation lacks any identifying fact. */
   source: ObservationSource | null
 }
@@ -37,7 +40,7 @@ interface GitHubObservationTargetPanelProps {
  * exact branch and commit and the selection that will be recorded are shown before submission, together with a fixed disclosure that
  * the selection is local only. Every value is rendered as text; nothing here links, copies or opens anything.
  */
-export function GitHubObservationTargetPanel({ source }: GitHubObservationTargetPanelProps) {
+export function GitHubObservationTargetPanel({ projectId, source }: GitHubObservationTargetPanelProps) {
   const { open, load, write, owner, repository, canRecord, show, close, reload, setOwner, setRepository, record } =
     useGitHubObservationTarget(source)
   const pending = load.kind === 'pending' || write.kind === 'pending'
@@ -100,6 +103,7 @@ export function GitHubObservationTargetPanel({ source }: GitHubObservationTarget
               {source ? <GitHubRepositoryIdentityBindingPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubCiObservationPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubCheckContextsObservationPanel source={source} target={reading.target} /> : null}
+              {source && projectId ? <GitHubBranchPublicationApprovalPanel projectId={projectId} source={source} target={reading.target} /> : null}
             </div>
           ) : null}
           {reading?.kind === 'NotRecorded' ? (

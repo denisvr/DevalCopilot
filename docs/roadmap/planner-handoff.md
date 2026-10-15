@@ -5,6 +5,442 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## ADR-0048 review (2026-10-15): GO for the frozen substantive diff
+
+Codex independently verified main, HEAD/local origin/main/live main at
+5715fc2b324827e79bf3613473fe3d71ffe286b8, 0/0, empty index, 85 changed
+paths (31 modified, 54 untracked). The planner before this record was
+5df2e6d583bfba583102e4bfc424e1effc0d7b5e90a3c1aa2708b666fd2aea72;
+all its earlier bytes are preserved. The client remains
+c22e82b943c625fa9ceaf6fe377cfe6887380d76d641906a17c7b6738e84a6b6.
+
+R2 is accepted, completing R1 and the whole ADR-0048 review. Only the reader,
+API test base, ADR and current-work changed among the 83 R2 baseline paths;
+the two additions are the reader and production-host snapshot regressions.
+The production handler remains byte-identical at
+a7e405fc8146b08389e6f318b1db0d67ecaa771bf98dcea4b88e340e5db5b396.
+The reader uses one EF-translated UNION ALL, with up to three candidates per
+operand, retaining raw-byte admission, independent absence/orphan/count checks,
+full-scope, actor, canonical payload and time validation. No lock, retry,
+transaction, cache, schema or shared lifecycle change was introduced.
+
+Codex inspected the new deterministic boundary tests and their named red,
+green and compiling-mutant results. An identical competing request replays
+the same 200 response with one pair recorded; another identifier conflicts;
+stable corruption stays unavailable. The split-read mutant is killed and
+M3 is killed on the new reader, whose restored hash matches the report.
+Independent checks: incremental serial solution build, zero warnings/errors;
+reader 124/124; production-host snapshot facts 3/3. Evidence is retained in
+logs/planner-review/adr48/r2-*. The reader command had an unquoted logger
+semicolon: the tests passed and their default TRX is retained and copied;
+the subsequent wrapper errors and complete test console are preserved in
+r2-reader-review-console.log. The wrapper's exit status is not test evidence.
+No tests were repeated to repair that reporting mistake.
+
+Executor final TRX independently inspected: Application approval/history
+232/232, complete ADR-0048 Api family 180/180, Architecture 141/141.
+Earlier unchanged-input Domain, persistence, frontend, client reproducibility,
+journey and controls remain retained with their original limitations. The
+first broad Application/Infrastructure runs are not represented as final
+full-suite passes; only their corrected affected expectations were rerun.
+
+The torn-read path is proven and fixed. The historical identical-request 409
+has no captured body/code and its cause remains unproven. The older target-test
+500, host-disposal NullReferenceException and unnamed Api 2067/2068 failure
+remain separate unexplained observations; later passes establish neither
+flakiness nor irrelevance. The initial skeleton-red limits, mutant survivors,
+missing/aborted evidence, migration-generator drift, privilege skips, advisory,
+real-CLI limits and every other recorded limitation remain preserved.
+
+GO authorizes Claude to publish ONLY the reviewed 85-path substantive diff,
+including this planner record and current-work, frozen in the ignored
+logs/planner-review/adr48/publication-manifest.json. Verify every entry before
+staging and each staged/committed mode/blob against it. One commit with the
+exact baseline parent, then a normal fast-forward push of main and live remote
+verification; stop on any discrepancy. No edits, regeneration or validation
+reruns are needed for publication; a material diff change needs new review.
+No separate closure diff or next slice is selected. This is publication of
+local approval recording, not authorization to execute a GitHub branch push.
+
+Qualification remains Blocked/TargetsNotReal, both allowances unused. No real
+gh/provider invocation, CLI setup, ledger reset or cleanup is authorized.
+Preserve all logs, TRX, manifests, historical failures, retained roots and
+ignored review artifacts. Prior planner decisions follow unchanged.
+
+
+## ADR-0048 review (2026-10-15): R1 accepted; NO-GO pending bounded R2 snapshot correction
+
+Git verified: main, HEAD/local origin/main/live main at
+5715fc2b324827e79bf3613473fe3d71ffe286b8, 0/0, empty index, 83 paths
+(31 modified, 52 untracked). The supplied f14d4976 planner hash was historical;
+the actual planner before this record was
+09de18a52b003e53af6b41461d005bd25fa3b74e26be02f2f6abc1dfd3da311e.
+All earlier bytes are preserved. Client remains
+c22e82b943c625fa9ceaf6fe377cfe6887380d76d641906a17c7b6738e84a6b6.
+
+R1 is accepted in isolation: Codex inspected the bounded raw-byte projections
+and parsers, built with zero warnings/errors, independently passed reader
+120/120 and the production-host scalar-corruption fact (12 cases). Original
+malformed ApprovedAtUtc and ProjectId probes now return Incoherent, with the
+Coherent control intact. Evidence: logs/planner-review/adr48/r1-*. The executor's
+228/228 Application, later 177/177 Api and 141/141 Architecture evidence is
+retained with the original failed Api run and all disclosed limits.
+
+Codex performed ONE deterministic reader interleaving, no stress loop, using
+an ignored standalone probe and the existing fresh file-backed SQLite fixture
+with production migrations and coherent scope. Before the approval-event SELECT,
+a second context committed one valid approval/event pair atomically. Results:
+initial None; interleaved reading Incoherent; settled unchanged evidence Coherent.
+This proves a real torn-read path in the two-statement reader. The unchanged
+handler refuses that initial Incoherent result before taking its writer lock.
+It does NOT prove that this path caused the historical 409: its body/code were
+not captured. Probe source/log: logs/planner-review/adr48/snapshot-probe/ and
+snapshot-probe-1.log. No handler/product source was changed by this probe.
+
+Select R2 within the same ADR-0048 correction chat: make approval-row and
+approval-event evidence a single consistent database snapshot in this reader,
+prefer one bounded SQL statement through existing EF/LINQ. Keep up to three
+candidates per evidence kind, all byte guards/R1 parsers, orphan/count/actor/
+canonical/time/full-scope validation, and absence distinct from incoherence.
+Do not synthesize facts from just the event, deduplicate conflicting evidence,
+cache, retry a partial read or swallow faults. Do not add global transactions,
+new locks, schema, converters or persistence abstractions. If the bounded local
+single-statement shape cannot be translated safely, stop and present evidence
+and an alternative rather than expanding scope.
+
+Honor the owner's instruction: RecordGitHubBranchPublicationApprovalCommandHandler
+must remain byte-identical at
+a7e405fc8146b08389e6f318b1db0d67ecaa771bf98dcea4b88e340e5db5b396.
+No handler/order/lock/retry or shared-host lifecycle changes. R2 corrects the
+reader's evidence snapshot, preserving the initial-incoherence refusal and the
+vanished/changed coherent approval guards rather than relaxing either.
+
+Add genuine deterministic red/green reader and protected production-host
+regressions: a competing identical request commits at the controlled boundary;
+both HTTP requests return the same 200 response, one row/event persist, and
+one command observes the approval/event evidence per reader invocation. Prove
+a stable orphan/wrong actor/payload/count, malformed scalars, complete-scope
+drift, changed/vanished coherent approvals and competing UUIDs still refuse.
+Use a separate prestarted host/context for the writer, one-shot interception,
+fixed phase markers and sanitized status/error codes. No sleeps or stress loops.
+Kill one compiling split-read mutant (restoring the R1 reader is sufficient if
+it compiles), restore the R2 hash and rebuild; rerun M3 for changed reader
+coherence logic, not unchanged handler/UI mutants.
+
+Final once: incremental serial build; approval Application families plus event
+history registry; complete ADR-0048 Api family; full Architecture; changed C#
+format/docs links/secret/diff hygiene. Retain Domain/Persistence/frontend/client/
+journey/fixtures/older controls on unchanged inputs. No full long suites by
+routine. Preserve original 409, old target-test 500, disposal NRE and all repeat
+logs as separate evidence; never assign a common cause without proof.
+
+Update ADR-0048/current-work with R1 acceptance, proven torn-read path, actual
+results and unresolved historical attribution. Return unstaged/uncommitted/
+unpushed for whole-slice GO/NO-GO. No publication/closure diff/next slice.
+Qualification stays Blocked/TargetsNotReal, both allowances unused; no real
+gh/provider/network, CLI setup, ledger reset or cleanup. Api 2067/2068 remains
+unexplained, and all earlier limits, retained roots and ignored artifacts stand.
+
+## ADR-0048 correction steering (2026-10-15): concurrency evidence pending
+
+Codex verified main, HEAD/local origin/main/live main at
+5715fc2b324827e79bf3613473fe3d71ffe286b8, 0/0, empty index; 83 changed
+paths (31 modified, 52 untracked). R1 correction is reported, not yet accepted
+by independent review. Client remains
+c22e82b943c625fa9ceaf6fe377cfe6887380d76d641906a17c7b6738e84a6b6.
+The previous planner hash was
+f14d497623db0d3bedd36eccd839e141c953d662ddb07c275e28a0b578b753d7.
+
+The concurrent replay failure is material and remains open: in
+logs/executor/adr48/correction1/final-restored/03-api-adr48-family.log
+(and api-adr48-family.trx), the named fact
+Concurrent_identical_requests_from_separate_hosts_record_one_approval_and_one_event_and_all_return_it
+had one Conflict among 16 identical requests (176 passed, 1 failed overall).
+A later 177/177 pass does not explain it. The log does not establish which
+fixed conflict/unavailable code or branch produced the response.
+
+The executor already performed three repetitions and 90 diagnostic runs.
+Do not continue stress loops. Preserve all logs/results, including the separate
+older target-durability InternalServerError in concurrency/repeat-4 and the
+WebApplicationFactory.DisposeAsync NullReferenceException in concurrency/diag-21.
+Their causes and any relationship to the 409 are unproven; do not conflate them
+or label them flaky. The earlier Api 2067/2068 failure also remains unexplained.
+
+Codex retains judgment; the UI choice is Leave to Codex, not advance approval
+of a Fix under lock. The rows/events pre-lock split is a concrete hypothesis:
+a competing atomic commit between the reader's statements could produce an
+apparent orphan that is refused before lock acquisition. Prove it with one
+controlled production-handler interleaving against file-backed SQLite and owned
+doubles (not sleeps/repetition). Capture sanitized status/error code, row/event
+counts and ordered phase markers. This proves a path; it must not be presented
+as proof of the historical failure's cause without matching evidence.
+
+Authorize bounded test/evidence work in this same correction chat only. Return
+a deterministic regression and smallest fix proposal, explaining whether it
+changes initial-incoherence semantics and proving stable corruption, changed/
+vanished coherent approvals, full-scope drift, exact replay and competing-ID
+conflicts stay fail-closed. Do not yet change production locking/reader decision
+order, add retries, weaken assertions or repair shared host disposal. Preserve
+R1 and update current-work with evidence. Run only the new focused case and
+needed controls; do not repeat full matrices for evidence gathering.
+
+No GO, stage/commit/push, closure diff or next slice. Qualification remains
+Blocked/TargetsNotReal, both allowances unused; no real gh/provider/network,
+CLI setup, ledger reset or cleanup. Keep every recorded limit and retained root.
+All prior planner bytes are preserved below.
+
+## ADR-0048 review (2026-10-15): NO-GO, bounded stored-scalar admission
+
+Git independently verified: main, HEAD/local origin/main/live main at
+5715fc2b324827e79bf3613473fe3d71ffe286b8, 0/0, empty index; 82 submitted
+paths (31 modified, 51 untracked). Selection planner hash before this record:
+2c97a0d5befc692a92f3272afd35aca72e27b7f6befe960af785fc1efe8fa321;
+client c22e82b943c625fa9ceaf6fe377cfe6887380d76d641906a17c7b6738e84a6b6.
+Codex changed no implementation, migration, client or executor evidence.
+
+Independent build: zero warnings/errors. Application new families 24/24,
+six frontend files 209/209, new migration class 5/5 and selected Api controls
+10/10 passed. Executor final TRX counters were inspected: Domain 22/22,
+Application/registry 117/117, Persistence 415/415, new Api 176/176,
+Architecture 141/141, older controls 13/13 and ADR-0047 guard facts 5/5.
+Review logs/TRX and the standalone scalar probe are retained under ignored
+logs/planner-review/adr48/. The probe uses the existing reader test's fresh
+file-backed SQLite fixture, production migrations and a coherent row/event,
+then changes only its own test database. Control is Coherent; both malformed
+ApprovedAtUtc and malformed ProjectId throw System.FormatException.
+
+R1: GitHubBranchPublicationApprovalReader projects GUIDs and DateTimeOffsets
+directly into typed values in its row and new-event queries. EF parses these
+while materializing ToListAsync, before the reader reaches its validation.
+Thus malformed stored scalars escape as faults, instead of an Incoherent
+reading (GET Unavailable with every fact null; POST unavailable without writes).
+The existing corruption cases use well-formed but differing timestamps/IDs and
+do not exercise this path. The new-table contract requires bounded defensive
+admission of malformed stored values, not merely string/name/payload guards.
+
+Correct only this feature-owned reader and its focused tests: bound and admit
+raw stored representations of all GUID/time scalars it projects from the new
+approval and its approval-event rows before typed conversion. Preserve valid
+writer representations, UTC/order/canonical-payload comparisons, full snapshot
+identity and the untracked bounded projections. Treat invalid/oversized/NUL
+values as Incoherent. Do not default, clamp, normalize, repair, leak or re-save
+corrupt values; never wrap unrelated database/cancellation faults in a blanket
+catch. Do not change global converters, old readers, schema/migration, API wire
+or frontend to address this finding. If a bounded local projection is not
+possible, stop and present a specific alternative before wider changes.
+
+Add genuine red/green named reader regressions for the new approval GUID/time
+fields and event ID/time, including malformed and over-bound representations,
+with a coherent control and restored original. Add representative production
+host GET and replay POST cases proving exact Unavailable/unavailable, every
+fact withheld, no writes and recovery to the byte-identical original response.
+Use cheap reader/persistence tests for permutations, not a lineage per scalar.
+Correction final checks: incremental serial build, affected Application
+families, complete new Api family, full Architecture, changed C# format/docs
+links/secret/diff hygiene. Retain Domain, Persistence, frontend/build/lint/e2e,
+client reproducibility, journey, fixture and older controls when their inputs
+remain unchanged; broaden only for actual changed shared inputs or failures.
+Do not repeat the long full Application/Infrastructure suites by routine.
+
+Accepted evidence-based adjustments: SQLite establishes its writer lock at
+transaction begin; keep the no-op statement and the correct transaction-start
+interception. New API-owned scope DTOs preserve additive generation. Project
+ownership plumbing is necessary and the positive native journey covers it.
+ADR-0046 reuse was optional; no speed-up is claimed. Passing unchanged-input
+results from broad runs can be retained separately from the four corrected
+inventory/version expectations rerun on final inputs; the full suites are not
+claimed as final green runs. Keep their historical failures and named results.
+Skeleton-red gaps and the M5 survivor/regression history remain disclosed.
+
+No GO, staging, commit, push, closure diff or next-slice authority. Continue this
+correction in the same executor chat. Qualification remains Blocked/TargetsNotReal,
+both allowances unused; no real gh/provider/network, CLI setup, ledger reset or
+cleanup. Api 2067/2068 stays unexplained; later passes prove neither flakiness nor
+irrelevance. All other recorded limitations, historical failures, retained roots
+and ignored artifacts remain preserved. The prior selection/history follows.
+
+## Next selected slice (2026-10-14): ADR-0048, explicit local approval of one future GitHub branch push
+
+### Verified publication and priority
+
+Codex independently verified ADR-0047 commit
+5715fc2b324827e79bf3613473fe3d71ffe286b8, its single parent
+3ed2e898912dd8859061f9197dafe902b6167731, reviewed message/trailer and all
+62 committed paths (20 M/42 A), modes/blobs and raw hashes/lengths against
+manifest bffa77baec65c895cde98c427863537be8b328f2a1911b98f29e9987f23cd21d.
+HEAD, local origin/main and live main agree; 0/0; index and tracked/untracked
+state clean before this selection. Planner at publication:
+cd9142e1aa10a64cddb03d72862aea0dc4fcebec7bb3b072f1580f13f213e8ce;
+client d34e3ce98dc015be75e15141531d7a01b6a33d14fa78325c083c749046cb3e0b.
+The executor's post-commit baseline-verifier mistake is reported; independent
+comparison used the actual parent and found zero discrepancies. Publication
+verification ran no implementation validation and modified no product input.
+
+The primary MVP journey requires Human publication approval, push and draft PR,
+exact-SHA CI/correction and restart reconciliation. ADR-0047 now supplies
+bounded advisory check text; adding more inspection views does not remove the
+publication barrier. Code has local-commit approvals, a completed-delivery
+source, observation target and historical repository binding, but no distinct
+branch-publication approval record. ADR-0005 requires scoped Human policy for
+remote mutation. Select that local authority input now, before any network
+writer. Required blockers still include actual push/PR, monitoring/requiredness,
+CI evidence/diagnosis/correction, reconciliation, the remaining Increment 4/5
+controls, real qualification and packaged self-hosting. More history/export,
+analytics, broad fixture migrations and additional advisory viewers are optional.
+
+### Selected bounded contract
+
+Create ADR-0048 for an explicit Human approval of one future normal push of the
+exact completed local commit to its exact owned branch in the repository named
+by a coherent ADR-0040 target and ADR-0043 binding. It is a new, separate approval
+record; never change CiObservation purpose or interpret the target/binding as
+approval. No remote observation, permission assertion, push/PR, Agent dispatch,
+run transition or automatic work is selected. Future execution requires a
+separate explicit request and a separately reviewed executor with fresh local
+ownership/commit, remote identity/ref, authentication/permission and ambiguity
+checks. Available means a coherent recorded consent, never ready or pushed.
+Do not require CommitMatched or green CI: that would prevent a first push.
+
+Protected POST and bodyless GET:
+/api/runs/{runId}/github-branch-publication-approval
+POST body exactly seven string members, literal property spelling, no duplicate,
+unknown or differently cased keys:
+{approvalId, operationId, commitSha, branchName, targetId, bindingId, repositoryNodeId}.
+UUIDs are nonempty D-format; commit is lowercase 40-hex; node ID uses the existing
+policy; branch is the existing recorded owned branch, ordinally. No client host,
+owner/repository, URL, refspec, credentials, message, text, action or timestamps.
+Bound JSON to 8 KiB in the operation's reader as well as the HTTP limit, including
+chunked bodies; standard non-JSON 415 remains. Reject all query keys on either
+route; GET refuses any declared/body byte or Transfer-Encoding before dispatch.
+Use operation-owned Mediator command/query/result and API-owned DTO graphs;
+shared new views belong in Policies/GitHubBranchPublicationApproval, not a sibling
+command/query. Regenerate the client additively; no shared-contract promotion.
+
+Fixed non-echoing codes under github_branch_publication_approval:
+invalid_request (400), body_not_allowed (400, GET), body_too_large (413),
+not_found (404), unavailable (409, POST), conflict (409, POST).
+Unexpected faults and caller cancellation propagate. No process or CLI gate.
+
+Read the unchanged source/target/binding readers. Fresh complete values are the
+only source of scope; do not inspect origin, latest rows or live Git. Initial
+incoherence refuses. Open one short transaction; acquire the existing no-op Run
+writer lock as its first statement, reread the complete scope/approval and compare
+all source/target/binding values before saving. Client acknowledgements must
+exactly match the current scope. A coherent existing same approvalId and same
+normalized request replays its original row/event/time; altered inputs or another
+UUID conflict. Detect cross-run UUID collisions under the lock. A same-request
+race records once; a disappeared/changed existing approval is unavailable, not
+recreated. No external call, transaction-spanning filesystem work or retry.
+
+Persist GitHubBranchPublicationApproval in github_branch_publication_approvals
+with caller approvalId, host-generated eventId, full source (run/project/operation/
+workspace/commit/branch), exact target (id/eventId/names/recorded time), exact
+binding (id/eventId/node ID/observed names/observation and recording times), and
+approvedAtUtc. Fixed host github.com, action PushExactCommit, policy version 1.
+Keep target names and binding observed names exactly in their distinct snapshots.
+Unique per run, operation, target, binding and event; restrictive foreign keys;
+immutable update/delete guards, no backfill/supersession/revocation or cleanup.
+Approved UTC time must be at or after binding recording; equality valid, no clamp.
+Save one canonical version-1 Human run.github_branch_publication_approved event
+(payload at most 4 KiB) atomically with the row. Preserve normal journal sequence
+allocation/notification behavior; no lifecycle, stage, workspace, budget, local
+approval or other authority mutation. A failed/cancelled save commits neither.
+Migration AddGitHubBranchPublicationApproval changes only this new schema and
+necessary event registration; preserve documented unrelated generator drift.
+
+A bounded, untracked feature-owned approval reader validates full pinned values
+and exactly its one Human event, actor shape, canonical payload/time, and all
+cross-links. Check row/event absence independently, including related foreign
+rows; oversized/malformed stored values are withheld, never logged or projected.
+Orphan, incoherent or missing authority is never a success or replay.
+GET returns {runId,status,source,target,binding,approval} with four closed states:
+NotRecorded (no eligible bound source and no approval evidence, all facts null),
+ApprovalNotRecorded (coherent bound source, no approval row/event; scope facts only),
+Available (coherent scope and approval/event; all facts), Unavailable (all facts
+null for incoherence/orphan/drift). Unknown run is the fixed 404. POST returns
+{runId,source,target,binding,approval} on create/replay, 200. Approval projection:
+{id,eventId,host,action,policyVersion,localCommitOperationId,workspaceId,targetId,
+bindingId,repositoryNodeId,owner,repository,branchName,commitSha,approvedAtUtc}.
+It copies the target names; full binding snapshots stay validated in storage.
+
+Cockpit: separate collapsed GitHub branch publication approval region under the
+recorded target. Show sends nothing; explicit Load/Reload only. Before consent,
+show destination, repository node ID, complete refs/heads/<branch>, SHA and the
+fixed notice that one future normal push is approved, no push occurs now, and
+neither PR/force/merge/delete/rerun nor automatic execution is authorized.
+Approve one future push is enabled only for the current settled
+ApprovalNotRecorded load; never by a sibling observation or stale callback.
+Generate one request UUID on first activation, retain it within that owned opening
+for a same-scope recovery retry, single-flight/same-batch guard, no automatic retry.
+Failure/refusal/incoherent success clears old read to Not loaded and retains a
+fixed alert; explicit Reload is required before another approval. Available shows
+recorded consent with no execution button. Ownership includes committed project/
+run/source/target and opening; close/scope change/A-B-A end it and ignore old
+completions. No storage, polling, key/remount/reset-effect workaround. Add only
+necessary closed event-history/summary registrations with accurate fixed wording.
+
+### Acceptance and proportional validation
+
+Use genuine focused red-first Domain/policy/handler/reader/frontend regressions.
+Prove create, exact replay/races/collision, stale acknowledgement, full-value
+binding drift with unchanged request IDs, backwards/equal clock, orphan/wrong
+actor/canonical event corruption, bounded hostile stored data, rollback, trigger/
+FK immutability and reopen. Prove zero gh/provider attempts and unchanged existing
+source/target/binding/local approvals and lifecycle. Cheap admission tests need
+no delivery. Keep one representative production-lineage proof.
+
+Five serial compiling mutants, named kills, restored hashes and rebuild:
+remove binding/node acknowledgement; omit complete locked-scope comparison
+(coherent metadata drift with request IDs unchanged); omit event-coherence read;
+omit approval event insertion; admit obsolete UI write completion.
+Compilation failures/no-op edits are not kills and logs are never overwritten.
+
+Final once on stable input: incremental serial solution build (zero warnings/
+errors); new Domain/RunEvent-related families; new Application command/query/
+reader families; complete Infrastructure Persistence namespace (new migration
+and upgrade/reopen/constraint compatibility); complete new API family and MVC auth
+inventory; full Architecture; existing binding API read/replay controls and the
+five ADR-0047 resolved-host guard facts; new frontend decoder/hook/panel plus
+changed target parent, parseEventSummary and runEventHistory tests; npm build
+(includes typecheck), lint, strict e2e tsc, one affected collaboration journey;
+changed C# format/docs links/secret/bundle/diff checks and additive client
+reproducibility without deleting it. Report exact commands/filters, timings,
+failure logs/named results and inputs supporting retained evidence.
+
+Native journey uses real auth/host and unchanged owned doubles: Show no request,
+Load one GET, approve one POST/row/Human event, explicit reload/reopen retrieves
+the same approval, no automatic POST, zero additional gh/provider/Git mutation.
+The fixed CommitDifferent remote SHA does not prevent local consent. Do not
+change GhRole/harness or run real tools to create this outcome. If the new API
+endpoint class uses ADR-0046 reuse, it owns a fresh fixture and per-fact SQLite
+backup/host/clock/writable resources/immutable IDs, refuses every unrelated
+observer (including identity and contexts), and preserves sealed hashes/scene;
+no generic refactor or old-class migration. This new class has no before baseline.
+
+Retain full unrelated Domain/Application/Infrastructure/Api/Vitest, remote
+adapters, fixtures/harness, other journeys, canonical E2E chain and dependency
+audits when inputs are unchanged. Broaden for changed shared input, failure or a
+proved gap; no routine clean build, server shutdown or repeated passing matrix.
+
+### Exclusions, stop gates and authority
+
+No real gh/provider/network invocation, CLI setup/auth, push/PR/executor,
+permission discovery, CI monitor/requiredness, diagnostic persistence/Agent
+routing, scheduler/recovery framework, revocation or old authority change.
+No ledger reset or cleanup. Normal disposal is only for new test-owned resources.
+Real qualification stays Blocked/TargetsNotReal, both allowances unused.
+Api 2067/2068 remains unexplained; later passes prove neither flakiness nor
+irrelevance. Preserve all other limits, overwritten/unavailable/aborted evidence,
+retained roots, historical failures and ignored logs/artifacts.
+
+Update ADR-0048/index, context, GitHub architecture, cockpit spec, roadmap,
+security and current-work with actual evidence. If authority semantics, migration
+or safe bounded composition requires wider changes, stop dependent work and
+present an evidence-based alternative; do not manufacture agreement or expand
+scope. Owner input is required only for an unresolved material choice. Return
+unstaged/uncommitted/unpushed for GO/NO-GO in a new Claude executor chat; no staging,
+commit/push or next-slice selection. Preserve the planner record byte-identically.
+
 ## ADR-0047 review (2026-10-14): GO for the frozen substantive diff
 
 R1 is resolved. Codex verified that only the feature-owned clone composition

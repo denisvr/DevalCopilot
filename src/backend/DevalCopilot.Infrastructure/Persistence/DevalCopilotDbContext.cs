@@ -63,6 +63,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<GitHubRepositoryIdentityBinding> GitHubRepositoryIdentityBindings => Set<GitHubRepositoryIdentityBinding>();
 
+    public DbSet<GitHubBranchPublicationApproval> GitHubBranchPublicationApprovals => Set<GitHubBranchPublicationApproval>();
+
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
         Database.BeginTransactionAsync(cancellationToken);
 

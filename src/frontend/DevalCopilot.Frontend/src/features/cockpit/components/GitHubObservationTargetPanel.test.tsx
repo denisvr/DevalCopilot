@@ -1,6 +1,11 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { gitHubObservationTargetClient, recordGitHubObservationTargetClient } from '../../../api/clients'
+import {
+  gitHubBranchPublicationApprovalClient,
+  gitHubObservationTargetClient,
+  recordGitHubBranchPublicationApprovalClient,
+  recordGitHubObservationTargetClient,
+} from '../../../api/clients'
 import type { GetGitHubObservationTargetResponse, RecordGitHubObservationTargetResponse } from '../../../api/clients'
 import { ApiException } from '../../../api/generated/api-client'
 import type { ObservationSource } from '../gitHubObservationTarget'
@@ -10,6 +15,8 @@ vi.mock('../../../api/clients', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../api/clients')>()),
   gitHubObservationTargetClient: vi.fn(),
   recordGitHubObservationTargetClient: vi.fn(),
+  gitHubBranchPublicationApprovalClient: vi.fn(),
+  recordGitHubBranchPublicationApprovalClient: vi.fn(),
 }))
 
 const SHA = 'c'.repeat(40)
@@ -317,5 +324,41 @@ describe('GitHubObservationTargetPanel', () => {
 
     expect(screen.getByText('Not loaded.')).not.toBeNull()
     expect(screen.queryByLabelText('GitHub owner')).toBeNull()
+  })
+
+  it('offers the separate collapsed publication approval region under a recorded target only when the project is known, and sends nothing for it', async () => {
+    const { get } = install((id) => Promise.resolve(reading(id === 'run-b' ? B : A, 'Available', wireTarget())))
+    const approval = vi.fn()
+    vi.mocked(gitHubBranchPublicationApprovalClient).mockReturnValue(
+      { getGitHubBranchPublicationApproval: approval } as unknown as ReturnType<typeof gitHubBranchPublicationApprovalClient>,
+    )
+    vi.mocked(recordGitHubBranchPublicationApprovalClient).mockReturnValue(
+      { recordGitHubBranchPublicationApproval: approval } as unknown as ReturnType<typeof recordGitHubBranchPublicationApprovalClient>,
+    )
+    render(<GitHubObservationTargetPanel projectId="project-1" source={A} />)
+
+    expect(screen.queryByRole('region', { name: 'GitHub branch publication approval' })).toBeNull()
+    await openAndLoad()
+
+    const region = screen.getByRole('region', { name: 'GitHub branch publication approval' })
+    expect(within(region).getAllByRole('button')).toHaveLength(1)
+    expect(within(region).getByRole('button', { name: 'Show GitHub branch publication approval' })).not.toBeNull()
+    expect(get).toHaveBeenCalledTimes(1)
+    expect(approval).not.toHaveBeenCalled()
+    await click(within(region).getByRole('button', { name: 'Show GitHub branch publication approval' }))
+    expect(approval).not.toHaveBeenCalled()
+  })
+
+  it('offers no publication approval region without a known project or without a recorded target', async () => {
+    install((id) => Promise.resolve(reading(id === 'run-b' ? B : A, 'Available', wireTarget())))
+    const first = render(<GitHubObservationTargetPanel source={A} />)
+    await openAndLoad()
+    expect(screen.queryByRole('region', { name: 'GitHub branch publication approval' })).toBeNull()
+    first.unmount()
+
+    install((id) => Promise.resolve(reading(id === 'run-b' ? B : A, 'NotRecorded')))
+    render(<GitHubObservationTargetPanel projectId="project-1" source={A} />)
+    await openAndLoad()
+    expect(screen.queryByRole('region', { name: 'GitHub branch publication approval' })).toBeNull()
   })
 })

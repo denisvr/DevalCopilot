@@ -157,6 +157,10 @@
   `gh api graphql` phases (association metadata, then output only after the host admitted the association), shown as untrusted post-redaction plain text only when the bound
   repository ID, the exact recorded branch and the recorded commit all agree in both phases; no persistence, diagnosis, Agent input, complete check or workflow evidence,
   required-check approval, permission or publication authority).
+- [ADR-0048](decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md): Approve one future GitHub branch push of a bound recorded
+  local commit on explicit request (additive; one protected POST and bodyless GET of an immutable, Human-recorded consent to ONE future normal push of the exact recorded commit to its
+  exact owned branch in the repository named by a coherent ADR-0040 target and ADR-0043 binding, with complete exact snapshots and one Human event saved atomically under the write
+  lock; recorded consent only, with no remote observation, push, permission, pull request or automatic execution).
 
 ## Product-specific architecture
 
@@ -415,6 +419,24 @@
   "GitHub check output" region (Show sends nothing; explicit Check, Recheck and Close) owned by the committed source, target, selected check run, parent reading and each opening, showing
   inert plain text and the fixed untrusted-text disclosure. The output is not a diagnosis, complete check or workflow evidence, required-check approval, permission or publication
   authority, and the real installed CLI and schema compatibility remain unverified.
+- [ADR-0048](decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md) adds the local authority input that every later publication
+  needs: the Human's explicit, immutable consent to ONE future normal push of the exact recorded local commit to its exact owned branch in the repository named by a coherent ADR-0040
+  target and ADR-0043 binding. The protected `POST /api/runs/{runId}/github-branch-publication-approval` (`RecordGitHubBranchPublicationApprovalCommand`, an
+  `IManualTransactionCommand`; exactly seven string members `approvalId`, `operationId`, `commitSha`, `branchName`, `targetId`, `bindingId`, `repositoryNodeId`, a strict resource filter
+  that refuses query keys, unknown, duplicate, differently cased and escaped members and any body over 8 KiB, declared or chunked, with the fixed 400 `invalid_request` or 413
+  `body_too_large`; a non-JSON type keeps the standard 415) and the bodyless `GET` (a query key is the fixed 400 `invalid_request`, a body the fixed 400 `body_not_allowed`, an unknown run the
+  fixed 404 `not_found`; every code is under `github_branch_publication_approval` and echoes nothing) read the scope only through the unchanged source, target and binding readers
+  (composed by one feature-owned scope reader) and a bounded untracked approval reader. The write requires every acknowledgement to equal the scope exactly, opens one short transaction
+  whose first statement is the no-op Run write (the SQLite driver takes the lock when the transaction begins), rereads and compares the complete scope by value, and saves one
+  `GitHubBranchPublicationApproval` (table `github_branch_publication_approvals`; complete exact source, target and binding snapshots; five unique keys, six restrictive foreign keys and
+  `BEFORE UPDATE`/`BEFORE DELETE` triggers that make it immutable; migration `AddGitHubBranchPublicationApproval`) and one canonical version-1 Human event
+  `run.github_branch_publication_approved` (at most 4 KiB) atomically. A coherent identical request replays the original; a changed request, another identifier or an identifier owned by
+  another run conflicts (409 `conflict`); a stale or incomplete scope, a clock earlier than the binding or an approval that vanished or changed under the lock is `unavailable` (409) and is
+  never recreated. The GET answers `NotRecorded`, `ApprovalNotRecorded`, `Available` or `Unavailable` with exactly their facts. It executes, observes and checks nothing: no push, process,
+  `gh`, permission or network, no Agent and no run transition. The cockpit adds a separate collapsed "GitHub branch publication approval" region under the recorded target (offered when the
+  project is known) with Show (sends nothing), Load (then Reload), "Approve one future push" (armed only by the current settled `ApprovalNotRecorded` load, one request UUID per owned
+  opening, single-flight, no automatic retry) and Close, owned by the committed project, run, source and target and each opening. `Available` is recorded consent, never readiness, eligibility
+  or a push, and future execution needs a separate explicit request with fresh ownership, commit, remote identity, reference, authentication, permission and ambiguity checks.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

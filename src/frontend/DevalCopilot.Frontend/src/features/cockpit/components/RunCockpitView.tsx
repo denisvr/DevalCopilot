@@ -481,6 +481,7 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
             <LocalCommitPanel
               key={runId}
               runId={runId}
+              projectId={cockpit.projectId}
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}
               onSaved={refresh}

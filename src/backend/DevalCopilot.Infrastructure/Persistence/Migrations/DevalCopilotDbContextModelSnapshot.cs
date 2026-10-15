@@ -1083,6 +1083,115 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("diagnosis_correction_escalations", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.GitHubBranchPublicationApproval", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ApprovedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BindingEventId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BindingId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("BindingObservedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BindingOwner")
+                        .IsRequired()
+                        .HasMaxLength(39)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("BindingRecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BindingRepository")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BranchName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommitSha")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("GitWorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("LocalCommitOperationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RepositoryNodeId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TargetEventId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetOwner")
+                        .IsRequired()
+                        .HasMaxLength(39)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("TargetRecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetRepository")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BindingId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_branch_publication_approvals_binding");
+
+                    b.HasIndex("EventId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_branch_publication_approvals_event");
+
+                    b.HasIndex("GitWorkspaceId");
+
+                    b.HasIndex("LocalCommitOperationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_branch_publication_approvals_operation");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("RunId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_branch_publication_approvals_run");
+
+                    b.HasIndex("TargetId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_github_branch_publication_approvals_target");
+
+                    b.ToTable("github_branch_publication_approvals", (string)null);
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.GitHubObservationTarget", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1999,6 +2108,45 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("VerificationDiagnosisAttemptId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.GitHubBranchPublicationApproval", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.GitHubRepositoryIdentityBinding", null)
+                        .WithMany()
+                        .HasForeignKey("BindingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitWorkspace", null)
+                        .WithMany()
+                        .HasForeignKey("GitWorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.LocalCommitOperation", null)
+                        .WithMany()
+                        .HasForeignKey("LocalCommitOperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.Project", null)
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.GitHubObservationTarget", null)
+                        .WithMany()
+                        .HasForeignKey("TargetId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

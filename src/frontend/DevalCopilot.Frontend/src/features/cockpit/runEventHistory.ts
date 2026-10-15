@@ -36,6 +36,7 @@ export const KNOWN_EVENT_TYPES = [
   'run.abandoned',
   'run.github_observation_target_recorded',
   'run.github_repository_identity_bound',
+  'run.github_branch_publication_approved',
 ] as const
 
 export type KnownEventType = (typeof KNOWN_EVENT_TYPES)[number]
@@ -235,6 +236,7 @@ const EVENT_TYPE_LABELS: Record<KnownEventType, string> = {
   'run.abandoned': 'Run abandoned',
   'run.github_observation_target_recorded': 'GitHub observation target recorded',
   'run.github_repository_identity_bound': 'GitHub repository identity bound',
+  'run.github_branch_publication_approved': 'GitHub branch publication approved (consent recorded, not pushed)',
 }
 
 const ROLE_LABELS: Record<RunEventActorRole, string> = {

@@ -407,6 +407,7 @@ public sealed class GetRunEventHistoryQueryHandlerTests : IAsyncLifetime
                 "local_commit.admitted", "local_commit.executing", "local_commit.completed", "local_commit.failed",
                 "local_commit.interrupted", "local_commit.needs_attention", "run.abandoned",
                 "run.github_observation_target_recorded", "run.github_repository_identity_bound",
+                "run.github_branch_publication_approved",
             ],
             constants);
 

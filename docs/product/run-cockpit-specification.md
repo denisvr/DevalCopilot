@@ -242,6 +242,21 @@ whitespace-only string are each stated with fixed text and never conflated; a nu
 unavailable or re-associated check run, an identity change and any drift show no check and no text. There is never a link, copy, download, Agent, rerun, publication or other action, an
 automatic read, a retry, a timer or browser storage.
 
+The GitHub branch publication approval region ([ADR-0048](../decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md)) is a separate
+collapsed region under an Available GitHub observation target, offered when the committed project is known. It offers "Show GitHub branch publication approval" (which sends nothing),
+"Load GitHub branch publication approval" (then "Reload"), "Approve one future push" and "Close GitHub branch publication approval", and reads and writes only through the protected
+`GET` and `POST /api/runs/{runId}/github-branch-publication-approval` on those explicit actions. Before anything is recorded it shows the destination (`github.com / owner / repository`),
+the bound repository ID once loaded, the complete `refs/heads/<branch>` and the local commit, with the fixed statement that approving records consent to ONE future normal push of this exact
+commit to this exact branch, that no push occurs now, and that a pull request, force-push, merge, deletion, rerun and automatic execution are not authorized. "Approve one future push" is
+disabled until the current settled load of this opening reports that no approval is recorded; no sibling observation (including a `CommitDifferent` check) arms or blocks it. One request
+identifier is created by the first approval that sends and is kept for the opening so a recovery retry after an explicit reload repeats it; a second activation in flight, two in one batch and
+any activation after a close in the same batch send nothing, and nothing retries. A refusal, a failure or an incoherent success clears the earlier reading to "Not loaded." and keeps a fixed
+alert until an explicit reload; an Available reading shows the recorded consent (destination, repository ID, reference, commit, approval time in UTC, approval and event identifiers) with the
+statement that it is not a push, readiness, a permission check or a current check of GitHub, and offers no approval or execution action. The region is owned by the committed project, run,
+source and target and each opening: a scope change, a return to an earlier scope (A-B-A), closing and reopening start collapsed and blank, and a late completion of an ended lifetime can neither
+settle into nor release the single-flight guard of its successor. The decoder accepts the whole answer or none of it, repeating the host's status, nullability, scope, fixed host, action and
+policy version, binding and time rules. Values render as inert text; there is never a link, copy, storage, timer, push, pull-request or other execution action.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

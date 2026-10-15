@@ -85,6 +85,8 @@ import {
   GetGitHubCheckRunOutputObservationEndpointClient,
   BindGitHubRepositoryIdentityEndpointClient,
   GetGitHubRepositoryIdentityBindingEndpointClient,
+  RecordGitHubBranchPublicationApprovalEndpointClient,
+  GetGitHubBranchPublicationApprovalEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 
@@ -179,6 +181,10 @@ export const gitHubCheckRunOutputObservationClient = () =>
 export const bindGitHubRepositoryIdentityClient = () => new BindGitHubRepositoryIdentityEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubRepositoryIdentityBindingClient = () =>
   new GetGitHubRepositoryIdentityBindingEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const recordGitHubBranchPublicationApprovalClient = () =>
+  new RecordGitHubBranchPublicationApprovalEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubBranchPublicationApprovalClient = () =>
+  new GetGitHubBranchPublicationApprovalEndpointClient(getApiBaseUrl(), authenticatedHttp)
 
 export type {
   CapabilityReadinessResponse,
@@ -285,6 +291,12 @@ export type {
   BindGitHubRepositoryIdentityResponse,
   GetGitHubRepositoryIdentityBindingResponse,
   GitHubRepositoryIdentityBindingResponse,
+  RecordGitHubBranchPublicationApprovalResponse,
+  GetGitHubBranchPublicationApprovalResponse,
+  GitHubBranchPublicationApprovalSourceResponse,
+  GitHubBranchPublicationApprovalTargetResponse,
+  GitHubBranchPublicationApprovalBindingResponse,
+  GitHubBranchPublicationApprovalResponse,
   GitHubBranchObservationResponse,
   GitHubBranchRefResponse,
   GetGitHubCiObservationResponse,
@@ -317,4 +329,5 @@ export {
   AbandonManualRunRequest,
   RecordGitHubObservationTargetRequest,
   BindGitHubRepositoryIdentityRequest,
+  RecordGitHubBranchPublicationApprovalRequest,
 } from './generated/api-client'

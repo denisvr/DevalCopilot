@@ -106,4 +106,10 @@ public static class RunEventType
     /// target (ADR-0043). The payload is the bounded canonical version-1 form of the binding; it is historical identity evidence only and
     /// never records permission, branch or commit proof, CI or publication authority.</summary>
     public const string GitHubRepositoryIdentityBound = "run.github_repository_identity_bound";
+
+    /// <summary>A Human explicitly approved ONE future normal push of the exact recorded local commit to its recorded owned branch in the
+    /// repository named by a coherent ADR-0040 target and ADR-0043 binding (ADR-0048). The payload is the bounded canonical version-1 form
+    /// of the approval snapshot; it records consent only and never an executed push, remote observation, permission or any other
+    /// publication.</summary>
+    public const string GitHubBranchPublicationApproved = "run.github_branch_publication_approved";
 }

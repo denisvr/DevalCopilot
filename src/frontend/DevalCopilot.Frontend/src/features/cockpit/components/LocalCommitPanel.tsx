@@ -29,6 +29,8 @@ const SYNC_NOTE = 'Local commit only — not pushed. This does not describe the 
 
 interface LocalCommitPanelProps {
   runId: string
+  /** The committed project of the run, when the cockpit has read it; the GitHub publication approval region needs it. */
+  projectId?: string
   /** The cockpit's latest event sequence; a change re-reads the status. */
   latestSequence: number | undefined
   /** Advanced by the project's explicit Refresh evidence action; re-reads the status. */
@@ -121,7 +123,7 @@ function OperationCard({ operation }: { operation: LocalCommitOperationResponse 
  * obsolete completion can never act on a replacement. The recorded operation is shown read-only and never implies a push, a clean
  * workspace or provider reliability.
  */
-export function LocalCommitPanel({ runId, latestSequence, evidenceRefreshGeneration = 0, onSaved }: LocalCommitPanelProps) {
+export function LocalCommitPanel({ runId, projectId, latestSequence, evidenceRefreshGeneration = 0, onSaved }: LocalCommitPanelProps) {
   const { status, loading, error: statusError, current, refresh } = useLocalCommitStatus(runId, latestSequence, evidenceRefreshGeneration)
   const identity = identityOf(status)
   const identityKey = identity ? localCommitIdentityKey(runId, identity) : null
@@ -198,7 +200,7 @@ export function LocalCommitPanel({ runId, latestSequence, evidenceRefreshGenerat
 
   // Beside the commit region, never inside it: the region stays a read-only record, and the explicit GitHub observation target
   // selection (ADR-0040) is a separate region offered only for a Completed operation of a settled status read.
-  const selection = !statusError && status?.operation?.status === 'Completed' ? <GitHubObservationTargetPanel source={observationSource} /> : null
+  const selection = !statusError && status?.operation?.status === 'Completed' ? <GitHubObservationTargetPanel projectId={projectId} source={observationSource} /> : null
 
   return (
     <>

@@ -1,6 +1,7 @@
 export const RUN_ABANDONED_EVENT_TYPE = 'run.abandoned'
 export const GITHUB_OBSERVATION_TARGET_EVENT_TYPE = 'run.github_observation_target_recorded'
 export const GITHUB_REPOSITORY_IDENTITY_BOUND_EVENT_TYPE = 'run.github_repository_identity_bound'
+export const GITHUB_BRANCH_PUBLICATION_APPROVED_EVENT_TYPE = 'run.github_branch_publication_approved'
 
 const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0
 
@@ -19,6 +20,8 @@ export function parseEventSummary(payloadJson: string, eventType?: string): stri
       repository?: unknown
       commitSha?: unknown
       repositoryNodeId?: unknown
+      branchName?: unknown
+      target?: unknown
     }
     if (eventType === RUN_ABANDONED_EVENT_TYPE && typeof parsed.reason === 'string') {
       return `Run abandoned by the owner. Reason: ${parsed.reason}`
@@ -39,6 +42,12 @@ export function parseEventSummary(payloadJson: string, eventType?: string): stri
       && isText(parsed.repositoryNodeId)
     ) {
       return `GitHub repository identity bound by the owner (historical identity evidence only): github.com/${parsed.owner}/${parsed.repository} with repository ID ${parsed.repositoryNodeId} for local commit ${parsed.commitSha}.`
+    }
+    if (eventType === GITHUB_BRANCH_PUBLICATION_APPROVED_EVENT_TYPE && parsed.target && typeof parsed.target === 'object') {
+      const { owner, repository } = parsed.target as { owner?: unknown; repository?: unknown }
+      if (isText(owner) && isText(repository) && isText(parsed.branchName) && isText(parsed.commitSha)) {
+        return `GitHub branch publication approved by the owner (recorded consent for one future push only; nothing was pushed): github.com/${owner}/${repository} branch ${parsed.branchName} at local commit ${parsed.commitSha}.`
+      }
     }
     return parsed.summary ?? parsed.objective ?? payloadJson
   } catch {

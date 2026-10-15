@@ -120,6 +120,10 @@ supersedes it.
   check belongs to the bound repository and recorded commit and a second fixed phase repeated that proof; untrusted, post-redaction plain text, never persisted, interpreted or sent
   to an Agent, and never complete check or workflow evidence, a diagnosis, required-check approval, permission or publication authority; its one extension of ADR-0046 is a
   feature-owned fixture instance for its own endpoint class)
+- [ADR-0048: Approve one future GitHub branch push of a bound recorded local commit on explicit request](0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md)
+  (additive; one protected POST and bodyless GET of an immutable, Human-recorded consent to ONE future normal push of the exact recorded local commit to its exact owned branch in the
+  repository named by a coherent ADR-0040 target and ADR-0043 binding, with complete exact snapshots and one Human event saved atomically from pinned rows under the write lock; recorded
+  consent only, never readiness, a push, a pull request, a permission or any remote observation, and a future executor needs its own request and fresh checks)
 
 ## Status values
 

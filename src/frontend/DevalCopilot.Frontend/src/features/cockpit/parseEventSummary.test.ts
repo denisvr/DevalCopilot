@@ -89,3 +89,43 @@ describe('the GitHub repository identity bound event', () => {
     expect(parseEventSummary('garbage', 'run.github_repository_identity_bound')).toBe('garbage')
   })
 })
+
+describe('the GitHub branch publication approved event', () => {
+  const payload = JSON.stringify({
+    version: 1,
+    approvalId: 'a',
+    runId: 'r',
+    projectId: 'p',
+    operationId: 'o',
+    workspaceId: 'w',
+    commitSha: 'a'.repeat(40),
+    branchName: 'devalcopilot/workspace/x/1',
+    host: 'github.com',
+    action: 'PushExactCommit',
+    policyVersion: 1,
+    target: { id: 't', eventId: 'e', owner: 'octo-cat', repository: 'hello.world', recordedAtUtc: '2026-10-14T12:00:00+00:00' },
+    binding: { id: 'b', eventId: 'be', repositoryNodeId: 'R_kgDOExample01', owner: 'Octo-Cat', repository: 'Hello.World' },
+    approvedAtUtc: '2026-10-14T12:03:00+00:00',
+  })
+
+  it('words it as recorded consent for one future push and says nothing was pushed', () => {
+    const summary = parseEventSummary(payload, 'run.github_branch_publication_approved')
+
+    expect(summary).toBe(
+      `GitHub branch publication approved by the owner (recorded consent for one future push only; nothing was pushed): github.com/octo-cat/hello.world branch devalcopilot/workspace/x/1 at local commit ${'a'.repeat(40)}.`,
+    )
+    expect(summary).not.toMatch(/published|pushed to|force|merge|pull request/i)
+  })
+
+  it('never words another type, or an incomplete or non-text payload, as an approval', () => {
+    expect(parseEventSummary(payload, 'run.completed')).toBe(payload)
+    expect(parseEventSummary(payload)).toBe(payload)
+    const incomplete = '{"commitSha":"z","branchName":"b","target":{"owner":"x"}}'
+    expect(parseEventSummary(incomplete, 'run.github_branch_publication_approved')).toBe(incomplete)
+    const wrongType = '{"commitSha":"z","branchName":"b","target":{"owner":1,"repository":"y"}}'
+    expect(parseEventSummary(wrongType, 'run.github_branch_publication_approved')).toBe(wrongType)
+    const noTarget = '{"commitSha":"z","branchName":"b"}'
+    expect(parseEventSummary(noTarget, 'run.github_branch_publication_approved')).toBe(noTarget)
+    expect(parseEventSummary('garbage', 'run.github_branch_publication_approved')).toBe('garbage')
+  })
+})

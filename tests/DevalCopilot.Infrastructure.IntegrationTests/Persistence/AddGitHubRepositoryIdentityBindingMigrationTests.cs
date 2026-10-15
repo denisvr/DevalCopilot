@@ -90,7 +90,7 @@ public sealed class AddGitHubRepositoryIdentityBindingMigrationTests : IAsyncLif
         var targetsBefore = await QueryAsync("SELECT * FROM github_observation_targets", 11);
         await using (var upgraded = CreateContext())
         {
-            await upgraded.Database.MigrateAsync();
+            await upgraded.Database.GetService<IMigrator>().MigrateAsync("20261013174647_AddGitHubRepositoryIdentityBinding");
         }
 
         var after = await SchemaObjectsAsync();

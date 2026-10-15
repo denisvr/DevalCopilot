@@ -138,6 +138,20 @@ artifact, rendered as Markdown or HTML, acted on or sent to an Agent. It is not 
 policy, a permission or a publication authority; Agent diagnosis and correction routing, durable output, rerun, scoped publication, push, pull request, automatic monitoring and
 reconciliation remain later, separately gated slices.
 
+## Explicit branch publication approval
+
+[ADR-0048](../decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md) records the scoped Human policy decision that
+[ADR-0005](../decisions/0005-use-git-worktrees-and-a-policy-controlled-github-loop.md) requires before any remote mutation, as a local, immutable consent and nothing more: the
+Human approves ONE future normal push of the exact completed local commit to its exact recorded owned branch in the repository named by a coherent ADR-0040 target and ADR-0043
+binding. It is a separate record (table `github_branch_publication_approvals`, one Human event `run.github_branch_publication_approved`), never a reinterpretation of the target's
+`CiObservation` purpose or of the binding, and it carries complete exact snapshots of the source, target and binding so later drift is detectable. The host decides from the unchanged
+readers over pinned rows under one short write-locked transaction that compares the complete scope by value, requires every client acknowledgement to equal it, replays an identical
+request and conflicts on any other. Nothing is executed or observed: no `gh`, Git, process, network, remote identity, branch tip, permission, CI state or Agent is involved, and recording
+consent deliberately does not require a matching remote commit, green checks or a usable CLI (that would forbid approving a first push). `Available` is recorded consent, never readiness,
+eligibility or a pushed commit; the actual push, the draft pull request, remote permission discovery, CI monitoring and requiredness, diagnosis and correction routing, revocation, scheduling
+and restart reconciliation remain later, separately gated slices, and a future executor must perform its own fresh ownership, commit, remote identity, reference, authentication, permission and
+ambiguity checks under its own explicit request.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

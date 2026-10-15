@@ -368,6 +368,10 @@ failed-check diagnosis, scoped publication, automatic monitoring and reconciliat
 title, summary and text of one check run of the recorded commit, shown as untrusted post-redaction plain text only after the host proved the check's association with the bound repository and
 the recorded commit (not a diagnosis, complete check or workflow evidence, a log, required-check approval, permission or publication authority, and never persisted or sent to an Agent);
 required-check policy, workflow and log enumeration, durable output, Agent diagnosis and correction routing, rerun, scoped publication, automatic monitoring and reconciliation remain open.
+[ADR-0048](../decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md) records the Human's explicit, immutable consent to ONE future
+normal push of the exact recorded local commit to its exact owned branch in the repository named by a coherent target and binding, as a separate local record with one Human event (consent
+only: not a push, readiness, a permission, a remote observation or an Agent decision); the actual push and draft pull request, remote permission discovery, CI monitoring and requiredness,
+diagnosis and correction routing, revocation, scheduling and restart reconciliation, and the remaining Increment 4 and 5 controls remain open.
 Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
 where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
 

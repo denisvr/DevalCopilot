@@ -50,6 +50,7 @@ const BINDING_PATH = /\/api\/runs\/[^/]+\/github-repository-identity-binding$/
 const CI_PATH = /\/api\/runs\/[^/]+\/github-ci-observation$/
 const CONTEXTS_PATH = /\/api\/runs\/[^/]+\/github-check-contexts-observation$/
 const CHECK_RUN_OUTPUT_PATH = /\/api\/runs\/[^/]+\/github-check-run-output-observation$/
+const APPROVAL_PATH = /\/api\/runs\/[^/]+\/github-branch-publication-approval$/
 const HISTORY_PATH = /\/api\/projects\/[^/]+\/run-history$/
 const EVENT_HISTORY_PATH = /\/api\/runs\/[^/]+\/event-history$/
 const COLLABORATION_HISTORY_PATH = /\/api\/runs\/[^/]+\/collaboration-history$/
@@ -1653,6 +1654,216 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const outputLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
   for (const secret of [deliveryBranch, remoteCommit, deliveredCommit, bindingNode, observationOwner, observationRepository, selectedCheck, ...outputFixtureStrings]) {
     expect(outputLog).not.toContain(secret)
+  }
+
+  // 14j. The explicit approval of ONE future normal push (ADR-0048), through the production frontend, generated client, MVC authentication,
+  // mediator, the unchanged source, target and binding readers and file-backed SQLite. Nothing external exists for it: the host only reads
+  // and writes its own rows, so no `gh`, provider, Git or network operation may happen. The collapsed region reads nothing until the owner
+  // loads; the approval is one explicit POST that saves exactly one immutable approval and one Human event; a close, a reopening and a real
+  // reload start no work and an explicit load reads the same record back. The CommitDifferent answer observed above does not block local
+  // consent (consent is not readiness). It proves recorded consent only: nothing is pushed, nothing about a real repository, permission,
+  // GitHub, CI or publication is established, and no execution action exists.
+  const approvalRequests: { method: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    if (APPROVAL_PATH.test(new URL(request.url()).pathname)) {
+      approvalRequests.push({ method: request.method(), body: request.postData() })
+    }
+  })
+  const ghInvocationCount = () => readInvocations(mark).filter((entry) => entry.role === 'gh').length
+  const approvalBaseline = {
+    totals: data.projectTotals(),
+    targets: data.gitHubObservationTargets(),
+    targetEvents: data.gitHubObservationEvents(),
+    bindings: data.gitHubRepositoryIdentityBindings(),
+    bindingEvents: data.gitHubRepositoryIdentityBindingEvents(),
+    ghInvocations: ghInvocationCount(),
+    providerInvocations: stageInvocations().length,
+    source: repositorySnapshot(repository.path),
+    head: git('rev-parse', 'HEAD'),
+  }
+  const assertApprovalChangedOnlyItsOwnRows = (approvalEvents: number) => {
+    expect({
+      totals: data.projectTotals(),
+      targets: data.gitHubObservationTargets(),
+      targetEvents: data.gitHubObservationEvents(),
+      bindings: data.gitHubRepositoryIdentityBindings(),
+      bindingEvents: data.gitHubRepositoryIdentityBindingEvents(),
+      ghInvocations: ghInvocationCount(),
+      providerInvocations: stageInvocations().length,
+      source: repositorySnapshot(repository.path),
+      head: git('rev-parse', 'HEAD'),
+    }).toEqual({ ...approvalBaseline, totals: { ...approvalBaseline.totals, events: approvalBaseline.totals.events + approvalEvents } })
+    expect(git('remote')).toBe('')
+    expect(git('rev-list', '--count', 'HEAD')).toBe('2')
+  }
+  const approvalRegion = observation.getByRole('region', { name: 'GitHub branch publication approval', exact: true })
+  await openObservation()
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  await expect(approvalRegion.getByRole('button', { name: 'Show GitHub branch publication approval', exact: true })).toBeVisible()
+  await expect(approvalRegion.getByRole('button', { name: /Load|Reload|Approve|Close/ })).toHaveCount(0)
+  expect(data.gitHubBranchPublicationApprovals()).toEqual([])
+  expect(data.gitHubBranchPublicationApprovalEvents()).toEqual([])
+  await approvalRegion.getByRole('button', { name: 'Show GitHub branch publication approval', exact: true }).click()
+  await expect(approvalRegion).toContainText('Not loaded.')
+  await expect(approvalRegion).toContainText(`github.com / ${observationOwner} / ${observationRepository}`)
+  await expect(approvalRegion).toContainText(`refs/heads/${deliveryBranch}`)
+  await expect(approvalRegion).toContainText(deliveredCommit)
+  await expect(approvalRegion).toContainText('ONE future normal push')
+  await expect(approvalRegion).toContainText('No push occurs now')
+  await expect(approvalRegion).toContainText('A pull request, force-push, merge, deletion, rerun and automatic execution are not authorized')
+  await expect(approvalRegion.getByRole('button', { name: 'Approve one future push', exact: true })).toBeDisabled()
+  // Showing and waiting send nothing.
+  await page.waitForTimeout(2_000)
+  expect(approvalRequests).toEqual([])
+  assertApprovalChangedOnlyItsOwnRows(0)
+
+  const approvalLoadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && APPROVAL_PATH.test(new URL(response.url()).pathname),
+  )
+  await approvalRegion.getByRole('button', { name: 'Load GitHub branch publication approval', exact: true }).click()
+  const approvalLoad = await approvalLoadWire
+  expect(approvalLoad.status()).toBe(200)
+  const approvalLoadBody = await approvalLoad.json()
+  expect(Object.keys(approvalLoadBody).sort()).toEqual(['approval', 'binding', 'runId', 'source', 'status', 'target'])
+  expect(approvalLoadBody.status).toBe('ApprovalNotRecorded')
+  expect(approvalLoadBody.approval ?? null).toBeNull()
+  expect(approvalLoadBody.runId).toBe(recordedBody.runId)
+  expect(approvalLoadBody.source).toEqual(recordedBody.source)
+  expect(approvalLoadBody.target).toEqual(recordedBody.target)
+  expect(approvalLoadBody.binding).toEqual(boundBody.binding)
+  await expect(approvalRegion).toContainText(`Bound repository ID${bindingNode}`)
+  await expect(approvalRegion).toContainText('No GitHub branch publication approval is recorded for this local delivery yet.')
+  expect(approvalRequests.map((request) => request.method)).toEqual(['GET'])
+  assertApprovalChangedOnlyItsOwnRows(0)
+
+  const approvalPostWire = page.waitForResponse(
+    (response) => response.request().method() === 'POST' && APPROVAL_PATH.test(new URL(response.url()).pathname),
+  )
+  await approvalRegion.getByRole('button', { name: 'Approve one future push', exact: true }).click()
+  const approvalPost = await approvalPostWire
+  expect(approvalPost.status()).toBe(200)
+  const approvedBody = await approvalPost.json()
+  expect(Object.keys(approvedBody).sort()).toEqual(['approval', 'binding', 'runId', 'source', 'target'])
+  expect(approvedBody.runId).toBe(recordedBody.runId)
+  expect(approvedBody.source).toEqual(recordedBody.source)
+  expect(approvedBody.target).toEqual(recordedBody.target)
+  expect(approvedBody.binding).toEqual(boundBody.binding)
+  expect(Object.keys(approvedBody.approval).sort()).toEqual([
+    'action', 'approvedAtUtc', 'bindingId', 'branchName', 'commitSha', 'eventId', 'host', 'id', 'localCommitOperationId', 'owner',
+    'policyVersion', 'repository', 'repositoryNodeId', 'targetId', 'workspaceId',
+  ])
+  expect(approvedBody.approval).toMatchObject({
+    host: 'github.com',
+    action: 'PushExactCommit',
+    policyVersion: 1,
+    repositoryNodeId: bindingNode,
+    owner: observationOwner,
+    repository: observationRepository,
+    branchName: deliveryBranch,
+    commitSha: deliveredCommit,
+  })
+  expect(approvalRequests.map((request) => request.method)).toEqual(['GET', 'POST'])
+  const submittedApproval = JSON.parse(approvalRequests[1].body ?? '{}')
+  expect(Object.keys(submittedApproval).sort()).toEqual([
+    'approvalId', 'bindingId', 'branchName', 'commitSha', 'operationId', 'repositoryNodeId', 'targetId',
+  ])
+  expect(submittedApproval).toMatchObject({
+    approvalId: approvedBody.approval.id,
+    operationId: recordedBody.source.operationId,
+    commitSha: deliveredCommit,
+    branchName: deliveryBranch,
+    targetId: recordedBody.target.id,
+    bindingId: boundBody.binding.id,
+    repositoryNodeId: bindingNode,
+  })
+
+  // Exactly one immutable approval and one Human event that agree with each other and with the recorded target and binding; no process,
+  // `gh`, provider, Git or network operation happened and nothing else changed.
+  const approvalRows = data.gitHubBranchPublicationApprovals()
+  expect(approvalRows).toHaveLength(1)
+  const approvalRow = approvalRows[0]
+  expect(lower(approvalRow.Id)).toBe(lower(approvedBody.approval.id))
+  expect(lower(approvalRow.EventId)).toBe(lower(approvedBody.approval.eventId))
+  expect(lower(approvalRow.TargetId)).toBe(lower(recordedBody.target.id))
+  expect(lower(approvalRow.TargetEventId)).toBe(lower(targetRow.EventId))
+  expect(lower(approvalRow.BindingId)).toBe(lower(boundBody.binding.id))
+  expect(lower(approvalRow.BindingEventId)).toBe(lower(bindingRow.EventId))
+  expect(lower(approvalRow.LocalCommitOperationId)).toBe(lower(operation!.Id))
+  expect(approvalRow).toMatchObject({
+    CommitSha: deliveredCommit,
+    BranchName: deliveryBranch,
+    RepositoryNodeId: bindingNode,
+    TargetOwner: observationOwner,
+    TargetRepository: observationRepository,
+    BindingOwner: observationOwner,
+    BindingRepository: observationRepository,
+  })
+  expect(Date.parse(approvalRow.ApprovedAtUtc)).toBeGreaterThanOrEqual(Date.parse(approvalRow.BindingRecordedAtUtc))
+  const approvalEvents = data.gitHubBranchPublicationApprovalEvents()
+  expect(approvalEvents).toHaveLength(1)
+  expect(approvalEvents[0]).toMatchObject({ ActorKind: 'Human', ActorAgentRole: null, ActorAgentProvider: null, AttemptId: null })
+  expect(lower(approvalEvents[0].Id)).toBe(lower(approvalRow.EventId))
+  expect(Date.parse(approvalEvents[0].OccurredAtUtc)).toBe(Date.parse(approvalRow.ApprovedAtUtc))
+  expect(JSON.parse(approvalEvents[0].PayloadJson)).toMatchObject({
+    version: 1,
+    approvalId: lower(approvalRow.Id),
+    operationId: lower(operation!.Id),
+    commitSha: deliveredCommit,
+    branchName: deliveryBranch,
+    host: 'github.com',
+    action: 'PushExactCommit',
+    policyVersion: 1,
+  })
+  await expect(approvalRegion).toContainText('Recorded consent')
+  await expect(approvalRegion).toContainText('not a push')
+  await expect(approvalRegion).toContainText(approvedBody.approval.id)
+  await expect(approvalRegion.getByRole('button', { name: 'Approve one future push', exact: true })).toHaveCount(0)
+  await expect(approvalRegion.getByRole('button')).toHaveCount(2)
+  // Consent is recorded and nothing reads, writes or executes by itself afterwards.
+  await page.waitForTimeout(2_000)
+  expect(approvalRequests).toHaveLength(2)
+  assertApprovalChangedOnlyItsOwnRows(1)
+
+  // Closing and reopening is a new lifetime that starts unloaded and sends nothing.
+  await approvalRegion.getByRole('button', { name: 'Close GitHub branch publication approval', exact: true }).click()
+  await approvalRegion.getByRole('button', { name: 'Show GitHub branch publication approval', exact: true }).click()
+  await expect(approvalRegion).toContainText('Not loaded.')
+  await expect(approvalRegion).not.toContainText(approvedBody.approval.id)
+  expect(approvalRequests).toHaveLength(2)
+
+  // A real reload is a new session lifetime: the region is collapsed, and an explicit load reads the same recorded approval back.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await openObservation()
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  await expect(approvalRegion.getByRole('button', { name: 'Show GitHub branch publication approval', exact: true })).toBeVisible()
+  await page.waitForTimeout(1_000)
+  expect(approvalRequests).toHaveLength(2)
+  await approvalRegion.getByRole('button', { name: 'Show GitHub branch publication approval', exact: true }).click()
+  const approvalReloadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && APPROVAL_PATH.test(new URL(response.url()).pathname),
+  )
+  await approvalRegion.getByRole('button', { name: 'Load GitHub branch publication approval', exact: true }).click()
+  const reloadedApproval = await (await approvalReloadWire).json()
+  expect(reloadedApproval).toEqual({
+    runId: recordedBody.runId,
+    status: 'Available',
+    source: recordedBody.source,
+    target: recordedBody.target,
+    binding: boundBody.binding,
+    approval: approvedBody.approval,
+  })
+  await expect(approvalRegion).toContainText('Recorded consent')
+  await expect(approvalRegion.getByRole('button', { name: 'Approve one future push', exact: true })).toHaveCount(0)
+  expect(approvalRequests.map((request) => request.method)).toEqual(['GET', 'POST', 'GET'])
+  expect(data.gitHubBranchPublicationApprovals()).toEqual(approvalRows)
+  expect(data.gitHubBranchPublicationApprovalEvents()).toEqual(approvalEvents)
+  assertApprovalChangedOnlyItsOwnRows(1)
+
+  // No double call logs a name, branch, commit, identifier or approval, and none was invoked for the approval at all.
+  const approvalLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
+  for (const secret of [deliveryBranch, deliveredCommit, bindingNode, observationOwner, observationRepository, approvedBody.approval.id]) {
+    expect(approvalLog).not.toContain(secret)
   }
 
   const afterDelivery = {

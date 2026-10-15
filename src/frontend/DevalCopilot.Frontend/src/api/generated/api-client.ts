@@ -1641,6 +1641,148 @@ export class GetGitHubObservationTargetEndpointClient {
     }
 }
 
+export class RecordGitHubBranchPublicationApprovalEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    recordGitHubBranchPublicationApproval(runId: string, request: RecordGitHubBranchPublicationApprovalRequest): Promise<RecordGitHubBranchPublicationApprovalResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-branch-publication-approval";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(request);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processRecordGitHubBranchPublicationApproval(_response);
+        });
+    }
+
+    protected processRecordGitHubBranchPublicationApproval(response: Response): Promise<RecordGitHubBranchPublicationApprovalResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = RecordGitHubBranchPublicationApprovalResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status === 409) {
+            return response.text().then((_responseText) => {
+            let result409: any = null;
+            let resultData409 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result409 = ApiProblemDetails.fromJS(resultData409);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result409);
+            });
+        } else if (status === 413) {
+            return response.text().then((_responseText) => {
+            let result413: any = null;
+            let resultData413 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result413 = ApiProblemDetails.fromJS(resultData413);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result413);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<RecordGitHubBranchPublicationApprovalResponse>(null as any);
+    }
+}
+
+export class GetGitHubBranchPublicationApprovalEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getGitHubBranchPublicationApproval(runId: string): Promise<GetGitHubBranchPublicationApprovalResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/github-branch-publication-approval";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetGitHubBranchPublicationApproval(_response);
+        });
+    }
+
+    protected processGetGitHubBranchPublicationApproval(response: Response): Promise<GetGitHubBranchPublicationApprovalResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetGitHubBranchPublicationApprovalResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetGitHubBranchPublicationApprovalResponse>(null as any);
+    }
+}
+
 export class GetSealedAgentArtifactWindowEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -6597,6 +6739,370 @@ export interface IRecordGitHubObservationTargetRequest {
     repository: string;
 }
 
+export class RecordGitHubBranchPublicationApprovalResponse implements IRecordGitHubBranchPublicationApprovalResponse {
+    runId?: string;
+    source?: GitHubBranchPublicationApprovalSourceResponse;
+    target?: GitHubBranchPublicationApprovalTargetResponse;
+    binding?: GitHubBranchPublicationApprovalBindingResponse;
+    approval?: GitHubBranchPublicationApprovalResponse;
+
+    constructor(data?: IRecordGitHubBranchPublicationApprovalResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.source = _data["source"] ? GitHubBranchPublicationApprovalSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubBranchPublicationApprovalTargetResponse.fromJS(_data["target"]) : undefined as any;
+            this.binding = _data["binding"] ? GitHubBranchPublicationApprovalBindingResponse.fromJS(_data["binding"]) : undefined as any;
+            this.approval = _data["approval"] ? GitHubBranchPublicationApprovalResponse.fromJS(_data["approval"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): RecordGitHubBranchPublicationApprovalResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecordGitHubBranchPublicationApprovalResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        data["binding"] = this.binding ? this.binding.toJSON() : undefined as any;
+        data["approval"] = this.approval ? this.approval.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IRecordGitHubBranchPublicationApprovalResponse {
+    runId?: string;
+    source?: GitHubBranchPublicationApprovalSourceResponse;
+    target?: GitHubBranchPublicationApprovalTargetResponse;
+    binding?: GitHubBranchPublicationApprovalBindingResponse;
+    approval?: GitHubBranchPublicationApprovalResponse;
+}
+
+export class GitHubBranchPublicationApprovalSourceResponse implements IGitHubBranchPublicationApprovalSourceResponse {
+    operationId?: string;
+    commitSha?: string;
+    branchName?: string;
+
+    constructor(data?: IGitHubBranchPublicationApprovalSourceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.operationId = _data["operationId"];
+            this.commitSha = _data["commitSha"];
+            this.branchName = _data["branchName"];
+        }
+    }
+
+    static fromJS(data: any): GitHubBranchPublicationApprovalSourceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubBranchPublicationApprovalSourceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["operationId"] = this.operationId;
+        data["commitSha"] = this.commitSha;
+        data["branchName"] = this.branchName;
+        return data;
+    }
+}
+
+export interface IGitHubBranchPublicationApprovalSourceResponse {
+    operationId?: string;
+    commitSha?: string;
+    branchName?: string;
+}
+
+export class GitHubBranchPublicationApprovalTargetResponse implements IGitHubBranchPublicationApprovalTargetResponse {
+    id?: string;
+    eventId?: string;
+    host?: string;
+    owner?: string;
+    repository?: string;
+    recordedAtUtc?: Date;
+
+    constructor(data?: IGitHubBranchPublicationApprovalTargetResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.eventId = _data["eventId"];
+            this.host = _data["host"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.recordedAtUtc = _data["recordedAtUtc"] ? new Date(_data["recordedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubBranchPublicationApprovalTargetResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubBranchPublicationApprovalTargetResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["eventId"] = this.eventId;
+        data["host"] = this.host;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["recordedAtUtc"] = this.recordedAtUtc ? this.recordedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubBranchPublicationApprovalTargetResponse {
+    id?: string;
+    eventId?: string;
+    host?: string;
+    owner?: string;
+    repository?: string;
+    recordedAtUtc?: Date;
+}
+
+export class GitHubBranchPublicationApprovalBindingResponse implements IGitHubBranchPublicationApprovalBindingResponse {
+    id?: string;
+    eventId?: string;
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    recordedAtUtc?: Date;
+
+    constructor(data?: IGitHubBranchPublicationApprovalBindingResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.eventId = _data["eventId"];
+            this.repositoryNodeId = _data["repositoryNodeId"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.observedAtUtc = _data["observedAtUtc"] ? new Date(_data["observedAtUtc"].toString()) : undefined as any;
+            this.recordedAtUtc = _data["recordedAtUtc"] ? new Date(_data["recordedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubBranchPublicationApprovalBindingResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubBranchPublicationApprovalBindingResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["eventId"] = this.eventId;
+        data["repositoryNodeId"] = this.repositoryNodeId;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["observedAtUtc"] = this.observedAtUtc ? this.observedAtUtc.toISOString() : undefined as any;
+        data["recordedAtUtc"] = this.recordedAtUtc ? this.recordedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubBranchPublicationApprovalBindingResponse {
+    id?: string;
+    eventId?: string;
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    observedAtUtc?: Date;
+    recordedAtUtc?: Date;
+}
+
+export class GitHubBranchPublicationApprovalResponse implements IGitHubBranchPublicationApprovalResponse {
+    id?: string;
+    eventId?: string;
+    host?: string;
+    action?: string;
+    policyVersion?: number;
+    localCommitOperationId?: string;
+    workspaceId?: string;
+    targetId?: string;
+    bindingId?: string;
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    branchName?: string;
+    commitSha?: string;
+    approvedAtUtc?: Date;
+
+    constructor(data?: IGitHubBranchPublicationApprovalResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.eventId = _data["eventId"];
+            this.host = _data["host"];
+            this.action = _data["action"];
+            this.policyVersion = _data["policyVersion"];
+            this.localCommitOperationId = _data["localCommitOperationId"];
+            this.workspaceId = _data["workspaceId"];
+            this.targetId = _data["targetId"];
+            this.bindingId = _data["bindingId"];
+            this.repositoryNodeId = _data["repositoryNodeId"];
+            this.owner = _data["owner"];
+            this.repository = _data["repository"];
+            this.branchName = _data["branchName"];
+            this.commitSha = _data["commitSha"];
+            this.approvedAtUtc = _data["approvedAtUtc"] ? new Date(_data["approvedAtUtc"].toString()) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GitHubBranchPublicationApprovalResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GitHubBranchPublicationApprovalResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["eventId"] = this.eventId;
+        data["host"] = this.host;
+        data["action"] = this.action;
+        data["policyVersion"] = this.policyVersion;
+        data["localCommitOperationId"] = this.localCommitOperationId;
+        data["workspaceId"] = this.workspaceId;
+        data["targetId"] = this.targetId;
+        data["bindingId"] = this.bindingId;
+        data["repositoryNodeId"] = this.repositoryNodeId;
+        data["owner"] = this.owner;
+        data["repository"] = this.repository;
+        data["branchName"] = this.branchName;
+        data["commitSha"] = this.commitSha;
+        data["approvedAtUtc"] = this.approvedAtUtc ? this.approvedAtUtc.toISOString() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGitHubBranchPublicationApprovalResponse {
+    id?: string;
+    eventId?: string;
+    host?: string;
+    action?: string;
+    policyVersion?: number;
+    localCommitOperationId?: string;
+    workspaceId?: string;
+    targetId?: string;
+    bindingId?: string;
+    repositoryNodeId?: string;
+    owner?: string;
+    repository?: string;
+    branchName?: string;
+    commitSha?: string;
+    approvedAtUtc?: Date;
+}
+
+export class RecordGitHubBranchPublicationApprovalRequest implements IRecordGitHubBranchPublicationApprovalRequest {
+    approvalId!: string;
+    operationId!: string;
+    commitSha!: string;
+    branchName!: string;
+    targetId!: string;
+    bindingId!: string;
+    repositoryNodeId!: string;
+
+    constructor(data?: IRecordGitHubBranchPublicationApprovalRequest) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.approvalId = _data["approvalId"];
+            this.operationId = _data["operationId"];
+            this.commitSha = _data["commitSha"];
+            this.branchName = _data["branchName"];
+            this.targetId = _data["targetId"];
+            this.bindingId = _data["bindingId"];
+            this.repositoryNodeId = _data["repositoryNodeId"];
+        }
+    }
+
+    static fromJS(data: any): RecordGitHubBranchPublicationApprovalRequest {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecordGitHubBranchPublicationApprovalRequest();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["approvalId"] = this.approvalId;
+        data["operationId"] = this.operationId;
+        data["commitSha"] = this.commitSha;
+        data["branchName"] = this.branchName;
+        data["targetId"] = this.targetId;
+        data["bindingId"] = this.bindingId;
+        data["repositoryNodeId"] = this.repositoryNodeId;
+        return data;
+    }
+}
+
+export interface IRecordGitHubBranchPublicationApprovalRequest {
+    approvalId: string;
+    operationId: string;
+    commitSha: string;
+    branchName: string;
+    targetId: string;
+    bindingId: string;
+    repositoryNodeId: string;
+}
+
 export class VerificationDiagnosisStatusResponse implements IVerificationDiagnosisStatusResponse {
     hasAttempt?: boolean;
     attemptId?: string | undefined;
@@ -10015,6 +10521,62 @@ export interface IGitHubCheckContextResponse {
     status?: string;
     conclusion?: string | undefined;
     checkSuiteId?: string | undefined;
+}
+
+export class GetGitHubBranchPublicationApprovalResponse implements IGetGitHubBranchPublicationApprovalResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubBranchPublicationApprovalSourceResponse | undefined;
+    target?: GitHubBranchPublicationApprovalTargetResponse | undefined;
+    binding?: GitHubBranchPublicationApprovalBindingResponse | undefined;
+    approval?: GitHubBranchPublicationApprovalResponse | undefined;
+
+    constructor(data?: IGetGitHubBranchPublicationApprovalResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.source = _data["source"] ? GitHubBranchPublicationApprovalSourceResponse.fromJS(_data["source"]) : undefined as any;
+            this.target = _data["target"] ? GitHubBranchPublicationApprovalTargetResponse.fromJS(_data["target"]) : undefined as any;
+            this.binding = _data["binding"] ? GitHubBranchPublicationApprovalBindingResponse.fromJS(_data["binding"]) : undefined as any;
+            this.approval = _data["approval"] ? GitHubBranchPublicationApprovalResponse.fromJS(_data["approval"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetGitHubBranchPublicationApprovalResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetGitHubBranchPublicationApprovalResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["source"] = this.source ? this.source.toJSON() : undefined as any;
+        data["target"] = this.target ? this.target.toJSON() : undefined as any;
+        data["binding"] = this.binding ? this.binding.toJSON() : undefined as any;
+        data["approval"] = this.approval ? this.approval.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetGitHubBranchPublicationApprovalResponse {
+    runId?: string;
+    status?: string;
+    source?: GitHubBranchPublicationApprovalSourceResponse | undefined;
+    target?: GitHubBranchPublicationApprovalTargetResponse | undefined;
+    binding?: GitHubBranchPublicationApprovalBindingResponse | undefined;
+    approval?: GitHubBranchPublicationApprovalResponse | undefined;
 }
 
 export class GetGitHubBranchObservationResponse implements IGetGitHubBranchObservationResponse {

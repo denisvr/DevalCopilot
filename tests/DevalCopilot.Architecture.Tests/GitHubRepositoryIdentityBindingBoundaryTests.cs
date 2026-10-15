@@ -109,6 +109,7 @@ public sealed partial class GitHubRepositoryIdentityBindingBoundaryTests
         Assert.Equal(
             [
                 Command,
+                "DevalCopilot.Application/Features/Runs/Policies/GitHubBranchPublicationApproval/GitHubBranchPublicationScopeReader.cs",
                 "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCheckContextsObservation/GetGitHubCheckContextsObservationQueryHandler.cs",
                 "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCheckRunOutputObservation/GetGitHubCheckRunOutputObservationQueryHandler.cs",
                 "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCiObservation/GetGitHubCiObservationQueryHandler.cs",
