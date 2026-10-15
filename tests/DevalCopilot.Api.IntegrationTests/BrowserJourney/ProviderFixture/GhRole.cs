@@ -10,10 +10,11 @@ namespace DevalCopilot.Api.IntegrationTests.BrowserJourney.ProviderFixture;
 /// same ref and fixed commit with a fixed SUCCESS rollup, and the one fixed read-only check-contexts contract, which answers the same ref
 /// and fixed commit with three fictitious entries, and the two fixed read-only check-run contracts (association metadata, then output),
 /// which answer the same ref and fixed commit with an association for any requested identifier (and, for the output contract, three
-/// fictitious output strings). It is only a process-boundary double: it reads no
+/// fictitious output strings), and the one fixed read-only repository permission contract, which echoes the requested owner and name back
+/// with the fixed opaque identifier and one fixed fictitious viewer permission. It is only a process-boundary double: it reads no
 /// credential, performs no network
 /// call and does not evaluate the selector or the GraphQL query, so it proves nothing about how an installed GitHub CLI formats or
-/// filters its output or how GitHub answers. Only the status, identity, branch and check calls are logged (kind only, never an argument), so version
+/// filters its output or how GitHub answers. Only the status, identity, permission, branch and check calls are logged (kind only, never an argument), so version
 /// probes never change the journeys' invocation evidence.
 /// </summary>
 public static partial class GhRole
@@ -24,6 +25,9 @@ public static partial class GhRole
 
     private const string IdentityQuery =
         "query=query($owner:String!,$name:String!){repository(owner:$owner,name:$name){id name nameWithOwner}}";
+
+    private const string PermissionQuery =
+        "query=query($owner:String!,$name:String!){repository(owner:$owner,name:$name){id name nameWithOwner viewerPermission}}";
 
     private const string BranchQuery =
         "query=query($owner:String!,$name:String!,$ref:String!){repository(owner:$owner,name:$name){id name nameWithOwner "
@@ -77,6 +81,10 @@ public static partial class GhRole
 
     public const string RepositoryNodeId = "R_kgDOJourneyFx1";
 
+    /// <summary>The one fixed, fictitious viewer permission the permission contract returns, so a journey can prove the exact literal is shown
+    /// as reported and that nothing else (a push, an approval, an execution) is derived from it.</summary>
+    public const string RepositoryViewerPermission = "MAINTAIN";
+
     [GeneratedRegex("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")]
     private static partial Regex OwnerName();
 
@@ -117,6 +125,22 @@ public static partial class GhRole
                 Console.Out.Write(
                     "{\"data\":{\"repository\":{\"id\":\"" + RepositoryNodeId + "\",\"name\":\"" + name + "\",\"nameWithOwner\":\""
                     + owner + "/" + name + "\"}}}\n");
+                return 0;
+            }
+        }
+
+        if (args.Count == 12 && args.Take(IdentityPrefix.Length).SequenceEqual(IdentityPrefix) && args[7] == PermissionQuery
+            && args[8] == "-f" && args[9].StartsWith("owner=", StringComparison.Ordinal) && args[10] == "-f"
+            && args[11].StartsWith("name=", StringComparison.Ordinal))
+        {
+            var owner = args[9]["owner=".Length..];
+            var name = args[11]["name=".Length..];
+            if (OwnerName().IsMatch(owner) && RepositoryName().IsMatch(name))
+            {
+                InvocationLog.Append(location, new Dictionary<string, object?> { ["role"] = "gh", ["kind"] = "repository-permission-observation" });
+                Console.Out.Write(
+                    "{\"data\":{\"repository\":{\"id\":\"" + RepositoryNodeId + "\",\"name\":\"" + name + "\",\"nameWithOwner\":\""
+                    + owner + "/" + name + "\",\"viewerPermission\":\"" + RepositoryViewerPermission + "\"}}}\n");
                 return 0;
             }
         }
@@ -220,6 +244,6 @@ public static partial class GhRole
 
         throw new FixtureRefusal(
             FixtureRefusal.UnsupportedInvocation,
-            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity, branch, check, check-contexts and check-run metadata and output contracts.");
+            "The GitHub CLI double accepts only the version probe, the fixed stored-authentication status contract and the fixed repository identity, permission, branch, check, check-contexts and check-run metadata and output contracts.");
     }
 }

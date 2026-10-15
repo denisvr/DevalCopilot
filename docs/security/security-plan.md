@@ -46,6 +46,14 @@ or timestamp. It invokes no process, Git, `gh`, network, Agent or run transition
 success), and is not a permission, readiness, a pushed commit or an instruction to any Agent; any future executor must re-check ownership, the commit, the remote identity, the reference,
 authentication, permission and ambiguity under its own explicit request and review.
 
+An explicit, read-only observation of the repository permission GitHub reports for the stored default authentication on a bound recorded repository
+([ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md)) is ephemeral reported access and grants no authority. The protected,
+bodyless route refuses any query key or request body before dispatch with fixed non-echoing errors; the host reads the recorded scope and binding itself, invokes one fixed `gh api graphql` query
+through the existing process executor only for a current, successful, direct-executable `GitHubCli` snapshot (no discovery, shell, retry, credential read, ambient token, host or configuration, no
+output sink, 15 seconds, 8 KiB per stream, one non-queued in-flight slot), refuses any backslash, extra or unknown member and any literal outside the six GitHub defines, compares the whole scope by
+value after the call and stamps the host clock after revalidation. It writes nothing, never reports a role for a repository whose ID differs from the immutable binding, and is neither permission to
+push the branch nor an input to any approval, claim or Agent; no ADR-0048 approval is required, consumed or changed by it, and installed-CLI and schema compatibility remain unverified.
+
 No agent response is an identity or authorization decision.
 
 ## Trust boundaries and dependencies

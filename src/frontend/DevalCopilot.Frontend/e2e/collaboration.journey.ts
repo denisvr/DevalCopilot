@@ -48,6 +48,7 @@ const IDENTITY_PATH = /\/api\/runs\/[^/]+\/github-repository-observation$/
 const BRANCH_PATH = /\/api\/runs\/[^/]+\/github-branch-observation$/
 const BINDING_PATH = /\/api\/runs\/[^/]+\/github-repository-identity-binding$/
 const CI_PATH = /\/api\/runs\/[^/]+\/github-ci-observation$/
+const PERMISSION_PATH = /\/api\/runs\/[^/]+\/github-repository-permission-observation$/
 const CONTEXTS_PATH = /\/api\/runs\/[^/]+\/github-check-contexts-observation$/
 const CHECK_RUN_OUTPUT_PATH = /\/api\/runs\/[^/]+\/github-check-run-output-observation$/
 const APPROVAL_PATH = /\/api\/runs\/[^/]+\/github-branch-publication-approval$/
@@ -1864,6 +1865,166 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   const approvalLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
   for (const secret of [deliveryBranch, deliveredCommit, bindingNode, observationOwner, observationRepository, approvedBody.approval.id]) {
     expect(approvalLog).not.toContain(secret)
+  }
+
+  // 14k. The explicit GitHub repository permission observation of the bound recorded target (ADR-0049), through the production frontend,
+  // generated client, MVC authentication, mediator, the discovery snapshot, the unchanged source, target and binding readers, the REAL
+  // permission adapter and the REAL process executor. Only the `gh` executable is the deterministic owned double: it echoes the requested
+  // owner and name back with the fixed opaque identifier and ONE fixed fictitious viewer permission, so this journey observes
+  // PermissionReported with that exact literal. It proves the assembled process boundary, the explicit-only reads (Show and waiting send
+  // nothing; one Check is exactly one HTTP request and one process; Recheck exactly one more; a close and reopening and a real reload start
+  // unchecked with no automatic work) and that nothing is derived from the role: no push, approval, execution control or write exists. It
+  // proves nothing about how an installed GitHub CLI formats a GraphQL answer, stored authentication, a real repository, GitHub itself,
+  // permission to push the branch, required checks or publication.
+  const permissionRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.method() === 'GET' && PERMISSION_PATH.test(new URL(request.url()).pathname)) {
+      permissionRequests.push(request.url())
+    }
+  })
+  const permissionCalls = () =>
+    readInvocations(mark).filter((entry) => entry.role === 'gh' && entry.kind === 'repository-permission-observation').length
+  const permissionRegion = observation.getByRole('region', { name: 'GitHub repository permission', exact: true })
+  const permissionFixtureRole = 'MAINTAIN'
+  const permissionBaseline = {
+    totals: data.projectTotals(),
+    targets: data.gitHubObservationTargets(),
+    targetEvents: data.gitHubObservationEvents(),
+    bindings: data.gitHubRepositoryIdentityBindings(),
+    bindingEvents: data.gitHubRepositoryIdentityBindingEvents(),
+    approvals: data.gitHubBranchPublicationApprovals(),
+    approvalEvents: data.gitHubBranchPublicationApprovalEvents(),
+    providerInvocations: stageInvocations().length,
+    source: repositorySnapshot(repository.path),
+    head: git('rev-parse', 'HEAD'),
+  }
+  const siblingBaseline = {
+    identity: identityCalls(),
+    branch: branchCalls(),
+    ci: ciCalls(),
+    ghTotal: ghInvocationCount(),
+    approvalRequests: approvalRequests.length,
+    bindingRequests: bindingRequests.length,
+  }
+  // The observation changes nothing: no row, event, approval, Agent, provider or Git state, and no sibling observation or request.
+  const assertPermissionChangedNothing = (permissionObservations: number) => {
+    expect({
+      totals: data.projectTotals(),
+      targets: data.gitHubObservationTargets(),
+      targetEvents: data.gitHubObservationEvents(),
+      bindings: data.gitHubRepositoryIdentityBindings(),
+      bindingEvents: data.gitHubRepositoryIdentityBindingEvents(),
+      approvals: data.gitHubBranchPublicationApprovals(),
+      approvalEvents: data.gitHubBranchPublicationApprovalEvents(),
+      providerInvocations: stageInvocations().length,
+      source: repositorySnapshot(repository.path),
+      head: git('rev-parse', 'HEAD'),
+    }).toEqual(permissionBaseline)
+    expect(git('remote')).toBe('')
+    expect(git('rev-list', '--count', 'HEAD')).toBe('2')
+    expect(identityCalls()).toBe(siblingBaseline.identity)
+    expect(branchCalls()).toBe(siblingBaseline.branch)
+    expect(ciCalls()).toBe(siblingBaseline.ci)
+    expect(ghInvocationCount()).toBe(siblingBaseline.ghTotal + permissionObservations)
+    expect(approvalRequests).toHaveLength(siblingBaseline.approvalRequests)
+    expect(bindingRequests).toHaveLength(siblingBaseline.bindingRequests)
+    expect(permissionCalls()).toBe(permissionObservations)
+    expect(permissionRequests).toHaveLength(permissionObservations)
+  }
+  assertPermissionChangedNothing(0)
+  await expect(permissionRegion.getByRole('button', { name: 'Show GitHub repository permission', exact: true })).toBeVisible()
+  await expect(permissionRegion.getByRole('button', { name: /Check GitHub repository permission|Recheck GitHub repository permission/ })).toHaveCount(0)
+  await permissionRegion.getByRole('button', { name: 'Show GitHub repository permission', exact: true }).click()
+  await expect(permissionRegion).toContainText('Not checked.')
+  await expect(permissionRegion).toContainText(`Recorded owner${observationOwner}`)
+  await expect(permissionRegion).toContainText(`Recorded repository${observationRepository}`)
+  await expect(permissionRegion).toContainText('Repository access does not establish permission to push this branch.')
+  // Opening and waiting read nothing and invoke nothing, and no sibling region is read.
+  await page.waitForTimeout(2_000)
+  assertPermissionChangedNothing(0)
+
+  const permissionWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && PERMISSION_PATH.test(new URL(response.url()).pathname),
+  )
+  await permissionRegion.getByRole('button', { name: 'Check GitHub repository permission', exact: true }).click()
+  const permissionResponse = await permissionWire
+  expect(permissionResponse.status()).toBe(200)
+  const permissionBodyText = await permissionResponse.text()
+  const permissionBody = JSON.parse(permissionBodyText)
+  expect(Object.keys(permissionBody).sort()).toEqual(['binding', 'observation', 'runId', 'source', 'status', 'target'])
+  expect(permissionBody.runId).toBe(recordedBody.runId)
+  expect(permissionBody.status).toBe('PermissionReported')
+  expect(permissionBody.source).toEqual(recordedBody.source)
+  expect(permissionBody.target).toEqual(recordedBody.target)
+  expect(permissionBody.binding).toEqual(boundBody.binding)
+  expect(Object.keys(permissionBody.observation).sort()).toEqual(['observedAtUtc', 'owner', 'repository', 'repositoryNodeId', 'viewerPermission'])
+  expect(permissionBody.observation).toEqual({
+    repositoryNodeId: bindingNode,
+    owner: observationOwner,
+    repository: observationRepository,
+    observedAtUtc: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T[\d:.]+(Z|\+00:00)$/),
+    viewerPermission: permissionFixtureRole,
+  })
+  expect(Date.parse(permissionBody.observation.observedAtUtc)).toBeGreaterThanOrEqual(Date.parse(boundBody.binding.recordedAtUtc))
+  for (const derived of ['canPush', 'allowed', 'ready', 'eligible']) {
+    expect(permissionBodyText).not.toContain(derived)
+  }
+
+  await expect(permissionRegion).toContainText(`GitHub repository permission${permissionFixtureRole}`)
+  await expect(permissionRegion).toContainText('GitHub reported this repository permission for the stored default authentication')
+  await expect(permissionRegion).toContainText(`Bound repository ID${bindingNode}`)
+  await expect(permissionRegion).toContainText(`Repository ID${bindingNode}`)
+  await expect(permissionRegion).toContainText(/Observed \(UTC\)\d{4}-\d{2}-\d{2}T[\d:.]+Z/)
+  await expect(permissionRegion).toContainText('Repository access does not establish permission to push this branch.')
+  // Only the explicit actions exist: no execution control, link, form field or approval gating is derived from the reported role.
+  await expect(permissionRegion.getByRole('button')).toHaveCount(2)
+  await expect(permissionRegion.getByRole('link')).toHaveCount(0)
+  await expect(permissionRegion.getByRole('textbox')).toHaveCount(0)
+  assertPermissionChangedNothing(1)
+  await expect(approvalRegion).toContainText('Recorded consent')
+  await expect(approvalRegion.getByRole('button', { name: 'Approve one future push', exact: true })).toHaveCount(0)
+
+  // An explicit recheck is exactly one more observation; nothing else is read by itself.
+  await permissionRegion.getByRole('button', { name: 'Recheck GitHub repository permission', exact: true }).click()
+  await expect(permissionRegion).toContainText(`GitHub repository permission${permissionFixtureRole}`)
+  expect(permissionCalls()).toBe(2)
+  await page.waitForTimeout(2_000)
+  assertPermissionChangedNothing(2)
+
+  // Closing and reopening is a new lifetime that starts unchecked and reads nothing.
+  await permissionRegion.getByRole('button', { name: 'Close GitHub repository permission', exact: true }).click()
+  await permissionRegion.getByRole('button', { name: 'Show GitHub repository permission', exact: true }).click()
+  await expect(permissionRegion).toContainText('Not checked.')
+  await expect(permissionRegion).not.toContainText(permissionFixtureRole)
+  assertPermissionChangedNothing(2)
+
+  // A real reload is a new session lifetime: the region is collapsed and unchecked, and only an explicit check reads again.
+  await reloadAndReselect(page)
+  await expect(localCommit).toContainText('Completed. Local commit only — not pushed.', { timeout: 30_000 })
+  await openObservation()
+  await observation.getByRole('button', { name: 'Load GitHub observation target' }).click()
+  await expect(permissionRegion.getByRole('button', { name: 'Show GitHub repository permission', exact: true })).toBeVisible()
+  await page.waitForTimeout(1_000)
+  assertPermissionChangedNothing(2)
+  await permissionRegion.getByRole('button', { name: 'Show GitHub repository permission', exact: true }).click()
+  await expect(permissionRegion).toContainText('Not checked.')
+  assertPermissionChangedNothing(2)
+  const permissionReloadWire = page.waitForResponse(
+    (response) => response.request().method() === 'GET' && PERMISSION_PATH.test(new URL(response.url()).pathname),
+  )
+  await permissionRegion.getByRole('button', { name: 'Check GitHub repository permission', exact: true }).click()
+  const permissionReloaded = await (await permissionReloadWire).json()
+  expect(permissionReloaded.status).toBe('PermissionReported')
+  expect(permissionReloaded.binding).toEqual(boundBody.binding)
+  expect(permissionReloaded.observation.viewerPermission).toBe(permissionFixtureRole)
+  await expect(permissionRegion).toContainText(`GitHub repository permission${permissionFixtureRole}`)
+  await page.waitForTimeout(2_000)
+  assertPermissionChangedNothing(3)
+
+  // No double call logs a name, branch, commit, identifier or role.
+  const permissionLog = JSON.stringify(readInvocations(mark).filter((entry) => entry.role === 'gh'))
+  for (const secret of [deliveryBranch, deliveredCommit, bindingNode, observationOwner, observationRepository, permissionFixtureRole]) {
+    expect(permissionLog).not.toContain(secret)
   }
 
   const afterDelivery = {

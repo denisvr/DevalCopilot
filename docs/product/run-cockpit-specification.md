@@ -257,6 +257,19 @@ source and target and each opening: a scope change, a return to an earlier scope
 settle into nor release the single-flight guard of its successor. The decoder accepts the whole answer or none of it, repeating the host's status, nullability, scope, fixed host, action and
 policy version, binding and time rules. Values render as inert text; there is never a link, copy, storage, timer, push, pull-request or other execution action.
 
+The GitHub repository permission region ([ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md)) is a separate collapsed region
+inside an Available GitHub observation target's result, beside (not inside) the identity, remote branch and identity binding regions, with its own strict decoder, hook and panel. It offers "Show
+GitHub repository permission" (which sends nothing), "Check GitHub repository permission" (then "Recheck") and "Close GitHub repository permission", and reads only through the protected
+`GET /api/runs/{runId}/github-repository-permission-observation` on the explicit check or recheck: one request per activation, none on mount, opening, a scope change, a reconnect or a timer, and no
+retry, browser storage or reuse of a sibling region's answer. Before anything is checked it shows the recorded owner and repository and the fixed disclosure "Repository access does not establish
+permission to push this branch."; an answer shows the exact admitted role (one of `READ`, `TRIAGE`, `TRIAGE_PLUS`, `WRITE`, `MAINTAIN`, `ADMIN`, exactly as GitHub reported it, or the fixed statement
+that GitHub returned no permission, which is not a denial), the bound and returned repository ID, the owner and repository and the host observation time in UTC as plain text, and never a derived word
+such as allowed, denied or ready. An identity change, an unavailable scope and any drift show no role. The region is owned by the committed project, run, source and target and each opening: a scope
+change, a return to an earlier scope (A-B-A), closing and reopening start collapsed and unchecked, a late completion of an ended or superseded lifetime is ignored (and can neither settle into nor
+release the single-flight guard of its successor), a second activation in flight, two in one batch and any activation after a close in the same batch send nothing, and a pending read or a failure
+removes the earlier answer. The decoder accepts the whole answer or none of it, repeating the host's status, nullability, scope, bound ID, literal and time rules. There is never a link, copy,
+execution, approval gating or other action, and no approval, push or publication control depends on the reported role.
+
 ## GitHub stored authentication
 
 A compact host-level region beside the provider runtimes

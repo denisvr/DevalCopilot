@@ -124,6 +124,10 @@ supersedes it.
   (additive; one protected POST and bodyless GET of an immutable, Human-recorded consent to ONE future normal push of the exact recorded local commit to its exact owned branch in the
   repository named by a coherent ADR-0040 target and ADR-0043 binding, with complete exact snapshots and one Human event saved atomically from pinned rows under the write lock; recorded
   consent only, never readiness, a push, a pull request, a permission or any remote observation, and a future executor needs its own request and fresh checks)
+- [ADR-0049: Observe the GitHub repository permission of a bound recorded target on explicit request](0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md)
+  (accepted, additive; one protected, bodyless, read-only observation of the repository permission GitHub reports (`viewerPermission`: one of six exact literals or an explicit null) for the
+  stored default authentication on the already-bound recorded repository, through one fixed `gh api graphql` invocation, shown only when the freshly observed repository ID equals the
+  ADR-0043 binding; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and it neither requires nor changes an ADR-0048 approval)
 
 ## Status values
 

@@ -81,6 +81,7 @@ import {
   GetGitHubRepositoryObservationEndpointClient,
   GetGitHubBranchObservationEndpointClient,
   GetGitHubCiObservationEndpointClient,
+  GetGitHubRepositoryPermissionObservationEndpointClient,
   GetGitHubCheckContextsObservationEndpointClient,
   GetGitHubCheckRunOutputObservationEndpointClient,
   BindGitHubRepositoryIdentityEndpointClient,
@@ -174,6 +175,8 @@ export const gitHubObservationTargetClient = () => new GetGitHubObservationTarge
 export const gitHubRepositoryObservationClient = () => new GetGitHubRepositoryObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubBranchObservationClient = () => new GetGitHubBranchObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubCiObservationClient = () => new GetGitHubCiObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
+export const gitHubRepositoryPermissionObservationClient = () =>
+  new GetGitHubRepositoryPermissionObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubCheckContextsObservationClient = () =>
   new GetGitHubCheckContextsObservationEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const gitHubCheckRunOutputObservationClient = () =>
@@ -299,6 +302,8 @@ export type {
   GitHubBranchPublicationApprovalResponse,
   GitHubBranchObservationResponse,
   GitHubBranchRefResponse,
+  GetGitHubRepositoryPermissionObservationResponse,
+  GitHubRepositoryPermissionObservationResponse,
   GetGitHubCiObservationResponse,
   GitHubCiObservationResponse,
   GitHubCiRefResponse,

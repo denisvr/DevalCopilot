@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckContextsObservation;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Infrastructure.Persistence;
@@ -39,9 +40,12 @@ internal sealed class GitHubCheckContextsSealedClone : IDisposable
     public LocalCommitHost? Host => _host;
 
     /// <summary>Copies the stage into this clone's file, records current CLI evidence in it (never a cached verdict) and starts the clone's
-    /// production host with observers, counters and a clock of its own.</summary>
+    /// production host with observers, counters and a clock of its own. A guard regression may pass <paramref name="processExecution"/> to
+    /// observe process starts from the host; no existing fact passes one.</summary>
     public async Task<GitHubCheckContextsObservationTestBase.Bound> ProvisionAsync(
-        GitHubCheckContextsSealedStage stage, IGitHubCheckContextsObserver? observer = null)
+        GitHubCheckContextsSealedStage stage,
+        IGitHubCheckContextsObserver? observer = null,
+        IProcessExecutionAdapter? processExecution = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_host is not null)
@@ -75,6 +79,11 @@ internal sealed class GitHubCheckContextsSealedClone : IDisposable
                 services.RemoveAll<TimeProvider>();
                 services.AddSingleton<TimeProvider>(clock);
                 SealedSceneGuard.Apply(services, Refusals);
+                if (processExecution is not null)
+                {
+                    services.RemoveAll<IProcessExecutionAdapter>();
+                    services.AddSingleton(processExecution);
+                }
             },
             writableRoot: WritableRoot);
         _ = _host.Services;

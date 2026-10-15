@@ -6,6 +6,7 @@ import { toUtcText } from '../utcText'
 import { GitHubRepositoryObservationPanel } from './GitHubRepositoryObservationPanel'
 import { GitHubBranchObservationPanel } from './GitHubBranchObservationPanel'
 import { GitHubRepositoryIdentityBindingPanel } from './GitHubRepositoryIdentityBindingPanel'
+import { GitHubRepositoryPermissionPanel } from './GitHubRepositoryPermissionPanel'
 import { GitHubCiObservationPanel } from './GitHubCiObservationPanel'
 import { GitHubCheckContextsObservationPanel } from './GitHubCheckContextsObservationPanel'
 import { GitHubBranchPublicationApprovalPanel } from './GitHubBranchPublicationApprovalPanel'
@@ -101,6 +102,7 @@ export function GitHubObservationTargetPanel({ projectId, source }: GitHubObserv
               {source ? <GitHubRepositoryObservationPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubBranchObservationPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubRepositoryIdentityBindingPanel source={source} target={reading.target} /> : null}
+              {source ? <GitHubRepositoryPermissionPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubCiObservationPanel source={source} target={reading.target} /> : null}
               {source ? <GitHubCheckContextsObservationPanel source={source} target={reading.target} /> : null}
               {source && projectId ? <GitHubBranchPublicationApprovalPanel projectId={projectId} source={source} target={reading.target} /> : null}

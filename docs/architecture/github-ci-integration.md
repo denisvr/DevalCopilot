@@ -152,6 +152,18 @@ eligibility or a pushed commit; the actual push, the draft pull request, remote 
 and restart reconciliation remain later, separately gated slices, and a future executor must perform its own fresh ownership, commit, remote identity, reference, authentication, permission and
 ambiguity checks under its own explicit request.
 
+## Explicit repository permission observation
+
+[ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md) adds one explicit, read-only observation of the repository permission
+GitHub reports (`Repository.viewerPermission`) for the stored default authentication on the already-bound recorded repository. It uses the ADR-0044 shape: the unchanged source, target and binding
+readers before and after one fixed `gh api graphql` invocation (compared by complete value, so any lost, changed or replaced scope is `Unavailable`), the successful direct-executable `GitHubCli`
+snapshot gate, an independent revalidation of the whole probe, an ordinal comparison of the opaque repository ID with the binding and a host-clock observation time not earlier than the binding.
+The answer is one of eight closed statuses; the permission is null exactly for `PermissionNotReturned` and otherwise exactly one of the six literals GitHub's published schema defines (`READ`, `TRIAGE`,
+`TRIAGE_PLUS`, `WRITE`, `MAINTAIN`, `ADMIN`), reported as returned and never ranked or turned into `canPush` or an allowance. It is ephemeral reported access: it is not permission to push the
+recorded branch (protection, rulesets, token scopes and organization policy are outside it), not readiness, not an approval and not a publication, it does not require, consume or change an
+ADR-0048 approval, and it persists nothing. Branch-push permission evidence, rulesets and protection, scoped publication, the actual push and pull request, CI routing, revocation and
+restart reconciliation remain later, separately gated slices, and a future executor must perform its own fresh permission and ambiguity checks.
+
 ## Correlation rules
 
 - A remote observation belongs to a run only when repository, branch, and head

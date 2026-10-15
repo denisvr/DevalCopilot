@@ -114,6 +114,7 @@ public sealed partial class GitHubRepositoryIdentityBindingBoundaryTests
                 "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCheckRunOutputObservation/GetGitHubCheckRunOutputObservationQueryHandler.cs",
                 "DevalCopilot.Application/Features/Runs/Queries/GetGitHubCiObservation/GetGitHubCiObservationQueryHandler.cs",
                 Query,
+                "DevalCopilot.Application/Features/Runs/Queries/GetGitHubRepositoryPermissionObservation/GetGitHubRepositoryPermissionObservationQueryHandler.cs",
             ],
             SourcesContaining("GitHubRepositoryIdentityBindingReader.ReadAsync("));
     }

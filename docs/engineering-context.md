@@ -161,6 +161,9 @@
   local commit on explicit request (additive; one protected POST and bodyless GET of an immutable, Human-recorded consent to ONE future normal push of the exact recorded commit to its
   exact owned branch in the repository named by a coherent ADR-0040 target and ADR-0043 binding, with complete exact snapshots and one Human event saved atomically under the write
   lock; recorded consent only, with no remote observation, push, permission, pull request or automatic execution).
+- [ADR-0049](decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md): Observe the GitHub repository permission of a bound recorded target on
+  explicit request (proposed, additive; one protected, bodyless, read-only observation of the permission GitHub reports for the stored default authentication on the bound repository, through one
+  fixed `gh api graphql` invocation; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and no ADR-0048 approval is required, consumed or changed).
 
 ## Product-specific architecture
 
@@ -437,6 +440,23 @@
   project is known) with Show (sends nothing), Load (then Reload), "Approve one future push" (armed only by the current settled `ApprovalNotRecorded` load, one request UUID per owned
   opening, single-flight, no automatic retry) and Close, owned by the committed project, run, source and target and each opening. `Available` is recorded consent, never readiness, eligibility
   or a push, and future execution needs a separate explicit request with fresh ownership, commit, remote identity, reference, authentication, permission and ambiguity checks.
+- [ADR-0049](decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md) adds one further explicit, read-only observation of the repository
+  permission GitHub reports for the stored default authentication on the bound repository. The protected, bodyless `GET /api/runs/{runId}/github-repository-permission-observation`
+  (`GetGitHubRepositoryPermissionObservationQuery` through the mediator; a query key is refused before dispatch with the fixed 400 `github_repository_permission_observation.invalid_request`, any
+  request body (declared, any transfer encoding or a readable byte) with the fixed 400 `...body_not_allowed`, an unknown run is the fixed 404 `...not_found`) reads the source, target and binding with
+  the unchanged ADR-0040 and ADR-0043 readers before the one external call and again, compared by complete value, after it (orphans and any post-call drift, even a complete coherent replacement of
+  the binding, are `Unavailable` with every fact stripped). It answers one of eight closed statuses (`NotRecorded`, `Unavailable`, `BindingNotRecorded`, `CliUnavailable`, `Unknown`, `IdentityChanged`,
+  `PermissionNotReturned`, `PermissionReported`) with exactly their documented facts; `viewerPermission` is null exactly for `PermissionNotReturned` (an explicit GitHub null, neither a denial nor
+  proof of an account type) and otherwise exactly one of `READ`, `TRIAGE`, `TRIAGE_PLUS`, `WRITE`, `MAINTAIN`, `ADMIN` (the six values GitHub's published `RepositoryPermission` schema defines),
+  reported and never ranked or turned into an allowance. The operation-owned port `IGitHubRepositoryPermissionObserver` is implemented by `GitHubRepositoryPermissionObservationAdapter` on the
+  existing process executor: one fixed `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository>` (the query
+  selects `id name nameWithOwner viewerPermission`) with the ADR-0041 environment, bounds (15 s, 8 KiB per stream, 16 KiB combined, JSON depth 8) and non-queued single-flight slot, and a
+  whole-response admission that refuses any backslash, extra, missing or duplicate member, error, unknown literal or foreign name. The handler requires the ADR-0044 `GitHubCli` snapshot gate,
+  validates the whole probe again, compares the opaque ID with the binding ordinally and stamps the host clock after the revalidation (earlier than the binding is `Unknown`). Nothing is written,
+  persisted or locked, and no ADR-0048 approval is required, consumed or changed. The cockpit adds a separate collapsed "GitHub repository permission" region beside the identity, branch and binding
+  regions with Show (sends nothing), Check (then Recheck) and Close, owned by the committed project, run, source and target and each opening, showing the exact admitted role as inert text with the
+  fixed disclosure "Repository access does not establish permission to push this branch." The reading is not permission to push the branch, readiness, an approval or publication authority, and the
+  real installed CLI and schema compatibility remain unverified.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.

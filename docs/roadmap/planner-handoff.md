@@ -5,6 +5,271 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## ADR-0049 review (2026-10-15): R1 accepted; GO for the frozen substantive diff
+
+Independent preflight: main; HEAD/local origin/main/live main all
+703037925da345a810b3438715403721beea96d5, 0/0, empty index, 51 paths
+(19 modified INCLUDING the preserved planner, 32 untracked). Planner before
+this record was cb305130d82e3d69ce240253b408891e591ccb449850c4fad27f33fdc2b3e883;
+all its earlier bytes remain preserved. Generated client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+R1 is accepted. Compared with the 51-path dispatch baseline, Claude changed
+only the decoder, its tests, panel tests and current-work. Literal null is
+required only for PermissionNotReturned.viewerPermission; shared absence
+rules, hook, backend, DTOs, client and composition are byte-identical. New
+tests retain undefined as a refusal, use the actual generated fromJS on JSON,
+preserve the null and six-literal controls, and prove panel refusal without
+a no-permission claim or remote facts. Genuine red: four failures of 70;
+the original failed logs are preserved. Independent Codex tests: 70/70.
+Independent original probe now admits explicit null and refuses omitted and
+undefined members. Evidence: logs/planner-review/adr49/review/r1-*.
+
+Executor correction build (includes typecheck), lint and links passed. Retain
+backend, client reproduction, fixture/guard, Architecture, sibling and journey
+evidence as authorized: no covered executable inputs changed. Earlier Codex
+checks remain Application 69/69, adapter 173/173, guards 6/6 and zero-warning
+solution build. Original executor full-family evidence and all limitations
+remain recorded. No extra full suites, mutation or journey was required.
+
+Final client inspection corrected an evidence claim: Git's textual diff is
++213/-43 (net +170), not +170/-0. Codex compared every top-level generated
+declaration by TypeScript AST name/kind and exact normalized declaration text:
+all 454 existing declarations are identical, five new declarations are added,
+and existing DTO ordering changes. Probe source/output are retained as
+client-declaration-probe.cjs/.log under the review directory. No wire or
+existing client behavior changes. Accept semantic additive generation with
+verified reordering; extra DTO duplication merely to control generated order
+is unnecessary. The earlier textual-additivity interpretation is revised on
+this evidence; the generated file is unchanged. Codex corrected only that
+factual wording in current-work and marked ADR-0049/index Accepted as this
+review decision. These documentation edits invalidate no binary checks.
+
+GO authorizes Claude to publish ONLY the reviewed 51-path substantive diff,
+including current-work, accepted ADR metadata and this planner record, frozen
+in logs/planner-review/adr49/publication-manifest.json. Verify its hash and
+every entry before staging; stage only the literal manifest paths; verify
+19 M/32 A modes and blobs, one commit with the exact 7030379 baseline parent,
+normal fast-forward push of main and live remote equality. Stop on any
+discrepancy or push failure. No further edits, regeneration or validation
+reruns are needed. A material change returns for review; no force/rebase/reset.
+No closure diff or next slice is selected before publication verification.
+
+This publishes an ephemeral repository-access observation, not authority or
+readiness to push a branch. Real qualification stays Blocked/TargetsNotReal,
+both allowances unused. No real gh/provider invocation, CLI setup, ledger
+reset or cleanup. Preserve every log/TRX/manifest, original weakened frontend
+run and test-first chronology limitation, failed M3 restoration attempt,
+retained root, ignored review artifact and all recorded limitations. The
+historical concurrent 409, older target-test 500, disposal NullReferenceException
+and unnamed Api 2067/2068 failure remain separately unexplained; later passes
+prove neither flakiness nor irrelevance. Prior records follow unchanged.
+
+
+## ADR-0049 review (2026-10-15): NO-GO, bounded frontend R1
+
+Independent Git preflight: main; HEAD/local origin/main/live main all
+703037925da345a810b3438715403721beea96d5, 0/0, empty index. Actual complete
+inventory is 51 paths: 19 modified INCLUDING this preserved planner file and
+32 untracked. The executor's 18 modified paths excluded the planner; do not
+freeze a 50-path publication inventory. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+Planner before this record was
+39ff5ddec7702eab5f1ffe48dc5cacaa4ff1ff6787339b2c91b415b3eb7f1064;
+all prior bytes are preserved. No implementation source was changed by Codex.
+
+Code review supports the backend scope, independent probe admission, exact
+six-value policy, complete binding comparison, process/environment bounds and
+new-port refusal in both sealed compositions. The optional defaulted process
+executor seam is accepted as narrowly necessary guard-test instrumentation;
+the mechanism and defaults are unchanged. The two additive Architecture
+inventory entries are appropriate. No new backend correction is selected.
+
+Independent checks: incremental serial build, zero warnings/errors;
+Application permission family 69/69; adapter 173/173; new frontend three files
+60/60; resolved-host permission guard facts 6/6. Executor final TRX counters
+inspected: API 41/41, launch auth 4/4, controls 2/2, guard regression 116/116,
+provider fixtures 205/205, Architecture 148/148. Evidence is retained under
+logs/planner-review/adr49/review/ and original executor roots.
+
+R1 (P2): gitHubRepositoryPermissionObservation.ts:196 uses isAbsent for
+viewerPermission in PermissionNotReturned. It admits undefined/missing data,
+although the selected contract requires an explicit null. Codex's read-only
+probe passed actual JSON through the real generated response.fromJS: explicit
+null stays null; an omitted member stays undefined; BOTH produce an admitted
+PermissionNotReturned reading. Thus this is not a necessary generated-client
+null normalization. The UI can claim GitHub returned no permission when the
+host answer actually omitted a required fact. Existing tests explicitly
+accept undefined and therefore preserve the error. Probe source and complete
+sanitized output: decoder-null-probe.cjs and decoder-null-probe.log in the
+review directory. No source or emitted product files were written by the probe.
+
+Select one bounded correction in the SAME ADR-0049 executor chat: require
+literal null only for this status's viewerPermission, with genuine red/green
+regressions for explicit null, undefined, an omitted JSON member through the
+generated client, and panel refusal without a no-permission claim or remote
+facts. Replace the contradictory undefined-acceptance expectation with refusal;
+do not remove the case. Keep all six reported-literal controls and ownership
+behavior. Do not change shared absence handling, generated client, hook,
+backend, DTOs, schema, guard or process composition. No new wire contract.
+
+Final once: new decoder/hook/panel test files, npm run build (includes
+typecheck), lint, changed docs links and diff/secret hygiene, and the Codex
+probe showing explicit-null admitted/missing-member refused. Retain backend,
+Architecture, generated-client reproducibility, fixtures, sealed guards,
+siblings and journey evidence on unchanged covered inputs: the journey
+exercises a valid permission and no hook/transport input changes. No full
+matrix, extra mutation or browser journey is required for this decoder-only
+correction. Broaden only for an actual changed input or unresolved failure.
+
+Update current-work with actual inventory (including the planner), correction
+commands/results and retained evidence. Describe the original frontend red as
+a deliberately weakened-code run; it does not establish test-first chronology.
+Preserve it and every attempt, including the M3 restoration failure; do not
+fabricate or relabel historical evidence. The initial red-first evidence gap
+can remain disclosed; this correction supplies genuine red for R1.
+
+Return unstaged/uncommitted/unpushed for whole-slice GO/NO-GO. No publication,
+closure diff or next slice is authorized. The dispatch baseline of all 51 raw
+statuses/paths/hashes/byte counts is retained separately in
+logs/planner-review/adr49/review/r1-dispatch-baseline.json. Preserve this planner
+edit byte-for-byte during the correction and stop on a material discrepancy.
+
+Qualification remains Blocked/TargetsNotReal, both allowances unused. No real
+gh/provider invocation, CLI setup, ledger reset or cleanup. Keep every retained
+root/log/TRX/artifact and all limits. The historical concurrent 409, older
+target-test 500, disposal NullReferenceException and unnamed Api 2067/2068
+failure remain separately unexplained; later passes prove neither flakiness
+nor irrelevance. Prior selection and review records follow unchanged.
+
+
+## ADR-0048 publication verified; ADR-0049 selected (2026-10-15)
+
+Codex independently verified publication 703037925da345a810b3438715403721beea96d5
+on main, local origin/main and live refs/heads/main, 0/0, empty index and clean
+tracked/untracked tree. Its single parent is
+5715fc2b324827e79bf3613473fe3d71ffe286b8; all 85 committed paths (31 M, 54 A),
+modes, blobs and working-file raw hashes match the reviewed ADR-0048 manifest.
+Message and co-author trailer match. No tests or generation were repeated for
+publication verification. Evidence: logs/planner-review/adr49/publication-verification.txt.
+The planner before this selection was
+12344e270c59b216061f813275fc2d88777241b9f2c46ba0ef794b5c1bf37671;
+all prior bytes are preserved. The generated client baseline remains
+c22e82b943c625fa9ceaf6fe377cfe6887380d76d641906a17c7b6738e84a6b6.
+
+Roadmap/code assessment: Increment 6 now has explicit authentication, bound
+identity, exact-commit check inspection and durable Human publication consent,
+but no permission observation or push executor. MVP completion still requires
+the durable normal-push/PR path with fresh physical/remote gates and ambiguity
+reconciliation, exact-SHA monitoring and bounded CI correction, remaining
+Increment 4/5 coordination/provider contracts, packaging/self-hosting proof
+and real qualification. Repository permission observation is a useful input
+and a bounded next capability, not a sufficient release gate or a substitute
+for any of those blockers. Broader CI enumeration, richer history and more
+fixture/performance refactoring are optional for this selected outcome. Do not
+call current doubles release qualification or this observation push readiness.
+
+Select ONE visible additive slice: explicit ephemeral observation of GitHub's
+viewerPermission for the already-bound recorded repository (proposed ADR-0049),
+using one fixed read-only GraphQL query. The current identity and CI adapters
+do not request permission; existing source/target/binding readers and CLI
+snapshot admission supply the unchanged prerequisites. A direct push slice
+would also need durable effect/recovery and Git authentication/transport
+decisions that this read-only slice deliberately does not settle. No material
+owner authority change is needed for this bounded observation.
+
+Primary schema evidence checked on 2026-10-15:
+https://docs.github.com/en/graphql/reference/repos#repositorypermission and
+https://docs.github.com/en/graphql/reference/repos (Repository.viewerPermission).
+The current enum includes SIX literals: READ, TRIAGE, TRIAGE_PLUS, WRITE,
+MAINTAIN, ADMIN. Include TRIAGE_PLUS rather than relying on the older five-role
+assumption. The nullable field is not denial or proof of a particular account
+type. Repository role is not branch-level push authorization; protections and
+rulesets remain independent. Reference:
+https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches.
+
+Contract: protected bodyless GET
+/api/runs/{runId}/github-repository-permission-observation, no query parameters.
+Fixed errors github_repository_permission_observation.not_found (404),
+body_not_allowed (400), invalid_request (400, query keys). Envelope:
+runId/status/source/target/binding/observation. Closed statuses:
+NotRecorded, BindingNotRecorded, Unavailable, CliUnavailable, Unknown,
+IdentityChanged, PermissionNotReturned, PermissionReported. First two and
+Unavailable follow the existing CI scope semantics. CliUnavailable, Unknown
+and IdentityChanged retain the coherent local scope but no observation.
+Only the last two expose an observation (repositoryNodeId, owner, repository,
+observedAtUtc, viewerPermission), with a matching bound node ID and permission
+null only for PermissionNotReturned. PermissionReported admits all six exact
+literals equally as reported facts, never a derived canPush/allowed verdict.
+
+Use the three unchanged source/target/binding readers before and after the
+one external call and compare the complete readings. An orphan, incoherent
+scope, post-call drift or backwards observation time fails closed; no partial
+remote disclosure. Validate the port result independently. Query constant:
+query($owner:String!,$name:String!){repository(owner:$owner,name:$name){id name nameWithOwner viewerPermission}}
+Fixed gh api graphql --hostname github.com --method POST with raw -f variables,
+existing process executor/scratch and ADR-0041 environment policy, 15 s timeout,
+8 KiB per stream/16 KiB combined, JSON depth 8 and one immediate-refusal
+singleton slot. Strict whole JSON, no backslash, duplicate/extra fields,
+errors/extensions, foreign names, unknown enum, malformed or oversized values.
+Null repository/fault-shaped output is Unknown, not a permission verdict.
+Caller cancellation and unexpected faults propagate; no generic catch.
+
+Composition consequence found during code inspection: Program registers each
+observer globally, while the existing sealed hosts replace only enumerated
+ports. Add ONLY the new permission port to SealedSceneGuard's refusal list,
+with resolved-host behavioral regressions for both existing clone compositions:
+named refusal, zero non-Git process starts, independent refusal queues and
+unchanged scene/images. Do not enable this port in any existing sealed clone,
+change the guard mechanism or migrate another test class to snapshot reuse.
+Retain allowed production Git reads; zero processes is not the assertion.
+
+UI: separate collapsed GitHub repository permission region, explicit
+Show/Check/Recheck/Close, no automatic requests or sibling result reuse;
+project/run/source/target and opening own callbacks, same-batch single-flight
+and stale-completion isolation. Show exact admitted role and a fixed disclosure
+that it does not establish branch push permission. No login, token, URLs,
+HTML/Markdown, storage, approval/execution control or previous stale answer.
+Regenerate the client additively; own new contracts without moving old ones.
+
+Acceptance: genuine focused red/green at adapter/handler/decoder/hook/panel;
+three compiling risk mutants (node-ID check, full post-call scope comparison,
+stale UI completion), verified restore hashes and rebuild. Final once on stable
+inputs: incremental serial solution build/client reproducibility; new
+Application family; new Infrastructure adapter class on the real executor
+with owned executable doubles; new API family plus auth and two named existing
+identity/binding or approval controls; full Architecture; new frontend files
+and changed parent tests, build (includes typecheck), lint; strict e2e tsc and
+one authenticated collaboration journey extension. Full fixture-contract suite
+only if its owned gh role changes. Put exhaustive permutations at cheap
+boundaries, admission refusals before delivery setup, representative full
+production lineage at host/journey. No fixture migration/cache expansion.
+Retain unchanged Domain/persistence/migrations/other adapters/other journeys/
+harness/dependency evidence. Broaden only for changed shared inputs, failures
+or an unenumerable impact; preserve mandatory CI/release gates. One build
+writer, no mutations during validation, at most two proven-isolated test
+commands, serialized journey. No routine clean build, shutdown or stress loop.
+Because the shared guard inventory changes, also run ADR-0046 isolation and
+the existing check-context endpoint class, plus ADR-0047's five resolved-host
+guard/isolation controls and the new permission-refusal regressions. This is
+targeted composition regression, not permission for broader host refactoring.
+
+Stop for any Git discrepancy, need for new credentials/permissions, unsupported
+schema, shared reader/executor/host lifecycle changes, changed wire behavior
+of older operations, persistence/recovery or actual mutation. Evidence-based
+challenges are welcome; present a bounded alternative before dependent work.
+Claude implements and returns unstaged/uncommitted/unpushed for Codex review;
+no commit/push GO is granted. Executor must preserve this planner edit byte-for-byte.
+
+All historical limitations remain, including the unattributed concurrent 409,
+older target-test 500, disposal NullReferenceException and unnamed Api
+2067/2068 failure, separately unexplained. Later passes prove neither
+flakiness nor irrelevance. Qualification remains Blocked/TargetsNotReal, both
+allowances unused. No real gh/provider invocation, CLI setup, authentication,
+ledger reset or cleanup; retain all roots, logs, TRX and ignored artifacts.
+No next work beyond this slice is selected.
+
+
 ## ADR-0048 review (2026-10-15): GO for the frozen substantive diff
 
 Codex independently verified main, HEAD/local origin/main/live main at

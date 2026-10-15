@@ -7,6 +7,7 @@ using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubBranchObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckRunOutputObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCiObservation;
+using DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryPermissionObservation;
 using DevalCopilot.Infrastructure.Features.Projects;
 using DevalCopilot.Infrastructure.Features.Runs;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,7 @@ internal static class SealedSceneGuard
         typeof(IGitHubBranchObserver),
         typeof(IGitHubCiObserver),
         typeof(IGitHubCheckRunOutputObserver),
+        typeof(IGitHubRepositoryPermissionObserver),
         typeof(ILocalCommitPreparer),
     ];
 

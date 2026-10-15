@@ -29,6 +29,7 @@ using DevalCopilot.Application.Features.Runs.Queries.GetGitHubBranchObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckContextsObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckRunOutputObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCiObservation;
+using DevalCopilot.Application.Features.Runs.Queries.GetGitHubRepositoryPermissionObservation;
 using DevalCopilot.Application.Security.Ports;
 using DevalCopilot.Infrastructure.Features.EnvironmentReadiness;
 using DevalCopilot.Infrastructure.Features.Processes;
@@ -174,6 +175,11 @@ builder.Services.AddSingleton<IGitHubCheckContextsObserver, GitHubCheckContextsO
 // output of the admitted check run) composed on IProcessExecutionAdapter above. A singleton on purpose: the instance owns its single
 // in-flight slot and holds no state between the two phases.
 builder.Services.AddSingleton<IGitHubCheckRunOutputObserver, GitHubCheckRunOutputObservationAdapter>();
+
+// Explicit GitHub repository permission observation (ADR-0049): one fixed read-only `gh api graphql` query for the repository identity and
+// the viewer permission GitHub reports, composed on IProcessExecutionAdapter above. A singleton on purpose: the instance owns its single
+// in-flight slot.
+builder.Services.AddSingleton<IGitHubRepositoryPermissionObserver, GitHubRepositoryPermissionObservationAdapter>();
 
 // Workspace preparation: physical identity resolution, worktree creation, and the ownership
 // marker are each a narrow, independent Infrastructure capability behind their own port.
