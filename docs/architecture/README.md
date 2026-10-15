@@ -16,6 +16,9 @@ shared engineering contract.
 - [GitHub branch publication execution evidence](github-branch-publication-execution-evidence.md)
   is evidence for a pending planner decision about the first approved normal
   branch push. It is not an accepted execution contract.
+- [GitHub publication source-write denial feasibility](github-publication-source-write-denial-feasibility.md)
+  is evidence for a pending planner decision about ADR-0050 P9. It selects no
+  mechanism and is not an accepted contract.
 
 Accepted material choices are recorded separately under
 [`docs/decisions`](../decisions/README.md). Architecture documents explain how

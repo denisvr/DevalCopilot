@@ -5,6 +5,166 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## P9 feasibility evidence accepted; GO to publish documentation only (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live refs/heads/main all
+58c188f48e6894d4d2d1084336c268d86f51dc8b, 0/0, empty index; exactly four
+paths (3 M including planner, 1 untracked note). Planner before this record:
+c87fe7ac9c486f1af455050784786114ec06051d2a19c665adfe272741c8a50c;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+R1-R3 accepted: compatibility and source-grant assumptions are conditional,
+the two caller privileges are distinguished from each other and from child
+token privileges, and the proof claim is bounded to the sources read.
+Owned local adversarial cases remain proposed, unexecuted and insufficient
+alone for universal denial claims. No candidate is accepted or shown to meet
+P9. B remains paused; no excluded workaround is selected. ADR-0050 remains
+Proposed. The independent review confirmed all twelve source digests, 137
+local links and the exact inventory; diff check passed. Executor correction
+logs remain under logs/executor/p9-feasibility/correction1/.
+
+GO covers only the four frozen documentation paths, including current-work
+and the planner record. Freeze raw hashes, lengths, normalized modes/blobs
+and parent entries in logs/planner-review/p9-feasibility/publication-manifest.json.
+Publish one commit, docs: record publication source-write denial feasibility,
+with the Claude co-author trailer and sole parent equal to the verified
+baseline, then one normal fast-forward push and live ref verification.
+No edit, regeneration, validation rerun, closure diff or next-slice selection
+by the executor. If bytes, inventory, baseline or remote differ, stop.
+
+No runtime, probe, credential/helper operation, real gh/GCM/provider call,
+installation, qualification, ledger reset or cleanup is authorized. Owner
+design-only decisions stand. Agent qualification remains Blocked/TargetsNotReal
+with both allowances unused; Git/GitHub qualification is separate and unstarted.
+All ignored evidence and limitations remain, including the four separately
+unexplained historical failures; later passes establish neither flakiness nor
+irrelevance. Codex selects the next bounded work after publication verification.
+
+## P9 feasibility evidence: NO-GO for bounded documentation correction (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live refs/heads/main all
+58c188f48e6894d4d2d1084336c268d86f51dc8b, 0/0, empty index; four paths
+(3 M including planner, 1 untracked note). Planner before this record:
+e9e147ee361b524d103867101e7fbb4be3ff57138f4d937c55017813400b5162;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+All twelve retained source digests match; 137 local links resolve; diff check
+passes. Returned note and four-path raw baseline are retained under
+logs/planner-review/p9-feasibility/review-20261015/. No executable validation.
+
+Decision: NO-GO for evidence overstatement, not for an inconclusive outcome.
+R1: AppContainer credential isolation does not establish the exhaustive claim
+that only a broker, alternate user/service or exported credential could supply
+GCM access. Source-repository grant requirements are conditional on effective
+access not measured here. WRITE_RESTRICTED's restricting-SID rule is not a
+guarantee of credential retrieval, decryption or helper compatibility. Reword
+the note and current-work summary to separate documented mechanisms, narrow
+inferences and unresolved compatibility. Retain the conservative stop on B;
+do not infer feasibility, impossibility or select an excluded workaround.
+
+R2: S06's quota privilege and the own-token exception for assign-primary
+privilege concern different privileges; they are not a contradiction.
+Preserve S06's "Typically" qualification and separate caller privileges from
+the child's token. Keep the genuine desktop ambiguity unresolved.
+
+R3: The sources read do not establish an implementation meeting P9; this does
+not prove documentation in general cannot support a denial argument or that
+only experiments can do so. Owned local adversarial tests can support a
+specified mechanism together with its documented access-control model; finite
+passing cases do not prove all writes or escapes impossible. Keep PL1-PL7 as
+unexecuted proposed cases. ADR-0050's absent mechanism/proving boundary remains
+accurate; no ADR amendment, source-store redesign or probe is selected here.
+
+Accept the executor's challenge that local proof need not invoke a real
+provider, and its choice to stop B's dependent design. Inconclusive evidence
+is acceptable. The older current-work entry is its historical review return,
+not current Git authority; leave it intact and anchor the new entry to the
+verified publication as needed. No separate closure edit.
+
+Correct only the feasibility note and its current-work entry, in the same
+executor chat. Preserve the index link, ADRs, published execution-evidence
+note, planner and client. Reuse the twelve retained sources; no further source
+expansion is required. Rerun changed-doc links, diff/byte and applicable secret
+checks once; report final inventory/protected hashes and preserve all logs.
+No probes, runtime changes, token/profile/ACL/credential operations, builds,
+suites, generation, staging, commit or push. Return for GO/NO-GO.
+
+ADR-0050 remains Proposed; P9 remains unproven. Owner design-only decisions
+stand. Agent qualification remains Blocked/TargetsNotReal, both allowances
+unused; Git/GitHub qualification remains separate and unstarted. Preserve all
+ignored evidence and limitations, including the separately unexplained
+concurrent-replay 409, target-test 500, disposal NullReferenceException and
+unnamed Api 2067/2068 failure. No next slice is selected by this correction.
+
+## ADR-0050 publication verified; selected P9 feasibility evidence only (2026-10-15)
+
+Independent verification: main; HEAD/local origin/main/live refs/heads/main all
+58c188f48e6894d4d2d1084336c268d86f51dc8b, 0/0, empty index and clean tracked/
+untracked tree before this record. Sole parent e2e89110f9db44d3e96cea21f2d5989abc255af5;
+message and co-author trailer match. All five paths (4 M, 1 A), committed modes/
+blobs, parent entries, and working-file raw hashes/lengths match the frozen
+publication manifest 7e468d94bfd9aa5e5ad0c65a552854e430101cb8a95c0d30508b43b3c57d8299.
+Evidence: logs/planner-review/adr50/publication-verification.txt. Preserve the
+executor's first verifier stderr/CRLF failure and successful retry. No repeated
+publication or executable validation. Planner before this record:
+f26ca630d3fb5901afb67ad65e490b0718eb99be02163ca6a58b43ae684b1f86;
+all prior bytes are preserved. Generated client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Decision: ADR-0050 remains Proposed. Select a documentation-only feasibility
+slice for P9, before selecting runtime implementation or accepting the proposal.
+This addresses a release blocker; more observation panels and diagnostic history
+are optional. Supported GCM versions, real compatibility, fence/containment and
+human resolution/rearm remain separate blockers, not work selected here.
+
+Codex inspected the existing process adapter: Process.Start with explicit argv/
+environment is no restricted-token or AppContainer boundary. Primary Microsoft
+sources describe restricting-SID access checks, WRITE_RESTRICTED, and AppContainer
+file/process/credential isolation. These identify candidates, not installed Git/
+GCM compatibility or proof of P9. Sources:
+https://learn.microsoft.com/en-us/windows/win32/secauthz/restricted-tokens
+https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken
+https://learn.microsoft.com/en-us/windows/win32/secauthz/appcontainer-isolation
+https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer
+
+Bounded evidence assignment: compare only (A) a write-restricted token with
+host-owned writable scratch, and (B) AppContainer/LPAC with explicit grants.
+Read primary sources directly and inspect relevant existing code; no probes,
+process experiments, credential access, ACL/token/profile changes or helper
+invocation. Establish the intended threat boundary, denied operations including
+delete/rename/ACL/ownership changes, descendants and inherited handles, parent/
+token/process escape surfaces, and the unresolved compatibility with installed
+noninteractive GCM. Do not claim impossible or feasible from missing documentation.
+No source ACL changes, broker, alternate user/service or credential export is
+selected. If a candidate needs these, identify the additional authority and stop
+its design there. This task gathers evidence; Codex retains mechanism selection,
+architecture, any owner escalation and final review. Do not weaken P9.
+
+Deliver one compact pending-decision note at
+docs/architecture/github-publication-source-write-denial-feasibility.md, one labelled architecture-index link and a short
+current-work entry. Existing ADR/evidence documents and planner remain unchanged.
+Use at most two candidate designs and twelve primary source pages; include a
+claim/source/limitation matrix, a minimal boundary diagram, and proposed future
+local proof cases separately from real GCM qualification. Inconclusive evidence
+is an acceptable result. No new ADR, accepted contract or implementation.
+
+Validation: changed-doc local links, diff/byte hygiene and applicable secret
+checks once; protected planner/client hashes and final exact status. Retain all
+binary/browser evidence; run no builds, suites, mutation, journeys or generation.
+Keep complete uniquely named command outputs and source-reading provenance in
+ignored logs/executor/p9-feasibility/. Stop on baseline/scope/authority discrepancy;
+return uncommitted/unpushed for GO/NO-GO. No publication authority is granted.
+
+Owner's restricted GCM/base profile and design-only identity-risk decision stand;
+no repeated permission question. No real gh/GCM/provider/credential operation,
+installation/login, qualification, ledger reset or cleanup. Agent qualification
+remains Blocked/TargetsNotReal with both allowances unused; Git/GitHub qualification
+stays separate and unstarted. Preserve all ignored artifacts, retained roots,
+capture limitations and the four separately unexplained historical failures.
+Prior records follow unchanged.
+
+
 ## ADR-0050 correction accepted; GO to publish the proposal only (2026-10-15)
 
 Independent preflight: main; HEAD/local origin/main/live main all
