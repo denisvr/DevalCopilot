@@ -615,3 +615,162 @@ warning at `/W4`. No build, run, case or harness defect required a rerun, so no 
 roots were preserved with their protected DACLs (eight parent directories and three surviving files: ordinary Neither,
 restricted Neither and restricted FileOnly). Future cleanup and any required permission changes were not evaluated and are not
 authorized by this slice; no cleanup was attempted.
+
+## 13. Viability gate: full restriction (DISABLE_MAX_PRIVILEGE only, one synthetic restricting SID) with detached scratch (owned harness; one bounded run)
+
+> **Experimental evidence, not a production configuration and not P9 acceptance.** This section was appended in a later slice
+> (baseline `main` at `e2510c55112ec55f1fb8a030c1f2e005822926ca`, verified equal to local and live `origin/main`). Sections 1 to 12
+> are preserved byte for byte, including section 11's protocol deviation and stop-gate defect and section 12's diagnosis. It
+> selects no mechanism and no workaround. ADR-0050 remains Proposed, P9 remains unproven, candidate B remains paused, and the
+> negative or inconclusive reading below is valid. A detached scratch fixture is not a Git object-copy implementation, and
+> ADR-0050's source-object design is unchanged.
+
+### 13.1 Question and closed configuration
+
+Can one exact full-restriction configuration (1) start without changing permissions outside new owned experiment resources,
+(2) read and write a detached scratch fixture, and (3) refuse a source-fixture read and both deletion routes measured in
+section 12? The configuration was closed before the run: `CreateRestrictedToken` over the harness's own unelevated primary
+token with `DISABLE_MAX_PRIVILEGE` only, no SIDs to disable, no privileges to delete, exactly **one** fresh synthetic
+restricting SID, and **no** `WRITE_RESTRICTED`, `SANDBOX_INERT`, `LUA_TOKEN`, further restricting SID, privilege enabling,
+elevation or fallback. The host's own token was recorded first and matched the prerequisite: primary, elevation type Limited
+(3), not elevated, `IsTokenRestricted` 0, integrity `0x2000`, `TokenAccessInformation.Flags` raw `0x2a00`, five privileges,
+15 groups. The restricted token as obtained was verified before any launch to have exactly one restricting SID (the synthetic
+one, attributes `0x7`), exactly one privilege (`SeChangeNotifyPrivilege`, attributes `0x3`), `IsTokenRestricted` 1, the same
+15 groups and integrity, and raw flags `0x2a10`. Sections 11 and 12 recorded `0x2a18` with `WRITE_RESTRICTED`; the difference
+of `0x08` is consistent with that flag being absent, but the bit mapping is not verified here.
+
+### 13.2 Harness, build and static review
+
+Two new dependency-free C programs under ignored `logs/executor/p9-full-restriction-gate/src/`: a host
+(`p9gate-host-v1.c`, imports `KERNEL32` and `ADVAPI32`; `user32` and `bcrypt` are loaded dynamically in the host only) and a
+separate child (`p9gate-child-v1.c`, imports `KERNEL32.dll` only, recorded with `dumpbin`). Built with the installed MSVC
+(compiler banner 19.51.36260, linker 14.51.36260.0, `_MSC_FULL_VER` 195136260; `vcvars64.bat` selected Windows SDK
+10.0.28000.0, read from its environment; an SDK 10.0.26100.0 is also installed and earlier sections name it), `/W4 /MT /O2
+/GS /guard:cf`, static CRT, no package download. The run was on Windows `10.0.26200.9711`, NTFS. The previous harnesses were
+neither run nor modified.
+
+The child is straight-line: fixed argv, a canonical-prefix check, then five operations in fixed order, each followed
+immediately by a check that returns on the first unexpected result: (1) `SCRATCH_READ`, (2) `SCRATCH_WRITE` (the only
+truncating open, on the designated detached scratch file), (3) `SOURCE_SENTINEL_READ` (open for data read; nothing is read in
+restricted mode), (4) `FILEONLY_DELETE`, (5) `PARENTONLY_DELETE` (two `DeleteFileW` call sites). It contains no process
+creation, token, DACL, handle-duplication, directory, move or link call. The host never deletes or rewrites a fixture after
+setup; its only `SetNamedSecurityInfoW` calls are setup-time protected fixture descriptors and the two synthetic grants below.
+The review was done on the sources before the build and again after the build fix, and is retained as
+`static-review-v1.txt` and `static-review-v1-a2.txt` (forbidden-call counts of 0 in the child, the call-site listings and a
+written control-flow reading). No DACL-changing, token-escape, host-handle, parent-spoofing or additional write probe exists.
+
+### 13.3 Fixtures, descriptors and grants
+
+New canonical non-reparse run root `runs/run-20261015T203020Z-24964/` (containment, absence of reparse points and NTFS were
+verified before any fixture). Independent fresh fixtures for each child, `ctl` (ordinary) and `res` (restricted), each with
+`bin/` (a byte-identical copy of the child executable, SHA-256 `7ac6c60f...1fa2`, created by the host so it inherits the
+directory's ACEs), `source/sentinel.txt`, `fileonly/target.txt`, `parentonly/target.txt` and `scratch/` (`copy.txt` and `tmp/`;
+`TEMP` and `TMP` point at `tmp/`). The sentinel and the detached scratch copy hold the same fixed fictitious 37 bytes (SHA-256
+`cf19bab5...3785`); each deletion target holds fixed 34 fictitious bytes (`c6b0ddff...d16d`). Fixture I/O handles were closed
+before each launch (host open-handle count 140 and 143).
+
+As in section 12, the six source descriptors per case carry a **protected** DACL set by the host and read back (control flags
+`0x9404`, exactly one `ACCESS_ALLOWED` ACE, flags `0x0`, the current user redacted as `<current-user>`), re-read immediately
+before each launch (no drift): sentinel file `0x00120089` and its parent `0x001200a9`; FileOnly file `0x00130089` (`DELETE`) and
+parent `0x001200a9` (no `FILE_DELETE_CHILD`); ParentOnly file `0x00120089` (no `DELETE`) and parent `0x001200e9`
+(`FILE_DELETE_CHILD`).
+
+The synthetic SID received exactly two grants, both in `res`: read/execute `0x001200a9` (container and object inherit,
+ACE flags `0x3`) on `res/bin`, so the executable carries it inherited (`0x10`); and read/write `0x0012019f` (flags `0x3`) on
+`res/scratch`, inherited by `copy.txt` and `tmp/`. No other grant to the synthetic SID, no grant on any source fixture, the
+`ctl` tree, an old root, a system or user directory or the repository, and no broad SID, null DACL, capability, profile,
+service or ambient fallback. A walk of the whole run root (26 objects before the launches, 28 after) listed every ACE naming
+the synthetic SID: exactly five (`bin`, the executable, `scratch`, `copy.txt`, `tmp`), none elsewhere. The private desktop's DACL
+names the current user, SYSTEM and, for the restricted child, the synthetic SID. The `bin` and `scratch` directories also carry
+the ACEs they inherit from the repository tree (nine ACEs each: the synthetic grant plus eight others, including the current
+user and other ordinary principals); those pre-exist, were not changed by the host and are not synthetic-SID grants. Output is captured through inherited anonymous
+pipes, so no output path was granted.
+
+### 13.4 Raw outcomes
+
+Both children used fixed executable and argv, `STARTF_USESTDHANDLES` with an explicit handle list (stdout pipe, stderr pipe, NUL
+stdin), a private desktop and a private non-breakaway kill-on-close job (active-process limit 1, so no grandchild) to which the
+suspended child was assigned before `ResumeThread`, `TEMP`-only environment (`SystemRoot`, `TEMP`, `TMP`), a 30 s bound and a
+64 KiB cap per stream. The control used `CreateProcessW` and the restricted child `CreateProcessAsUserW`; the launch function,
+the token, the private desktop's DACL and the synthetic grants therefore differ, and no ordinary-token `CreateProcessAsUserW`
+control exists, so the token is not shown to be the only variable. The harness set its own error mode so a hard-error dialog
+could not stall a child.
+
+| Child | Result |
+|---|---|
+| Ordinary control (`CreateProcessW`) | **Valid.** Exit 0 in 28 ms; seven well-formed named lines, all expected: `SCRATCH_READ`, `SCRATCH_WRITE` (36 bytes written and read back), `SOURCE_SENTINEL_READ` (content matched), `FILEONLY_DELETE` and `PARENTONLY_DELETE` succeeded, `DONE`. Host observation agreed: sentinel unchanged (bytes, identity and descriptor), both deletion targets absent, scratch copy rewritten to the fixed new bytes. Job query succeeded, 1 total and 0 active processes; stderr 0 bytes. |
+| Restricted (`CreateProcessAsUserW`) | **Process created; no child result captured.** The token was created and verified, the process was created suspended, assigned to the job before resume, its token read from the host (same values as the created token), and resumed. It exited **`0xc0000022` (`STATUS_ACCESS_DENIED`)** in 25 ms **with no captured line, including `CHILD_START`**: zero stdout bytes and zero stderr bytes. Job query succeeded, 1 total and 0 active processes; no timeout, so no termination was needed and no `TerminateJobObject` call was made. |
+
+The restricted gate order (scratch read and write, then denied sentinel read, FileOnly deletion and ParentOnly deletion) has
+**no captured result for any check.** Whether child entry or an ordered operation was reached is not established by silence. The host's observations after the restricted child are
+the only outcome data: the sentinel, both deletion targets and the scratch copy were byte-identical to their before snapshots
+(SHA-256 and file identity equal), every protected descriptor and parent descriptor equal to setup, every parent listing
+unchanged, and the scratch copy was **not** rewritten. The host classified the case as "child exited without emitting a result
+(start or loader failure)", stopped the matrix and returned. That classifier label does not identify a proven failing stage; no ordered gate outcome was established.
+
+### 13.5 Evidence classes
+
+**Observed (this host, token, build, one run).**
+
+1. The control is valid and shows the fixtures, grants and capture path work for the ordinary token.
+2. With exactly this closed token, `CreateRestrictedToken`, `CreateProcessAsUserW`, pre-resume job assignment and `ResumeThread`
+   all succeeded for the unelevated user with no privilege widening, and **the child process terminated with
+   `STATUS_ACCESS_DENIED` with no captured stdout or stderr.** Process creation succeeded. This is not evidence of denial
+   of a source operation or proof that child entry was never reached. The child emitter ignores `WriteFile`'s result, so absent output alone cannot prove absent execution. No diagnosis was run.
+3. Host before/after snapshots show matching source-fixture bytes, identities and descriptors; no intervening-write history was measured. The host performed no source mutation after setup.
+
+**Inference (not observed, not established by a page).**
+
+- A required image, DLL, section or other resource might have failed the second restricting-SID access check if it lacked an
+  effective grant. No system-resource descriptor or loader access was measured here. This hypothesis is **consistent with** the
+  observed failure and **is not shown** to be its cause: the experiment does not identify which object, which check or which
+  loader stage returned the status (the image, a system DLL or `KnownDlls` section, the working directory, the desktop or
+  another resource). No diagnosis probe was run.
+
+**Not established.**
+
+- Whether the sentinel read, the FileOnly deletion and the ParentOnly deletion would be refused under this token: they were
+  not evidenced by captured operation results; whether they were attempted is not established. This section is **neither a pass nor a deletion counterexample.**
+- Whether a child can reach and complete its ordered gate under one restricting SID with only the grants dispatched here; any configuration that adds
+  restricting SIDs or widens grants on system directories is a different configuration and was not run.
+- Everything section 12.4 and section 12.5 list as unknown for other tokens, builds, operations and file systems, and Git, Schannel
+  or GCM compatibility, handle or process isolation, desktop isolation and credential behavior.
+
+### 13.6 Limits, defects and what this does not establish
+
+- One run, one build, one volume, one synthetic SID, one launch function per token; each result is a single observation.
+- **Capture defects (recorded, nothing reconstructed).** The command-capture wrapper `cmd-run1-20261015T203020Z.*` expanded
+  `%ERRORLEVEL%` at parse time, so `cmd-run1-20261015T203020Z.exit.txt` reads `exit=0` and is **not** the host's exit code, which
+  was not measured (by code inspection the restricted-gate stop path returns 35). The host's own `STOP` and `RUN exit` records and
+  the child result lines are the evidence. The first toolchain capture (`toolchain-identity-20261015.txt`) printed unexpanded
+  variables for the same reason, the second (`-b`) failed because the batch file was invoked without a path, and the third (`-c`)
+  is the valid one; all three are retained. The host `CHILD-RESULT` records for the `CHILD_START` and `DONE` lines print
+  `observed=failure` only because those two lines carry no `observed` field; their verdicts are `expected`.
+- **Build.** `build-v1-a1` failed for the child: `_countof` was used without `<stdlib.h>` (warning C4013 then link error LNK2019); the host
+  compiled in that build. One include line was added to the child only and the pair was rebuilt as `build-v1-a2` (0 warnings at
+  `/W4`, build exit 0). Both build directories are retained; only the `a2` executables were run. The failed attempt did not run
+  anything.
+- The launch-function difference stands as a limitation; no causal claim that the token or its flag is the only variable.
+- No grandchild, DACL-change, token-escape, host-handle, parent-spoofing or additional write probe was run. The restricted
+  private desktop, the handle list and the job were configured and used by the host; whether the child ever reached `user32` is
+  unknown.
+- This does not establish P9, source-copy correctness, an object-supply design, escape resistance, a credential boundary, or
+  Git, Schannel or GCM compatibility, and it does not select, rank or recommend a mechanism or a changed configuration. Whether
+  the result ends the single-restricting-SID line, calls for a different bounded configuration, or something else is for Codex.
+
+### 13.7 Provenance
+
+Retained, uncleaned and ignored by Git under `logs/executor/p9-full-restriction-gate/`: `src/p9gate-host-v1.c` (SHA-256
+`ef204f1d...7774`), `src/p9gate-child-v1.c` (`4d8ed6ae...1306`; the `a1` version `c79b4573...5b5f` is recorded in
+`static-review-v1.txt`), `build-p9gate.ps1`, `build-v1-a1/` (failed) and `build-v1-a2/` (`p9gate-host.exe` `8f238420...8418`,
+`p9gate-child.exe` `7ac6c60f...1fa2`, `build.log`, `imports-child.txt`, `imports-host.txt`), the two static reviews, the three
+toolchain captures and `toolchain-identity.bat`, `runs/run-20261015T203020Z-24964/` (the two fixture trees and
+`out/host-results.jsonl` with `child-ctl.stdout.jsonl`, `child-res.stdout.jsonl` and the two empty stderr captures), the command
+capture files, and `manifest-20261015.sha256` (37 entries; its own digest `b7ea3d14...8276`). Commands, each once: `build-p9gate.ps1 v1 a1`
+(failed), `build-p9gate.ps1 v1 a2`, then `build-v1-a2\p9gate-host.exe host` through `cmd.exe /c` with output redirected to the
+command-capture files. The only runs of this experiment are the one control and the one restricted child. Fixture roots were
+preserved with their protected DACLs (`ctl` retains its sentinel and rewritten scratch copy; `res` retains all four
+fixtures and the unmodified scratch copy); cleanup and any permission reset were not evaluated and are not authorized by this
+slice. Agent qualification stays `Blocked`/`TargetsNotReal`, both allowances unused; Git/GitHub qualification is separate and
+unstarted. The historical concurrent-replay 409, target-test 500, disposal `NullReferenceException` and unnamed Api 2067/2068
+failure remain separately unexplained, and no later pass establishes flakiness or irrelevance.

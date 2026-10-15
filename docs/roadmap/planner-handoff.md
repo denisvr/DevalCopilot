@@ -5,6 +5,169 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## Full-restriction gate report accepted; GO to publish inconclusive evidence (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+e2510c55112ec55f1fb8a030c1f2e005822926ca, 0/0, empty index; exactly three
+modified documents and no untracked paths. Planner before this record:
+743ba7f3199230e64e12a53006986ce7b23f846fb12462f7bdcd43c9a4185dff;
+all prior bytes preserved. Generated client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Accept the bounded experimental report, not the configuration or P9. The
+ordinary control produced seven named lines; its five operations and host
+observations agree. The restricted process was created suspended, associated
+with its private job and resumed, then recorded exit 0xc0000022 in 25 ms with
+zero captured stdout/stderr. Both job queries reported one total and zero
+active processes. Host snapshots show the restricted fixtures unchanged.
+No widened grant, retry or later probe was observed. All 37 evidence digests
+match manifest b7ea3d14b29b4e9defdd38a26a90c2372b8424a9292fba8e14d36d9bf74a8276.
+Review artifacts and original returned documents are under
+logs/planner-review/p9-full-restriction-gate/review1/.
+
+Codex corrected reporting only in section 13 and its current-work entry:
+process creation succeeded, so do not call this a proven absence of launch;
+no ordered operation result was captured, which does not prove no child
+code or operation executed. The child emitter ignores WriteFile's return.
+No independent child-entry observation exists. Loader/resource denial is
+conditional inference, with no system-resource ACL or failing-object diagnosis.
+No stronger startup or cause claim is accepted. This has no relationship to
+ADR-0050's proven NotLaunched classification. No source, binary or raw capture
+was changed, and no experiment was rerun.
+
+The executor's challenge that the closed grants may prevent initialization
+is material and plausible, not a demonstrated general impossibility. The
+selected gate intentionally forbade expanding grants. Its inconclusive
+outcome is sufficient to close this experiment; do not repeat it, add a SID,
+change a system ACL or silently replace its object-supply architecture.
+No further configuration, diagnostic probe or next slice is selected here.
+Codex will select the next bounded work after publication verification.
+
+Preserve the false wrapper exit=0 (host exit unmeasured), two failed toolchain
+captures, missing-include a1 build failure, valid a2 binaries, newly selected
+SDK 10.0.28000.0, and all raw outputs and roots. Earlier SDK observations are
+historical, not overwritten. Host capture has eight explicit # metadata lines
+and 272 JSON records; the first reviewer parser tried the metadata as JSON
+and emitted errors in the tool record, then the corrected read-only parse
+retained and counted them separately. Neither parse ran a child.
+
+GO covers only the frozen three modified documentation paths, including
+current-work and this planner record. Manifest:
+logs/planner-review/p9-full-restriction-gate/publication-manifest.json.
+Publish one commit: docs: record full-restriction launch gate outcome,
+with the Claude Sonnet 5.5 co-author trailer and sole parent equal to the
+verified baseline. Verify all manifest raw hashes/lengths, normalized modes/
+blobs and parent entries before staging and after commit. Normal fast-forward
+push and live ref verification only. No edits, manifest refresh, experiment,
+validation rerun, generation, closure diff or next slice by the executor.
+Stop on any baseline, manifest, inventory, staging or remote discrepancy.
+
+ADR-0050 stays Proposed, P9 unproven and B paused. No mechanism or production
+change is accepted. Owner decisions remain design-only. Agent qualification
+stays Blocked/TargetsNotReal, both allowances unused; Git/GitHub qualification
+is separate and unstarted. No real Git/GCM/helper/provider or credential call,
+installation, profile, login, ledger reset, cleanup or permission reset.
+Preserve all ignored evidence and roots/protected DACLs, the v1 stop-gate
+defect and the separately unexplained concurrent-replay 409, target-test 500,
+disposal NullReferenceException and unnamed Api 2067/2068. Later passes prove
+neither flakiness nor irrelevance. No frozen probe binary is approved for reuse.
+
+## Deletion-route publication verified; selected full-restriction viability gate (2026-10-15)
+
+Independent verification: main; HEAD/local origin/main/live main all
+e2510c55112ec55f1fb8a030c1f2e005822926ca, 0/0, empty index and clean
+tracked/untracked tree before this record. Sole parent
+8ed77baea6f5f90e78636d25b8684c3a092d7b8d; subject and Claude trailer match.
+The three modified paths, modes/blobs, parent entries and working raw
+hashes/lengths match frozen manifest
+71c232fbca6ec5b0f7568e5338c807551a49479ea6c421aaa4bc891427e07409.
+Evidence: logs/planner-review/p9-delete-routes/publication-verification.json.
+Prior planner SHA-256: 04d3a164ee08b4b4ac2a574b61167d87a746240ab88f501a68901ed57f1cc1c8;
+all prior bytes preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+No publication, experiment or product validation repeated.
+
+Decision: the tested WRITE_RESTRICTED configuration is insufficient for P9.
+Do not patch it, change source ACLs, or accept a post-write detector. Select
+one owned full-restriction viability experiment, labelled A2 (experimental
+only): CreateRestrictedToken with DISABLE_MAX_PRIVILEGE, exactly one fresh
+synthetic restricting SID, no WRITE_RESTRICTED, no other flags or SID changes.
+Microsoft documents two access checks for restricting SIDs and limits
+WRITE_RESTRICTED to write evaluations:
+https://learn.microsoft.com/en-us/windows/win32/secauthz/restricted-tokens
+https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken
+This motivates an experiment, not a claim that removing the flag fixes P9.
+
+Question: can this exact configuration start under the existing unelevated
+user without non-owned ACL changes, use a granted detached scratch copy,
+and refuse source reads and both measured deletion routes? A child that
+cannot read the live source would require a different object-supply design
+(such as an independently owned copy) before production use. That is a
+hypothesis for later design, not an amendment of Proposed ADR-0050, not a
+Git object-copy implementation, and not evidence of GCM compatibility.
+
+Use new versioned dependency-free C source/binary and unique complete
+captures under ignored logs/executor/p9-full-restriction-gate/. Freeze all
+previous harnesses, fixtures and manifests. At most two sequential children:
+one ordinary CreateProcessW control, then one restricted CreateProcessAsUserW
+child. Keep the differing launch API as a limitation; no causal equivalence
+claim. Both use fixed executable/argv, private desktop, explicit stdio handle
+list and pre-resume non-breakaway kill-on-close job. No grandchildren.
+No privileges enabled, elevation, profile, service, helper or credential use.
+
+All new fixture descriptors, grants, labels and file operations are confined
+to a new canonical non-reparse owned run root. Grant synthetic-SID RX only
+to the owned executable area; grant needed scratch access to the detached
+fixture copy, output and TEMP. Grant no access to system/user directories,
+source fixtures, real repositories or old roots. No broad restricting SID,
+capability, null DACL or ambient fallback. If loader, desktop, capture,
+containment or termination cannot work under these limits, record and stop;
+never expand grants to make the run green.
+
+Use fresh source fixtures: a private readable sentinel (ordinary user may
+read it; no synthetic-SID source grant), a FileOnly deletion fixture and a
+ParentOnly deletion fixture with protected read-back DACLs as section 12.
+Use separate source and scratch copies of fixed fictitious bytes, no real
+Git objects. Close fixture I/O handles before launch. The ordinary child must
+read the sentinel and scratch copy, write scratch, and delete both designated
+deletable files; host observations must agree before restricted launch.
+Restricted fixtures are fresh equivalents. Ordered restricted gates: prove
+scratch copy read/write; source-sentinel read denied; FileOnly delete denied;
+ParentOnly delete denied. After each operation emit a named raw result and
+check the expected result before the next. First unexpected result stops
+the child; the host also stops the matrix. Never run later probes after a
+source mutation or a failed prerequisite. Complete captures and host snapshots
+remain even on failure. No DACL/token/host-handle escape probe in this gate.
+
+Record exact token metadata (including flags/restricting SIDs), descriptor
+masks/flags, job query success and zero-active accounting, outcomes and
+before/after bytes/presence. Redact personal SIDs before writing retained
+logs; keep synthetic SIDs. A loader failure or counterexample is a valid
+inconclusive/negative outcome. Finite passing cases would not establish P9,
+source-copy correctness, escape resistance, Git/GCM or provider compatibility.
+
+Append section 13 to the feasibility note; preserve sections 1-12 byte for
+byte. Add one short current-work entry; preserve this planner and generated
+client. Expected inventory: three modified documents, no new tracked or
+untracked files. Build only the probe after static gate review; one canonical
+run, with affected reruns only for a named harness defect, complete retained
+logs and no configuration widening. Validate changed links, diff, byte/secret
+checks, protected hashes, inventory and evidence manifest. No product builds,
+suites, browser checks, generation, real calls, setup or cleanup. Return an
+unstaged/uncommitted/unpushed diff for review; no commit/push authority.
+
+Candidate B remains paused; no production mechanism selected. ADR-0050 stays
+Proposed and P9 unproven. The owner accepted the restricted GCM/base profile
+and residual identity risk for design only, not execution or credentials.
+Runtime activation also remains blocked by supported-version/real compatibility
+qualification, durable containment/exclusion and human resolution/rearm.
+Agent qualification stays Blocked/TargetsNotReal, both allowances unused;
+Git/GitHub qualification is separate and unstarted. Preserve v1's stop-gate
+protocol defect, all ignored evidence and retained roots/protected DACLs, and
+the separately unexplained concurrent-replay 409, target-test 500, disposal
+NullReferenceException and unnamed Api 2067/2068. Later passes prove neither
+flakiness nor irrelevance. No cleanup, ledger reset or new authority.
+
 ## Deletion-route diagnosis accepted; GO to publish bounded evidence (2026-10-15)
 
 Independent preflight: main; HEAD/local origin/main/live main all
