@@ -410,3 +410,28 @@ Each was repeated once in a corrected form (P1b, P3b, P4b). The scripts `httpdou
 - Why the client sent a second POST in the lost-response scenario; what that second POST answered.
 - Exactly-once remote execution, an atomic identity-and-ref guarantee, or the absence of a residual race.
 - Real Git/GitHub compatibility qualification (not started and separate from the Agent ledger). Agent qualification stays `Blocked`/`TargetsNotReal` with both allowances unused. The historical concurrent-replay 409, the older target-test 500, the disposal `NullReferenceException` and the unnamed Api 2067/2068 failure remain separately unexplained.
+
+## 8. Decision addendum (2026-10-15): owner scope and Proposed ADR-0050
+
+*An addendum. Sections 1 to 7 are the historical evidence and limitations as published and are not amended by it; where they say "unresolved", the addendum records only what the owner and Codex have since decided for design purposes.*
+
+**Owner decision.** The owner explicitly accepted advancing only the *preparation* of an execution contract within a restricted profile: an already installed, explicitly enabled, noninteractive Git Credential Manager; the recorded
+commit's parent confirmed as the tip of an existing remote branch; and the residual name-to-ID risk documented, not measured. It authorizes no real call, credential access, installation, login, commit or push, and it
+does not accept any ADR.
+
+**What the decision resolves, for design purposes only, and what it does not.**
+
+| Open item of section 6.2 | Status after the decision |
+|---|---|
+| U1 credential source | Narrowed to the restricted GCM profile for the first contract. Installed-version support, noninteractive behavior, helper side effects and environment needs remain **unverified** and are proof obligations in [ADR-0050](../decisions/0050-define-the-first-approved-github-branch-publication-execution-contract.md) (Proposed) |
+| U5 ancestor publication | Narrowed: the first profile requires the single recorded parent to equal the freshly admitted remote **default**-branch tip; no other unpublished ancestry and no fetch |
+| U6 name-to-ID window | Documented, accepted for design only; not atomically closed, not measured, not an authorization (ADR-0050, "Residual-risk disclosure") |
+| U2 lease form | The empty-expectation lease is the **proposed** transport guard (not permission to execute it; GitHub's behavior unverified) |
+| U10 reservation, U14 execution location | Exclusion is retained as an **independent durable publication fence** keyed by physical repository identity and acquired atomically with the claim (a selected conceptual mechanism; an `Active` lease alone is not exclusion and lease supersession cannot remove the fence); the transport scratch is a **proposed** narrow ADR-0008 extension; schema and implementation are separately bounded contracts |
+| U11/U13 real-helper and provider compatibility | **Unresolved.** Separate, unstarted, needing its own explicit decision; separate from the Agent qualification ledger |
+| U3/U7, U4, U8, U9, U12 | Addressed as proposed contract text or proof obligations in ADR-0050; none is accepted. For U8 the proposal is that a request only records an explicit intent and the supervisor of the original live host session claims it once; a restart leaves it dormant, and the human rearm and resolution path is a separately reviewed activation prerequisite. The source-write-denial requirement stays visibly unproven (ADR-0050 P9) |
+
+Sources read for the proposal on 2026-10-15 (page text kept as reading aids under ignored `logs/executor/first-push-evidence/r3-sources/`): GCM `docs/configuration.md`, `docs/environment.md`, `docs/credstores.md` and
+`docs/faq.md` (`main` branch, not the installed version), git-ls-remote and gitrepository-layout, GitHub's published GraphQL schema (`Repository.defaultBranchRef`), and Microsoft Learn's job-object, accounting, limit,
+completion-port and `AssignProcessToJobObject` pages. These are documentation, not compatibility evidence. No probe, real helper or provider call was made for this addendum or for ADR-0050, and the unchanged
+executable evidence of sections 3 to 5 is retained.

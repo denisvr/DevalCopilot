@@ -5,6 +5,376 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## ADR-0050 correction accepted; GO to publish the proposal only (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+e2e89110f9db44d3e96cea21f2d5989abc255af5, 0/0, empty index; five paths
+(4 M including planner, 1 untracked ADR). Planner before this record:
+30d4ac3ada88d0a555ca8f355a7d46ae8f6ee3ae601b35caf9482cd4884e546a;
+all prior bytes remain preserved. Generated client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+R1-R3 are accepted for this documentation-only preparation outcome: explicit
+live-session intent, one initial supervisor claim/launch, inert replay in every
+state, dormant old intents, operation-scoped duplicate prevention, conservative
+process-creation evidence, all gates on AlreadyPresent, the independent physical
+publication fence surviving lease supersession, and distinct local versus real
+qualification proof boundaries. The static walkthrough covers the nine requested
+scenarios. Neither contract acceptance nor runtime readiness follows.
+
+Codex confirms the proposed release classes conditionally: proven NotLaunched
+(including pre-launch AlreadyPresent), or proven local termination plus a fully
+admitted acknowledgement/no-update classification and the required final
+identity/ref evidence. A generic exception, status string or equality alone is
+insufficient. Earlier unresolved timeout, lost response, malformed/truncated
+output, identity mismatch or other attention condition wins; later observations
+cannot erase it. Post-launch '=' and client rejection require complete-invocation
+no-update semantics proved for the supported Git contract. Remote rejection and
+unknown effects retain the fence. No real-compatibility proof exists yet.
+
+Codex added that explicit precedence/proof paragraph to decision 8 and clarified
+I4 accordingly, with no other executor-document changes. The returned corrected
+ADR is preserved as logs/planner-review/adr50/review/returned-correction1-adr50.md,
+SHA-256 0f457cb91ce90163a97ce0048363ccc3220412f253b5ff39db7758f05c6f41d1.
+No binary evidence was invalidated. Independent final checks: 220 local links,
+zero broken; diff whitespace and selected secret-shape checks clean. Published
+evidence sections 1-7 are unchanged. Retain the prior source hashes and all
+executor results; no probe/build/suite/mutation/journey/generation was repeated.
+
+P9 is an unresolved feasibility blocker, not a demonstrated property: no
+source-write-denial mechanism is selected or proved. Alternates, job lifetime,
+an after-the-fact comparison and the owner's name-to-ID design acceptance do
+not establish it. Do not weaken P9, claim feasibility or implement publication
+from this proposal. Supported GCM versions, real qualification and the human
+resolution/rearm contract remain activation blockers too. These open blockers
+are acceptable to publish as an explicitly Proposed document, not to accept
+or activate as an executable contract. No additional owner approval is asked
+for the already accepted restricted profile or design-only identity risk.
+
+GO authorizes ONLY publication of the five reviewed documentation paths frozen
+in logs/planner-review/adr50/publication-manifest.json, 4 M and 1 A, including
+current-work and this planner record. Verify manifest hash and every entry,
+stage only literal manifest paths, verify staged modes/blobs, one commit with
+the exact e2e89110 baseline as its sole parent, normal fast-forward main push
+and live ref equality. Stop on discrepancy or push failure; no force/reset/
+rebase/merge. No further edits, tests, regeneration, closure diff or next slice.
+If already published matching this manifest, verify/report instead of repeating.
+
+ADR-0050 stays Proposed; accepted ADRs stay unchanged. No runtime implementation,
+real gh/GCM/provider/credential access, installation/login, qualification run,
+ledger reset or cleanup is authorized. Agent qualification remains
+Blocked/TargetsNotReal, both allowances unused; Git/GitHub qualification stays
+separate and unstarted. Preserve all artifacts, retained roots, historical
+capture/failure limitations and the four separately unexplained failures.
+Codex resumes next-step selection after independent publication verification.
+Prior records follow unchanged.
+
+
+## Proposed ADR-0050 review (2026-10-15): NO-GO, bounded contract correction
+
+Independent preflight: main; HEAD/local origin/main/live main all
+e2e89110f9db44d3e96cea21f2d5989abc255af5, 0/0, empty index, five paths
+(4 modified including this planner, 1 untracked ADR). Planner before this
+record: c11601871a9ad4dd35d415ecc188c3a68b5b112917611052bbbf8df1e5bd4cb9;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+Independent checks: 16 reading-aid hashes match, 220 local links resolve,
+diff whitespace clean. No executable checks/probes or real integrations ran.
+Original five-path raw baseline and returned ADR are retained under
+logs/planner-review/adr50/review/.
+
+The draft respects the owner scope and Proposed status. The executor's concern
+about ADR-0008 superseding the active lease is valid. Several internal rules
+still conflict, so no publication or ADR acceptance GO is given.
+
+R1 (P1), decisions 6 and transitions X3/X4/X7/X9/X29: the supervisor is
+restricted to read-only resolution and cannot make the first claim, while no
+unambiguous first-launch owner is assigned. Identical replay both returns
+recorded state and conflicts after a claim. A new request after a pre-claim
+crash is required but prohibited by the existing-intent conflict rule. Codex
+closes the dispatcher ambiguity left in the planning prompt: the request
+records intent only; a supervisor may claim that explicit intent ONCE and
+perform its initial launch in the original live host session. It may not
+invent intent, reclaim, relaunch or auto-arm old intent after restart.
+Identical requests always return recorded state without triggering execution;
+different identities/values for the same intent conflict. A pre-claim restart
+does not implicitly arm the intent; no recovery/rearm API is invented here.
+Any later human rearm path remains a separately reviewed activation gate.
+Do not impose a global SHA prohibition across unrelated approved scopes.
+
+R2 (P1), I10/decisions 2-4/8/refusal list: one authorized host invocation is
+not exactly one remote effect; replace that invariant and related causal
+wording while retaining internal-resend/delete-between-creates uncertainty.
+Only durable evidence specifically proving no push process was created may
+classify a start failure as NotLaunched; a generic reported exception cannot.
+Helper interactivity/errors known only after launching the push are post-launch
+evidence, not pre-launch refusals. Only known configuration/eligibility defects
+can refuse before launch. Apply all selected execution-eligibility gates to the
+AlreadyPresent path too; do not add an unselected base-gate bypass. Preserve
+the equal-SHA no-op control and fix the repeated claim that every existing ref
+was refused. Align release classifications with the full-attempt uncertainty
+rules and repair references to nonexistent decision 9.
+
+R3 (P1 design refinement), exclusion and activation: choose an independent
+durable publication fence keyed by physical repository identity, acquired
+atomically with the claim and consulted by every mutating admission including
+workspace preparation. Existing lease supersession may still record lost
+ownership trust, but cannot remove/bypass that fence or permit a new mutator.
+Lease ownership proof and publication exclusion are separate facts; an Active
+lease alone is not sufficient. Add the reconciliation/admission compatibility
+extension to the proposed ADR map without editing accepted records. Include
+startup ordering and competing-host proof obligations; no mechanism is assumed
+implemented. Unknown/remote-rejected attempts retain the fence. A conclusive
+human resolution/rearm contract is a prerequisite to runtime activation, not
+a generic cleanup, reset or unrecorded escape. No such operation is designed
+or authorized in this correction.
+
+Also classify future proof obligations by their cheapest valid boundary:
+owned local tests can prove pins, claim/fence behavior and job lifetime;
+actual GCM/GitHub compatibility still needs separate explicit authorization.
+Do not imply that every local proof requires a real-provider qualification.
+Keep the stronger source-write-denial requirement P9 visibly unproven:
+alternates and Windows jobs do not establish filesystem access restrictions.
+Do not weaken it or silently design an ACL/token/sandbox here; any feasibility
+conflict must return for planner discussion. Microsoft's job documentation was
+read directly: process-group lifetime/accounting and process security are
+separate boundaries. This is an implementation gate, not compatibility proof.
+
+Correction remains in the SAME executor chat, documentation only: ADR-0050,
+current-work, and only necessary consistency changes in its index entry and
+the appended evidence section 8. Sections 1-7 of the published evidence remain
+byte-identical. Preserve this planner and client. No new probe, build, suite,
+mutation, journey, credential access or real-helper/provider call. Final once:
+links, diff/secret hygiene, exact scope and protected hashes, plus an explicit
+static walkthrough of first dispatch, replay, pre/post-claim restart, helper
+error, repeated wire request and lease supersession. Return Proposed and
+unstaged/uncommitted/unpushed. Owner profile/design-risk acceptance stands;
+no reapproval is requested and no runtime risk waiver is inferred. Both
+qualification gates and every historical failure/limitation remain unchanged.
+Prior records follow unchanged.
+
+
+## Owner decision recorded; select ADR-0050 contract preparation only (2026-10-15)
+
+The owner explicitly accepts advancing ONLY the contract preparation within
+the restricted profile, with the residual identity risk documented. This
+resolves the earlier pending answer for design purposes; it is not inferred
+from the screenshot's preselection or a template containing two alternatives.
+The earlier explicit profile answer and the later owner decision in this chat
+are authoritative. Do not ask for either decision again.
+
+Accepted scope: already installed, explicitly enabled, noninteractive Git
+Credential Manager; the recorded commit's parent must be the freshly confirmed
+tip of an existing remote branch. The name-to-ID race is identified and
+analysed, not numerically quantified: a fresh identity read, fixed destination,
+redirect refusal and later observation cannot atomically prevent replacement
+of a name's repository or undo a wrong effect. Acceptance permits preparing
+the contract with this limitation; it does not authorize runtime activation,
+credential access, real Git/GitHub/helper calls, installation, login or publication.
+
+Independent current preflight: main, HEAD/local origin/main/live main all
+e2e89110f9db44d3e96cea21f2d5989abc255af5, 0/0, empty index, no untracked files,
+only this planner file modified. Its hash before this record was
+1be8df5d5d6ba61d4f110b5782fbafb8868cc6e529cd3ced954950225ffa0cf7;
+all earlier bytes are preserved. The client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+Publication of the prior four-path evidence diff has already been independently
+verified; it must not be repeated. Current-work's old prepublication wording is
+a historical delivery checkpoint, not contrary Git evidence.
+
+Select ONE new documentation-only executor slice: prepare Proposed ADR-0050,
+Define the first approved GitHub branch publication execution contract. Codex
+supplies the design direction below; Claude transcribes, verifies primary
+facts and challenges contradictions, without selecting architecture or accepting
+the ADR. No runtime code or new probe is selected. Allowed executor paths:
+docs/decisions/0050-define-the-first-approved-github-branch-publication-execution-contract.md,
+docs/decisions/README.md, an appended decision addendum to the existing execution
+evidence note, and docs/roadmap/current-work.md. Preserve this planner file.
+Do not rewrite historical probe findings or mark old ADRs superseded yet.
+
+The proposed contract must codify these planner choices:
+
+- Scope and authority: separate explicit execution request, exact coherent
+  ADR-0048 consent and ADR-0040/0043 source/target/binding, whole-value rereads
+  under short transactions. No Agent, automatic consent, PR, correction push,
+  force overwrite, deletion or expansion to another SHA/ref/repository.
+- Compatibility and exposure: pinned supported GCM only, explicit opt-in and
+  noninteractive operation, no ambient credential-helper/global configuration
+  import, token extraction or setup. Helper-owned credential lifecycle and
+  installed-version support need explicit proof; never promise zero helper
+  effects or qualification from documentation. Unsupported cases refuse.
+  Choose the remote default branch as the first profile's base: its fresh,
+  fully admitted tip must equal the one recorded parent. Refuse empty/missing
+  default refs and owned-branch equality with the default branch. This is a
+  conservative narrowing of the accepted existing-remote-branch profile, not
+  authority to publish arbitrary unpublished ancestors or fetch them.
+- Transport: one full approved SHA to one exact owned refs/heads ref on
+  github.com, create-only with the exact explicit empty expectation; existing
+  equal SHA is an observation without a send, any different existing ref refuses.
+  No implicit/nonempty lease, plus refspec, mirror, tags or recursive submodule
+  send. Record the narrow non-overwrite interpretation explicitly, not a general
+  reversal of ADR-0005's prohibition of force-push/history rewriting.
+- Fresh gates and residuals: local owned branch/HEAD must equal the approved
+  commit, physical source/lease/readiness and complete scope are fresh; require
+  fresh bound remote ID/names and exact default/owned refs. Repository permission
+  observations are at most conservative input screening, never proof of Git's
+  principal or branch-write authority. Server rejection remains possible.
+  Bracket the effect with identity/ref observations, refuse redirects and
+  disclose the owner's design-only residual-risk acceptance exactly.
+- Isolation: per-attempt host-owned bare transport scratch with configuration
+  isolated from source/global/includes and a proven read-only path to the source
+  common object store, no writes to the active checkout or source object store.
+  Explicitly propose the narrow ADR-0008 execution-location extension, retaining
+  source physical proof, repository exclusion and transport lifecycle proof.
+  Alternates resolving an object is not sufficient ownership evidence.
+- Dispatch: durable intent, single-use conservative claim before launch and
+  repository-wide reservation, including other runs and approvals. A supervisor
+  may act only on an explicit intent. No implicit publication after restart,
+  automatic resend or resetting consent. No transaction spans a process/network.
+  A separate third launch marker is not required. Conclusive pre-launch refusal
+  can be distinguished; a claim without a recorded result remains uncertain.
+- Lifetime and evidence: Windows child-tree containment must be established
+  before external mutation, with conclusive termination evidence for local
+  resource release; a PID or elapsed timeout alone is insufficient. Local
+  termination never proves a remote non-effect. Propose 15-second remote-read
+  bounds, a 120-second send deadline and 32 KiB per stream/64 KiB combined
+  capture; these are candidate bounds requiring later executable validation,
+  not measured transfer capacity. No raw credential/provider output in the
+  journal or ordinary responses; preserve bounded admitted evidence safely.
+- Recovery: distinguish NotLaunched, AlreadyPresent, observed acknowledgement/
+  rejection and NeedsAttention/MayHaveStarted, without promising exactly-once
+  effects. Acknowledgement describes admitted server evidence, equality alone
+  never proves causality, a final rejection/later absence does not exclude an
+  earlier applied-and-moved effect, and transport-internal resend is possible.
+  Read-only reconciliation and append-only observations never relaunch or erase
+  uncertainty. Release execution resources/exclusion only on the separate
+  proofs appropriate to process termination, ownership and remote uncertainty;
+  if unresolved, keep attention/exclusion rather than inventing recovery.
+
+The draft must contain a complete transition/invariant table, proof obligations,
+changed-ADR map, compatibility/refusal limits, risk disclosure and proportional
+future validation matrix. Do not invent unreviewed wire/schema or UI designs;
+identify those as separately bounded implementation contracts. Primary source
+confirmation can narrow/qualify a factual claim but cannot silently choose a
+different credential source, wider ancestry, weaker exclusion or broader effect.
+Material contradictions return to Codex for discussion. No accepted runtime
+contract or implementation sequencing is delegated to Claude.
+
+Validation now is documentation-only: local links, diff/secret hygiene, exact
+scope and unchanged planner/client hashes. No build, suite, mutation, journey,
+client regeneration or synthetic/real transport probe. Future real GCM/GitHub
+qualification is separate, unstarted and needs a separate explicit decision.
+Return unstaged/uncommitted/unpushed for Codex GO/NO-GO; no publication GO,
+closure diff or next-slice selection. Agent qualification remains
+Blocked/TargetsNotReal, both allowances unused; all four historical failures
+remain separately unexplained and every prior limitation/artifact is retained.
+Previous pending-decision records follow as history, not current blockers.
+
+
+## Owner accepted the restricted profile; identity-risk decision pending (2026-10-15)
+
+The owner explicitly selected "Sim, usar esse perfil restrito (recomendado)"
+for the first question in this planner chat. Carry that decision forward:
+the first proposed executor is restricted to an already installed, explicitly
+enabled, noninteractive Git Credential Manager and a commit whose parent is
+the confirmed tip of an existing remote branch. Other helpers, unpublished
+ancestry and empty repositories are outside that initial profile. Do not ask
+for this profile approval again.
+
+The separate question about accepting the residual name-to-ID race has not
+been answered. It remains pending, not implied by the profile acceptance.
+No runtime slice is dispatched, no execution ADR accepted, and no actual
+credential access, helper/provider invocation, installation, login, commit or
+push is authorized by this answer. Qualification and all prior limits stand.
+Git baseline remains e2e89110f9db44d3e96cea21f2d5989abc255af5 on main;
+only the planner selection/decision record is modified, index empty. Previous
+publication verification and both the proposal and review records follow.
+
+
+## Evidence publication verified; first-push contract awaits owner decisions (2026-10-15)
+
+Codex independently verified e2e89110f9db44d3e96cea21f2d5989abc255af5:
+main; HEAD/local origin/main/live refs/heads/main equal; 0/0; empty index;
+clean tracked/untracked tree. Sole parent:
+810b99b8e4f9c5e4d1b92266d8039a34f5c7c39e. All four paths (3 M, 1 A),
+committed and parent modes/blobs, working raw hashes/lengths, message and
+co-author trailer match the frozen manifest (SHA-256
+32a13a565fa1a703535ec512fcc82d72633209787bbfff9dce8afa409933e092).
+No validation or generation was repeated. Evidence is retained in
+logs/planner-review/first-push-evidence/publication-verification.txt.
+Planner before this record:
+af59a3fc61db820082ffb3c2fb10f99c4db1e5ffa9ac3a9991a7e3571f97e91b;
+all earlier bytes remain preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Planning resumes now, not another evidence or closure publication round.
+Push/PR execution and ambiguity recovery remain the next material Increment 6
+gap; richer observations/history are optional. The other recorded MVP/release
+gaps and both qualification boundaries remain open. No runtime slice is
+selected until the material choices below are answered by the owner.
+
+Codex's direction for a future reviewed execution ADR, not an accepted runtime
+contract: explicit durable request distinct from consent; exact coherent
+approval/scope and strict local branch-tip/SHA equality; fresh physical proof;
+repository-wide reservation under the active lease, including across runs and
+approvals; one durable may-have-started claim before launch; a supervisor may
+act only on that explicit intent; no automatic resend or restart relaunch;
+unknown effects remain unknown and ref equality never proves causality.
+Termination must be evidenced, not inferred from elapsed time. A new process
+containment boundary and any isolated transport location need their own scoped
+review and an explicit ADR-0008 extension where applicable. These are technical
+design responsibilities for Codex, not thirteen owner approvals.
+
+For the first executor, prefer a narrow create-only boundary: explicit full
+SHA/ref, one exact empty-expectation guard, no overwrite, no nonempty/implicit
+lease or other force mode, and existing equality reported without a send.
+This technical direction requires codification and review before any runtime
+use; the previous force-mode exclusion is not a present permission to execute
+the candidate flag. Concrete process/output limits remain to be fixed in that
+bounded prompt; no unbounded transfer or process is approved here.
+
+Two concrete owner questions are pending, presented in this planner chat:
+
+1. Whether to scope the first contract to an explicitly enabled, already
+   installed Git Credential Manager in noninteractive mode, without importing
+   ambient Git configuration or doing login/setup, and require the recorded
+   commit's parent to be the freshly confirmed tip of an existing remote branch.
+   This reduces reachable-history exposure and compatibility scope; other
+   helpers, unpublished ancestry and empty repositories would be refused.
+   No real credential configuration/store/helper is accessed by this decision.
+2. Whether the owner accepts the residual name-to-ID race for preparing the
+   contract: fresh identity before send, fixed destination, redirects refused
+   and a fresh observation afterwards do not atomically pin Git's name-addressed
+   transport to the bound repository ID and cannot undo a wrong effect. An
+   explicit rejection keeps product push blocked; no silent risk acceptance.
+
+Codex recommends the restricted compatibility/history profile. The residual
+identity-risk decision belongs to the owner; neither a preselected UI option,
+silence nor elapsed time supplies acceptance. If accepted, Codex still has to
+select and dispatch a concrete bounded implementation/design slice. Claude
+must not implement or choose the next step from this pending record.
+
+Primary GCM documentation was read directly: its main-branch environment and
+configuration pages document GCM_INTERACTIVE=0 / credential.interactive=false
+and the Windows credential-store default. This supports a noninteractive
+candidate, not installed-version or real-account compatibility. The initially
+tried release-branch documentation URLs returned 404; no installation or helper
+invocation followed. Sources:
+https://raw.githubusercontent.com/git-ecosystem/git-credential-manager/main/docs/environment.md
+https://raw.githubusercontent.com/git-ecosystem/git-credential-manager/main/docs/configuration.md
+Git's push manual also documents explicit empty-expectation semantics. All real
+compatibility remains unverified. No real probe is authorized even if the owner
+accepts the proposed design profile/risk; that needs a separate explicit decision.
+
+Agent qualification remains Blocked/TargetsNotReal, both allowances unused;
+Git/GitHub compatibility qualification is separate and unstarted. Preserve all
+retained roots, artifacts, logs and recorded limits. The concurrent-replay 409,
+older target-test 500, disposal NullReferenceException and unnamed Api 2067/2068
+failure remain separately unexplained; later passes prove neither flakiness nor
+irrelevance. No real gh/provider call, CLI setup, ledger reset, cleanup, stage,
+commit or push is authorized by this planning checkpoint. Prior records follow.
+
+
 ## First-push execution evidence review (2026-10-15): R1-R5 accepted; GO for documentation publication only
 
 Independent preflight: main; HEAD/local origin/main/live refs/heads/main all

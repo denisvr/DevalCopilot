@@ -128,6 +128,13 @@ supersedes it.
   (accepted, additive; one protected, bodyless, read-only observation of the repository permission GitHub reports (`viewerPermission`: one of six exact literals or an explicit null) for the
   stored default authentication on the already-bound recorded repository, through one fixed `gh api graphql` invocation, shown only when the freshly observed repository ID equals the
   ADR-0043 binding; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and it neither requires nor changes an ADR-0048 approval)
+- [ADR-0050: Define the first approved GitHub branch publication execution contract](0050-define-the-first-approved-github-branch-publication-execution-contract.md)
+  (proposed, documentation only, not accepted; a design-only contract for one future create-only push of the exact ADR-0048-approved commit to its exact owned branch, restricted to an already
+  installed, explicitly enabled, noninteractive Git Credential Manager and a commit whose single parent equals the freshly admitted remote default-branch tip, with per-attempt isolated transport
+  scratch (a proposed narrow ADR-0008 execution-location extension), an independent durable publication fence (a proposed ADR-0006/0008 admission and reconciliation compatibility extension), a
+  request that only records intent and a single-use may-have-started claim by the supervisor of the original live host session, Windows child-tree containment, an unproven source-write-denial
+  requirement, and observations that never conclude causality; it activates nothing, authorizes no real call, credential access, installation, login, commit or push, accepts only the owner's design-time documentation of the residual
+  name-to-ID risk, and leaves Git and GitHub compatibility qualification separate and unstarted)
 
 ## Status values
 
