@@ -422,3 +422,196 @@ the restricted child's S4, H5 and H6 and every grandchild observation were obtai
 factual results are kept in sections 11.2 to 11.4 and are not presented as acceptance evidence under the dispatched gate. The
 frozen harness was not repaired, rerun or approved for reuse, and no evidence was removed. Host snapshots and job accounting still
 corroborate the in-gate deletion and the observed aftermath.
+
+## 12. Diagnostic: file DELETE versus parent FILE_DELETE_CHILD under an ordinary and a restricted token (owned harness; one bounded run)
+
+> **Diagnostic evidence, not a production configuration and not P9 acceptance.** This section was appended in a later slice
+> (baseline `main` at `8ed77baea6f5f90e78636d25b8684c3a092d7b8d`, verified equal to local and live `origin/main`). Sections 1 to 11
+> are preserved unchanged, including section 11's protocol deviation, its stop-gate defect and its frozen binary, which was not
+> run, repaired or reused here. It selects no mechanism and no workaround. ADR-0050 remains Proposed, P9 remains unproven,
+> candidate B remains paused, and an inconclusive reading of any item below is valid.
+
+### 12.1 Question and design
+
+Section 11 observed that the restricted child deleted a named source fixture file and did not investigate why. DeleteFileW is
+documented to need either delete permission on the file or delete-child permission in the parent directory (DOC D01). This
+slice isolates those two routes with a closed 2 x 4 matrix: an ordinary-token control and a restricted-token case for each of
+four independent fixtures that differ **only** in two permission bits.
+
+| Case | File DELETE | Parent FILE_DELETE_CHILD |
+|---|---|---|
+| Neither | absent | absent |
+| FileOnly | granted | absent |
+| ParentOnly | absent | granted |
+| Both | granted | granted |
+
+**Harness.** A new dependency-free C program, `p9delete-v1.c`, built once with the installed MSVC 19.51 (`_MSC_FULL_VER`
+195136260), Windows SDK 10.0.26100.0, static CRT, no package download, on Windows `10.0.26200.9711`, run once on an NTFS volume.
+The frozen v1 harness and binary of section 11 were neither run nor modified. The host creates eight fresh fixtures and verifies
+every descriptor by read-back before any child exists, then runs at most eight sequential children (four ordinary, then four
+restricted), with no grandchildren, no command shell, no Git, GCM, helper, network, credential, account, service or AppContainer
+profile and no elevation. Nothing outside the new ignored run root was inspected or changed except the read-only inspection in
+section 12.6.
+
+**Child control flow (inspected before the run).** The child role is straight-line code: validate that the target path is
+under the run's `cases` directory, `SetLastError(0)`, **one** `DeleteFileW` on the designated new file, emit one JSON line with the
+return value and the raw Win32 error, return 0. It has no loop, no continuation, no DACL, handle-duplication, token, process or
+other file operation, and no process creation. The source contains exactly one `DeleteFileW` call; the host never deletes. The
+host reads the effective token of the created, still suspended child from outside (`OpenProcessToken` on the process handle)
+before resume, so the child does not probe its own token.
+
+**Launch APIs (not equivalent).** The ordinary controls used `CreateProcessW` with no token argument; the host-observed
+child token showed the same privilege, group and integrity values as the host's own token. The restricted cases used `CreateProcessAsUserW` with a restricted primary token. Both used the same explicit
+handle list (the pipe write end and a NUL stdin), flags `EXTENDED_STARTUPINFO_PRESENT`, `CREATE_SUSPENDED`,
+`CREATE_UNICODE_ENVIRONMENT` and `DETACHED_PROCESS`, a fixed executable path, an environment of only `SystemRoot`, `TEMP` and
+`TMP` (the case's scratch), the scratch as working directory, a private desktop per child and a private job (kill-on-close,
+active-process limit 1, no breakaway) to which the suspended child was assigned before `ResumeThread`. The two launches
+therefore differ in the token, the launch function, the private desktop's DACL (the restricted case's synthetic SID was added),
+and the restricted case's synthetic grant on its own scratch; no ordinary-token `CreateProcessAsUserW` control exists.
+
+**Restricted token.** `CreateRestrictedToken` over the harness's own unelevated primary token (Limited, integrity `0x2000`) with
+`DISABLE_MAX_PRIVILEGE` plus `WRITE_RESTRICTED` and one fresh synthetic restricting SID per restricted case (created in process,
+no account). The host-observed child token had `IsTokenRestricted` 1, one restricting SID, one privilege
+(`SeChangeNotifyPrivilege`) against five for the ordinary child, the same 15 groups and integrity, and
+`TokenAccessInformation.Flags` raw `0x2a18` against `0x2a00` (the same values as section 11). The synthetic SID was granted
+`FILE_ALL_ACCESS` (container and object inherit) **only** on that case's new scratch directory and on the private desktop; it
+was not granted any access to a source fixture file or parent directory.
+
+### 12.2 Fixtures and descriptors
+
+Each case has its own new directory under `runs/run-20261015T194158Z-18820/cases/<ord|res>-<Case>/` (the harness's run root is
+under the ignored `logs/executor/p9-delete-routes/`) holding `parent/target.txt` (identical 24-byte content, SHA-256
+`28263af2...67ae`) and `scratch/`. Canonical containment under the run root and the absence of reparse points from the gate
+directory down were verified. For every case, **both** the file and the parent directory carry a **protected** DACL that was set
+by the host and read back before launch and again immediately before launch (no drift) and after the child:
+
+- the DACL contains exactly **one** `ACCESS_ALLOWED` ACE with flags `0x0` (no inheritance), for the current user (redacted as
+  `<current-user>`; the file's owner and primary group also read back as `<current-user>`). Read-back control flags
+  were `dacl_present=1`, `dacl_protected=1` and `dacl_auto_inherited=1` (the last set by the system, not requested). No other
+  ACE exists, so no inherited or other ACE can supply an omitted right;
+- file mask `0x00120089` (`FILE_READ_DATA`, `FILE_READ_EA`, `FILE_READ_ATTRIBUTES`, `READ_CONTROL`, `SYNCHRONIZE`), plus `DELETE`
+  (`0x00130089`) for FileOnly and Both;
+- parent mask `0x001200a9` (`FILE_LIST_DIRECTORY`, `FILE_READ_EA`, `FILE_TRAVERSE`, `FILE_READ_ATTRIBUTES`, `READ_CONTROL`,
+  `SYNCHRONIZE`), plus `FILE_DELETE_CHILD` (`0x001200e9`) for ParentOnly and Both.
+
+Before launch the host also recorded each file's attributes (`0x20`), volume serial, file index, link count (1) and content hash,
+and each parent's identity, and confirmed that every fixture I/O handle was closed (the host's open handle count was 137 to
+140 at the launches). As a descriptor sanity check only, a host-side `AccessCheck` with a duplicate of the ordinary token
+granted `DELETE` on the file only for FileOnly and Both and `FILE_DELETE_CHILD` on the parent only for ParentOnly and Both
+(not run for the restricted token; it is not a deletion).
+
+### 12.3 Raw outcomes
+
+Raw Win32 codes: 0 success, 5 `ERROR_ACCESS_DENIED`, 2 `ERROR_FILE_NOT_FOUND`. "Present" is the host's observation after the
+child had exited and its job reported 0 active processes (one poll was enough in every case; absent cases read raw error 2).
+Output: `runs/run-20261015T194158Z-18820/out/` and `matrix-run-20261015T194158Z.txt`.
+
+| Case | Ordinary token: `DeleteFileW` | Ordinary: host observation | Restricted token: `DeleteFileW` | Restricted: host observation |
+|---|---|---|---|---|
+| Neither | failed, 5 | file present, identity and hash unchanged | failed, 5 | file present, identity and hash unchanged |
+| FileOnly | succeeded | file absent | **failed, 5** | file present, identity and hash unchanged |
+| ParentOnly | succeeded | file absent | **succeeded** | file absent |
+| Both | succeeded | file absent | succeeded | file absent |
+
+All eight children exited 0, produced exactly one well-formed result line, were launched suspended, contained and assigned to
+their job before resume, and were observed with `TotalProcesses` 1 and `ActiveProcesses` 0 (each ran in under 10 ms). Every
+descriptor and parent identity was unchanged after every child, and every parent listing showed only the expected remaining
+entry (`target.txt` present, or none after a deletion). All four ordinary controls matched their expectation before any
+restricted case ran. No setup, descriptor, control, capture, containment, authority or termination prerequisite failed, so
+no stop occurred, and the restricted outcomes were planned measurements.
+
+### 12.4 Evidence classes
+
+**Observed (this host, token, build, one run each).**
+
+1. Ordinary token: DeleteFileW was denied only in Neither and succeeded when either the file's `DELETE` or the parent's
+   `FILE_DELETE_CHILD` was granted. These controls agree with the documented either-or rule below.
+2. Restricted token (candidate A configuration): Neither was denied and unchanged; **FileOnly was denied (5) and the file was
+   unchanged although the file's DACL granted the current user `DELETE`**; **ParentOnly succeeded and the file was deleted
+   although the file's DACL granted the current user no `DELETE`**; Both succeeded. With the synthetic restricting SID absent
+   from every source descriptor, the outcome therefore differed between the two routes: it depended on which of the two
+   permissions the current user held.
+3. In the restricted matrix, granting the current user `FILE_DELETE_CHILD` on the parent was the only variation that allowed the
+   deletion; granting `DELETE` on the file alone did not.
+
+**Documented rules (Microsoft Learn, retained as `sources/D01` to `D24`, read 2026-10-15).**
+
+- D01: to delete or rename a file "you must have either delete permission on the file, or delete child permission in the parent
+  directory"; `DeleteFile` marks the file for deletion on close; a read-only file fails with `ERROR_ACCESS_DENIED`. D03 lists
+  `FILE_DELETE_CHILD` (`0x40`) as the right, for a directory, to delete a directory and the files it contains, and
+  D02 lists `DELETE` among the standard rights valid for files and directories.
+- D19 (`CreateRestrictedToken`) and D18 (restricted tokens): restricting SIDs are "considered only when evaluating write access"
+  under `WRITE_RESTRICTED`, and access requires both the ordinary and the restricting check to pass (carried from S01 and S02).
+  Neither page defines which rights are write access.
+- D05, D24: `SetNamedSecurityInfo` with `PROTECTED_DACL_SECURITY_INFORMATION` sets a protected DACL (the required right is
+  `WRITE_DAC`) and propagates inheritable ACEs to existing children; the ACEs here are non-inheritable. D09 and D17: an object
+  without a DACL grants full access and a DACL with no matching allowing ACE denies, which is why the fixtures carry one explicit
+  ACE and no other.
+- D13 (`CreateProcessAsUserW`) and D14 (`CreateProcessW`) are the pages of the two creation functions used; this slice did not
+  read them for a statement that they are equivalent for this purpose, and no equivalence is claimed.
+- Pages read in the relevant part for the statements above: D01, D02, D03, D05, D09, D18, D19 and D24; the others (D04, D06 to
+  D08, D10 to D17, D20 to D22) are retained as the references for the native calls the harness uses and are not cited for a
+  claim.
+
+**Inference (not observed, not established by a page).**
+
+- Observation 2 is consistent with the restricting check being applied to the file-level `DELETE` access that `DeleteFileW`
+  needs when the user's `DELETE` is the only route, and with the parent-level `FILE_DELETE_CHILD` route not being blocked by the
+  restricting SIDs. It is **not** consistent with the simple hypothesis offered in section 11.4 that `DELETE` on the file is
+  outside the rights the write-restricted check treats as write: under that hypothesis FileOnly would have succeeded. The
+  experiment does not show which access check, which requested rights, or which internal path produced either outcome, and it
+  does not show that the parent route is evaluated against the restricting SIDs at all.
+- Section 11's source fixtures inherited the run root's ordinary-user access. A present-day read-only inspection (12.6) of the
+  surviving old fixture directories shows inherited ACEs granting the current user full control, which would include both
+  permissions of this matrix. That is **not** a reconstruction of the deleted file's historical descriptor, which was not
+  recorded; it is consistent with section 11's deletion being a Both-like case, and no cause of the historical result is inferred
+  beyond that consistency.
+
+**Unknown.**
+
+- Why the two routes differ under this token, and which Windows component or check decides each one; nothing here reaches
+  internals.
+- Whether a different restricting SID set, flag set, integrity level, launch function or token (including an ordinary token
+  launched through `CreateProcessAsUserW`) changes any cell; the launch function and the token were varied together.
+- Behavior of other write-class operations (rename, which D01 groups with deletion, append, links, streams, delete-on-close,
+  directory deletion, `WRITE_DAC` and `WRITE_OWNER`), another file system, other Windows builds, a repeat of this run,
+  or a real repository's ACLs (none was inspected).
+- Whether any P9-relevant mechanism could avoid the parent route; no design was evaluated.
+
+### 12.5 Limits and what this does not establish
+
+- One run, one Windows build, one volume, files only, one restricting-SID shape (synthetic, absent from the source descriptors),
+  one ACE per descriptor, no repetition; each cell is a single observation.
+- The child's token was read from the host after creation and before resume, not by the child; the child's DeleteFileW result
+  and the host's later observation are the only deletion evidence. The ordinary controls validate that the operation works and
+  that the descriptors behave as documented for the ordinary token; they do not validate the restricted launch path.
+- This does not establish P9, the denial or the permission of any other operation, a credential boundary, Git, Schannel or
+  GCM compatibility, handle or process isolation, or desktop isolation, and it does not select, rank or recommend a
+  mechanism, a configuration or a workaround. Whether the observation changes the candidate comparison, requires a
+  specified mechanism, or ends candidate A is for Codex.
+- Section 11's retained limitations stand: the stop-gate defect and protocol deviation of v1, warning C4189 in that build,
+  its failed build attempts, and the header lookup and command-capture naming records are unchanged. This slice's own record is
+  below.
+
+### 12.6 Present-day read-only inspection of surviving v1 fixtures (labelled present-day evidence)
+
+`icacls` was run read-only on the surviving v1 directories `res`, `res-gc` and `ctl` and on two files of `res`. Each showed
+inherited ACEs (`(I)`), including the current user with full control and several other principals with modify; the output is
+retained with SIDs and the account name redacted as `old-fixture-readonly-icacls-20261015.txt`. Nothing was mutated, and the
+deleted file's historical descriptor was not reconstructed from this or from assumptions. The captured output file was redacted in place; the original
+unredacted capture was not retained. The retained text is a redacted derivative, not an unmodified raw capture.
+
+### 12.7 Provenance
+
+Retained, uncleaned and ignored by Git under `logs/executor/p9-delete-routes/`: `src/p9delete-v1.c` (SHA-256 `57194b87...92f3`),
+`build-p9delete.ps1` (`6b06bbbe...c073`), `build-v1-a1/` (`p9delete.exe` `9e85dd17...97c9`, `build.log`, object file),
+`runs/run-20261015T194158Z-18820/` (the eight fixtures and `out/host-results.jsonl` `59a7dac3...8b19` with the eight child
+outputs), `cmd-run1-20261015T194158Z.txt` and its exit record, `derive-matrix.sh`, `matrix-run-20261015T194158Z.txt`,
+`old-fixture-readonly-icacls-20261015.txt`, the 24 retained documentation pages under `sources/` (`D23`, `getprocesstimes`, was
+fetched and is not cited), and `manifest-20261015.sha256` (46 entries; its own digest `d54e38a6...4421`). Commands, each once:
+`build-p9delete.ps1 v1 a1`, then `build-v1-a1/p9delete.exe host`. The build printed a `vswhere.exe is not recognized` line from the
+Visual Studio environment script (this build script, unlike v1's, did not extend `PATH`), compiled with `cl exit: 0` and no compiler
+warning at `/W4`. No build, run, case or harness defect required a rerun, so no failed attempt exists in this slice. Fixture
+roots were preserved with their protected DACLs (eight parent directories and three surviving files: ordinary Neither,
+restricted Neither and restricted FileOnly). Future cleanup and any required permission changes were not evaluated and are not
+authorized by this slice; no cleanup was attempted.

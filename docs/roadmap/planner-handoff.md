@@ -5,6 +5,130 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## Deletion-route diagnosis accepted; GO to publish bounded evidence (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+8ed77baea6f5f90e78636d25b8684c3a092d7b8d, 0/0, empty index; exactly three
+modified documents, no untracked paths. Planner before this record:
+40fab92cb632a206c87dd2ebfc346db746f0a32df6be398f373236aa0d9b7d76;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Evidence outcome accepted: eight raw child results and job termination
+observations match; four ordinary controls completed before the restricted
+phase. The restricted Neither/FileOnly cells denied deletion; ParentOnly/Both
+deleted. The child path contains one DeleteFileW and no follow-on probe.
+Protected single-ACE descriptor masks and read-back/observation evidence
+support this bounded diagnostic. The launch API and token were varied
+together, with per-case private resources; this is not an isolated proof of
+an internal access-check path, the historical v1 cause, or a P9 mechanism.
+
+All 46 evidence digests match unchanged manifest
+d54e38a6d94613b6feb540616621d5634efcf75f9f0bf54a343570002a304421.
+Published sections 1-11 are a raw byte-identical prefix; 131 local links
+resolve; added-byte/secret-shape checks and diff check pass.
+Returned note and raw baseline are under
+logs/planner-review/p9-delete-routes/review1/. No experiment or build rerun.
+
+Codex corrected two final reporting phrases in section 12: the icacls file
+was redacted in place, so the retained derivative is not the original raw
+capture (not retained); and future cleanup/permission changes were not
+evaluated or authorized, rather than asserting every retained object needs
+an owner DACL reset. No original capture was reconstructed and no fixture
+was changed. Protected DACLs, retained roots and provenance limits remain.
+
+GO covers only the three frozen documentation paths including current-work
+and this planner record. Freeze raw hashes/lengths, normalized modes/blobs
+and baseline entries at logs/planner-review/p9-delete-routes/publication-manifest.json.
+Publish one commit: docs: record restricted-token deletion route diagnosis,
+with the Claude co-author trailer and sole parent equal to the verified
+baseline. Then normal fast-forward push and live ref verification.
+No edits, probe/build/validation rerun, generation, closure diff or next
+slice by the executor. Stop on any manifest, inventory, baseline or remote
+discrepancy; do not regenerate the manifest to fit changed inputs.
+
+ADR-0050 remains Proposed, P9 unproven and B paused. No new production
+configuration, mechanism or runtime authority follows. No real Git/GCM/
+helper/provider or credential operation, installation, qualification,
+ledger reset or cleanup is authorized. The old v1 binary remains unapproved
+for reuse. Owner design-only decisions and all limitations stand.
+Agent qualification stays Blocked/TargetsNotReal, both allowances unused;
+Git/GitHub qualification remains separate and unstarted. Preserve all
+ignored artifacts, roots, v1's protocol deviation and the four separately
+unexplained historical failures. Later passes prove neither flakiness nor
+irrelevance. Codex selects the next task after publication verification.
+
+## Counterexample report published; selected owned deletion-route diagnosis (2026-10-15)
+
+Independent publication verification: main; HEAD/local origin/main/live main all
+8ed77baea6f5f90e78636d25b8684c3a092d7b8d, 0/0, empty index and clean tracked/
+untracked tree before this record. Sole parent
+b5f985e25381b3fd990b79b49ed080d6511d33aa; subject and co-author match.
+All three modified paths, modes/blobs, parent entries and raw hashes/lengths
+match manifest 15a025037f5802eb833a9bd58106dab15e103ba377d755b49ef98aba882dbe4a.
+Evidence: logs/planner-review/p9-token-gate/publication-verification.json.
+Planner before this record: 9ec25b0c23132282e4610c19188638e650cf554ee944faf4dc7dcd53174453e5;
+all prior bytes are preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+No repeated publication or experiment.
+
+Decision: diagnose the observed deletion using a new, bounded owned fixture
+harness before choosing another configuration or mechanism. Microsoft documents
+file DELETE or parent FILE_DELETE_CHILD as alternative deletion permissions:
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-deletefilew
+https://learn.microsoft.com/en-us/windows/win32/fileio/file-security-and-access-rights
+https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants
+This motivates the matrix; it does not establish the historical deletion's cause.
+
+Keep candidate A's token flags, synthetic restricting SID, scratch grants,
+private desktop, explicit inheritance and pre-resume job containment. New
+fixture-only protected DACLs isolate four ordinary-user permission combinations:
+neither file DELETE nor parent FILE_DELETE_CHILD; file only; parent only; both.
+No synthetic-SID source grant, token workaround, owner-repository ACL change
+or candidate B. Validate effective descriptor contents rather than assuming
+inheritance did what the setup intended. Ordinary controls must yield denial
+for neither, success for the other three, with matching host observations.
+
+Use new versioned source/binary under ignored logs/executor/p9-delete-routes/.
+The defective v1 remains frozen and must not run. At most eight sequential
+children (four ordinary controls, then four restricted cases on fresh fixtures),
+no grandchildren. Each child performs exactly one DeleteFileW on its designated
+new file and exits: no S4/H5/H6 or follow-on probe. This explicitly replaces
+the earlier viability matrix's stop rule for this diagnostic only: allowed
+deletion is a planned measured outcome, not a reason to chain additional
+actions. Any failed control, setup, capture, containment or termination gate
+stops subsequent cases. Never adapt permissions to obtain a preferred result.
+
+Fixture ACL operations and deliberate deletion of new named fixture files
+are authorized only within the new canonical, non-reparse owned run root;
+private token/process/desktop/job operations stay within this harness.
+Record source and parent DACL rights/flags before launch, ordinary/restricted
+raw results, file presence and content before/after, token metadata and job
+termination. Keep user/logon SIDs redacted. Close fixture I/O handles before
+launch to avoid sharing-conflict explanations. No elevation or new privileges.
+No real Git, GCM/helper, provider, credential, network or profile operation.
+
+If useful, read only current ACLs of surviving old owned fixtures, clearly
+labelled present-day evidence. Never mutate them or reconstruct the deleted
+file's historical descriptor from assumption. Distinguish observed route
+dependence, inference and an unproven internal/historical cause. A negative
+or inconclusive outcome is acceptable; no P9 acceptance follows.
+
+Append results as section 12 of the feasibility note, preserving sections
+1-11; add a short current-work entry; preserve this planner. Expected tracked
+inventory: three modifications, no untracked paths. Keep source/build inputs,
+unique complete outputs and manifests under the new ignored root. One probe
+build and canonical matrix after stabilization; affected reruns only for a
+recorded harness defect. No product validation, generation or cleanup.
+Return unstaged/uncommitted/unpushed for review; no commit/push authority.
+
+ADR-0050 stays Proposed, P9 unproven, B paused. Owner design-only decisions
+stand; no alternative production configuration is selected. Agent qualification
+stays Blocked/TargetsNotReal with both allowances unused; Git/GitHub qualification
+remains separate and unstarted. Preserve all prior evidence, roots, failures
+and limitations, including the v1 stop-gate defect and four separately unexplained
+historical failures. No later pass establishes flakiness or irrelevance.
+
 ## Candidate-A experimental report accepted; GO to publish evidence only (2026-10-15)
 
 Independent preflight: main; HEAD/local origin/main/live main all
