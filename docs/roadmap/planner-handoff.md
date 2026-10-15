@@ -5,6 +5,403 @@ Read [AGENTS.md](../../AGENTS.md), [current-work.md](current-work.md),
 [roadmap](mvp-delivery-plan.md), [engineering context](../engineering-context.md)
 and accepted [ADRs](../decisions/README.md). Git and code prevail over summaries.
 
+## AppContainer report corrections accepted; GO to publish bounded evidence (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+750bf6c727908d18c47bda7d73660b8edb2861a3, 0/0, empty index; exactly three
+modified documents and no untracked paths. Planner before this record:
+3a6d0bf9462dc46b0c76be8d9f982e2102b7a18813e9b049b9a2d2509a3a5d58;
+all prior raw bytes preserved. Generated client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+R1-R3 accepted for the experimental report. The original malformed receipt,
+producer, binaries, 51-entry manifest and all original artifacts remain
+unchanged; the strict original parse failure remains. The derived summary
+is valid JSON, visibly derived and not a repair, with independently checked
+moniker, package SID, folder/HRESULT facts, source hashes and record provenance.
+It introduces no profile query or reconstructed evidence. All 51 original
+hashes and all four correction hashes match. Original manifest:
+b1f8f8e6a52e56849a347053596703dea19b73b8f593b482a36b22fbe7c6afc4;
+correction manifest:
+1a2141b0e157ef4facd34cb5131e11c0dd088b0033b3b9395f656d9767676954.
+Sections 1-13 remain the exact 81391-byte baseline prefix. Independent checks
+and original returned correction documents:
+logs/planner-review/p9-appcontainer-gate/review2/.
+No native harness, derivation/validator script, profile query, build or suite
+was run by Codex in this review; checks parsed retained files read-only.
+
+The observed path remains supported: ordinary operations succeeded, app
+scratch read/write succeeded, four source operations returned error 5 and
+host snapshots/termination records agree. This is a bounded combined
+AppContainer/DACL/integrity observation, not P9, a mechanism acceptance or
+proof of all error paths. The CloseHandle, host capture-write and unchecked
+GetExitCodeProcess defects remain in the frozen binaries. No binary reuse,
+production use or new native attempt is accepted.
+
+Provenance corrections are accepted: pre-redaction text originals are
+unavailable; retained copies are derivatives; embedded object-file paths
+remain disclosed; host transcript comments are distinguished from JSON
+records; class-46 absence is scoped; attempt 1's root/log and the absence of
+a profile contents/security/registry snapshot are explicit. The profile has
+only creation/folder/token evidence, not a fresh retention verification.
+
+Codex made final reporting-only clarifications in section 14 and current-work:
+DONE plus termination corroborates the recorded path, not the numeric child
+exit code independently of the unchecked API. The wrapper measures host exit,
+not child exit. A later validator invocation was executor-reported refused
+by exclusive-create, with original log hash unchanged and no accepted result;
+no separate failed-invocation capture was supplied, and none is reconstructed.
+Executor checks/counts are labelled as applying to the returned correction;
+Codex's final documentation checks are separate. No artifact was rewritten.
+
+GO covers only the frozen three modified documentation paths, including
+current-work and this planner record. Freeze raw hashes/lengths, normalized
+modes/blobs and baseline entries at
+logs/planner-review/p9-appcontainer-gate/publication-manifest.json.
+Publish one commit: docs: record AppContainer fixture gate evidence,
+with the Claude Sonnet 5.5 co-author trailer and sole parent equal to the
+verified baseline. Normal fast-forward push and live ref verification only.
+Verify the manifest and exact staged/committed inventory; baseline comparison
+uses the recorded parent, never the new HEAD. No edits, manifest refresh,
+experiment, validation rerun, generation, closure diff or next slice by the
+executor. Stop on baseline, manifest, staging or remote discrepancy.
+
+Retain profile DevalCopilot.P9.Gate.6e2898f9b593578aa98d3297e6a731d5 and SID
+S-1-15-2-3528784686-543288942-2972599558-3957689933-405336475-2183898758-483271991.
+The one-profile/two-child authority is spent; no query, reuse, new profile,
+new child, deletion, cleanup or permission reset. ADR-0050 stays Proposed,
+P9 unproven, no production mechanism selected; B's production/credential
+integration remains paused. Agent qualification is Blocked/TargetsNotReal,
+both allowances unused; Git/GitHub qualification is separate and unstarted.
+No experimental real Git/GCM/helper/provider/network or credential operation,
+installation/login or ledger reset. Repository publication commands alone
+are authorized by the frozen publication prompt. Preserve every artifact,
+root/protected DACL, failed attempt/capture limitation, v1 stop-gate defect
+and separately unexplained concurrent-replay 409, target-test 500, disposal
+NullReferenceException and unnamed Api 2067/2068. Later passes prove neither
+flakiness nor irrelevance. Codex selects the next work after independently
+verifying publication; this GO selects no next implementation or experiment.
+
+## AppContainer gate review: NO-GO for reporting corrections only (2026-10-15)
+
+Independent preflight: main; HEAD/local origin/main/live main all
+750bf6c727908d18c47bda7d73660b8edb2861a3, 0/0, empty index; exactly three
+modified documents and no untracked paths. Planner before this record:
+14effb32d04369b9b7eaa9b4a4cf260c510d5b33b530c52acc5fa30649795554;
+all prior raw bytes preserved. Generated client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+
+Observed experimental path is supported. The six control operations returned
+success with win32=0; both sets of eight child records match the embedded
+transcript. App scratch read/write succeeded and all four source operations
+returned error 5. The retained app creation target is absent, three source
+file hashes/lengths match the fixed original bytes, and scratch matches the
+fixed rewritten bytes. Two termination records report one total, zero active,
+successful job query and direct termination. One profile creation follows
+control completion and precedes the app launch. All 51 evidence hashes match
+b1f8f8e6a52e56849a347053596703dea19b73b8f593b482a36b22fbe7c6afc4.
+Sections 1-13 remain the exact 81391-byte baseline prefix. No experiment,
+profile access, build, suite, generation or cleanup was run by Codex.
+Evidence: logs/planner-review/p9-appcontainer-gate/review1/.
+
+NO-GO applies to the current reporting/evidence presentation, not a finding
+that the observed AppContainer source refusals failed. Three bounded items:
+
+R1: runs/run-20261015T210720Z-16872/out/profile-receipt.json is malformed JSON.
+Its folder value contains unescaped backslashes; strict parsing fails at
+folder with Bad JSON escape sequence: backslash-A. SHA-256 of the original:
+ae0b57e45738632d3db2fc869181b36cf96c013a94642a6708bf33fd10e104be.
+The host writes the redacted path directly into JSON without JSON escaping.
+Do not change the original file or its sealed manifest, source or binary.
+Record the defect and add a distinctly labelled derived profile summary in
+correction1/, using the valid planned-moniker and retained host PROFILE/TOKEN
+records. Serialize and strictly validate that new summary; include source
+paths/hashes, the original receipt's invalid status and no claim of a fresh
+profile query or repaired original. Do not reconstruct any missing capture.
+
+R2: the harness does not satisfy the full requested native-error guard
+contract. Child op_open_close (p9ac-child-v2.c:98) returns success even if
+CloseHandle fails; EXPECT_OK checks only the boolean, so a control could
+continue after that failure. Host emit/write_capture do not propagate failed
+or partial capture writes/flushes into the gate; GetExitCodeProcess's BOOL
+is ignored (p9ac-host-v2.c:929). These are static defects/limitations, not
+observed failures in the canonical run and not assigned causes of history.
+Record the scope explicitly: the observed ordered path passed, while the
+complete error-path/stop contract is not established. No binary reuse or
+production acceptance follows. No source fix, fault injection or rerun is
+requested or authorized in this correction; broader guard auditing is not
+part of it. A later native attempt needs separately selected corrections.
+
+R3: correct provenance/precision in section 14 and the current-work entry.
+State whether pre-redaction originals of the four in-place edited text
+captures survive; if not, mark them unavailable, never reconstruct them.
+Call the retained copies redacted derivatives; distinguish runtime SID/path
+redaction, later text redaction and the embedded object-file paths. Keep the
+original 51 files/manifest unchanged and put all new correction evidence
+under correction1/ with a separate manifest. Host transcript is annotated:
+287 host plus 16 child JSON records and eight comment markers, not strict
+JSONL as a whole; the separate child files are valid JSONL. Scope class-46
+unreadability to this observed host/token/API query; do not claim ordinary
+tokens universally cannot return it. Fix "before anything was created" to
+"before fixtures, profile or children" (empty root/log existed). Distinguish
+source descriptor/label read-back from the profile's creation/folder receipt;
+no profile contents, security state or registry snapshot was taken.
+
+Keep sections 1-13 byte-identical, preserve this planner and generated client,
+and retain all observed positive results and the v1 pre-profile attempt.
+Only section 14, its current-work entry and new ignored correction evidence
+may change. Expected inventory remains exactly three modified documents,
+no untracked paths, empty index. Run read-only strict JSON checks of original
+and derivative (retain the named original failure), source/receipt field
+cross-checks, all 51 original hash checks, the correction manifest and focused
+link/byte/secret/diff/protected-hash checks. No product validation, probe,
+profile/ACL/security operation, network, helper, credential or cleanup.
+Return unstaged/uncommitted/unpushed in the same executor chat; no publication
+or next slice. A challenge is welcome with evidence; pause dependent work
+rather than silently broadening or weakening the correction.
+
+The one-profile/two-child authority is spent. Retain profile
+DevalCopilot.P9.Gate.6e2898f9b593578aa98d3297e6a731d5, package SID
+S-1-15-2-3528784686-543288942-2972599558-3957689933-405336475-2183898758-483271991.
+No requery, reuse, deletion, new profile or new child is authorized here.
+ADR-0050 stays Proposed, P9 unproven and no production mechanism selected;
+B's production/credential integration remains paused. Agent qualification
+stays Blocked/TargetsNotReal, both allowances unused; Git/GitHub qualification
+is separate and unstarted. Preserve the v1 stop-gate defect, all ignored
+artifacts and retained roots/protected DACLs, and the separately unexplained
+concurrent-replay 409, target-test 500, disposal NullReferenceException and
+unnamed Api 2067/2068. Later passes prove neither flakiness nor irrelevance.
+
+## Owner-authorized AppContainer fixture gate selected (2026-10-15)
+
+The owner answered "sim" in this planner chat to the immediately preceding
+bounded AppContainer decision prompt. This explicitly authorizes creation
+and retention of ONE new per-user experimental AppContainer profile and
+the proposed owned local gate. It does not authorize credentials, real
+network/provider qualification, production changes, cleanup or publication.
+The earlier pending-decision record below is historical and is resolved only
+for this gate. B's production/credential-dependent design remains paused.
+
+Verified dispatch baseline: main; HEAD/local origin/main/live main all
+750bf6c727908d18c47bda7d73660b8edb2861a3, 0/0, empty index; exactly one
+unstaged modification, this planner; no untracked paths. Prior planner
+SHA-256 b19df2632a9558e3c15aa69247aad6404db93d53092b8912256199a7dee1cf1a;
+all prior bytes preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+No profile, native harness or other experimental operation has run in the
+planner chat. Use a new executor chat for this selected outcome.
+
+Selected question: can one regular, zero-optional-capability AppContainer
+start, use a granted detached scratch fixture and refuse source creation,
+truncation and both measured deletion routes? This measures a combined
+AppContainer/DACL/integrity configuration, not the cause of a denial, every
+escape route, Git object-copy correctness, P9 or GCM compatibility.
+No production mechanism or replacement source-object design is selected.
+
+New versioned dependency-free C host and kernel32-only child under ignored
+logs/executor/p9-appcontainer-gate/. Installed MSVC/SDK only; capture actual
+versions, imports, exact commands and full failed attempts. Prior harnesses,
+binaries, captures, manifests and roots remain frozen. Statically review
+control flow, paths, native result checks and source hashes before the run.
+One canonical attempt, at most two sequential probe children and one profile.
+No automatic repeat after a profile was created or a probe child launched;
+a run-time defect returns to Codex. Build defects before that boundary may
+be corrected with retained versions/complete logs and renewed static review.
+
+Prepare independent fresh ctl/app fixtures under a canonical non-reparse
+NTFS run root. Use fixed fictitious bytes, ordinary-user protected source
+DACLs and read-back masks/inheritance. Ordinary control first; it must pass
+scratch read/write and all four source mutations, with host-confirmed effects,
+before profile creation. No real repository, credential or old fixture read.
+
+Only after a valid control, persist a unique planned profile moniker and
+then call CreateAppContainerProfile once for the current unelevated user,
+with no optional capability SIDs. Moniker: DevalCopilot.P9.Gate.<32 hex>,
+within the documented name bound. Abort on ERROR_ALREADY_EXISTS; do not
+reuse, derive an existing profile's SID or create another. Retain the new
+profile even on failure. Record the creation HRESULT, package SID and folder
+locator receipt before launch; do not recursively inspect profile contents
+or its registry. The OS-created profile folders/registry are the one
+explicitly authorized persistent exception to the owned run-root boundary.
+No manual profile ACL/registry changes or profile deletion.
+
+For app only: grant the new package SID read/execute on its owned bin area,
+read/write on owned scratch files, and needed traverse on scratch directories.
+Set Low no-write-up labels on new app scratch and descendants only. Keep
+source and executable integrity unchanged; read back labels (record an absent
+label and its documented default separately) and all granted masks/flags.
+No package/broad application SID source grant, no null DACL, no source label
+lowering, no system/user-directory grant and no ancestor permission changes.
+If any required setup/read-back needs privilege enabling or wider access,
+stop without adapting the configuration. Source refusals may be due to MIC
+as well as the package DACL; do not attribute them to either mechanism alone.
+
+Both launches: CreateProcessW with fixed image/argv, CREATE_SUSPENDED,
+EXTENDED_STARTUPINFO_PRESENT, CREATE_UNICODE_ENVIRONMENT and DETACHED_PROCESS;
+explicit stdout/stderr/NUL handle list; a private non-breakaway kill-on-close
+job, active-process limit 1, assigned before resume. Do not modify the window
+station/desktop or call/import USER32 in the child; no UI or grandchildren.
+For app add PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES using exactly the
+new package SID, CapabilityCount=0, Capabilities=NULL and Reserved=0. No LPAC,
+extra capabilities, token patch, broker, service, alternate user or fallback.
+Read the suspended child's token: app-container flag true, package SID equal
+to the new profile, Low integrity, not elevated. Record capabilities/groups/
+privileges safely; distinguish the zero requested capabilities from other
+OS-generated token attributes. For control confirm ordinary unelevated
+non-AppContainer identity. Any failed token check prevents resume.
+
+Explicit environment only: SystemRoot; TEMP/TMP in the child's own scratch;
+LOCALAPPDATA in control scratch or the new profile folder obtained through
+GetAppContainerFolderPath for app. Fixed scratch cwd. No PATH, home, auth,
+Git/GCM or caller-environment import. No explicit profile/credential operation
+by the child. The profile's own OS-provided writable storage is not evidence
+that scratch is its only writable location.
+
+Use six named operations in order: scratch read; scratch write/read-back;
+source CREATE_NEW; source TRUNCATE_EXISTING; FileOnly DeleteFileW; ParentOnly
+DeleteFileW. Separate source paths prevent interactions. Create/truncate
+open-and-close is the whole designated source operation; success is a possible
+mutation and must not be followed by a write or another operation in app.
+Source counterexamples require host-observed source changes. An unexpected
+success with unchanged source is inconclusive; redirection or another target
+is not diagnosed in this gate and must not be inferred from the return alone.
+FileOnly grants user file DELETE without parent FILE_DELETE_CHILD; ParentOnly
+is the reverse, as section 12. Control expects success throughout. App expects
+scratch success, then ERROR_ACCESS_DENIED for every source mutation, with
+unchanged host snapshots. Emit and check each result before proceeding;
+first unexpected result or output failure stops the child and matrix.
+Check partial/failed WriteFile, every setup/capture/wait/exit API result and
+host observations independently of child output. Missing output is missing
+evidence, never proof of absent execution or a loader cause.
+
+Bound each child to 30 s and each stream to 64 KiB, draining concurrently.
+On failure terminate only the owned job; prove successful accounting with
+zero active and direct process termination before disposing resources or
+making after-snapshots authoritative. If that proof fails, stop and report
+uncertainty; retain resources the child may still use. No later probe follows
+a source mutation, failed control, capture, containment or termination gate.
+
+Keep unique complete stdout/stderr, strict named JSON records, separate
+metadata, actual wrapper exit captured immediately (not parse-time cmd
+ERRORLEVEL), receipts, timestamps, before/after bytes/identities/DACLs/labels,
+profile/grant inventory and source/binary/evidence SHA-256 manifests. Redact
+personal/logon SIDs and personal profile paths before retaining any output;
+package SID/moniker and fixed fixture bytes may be retained. Do not capture
+full environment, credentials or profile contents. File hashes do not seal
+live ACL metadata; preserve the recorded descriptors and state this limit.
+
+Append section 14 to the feasibility note; sections 1-13 byte-identical.
+Add a short current-work entry, including owner authority, result and exact
+retained profile identifier. Preserve this planner and generated client.
+Expected tracked inventory: three modifications, no untracked paths, empty
+index. Validate changed links, byte/secret/diff checks, protected hashes,
+inventory and evidence manifest. No product build, suite, journey, mutation
+or generation. A negative/inconclusive outcome is valid. Return unstaged,
+uncommitted and unpushed for Codex review; no next slice or commit/push.
+
+Primary sources re-read by Codex for the native boundary: Microsoft Learn
+CreateAppContainerProfile, GetAppContainerFolderPath, Launch an AppContainer,
+UpdateProcThreadAttribute, Mandatory Integrity Control and SetNamedSecurityInfoW.
+Executor verifies relevant signatures/constants against installed SDK and
+reads the necessary primary sections; docs do not prove installed behavior.
+Challenge any unsafe/contradictory/impractical requirement with evidence and
+pause dependent work; no silent widening or manufactured consensus.
+
+ADR-0050 remains Proposed; P9 unproven; B authorized only for this local gate.
+Owner GCM/base/identity decisions remain design-only. Agent qualification is
+Blocked/TargetsNotReal, both allowances unused; Git/GitHub qualification is
+separate and unstarted. No real Git/GCM/helper/provider/network or credential
+operation, installation/login, ledger reset, cleanup or permission reset.
+Closing native handles after termination is normal resource disposal, not
+permission to delete retained artifacts/profile or reset fixture security.
+Preserve every prior limitation, v1 stop-gate defect and the separately
+unexplained concurrent-replay 409, target-test 500, disposal NullReferenceException
+and unnamed Api 2067/2068. Later passes prove neither flakiness nor irrelevance.
+
+## A2 publication verified; owner decision before an AppContainer profile gate (2026-10-15)
+
+Independent publication verification: main; HEAD/local origin/main/live main
+all 750bf6c727908d18c47bda7d73660b8edb2861a3, 0/0, empty index and clean
+tracked/untracked tree before this record. Sole parent
+e2510c55112ec55f1fb8a030c1f2e005822926ca; subject and Claude trailer match.
+All three committed paths, modes/blobs, parent entries and working raw
+hashes/lengths match frozen manifest
+5c414dca33bb68e68e292a989385a931e6a64257cf79b06293353669f127f2a3.
+Evidence: logs/planner-review/p9-full-restriction-gate/publication-verification.json.
+Prior planner SHA-256: 5967981948596626b458d2efaf4ac4e72009a8e248de3107f1359d97de8cd7d9;
+all prior bytes preserved. Client remains
+8d72cb7c0029f08d5e48a81f035117c667273a1732b066db603391bb6d29d104.
+No publication, probe or validation repeated.
+
+Decision: close the current A/A2 experimental sequence. A's tested parent
+permission route permits deletion; A2 provided no ordered child result and
+no demonstrated viable configuration. This establishes neither a general
+impossibility for restricted tokens nor the cause of the A2 failure. Do not
+retry either binary, add broad SIDs, grant system access or diagnose the
+loader without a separately selected contract. More observer UI and history
+would be optional improvements; they do not remove this release blocker.
+P9, real supported-version compatibility and human resolution/rearm remain
+runtime blockers. No push activation or P9 weakening is selected.
+
+Recommended next outcome, pending owner authority: one small, owned local
+AppContainer gate rather than another A2 variant. Primary documentation read
+2026-10-15 describes a regular AppContainer's user/package access intersection,
+its standard system-resource access, and profile creation with per-user/app
+folders and registry storage:
+https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer
+https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-createappcontainerprofile
+This motivates a feasibility gate; it is not installed behavior or proof of
+P9 or GCM compatibility. No helper compatibility conclusion follows.
+
+The proposed effect needing owner approval is creation and retention of ONE
+uniquely named per-user AppContainer profile, using the current unelevated
+user. Planner judgment: this is a new persistent OS setup effect beyond the
+previous gates' in-memory token and owned-fixture scope, which expressly
+excluded profile operations. Do not infer that authority from the owner's
+GCM/base or residual-identity decisions. Those design-only decisions stand
+and are not being asked again. No AppContainer operation has been performed.
+
+Concrete proposed gate if approved (not an executor dispatch): one ordinary
+control, then one regular AppContainer child using CreateProcessW with the
+security-capabilities attribute, zero optional capability SIDs, no network,
+LPAC, broker, service, alternate user or credential operation. At most two
+sequential children, no grandchildren, private pre-resume job containment,
+fixed executable/argv, checked output writes and bounded captures/deadlines.
+Use newly owned fictitious fixtures only: a detached scratch copy and
+independent source create, truncate, FileOnly delete and ParentOnly delete
+cases. Control effects must be host-confirmed before the container phase.
+Scratch read/write must succeed; every source write must refuse with unchanged
+host-observed fixtures. Stop at the first unexpected result or prerequisite
+failure. The gate measures the combined configured boundary, not which
+access check caused a denial and not all escape routes.
+
+Package-SID grants and reduced integrity labels are restricted to new owned executable/scratch fixtures plus
+the new profile's OS-created storage. No source grant to the package SID,
+real repository ACL change, system grant, profile reuse, elevation, extra
+capability, compatibility workaround or cleanup. Retain the new profile and
+fixtures; cleanup/deletion would require a separate decision. Object copying
+is fixture-only; no Git object-supply architecture is adopted. If the exact
+bounds cannot support launch, containment or capture, stop without widening.
+No real Git/GCM/provider, authentication or credential-store test is included.
+
+Owner decision requested: authorize only that bounded profile/fixture gate,
+or keep candidate B paused and select independent MVP work. No answer is
+inferred from silence or a preselected UI choice. Until explicit approval,
+B remains paused; no experiment or executor implementation is dispatched.
+After approval, Codex must issue a fresh bounded prompt with verified Git
+state, exact native setup, stop gates and acceptance evidence. This record
+is not permission to prepare/run an unbounded harness or publish anything.
+
+ADR-0050 stays Proposed, P9 unproven; no production mechanism selected.
+Agent qualification remains Blocked/TargetsNotReal, both allowances unused;
+Git/GitHub qualification is separate and unstarted. Preserve every ignored
+source, binary, failed attempt, capture limitation, retained root/protected
+DACL, v1 stop-gate defect and the four separately unexplained failures:
+concurrent-replay 409, target-test 500, disposal NullReferenceException and
+unnamed Api 2067/2068. Later passes prove neither flakiness nor irrelevance.
+No real calls, credential access, installation/login, ledger reset, cleanup,
+permission reset, commit/push or closure diff is authorized by this planning.
+
 ## Full-restriction gate report accepted; GO to publish inconclusive evidence (2026-10-15)
 
 Independent preflight: main; HEAD/local origin/main/live main all

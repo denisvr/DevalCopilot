@@ -774,3 +774,242 @@ fixtures and the unmodified scratch copy); cleanup and any permission reset were
 slice. Agent qualification stays `Blocked`/`TargetsNotReal`, both allowances unused; Git/GitHub qualification is separate and
 unstarted. The historical concurrent-replay 409, target-test 500, disposal `NullReferenceException` and unnamed Api 2067/2068
 failure remain separately unexplained, and no later pass establishes flakiness or irrelevance.
+
+## 14. Fixture gate: one regular AppContainer, granted scratch, source create/truncate/delete (owner-authorized; owned harness; one canonical run)
+
+The project owner authorized the creation and retention of ONE new per-user experimental AppContainer profile and this bounded local
+gate (planner record "Owner-authorized AppContainer fixture gate selected", 2026-10-15). That authority covers this gate only. It does
+not authorize credentials, real network or provider use, a production change, cleanup, a permission reset or publication. ADR-0050 stays
+Proposed, P9 stays unproven, and candidate B is authorized only for this local gate.
+
+Question: can one regular AppContainer (zero optional capabilities, no LPAC) start, read and write a granted detached scratch file, and
+refuse source creation, truncation and both measured deletion routes? The measurement is of **one combined configuration**: the
+AppContainer token, the package-SID absence from the source DACLs, and the Low integrity of the token against unlabelled (documented
+default Medium, no-write-up) source objects. It does **not** identify which of those checks produced a refusal, and it is not P9, escape
+resistance, Git object-copy correctness or Git Credential Manager compatibility.
+
+### 14.1 Native boundary verification
+
+Signatures and constants were checked against the installed SDK headers (Windows SDK 10.0.28000.0: `userenv.h` for
+`CreateAppContainerProfile(name, display, description, capabilities, count, &sid)` and `GetAppContainerFolderPath(string-SID, &path)`,
+`winbase.h` for `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES`, `winnt.h` for `SECURITY_CAPABILITIES` {`AppContainerSid`,
+`Capabilities`, `CapabilityCount`, `Reserved`}, `LABEL_SECURITY_INFORMATION` `0x10`, `SYSTEM_MANDATORY_LABEL_NO_WRITE_UP` `0x1`,
+`SECURITY_MANDATORY_LOW_RID` `0x1000`, `ERROR_ALREADY_EXISTS` 183) and the primary Microsoft Learn pages read on 2026-10-15:
+[CreateAppContainerProfile](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-createappcontainerprofile)
+(name at most 64 characters matching `[-_. A-Za-z0-9]+`; the SID is freed with `FreeSid`; `HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS)` when it
+exists), [GetAppContainerFolderPath](https://learn.microsoft.com/en-us/windows/win32/api/userenv/nf-userenv-getappcontainerfolderpath)
+(takes the string SID; the path is freed with `CoTaskMemFree`),
+[Launch an AppContainer](https://learn.microsoft.com/en-us/windows/win32/secauthz/implementing-an-appcontainer) (access is the intersection of the
+user/group check and the package/capability check, AppContainers run at Low integrity),
+[UpdateProcThreadAttribute](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute)
+(the attribute value must persist until the list is deleted; the host keeps the `SECURITY_CAPABILITIES` structure alive),
+[Mandatory Integrity Control](https://learn.microsoft.com/en-us/windows/win32/secauthz/mandatory-integrity-control) (an object without a label is treated
+as Medium; a lower-integrity principal cannot write to it even when its DACL allows) and
+[SetNamedSecurityInfoW](https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-setnamedsecurityinfow) (inheritable ACEs propagate to
+existing children). Documentation does not prove installed behavior; the measured results below are the evidence. No experimental network
+traffic occurred.
+
+### 14.2 Harness, build, static review and attempts
+
+New dependency-free C sources under ignored `logs/executor/p9-appcontainer-gate/src/`: a host (`p9ac-host-v2.c`, imports `ADVAPI32`, `KERNEL32`,
+`USERENV`, `ole32`; `bcrypt` is loaded dynamically) and a separate child (`p9ac-child-v2.c`, byte-identical to `p9ac-child-v1.c`, imports
+`KERNEL32.dll` only, recorded with `dumpbin`). Installed MSVC (compiler 19.51.36260, linker 14.51.36260.0, `_MSC_FULL_VER` 195136260) with
+Windows SDK 10.0.28000.0 selected by `vcvars64.bat` (read with a batch file, not a one-line expansion), `/W4 /MT /O2 /GS /guard:cf`, static CRT,
+no package download, 0 warnings in either build. The run host is Windows `10.0.26200.9711`, NTFS. The child contains no process creation,
+token, DACL, label, directory, move, copy, handle-duplication, network or UI call; the host never deletes or rewrites a fixture after setup
+and never calls `DeleteAppContainerProfile`. The review before each run is retained as `static-review-v1-a1.txt` and `static-review-v2-a1.txt`
+(forbidden-call counts, every `SetNamedSecurityInfoW`, `CreateProcessW` and profile call site, the callers of the three mutating helpers,
+imports, and for v2 the exact source diff).
+
+**Attempt 1 (v1) stopped before fixtures, profile or children.** `build-v1-a1` compiled with 0 warnings; its run (stamp `20261015T210542Z`) exited 24 at
+the host-token prerequisite because the token-fact reader required `TokenIsLessPrivilegedAppContainer` (class 46) to be readable and, in this observed
+host, token and query, the harness's `GetTokenInformation` helper returned no value for it for the host token (the error code was not captured; the
+other facts read: not elevated, not restricted, not an AppContainer, Medium `0x2000`). This is not generalized to other ordinary tokens or hosts. The
+attempt did create an empty run root and its log, and nothing else: no fixture, no profile, no child. v2 makes that corroborating field optional and
+records whether it was readable; nothing else in the host changed (diff retained) and the child is unchanged. The v1 sources, build, captures and
+`runs/run-20261015T210543Z-18424` are retained (`failed-attempt-v1-a1-note.txt`). Attempt 2 (`build-v2-a1`, stamp `20261015T210720Z`) is the
+canonical attempt: it launched the control and the single AppContainer child and created the single profile. No further run followed.
+
+### 14.3 Fixtures, descriptors, labels and grants
+
+Canonical non-reparse run root `runs/run-20261015T210720Z-16872/` (containment, no reparse points and NTFS verified first). Independent fresh `ctl`
+and `app` fixtures, each with `bin/` (a byte-identical copy of the child executable), `scratch/` (`copy.txt`, `tmp/`; `ctl` also has
+`localappdata/`), and four source cells: `create/` (target initially **absent**), `trunc/target.txt` (nonempty), `fileonly/target.txt` and
+`parentonly/target.txt`. Fixed fictitious bytes: the truncation target and the detached scratch copy hold 33 bytes (SHA-256 `f03ddf6a...c1d4`),
+each deletion target 30 bytes (`795d5289...e93a`). Fixture I/O handles were closed before each launch.
+
+Seven protected source descriptors per case were set by the host and read back (control `0x9404`, exactly one `ACCESS_ALLOWED` ACE, flags `0x0`,
+the current user redacted as `<current-user>`, label absent): create parent `0x001200ab` (read/execute plus `FILE_ADD_FILE`), truncation target
+`0x0012019f` and its parent `0x001200a9`, FileOnly file `0x00130089` (`DELETE`) and parent `0x001200a9` (no `FILE_DELETE_CHILD`), ParentOnly file
+`0x00120089` (no `DELETE`) and parent `0x001200e9` (`FILE_DELETE_CHILD`). They were re-read before each launch (no drift) and after the app child
+(the four parent descriptors equal to setup).
+
+App-only, before any profile existed: a Low (`S-1-16-4096`) no-write-up label (mask `1`, object and container inherit) on `app/scratch`, read back
+on `scratch` and inherited by `tmp/` and `copy.txt`. Labels were **absent** (not the documented default asserted) on every source object, `bin` and
+the executable; the host records "label=absent (documented default when absent: Medium integrity, NO_WRITE_UP)" separately from the present
+labels. After the profile existed, the package SID received exactly seven ACEs, all in `app`: read/execute `0x001200a9` on `bin` (flags `0x3`) and
+inherited on the executable (`0x10`); traverse/list `0x001200a1` (flags `0x2`) and read/write `0x0012019f` (flags `0x9`, object inherit, inherit
+only) on `scratch`, inherited by `copy.txt` (read/write, `0x10`) and `tmp/` (both, `0x12` and `0x19`). A walk of the whole run root (32 objects
+after the grants, 34 after the run) listed every ACE naming the package SID: exactly those seven, none on a source object, a `ctl` object or
+anywhere else. No null DACL, no broad SID, no source grant, no source or executable integrity change, no ancestor permission change, no system or
+user-directory grant and no privilege enabling. The directories also carry the ACEs they inherit from the repository tree (eight, plus the
+package ACEs); those pre-exist, were not changed by the host and name ordinary principals (printed as redacted `S-1-5-21` SIDs, not as
+`<current-user>`); which of them satisfied the user-side check was not analyzed.
+
+### 14.4 Profile, launches and raw outcomes
+
+After the control validated, the host persisted a planned moniker (`planned-moniker.json`, flushed) and called `CreateAppContainerProfile` once
+(no optional capability SIDs): HRESULT `0x00000000`, moniker **`DevalCopilot.P9.Gate.6e2898f9b593578aa98d3297e6a731d5`**, package SID
+`S-1-15-2-3528784686-543288942-2972599558-3957689933-405336475-2183898758-483271991`. `GetAppContainerFolderPath` returned `0x00000000`:
+`<user-profile>/AppData/Local/Packages/devalcopilot.p9.gate.6e2898f9b593578aa98d3297e6a731d5/AC`, which exists as a directory (one attribute query;
+nothing inside it or in the profile registry was inspected). The host wrote `profile-receipt.json` before the app launch, but **that file is invalid JSON**
+(defect R1, recorded in 14.8; the planned-moniker file and the host `PROFILE` records are valid and are the sources of the derived summary). The
+profile was retained by the host; it was not deleted, reused or modified by the harness, and no query, content, security or registry snapshot of it exists.
+
+Both children used `CreateProcessW` with fixed image and argv, `CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT |
+DETACHED_PROCESS`, an explicit handle list (stdout pipe, stderr pipe, NUL stdin), a private non-breakaway kill-on-close job (active-process limit 1)
+to which the suspended child was assigned before resume, an explicit environment (`SystemRoot`, `TEMP`/`TMP` in that child's `scratch/tmp`,
+`LOCALAPPDATA` in `ctl/scratch/localappdata` or the profile folder), cwd `scratch`, a 30 s bound and a 64 KiB cap per stream, and no desktop or
+window-station change. The app added only `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES` (the new package SID, `CapabilityCount=0`,
+`Capabilities=NULL`, `Reserved=0`). Suspended-child tokens, read by the host before resume:
+
+| Child | Token before resume |
+|---|---|
+| Control | Not an AppContainer, Medium `0x2000`, not elevated, not restricted, 0 capabilities, 5 privileges. |
+| App | `TokenIsAppContainer` 1; `TokenAppContainerSid` equals the new package SID; AppContainer number 362; Low `0x1000`; not elevated; not restricted; **0 capabilities**; 2 privileges (`SeChangeNotifyPrivilege` enabled, `SeIncreaseWorkingSetPrivilege` disabled); 15 groups (user and group SIDs, redacted, plus a Low integrity group). In this run the harness's query for class 46 (`TokenIsLessPrivilegedAppContainer`) returned no value for the host, the control and this app token (error code not captured; not generalized to other tokens), so LPAC is corroborated only by the launch configuration (no LPAC attribute), not by that token flag. |
+
+| Child | Result |
+|---|---|
+| Ordinary control | **Valid.** Exit 0 in 27 ms; eight well-formed lines, all expected: scratch read and write succeeded, `SOURCE_CREATE_NEW`, `SOURCE_TRUNCATE_EXISTING`, `FILEONLY_DELETE` and `PARENTONLY_DELETE` all succeeded. The host agreed: the create target appeared with 0 bytes, the truncation target went from 33 to 0 bytes, both deletion targets were absent, the scratch copy was rewritten. Job: 1 total and 0 active processes, stderr 0 bytes. |
+| App (regular AppContainer) | **Every ordered gate passed.** Exit 0 in 26 ms; eight well-formed lines, all expected: `SCRATCH_READ` and `SCRATCH_WRITE` succeeded (the scratch copy was rewritten to the fixed 32 new bytes, SHA-256 `0bb9226d...8869`), then `SOURCE_CREATE_NEW`, `SOURCE_TRUNCATE_EXISTING`, `FILEONLY_DELETE` and `PARENTONLY_DELETE` each returned `ERROR_ACCESS_DENIED` (5). Host observation, independent of the child output: the create target stayed **absent** (the `create/` listing is empty), and the truncation, FileOnly and ParentOnly targets were unchanged (bytes, file identity and descriptor equal to their before snapshots; a separate post-run SHA-256 of the three files equals the recorded digests). Job: 1 total and 0 active processes, direct process termination confirmed, stderr 0 bytes. |
+
+Host exit code: **0**, captured by the wrapper from the process object immediately (`cmd-run1-20261015T210720Z.exit.txt`); the host's own `RUN complete`
+and `RUN exit` records agree.
+
+### 14.5 Evidence classes
+
+**Observed (this host, build, volume and user; one run).**
+
+1. The control is valid, so the fixtures, protected descriptors, capture path and the four source mutations work for the ordinary Medium token.
+2. A regular zero-capability AppContainer launched through `CreateProcessW` with the `SECURITY_CAPABILITIES` attribute started, passed the token
+   check, read and rewrote the granted scratch file, and was refused (`ERROR_ACCESS_DENIED`) on `CREATE_NEW`, `TRUNCATE_EXISTING` and both
+   `DeleteFileW` routes against source objects that carry a protected user-only DACL and no label, with host-observed unchanged source state.
+3. The package SID has grants only in the app's executable and scratch trees (seven ACEs, inventoried before and after the run).
+
+**Inference (not established by a page or by this run).** The refusals are consistent with the documented dual-principal DACL check (no ACE for
+the package SID on any source object) and with the Low token against unlabelled source objects. The two were applied together and were not
+isolated, so neither alone is shown to be sufficient or necessary.
+
+**Not established.**
+
+- Which check refused each operation; whether either alone would; behavior with a source object the package SID can access, or a Low-labelled source.
+- Any other mutation route (rename or replace, `SetFileInformationByHandle`, hard link, directory creation, alternate stream, reparse point, handle or
+  section tricks, other process or `\\.\` routes), reads of source bytes by the AppContainer, writes to the profile's own storage, or network access.
+  Scratch is not claimed to be the only location the AppContainer can write (its profile folder is writable by design).
+- Escape resistance, Git object-copy correctness, Git, Schannel or GCM compatibility, credential behavior, concurrency, other volumes, users, builds
+  or Windows versions, and any production mechanism. P9 is not proven and no mechanism is selected, ranked or recommended here.
+
+### 14.6 Limits, defects and what this does not change
+
+- One canonical run, one build, one profile; each result is a single observation (the two children took 27 and 26 ms). The control differs from the app in
+  token, scratch label, environment and launch attribute, so the AppContainer is not shown to be the only variable.
+- Attempt 1 is a recorded pre-launch defect (see 14.2); the host exit code of attempt 1 (24) and its log are retained. The host `CHILD-RESULT`
+  records for `CHILD_START` and `DONE` print `observed=failure` only because those two child lines have no `observed` field; their verdicts are
+  `expected`. The build logs contain the harmless `vswhere.exe` message from `vcvars64.bat`.
+- **Redaction provenance** (four separate things; see 14.8 R3). (1) Runtime redaction by the host at emission (personal and logon SIDs, the profile
+  folder printed as `<user-profile>`). (2) Later in-place text redaction of four retained files after the runs. (3) Retained redacted derivatives are
+  the only copies of those four files; no pre-redaction original survives. (4) Compiler debug information in the `.obj` intermediates still embeds the
+  local absolute source path. The package SID, moniker and fixed fictitious bytes are retained deliberately.
+- **Manifest limit.** A file-hash manifest does not seal live ACL metadata. The protected source descriptors, the app scratch label, the package
+  grants, the fixtures and the profile are live operating-system state. The source descriptor and label read-back text is in the annotated transcript
+  `host-results.jsonl`; the profile has only its creation, folder-locator and token records (14.8 R3), not a security or registry snapshot.
+- Nothing was cleaned up or reset: the profile, both fixture trees, the protected DACLs, the label and the grants remain, as do all earlier harnesses.
+
+### 14.7 Provenance
+
+Retained, uncleaned and ignored by Git under `logs/executor/p9-appcontainer-gate/`: `src/p9ac-host-v1.c` (SHA-256 `86a53075...727a`),
+`src/p9ac-host-v2.c` (`5492ab0d...2ca9`), `src/p9ac-child-v1.c` and `-v2.c` (both `865dd7de...e40b`), `build-p9ac.ps1`, `run-p9ac.ps1`,
+`toolchain-identity.bat` and `toolchain-identity-20261015.txt`, `build-v1-a1/` and `build-v2-a1/` (v2: `p9ac-host.exe` `c78e4ba5...86c7`,
+`p9ac-child.exe` `9ac02f43...558c`, `build.log`, `imports-child.txt`, `imports-host.txt`), `static-review-v1-a1.txt`, `static-review-v2-a1.txt`,
+`failed-attempt-v1-a1-note.txt`, the two `cmd-run1-*` capture sets, `runs/run-20261015T210543Z-18424/` (attempt 1) and
+`runs/run-20261015T210720Z-16872/` (the canonical run: the `ctl` and `app` trees and `out/` with the annotated transcript `host-results.jsonl`, both child captures (valid JSONL),
+`planned-moniker.json` and `profile-receipt.json`), `metadata-20261015.txt` and `manifest-20261015.sha256` (51 entries; its own digest
+`b1f8f8e6...afc4`). Commands, each once: `build-p9ac.ps1 v1 a1`, `run-p9ac.ps1 build-v1-a1`, `build-p9ac.ps1 v2 a1`, `run-p9ac.ps1 build-v2-a1`. At most
+two children ran in the canonical attempt and exactly one profile was created. Agent qualification stays `Blocked`/`TargetsNotReal`, both
+allowances unused; Git/GitHub qualification is separate and unstarted. Section 11's v1 stop-gate defect and protocol deviation (a previous harness, unrelated to attempt 1 above), the historical concurrent-replay 409, target-test
+500, disposal `NullReferenceException` and unnamed Api 2067/2068 failure remain separately unexplained, and no later pass establishes flakiness or
+irrelevance.
+
+### 14.8 Correction round 1 (R1 to R3): documentation and read-only evidence processing only
+
+Review findings R1 to R3 were accepted as stated and verified against the retained evidence. This round changed only documents and added derived,
+read-only artifacts under `logs/executor/p9-appcontainer-gate/correction1/`. No harness, source, binary, build, probe or profile operation occurred; the
+original receipts, the 51-entry manifest (`b1f8f8e6...afc4`, all 51 entries re-hashed with 0 mismatches) and the retained roots are unchanged. The
+one-profile and two-child authority is spent: no later profile query, reuse, modification or deletion and no further profile creation or child launch was performed by this slice. The observed
+experimental path stands as reported in 14.4 (control operations succeeded; the AppContainer's scratch read and write succeeded; the four source
+operations returned error 5; the host snapshots and job-termination records agree); it is a fixture measurement and is not P9 proof.
+
+**R1: the profile receipt is invalid JSON.** The host wrote the Windows folder path into `profile-receipt.json` without JSON escaping. A strict parser
+fails on the original (SHA-256 `ae0b57e4...04be`, byte-identical to the sealed copy): `Bad escaped character in JSON at position 248 (line 1 column
+249)`, the backslash-A of `<user-profile>\AppData` in the `folder` value. The producer, binary, original receipt and original manifest were not
+modified. The host's own `PROFILE` records are valid JSON (their text is escaped correctly), and the planned-moniker file is valid. The derived
+`correction1/profile-summary-derived.json` is labelled as a derived summary, **not a repaired original capture**: it is built by
+`correction1/derive-profile-summary.js` only from `planned-moniker.json` (`651e02b0...58c4`) and the retained host `PROFILE` and `TOKEN` records in
+`host-results.jsonl` (`e87e479a...5adf`), lists those sources with their hashes, states that no fresh profile query and no reconstruction of missing evidence
+occurred, and is serialized with `JSON.stringify`. Seven cross-checks passed when it was written, including (planned moniker equals the creation record; the folder
+path as printed ends with the lower-cased moniker; the package SID in the app token record equals the SID in the receipt record text; the app token
+check records a matching package SID; both HRESULTs are `0x00000000`). `correction1/validate-correction1.js` retains the named failure for the original
+and the passing strict parse of the derivative (`correction1/validation-correction1.txt`). These checks do not repair or validate the producer: the host
+still has the defect, and the retained profile's current state was not examined.
+
+**R2: incomplete native-error guards (static limitations; not observed in the canonical run).**
+
+- `p9ac-child-v2.c:98`: `op_open_close` sets the error code and returns 1 after `CloseHandle` fails. For an `EXPECT_OK` step `report` tests only that
+  boolean, so in the control a source open whose handle failed to close would count as the expected success and the child could continue. (For the
+  app child, a returned 1 on an expected-denied step is an unexpected result and stops it.)
+- The host's `emit` ignores the `fwrite` and `fflush` results, and `write_capture` ignores a failed `CreateFileW`, `WriteFile`, `CloseHandle` and
+  `fprintf`; a failed or partial transcript or capture write therefore does not enter the gate result.
+- `p9ac-host-v2.c:929` ignores the `BOOL` result of `GetExitCodeProcess` while the exit code variable starts at 0, so an API failure would read as exit 0.
+
+None of these failures was observed. In the canonical run the capture files exist, parse, and have the byte sizes the host recorded (1220 and 1261
+bytes), each child emitted its `DONE` line, and each job showed one process, zero active and a signalled process handle. That corroborates the
+recorded path reaching `DONE` and local termination; it does not independently prove the numeric child exit code, because `DONE` precedes the
+return and CRT shutdown and the `GetExitCodeProcess` success result was not checked. The wrapper independently records the host exit code, not
+the children's. The ordered experimental path passed; the **complete requested error-path and stop contract was not established**. This does not
+authorize reuse of the binaries or production acceptance. Sources were not fixed, no fault was injected, nothing was rebuilt or rerun; a later
+native attempt would need a separately selected correction and its own authority.
+
+**R3: provenance and bounded wording.**
+
+- **Pre-redaction originals do not survive.** The two build logs and two command-capture files were edited in place after the runs (4, 4, 1 and 1
+  occurrences of the local profile prefix replaced); no copy or pre-redaction hash was kept, only the replacement counts in `metadata-20261015.txt`.
+  They are not reconstructed. The retained, sealed files are the redacted derivatives.
+- **Four separate redaction facts.** (1) *Runtime redaction* by the host at emission: personal and logon SIDs, and the profile folder printed as
+  `<user-profile>`. (2) *Later text redaction* of those four files only. (3) The *retained redacted derivatives* are those four files as sealed in the
+  manifest. (4) *Embedded object-file paths*: the `.obj` intermediates in both build directories still contain the local absolute source path as
+  compiler debug information; they were not edited.
+- **Transcript shape.** `out/host-results.jsonl` has 311 lines: 287 host records, 16 child records and 8 comment markers. It is an annotated
+  transcript, not strict JSONL as a whole (each of its 303 non-comment lines parses). The wrapper stdout capture (287 lines) and the two separate child
+  captures (8 lines each) are valid JSONL. The earlier description of `host-results.jsonl` as JSONL is superseded by this one.
+- **Class 46** (`TokenIsLessPrivilegedAppContainer`): the statement is limited to this host, these tokens and the harness's `GetTokenInformation`
+  helper, which returned no value for the host, control and app tokens in this run and for the host token in attempt 1; the error code was not
+  captured and nothing is generalized to other ordinary tokens.
+- **Attempt 1** stopped before fixtures, profile or children; it did create an empty run root and `host-results.jsonl`.
+- **Read-back versus profile evidence.** The protected source descriptors, the app scratch label, the package grants and the grant inventory were read
+  back by the host. The profile has only the creation record (`CreateAppContainerProfile`, HRESULT `0x00000000`), the folder-locator record
+  (`GetAppContainerFolderPath`, one attribute query) and the app token records; **no profile contents, security descriptor or registry snapshot exists**,
+  and the invalid receipt adds nothing beyond those records.
+
+
+Executor-reported validation attempt: after the accepted validation log existed, another invocation of the validator refused to overwrite it
+(exclusive-create). The executor reports the original log hash unchanged and does not count the refused invocation as a validation result. No
+separate capture of that failed invocation was supplied in the correction bundle; no missing output was reconstructed. The retained validation
+log and correction manifest remain unchanged.
+
+New artifacts: `correction1/derive-profile-summary.js` (`77a75393...7486`), `correction1/profile-summary-derived.json` (`416f05ed...9738`),
+`correction1/validate-correction1.js` (`5a1c1765...38a9`), `correction1/validation-correction1.txt` (`ea7bd3b2...39ba`) and their separate manifest
+`correction1/manifest-correction1.sha256` (4 entries; its own digest `1a2141b0...6954`). The original manifest was not extended. A file-hash manifest still
+does not seal live ACL metadata. ADR-0050 stays Proposed, P9 unproven, and production and credential integration remain paused. Agent qualification
+stays `Blocked`/`TargetsNotReal`, both allowances unused; Git/GitHub qualification is separate and unstarted. Every historical limitation, retained
+root and protected DACL stands, as do section 11's v1 stop-gate defect and protocol deviation and the separately unexplained concurrent-replay 409,
+target-test 500, disposal `NullReferenceException` and unnamed Api 2067/2068 failure; no later pass establishes flakiness or irrelevance.
