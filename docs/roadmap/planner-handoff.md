@@ -1,76 +1,77 @@
 # Planner/reviewer handoff
 
-Planner-owned scope; replace, never append. [AGENTS.md](../../AGENTS.md) and
-[workflow](development-workflow.md) apply. Git/code prevail.
+[AGENTS.md](../../AGENTS.md) and [workflow](development-workflow.md) apply.
 
 ## Priority and remaining objective
 
-Documentation is the owner's priority; functional work, tests and P9 stay
-stopped until completion or owner reprioritization. Codex plans/reviews;
-Claude implements; challenge, role ownership and explicit GO stay mandatory.
+Documentation priority; functional work, tests and P9 stay stopped.
+Codex plans/reviews; Claude implements. Reciprocal challenge, role
+ownership and explicit GO remain mandatory.
 
-- **Delivered:** WF-01 `4c9102c`, WF-COL-01 `cab3756`, DOC-49-01 `f7e42c1`,
-  TEST-48-01 `d60d718` and WF-02A `a593009`. Do not reopen or republish them.
-- **Reviewed:** WF-02B has GO below; publication is not yet verified.
-- **Unselected/incomplete:** WF-03 splits the protocol into a core/router and
-  roles/messages, provider, review/correction,
-  context/evidence, usage/budgets and history documents, with section mapping
-  and inbound-link/fragment compatibility. No runtime, permission, protocol or
-  architecture change. WF-02B alone cannot complete the documentation objective.
+- **Delivered:** WF-01 `4c9102c`, WF-02A `a593009`, WF-02B `d1a7b457`;
+  earlier deliveries in Git history. No reopening, republishing or closure edit.
+- **Incomplete:** WF-03 must yield a concise protocol core/router and focused
+  roles/messages, provider, review/correction, context/evidence, usage/budgets
+  and history documents, with section mapping and link/fragment compatibility.
+  WF-03A is only its first slice; later moves remain unselected. No protocol,
+  runtime, permission or architectural change is authorized.
 
-## Verified transition baseline
+## Verified baseline and dispatch state
 
-2026-10-16: `main`; HEAD, local `origin/main` and live `refs/heads/main`
-equal `a59300972aa2519c1df5ed0cc4f8d63c238d0f26`; divergence 0/0;
-empty index/tree and no untracked paths before selection. Sandboxed live-ref
-queries failed; elevated read-only retries succeeded. No reconciliation ran.
+2026-10-16: `main`; HEAD, local `origin/main` and live main
+`d1a7b45743165e1cbcb794f485aed211a0055a98`; divergence 0/0; empty index,
+clean tree, no untracked paths. Sandboxed live-ref failed; elevated read-only
+retry succeeded. No reconciliation.
 
-WF-02A: `logs/planner-review/wf-02a/publication-verification.json`;
-pre-publication wording is historical.
+WF-02B: `logs/planner-review/wf-02b/publication-verification.json` and its
+`publication-manifest.json`.
+WF-02A verification remains under `logs/planner-review/wf-02a/`.
+Dispatch had only this file modified; Claude preserved its 6140-byte dispatch
+identity. Codex now replaces selection with GO. Selection evidence:
+`logs/planner-review/wf-03a/selection-preflight.json` (ignored).
 
-## Selected slice: WF-02B
+## Selected slice: WF-03A
 
-**2026-10-16: GO for the frozen five-document diff; no blocking findings.**
-Claude publishes in the same chat; Codex verifies. Scope: [roadmap](mvp-delivery-plan.md),
-its [map](mvp-delivery-plan-rework-map.md), ADR index, current-work and this record.
-Planning meaning and incomplete Increments 4 to 6 stay; no contract/runtime change.
+**2026-10-16: GO for frozen six-document diff; no blocking findings.**
+Three CLI safety bodies extracted; original headings retained.
+No contract/runtime/permission change. WF-03 incomplete; later moves unselected.
 
-Independent `node logs/planner-review/wf-02b/review1/check-review.mjs` passed
-(4287 ms); checks and separate semantic acceptance:
-`logs/planner-review/wf-02b/review1/`. Executor final-01 (13 checks) and
-development/negative runs under `logs/executor/wf-02b/` are retained, not rerun;
-historical commands/timings remain executor evidence. Product evidence unchanged.
+Independent `node logs/planner-review/wf-03a/review1/check-review.mjs review`:
+PASS, 9 checks, 100 links, 547 ms; exact reconstruction. Review/dispositions:
+`logs/planner-review/wf-03a/review1/`. Executor results/failures retained under
+`logs/executor/wf-03a/`; timings retained.
 
-Executor challenges resolved:
-
-- **EX-01 accepted:** roadmap 16495 bytes (+111); retain precise links.
-- **EX-02 accepted:** current-work 6661 (+517); retain risks/WF-02A evidence loss.
-- **EX-03/CR-01 accepted:** ADR-0029 owns the sequencing exception.
-- **EX-04 resolved:** WF-02A's map is historical; ADR-0012's control stays locatable.
-
-Index-intro and six/eight-path observations: out of scope, unadjudicated.
+Executor observations resolved:
+- **WF-03A-EX-01 accepted:** current-work 6807 bytes (+663); retain risks and
+  WF-02A evidence loss; 6 KiB is a target.
+- **WF-03A-EX-02 accepted:** "in this protocol" includes its linked companion.
+- **WF-03A-EX-03 accepted:** "CLI safety contract above" reaches its forwarder.
 
 ## Publication boundary
 
-Preflight: same branch/refs, 0/0, empty index; four tracked paths unstaged,
-only the map untracked. Claude preserved the dispatch checkpoint; Codex replaced
-it with this GO. Five final files are frozen in
-`logs/planner-review/wf-02b/publication-manifest.json`.
-Commit exactly those files once, sole parent `a593009`, subject
-`docs: simplify MVP roadmap and correct ADR index categories`.
-Verify bytes/hashes, modes and blobs; push `main` normally to `origin/main`
-and verify live main in the same turn. No closure edit. Changed substance
-returns for review; failed push/divergence stops, no force or reconciliation.
+Claude publishes in the same chat. Preflight: main/HEAD/local and live main
+`d1a7b457`; 0/0; empty index; four unstaged tracked paths, only provider contracts
+and rework map untracked. Codex replaced this checkpoint after review; other five
+files stay exact. Freeze: `logs/planner-review/wf-03a/publication-manifest.json`.
+Commit exactly its six files once, sole parent `d1a7b457`, subject
+`docs: extract provider CLI safety contracts`. Verify bytes/blobs/modes and staged
+tree; push main normally to origin/main and verify live ref in the same turn.
+No closure edit/new slice. Changed substance returns for review; failed push or
+divergence stops without force/reconciliation. Codex verifies publication.
 
 ## Retained review and evidence limits
 
-WF-02A R1 resolved: `logs/planner-review/wf-02a/review2/r1-checks.json`.
-Accepted 8192-byte context/8186-byte checkpoint retain risks/evidence limits.
+WF-02A R1 resolved, evidence-loss deviation retained:
 `logs/executor/wf-02a/correction1/development-runs-transcribed.md` is derivative,
-partly abridged chat text, not independently authenticated original output.
+partly abridged chat text, not recovered or independently authenticated output.
 Earlier checker outputs were overwritten; original failed runs, checker and
-timings are unavailable; run B exit status is unknown. Keep this evidence-loss
-deviation; never reconstruct it. Unchanged evidence is retained, not rerun.
+timings are unavailable; run B exit status is unknown. Never reconstruct them.
+
+WF-02B resolved: `logs/planner-review/wf-02b/review1/`; planner freeze
+false positive (obsolete footer), disclosure and corrected pass:
+`freeze-publication-attempt01.mjs`, `freeze-attempt01.json`; not an executor
+finding. Index-intro and six/eight-path observations remain unadjudicated/out of
+scope. Evidence retained, not rerun.
 
 ## Standing decision constraints
 

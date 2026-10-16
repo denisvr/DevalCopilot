@@ -5,28 +5,29 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-02B MVP delivery plan reduction
+## Active slice: WF-03A provider CLI safety extraction
 
 - **Status: UNSTAGED, UNCOMMITTED and UNPUSHED; for independent Codex review;
   no GO.** Preflight matched: `main`; `HEAD`, local `origin/main` and live main
-  `a593009`; 0/0; empty index; the planner checkpoint (6112 bytes,
-  `bf8e724a...8acd`) preserved byte-identically.
-- **Paths.** Modified: the [roadmap](mvp-delivery-plan.md) (34031 to 16495
-  bytes; headings and fragments unchanged), the
-  [decision index](../decisions/README.md) (ADR-0001 and ADR-0050 moved to
-  accurate sections, routed from `accepted-decisions`; no ADR changed) and
-  this file. New: the [rework map](mvp-delivery-plan-rework-map.md). Ignored:
-  `logs/executor/wf-02b/` (checker, runs and results).
-- **Checks.** A heredoc checker patch aborted unapplied (shell-altered
-  backslashes) and was redone by edits; `dev-01` passed; `negative-01` killed
-  12 of 12 hash-restored mutants, but an appended roadmap line failed only the
-  size check, so an extent check was added and `negative-02` killed 12 of 12;
-  `dev-02` passed after a wording fix.
-  Final matrix, once on stable input: `check-docs.mjs --phase final` into
-  `final-01/` and `git diff --check`; outcomes there and in the report.
-- **Limits.** Phrase matching is lexical, not equivalence. Size targets are
-  exceeded by 111 bytes (roadmap: precise links and limitations) and by
-  517 bytes (this file: near-verbatim open risks and the WF-02A deviation).
+  `d1a7b457`; 0/0; empty index; the planner checkpoint (6140 bytes,
+  `366ccf10...3857`) preserved byte-identically.
+- **Paths.** Modified: the
+  [protocol](../architecture/agent-collaboration-protocol.md) (three forwarding
+  bodies, one routing paragraph; 66 headings unchanged), the
+  [architecture index](../architecture/README.md) (one entry) and this file.
+  New: the [provider contracts](../architecture/agent-collaboration-provider-contracts.md)
+  (baseline L525-701 bodies verbatim, one link retargeted) and the
+  [rework map](agent-collaboration-protocol-rework-map.md). Ignored:
+  `logs/executor/wf-03a/` (generator, checker, runs).
+- **Checks.** `generate-01` emitted `#` headings; its output is kept, the
+  protocol was restored from the blob and `generate-02` produced the files.
+  `dev-01` passed; `negative-01` had one no-op in-memory mutant (blank line),
+  so a no-op guard was added and `negative-02` killed 15 of 15.
+  Final matrix, once on stable input: `check-wf03a.mjs --phase final` into
+  `final-01/`; outcomes there and in the report.
+- **Limits.** Conservation is exact line comparison; the sensitive scan is
+  lexical. This file exceeds its 6144-byte target by 663 bytes (open risks
+  and the WF-02A deviation kept near-verbatim).
 - **Retained.** All product, test, browser, generation and qualification
   evidence with its original scope; none was run.
 - **Next action:** independent Codex review. No commit or push.
@@ -35,23 +36,25 @@ branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
 Documentation is the owner's priority; functional work, tests and P9 stay
 stopped. Codex plans and reviews; Claude implements; challenge, role ownership
-and explicit GO stay mandatory ([AGENTS.md](../../AGENTS.md)). WF-03 (protocol
-restructuring) is unselected and incomplete, so WF-02B does not complete the
-objective. Constraints: [planner-handoff.md](planner-handoff.md).
+and explicit GO stay mandatory ([AGENTS.md](../../AGENTS.md)). WF-03A is only
+the first WF-03 slice; WF-03 stays incomplete and later moves unselected.
+Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
+WF-02B `d1a7b45743165e1cbcb794f485aed211a0055a98` (sole parent `a593009`) is
+published per `logs/planner-review/wf-02b/publication-verification.json`, and
 WF-02A `a59300972aa2519c1df5ed0cc4f8d63c238d0f26` (sole parent `d60d718`; four
-documents) is published per the planner's verification in
-`logs/planner-review/wf-02a/`; its pre-publication wording is historical; do
-not reopen or republish it. Its evidence-loss deviation stands:
+documents) per `logs/planner-review/wf-02a/`; their pre-publication wording
+is historical; do not reopen or republish them. WF-02A's evidence-loss deviation stands:
 `logs/executor/wf-02a/correction1/development-runs-transcribed.md` is a partly
 abridged derivative chat transcription, not recovered or independently
 authenticated original output; the original failed runs, checker and timings
-are unavailable, and run B's exit status is unknown. Its other evidence is in
-this file at `a593009`; retained, not rerun. Earlier deliveries (TEST-48-01
-`d60d718` and before) remain in this file at `a593009` and before; their
-excluded-artifact reads grant no retrospective authorization or new read.
+are unavailable, and run B's exit status is unknown. Their other evidence is
+in this file at `d1a7b457` and `a593009`; retained, not rerun. Earlier
+deliveries (TEST-48-01 `d60d718` and before) remain in this file at `a593009`
+and before; their excluded-artifact reads grant no retrospective authorization
+or new read.
 
 ## History
 

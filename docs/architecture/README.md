@@ -9,6 +9,8 @@ shared engineering contract.
   transitions, gates, and recovery behavior.
 - [Agent collaboration protocol](agent-collaboration-protocol.md) defines typed
   dialogue, challenges, decisions, and bounded iteration.
+- [Agent collaboration provider contracts](agent-collaboration-provider-contracts.md)
+  holds the protocol's Claude Code and deferred Gemini CLI safety contracts.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote
