@@ -5,53 +5,53 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03A provider CLI safety extraction
+## Active slice: WF-03B execution evidence extraction
 
-- **Status: UNSTAGED, UNCOMMITTED and UNPUSHED; for independent Codex review;
-  no GO.** Preflight matched: `main`; `HEAD`, local `origin/main` and live main
-  `d1a7b457`; 0/0; empty index; the planner checkpoint (6140 bytes,
-  `366ccf10...3857`) preserved byte-identically.
-- **Paths.** Modified: the
-  [protocol](../architecture/agent-collaboration-protocol.md) (three forwarding
-  bodies, one routing paragraph; 66 headings unchanged), the
-  [architecture index](../architecture/README.md) (one entry) and this file.
-  New: the [provider contracts](../architecture/agent-collaboration-provider-contracts.md)
-  (baseline L525-701 bodies verbatim, one link retargeted) and the
-  [rework map](agent-collaboration-protocol-rework-map.md). Ignored:
-  `logs/executor/wf-03a/` (generator, checker, runs).
-- **Checks.** `generate-01` emitted `#` headings; its output is kept, the
-  protocol was restored from the blob and `generate-02` produced the files.
-  `dev-01` passed; `negative-01` had one no-op in-memory mutant (blank line),
-  so a no-op guard was added and `negative-02` killed 15 of 15.
-  Final matrix, once on stable input: `check-wf03a.mjs --phase final` into
-  `final-01/`; outcomes there and in the report.
-- **Limits.** Conservation is exact line comparison; the sensitive scan is
-  lexical. This file exceeds its 6144-byte target by 663 bytes (open risks
-  and the WF-02A deviation kept near-verbatim).
-- **Retained.** All product, test, browser, generation and qualification
-  evidence with its original scope; none was run.
+- **Status: UNSTAGED, UNCOMMITTED and UNPUSHED; correction 1 for independent
+  Codex review; no GO.** Preflight matched: `main`; `HEAD`, local `origin/main`
+  and live main `c1189f1a`; 0/0; empty index; the review-1 planner checkpoint
+  (6140 bytes, `4fe4169c...c03b`) preserved byte-identically.
+- **WF-03B-R1 (NO-GO, review 1): corrected.** The map's four WF-03A
+  subsections are again `Ranges`, `Fragments`, `Link and reference changes`
+  and `Not moved`, so their original fragments resolve; bodies unchanged.
+- **Paths.** Modified:
+  [protocol](../architecture/agent-collaboration-protocol.md) (two forwarders,
+  one routing paragraph; 66 headings kept),
+  [architecture index](../architecture/README.md) (one entry),
+  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03B record;
+  WF-03A kept), this file. New:
+  [execution evidence](../architecture/agent-collaboration-execution-evidence.md)
+  (baseline L815-980; two authorized link repairs). Ignored:
+  `logs/executor/wf-03b/`.
+- **Checks.** `final-01/` passed 18/18 before review. Correction 1 added
+  map-fragment and protected-file checks; `correction1/` holds the focused R1
+  run, one killed missing-fragment mutant and the final matrix
+  (`check-wf03b.mjs --phase final`, `final-01/`); outcomes in the report.
+- **Limits.** Conservation is exact line comparison; link and sensitive scans
+  are lexical. Product, test, browser, generation and qualification evidence
+  keeps its original scope; none was run.
 - **Next action:** independent Codex review. No commit or push.
 
 ## Documentation priority
 
 Documentation is the owner's priority; functional work, tests and P9 stay
 stopped. Codex plans and reviews; Claude implements; challenge, role ownership
-and explicit GO stay mandatory ([AGENTS.md](../../AGENTS.md)). WF-03A is only
-the first WF-03 slice; WF-03 stays incomplete and later moves unselected.
+and explicit GO stay mandatory ([AGENTS.md](../../AGENTS.md)). WF-03B is the
+second WF-03 slice; WF-03 stays incomplete and later moves unselected.
 Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-02B `d1a7b45743165e1cbcb794f485aed211a0055a98` (sole parent `a593009`) is
-published per `logs/planner-review/wf-02b/publication-verification.json`, and
-WF-02A `a59300972aa2519c1df5ed0cc4f8d63c238d0f26` (sole parent `d60d718`; four
-documents) per `logs/planner-review/wf-02a/`; their pre-publication wording
-is historical; do not reopen or republish them. WF-02A's evidence-loss deviation stands:
+WF-03A `c1189f1a64f93c8b048c65fe0a3bd83291d73c28` (sole parent `d1a7b457`) is
+published per `logs/planner-review/wf-03a/publication-verification.json`;
+WF-02B `d1a7b457` per `logs/planner-review/wf-02b/publication-verification.json`
+and WF-02A `a593009` (four documents) per `logs/planner-review/wf-02a/`. Their
+pre-publication wording is historical; do not reopen or republish them. WF-02A's evidence-loss deviation stands:
 `logs/executor/wf-02a/correction1/development-runs-transcribed.md` is a partly
 abridged derivative chat transcription, not recovered or independently
 authenticated original output; the original failed runs, checker and timings
 are unavailable, and run B's exit status is unknown. Their other evidence is
-in this file at `d1a7b457` and `a593009`; retained, not rerun. Earlier
+in this file at `c1189f1a`, `d1a7b457` and `a593009`; retained, not rerun. Earlier
 deliveries (TEST-48-01 `d60d718` and before) remain in this file at `a593009`
 and before; their excluded-artifact reads grant no retrospective authorization
 or new read.

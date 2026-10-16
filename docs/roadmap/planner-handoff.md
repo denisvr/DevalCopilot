@@ -8,56 +8,57 @@ Documentation priority; functional work, tests and P9 stay stopped.
 Codex plans/reviews; Claude implements. Reciprocal challenge, role
 ownership and explicit GO remain mandatory.
 
-- **Delivered:** WF-01 `4c9102c`, WF-02A `a593009`, WF-02B `d1a7b457`;
-  earlier deliveries in Git history. No reopening, republishing or closure edit.
+- **Delivered:** WF-01 `4c9102c`, WF-02A `a593009`, WF-02B `d1a7b457`,
+  WF-03A `c1189f1a`. No reopening, republishing or closure edit.
 - **Incomplete:** WF-03 must yield a concise protocol core/router and focused
   roles/messages, provider, review/correction, context/evidence, usage/budgets
   and history documents, with section mapping and link/fragment compatibility.
-  WF-03A is only its first slice; later moves remain unselected. No protocol,
+  WF-03B below is selected; subsequent moves remain unselected. No protocol,
   runtime, permission or architectural change is authorized.
 
 ## Verified baseline and dispatch state
 
-2026-10-16: `main`; HEAD, local `origin/main` and live main
-`d1a7b45743165e1cbcb794f485aed211a0055a98`; divergence 0/0; empty index,
-clean tree, no untracked paths. Sandboxed live-ref failed; elevated read-only
-retry succeeded. No reconciliation.
+2026-10-16: `main`; HEAD, local `origin/main` and independently checked live main
+`c1189f1a64f93c8b048c65fe0a3bd83291d73c28`; 0/0. Initial tree/index clean;
+current state below.
 
-WF-02B: `logs/planner-review/wf-02b/publication-verification.json` and its
-`publication-manifest.json`.
-WF-02A verification remains under `logs/planner-review/wf-02a/`.
-Dispatch had only this file modified; Claude preserved its 6140-byte dispatch
-identity. Codex now replaces selection with GO. Selection evidence:
-`logs/planner-review/wf-03a/selection-preflight.json` (ignored).
+WF-03A verification and manifest identity:
+`logs/planner-review/wf-03a/publication-verification.json`.
+WF-03A review/EX-01/02/03: `logs/planner-review/wf-03a/review1/`.
+Earlier evidence: `logs/planner-review/wf-02a/` and `wf-02b/`.
+Committed pre-publication wording is historical.
+Dispatch: `logs/planner-review/wf-03b/selection-preflight.json` (ignored).
+Review: five tracked unstaged paths, one untracked companion, empty index.
+Codex replaces this checkpoint with GO; other five reviewed files stay exact.
 
-## Selected slice: WF-03A
+## Selected slice: WF-03B
 
-**2026-10-16: GO for frozen six-document diff; no blocking findings.**
-Three CLI safety bodies extracted; original headings retained.
-No contract/runtime/permission change. WF-03 incomplete; later moves unselected.
+**GO for six frozen documents; no blocking findings.** L815-980 moved to
+`docs/architecture/agent-collaboration-execution-evidence.md`. Review/identities:
+`logs/planner-review/wf-03b/review2/`. Exact rebuild: 256144 bytes; 66 headings,
+109 links pass.
 
-Independent `node logs/planner-review/wf-03a/review1/check-review.mjs review`:
-PASS, 9 checks, 100 links, 547 ms; exact reconstruction. Review/dispositions:
-`logs/planner-review/wf-03a/review1/`. Executor results/failures retained under
-`logs/executor/wf-03a/`; timings retained.
+- **WF-03B-R1 resolved:** four original map titles/fragments restored at level 3;
+  exact four-line correction; baseline fragments and missing-fragment control pass.
+- **WF-03B-EX-01 resolved through R1:** historical wrapper/levels accepted;
+  reported fragment loss corrected. EX-02 remains accepted (prior short IDs).
+- **WF-03B-EX-03 accepted:** current-work 6788 bytes (+644); bounded correction
+  facts retained, risks/history and WF-02A evidence loss verbatim. 6 KiB is a
+  target; no trim/closure edit required.
 
-Executor observations resolved:
-- **WF-03A-EX-01 accepted:** current-work 6807 bytes (+663); retain risks and
-  WF-02A evidence loss; 6 KiB is a target.
-- **WF-03A-EX-02 accepted:** "in this protocol" includes its linked companion.
-- **WF-03A-EX-03 accepted:** "CLI safety contract above" reaches its forwarder.
+Retained final 20/20, N24 killed; original 23 controls retain scope. Independent
+6/6, 392 ms; conservation/navigation retained. No product suites. Prior planner
+defects/deviation/raw-stream limits: `review1/decision.md`.
 
 ## Publication boundary
 
-Claude publishes in the same chat. Preflight: main/HEAD/local and live main
-`d1a7b457`; 0/0; empty index; four unstaged tracked paths, only provider contracts
-and rework map untracked. Codex replaced this checkpoint after review; other five
-files stay exact. Freeze: `logs/planner-review/wf-03a/publication-manifest.json`.
-Commit exactly its six files once, sole parent `d1a7b457`, subject
-`docs: extract provider CLI safety contracts`. Verify bytes/blobs/modes and staged
-tree; push main normally to origin/main and verify live ref in the same turn.
-No closure edit/new slice. Changed substance returns for review; failed push or
-divergence stops without force/reconciliation. Codex verifies publication.
+Claude publishes in the same chat. Freeze:
+`logs/planner-review/wf-03b/publication-manifest.json`. Commit its exact six files,
+mode 100644, sole parent `c1189f1a`, subject
+`docs: extract agent execution evidence`; verify staged/committed tree and bytes.
+Push main normally to origin/main; verify live ref in the same turn. Failed push,
+divergence or changed substance stops; no force/reconciliation or closure edit.
+Codex verifies publication. WF-03 incomplete; later moves unselected.
 
 ## Retained review and evidence limits
 
@@ -67,11 +68,10 @@ partly abridged chat text, not recovered or independently authenticated output.
 Earlier checker outputs were overwritten; original failed runs, checker and
 timings are unavailable; run B exit status is unknown. Never reconstruct them.
 
-WF-02B resolved: `logs/planner-review/wf-02b/review1/`; planner freeze
-false positive (obsolete footer), disclosure and corrected pass:
-`freeze-publication-attempt01.mjs`, `freeze-attempt01.json`; not an executor
-finding. Index-intro and six/eight-path observations remain unadjudicated/out of
-scope. Evidence retained, not rerun.
+WF-02B: `logs/planner-review/wf-02b/review1/`; planner freeze obsolete-footer
+false positive, disclosure and corrected pass in `freeze-publication-attempt01.mjs`
+and `freeze-attempt01.json`; not an executor finding. Index-intro and six/eight-path
+observations stay unadjudicated/out of scope. Retained, not rerun.
 
 ## Standing decision constraints
 

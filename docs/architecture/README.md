@@ -11,6 +11,9 @@ shared engineering contract.
   dialogue, challenges, decisions, and bounded iteration.
 - [Agent collaboration provider contracts](agent-collaboration-provider-contracts.md)
   holds the protocol's Claude Code and deferred Gemini CLI safety contracts.
+- [Agent collaboration execution evidence](agent-collaboration-execution-evidence.md)
+  holds the protocol's per-attempt execution evidence and run-wide Agent
+  process-duration summary.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote
