@@ -5,65 +5,72 @@ approval log. It replaces its current state on each selection or review
 decision. Procedure: [development workflow](development-workflow.md). Git and
 code prevail over this summary.
 
-## Active slice: WF-01 (GO for the reviewed diff)
+## Active slice: P9-EV-01 (GO for the reviewed documentation diff)
 
-- **Selection.** The owner approved WF-01, a human documentation-workflow
-  migration: bounded, explicit development continuity with exact preservation
-  of the prior checkpoint history. Exactly seven paths: `AGENTS.md`, the new
-  development workflow, both checkpoints, both new history snapshots and the
-  slice-start template.
-- **Rationale (as dispatched).** Make human-operated continuity bounded and
-  explicit while preserving historical evidence, role ownership and
-  publication controls: the baseline checkpoints held 1,276,430 and 499,010
-  bytes of accumulated entries, and next work now follows an explicit
-  `CONTINUE_THIS_CHAT`/`START_NEW_CHAT` decision instead of unconditional
-  dispatch.
-- **Review: GO (2026-10-15).** Codex accepts the seven-path documentation
-  diff, including this planner-owned review update, for one substantive
-  commit and normal fast-forward publication. Next planner action:
-  independently verify publication, then recommend chat continuity under
-  the workflow. No subsequent slice is selected.
-- **Exclusions.** No runtime code, tests, provider adapters, capture limits,
-  ADRs, EngineeringStandards, dependencies, credentials, experiments, retained
-  artifacts or cleanup behavior. WF-02 and WF-03 are not selected, and no
-  later slice has speculative authority.
-- **Design constraints.** ADR-0021 root-file capture is unchanged; linking
-  the workflow from `AGENTS.md` does not import it at runtime. The snapshots
-  are evidence, not current instructions or renewed approvals.
+- **Decision (2026-10-16): GO.** Four paths:
+  the [cross-check note](../architecture/github-publication-retained-capture-crosscheck.md),
+  [architecture index](../architecture/README.md), `current-work.md` and this
+  review record. One substantive commit and normal fast-forward publication;
+  no closure edit or next slice.
+  WF-02 and WF-03 remain unselected.
+- **R1: resolved.** The note now states 112,425 bytes = 112,138 bytes of
+  LF-terminated host lines + 287 bytes from replacing LF with CRLF. Independent
+  byte comparisons already support it. The reader computed correctly; this
+  was wording precision.
+- **Index: accepted.** One discoverable evidence link explicitly disclaims
+  an accepted contract or P9 proof. The scope amendment authorized it.
+- **Rationale.** The [roadmap](mvp-delivery-plan.md) leaves Increments 4 to 7
+  incomplete. The captures narrow audit U4/U10, not native-error gaps or P9.
+  No mechanism, patch chain, write-ahead design or new experiment is accepted.
 
-## Review evidence and publication boundary
+## Independent review evidence and deviations
 
-Codex independently verified `main`, HEAD, local `origin/main` and live
-`refs/heads/main` at `ba1d4c2d9e9c5df285777267a7402e75f28e4f87`, an empty
-index and exactly the seven expected modified/new paths. Both snapshots are
-byte-identical to their required Git blobs, including raw and path-filtered
-hash equality. All authored files meet their UTF-8 size/encoding bounds;
-the generated client remains `8d72cb7c...d104`.
+Review preflight: `main`; HEAD, local `origin/main` and live main all
+`4c9102c523e2d8bd345f390332a6af470afb9cec`, 0/0; empty index; exactly the
+three expected tracked modifications and the new note untracked. The returned
+planner matched the dispatched 6037-byte hash until this review update.
 
-Independent checks: 163 local links and 35 fragments resolve, plus 11 tracked
-incoming Markdown links outside the authored files; diff/whitespace checks
-pass, and the authored-text sensitive-shape scan has no hits. The reviewer's
-first fragment checker rejected undefined bracket text as a reference; the
-checker was corrected to treat it as literal Markdown, with no source defect
-inferred. Rule relocation, active constraints and continuity branches were
-reviewed against the dispatch and baseline. No product build, suite, native
-operation, qualification or experimental rerun was performed.
+Retained independent review: four full manifest digests, 22 inputs and manifest
+memberships, 10 output entries and capture comparisons pass; 287 host records,
+311 transcript lines and the named receipt failure agree. Eight-control report
+inspected, not rerun. `logs/planner-review/p9-ev-01/review1/independent-review.json`.
 
-GO applies only to the frozen seven-file content identified in the review
-response. Publish it without further edits, validation reruns or a closure
-diff; a material discrepancy returns for review. Keep all standing decision
-constraints below. The executor reports the published SHA and live-ref
-equality in the same turn; it selects no next slice.
+Correction review: the note differs only by R1's formula; the index has one
+entry. The original output manifest and all 10 entries still match; all eight
+correction-manifest entries match. The inspected document checker passes:
+24 links, UTF-8/LF, final newline, whitespace and sensitive shapes; current-work
+is 6136 bytes. The incoming open-risks fragment exists; diff checks pass.
+No reader, product suite, build, generation, qualification or native rerun.
 
-## Prior decision state (baseline `ba1d4c2`)
+**Read-boundary deviation:** correction hashing read the retained `ctl`/`app`
+fixture files outside the authorized scope. This is not retrospective
+permission. Saved lists contain 69 equal hashes: **11** reader artifacts,
+**57** gate files and the planner (the reported 12/56 breakdown is incorrect).
+The reviewer compared saved records without reopening fixtures. Hashes do not
+prove metadata/ACL/profile state. Preserve the deviation; no further sweep,
+native investigation, cleanup or permission reset. Capture comparisons remain
+valid at their original boundary; no new work is authorized.
 
-The last recorded decision was GO to publish the static AppContainer audit
-report only. Git shows `ba1d4c2d9e9c5df285777267a7402e75f28e4f87` (parent
-`69b2adb9b37675ef0d57b3ebe2e10ae9c3dde757`) published it on `origin/main`.
-Detail: [planner history snapshot](planner-handoff-history-ba1d4c2.md), exact
-blob `dd3bb1d70459322db9147c99c8fe53a01829e38a` of this file at that commit.
-References elsewhere to named sections of this file dated at or before that
-commit resolve there.
+Keep the initial parser self-test failure, grep crash, transient manifest
+placement and document-check failure (6964 bytes, then 6136) retained. Existing
+artifacts stay frozen. Lost output, native exit measurement, buffer truncation,
+live state and pre-redaction text remain unknown. The note describes the
+original capture pass; correction reads do not enlarge its claims.
+
+## Publication and continuity boundary
+
+The frozen manifest identifies the reviewed bytes. Publish unchanged;
+discrepancies return for review. The executor commits,
+pushes and verifies the live ref in the same chat/turn. A failed push or remote
+divergence stops. Codex independently verifies publication, then recommends
+one continuity branch. No next slice is dispatched now.
+
+WF-01 is published and independently verified at the baseline above, sole
+parent `ba1d4c2d9e9c5df285777267a7402e75f28e4f87`. No repeat publication.
+The [execution history](current-work-history-ba1d4c2.md) and
+[planner history](planner-handoff-history-ba1d4c2.md) retain exact blobs
+`ebb007040fa73ab0252511180e53e2e64f5285df` and
+`dd3bb1d70459322db9147c99c8fe53a01829e38a`.
 
 ## Standing decision constraints
 

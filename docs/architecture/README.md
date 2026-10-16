@@ -19,6 +19,9 @@ shared engineering contract.
 - [GitHub publication source-write denial feasibility](github-publication-source-write-denial-feasibility.md)
   is evidence for a pending planner decision about ADR-0050 P9. It selects no
   mechanism and is not an accepted contract.
+- [GitHub publication retained-capture cross-check](github-publication-retained-capture-crosscheck.md)
+  is retained-capture consistency evidence for the P9 run. It is not an
+  accepted execution contract or P9 proof.
 
 Accepted material choices are recorded separately under
 [`docs/decisions`](../decisions/README.md). Architecture documents explain how
