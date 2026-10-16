@@ -5,50 +5,83 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: DOC-49-01 accepted-status reference correction
+## Active slice: TEST-48-01 bounded concurrent-replay failure diagnostics
 
 - **Status: UNSTAGED, UNCOMMITTED and UNPUSHED; returned for Codex review.**
   Preflight matched the dispatch: `main`; `HEAD`, local `origin/main` and
-  live main `cab3756c24e58524f25ef3ba607236d63fa9426e`; 0/0; empty index;
-  exactly the planner file unstaged; no untracked paths.
-- **Paths.** Modified: [engineering context](../engineering-context.md),
-  [MVP plan](mvp-delivery-plan.md), this file and
-  [planner-handoff.md](planner-handoff.md) (9240 bytes, `624a277a...45e1`,
-  planner-owned, preserved byte-identically). Ignored: check records under
-  `logs/executor/doc-49-01/`.
-- **Change.** The engineering context's ADR-0049 decision-list label
-  `proposed, additive` is now `accepted, additive`, and the MVP plan's
-  `(proposed) adds` is now `(accepted) adds`.
-  [ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md)
-  records `Status: Accepted` and the decision index lists it as accepted, so
-  no stop gate applied. Surrounding text, links, every other status
-  (including Proposed ADR-0050) and product behavior are unchanged. The
-  correction concerns decision status only; it establishes no real CLI
-  compatibility, branch-push permission or increment completion.
-- **Checks.** Focused: each substantive file equals its HEAD blob after
-  exactly one substitution (one occurrence at HEAD, none remaining, equal
-  length); both ADR-0049 links resolve to the accepted record the index
-  names. Final, once on stable input: the reused P9-SEM-01 documentation
-  checker (inspected, unchanged: 4173 bytes, `da16f21e...ff4b`) on the four
-  paths, the complete four-path diff, planner length and SHA-256, and
-  `git diff --check`. The checker exited 1 with two pre-existing false
-  positives in the engineering context, on lines unchanged from `HEAD`:
-  `assignment-secret` at line 192 on ordinary token prose and `email` at
-  line 311 on the fictitious remote example; local links and fragments
-  resolved and `git diff --check` passed.
-  Commands, outcomes and times are in the executor report
-  and `logs/executor/doc-49-01/`.
-- **Retained.** WF-COL-01 publication and planner verification, the
-  permission-observation feature at
-  `810b99b8e4f9c5e4d1b92266d8039a34f5c7c39e` (confirmed an ancestor of
-  `HEAD`, not reinspected) and earlier evidence, each with its original scope
-  and limitations.
-- **Not run.** Build, suite, generation, provider invocation, native
-  experiment, qualification, security-state query, cleanup or evidence
-  sweep; no historical snapshot or ignored P9 evidence was reopened.
+  live main `f7e42c1c7d574a9724ee8755684e4b39179bc53f`; 0/0; empty index;
+  exactly the planner file unstaged (11228 bytes, `331c3345...de88`,
+  planner-owned, preserved byte-identically); no untracked paths.
+- **Paths.** Modified: `GitHubBranchPublicationApprovalDurabilityTests.cs`
+  and this file. New: the sibling `GitHubBranchPublicationApprovalDiagnosticsTests.cs`
+  (both under `tests/DevalCopilot.Api.IntegrationTests/Features/Runs/LocalCommit/`).
+  Ignored: evidence under `logs/executor/test-48-01/`.
+- **Change.** The concurrent identical-request fact keeps four hosts, sixteen
+  identical requests submitted concurrently and every assertion. It now
+  awaits them through a feature-owned helper that writes one bounded record
+  per returned response to the xUnit test output in a `finally` block, so
+  the records exist before any assertion runs and a faulted submission
+  still propagates its own exception. The same text is the message of the
+  all-200 status assertion, now `Assert.True` with unchanged pass/fail
+  semantics (it replaces `Assert.All`, whose item formatting is not
+  bounded). A record holds only the request ordinal (submission index), its
+  host ordinal, the numeric status and the exact ADR-0048 code at
+  `errors[0].code` (one of the six fixed codes) or a closed fallback:
+  `empty`, `oversized` (above 8 KiB of UTF-8), `malformed` (invalid JSON,
+  depth above 8, wrong kind or type), `missing`, `ambiguous` (duplicate
+  members or several errors) or `unknown`. Ordinals identify submissions,
+  not execution order. A success body has no code and records
+  `fallback:missing`. No body, value, path, header or exception text is
+  copied; records are at most 16 and each fits 256 UTF-8 bytes.
+- **Synthetic diagnostic evidence (36 cases, no host or lineage).**
+  Fabricated `unavailable` and `conflict` responses keep their code, request
+  and host ordinals in the thrown status-assertion message. A faulted
+  submission keeps its original exception while the returned responses are
+  written. Malformed, wrong-type, duplicate, ambiguous, unknown, case- or
+  space-altered, escaped, oversized and too-deep bodies get the expected
+  fallback. Every result omits an inert fictitious sentinel and raw JSON.
+  This is synthetic evidence only; it neither reproduces nor attributes the
+  historical 409.
+- **Development failures (retained).** Build 1 failed with CS9007 (a raw
+  interpolated literal). The first synthetic run failed 1 of 36: an
+  escaped lone surrogate compares unequal without throwing (`unknown`), so
+  the unsupported `InvalidOperationException` catch was removed and only
+  `JsonException` is caught.
+- **Final checks, once on stable input.** The incremental serial build with
+  client generation disabled exited 0. The dispatched filter exited 0:
+  37 passed (36 synthetic and the real fact, which passed with sixteen
+  200 records retained in the TRX). Its `Durability...Diagnostic_` clause
+  matches nothing because the synthetic checks live in the sibling class.
+  The source hashes were equal before and after. Formatting of both C#
+  files passed, as did the reused documentation checker (4173 bytes,
+  `da16f21e...ff4b`) and `git diff --check`. The sentinel occurs in the TRX
+  only in three theory display names, never in output. Commands, results
+  and times are in the executor report and `logs/executor/test-48-01/`.
+- **Retained.** Product, deterministic snapshot, architecture, persistence,
+  frontend, generated-client, browser and qualification evidence, and
+  every other approval test, each with its original scope; none was rerun.
+- **Not run.** Other suites, stress or repeat runs, mutation, generation,
+  provider, native, qualification, security-state, cleanup or evidence
+  sweep.
 - **Next authorized action:** Codex review of this diff. No commit or push.
 
 ## Prior published delivery
+
+DOC-49-01 `f7e42c1c7d574a9724ee8755684e4b39179bc53f` (sole parent
+`cab3756c24e58524f25ef3ba607236d63fa9426e`, subject `docs: align ADR-0049
+references with accepted status`) published the accepted-status labels of
+ADR-0049 in the engineering context and MVP plan with both checkpoints (four
+paths). The planner independently verified the publication; its retained
+verification is `logs/planner-review/doc-49-01/publication-verification.json`
+over the frozen manifest SHA-256
+`f2833d7fc2d6374867697bfae7ee9a2e920409ad2479cb01c5e3ebd7db396a23`
+(this slice rechecked that hash, the commit, its parent and its paths only).
+R1 is resolved: the original checker exit 1 and its two pre-existing
+engineering-context false positives remain recorded with the focused
+passing correction. The planner identity in its Paths bullet describes the
+initial executor return; the frozen manifest defines the publication. Its
+committed "UNSTAGED, UNCOMMITTED and UNPUSHED" wording was the
+pre-publication state. Its checks are retained, not rerun.
 
 WF-COL-01 `cab3756c24e58524f25ef3ba607236d63fa9426e` (sole parent
 `b48738f0f160336df945ad3a6ad1802a6876458b`) published the reciprocal
@@ -116,6 +149,11 @@ evidence, not current status or approval.
 - The concurrent-replay 409, target-test 500, disposal
   `NullReferenceException` and unnamed Api 2067/2068 remain separately
   unexplained; later passes establish neither flakiness nor irrelevance.
+  TEST-48-01 only bounds what a future failure of the concurrent
+  identical-request fact retains (ordinals, status, fixed code). The one
+  passing run attributes nothing. A hung submission yields no record;
+  records are written before host disposal, but their retention beside a
+  disposal fault was not exercised.
 - **P9 evidence limits** ([feasibility note](../architecture/github-publication-source-write-denial-feasibility.md)
   sections 11 to 14): the v1 stop-gate defect and protocol deviation; the
   inconclusive A2 no-child result; native-error and capture limitations; a

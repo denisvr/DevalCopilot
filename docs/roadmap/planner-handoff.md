@@ -5,91 +5,106 @@ approval log. It replaces its current state on each selection or review
 decision. Procedure: [development workflow](development-workflow.md). Git and
 code prevail over this summary.
 
-## Active slice: DOC-49-01 (GO for the reviewed documentation diff)
+## Active slice: TEST-48-01 (GO for the reviewed test diagnostics)
 
-- **Decision (2026-10-16): GO.** Publish exactly the engineering context,
-  MVP plan, execution checkpoint and this planner record at the frozen
-  manifest identities. Codex remains planner/reviewer; Claude remains
-  executor. No closure edit or additional substantive change is authorized.
-- **Accepted result.** Exactly two stale ADR-0049 labels now say accepted,
-  consistent with the accepted ADR and decision index. Surrounding contract
-  text and all other statuses remain unchanged. The correction establishes
-  no real CLI compatibility, branch-push permission or increment completion.
-- **R1 - resolved.** The execution checkpoint now records the original
-  checker exit 1 and its two pre-existing false positives: assignment-secret
-  at engineering-context line 192 on ordinary prose, and email at line 311
-  on the fictitious remote. It also records resolved links/fragments and the
-  passing diff check. Neither baseline line nor the checker was changed.
-  Original failed output remains retained and classified, never a clean run.
-- **Executor concern addressed.** Codex agreed with the executor's concern
-  that the durable checkpoint omitted the nonzero outcome. The correction
-  carries that qualification without requiring the chat or ignored logs.
-  The Paths bullet's 9240-byte planner identity records the initial return;
-  it is retained as instructed, not used as the final publication identity.
-- **Independent review.** Review 1 inspected the complete four-path diff,
-  executor scripts and final evidence; exact byte proofs established each
-  intended substitution, unchanged baseline findings, planner preservation
-  and the unchanged P9 evidence/History/Open risks tail. Its checker exit 1
-  with two classified findings is retained. Review 2 inspected the R1 delta
-  script and output, confirmed the saved return against its reviewed hash,
-  and independently proved one 309-byte insertion with no deletion (45 ms).
-  The corrected checkpoint checker passed with zero findings (40 ms);
-  `git diff --check` passed. The substantive-file, checker and original
-  failed-output hashes still match. No blocking finding remains.
-- **Evidence and proportionality.** Review records are
-  `logs/planner-review/doc-49-01/review1/independent-review.json` and
-  `review2/independent-review.json`. Prior publication and product evidence
-  retain their original scope and limitations. No product build, suite,
-  generation, provider invocation, native work, qualification, security-state
-  query, historical snapshot, P9 input inspection or cleanup was needed.
+- **Decision (2026-10-16): GO.** Publish exactly the two test files and two
+  checkpoints frozen in `logs/planner-review/test-48-01/publication-manifest.json`.
+  Codex remains planner/reviewer; Claude remains executor. No blocking finding
+  remains. No next slice, closure edit or runtime publication is authorized.
+- **Accepted result.** The existing identical-request fact retains four hosts,
+  sixteen concurrent submissions and the same success, response equality,
+  row/event count and identity conditions. Its diagnostics precede assertions,
+  associate each returned response with its original request/host ordinal and
+  contain only those ordinals, numeric HTTP status and a fixed admitted code
+  or fallback. Parsing is bounded to 8 KiB and depth 8; at most sixteen
+  response records fit 256 UTF-8 bytes each, beside one bounded summary line.
+  No new raw-body or arbitrary error-text output is introduced.
+- **Executor decisions addressed.** The aggregate `Assert.True` has the same
+  all-200 condition for the unchanged sixteen-result submission and avoids
+  `Assert.All` formatting a response object. The six closed fallback literals
+  preserve the allowed diagnostic boundary. The unused filter alternative
+  matches no test and does not invalidate the 36 selected synthetic cases.
+  Separate synthetic tests avoid the base class's Git-scene construction.
+- **Independent review.** Codex inspected both complete test sources, the
+  checkpoint and planner diffs, exact returned identities, development
+  failures and final evidence. The executor TRX contains 37 passes, zero
+  failures: 36 synthetic cases and one real fact (12.7488 s), with all sixteen
+  expected 200 diagnostic records. Source hashes match the before/after
+  records. The independent API-test-project build passed with zero warnings
+  or errors (1982 ms). No product source, contract, dependency or fixture changed.
+- **Retained failure-message gap resolved.** The executor checked the thrown
+  synthetic assertion message inside its test but did not retain that message.
+  Another real concurrent run was unnecessary. An ignored reviewer console
+  probe directly invoked six cheap synthetic facts from the reviewed assembly,
+  then captured the actual `TrueException` from the reviewed formatter and
+  status assertion with fabricated unavailable/conflict responses. It verified
+  both codes, request/host ordinals and absence of the sentinel/raw JSON. The
+  actual message and probe are retained under
+  `logs/planner-review/test-48-01/review1/capture-probe/`. No host, provider,
+  production lineage or real concurrent fact was invoked by that probe.
+- **Review failures and limits, preserved.** The independent VSTest synthetic
+  attempt announced one matched assembly and produced no named result before
+  interruption; its cause remains unexplained, never a passing test run. A
+  project-based capture-probe build then failed NU1900 while reaching package
+  vulnerability feeds; no audit was suppressed. Direct compilation reused
+  the installed reference assemblies and the reviewed built test dependencies,
+  without restore or new packages; compile and capture exited 0. Its CS2023
+  warning records `/noconfig` being ignored in the response file. This is probe
+  evidence, not a clean project build or a VSTest pass. The separate successful
+  product/test-project build and executor TRX retain their actual scope.
+- **Other evidence.** Original executor CS9007 and synthetic unknown/malformed
+  expectation failures remain retained. Its formatting and four-file hygiene
+  checks passed. The executor's saved `complete-diff.patch` omits the new file
+  because ordinary `git diff` excludes untracked paths; Codex read that file
+  separately and retains its own complete four-path review artifact. Product,
+  snapshot, architecture, persistence, frontend, client, browser and qualification
+  evidence remain retained, not rerun. No stress loop or real-fact repeat ran.
+- **Remaining limits.** The historical 409 remains unattributed; the accepted
+  [ADR-0048](../decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md)
+  snapshot fix is unchanged. A hung submission still yields no record, and
+  retention beside a host-disposal failure was not exercised. Neither a later
+  pass nor the direct probe explains any historical or review interruption.
+  These limits do not change approval semantics or expand this diagnostics slice.
 
 ## Publication boundary
 
-Review preflight: `main`; HEAD, local `origin/main` and live main all
-`cab3756c24e58524f25ef3ba607236d63fa9426e`; 0/0; empty index;
-exactly the four slice paths unstaged; no untracked paths.
+Verified review preflight: `main`; HEAD, local `origin/main` and live main all
+`f7e42c1c7d574a9724ee8755684e4b39179bc53f`; 0/0; empty index;
+three tracked paths unstaged (current-work, planner-handoff and the durability
+test), and exactly the sibling diagnostics test untracked. The executor
+preserved the selected planner's 11228-byte identity through its return;
+this planner-owned GO replaces that selection and is included in the manifest.
 
-`logs/planner-review/doc-49-01/publication-manifest.json` freezes the four
-reviewed paths, modes, Git blobs, working-byte lengths/SHA-256 values and
-parent entries. Verify it before staging, stage only those four paths and
-commit once with sole parent `cab3756c24e58524f25ef3ba607236d63fa9426e`,
-subject `docs: align ADR-0049 references with accepted status`. Push `main`
-normally to `origin/main` and verify the live ref in the same executor turn.
-Expected final checkout: clean, empty index, no untracked paths and 0/0.
-A manifest discrepancy or material change returns for review. A failed push
-or diverged remote stops publication; no force-push, reset, cleanup or history
-reconciliation. Preserve pre-publication checkpoint wording; no closure edit.
-This GO authorizes only this repository's reviewed documentation publication,
-not product runtime publication, a next slice or renewed experimental work.
+Verify the frozen manifest before staging and the staged/committed modes and
+blobs against it. Commit exactly the four reviewed paths once with sole parent
+`f7e42c1c7d574a9724ee8755684e4b39179bc53f`, subject
+`test: retain bounded approval replay diagnostics`; push `main` normally to
+`origin/main`, verify the live ref and report the SHA in the same executor turn.
+A manifest discrepancy or material change returns for review. A failed push or
+diverged remote stops publication; no force-push, reset, cleanup or history
+reconciliation. Keep the committed pre-publication wording; no closure edit.
 
 ## Verified baseline and continuity
 
-WF-COL-01 remains published at `cab3756c24e58524f25ef3ba607236d63fa9426e`,
-sole parent `b48738f0f160336df945ad3a6ad1802a6876458b`, subject
-`docs: clarify reciprocal critical collaboration`. Its four-path frozen
-manifest SHA-256 is
-`75749f58fcb55d655795bfce74423d2e556871e262cf85d53bd160faa9e2662d`.
-The prior independent verification is retained at
-`logs/planner-review/wf-col-01/publication-verification.json`; this review
-rechecked local/live ref equality, not the complete prior publication matrix.
-No closure edit or repeat push follows. ADR-0021 delivery of the new root
-text was not exercised; existing sealed manifests remain unchanged.
+DOC-49-01 remains published at `f7e42c1c7d574a9724ee8755684e4b39179bc53f`,
+sole parent `cab3756c24e58524f25ef3ba607236d63fa9426e`. Its independent
+publication verification is retained at
+`logs/planner-review/doc-49-01/publication-verification.json`; its manifest
+SHA-256 remains `f2833d7fc2d6374867697bfae7ee9a2e920409ad2479cb01c5e3ebd7db396a23`.
+R1 is resolved; the original checker exit 1 and the two pre-existing
+engineering-context false positives retain their original classification.
+No closure edit or repeat publication of that delivery follows.
 
-P9-SEM-01 remains published at `b48738f0f160336df945ad3a6ad1802a6876458b`,
-sole parent `465e60cfc31d02961fc3970d44e65bb4cfe5ee29`, with R1-R3 and its
-architecture-index entry accepted. Its publication manifest SHA-256 is
-`27a8e04c8e8c6cf9d9ccce9d22e19924a7441a7e7a5509b313ded13f60e0a6f5`;
-its independent verification is retained, not rerun.
-
-Review and publication stay in this planner chat and the same DOC-49-01
+Review and publication remain in this planner chat and the same TEST-48-01
 executor chat. Codex independently verifies publication before the next
-continuity decision. No observed context-usage percentage is asserted;
-no next slice or chat transition is dispatched by this GO.
-WF-02/WF-03 remain unselected. Increment 4's provider contracts and Agent
-qualification, Increment 5 coordination/recovery and Increment 6 publication
-and CI orchestration remain incomplete. ADR-0049 reports repository access
-only; ADR-0050 remains Proposed, P9 unproven and no mechanism selected.
-No native, experimental, credential/helper/provider or cleanup authority follows.
+continuity decision. No observed context-usage percentage is asserted and no
+next slice or chat transition is dispatched by this GO. WF-02/WF-03 stay
+unselected. WF-COL-01 and P9-SEM-01 remain published at their prior baselines;
+ADR-0021 delivery of the root instructions was not exercised and existing
+sealed manifests remain unchanged. Increment 4 provider qualification,
+Increment 5 coordination/recovery and Increment 6 publication/CI orchestration
+remain incomplete. ADR-0049 reports repository access only; ADR-0050 remains
+Proposed, P9 unproven, no mechanism selected and human rearm/resolution absent.
 
 ## Preserved evidence and uncertainty
 
