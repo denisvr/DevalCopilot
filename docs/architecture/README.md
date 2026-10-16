@@ -14,6 +14,10 @@ shared engineering contract.
 - [Agent collaboration execution evidence](agent-collaboration-execution-evidence.md)
   holds the protocol's per-attempt execution evidence and run-wide Agent
   process-duration summary.
+- [Agent collaboration evidence inspection](agent-collaboration-evidence-inspection.md)
+  holds the protocol's recorded collaboration-input provenance, sealed
+  Agent-artifact window inspection, and Agent-attempt history and evidence
+  inspection.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote

@@ -4,8 +4,8 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds two separately pinned records, WF-03A and WF-03B; each
-record's identifiers and coordinates refer only to its own baseline. WF-03
+prevail. It holds three separately pinned records, WF-03A, WF-03B and WF-03C;
+each record's identifiers and coordinates refer only to its own baseline. WF-03
 remains incomplete. Future WF-03 moves remain unselected, and this map names no
 destination for them.
 
@@ -166,3 +166,107 @@ companion is unchanged. WF-03A's not-moved list named execution evidence
 because it stayed at that move; WF-03B moves it. This is a relocation, not a
 reconciliation: moved facts and wording are as written at the baseline,
 except the two link repairs above.
+
+## WF-03C record
+
+WF-03C moves the recorded collaboration-input provenance, sealed Agent-artifact
+window inspection, and Agent-attempt history and evidence inspection sections.
+This record was written with WF-03C's uncommitted working-tree diff, for
+independent review before any GO; it describes that diff, not a published
+delivery. Publication, if any, is evidenced by Git history and the checkpoints,
+not by this record.
+
+- **Baseline.** Commit `a40d95bb65cb5b2c07688ea61f3308719b2dd104`:
+  `docs/architecture/agent-collaboration-protocol.md` blob
+  `73e820dbff92e4554670586303110a8f711151ac`, SHA-256
+  `8ae13a2579e68ee81dc07b3b31e25f2636959e25115e3555fc61c0a65ed4d808`,
+  245433 bytes, 2916 lines, 66 Markdown headings. Read it with
+  `git show a40d95bb:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `CLstart-end` are WF-03C baseline line spans; `CPstart-end`
+  are lines of the protocol after WF-03C; `CIstart-end` are lines of the
+  [evidence inspection](../architecture/agent-collaboration-evidence-inspection.md)
+  companion. Row IDs carry a `C-` prefix. No WF-03C identifier refers to a
+  WF-03A or WF-03B row or coordinate, including WF-03A's `C` companion lines. A
+  section range spans its heading through the blank line before the next
+  heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, with the same forwarder shape. All 66 baseline headings stay in the
+  protocol in order with identical text and level, so every fragment,
+  including the three new forwarding headings, resolves as before. The
+  companion promotes the three moved headings from `###` to `##` with
+  identical text, so their fragments are the same in both files. CI1-13 are
+  the companion's title and introduction; CI63 and CI145 are the blank
+  separators CL879 and CL961.
+
+### WF-03C ranges
+
+The five ranges cover CL1-2916 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| C-R-01 | CL1-829 | Purpose through the run-wide Agent process-duration forwarder, including the provider contracts and execution evidence routing paragraphs and the WF-03A and WF-03B forwarders | Retain; one routing insertion | CP1-495 (CL1-495), CP496-500 (insertion), CP501-834 (CL496-829) | Verbatim apart from the insertion: a four-line paragraph and a blank line immediately after the execution evidence routing paragraph (CL491-495) and before `## Provider runtime configuration`, linking to the companion |
+| C-M-01 | CL830-879 | Recorded collaboration-input provenance | Move | CI14 heading, CI15-62 body (CL831-878); forwarder CP835-838; CP839 (CL879) | Body verbatim except one authorized link repair (CL833, CI17) |
+| C-M-02 | CL880-961 | Sealed Agent-artifact window inspection | Move | CI64 heading, CI65-144 body (CL881-960); forwarder CP840-843; CP844 (CL961) | Body verbatim except one authorized cross-reference removal (CL882-883, CI66-67) |
+| C-M-03 | CL962-1049 | Agent-attempt history and evidence inspection | Move | CI146 heading, CI147-232 body (CL963-1048); forwarder CP845-848; CP849 (CL1049) | Body verbatim except one authorized link repair (CL990, CI174) |
+| C-R-02 | CL1050-2916 | Provider token-usage contracts through protocol evolution | Retain | CP850-2716 | Verbatim |
+
+### WF-03C fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| C-M-01 | [`#recorded-collaboration-input-provenance`](../architecture/agent-collaboration-protocol.md#recorded-collaboration-input-provenance) | [`#recorded-collaboration-input-provenance`](../architecture/agent-collaboration-evidence-inspection.md#recorded-collaboration-input-provenance) |
+| C-M-02 | [`#sealed-agent-artifact-window-inspection`](../architecture/agent-collaboration-protocol.md#sealed-agent-artifact-window-inspection) | [`#sealed-agent-artifact-window-inspection`](../architecture/agent-collaboration-evidence-inspection.md#sealed-agent-artifact-window-inspection) |
+| C-M-03 | [`#agent-attempt-history-and-evidence-inspection`](../architecture/agent-collaboration-protocol.md#agent-attempt-history-and-evidence-inspection) | [`#agent-attempt-history-and-evidence-inspection`](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection) |
+
+### WF-03C link and reference changes
+
+- **Linked rule.** C-M-01's "the shared
+  `Attempt.GetAgentProcessExecutionEvidence()` rule above" (CL833, CI17) now
+  links "`Attempt.GetAgentProcessExecutionEvidence()` rule" to
+  `agent-collaboration-execution-evidence.md#execution-evidence-versus-semantic-outcome`
+  and drops "above", because that rule is in the execution evidence companion
+  and no longer precedes it. CL832 is unchanged.
+- **Removed cross-reference.** C-M-02's artifact-list introduction drops only
+  "(see above)" (CL882-883, CI66-67); its two-line layout and metadata-only
+  inventory claim are unchanged.
+- **Retargeted.** C-M-03's link `#claude-reported-model-context-limits`
+  (CL990, CI174) now points to
+  `agent-collaboration-protocol.md#claude-reported-model-context-limits`,
+  because that section stays in the protocol. No other moved text changed.
+- **Local link.** C-M-02's link to
+  `#agent-attempt-history-and-evidence-inspection` (CL897, CI81) stays local,
+  because its target, C-M-03, moved with it. C-M-01's "role-aware zero-rows
+  case above" (CL858, CI42) refers within C-M-01. The moved sections contain
+  no other link.
+- **Inbound references.** At the baseline, outside the moved sections, the
+  retained CL2035 (CP1835) linked to `#agent-attempt-history-and-evidence-inspection`;
+  the product [cockpit specification](../product/run-cockpit-specification.md)
+  (line 1749) linked to the same protocol fragment; the frozen execution
+  history snapshot linked to the protocol's sealed-window and history
+  fragments; and B-R-02's subject above named "Recorded collaboration-input
+  provenance" as a historical coordinate description. All still reach the
+  protocol's retained forwarding headings, and none of those lines changed.
+  The specification's own `### Sealed Agent-artifact window inspection`
+  heading (line 1669) is a separate product section, not a protocol
+  reference.
+- **Companion introduction routing.** The
+  [execution evidence](../architecture/agent-collaboration-execution-evidence.md)
+  companion's introduction no longer says provenance and history stay in the
+  protocol: lines 10-11 of that file now keep token usage, model context
+  limits and budgets in the protocol and link provenance, sealed artifact
+  windows and attempt history to the evidence inspection companion. The
+  introduction keeps its line count, and everything from
+  `## Execution evidence versus semantic outcome` through the end of that
+  file is byte-identical. This is not one of the three moved-body repairs.
+
+### WF-03C not moved
+
+Provider token usage, model context limits, account allowances, budgets, token
+and account controls, model and effort controls, format repair, runtime
+preflight, review correction, human guidance, manifests and every other
+subject stay in the protocol. The provider contracts companion is unchanged;
+the execution evidence companion changed only in its introduction, as above.
+WF-03B's not-moved list named provenance, artifact
+and history inspection because they stayed at that move; WF-03C moves them.
+This is a relocation, not a reconciliation: moved facts and wording are as
+written at the baseline, except the three reference repairs above.
