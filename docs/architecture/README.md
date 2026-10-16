@@ -22,6 +22,10 @@ shared engineering contract.
 - [GitHub publication retained-capture cross-check](github-publication-retained-capture-crosscheck.md)
   is retained-capture consistency evidence for the P9 run. It is not an
   accepted execution contract or P9 proof.
+- [GitHub publication native exit and pipe-read semantics](github-publication-native-io-semantics.md)
+  is documentation-to-source evidence about the P9 host's exit query and pipe
+  reads. It is not an accepted execution contract or P9 proof, and it
+  validates no native measurement.
 
 Accepted material choices are recorded separately under
 [`docs/decisions`](../decisions/README.md). Architecture documents explain how
