@@ -4,58 +4,57 @@
 
 ## Priority and remaining objective
 
-Documentation priority; functional work, tests and P9 stopped. Codex
-plans/reviews; Claude implements. Reciprocal challenge and explicit GO apply.
+Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
+Claude implements. Challenge/GO apply. WF-03 incomplete:
+concise core/router, focused subjects, mapping and compatible fragments. Later moves unselected;
+no protocol/runtime/permission/architecture change.
 
-- Delivered: WF-01 4c9102c, WF-02A a593009, WF-02B d1a7b457, WF-03A c1189f1a,
-  WF-03B a40d95bb. No reopening, republishing or closure edit.
-- WF-03 incomplete: concise protocol core/router and focused roles/messages,
-  provider, review/correction, context/evidence, usage/budgets and history, with
-  mapping and link/fragment compatibility. Only WF-03C is selected; no protocol,
-  runtime, permission or architecture change.
-
-## Verified baseline and dispatch state
+## Verified baseline and review state
 
 2026-10-16: main; HEAD, origin/main and live main independently verified:
-a40d95bb65cb5b2c07688ea61f3308719b2dd104; 0/0; empty index; seven unstaged
-review paths. This GO replaces the preserved 6140-byte review-1 handoff;
-the other six reviewed documents stay exact.
-WF-03B: logs/planner-review/wf-03b/publication-verification.json;
-pre-publication wording historical; R1/EX-01 resolved, EX-02/03 accepted.
+fc14b5fd1caf3a910fc69921acf08306f75a7d71; 0/0; empty index; six modified
+tracked documents and one new companion. This GO replaces the preserved dispatch
+handoff; other six files stay exact.
 
-## Selected slice: WF-03C
+WF-03C fc14b5fd delivered: logs/planner-review/wf-03c/publication-verification.json.
+Earlier deliveries stand; no reopening/republication/closure edit.
+Committed pre-publication wording is historical.
 
-**GO for seven frozen documents; no blocking findings.** L830-1049 moved to
-docs/architecture/agent-collaboration-evidence-inspection.md; three body repairs.
-Core rebuild: 245433 bytes; 66 headings kept.
-Review: logs/planner-review/wf-03c/review2/decision.md and check-01/results.json.
+## Selected slice: WF-03D
 
-- WF-03C-R1 resolved: C12 checker defect and real C17 wording loss distinguished;
-  restored before dev-02; invalid negative-01 kills are not accepted evidence.
-- EX-C01 resolved: introductions and C map corrected; contract suffixes and
-  A/B records exact. Original path omission was the planner's.
-- current-work 6969 bytes (+825 target, +513 correction) accepted; bounded
-  facts, history/risks and WF-02A deviation retained. No trim/closure edit.
+**GO for seven frozen documents.** Manual format repairs
+extracted; reconstruction exact, 66 headings. Review:
+logs/planner-review/wf-03d/review1/decision.md.
 
-Independent 5/5, 1015 ms, 129 links. Executor focused 9/9, final 22/22,
-negative baseline 16/16 and 33 controls inspected, not rerun. Review-1
-conservation retained. Git/disk checks lack mutants; scans are lexical.
-Recovered dev-01 checker matches its hash, not an original snapshot. Failed
-runs retained; aborted write is an executor note, not an original stream.
-No product suites or provider experiments.
+- EX-D01 accepted: two-hop history link follows the selected core router.
+- EX-D02 accepted: 6835 bytes (+691 target, -134 from C); 3466 bytes of
+  History/risks exact, limits retained. No trim/closure edit; 6 KiB stays a target.
+- Independent: six check-01 passes retained; check-02 1/1; 134 links, live ref.
+  Planner newline false positive corrected; failure/checker retained, no executor edit.
+- Executor dev 17/17, final 18/18, negative baseline 15/15 and 24 controls
+  inspected, not rerun. N06 changes case, not slug; N05 tests the fragment.
+  Scans lexical; Git/disk no mutants. No product/provider runs.
 
 ## Publication boundary
 
-Claude publishes in the same chat. Freeze:
-logs/planner-review/wf-03c/publication-manifest.json. Commit exactly its seven
-files, mode 100644, sole parent a40d95bb, subject:
-`docs: extract agent evidence inspection`.
-Verify frozen working/staged/committed bytes/tree; push main normally to
-origin/main and verify live ref in the same turn. Failure/divergence or material
-change stops; no force/reconciliation/closure edit. Codex verifies publication.
-WF-03 incomplete; later moves unselected.
+Claude publishes exactly seven frozen files, mode 100644, sole parent
+fc14b5fd. Freeze: logs/planner-review/wf-03d/publication-manifest.json. Subject:
+`docs: extract agent format repair`.
+Verify working/staged/committed bytes/tree; push main normally to origin/main,
+verify live ref. Failure/divergence/material change stops; no force,
+reconciliation or closure edit. Codex verifies publication.
 
 ## Retained review and evidence limits
+
+WF-03C-R1 resolved: dev-01 C12 checker defect versus real C17 retained-scope
+wording loss, restored before dev-02; negative-01 baseline failed, invalidating
+its kills; negative-02 supersedes it. EX-C01 resolved; original companion-path
+omission was the planner's. Review: logs/planner-review/wf-03c/review2/decision.md.
+Correction evidence inspected, not rerun; original conservation retained.
+Recovered dev-01 checker matches its hash, not an original snapshot or historical
+authentication. Aborted write is an executor note, not an original stream.
+C's 6969-byte current-work accepted; no trim/closure edit. Scans lexical;
+Git/disk no mutants. The 6 KiB target does not waive retention.
 
 WF-02A R1 resolved; evidence-loss deviation remains:
 `logs/executor/wf-02a/correction1/development-runs-transcribed.md` is derivative,
@@ -64,13 +63,14 @@ Earlier checker outputs were overwritten; original failed runs, checker and
 timings are unavailable; run B exit status is unknown. Never reconstruct them.
 
 WF-02B: `logs/planner-review/wf-02b/review1/`; obsolete-footer false positive
-corrected without executor edits. Index-intro and six/eight-path observations
-stay unadjudicated/out of scope. WF-03B newline/status false positives and
-ENOBUFS defect/deviation: `logs/planner-review/wf-03b/review1/decision.md`.
-Its ENOBUFS note is derivative tool-output transcription; no original
-standalone stream/timing retained or reconstructed. Later original streams
-and results retained. These are planner defects, not executor findings.
-Prior evidence not rerun. The pre-existing missing
+corrected without executor edits; index-intro and six/eight-path observations
+unadjudicated/out of scope. WF-03B R1/EX-01 resolved, EX-02/03 accepted;
+newline/status false positives and ENOBUFS defect/deviation:
+`logs/planner-review/wf-03b/review1/decision.md`. ENOBUFS note is derivative
+tool-output transcription; no original standalone stream/timing retained or
+reconstructed. These are planner defects. Failed evidence stays retained.
+Prior product/test/browser/generation/qualification evidence keeps its original
+scope, not rerun. Pre-existing missing
 `planner-handoff.md#verified-transition-baseline` reference in
 documentation-rework-map.md stays unchanged/out of scope.
 

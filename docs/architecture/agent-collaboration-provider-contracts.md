@@ -3,7 +3,8 @@
 This companion to the [agent collaboration protocol](agent-collaboration-protocol.md)
 holds the provider CLI safety contracts formerly under its
 [provider runtime configuration](agent-collaboration-protocol.md#provider-runtime-configuration),
-which keeps host runtime preflight and every other provider-runtime subject.
+which retains host runtime preflight and forwards extracted subjects through
+their original headings.
 The sections below are moved verbatim; the protocol's original headings forward
 here. The implementation contract builds on the critical-review contract that
 precedes it, so its references to that contract "above" mean the preceding

@@ -4,10 +4,10 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds three separately pinned records, WF-03A, WF-03B and WF-03C;
-each record's identifiers and coordinates refer only to its own baseline. WF-03
-remains incomplete. Future WF-03 moves remain unselected, and this map names no
-destination for them.
+prevail. It holds four separately pinned records, WF-03A, WF-03B, WF-03C and
+WF-03D; each record's identifiers and coordinates refer only to its own
+baseline. WF-03 remains incomplete. Future WF-03 moves remain unselected, and
+this map names no destination for them.
 
 ## WF-03A record
 
@@ -270,3 +270,99 @@ WF-03B's not-moved list named provenance, artifact
 and history inspection because they stayed at that move; WF-03C moves them.
 This is a relocation, not a reconciliation: moved facts and wording are as
 written at the baseline, except the three reference repairs above.
+
+## WF-03D record
+
+WF-03D moves the two manual read-only format repair sections. This record was
+written with WF-03D's uncommitted working-tree diff, for independent review
+before any GO; it describes that diff, not a published delivery. Publication,
+if any, is evidenced by Git history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `fc14b5fd1caf3a910fc69921acf08306f75a7d71`, the
+  published WF-03C result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `4fcf2df82f91f0bf2b1166d2622818407b4578d1`, SHA-256
+  `3dee277cfa478ad3e84c01aa9a5859f0556f6a90e9b0ac0a2b35b57293d405e4`,
+  230999 bytes, 2716 lines, 66 Markdown headings. Read it with
+  `git show fc14b5fd:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `DLstart-end` are WF-03D baseline line spans; `DPstart-end`
+  are lines of the protocol after WF-03D; `DFstart-end` are lines of the
+  [format repair](../architecture/agent-collaboration-format-repair.md)
+  companion. Row IDs carry a `D-` prefix. No WF-03D identifier refers to a
+  WF-03A, WF-03B or WF-03C row or coordinate. A section range spans its
+  heading through the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, with the same forwarder shape. All 66 baseline headings stay in the
+  protocol in order with identical text and level, so every fragment,
+  including the two new forwarding headings, resolves as before. The companion
+  promotes the two moved headings from `###` to `##` with identical text, so
+  their fragments are the same in both files. DF1-13 are the companion's title
+  and introduction, and DF83 is the blank separator DL1899.
+
+### WF-03D ranges
+
+The four ranges cover DL1-2716 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| D-R-01 | DL1-1829 | Purpose through the run-scoped advisory Codex account-usage warning, including Structured output failure, the three companion routing paragraphs and the WF-03A, WF-03B and WF-03C forwarders | Retain; one routing insertion | DP1-500 (DL1-500), DP501-504 (insertion), DP505-1833 (DL501-1829) | Verbatim apart from the insertion: a three-line paragraph and a blank line immediately after the evidence inspection routing paragraph (DL496-500) and before `## Provider runtime configuration`, linking to the companion |
+| D-M-01 | DL1830-1899 | One manual Codex Planner format repair | Move | DF14 heading, DF15-82 body (DL1831-1898); forwarder DP1834-1837; DP1838 (DL1899) | Body verbatim except one authorized link repair (DL1835, DF19) |
+| D-M-02 | DL1900-2022 | One manual format repair of the remaining read-only stages | Move | DF84 heading, DF85-205 body (DL1901-2021); forwarder DP1839-1842; DP1843 (DL2022) | Body verbatim |
+| D-R-02 | DL2023-2716 | Optional second challenge round and escalation through protocol evolution | Retain | DP1844-2537 | Verbatim |
+
+### WF-03D fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| D-M-01 | [`#one-manual-codex-planner-format-repair`](../architecture/agent-collaboration-protocol.md#one-manual-codex-planner-format-repair) | [`#one-manual-codex-planner-format-repair`](../architecture/agent-collaboration-format-repair.md#one-manual-codex-planner-format-repair) |
+| D-M-02 | [`#one-manual-format-repair-of-the-remaining-read-only-stages`](../architecture/agent-collaboration-protocol.md#one-manual-format-repair-of-the-remaining-read-only-stages) | [`#one-manual-format-repair-of-the-remaining-read-only-stages`](../architecture/agent-collaboration-format-repair.md#one-manual-format-repair-of-the-remaining-read-only-stages) |
+
+### WF-03D link and reference changes
+
+- **Retargeted.** D-M-01's only link, `#agent-attempt-history-and-evidence-inspection`
+  (DL1835, DF19), now points to
+  `agent-collaboration-protocol.md#agent-attempt-history-and-evidence-inspection`,
+  the protocol's retained forwarding heading, which forwards to the evidence
+  inspection companion. The line is not rewrapped. No other moved text
+  changed. This is WF-03C's retained CL2035 (CP1835) inbound reference.
+- **Relative wording.** D-M-02's "Like the Planner's" and "The Planner's repair
+  is unchanged" refer to D-M-01, which precedes it in the companion. D-M-02
+  names the provider token stop, the two-round planning limit and the
+  depth-two escalation without a link or "above"; those stay in the protocol.
+  The moved sections contain no other link.
+- **Inbound references.** At the baseline, outside the moved sections, the
+  retained Structured output failure (DL462 and DL464, unchanged as DP462 and
+  DP464) linked to both fragments; the product
+  [cockpit specification](../product/run-cockpit-specification.md) (lines 970
+  and 997) linked to both protocol fragments; and the frozen execution history
+  snapshot (lines 2058 and 2970) linked to them. All still reach the
+  protocol's retained forwarding headings, and none of those lines changed.
+  The specification's own `### One manual Codex plan format repair` and
+  `### One manual format repair of a critical review, challenge resolution, or code review`
+  headings (lines 953 and 973) are separate product sections. The
+  [engineering context](../engineering-context.md) routing row that names
+  format repair under the protocol is unchanged; the protocol routes to the
+  companion.
+- **Provider contracts introduction.** The
+  [provider contracts](../architecture/agent-collaboration-provider-contracts.md)
+  companion's introduction no longer says provider runtime configuration keeps
+  every other provider-runtime subject, which earlier extractions had made
+  inaccurate: its line 6 became lines 6-7, saying it retains host runtime
+  preflight and forwards extracted subjects through their original headings.
+  The introduction grows by one line, so `## Claude Code critical-review CLI safety contract`
+  moves from line 12 to 13, and everything from that heading through the end
+  of that file is byte-identical. This is a separate introduction repair, not
+  the moved-body link repair.
+
+### WF-03D not moved
+
+Structured output failure, the optional second challenge round and escalation,
+escalated-plan authorization, verification failure diagnosis, review
+correction, human guidance, provider token usage, model context limits,
+account allowances, budgets, token and account controls, model and effort
+controls, runtime preflight, manifests and every other subject not moved by
+WF-03A to WF-03D stay in the protocol. The execution evidence and evidence
+inspection companions are unchanged; the provider contracts companion changed
+only in its introduction, as above. WF-03C's not-moved list named format
+repair because it stayed at that move; WF-03D moves it. This is a relocation,
+not a reconciliation: moved facts and wording are as written at the baseline,
+except the one link repair above.

@@ -18,6 +18,9 @@ shared engineering contract.
   holds the protocol's recorded collaboration-input provenance, sealed
   Agent-artifact window inspection, and Agent-attempt history and evidence
   inspection.
+- [Agent collaboration format repair](agent-collaboration-format-repair.md)
+  holds the protocol's manual read-only format repairs of the Codex Planner and
+  the remaining read-only stages.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote
