@@ -42,12 +42,22 @@ context pressure or provider limits never change ownership.
 
 ## Evidence-based challenge
 
-Both roles are fallible. The executor may question a request or finding,
+Both roles act as critical engineering collaborators. Either may initiate a
+two-way technical discussion or brainstorming when assumptions, uncertainty,
+tradeoffs or competing solutions need examination. Raise material concerns
+proactively; do not silently follow a request believed to be flawed. Discussion
+is part of both roles, not a privilege reserved for the planner or a failure
+of execution.
+
+Both roles are fallible. Either may question a request, finding or proposal,
 explain with evidence why it is unsafe, contradictory, unnecessary or
 impractical, and propose a better alternative with its consequences. A
-challenge is not noncompliance, and an instruction is not proof. Both roles
-reconsider their assumptions and revise their positions when the evidence
-warrants it; role ownership does not make a proposal infallible.
+challenge is not noncompliance, and an instruction is not proof. Each role
+engages with the other's reasoning and revises its position when the evidence
+warrants it. The planner explicitly addresses material executor challenges,
+recording the resulting decision and rationale rather than relying on role
+ownership as proof. Brainstorming ideas remain proposals until evaluated;
+neither agent's confidence or agreement makes them accepted architecture.
 
 While a material disagreement is unresolved, pause the dependent work and
 continue only independent authorized work. Discussion never authorizes scope

@@ -5,85 +5,76 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: P9-SEM-01 native exit and pipe-read semantics
+## Active slice: WF-COL-01 reciprocal critical collaboration instructions
 
-- **Status: UNSTAGED, UNCOMMITTED and UNPUSHED; review 1 NO-GO corrections
-  (R1-R3) returned for Codex review.** First preflight: `main`; `HEAD`, local
-  `origin/main` and live main `465e60cfc31d02961fc3970d44e65bb4cfe5ee29`;
-  0/0; empty index; only the planner file unstaged (8241 bytes,
-  `1658df91...4d07`). Correction preflight: same refs, 0/0, empty index; five
-  tracked files unstaged, the note untracked; planner file now 8441 bytes
-  (`c2735ffd...468b`), preserved byte-identically.
-- **Paths.** New: the
-  [semantics note](../architecture/github-publication-native-io-semantics.md).
-  Modified: this file, [architecture index](../architecture/README.md) (one
-  evidence-only link, unchanged by the correction). Ignored: hash,
-  membership, documentation-read and check records under
-  `logs/executor/p9-native-io-semantics/`, correction records in its
-  `correction1/`.
-- **Instruction edits (not this slice).** `AGENTS.md` (`cff3b663...1c4f`)
-  and `CLAUDE.md` (`d94da915...2453`) changed during the first pass. Codex
-  made them in the planner chat at the owner's explicit request; they match
-  the executor's discrepancy record. They are separate authorized owner work,
-  kept byte-identical and unstaged, and excluded from this slice's commit.
-- **Inputs.** The frozen host, three manifests and four static-audit reports
-  matched the dispatched hashes before and after use; the five source/report
-  entries match their manifests. Eleven Microsoft Learn pages read
-  2026-10-16 (URLs, sections and dates in the note).
-- **Result (documentation and source only).** H40: the return is ignored;
-  `ec` after a failed query is undocumented, so "failure leaves 0" is an
-  inference; the all-access `CreateProcessW` handle rules out a rights cause;
-  no other cause is documented or excluded. H37: `drain` collapses empty
-  poll, poll/read failure and zero-byte read; whether buffered bytes survive
-  the writers' close for the final drain is undocumented. Stdout: only if
-  loss is an unread suffix does the eight-line check fail closed (unless the
-  loss is wholly after the eighth line); whether a failed read can remove
-  bytes is unknown (K4), so stdout-loss detection is not established. Stderr
-  reads empty only if every byte went unread, under any loss mode. U2
-  narrowed for these two parts only.
-- **Deviations.** One `wc -lc` glob also counted three non-allowlisted audit
-  reports that are audit-manifest members (per review 1). `wc` read their
-  full contents to count; only counts were displayed, and the contents were
-  not viewed or used. Not reopened; no retrospective authorization. The
-  first membership check failed (`grep` aborted); record kept, `awk` retry
-  matched.
-- **R1 (corrected).** Conclusion, section 4 implications, matrix H37-c and
-  K4 now state the suffix-only assumption behind the eight-line argument and
-  keep an unread suffix distinct from possible consumption on failure.
-- **R2 (corrected).** Provenance limits "no other listed member" to the
-  membership/hash checks and records the `wc` content reads as a deviation.
-- **R3 (corrected).** The blanket K1-K5 sentence is replaced: API questions
-  that documentation or separate investigation might narrow; controls that
-  could improve future measurements; historical uncertainty (K5 and the
-  canonical exit values) that no new work can remove. Nothing is selected.
-- **Checks.** First pass: final documentation matrix on the three paths
-  (links/fragments, UTF-8/LF/final newline, whitespace, sensitive patterns,
-  complete diff, `git diff --check` with the note), all clean; eight-fault
-  checker control met. Correction: the same checker, `git diff --check`,
-  the note's whitespace check, diff inspection and planner/instruction-file
-  hashes, recorded in `correction1/`; outcomes are in the executor report.
-- **Retained.** Original input hashes and memberships, the source and
-  documentation assessment and the checker control: inputs unchanged, not
-  rerun. No new frozen-input or web read in the correction.
-- **Not run.** Build, suite, generation, native harness, API probe, fault
-  injection, capture/fixture/binary read, live profile/ACL/token state,
-  qualification.
+- **Status: UNSTAGED, UNCOMMITTED and UNPUSHED; returned for Codex review.**
+  Preflight matched the dispatch: `main`; `HEAD`, local `origin/main` and
+  live main `b48738f0f160336df945ad3a6ad1802a6876458b`; 0/0; empty index;
+  exactly `AGENTS.md`, `CLAUDE.md` and the planner file unstaged; no
+  untracked paths.
+- **Paths.** Modified: `AGENTS.md` (4513 bytes, `cff3b663...1c4f`),
+  `CLAUDE.md` (703 bytes, `d94da915...2453`), this file and
+  [planner-handoff.md](planner-handoff.md) (8013 bytes, `7f74fee3...a759`,
+  planner-owned, preserved byte-identically). Ignored: check records under
+  `logs/executor/wf-col-01/`.
+- **Provenance.** Codex made both root edits in the planner chat at the
+  owner's explicit request during P9-SEM-01, which deliberately excluded
+  them. The executor did not author or change them; their bytes are kept.
+- **Assessment (evidence for Codex, not acceptance).** The `AGENTS.md`
+  challenge section makes analysis, discussion and brainstorming reciprocal,
+  asks both roles to raise material concerns instead of silently following a
+  request believed flawed, requires the planner to address material executor
+  challenges with a recorded decision and rationale, and keeps brainstormed
+  ideas as proposals. The roles, the unchanged disagreement paragraph,
+  GO/NO-GO and publication authority, the startup routing link and the
+  `CLAUDE.md` `@AGENTS.md` import are intact; no messaging, orchestration,
+  tool or provider permission is introduced. The workflow's rule-location
+  table and the playbook's role reference still resolve. No material concern
+  was found, so the root text is retained unchanged.
+- **ADR-0021.** Both roots stay below the 8192-byte raw bound and remain the
+  only captured sources; `CLAUDE.md` names an `AGENTS.md` section that the
+  same manifest carries and imports nothing else. In a sealed product
+  manifest the new text stays untrusted advisory context beneath the fixed
+  boundary; existing sealed manifests replay unchanged.
+- **Non-blocking notes.** `CLAUDE.md` paraphrases the shared section, so a
+  later rename or rewrite of that heading must update it. "Initiate
+  discussion with Codex" relies on the human-operated workflow for the
+  channel; neither root names a mechanism. Only the planner's duty to answer
+  challenges is explicit; executor handling of review findings stays in the
+  workflow's findings rules.
+- **Checks.** Focused: complete root diffs, reciprocal and authority
+  wording, import, routing link and section reference. Final, once on stable
+  input: the reused P9-SEM-01 documentation checker (inspected, unchanged:
+  4173 bytes, `da16f21e...ff4b`) on the four paths, root and planner hashes,
+  raw-byte bounds and `git diff --check`. Commands, outcomes and times are in
+  the executor report and `logs/executor/wf-col-01/`.
+- **Retained.** P9-SEM-01 publication and review evidence with its original
+  limitations; not reread beyond the planner record.
+- **Not run.** Build, suite, generation, provider invocation, native
+  experiment, qualification, cleanup or evidence sweep. No manifest was
+  sealed, so ADR-0021 delivery of the new text is not exercised.
 - **Next authorized action:** Codex review of this diff. No commit or push.
 
 ## Prior published delivery
 
-P9-EV-01 `465e60cfc31d02961fc3970d44e65bb4cfe5ee29` (sole parent
-`4c9102c523e2d8bd345f390332a6af470afb9cec`) published the
-[capture cross-check](../architecture/github-publication-retained-capture-crosscheck.md),
-its index link and checkpoints; the planner verified it independently. R1's
-byte-count wording and the index addition were accepted. Its committed
-"UNCOMMITTED and UNPUSHED" wording was the pre-publication state. Its
-correction protection hashing read the excluded `ctl`/`app` fixtures: saved
-records hold 69 equal hashes (11 reader artifacts, 57 gate files, the
-planner); the reported 12/56 split was wrong. The reviewer compared saved
-records without reopening fixtures; this grants no retrospective
-authorization or further sweep. Its checks are retained, not rerun here.
-WF-01 `4c9102c` and earlier facts remain at their published baselines.
+P9-SEM-01 `b48738f0f160336df945ad3a6ad1802a6876458b` (sole parent
+`465e60cfc31d02961fc3970d44e65bb4cfe5ee29`) published the
+[semantics note](../architecture/github-publication-native-io-semantics.md),
+its index link and checkpoints; the planner independently verified the four
+paths, blobs, bytes, fast-forward push and live ref and accepted R1-R3 and the
+index entry. Its committed "UNSTAGED, UNCOMMITTED and UNPUSHED" wording was
+the pre-publication state. Its `wc -lc` deviation read the full contents of
+three excluded audit reports for counts only; this grants no retrospective
+authorization or new read. The failed membership `grep` and the recorded
+pre-final wording mismatch are preserved (see
+[planner-handoff.md](planner-handoff.md)). Its checks are retained, not rerun.
+
+P9-EV-01 `465e60c` (sole parent `4c9102c`) published the
+[capture cross-check](../architecture/github-publication-retained-capture-crosscheck.md);
+its correction hashing read the excluded `ctl`/`app` fixtures (69 equal saved
+hashes; the reported 12/56 split was wrong), with no retrospective
+authorization or further sweep. WF-01 `4c9102c` and earlier facts remain at
+their published baselines.
 
 ## History
 
