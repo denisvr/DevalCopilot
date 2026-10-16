@@ -1,5 +1,12 @@
 # Engineering context
 
+Project-owned startup context for the shared engineering contract: what an
+agent cannot safely rediscover, routed to each subject's authoritative contract
+for progressive reading. Accepted ADRs and routed contracts prevail over this
+summary; Git and code prevail over every document. An accepted target is not
+delivery, and a Proposed ADR authorizes nothing. The
+[rework map](roadmap/documentation-rework-map.md) traces the former long form.
+
 - Standards revision: `805439c3316ed64b0a56c933103156e9fb853a2b`
 - Root namespace: `DevalCopilot`
 - Topology: modular monolith with a thin desktop shell and one local host
@@ -16,447 +23,26 @@
 
 ## Project decisions
 
-- [ADR-0001](decisions/0001-build-a-local-first-supervised-orchestrator.md):
-  Build a local-first supervised orchestrator.
-- [ADR-0002](decisions/0002-use-tauri-react-and-dotnet.md): Use Tauri,
-  React, and .NET 10 with one authoritative .NET host.
-- [ADR-0003](decisions/0003-use-a-durable-sqlite-event-journal.md): Use a
-  durable SQLite event journal with materialized state.
-- [ADR-0004](decisions/0004-use-a-structured-agent-collaboration-protocol.md):
-  Use a structured and bounded agent collaboration protocol.
-- [ADR-0005](decisions/0005-use-git-worktrees-and-a-policy-controlled-github-loop.md):
-  Use Git worktrees and a policy-controlled GitHub/CI loop.
-- [ADR-0006](decisions/0006-support-bounded-concurrent-runs-across-projects.md):
-  Support bounded concurrent runs across projects.
-- [ADR-0007](decisions/0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md):
-  Registration-time repository identity is non-authoritative for mutation
-  exclusion.
-- [ADR-0008](decisions/0008-physical-repository-identity-and-tool-owned-worktree-ownership.md):
-  Physical repository identity and tool-owned worktree ownership.
-- [ADR-0009](decisions/0009-separate-agent-roles-effects-and-provider-assignments.md):
-  Separate agent roles, effects, and provider assignments.
-- [ADR-0010](decisions/0010-add-review-correction-response-contract.md): Add a
-  role-scoped review-correction response contract.
-- [ADR-0011](decisions/0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md):
-  Require administrator-provisioned policy before Gemini CLI execution.
-- [ADR-0012](decisions/0012-add-a-durable-run-wide-agent-claim-budget.md): Add
-  a durable run-wide Agent claim budget.
-- [ADR-0013](decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md):
-  Add a durable run-wide Agent invocation-time budget.
-- [ADR-0014](decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md):
-  Add manual Agent run intake with durable execution-mode isolation.
-- [ADR-0015](decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md):
-  Add direct human guidance to explicit mutation requests (its request scope is narrowly extended to the diagnosis-origin
-  correction by ADR-0019).
-- [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md):
-  Add explicit human authorization of one escalated-plan implementation (its preservation of the ordinary
-  first-revision review target is narrowly superseded by ADR-0017, and its single-source-text-form requirement by
-  ADR-0020).
-- [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md):
-  Review the implemented plan through correction.
-- [ADR-0018](decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md):
-  Add explicit local verification failure diagnosis and bounded correction (it narrowly extends ADR-0010's eligible finding source).
-- [ADR-0019](decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md):
-  Add direct human guidance to diagnosis-origin corrections (it narrowly extends ADR-0015's request scope and ADR-0018's
-  correction request).
-- [ADR-0020](decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md):
-  Correct the escalation explanation and accept its two canonical forms (it narrowly supersedes ADR-0016's
-  single-source-text-form requirement).
-- [ADR-0021](decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md):
-  Add bounded root instruction context to Agent manifests (additive; it changes no existing authority decision).
-- [ADR-0022](decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md):
-  Admit generic untracked-file previews only from physically proven single-name files (additive; it narrows what those
-  previews may deliver and changes no existing authority decision).
-- [ADR-0023](decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md):
-  Record Claude-reported model context limits in historical attempt evidence (additive; it records and shows what Claude
-  reported and changes no existing authority decision).
-- [ADR-0024](decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md):
-  Deliver new tracked-change text only from attested snapshots (it narrowly advances ADR-0021 and ADR-0022 for new tracked
-  delivery only and changes no existing authority decision).
-- [ADR-0025](decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md):
-  Stop new Codex attempts at an explicit account-usage percentage (additive; it adds an optional run-scoped guard
-  for Codex claims and pre-dispatch and changes no existing authority decision).
-- [ADR-0026](decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md):
-  Warn explicitly about a Codex account-usage percentage (additive; an optional run-scoped advisory percentage, checked only on
-  explicit request, independent of the ADR-0025 stop, and it changes no existing authority decision).
-- [ADR-0027](decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md):
-  Compare attested tracked sources for human checkpoint inspection (it advances ADR-0024's deferred ordinary checkpoint diff
-  query for the authenticated human inspection only and changes no existing authority decision).
-- [ADR-0028](decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md):
-  Let the owner choose immutable run budgets at manual intake (it narrowly advances the fixed-default creation behavior of
-  ADR-0012, ADR-0013 and ADR-0014 for new manual runs only and changes no claim, immutability, consumption or historical-policy
-  decision).
-- [ADR-0029](decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md): Deliver an explicit local
-  commit before closing provider contract gaps (it narrowly supersedes ADR-0009's increment ordering and extends ADR-0008's
-  expected-HEAD reconciliation for exact recorded host commits only).
-- [ADR-0030](decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md): Approve the complete verification set as
-  one Human decision (additive; an optional Human execution-set form of the existing review plus a read-only approval bundle, with no
-  change to ADR-0029's authority, reservation, recovery or mixed-decision rules).
-- [ADR-0031](decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md): Abandon an inactive manual run through
-  an explicit Human decision (it narrowly extends ADR-0014's intake admission so a coherent Abandoned run is terminal; it cancels, repairs
-  and deletes nothing and changes no claim, reservation, recovery or provider decision).
-- [ADR-0032](decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md): Show a recorded local-delivery receipt from
-  pinned evidence (additive; one protected read-only receipt of a completed local commit, reconstructed from its pinned rows with no
-  persistence change and no change to ADR-0029's authority, reservation, recovery or approval decisions).
-- [ADR-0033](decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md): Browse project run history and locate prior
-  delivery receipts (additive; one protected read-only, cursor-paged list of a project's recorded runs, each optionally locating its own
-  completed local delivery for the ADR-0032 receipt, with no persistence change and no change to any admission, recovery, approval or
-  digest decision).
-- [ADR-0034](decisions/0034-browse-recorded-event-headers-of-a-historical-run.md): Browse the recorded event headers of a historical
-  run (additive; one protected read-only, cursor-paged list of a run's persisted event headers with exact string sequences and closed
-  disclosures, with no payload, no persistence change, no replay claim and no change to any admission, recovery, approval or digest
-  decision).
-- [ADR-0035](decisions/0035-browse-recorded-collaboration-messages-of-a-historical-run.md): Browse the recorded collaboration messages of a
-  historical run (additive; one protected read-only, cursor-paged list of a run's persisted collaboration messages with exact string
-  sequences, closed disclosures and content admitted only through the existing content policy, with no persistence change and no change to
-  any admission, recovery, approval or digest decision).
-- [ADR-0036](decisions/0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md): Inspect the recorded reply parent of a
-  historical collaboration message (additive; one protected read-only inspection of one message's own stored reply parent with a closed
-  None, Unavailable or Available relationship and the unchanged ADR-0035 entry disclosure, with no persistence change, no chain traversal and
-  no change to any admission, recovery, approval or digest decision).
-- [ADR-0037](decisions/0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md): Inspect the recorded
-  Agent-attempt attribution of a historical collaboration message (additive; one protected read-only inspection of the one Agent attempt a
-  message itself references, as a minimal recorded header under the unchanged identity and assignment-snapshot rules, with no persistence change and
-  no change to any admission, claim, dispatch, recovery, approval or digest decision).
-- [ADR-0038](decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md): Observe stored GitHub CLI authentication on explicit
-  request (additive; one protected read-only observation of the default stored github.com authentication, with no credential, environment-token or
-  custom-config observation, no persistence and no repository or publication authority).
-- [ADR-0039](decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md): Observe the project's local GitHub origin on explicit
-  request (additive; one protected read-only observation of the registered project's own repository-local origin URL, a normalized github.com target for a
-  small supported subset, no remote, network or credential operation, no persistence and no remote identity, permission, CI or publication authority).
-- [ADR-0040](decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md): Record an immutable GitHub observation scope for a
-  completed local delivery (additive; one protected Human selection of the fixed-host owner and repository for the exact recorded commit and branch, one
-  immutable record and one Human event saved atomically from pinned rows, no remote, process, credential or network operation and no remote identity,
-  permission, CI, publication or automatic observation authority).
-- [ADR-0041](decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md): Observe the GitHub repository
-  identity of a recorded observation target on explicit request (additive; one protected, bodyless, read-only observation of the opaque ID and names GitHub
-  reports for the recorded owner and repository through one fixed `gh api graphql` invocation and the stored default authentication, no persistence and no
-  remote branch, commit, permission, CI, publication or binding authority).
-- [ADR-0042](decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md): Observe the recorded GitHub branch tip
-  of a recorded observation target on explicit request (additive; one protected, bodyless, read-only observation of the repository identity and the exact recorded
-  branch tip, compared with the recorded local commit, through one fixed `gh api graphql` invocation and the stored default authentication, no persistence and no
-  fallback ref, CI, permission, durable binding or publication authority).
-- [ADR-0043](decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md): Bind the GitHub
-  repository identity of a recorded observation target on explicit request (additive; one protected POST and bodyless GET of an immutable, human-confirmed binding
-  of the opaque repository ID, recorded only after a fresh host observation agrees, with one Human event; historical identity evidence only, no permission, branch or
-  commit proof, CI approval or publication authority).
-- [ADR-0044](decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md): Observe the check summary of a bound recorded local commit on
-  explicit request (additive; one protected, bodyless, read-only observation of GitHub's point-in-time aggregate check state for the recorded commit, shown only when the
-  freshly observed repository ID equals the ADR-0043 binding and the exact recorded branch points at that commit, through one fixed `gh api graphql` invocation and the stored
-  default authentication; no persistence and no complete check or workflow evidence, required-check approval, permission or publication authority).
-- [ADR-0045](decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md): Inspect the check contexts of a bound recorded local commit on
-  explicit request (additive; one protected, bodyless, read-only observation of the bounded collection of up to 50 check-run and commit-status metadata entries GitHub returns for
-  the recorded commit, shown only when the freshly observed repository ID equals the ADR-0043 binding and the exact recorded branch points at that commit, through one fixed
-  `gh api graphql` invocation and the stored default authentication; no persistence and no complete check or workflow evidence, required-check approval, permission or
-  publication authority).
-- [ADR-0046](decisions/0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md): Prepare delivery-lineage API tests from a class-owned sealed SQLite
-  snapshot (additive test infrastructure for one endpoint class only: one run-local seed of the unchanged production lineage, sealed with SQLite's backup facility and copied per
-  fact, with isolation evidence; no production, public-contract, client or dependency change).
-- [ADR-0047](decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md): Inspect the output of one GitHub check run of a
-  bound recorded local commit on explicit request (additive; one protected, bodyless, read-only inspection of the title, summary and text of one check run in two fixed
-  `gh api graphql` phases (association metadata, then output only after the host admitted the association), shown as untrusted post-redaction plain text only when the bound
-  repository ID, the exact recorded branch and the recorded commit all agree in both phases; no persistence, diagnosis, Agent input, complete check or workflow evidence,
-  required-check approval, permission or publication authority).
-- [ADR-0048](decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md): Approve one future GitHub branch push of a bound recorded
-  local commit on explicit request (additive; one protected POST and bodyless GET of an immutable, Human-recorded consent to ONE future normal push of the exact recorded commit to its
-  exact owned branch in the repository named by a coherent ADR-0040 target and ADR-0043 binding, with complete exact snapshots and one Human event saved atomically under the write
-  lock; recorded consent only, with no remote observation, push, permission, pull request or automatic execution).
-- [ADR-0049](decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md): Observe the GitHub repository permission of a bound recorded target on
-  explicit request (accepted, additive; one protected, bodyless, read-only observation of the permission GitHub reports for the stored default authentication on the bound repository, through one
-  fixed `gh api graphql` invocation; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and no ADR-0048 approval is required, consumed or changed).
+The [decision index](decisions/README.md) lists every ADR with its narrow
+extensions and supersessions; each record is authoritative, and its own status
+line prevails. ADR-0001 is partially superseded by ADR-0006. ADR-0050 is
+Proposed, documentation only: it selects no mechanism and authorizes no push.
+
+| Subject | Authoritative contracts |
+|---|---|
+| Scope and cockpit | [MVP scope](product/mvp-scope.md), [cockpit specification](product/run-cockpit-specification.md) |
+| Containers, ownership, bootstrap secret, notifications, background work, scheduling | [System overview](architecture/system-overview.md); ADR-0002, ADR-0006 to ADR-0008 |
+| Lifecycle, gates, verification, approval and publication state, recovery | [Workflow model](architecture/workflow-model.md) |
+| Roles, messages, manifests, provider safety, budgets, token and account controls, guidance, escalation, diagnosis, format repair | [Collaboration protocol](architecture/agent-collaboration-protocol.md); ADR-0004, ADR-0009 to ADR-0028 |
+| Journal, artifacts, secrets, leases, reconciliation, local commit, abandonment | [Data and recovery](architecture/data-and-recovery.md); ADR-0003, ADR-0029, ADR-0031 |
+| Approval set, receipt, run, event and collaboration history | ADR-0030 to ADR-0037; protocol |
+| GitHub observation, binding, checks, branch approval, permission | [GitHub and CI](architecture/github-ci-integration.md); ADR-0005, ADR-0038 to ADR-0049; ADR-0050 Proposed; publication evidence notes ([index](architecture/README.md)) are not contracts |
+| Security | [Security plan](security/security-plan.md), [threat model](security/threat-model.md) |
+| Validation and evidence | [Validation policy](roadmap/validation-policy.md) |
+| Increments and status | [MVP delivery plan](roadmap/mvp-delivery-plan.md) |
+| Procedure, checkpoints, risks | [Workflow](roadmap/development-workflow.md), [current work](roadmap/current-work.md), [planner handoff](roadmap/planner-handoff.md) |
 
 ## Product-specific architecture
-
-- [ADR-0029](decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md) permits the selected explicit
-  local-commit slice before Increment 4's unproven provider contracts close. It requires exact physically admitted snapshot bytes,
-  current passing verification, Agent and human approval, exclusive durable intent, hook-free unsigned Git execution and exact
-  restart reconciliation. The slice is delivered and published to `origin/main` (see `docs/roadmap/current-work.md` for its
-  evidence and limits); Increment 4 remains incomplete. Only a recorded host commit may extend the expected worktree HEAD, and
-  remote publication and automatic orchestration remain separately gated.
-- [ADR-0030](decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md) makes that local commit usable with
-  several enabled verification recipes. The existing protected manual review accepts an optional Human execution-set form
-  (1 to 32 unique identifiers, an 8 KiB body, never merged with the legacy scalar); `Approved` in that form means exactly one latest,
-  coherent clean `Passed` execution for every currently enabled recipe of the current checkpoint and fingerprint, saved as one review
-  with its members in `CommandNumber` order inside the existing manual transaction after fresh untracked re-reads under the write
-  lock. A protected read-only `GET /api/projects/{projectId}/checkpoints/{checkpointId}/approval-evidence` returns that complete
-  bundle (never derived from the latest-20 history window; more than 32 recipes is refused) and grants no authority. The cockpit adds
-  one explicit "Approve all enabled checks" action bound to the full observed source identity and owned by the committed bundle's lifetime. Legacy scalar approvals stay single-member
-  facts without delivery authority for several recipes; nothing is published, combined or autonomous.
-- [ADR-0031](decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md) gives an owner one explicit exit from an
-  inactive manual task. The protected `POST /api/runs/{runId}/abandon` (a required normalized reason of at most 2 KiB UTF-8, an 8 KiB body)
-  atomically ends exactly a `Created` or `Running` `ManualAgent` run as the appended lifecycle `Abandoned` and records the immutable
-  reason, the UTC time and exactly one Human-authored `run.abandoned` event, preserving its `Stage`, clearing its participant and freezing
-  its clock. It is decided from fresh untracked reads under the write lock and refused while any attempt, verification execution or
-  local-commit operation of the project is active, unrecognized or ambiguous (`Prepared`, `Executing` and `NeedsAttention` all block) or
-  any workspace is `Preparing`, `Committing` or unrecognized; it changes no workspace, lease, branch, index, file or artifact and cancels
-  no process. `Lifecycle` is the claim race token: Claude claims and the dispatch marker lose through their Run update, and the Codex
-  planning, challenge-resolution and code-review claims (and their repairs) now re-read the lifecycle inside their write-locked claim
-  transaction. The same normalized reason replays the recorded result; a different one conflicts; incoherent facts are never treated as
-  abandoned. Normal intake treats only a coherent abandonment as terminal and creates a distinct run with fresh budgets that inherits no
-  authority. A protected read-only `GET /api/runs/{runId}/abandonment` reports advisory eligibility and the recorded reason and time;
-  the cockpit adds an "Abandon run" form owned by the committed run and eligible-form lifetime. Nothing is cancelled, repaired,
-  released, deleted, published or created automatically.
-- [ADR-0032](decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md) shows what a completed local commit was
-  delivered against. The protected, bodyless `GET /api/runs/{runId}/local-delivery-receipt` answers one closed state (`NotRecorded`,
-  `NotCompleted`, `Unavailable`, `Available`; only `Available` carries the version-1 receipt) reconstructed only from the operation's
-  pinned rows: its recorded checkpoint, execution report, CodeReviewer attempt and approval message, selected Human review and ordered
-  verification authority members, each execution checked against its own immutable snapshot and recorded digest (the digest
-  serialization of admission, extracted unchanged). Anything missing, foreign, duplicated, reordered, over 32 members or changed makes
-  the whole receipt `Unavailable`; the latest or current records never substitute. It reads no filesystem, Git, process or provider
-  state, writes nothing and needs no migration, and it describes recorded delivery, never current workspace state or remote
-  publication. The cockpit shows a "Local delivery receipt" region beside a Completed operation, owned by the committed run and
-  operation lifetime, read once and never polled.
-- [ADR-0033](decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md) lets an owner browse a project's earlier
-  objectives and inspect an older delivery after another run replaced it in the cockpit. The protected, bodyless
-  `GET /api/projects/{projectId}/run-history` returns a page of that project's runs in descending `ExecutionNumber` (an exclusive,
-  positive `beforeExecutionNumber` cursor; `limit` 10 by default and 1 to 20, never clamped and refused with the shared Problem Details contract that never repeats the rejected value, as is a 404; one extra row for `HasMore` over the unique
-  project/number index; no offset, timestamp ordering or count). An entry carries only the identities, number, objective, lifecycle and
-  stage (or the fixed `Unrecognized`), the exact stored mode, the two UTC times and an optional receipt source (the run's own recorded
-  Completed operation's run, operation, commit and checkpoint identities and number) that only locates the ADR-0032 receipt; no coherent
-  source is `null`, which implies nothing about whether a delivery exists, failed or succeeded. It reads persisted rows only and writes,
-  claims and repairs nothing. The cockpit adds a collapsed "Run history" region for the selected project whose reads and selection belong
-  to the committed project, open and selected-row lifetimes; a page is accepted only whole and coherent, older pages and a reload are
-  explicit, and the selected row reuses the existing receipt component, hook and normalizer without mounting any live cockpit control.
-- [ADR-0034](decisions/0034-browse-recorded-event-headers-of-a-historical-run.md) lets an owner browse the recorded journal of an older run
-  as bounded headers. The protected, bodyless `GET /api/runs/{runId}/event-history` returns a page of that run's persisted event
-  headers in descending `Sequence` (an exclusive `beforeSequence` cursor that is a canonical positive decimal string up to
-  9223372036854775807, because a browser number cannot carry an Int64; `limit` 20 by default and 1 to 50; neither is clamped, both are
-  refused with the shared Problem Details contract that never repeats the rejected value; a 404 for an unknown run; one fixed 409
-  `run_event_history.unavailable` for a selected header without an identity or a positive sequence, never a partial page; one extra row
-  for `HasMore` over the existing `(RunId, Sequence)` index, no offset, count or draining). Sequences are global, so a run's sequences have
-  valid gaps, timestamps never order, and pages are not an atomic snapshot. An entry carries only the run and event identities, the exact
-  sequence string, the UTC time, an event type admitted only by exact `RunEventType` constant (else the fixed `Unrecognized`) and an
-  actor disclosure classified by the database without materializing a stored enum (a valid Agent with no recorded role is preserved;
-  an unknown or inconsistent actor is `Unrecognized` with no role or provider); it never selects a payload, attempt, message or artifact
-  and invents no version, persistence time, causation or correlation. The existing events route, live notifier and collaboration
-  timeline are neither changed nor reused. The historical run detail adds a collapsed "Recorded events" region whose reads belong to the
-  committed run and open lifetimes (older pages, a same-cursor retry and a reload are explicit; a page is accepted only whole, with
-  exact-integer sequence ordering) and that states it shows recorded headers only, not live status, a current approval or a complete
-  replay. This is a first journal browser: full replay and envelope completion remain open.
-- [ADR-0035](decisions/0035-browse-recorded-collaboration-messages-of-a-historical-run.md) lets an owner browse the recorded conversation of an
-  older run. The protected, bodyless `GET /api/runs/{runId}/collaboration-history` returns a page of that run's persisted collaboration messages
-  in descending `Sequence` (an exclusive `beforeSequence` cursor that is a canonical positive decimal string up to 9223372036854775807;
-  `limit` 10 by default and 1 to 20; neither is clamped, both are refused with the shared Problem Details contract that never repeats the
-  rejected value; a 404 for an unknown run; one fixed 409 `collaboration_history.unavailable` for a selected row without an identity or a
-  positive sequence, never a partial page; one extra row for `HasMore` over the existing `(RunId, Sequence)` index, no offset, count or
-  draining). An entry carries the identities, the exact sequence string, the UTC time, the version (only `1.0`), type and provenance (else
-  the fixed `Unrecognized`), the sender and recipient classified by the database without materializing a stored enum, a content status, a
-  nullable summary and validated name/value fields. The summary and content JSON are selected under database byte guards (three bytes per admitted character of 600 and
-  5000) and rechecked before parsing; content is `Available` only for recognized, coherent metadata, a safe summary and a content that
-  passes the existing Domain `CollaborationMessageContentPolicy.Validate`, otherwise the row keeps its header as `Unavailable` with no
-  text and its neighbors are unaffected (an unexpected fault is never masked). It returns no attempt, reply target, raw JSON or artifact
-  and states recorded content only, never a current approval or provider success. The historical run detail adds a collapsed "Recorded
-  collaboration" region (five messages per page so the journey's nine-message run needs explicit older paging) with the same owned
-  lifetimes, whole-page validation, explicit older, retry and reload actions as the event headers. The live timeline route and hook are
-  untouched; full linked replay (attempt and reply resolution) remains open.
-- [ADR-0036](decisions/0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md) lets an owner see which recorded message
-  another message replied to, even when that parent is on a page that was never loaded. The protected, bodyless
-  `GET /api/runs/{runId}/collaboration-history/{messageId}/reply` reads the source's own stored header and reply reference (no text column) by
-  exact run and message identity and resolves at most one parent by its stored identity: same run, strictly earlier, version 1.0, a type
-  the existing `CollaborationMessageReplyPolicy.Evaluate` allows for the source's type. It never substitutes another message, drains pages or
-  follows a chain. The answer is the exact source sequence string, a closed status (`None`: a recognized version-1.0 Proposal with no
-  reference; `Unavailable`: every other unusable shape, with no target identity or content; `Available`) and, only for `Available`, the
-  parent under the unchanged ADR-0035 disclosure (so the relationship and the content availability are distinct). An unknown run and a
-  missing or foreign source are one fixed 404 (`collaboration_reply.not_found`), an unusable stored source identity or sequence is one fixed
-  409 (`collaboration_reply.unavailable`) and a database fault is never masked as a status. The history's projection and entry builder are
-  one small shared extraction, so the page and the inspection admit a message identically. The cockpit adds one explicit "Inspect recorded
-  reply" action per message into one inspector (close and a same-source retry) owned by the committed run's open history lifetime and each
-  source selection, validates the whole answer against the observed source (closed status and target shape, `None` only for a Proposal,
-  exact Int64 earlier order, a parent type the restated reply table allows) and reads nothing on render, recursively or by polling. Chain
-  traversal, attempt and evidence linkage and complete replay remain open.
-- [ADR-0037](decisions/0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md) lets an owner see which Agent
-  attempt produced a historical provider-observed message. The protected, bodyless
-  `GET /api/runs/{runId}/collaboration-history/{messageId}/attempt` reads the source's own stored metadata and `AttemptId` (never its summary or
-  content JSON) and resolves at most that one attempt within the same run through bounded, untracked scalar projections, never a latest or
-  same-role attempt. Its answer is the exact source sequence string, a closed status (`NoAgentAttempt`: a known version-1.0 message with a recognized
-  provenance other than provider-observed, which is not absence of every attempt; `Unavailable`: every other unusable shape, with no target;
-  `Available`) and, only for `Available`, a minimal header (attempt identity and number, role, provider, response contract, recorded status and
-  claimed, dispatched and completed UTC times). `Available` requires the message's recognized Agent actor to match the attempt's role and provider, a
-  positive number and `AgentAttemptIdentity.IsCoherent`, unchanged. Two narrow extractions share the existing rules with the scalar reader:
-  `AgentAssignmentSnapshotPolicy` (the assignment read-validation `Attempt.GetAssignmentSnapshot` held inline, now delegated to) and a scalar
-  `AgentAttemptIdentity.IsCoherent` overload, with equivalence proved against the original rules. Enums are classified in SQL, every
-  assignment-validation string is selected only under a `length(CAST(... AS BLOB))` guard (three bytes per admitted character) with a flag that
-  distinguishes rejected oversized storage from a legitimate null, and the max-turn storage keeps its exact INTEGER/TEXT/REAL/BLOB form under a small
-  guard. An unknown run and a missing or foreign source are one fixed 404 (`collaboration_attempt.not_found`), an unusable stored source identity or
-  sequence is one fixed 409 (`collaboration_attempt.unavailable`) and a database fault is never masked as a status. The cockpit adds one explicit
-  "Inspect recorded attempt" action per message into one inspector (close and a same-source retry) owned by the committed run's open history lifetime
-  and each source selection (its close bound to its own inspector and serial-guarded), independent of the reply inspector, validating the whole answer
-  against the observed source; it describes recorded attribution only, never current execution, an outcome, an approval or sealed evidence. Message
-  evidence, attempt history, repair lineage and complete replay remain open.
-- [ADR-0038](decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md) lets an owner see whether the GitHub CLI's default
-  stored authentication for github.com is active, absent or reporting a problem, because discovery alone proves only that a binary exists. The
-  protected, bodyless `GET /api/environment/github-stored-authentication` returns the fixed host `github.com`, the fixed context
-  `StoredDefaultConfig`, a closed status (`CliUnavailable`, `Unknown`, `NoActiveAccount`, `Authenticated`, `IssueReported`) and an observation time for the
-  last three only. It invokes one fixed `gh auth status --hostname github.com --active --json hosts --jq <selector>` (a constant privacy projection
-  that emits only active/state pairs, with an empty-`hosts` branch for the no-account answer and an `invalid` marker for an unexpected shape) through the existing process executor in the host scratch
-  directory, only for a current, successful, direct-executable GitHubCli discovery snapshot (anything else is `CliUnavailable` with nothing invoked;
-  it never discovers, refreshes or installs). The child gets only non-secret OS/profile/temp variables and fixed prompt, update and telemetry controls,
-  never an ambient token, host, config, debug, proxy, browser or pager value, so environment-token and custom-config contexts are not observed and
-  are disclosed. Probes are bounded to 15 s, 8 KiB per stream and 16 KiB combined, a singleton adapter permits one in-flight probe (a concurrent
-  request is `Unknown`), and exit zero alone never proves authentication. It writes nothing and needs no migration. The cockpit adds a collapsed
-  host-level region read only by its explicit check and recheck actions, owned by the mounted component and each opening. It is neither repository
-  permission nor publication authority; selector evaluation and installed-CLI formatting are not verified without a real `gh`.
-- [ADR-0039](decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md) lets an owner see which GitHub repository a registered project's
-  own local Git configuration names as `origin`, as an input for later repository scoping. The protected, bodyless
-  `GET /api/projects/{projectId}/github-origin` returns the project, the fixed source `RepositoryLocalConfig`, a closed status (`Unavailable`,
-  `NotConfigured`, `Available`), a time for the last two and a normalized `{host: github.com, owner, repository}` target for `Available` alone; an
-  unknown project is the fixed 404 `projects.not_found`. It runs only for a current, successful, direct-executable `Git` snapshot and a stored resolved
-  physical identity that the current root still matches before and after the observation (never rechecking, updating or backfilling an identity), and
-  it invokes two fixed read-only commands through the existing process executor inside the project root: `rev-parse` as a minimal shape check (the
-  root's own main repository only: no parent fallback, linked worktree, bare repository, submodule or separate Git directory) and `config --file
-  <root>\.git\config --no-includes --null --get-all remote.origin.url` against a read-only hold on that validated, non-reparse file that pins the
-  administrative scope for the whole observation (a replaced, redirected or vanished scope is `Unavailable`), under 15 s, 8 KiB per stream and 16 KiB combined, with only fixed Git controls in the child
-  environment. Global, system, included, worktree-scope and command-line values, URL rewrites and `pushurl` are never candidates, nothing contacts a
-  network, credential helper or hook, and nothing is written. Exit 1 with empty output is `NotConfigured`; exactly one non-empty NUL-terminated value
-  in one of three literal spellings (`https://github.com/o/r`, `git@github.com:o/r`, `ssh://git@github.com/o/r`, one optional `.git`, conservative
-  ASCII owner and repository rules) is `Available`; everything else (duplicates, credentials, ports, escapes, other hosts, truncation, timeouts) is
-  `Unavailable` without exposing the raw value. The cockpit adds a collapsed project-level region read only by its explicit inspect and recheck
-  actions, owned by the committed project and each opening. It is configured scope, never verified remote identity, permission, CI success or publication
-  authority.
-- [ADR-0040](decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md) lets the Human record, once and immutably, which
-  GitHub repository scope is meant for the exact branch and commit of a completed manual local delivery. `POST /api/runs/{runId}/github-observation-target`
-  (body at most 8 KiB: only `operationId`, an exact lowercase 40-hex `commitSha`, `owner` and `repository` in the unchanged ADR-0039 ASCII subset, shared as
-  one Domain policy; no trimming, URL, host, branch or credential) takes one short manual write-locked transaction (the existing no-op Run write), reads fresh
-  and untracked a ManualAgent run, an Available ADR-0032 receipt from the unchanged `LocalDeliveryReceiptReader` for that exact operation and commit, and the
-  pinned operation and workspace rows whose number reproduces the recorded branch through `WorkspaceBranchNamePolicy` (never a client branch, `HEAD` or a
-  latest record), then inserts one `GitHubObservationTarget` (host `github.com` and purpose `CiObservation` fixed; unique per run, operation and event;
-  restrictive foreign keys; no update, replacement, deletion or backfill; existing runs stay unbound) and exactly one version-1 Human event
-  `run.github_observation_target_recorded` with a bounded canonical payload, notifying after the commit and changing no lifecycle, stage, participant,
-  clock, workspace, lease, approval or budget. The same coherent selection replays its original record, time and event; a different one is the fixed 409
-  `github_observation_target.conflict`; an unusable or mismatched source is `github_observation_target.unavailable` (409); an unknown run is
-  `github_observation_target.not_found` (404); no error echoes a value. The protected bodyless `GET` at the same route reads persisted rows only and answers
-  a closed `NotRecorded` (source only when admissible), `Unavailable` (neither) or `Available` (source and the coherent target validated with its one Human
-  event). The cockpit adds a collapsed region beside, not inside, the Completed local-commit region with explicit load, reload, close and a separate record
-  action over blank owner and repository fields, showing the exact branch and commit and the immutable selection before submission, owned by the committed
-  source and each opening, and requiring an explicit reload after any failed or ambiguous recording. It is local scope selection, never verified remote
-  identity, permission, CI success, publication approval or automatic observation authority.
-- [ADR-0041](decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds one explicit, read-only
-  observation of the identity GitHub reports for that recorded target. The protected, bodyless `GET /api/runs/{runId}/github-repository-observation`
-  (`GetGitHubRepositoryObservationQuery` through the mediator; any request body is refused before anything is observed with the fixed 400
-  `github_repository_observation.body_not_allowed`; an unknown run is the fixed 404 `github_repository_observation.not_found`) reads the scope with the
-  unchanged ADR-0040 source and target readers and answers a closed `NotRecorded` or `Unavailable` (no scope, nothing invoked), `CliUnavailable` (no fresh,
-  successful, direct-executable `GitHubCli` snapshot; nothing invoked, nothing discovered), `Unknown` or `Observed` (only then the opaque repository node ID,
-  the observed names and the host time). It re-reads the scope after the external work and refuses the answer when it was lost, changed or became incoherent,
-  and validates the port's result independently (conservative ID, supported names equal to the recorded ones ignoring only ASCII case, never a rename). The
-  operation-owned port `IGitHubRepositoryIdentityObserver` is implemented by `GitHubRepositoryIdentityAdapter` on the existing process executor: one fixed
-  `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository>` in the host scratch
-  directory, the ADR-0038 environment allowlist, 15 seconds, 8 KiB per stream, no sinks, stderr discarded, one single-flight slot, and exact-JSON admission.
-  Nothing is written, persisted, bound or locked. The cockpit adds a collapsed identity region inside an Available target's result with explicit Show, Check
-  (then Recheck) and Close, owned by the committed source and target and each opening, showing inert text. It proves no remote branch, commit, permission, CI
-  result, publication approval or permanent binding.
-- [ADR-0042](decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md) adds one further explicit, read-only
-  observation of the exact recorded branch tip. The protected, bodyless `GET /api/runs/{runId}/github-branch-observation`
-  (`GetGitHubBranchObservationQuery` through the mediator; any request body is refused before dispatch with the fixed 400 `github_branch_observation.body_not_allowed`;
-  an unknown run is the fixed 404 `github_branch_observation.not_found`) reuses the unchanged ADR-0040 readers before and after the external call and the ADR-0038
-  `GitHubCli` snapshot gate, and answers `NotRecorded`/`Unavailable` (no scope, nothing invoked), `CliUnavailable`, `Unknown`, `RefNotReturned`, `CommitMatched` or
-  `CommitDifferent` (only these three carry the repository identity and a ref that is null exactly for `RefNotReturned`). The operation-owned port
-  `IGitHubBranchObserver` is implemented by `GitHubBranchObservationAdapter` on the existing process executor: one fixed
-  `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository> -f ref=refs/heads/<recorded owned branch>`
-  with the ADR-0041 environment, bounds and single-flight slot, and a whole-response admission that also proves the returned ref exactly (prefix `refs/heads/`, the
-  recorded branch name, a `Commit` target with a 40-character lowercase hexadecimal OID) because GitHub's `qualifiedName` lookup can fall back to short names. The
-  handler validates the result again and compares the remote SHA with the recorded one ordinally. Nothing is written, persisted, bound or locked. The cockpit adds a
-  separate collapsed remote branch region beside the identity region with Show, Check (then Recheck) and Close, owned by the committed source and target and each
-  opening. A match is only what GitHub reported at that time; it is not CI, a permission, a durable binding, a publication approval or a publication performed by
-  DevalCopilot.
-- [ADR-0043](decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds the first durable remote identity fact.
-  The protected `POST /api/runs/{runId}/github-repository-identity-binding` (`BindGitHubRepositoryIdentityCommand`, an `IManualTransactionCommand`; the body holds exactly
-  `operationId`, `commitSha`, `targetId` and `repositoryNodeId`, is bounded to 8 KiB and unknown or duplicate members are refused before dispatch with the fixed 400
-  `github_repository_identity_binding.invalid`) resolves the pinned scope through the unchanged ADR-0040 readers, requires the ADR-0041 CLI snapshot, invokes the
-  existing `IGitHubRepositoryIdentityObserver` once with no transaction or lock held, validates the answer independently and only then saves one immutable
-  `GitHubRepositoryIdentityBinding` (`github_repository_identity_bindings`, restrictive foreign keys, unique target, run, operation and event, no unique node ID) and
-  one Human `run.github_repository_identity_bound` event (canonical payload of at most 4 KiB) in one short write-locked transaction that rereads the whole scope.
-  A coherent same-identifier binding replays without observing; the fixed 409 errors are `unavailable`, `conflict`, `cli_unavailable`, `observation_unknown` and
-  `identity_changed`. The bodyless `GET` of the same route reads persisted evidence only (states `NotRecorded`, `Unavailable`, `Available`; orphans are never
-  `NotRecorded`). The identity port and the node-ID policy moved unchanged to Application `Features/Runs/Ports` and Domain `Features/Projects`. The cockpit adds a
-  separate collapsed identity binding region with explicit Show, Load, Check candidate, Bind this repository identity and Close. The record is historical evidence, not
-  a current check, permission, branch or commit proof, CI approval or publication authority.
-- [ADR-0044](decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only observation of GitHub's
-  aggregate check state for the recorded commit. The protected, bodyless `GET /api/runs/{runId}/github-ci-observation` (`GetGitHubCiObservationQuery` through the mediator;
-  any request body is refused before dispatch with the fixed 400 `github_ci_observation.body_not_allowed`; an unknown run is the fixed 404
-  `github_ci_observation.not_found`) reads the source, target and binding with the unchanged ADR-0040 and ADR-0043 readers before and after the external call (orphan binding
-  rows and events are `Unavailable`, never `NotRecorded`) and answers a closed `NotRecorded` or `Unavailable` (no fact, nothing invoked), `BindingNotRecorded` (scope only),
-  `CliUnavailable`, `Unknown`, `IdentityChanged` (scope and binding; the other opaque ID is never returned), `RefNotReturned`, `CommitDifferent`, `NoStatusReported` or
-  `StatusReported` (only these four carry an observation; `rollupState` is non-null only for `StatusReported`, exactly one of `ERROR`, `EXPECTED`, `FAILURE`, `PENDING` or
-  `SUCCESS`, and is withheld for a commit that is not the recorded one). The operation-owned port `IGitHubCiObserver` is implemented by `GitHubCiObservationAdapter` on the
-  existing process executor: one fixed `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository> -f ref=refs/heads/<recorded owned branch>`
-  with the ADR-0041 environment, bounds and single-flight slot and a whole-response admission that also proves the ref exactly and admits only a Commit target with an explicit
-  null or exactly `{state}` rollup. The handler validates the whole result again, then compares the opaque ID with the binding and the commit with the recorded commit
-  ordinally, stamps the host clock after the call (earlier than the binding is `Unknown`) and refuses the answer when the scope or binding changed. Nothing is written,
-  persisted or locked. The cockpit adds a separate collapsed commit checks region beside the identity, branch and binding regions with Show, Check (then Recheck) and Close,
-  owned by the committed source and target and each opening, showing inert text and the fixed disclosure. The aggregate is not complete check or workflow evidence,
-  required-check approval, permission or publication authority, and the real installed CLI and schema compatibility remain unverified.
-- [ADR-0045](decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one further explicit, read-only observation of the bounded
-  check and status contexts for the recorded commit. The protected, bodyless `GET /api/runs/{runId}/github-check-contexts-observation`
-  (`GetGitHubCheckContextsObservationQuery` through the mediator; any request body is refused before dispatch with the fixed 400
-  `github_check_contexts_observation.body_not_allowed`; an unknown run is the fixed 404 `github_check_contexts_observation.not_found`) reads the source, target and binding with
-  the unchanged ADR-0040 and ADR-0043 readers before and after the one external call (orphan rows and events are `Unavailable`) and answers a closed `NotRecorded` or
-  `Unavailable` (no fact, nothing invoked), `BindingNotRecorded` (scope only), `CliUnavailable`, `Unknown`, `IdentityChanged` (scope and binding; the other ID is never
-  returned), `RefNotReturned`, `CommitDifferent` (no count or entry, even when GitHub returned some), `NoContextsReturned` (a null rollup, never "no checks"), `LimitExceeded`
-  (a total above 50, no entry, no second page) or `ContextsReported` (a total from 0 to 50 equal to the entries, an array that may be empty). Each context is exactly
-  `{kind, id, name, status, conclusion, checkSuiteId}` (a `StatusContext` maps `context` and `state` into `name` and `status` with a null conclusion and suite), literal values are
-  never translated, paired, deduplicated by name or related to a workflow, and the entry IDs, the label text contract (nonblank, well-formed, 1 to 256 UTF-8 bytes, no control,
-  format, separator, surrogate or replacement character; escapes decoded once, then redacted with the unchanged fixed redaction so a label is safe post-redaction text, not necessarily the provider's original text) and the enumerations are owned by one operation policy, not by the repository node-ID policy. The
-  operation-owned port `IGitHubCheckContextsObserver` is implemented by `GitHubCheckContextsObservationAdapter` on the existing process executor: one fixed `gh api graphql`
-  invocation (the ADR-0044 argv shape with the constant contexts document), the ADR-0041 environment and single-flight slot, 15 seconds, and, for this adapter only, 128 KiB per
-  stream, 256 KiB combined and a JSON depth of 12 (the older observers keep 8 and 16 KiB). The admission is strict and whole (exact members at every level, raw property spelling
-  checked, count and page-flag consistency, duplicate entry IDs refused). The handler validates the whole probe again, compares the opaque ID with the binding and the commit with
-  the recorded commit ordinally, stamps the host clock after the call (earlier than the binding is `Unknown`) and refuses the answer when the scope or binding changed. Nothing is
-  written, persisted or locked. The cockpit adds a separate collapsed "GitHub check details" region beside the commit checks region with Show, Check (then Recheck) and Close,
-  owned by the committed source and target and each opening, showing inert text and the fixed disclosure. The collection is not complete check or workflow evidence, workflow
-  history, required-check approval, permission or publication authority, and the real installed CLI and schema compatibility remain unverified.
-- [ADR-0047](decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one further explicit, read-only inspection of
-  the title, summary and text of one check run of the recorded commit. The protected, bodyless `GET /api/runs/{runId}/github-check-run-output-observation?checkRunId=...`
-  (`GetGitHubCheckRunOutputObservationQuery` through the mediator; exactly one query key `checkRunId` with 1 to 256 ASCII identifier characters, otherwise the fixed 400
-  `github_check_run_output_observation.invalid_request`; any request body is refused first with the fixed 400 `github_check_run_output_observation.body_not_allowed`; an unknown run is
-  the fixed 404 `github_check_run_output_observation.not_found`) reads the source, target and binding with the unchanged ADR-0040 and ADR-0043 readers before the metadata call and
-  again, by complete value, after each of its two external calls. It answers one of eleven closed statuses (`NotRecorded`, `Unavailable`, `BindingNotRecorded`, `CliUnavailable`,
-  `Unknown`, `IdentityChanged`, `RefNotReturned`, `CommitDifferent`, `CheckRunUnavailable`, `OutputNotReturned`, `OutputReported`) with exactly their documented facts. The operation-owned
-  port `IGitHubCheckRunOutputObserver` (`ObserveMetadataAsync`, `ObserveOutputAsync`) is implemented by the stateless `GitHubCheckRunOutputObservationAdapter` on the existing process
-  executor: one fixed `gh api graphql` invocation per phase (the ADR-0044 argv shape plus `-f id=`), the ADR-0041 environment and a non-queued single-flight slot per invocation,
-  15 seconds each, the metadata phase with the 8 and 16 KiB caps and only the output phase with 256 KiB per stream, 512 KiB combined and a JSON depth of 8. The output phase is requested
-  only after the handler proved the bound repository ID, the exact recorded branch and commit and the requested check run's repository, suite and suite commit, re-admitted the CLI
-  snapshot on the same resolved path and found the clock not before the binding; it repeats the association, which must equal the first admitted identity. Only the check name, title,
-  summary and text are decoded (once), held to the text contract and byte bounds (title 256 B, summary 8 KiB, text 16 KiB, trio 24 KiB, tab, line feed and carriage return allowed), redacted
-  once with the unchanged fixed redaction and held to the contract again: the text is untrusted, safe post-redaction text, not necessarily the provider's original text, and only five
-  secret shapes are detected. Nothing is written, persisted, retained or sent to an Agent. The cockpit adds, inside each `CheckRun` entry of a `ContextsReported` reading, a collapsed
-  "GitHub check output" region (Show sends nothing; explicit Check, Recheck and Close) owned by the committed source, target, selected check run, parent reading and each opening, showing
-  inert plain text and the fixed untrusted-text disclosure. The output is not a diagnosis, complete check or workflow evidence, required-check approval, permission or publication
-  authority, and the real installed CLI and schema compatibility remain unverified.
-- [ADR-0048](decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md) adds the local authority input that every later publication
-  needs: the Human's explicit, immutable consent to ONE future normal push of the exact recorded local commit to its exact owned branch in the repository named by a coherent ADR-0040
-  target and ADR-0043 binding. The protected `POST /api/runs/{runId}/github-branch-publication-approval` (`RecordGitHubBranchPublicationApprovalCommand`, an
-  `IManualTransactionCommand`; exactly seven string members `approvalId`, `operationId`, `commitSha`, `branchName`, `targetId`, `bindingId`, `repositoryNodeId`, a strict resource filter
-  that refuses query keys, unknown, duplicate, differently cased and escaped members and any body over 8 KiB, declared or chunked, with the fixed 400 `invalid_request` or 413
-  `body_too_large`; a non-JSON type keeps the standard 415) and the bodyless `GET` (a query key is the fixed 400 `invalid_request`, a body the fixed 400 `body_not_allowed`, an unknown run the
-  fixed 404 `not_found`; every code is under `github_branch_publication_approval` and echoes nothing) read the scope only through the unchanged source, target and binding readers
-  (composed by one feature-owned scope reader) and a bounded untracked approval reader. The write requires every acknowledgement to equal the scope exactly, opens one short transaction
-  whose first statement is the no-op Run write (the SQLite driver takes the lock when the transaction begins), rereads and compares the complete scope by value, and saves one
-  `GitHubBranchPublicationApproval` (table `github_branch_publication_approvals`; complete exact source, target and binding snapshots; five unique keys, six restrictive foreign keys and
-  `BEFORE UPDATE`/`BEFORE DELETE` triggers that make it immutable; migration `AddGitHubBranchPublicationApproval`) and one canonical version-1 Human event
-  `run.github_branch_publication_approved` (at most 4 KiB) atomically. A coherent identical request replays the original; a changed request, another identifier or an identifier owned by
-  another run conflicts (409 `conflict`); a stale or incomplete scope, a clock earlier than the binding or an approval that vanished or changed under the lock is `unavailable` (409) and is
-  never recreated. The GET answers `NotRecorded`, `ApprovalNotRecorded`, `Available` or `Unavailable` with exactly their facts. It executes, observes and checks nothing: no push, process,
-  `gh`, permission or network, no Agent and no run transition. The cockpit adds a separate collapsed "GitHub branch publication approval" region under the recorded target (offered when the
-  project is known) with Show (sends nothing), Load (then Reload), "Approve one future push" (armed only by the current settled `ApprovalNotRecorded` load, one request UUID per owned
-  opening, single-flight, no automatic retry) and Close, owned by the committed project, run, source and target and each opening. `Available` is recorded consent, never readiness, eligibility
-  or a push, and future execution needs a separate explicit request with fresh ownership, commit, remote identity, reference, authentication, permission and ambiguity checks.
-- [ADR-0049](decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md) adds one further explicit, read-only observation of the repository
-  permission GitHub reports for the stored default authentication on the bound repository. The protected, bodyless `GET /api/runs/{runId}/github-repository-permission-observation`
-  (`GetGitHubRepositoryPermissionObservationQuery` through the mediator; a query key is refused before dispatch with the fixed 400 `github_repository_permission_observation.invalid_request`, any
-  request body (declared, any transfer encoding or a readable byte) with the fixed 400 `...body_not_allowed`, an unknown run is the fixed 404 `...not_found`) reads the source, target and binding with
-  the unchanged ADR-0040 and ADR-0043 readers before the one external call and again, compared by complete value, after it (orphans and any post-call drift, even a complete coherent replacement of
-  the binding, are `Unavailable` with every fact stripped). It answers one of eight closed statuses (`NotRecorded`, `Unavailable`, `BindingNotRecorded`, `CliUnavailable`, `Unknown`, `IdentityChanged`,
-  `PermissionNotReturned`, `PermissionReported`) with exactly their documented facts; `viewerPermission` is null exactly for `PermissionNotReturned` (an explicit GitHub null, neither a denial nor
-  proof of an account type) and otherwise exactly one of `READ`, `TRIAGE`, `TRIAGE_PLUS`, `WRITE`, `MAINTAIN`, `ADMIN` (the six values GitHub's published `RepositoryPermission` schema defines),
-  reported and never ranked or turned into an allowance. The operation-owned port `IGitHubRepositoryPermissionObserver` is implemented by `GitHubRepositoryPermissionObservationAdapter` on the
-  existing process executor: one fixed `gh api graphql --hostname github.com --method POST -f query=<constant read-only query> -f owner=<stored owner> -f name=<stored repository>` (the query
-  selects `id name nameWithOwner viewerPermission`) with the ADR-0041 environment, bounds (15 s, 8 KiB per stream, 16 KiB combined, JSON depth 8) and non-queued single-flight slot, and a
-  whole-response admission that refuses any backslash, extra, missing or duplicate member, error, unknown literal or foreign name. The handler requires the ADR-0044 `GitHubCli` snapshot gate,
-  validates the whole probe again, compares the opaque ID with the binding ordinally and stamps the host clock after the revalidation (earlier than the binding is `Unknown`). Nothing is written,
-  persisted or locked, and no ADR-0048 approval is required, consumed or changed. The cockpit adds a separate collapsed "GitHub repository permission" region beside the identity, branch and binding
-  regions with Show (sends nothing), Check (then Recheck) and Close, owned by the committed project, run, source and target and each opening, showing the exact admitted role as inert text with the
-  fixed disclosure "Repository access does not establish permission to push this branch." The reading is not permission to push the branch, readiness, an approval or publication authority, and the
-  real installed CLI and schema compatibility remain unverified.
 
 - The .NET host is the only authority for workflow state, policy, persistence,
   process execution, Git mutation, and remote publication.
@@ -480,125 +66,21 @@
 - Agent context is assembled progressively from the smallest sufficient set of
   durable records and evidence. Complete transcripts and unchanged repository
   content are not replayed by default.
-- Agent stages that receive bounded Git change evidence also receive bounded, identity-verified text previews of
-  eligible untracked files, each explicitly marked complete, shortened, or omitted. A preview is admitted only from a
-  handle proven physically inside the approved worktree (Windows) that, before any read and again after the bounded
-  read, is a regular, non-reparse file with exactly one name (a file any other name reaches is omitted, not
-  enumerated) and whose bytes match the fingerprint's raw-content identity; other hosts omit it. Its text exists only
-  in the sealed manifest, the provider input and the existing authenticated sealed-artifact viewer. This closes
-  generic untracked-preview delivery, not every filesystem read: the raw Git hashing behind the checkpoint fingerprint
-  can still read an outside hard link; the tracked diff of NEW Agent delivery is closed separately by ADR-0024 and the human
-  checkpoint inspection by ADR-0027 (see
-  [ADR-0022](decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md) and
-  [the protocol](architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests)).
-- Every newly claimed Agent stage also receives the exact root `AGENTS.md` and `CLAUDE.md` of its own project's owned
-  worktree, in one versioned `projectInstructionContext` section bound to the claim's workspace and checkpoint and preceded by a
-  fixed boundary that makes it untrusted advisory context beneath the authorized plan, role, schema, permissions, command
-  restrictions and human decisions. Each file is Complete (whole text, verified length and SHA-256), Absent, or Omitted with a
-  fixed reason; only those two root paths are ever read, nothing is imported or followed, their text is withheld from the generic
-  untracked and tracked-diff evidence of the same delivery, and the text is carried by the sealed
-  manifest, the provider input and the existing authenticated sealed-artifact viewer. Already sealed manifests replay unchanged, the host proves containment on the open handle (Windows
-  only), and the file can still change after observation (see
-  [ADR-0021](decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md) and
-  [the protocol](architecture/agent-collaboration-protocol.md#project-instruction-context-in-agent-manifests)).
-- The tracked side of that evidence is a deterministic selection of complete file headers and hunks under an 8 KiB
-  UTF-8 bound, fitted with the untracked previews inside the 32 KiB manifest ceiling; omitted tracked material is
-  accounted for with fixed reasons and the selection is never described as a complete or applyable patch. A valid
-  text hunk too large to select whole adds only a separate, at most 4 KiB, explicitly incomplete sample of its changed
-  lines outside `diff` (see
-  [the protocol](architecture/agent-collaboration-protocol.md#bounded-tracked-hunk-evidence-in-agent-manifests)).
-  For a NEWLY claimed stage the text of that selection is never taken from Git's patch (ADR-0024): every tracked changed
-  path is attested from the exact blob of the captured HEAD and, on Windows, from a held handle proven to be the single-name
-  regular file of the owned worktree before and after the bounded read and around an independent identity check, and the
-  host writes one conservative replacement hunk per file from those snapshots (not Git's minimal or filter-normalized
-  patch, which the manifest states). A path that is unsafe, unprovable, unsupported or outside the bounds (256 KiB and
-  8192 lines per source, 512 KiB retained per observation) is an explicit fixed-reason omission beside its delivered
-  siblings, builders re-derive that for any reader, and sealed manifests replay unchanged (see
-  [ADR-0024](decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md) and
-  [the protocol](architecture/agent-collaboration-protocol.md#attested-tracked-change-text-in-agent-manifests)).
-- The two Claude paths that can edit the worktree (initial implementation and review correction) may carry one
-  owner-requested, run-scoped agentic-turn limit, snapshotted immutably on each claimed attempt and passed as the
-  provider's documented `--max-turns` argument under the `claude-implementation-v2` and `claude-review-correction-v2`
-  contracts. It is a provider-loop request beside the host timeout, never a measured count, a token, cost, or account
-  ceiling, or a host-enforced limit (see
-  [the protocol](architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts)).
-- The explicit mutation requests (initial implementation, ordinary review correction and, by ADR-0019, the correction of a
-  verification diagnosis's findings) may carry optional bounded
-  direct human guidance, snapshotted immutably on the exact claimed attempt and sealed into its context beside a fixed
-  advisory boundary. It is advisory clarification only, available within the ordinary correction budget, and a fact of what
-  the host supplied, never of provider compliance (see
-  [the protocol](architecture/agent-collaboration-protocol.md#optional-direct-human-guidance-for-mutation-requests)).
-- A completed second challenge round ends a proposal lineage in a human escalation. A human may explicitly authorize exactly
-  one initial implementation claim for that final plan with a required, bounded reason; authorizing and requesting the
-  implementation are separate operations, the grant is consumed atomically by the ordinary explicit claim (and stays spent
-  even if the attempt fails), and no automatic review or resolution cap, budget, or execution gate is raised or bypassed. The
-  escalation record itself states those options in fixed text and selects, grants, and approves nothing; it is recognized as a
-  source only when its content is ordinal-equal to one of two complete canonical serializations, the current one or the original
-  one that earlier records keep (see
-  [ADR-0016](decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md),
-  [ADR-0020](decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md), and
-  [the protocol](architecture/agent-collaboration-protocol.md#explicit-human-authorization-of-one-escalated-plan-implementation)).
-- Every newly claimed code review, its manual format repair, and re-reviews throughout the ordinary correction chain judge
-  the exact Proposal the initial implementation consumed (the root, the revision, or the authorized final plan), while the
-  Planner root remains the lineage identity and correction reply target. The change is forward only: a review sealed earlier
-  replays its existing bytes, and history is never rewritten (see
-  [ADR-0017](decisions/0017-review-the-implemented-plan-through-correction.md)).
-- A human may explicitly request a read-only Codex diagnosis of the current failed local verification of an exact ExecutionReport. It
-  yields one to ten findings or one bounded escalation, never an approval, and may then separately request a Claude correction of
-  those findings through the existing correction contract and its one shared allowance, optionally with the same bounded advisory
-  direct guidance as an ordinary correction, available only within that allowance (ADR-0019). Verification is rerun explicitly and an
-  ordinary code review still requires every enabled command to be Passed (see
-  [ADR-0018](decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md) and
-  [the protocol](architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis)).
-- Token usage is a visible, best-effort measurement at attempt and run level
-  when provider data is available. It is not an account or cost budget and no
-  account-usage threshold is enforced for Claude or by the display-only allowance. The enforced token control is an
-  owner-configured, run-scoped, provider-separated
-  stop on locally recorded token activity that refuses the next Agent claim for
-  that provider once reached or unprovable; it is a retrospective local
-  guardrail, not an account allowance or a per-attempt cap, and the advisory
-  warning is separate (see the open risks in `docs/roadmap/current-work.md`).
-  A separate, optional, run-scoped Codex account-usage percentage stop (1 through 100) is enforced at the Codex claim
-  and again immediately before dispatch from a strict read-only observation that never reuses the display-only
-  allowance projection; reaching it, or failing to observe it, ends a claimed attempt before dispatch with a
-  bounded recorded decision. It is a local guard over a provider-reported percentage, not eligibility or capacity
-  ([ADR-0025](decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)).
-  A separate, optional, run-scoped advisory Codex warning percentage (1 through 100, independent of the stop with no required
-  ordering) is read only by one explicit "Check Codex account warning" request, which makes at most one strict observation and
-  writes nothing; no claim, gate, dispatch or invocation path reads it, and a warning never refuses or stops anything
-  ([ADR-0026](decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)). Claude account usage, session resume and
-  manual compaction remain open.
-- A human inspecting a checkpoint (the existing protected diff route) receives the same kind of host comparison, not Git's raw
-  working-path patch (ADR-0027): an explicit inspection capture in the existing coherent bracket attests every tracked changed path
-  with the ADR-0024 proof, the query re-derives coverage from those immutable facts, and the response carries the comparison text
-  (at most 512 KiB of UTF-8, whole file blocks in ordinal order), a completeness flag and tracked/compared counts, the fixed
-  host-comparison limitation, and every tracked path without text with a fixed reason; it never shows "No tracked diff." for an
-  all-omitted capture. A physically proven tracked root `AGENTS.md` or `CLAUDE.md` is inert source text there, while Agent delivery
-  still reserves both names to the controlled instruction section. This closes the HTTP/UI text-delivery route of the ordinary
-  checkpoint diff, not every filesystem read: the raw Git hashing behind the fingerprint still reads named paths, and files can
-  change after observation (see
-  [ADR-0027](decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)).
-- Manual run intake may carry two optional, immutable, run-wide choices (ADR-0028): a claimed-Agent-attempt ceiling of 1 through 16 and
-  a reserved-invocation-time ceiling of 1 through 120 whole minutes, each defaulting independently to the existing 16 and 120 when
-  omitted or null. They are stored in the existing `Run` columns by the same atomic creation, never clamped, rounded or changed
-  afterwards, and enforced by the unchanged claims (claims stay consumed after failure or interruption; time is reserved from
-  configured timeouts, never measured). A ceiling below a role's configured timeout prevents that claim; the simulated demo and
-  every historical run keep their policies, and the 1..16 / 1..120 range does not limit them (see
-  [ADR-0028](decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md)).
-- The three Claude adapters also read the optional `modelUsage` map of the one clean-exit, untruncated result envelope
-  and keep only each model identifier with its reported context-window and maximum-output limits, admitted whole or not
-  at all (at most 16 unique ASCII identifiers, positive 32-bit integers, output not above the window) and independent of
-  the business result and of token usage. The completion transaction records them once as one nullable canonical
-  project-owned snapshot on the attempt (at most 4 KiB), and only the existing historical attempt-evidence route and its
-  selected detail show them, as "Claude-reported model limits": models listed by Claude, not proven used, never remaining
-  context or next-invocation capacity, "Not recorded" when absent. It changes no argument, eligibility, token control,
-  filesystem or manifest behavior (see
-  [ADR-0023](decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md) and
-  [the protocol](architecture/agent-collaboration-protocol.md#claude-reported-model-context-limits)).
 - Git, Codex, Claude Code, and GitHub integrations are replaceable
   Infrastructure adapters behind narrow Application ports.
 - The MVP uses existing local CLI authentication and never copies provider
   credentials into the application database.
+
+Implemented today: the explicit local commit and the Human-requested surfaces of
+ADR-0030 to 0045 and 0047 to 0049. GitHub readings are point-in-time,
+never readiness, permission to push or publication authority; installed `gh`
+and schema compatibility are unverified. No push, pull request, CI routing or
+automatic orchestration exists; ADR-0048 records consent only. Increments 4 to
+6 stay incomplete; no MVP completion is implied. Text-delivery controls
+(ADR-0021, 0022, 0024, 0027) close named routes, not every filesystem read;
+their physical proofs are Windows-only. Token and account-usage controls are
+local guards, not account, cost or capacity budgets. Execution limits:
+[open risks](roadmap/current-work.md#open-risks).
 
 ## Security tailoring
 
@@ -621,13 +103,14 @@ source repositories and connected systems.
 - SQLite integration tests use disposable file-backed databases because SQLite
   is the production provider. EF Core InMemory is not provider evidence.
 - MVC integration tests use `WebApplicationFactory` and a disposable SQLite
-  database. A class that needs a real delivery lineage for many independent facts may,
-  under [ADR-0046](decisions/0046-prepare-delivery-lineage-api-tests-from-a-class-owned-sealed-sqlite-snapshot.md)
-  and the [validation policy](roadmap/validation-policy.md), seed it once per class
-  execution and give each fact its own SQLite backup; no other form of shared test
-  data or cross-run cache is approved. [ADR-0047](decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md)
-  extends that approval narrowly to one further endpoint class through feature-owned composition of the same producer, with its own fixture instance and the new observer in
-  the sealed-scene refusal inventory; it migrates no other class.
+  database. Under ADR-0046 and the
+  [validation policy](roadmap/validation-policy.md#class-owned-sealed-sqlite-snapshot-adr-0046),
+  one class needing a real delivery lineage for many independent facts may seed
+  it once per class execution and give each fact its own SQLite backup.
+  ADR-0047 extends that narrowly to its own endpoint class, through
+  feature-owned composition of the same producer, its own fixture instance and
+  its observer in the sealed-scene refusal inventory; it migrates no other
+  class. No other shared test data or cross-run cache is approved.
 - Agent, Git, GitHub, and local process adapters use deterministic executable
   test doubles for contract and failure-path tests. Automated tests do not
   call real providers.
@@ -637,11 +120,11 @@ source repositories and connected systems.
 
 ## Package adoption
 
-Adopt only released `Devalente.Shared.*` packages whose responsibilities are
-needed by a current slice. The likely initial set is CQRS abstractions and
-mediator, Results, FluentValidation integration, EF Core integration, MVC
-Problem Details, and NSwag generation. Auditing, soft deletion, and security
-packages remain opt-in according to actual entity and host requirements.
+Adopt only released `Devalente.Shared.*` packages whose responsibilities a
+current slice needs. Adopted at 0.2.0 (`Directory.Packages.props`): CQRS
+abstractions and mediator, Results, FluentValidation integration, EF Core
+integration, MVC Problem Details, Security and NSwag generation. Auditing and
+soft deletion remain opt-in by actual entity and host requirements.
 
 ## Approved deviations
 
