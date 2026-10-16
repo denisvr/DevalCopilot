@@ -5,22 +5,21 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03E usage evidence extraction
+## Active slice: WF-03F token-activity controls extraction
 
-- **Status: UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review of correction
-  R1; no GO.** Preflight matched: `main`; `HEAD`, `origin/main` and live main
-  `02297979`; 0/0; empty index. Planner checkpoint (8178 bytes,
-  `fb2ac28f...b0bd`) preserved byte-identically.
+- **Status: UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review; no GO.**
+  Preflight matched: `main`; `HEAD`, `origin/main` and live main `5dd2e3a9`;
+  0/0; empty index. Planner checkpoint (6653 bytes, `dae5e516...1cf2`)
+  preserved byte-identically.
 - **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
   (two forwarders, one router), [index](../architecture/README.md),
-  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03E record),
-  [execution evidence](../architecture/agent-collaboration-execution-evidence.md)
-  and [evidence inspection](../architecture/agent-collaboration-evidence-inspection.md)
-  (introductions), this file. New:
-  [usage evidence](../architecture/agent-collaboration-usage-evidence.md).
-  Ignored: `logs/executor/wf-03e/`.
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
+  (introduction), [rework map](agent-collaboration-protocol-rework-map.md)
+  (WF-03F record), this file. New:
+  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md).
+  Ignored: `logs/executor/wf-03f/`.
 - **Checks and limits.** Commands, hashes, exits, timings:
-  `logs/executor/wf-03e/runs.log`. Conservation is exact; link and sensitive
+  `logs/executor/wf-03f/runs.log`. Conservation is exact; link and sensitive
   scans are lexical; Git/disk checks have no negative control.
 - **Next action:** independent Codex review. No commit or push.
 
@@ -33,14 +32,17 @@ Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03D `02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A `c1189f1a`
-and WF-02B `d1a7b457` (each the sole parent of the one before) are published
-per `logs/planner-review/<slice>/publication-verification.json`; WF-02A
+WF-03E `5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`,
+WF-03A `c1189f1a` and WF-02B `d1a7b457` (each the sole parent of the one
+before) are published per
+`logs/planner-review/<slice>/publication-verification.json`; WF-02A
 `a593009` (four documents) per `logs/planner-review/wf-02a/`. Pre-publication
-wording is historical; do not reopen or republish them. WF-03D limits
-(`logs/planner-review/wf-03d/review1/decision.md`): lexical scans; no Git/disk
-mutants; executor controls inspected, not rerun; N05, not N06, is the
-broken-fragment control; planner parent console summaries only in transcripts.
+wording is historical; do not reopen or republish them. WF-03E limits:
+`logs/planner-review/wf-03e/review2/decision.md` and `review1/decision.md`.
+WF-03D limits (`logs/planner-review/wf-03d/review1/decision.md`): lexical
+scans; no Git/disk mutants; executor controls inspected, not rerun; N05, not
+N06, is the broken-fragment control; planner parent console summaries only in
+transcripts.
 WF-03C limits (`logs/planner-review/wf-03c/review2/decision.md`):
 negative-01's failed baseline invalidates its kills; the recovered dev-01
 checker matches its hash but is no original snapshot; the aborted write is an

@@ -24,6 +24,9 @@ shared engineering contract.
 - [Agent collaboration usage evidence](agent-collaboration-usage-evidence.md)
   holds the protocol's provider token-usage contracts and Claude-reported model
   context limits.
+- [Agent collaboration token-activity controls](agent-collaboration-token-activity-controls.md)
+  holds the protocol's advisory per-provider run token-activity warnings and
+  per-provider run token-activity stop at Agent claim.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote

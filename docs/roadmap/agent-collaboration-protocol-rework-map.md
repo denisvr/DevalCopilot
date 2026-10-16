@@ -4,10 +4,11 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds five separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D and WF-03E; each record's identifiers and coordinates refer only to its
-own baseline. WF-03 remains incomplete. Future WF-03 moves remain unselected,
-and this map names no destination for them.
+prevail. It holds six separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E and WF-03F; each record's identifiers and coordinates refer only
+to its own baseline, and each earlier record's statements stay as written, as
+history. WF-03 remains incomplete. Future WF-03 moves remain unselected, and
+this map names no destination for them.
 
 ## WF-03A record
 
@@ -477,3 +478,110 @@ and model context limits because they stayed at that move; WF-03E moves them.
 This is a relocation, not a reconciliation: moved facts and wording are as
 written at the baseline, including the duplicate line, except the one reference
 repair above.
+
+## WF-03F record
+
+WF-03F moves the per-provider run token-activity warnings and the per-provider
+run token-activity stop at Agent claim, and repairs the usage evidence
+companion introduction that placed them in the protocol. This record was
+written with WF-03F's uncommitted working-tree diff, for independent review
+before any GO; it describes that diff, not a published delivery. Publication,
+if any, is evidenced by Git history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `5dd2e3a940a18e0ce44e2e60f89fbb66c1cded7e`, the
+  published WF-03E result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `63f0315828c276e40cc5a29d5506cb94eb60eb60`, SHA-256
+  `577bff8305f38c29e18661ac9531b055ad6369cc4a7d89b7bf2eef844c88136c`,
+  198697 bytes, 2362 lines, 66 Markdown headings. Read it with
+  `git show 5dd2e3a9:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `FLstart-end` are WF-03F baseline line spans; `FPstart-end`
+  are lines of the protocol after WF-03F; `FTstart-end` are lines of the
+  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md)
+  companion. Row IDs carry an `F-` prefix. No WF-03F identifier refers to a
+  WF-03A, WF-03B, WF-03C, WF-03D or WF-03E row or coordinate. A section range
+  spans its heading through the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, with the same forwarder shape. All 66 baseline headings stay in the
+  protocol in order with identical text and level, so every fragment,
+  including the two new forwarding headings, resolves as before. The companion
+  promotes the two moved headings from `###` to `##` with identical text, so
+  their fragments are the same in both files. FT1-18 are the companion's title
+  and introduction, and FT77 is the blank separator FL1473. Companion lines
+  FT19-183 correspond one to one to FL1415-1579: the two headings are
+  promoted and every other line is identical.
+
+### WF-03F ranges
+
+The four ranges cover FL1-2362 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| F-R-01 | FL1-1414 | Purpose through the optional Claude agentic-turn limit for mutation attempts, including the five companion routing paragraphs and the WF-03A, WF-03B, WF-03C and WF-03E forwarders | Retain; one routing insertion | FP1-509 (FL1-509), FP510-514 (insertion), FP515-1419 (FL510-1414) | Verbatim apart from the insertion: a four-line paragraph and a blank line immediately after the usage evidence routing paragraph (FL505-509) and before `## Provider runtime configuration`, linking to the companion |
+| F-M-01 | FL1415-1473 | Per-provider run token-activity warnings | Move | FT19 heading, FT20-76 body (FL1416-1472); forwarder FP1420-1423; FP1424 (FL1473) | Body verbatim |
+| F-M-02 | FL1474-1580 | Per-provider run token-activity stop at Agent claim | Move | FT78 heading, FT79-183 body (FL1475-1579); forwarder FP1425-1428; FP1429 (FL1580) | Body verbatim |
+| F-R-02 | FL1581-2362 | Run-scoped Codex account-usage stop at claim and dispatch through protocol evolution, including the WF-03D forwarders | Retain | FP1430-2211 | Verbatim |
+
+### WF-03F fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| F-M-01 | [`#per-provider-run-token-activity-warnings`](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-warnings) | [`#per-provider-run-token-activity-warnings`](../architecture/agent-collaboration-token-activity-controls.md#per-provider-run-token-activity-warnings) |
+| F-M-02 | [`#per-provider-run-token-activity-stop-at-agent-claim`](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim) | [`#per-provider-run-token-activity-stop-at-agent-claim`](../architecture/agent-collaboration-token-activity-controls.md#per-provider-run-token-activity-stop-at-agent-claim) |
+
+### WF-03F link and reference changes
+
+- **Moved text.** The moved sections contain no Markdown link or URL. No moved
+  body line changed and no reference was repaired.
+- **Relative wording.** F-M-02's "Unlike the advisory warning above" (FL1479,
+  FT83) means F-M-01, which precedes it in the companion as at the baseline.
+  Its other references to the warning, "the warning's existing" range
+  (FL1489-1490, FT93-94), "the advisory warning columns deliberately are not"
+  (FL1496, FT100) and "exactly as it does for the warning" (FL1569, FT173),
+  carry no direction. Unlinked names of subjects that stay in the protocol,
+  such as "the six Agent claim paths" (FL1422, FT26), "the 16-claim budget"
+  (FL1537, FT141) and the "existing run-wide count and reserved-time budgets"
+  (FL1543, FT147), carry no direction either and are kept as written.
+- **Retained references.** The protocol's unlinked "separately from token
+  activity" in the Codex account-usage stop (FL1621, FP1470) and "Codex token
+  stop" and "Claude token stop" in explicit verification failure diagnosis
+  (FL1925 and FL1929, FP1774 and FP1778) carry no direction; the retained
+  forwarding headings (FP1420 and FP1425) keep both names in the protocol.
+  None of those lines changed. The format repair companion's "token stop"
+  (line 144) is unchanged.
+- **Inbound references.** Links to the two protocol fragments from the product
+  [cockpit specification](../product/run-cockpit-specification.md) (lines 827
+  and 860), [current work](current-work.md) (Open risks, line 75, baseline
+  73), the [documentation rework map](documentation-rework-map.md) (line 165)
+  and the [delivery plan rework map](mvp-delivery-plan-rework-map.md) (line 70)
+  still reach the retained forwarding headings; that row's protocol line
+  numbers refer to its own earlier baseline. The frozen
+  [execution history](current-work-history-ba1d4c2.md) links them at lines
+  2777 and 3140. ADR-0025 (lines 8 and 75) and the
+  [MVP delivery plan](mvp-delivery-plan.md) (line 194) name the stop without a
+  link. None of those lines changed; current-work's link moved down two lines
+  with the replaced delivery state above it. No earlier record of this map
+  links either fragment; the WF-03E not-moved list names both subjects as
+  history.
+- **Usage evidence introduction.** At the baseline the
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
+  introduction (lines 12-13) said warnings and stops stay in the protocol,
+  which this move makes inaccurate. Lines 12-13 became lines 12-16: they route
+  token-activity warnings and stops to the companion and keep account
+  allowances, account-usage stops and warnings, model and effort controls,
+  budgets and every other unmoved subject in the protocol. Everything from its
+  first `##` heading (baseline line 16, now 19) through its end is
+  byte-identical. This is an introduction repair, not a moved-body repair.
+
+### WF-03F not moved
+
+The run-scoped Codex account-usage stop and advisory warning, account
+allowances, the Codex model and effort catalog, model, effort and agentic-turn
+requests, the run-wide claim count and reserved-time budgets, runtime
+preflight, manifests, structured output failure, the challenge rounds and
+escalation, review correction and every other subject not moved by WF-03A to
+WF-03F stay in the protocol. The provider contracts, execution evidence,
+evidence inspection and format repair companions are unchanged; the usage
+evidence companion changed only in its introduction, as above. WF-03E's
+not-moved list named token-activity warnings and stops because they stayed at
+that move; WF-03F moves them. This is a relocation, not a reconciliation:
+moved facts and wording are as written at the baseline.
