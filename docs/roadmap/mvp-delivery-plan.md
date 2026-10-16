@@ -161,9 +161,9 @@ manual transfer.
 - provider-specific model, effort, and permission-mode discovery and selection
   at safe attempt boundaries;
 - provider session correlation and eligible resume behavior;
-- context-window visibility and safe manual compaction when supported (historical attempt evidence shows the model limits Claude
-  reported, per [ADR-0023](../decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md); remaining
-  context, live capacity and compaction remain open);
+- context-window visibility and safe manual compaction when supported
+  (historical attempt evidence shows the model limits Claude reported, per
+  ADR-0023; remaining context, live capacity and compaction remain open);
 - separate Codex and Claude account-usage snapshots, warning thresholds, and
   stop guardrails.
 
@@ -181,203 +181,66 @@ manual transfer.
   inventing model, context, usage, or compaction capability;
 - loop exhaustion creates a useful human escalation.
 
-The implemented review-correction control uses a durable default of two
-claimed attempts per run. Every claim consumes that budget, including claims
-that later fail or are interrupted. Exhaustion creates a durable escalation;
-continuation requires an explicit human authorization for one additional claim.
-This does not introduce generic pause/resume, provider fallback, Gemini,
-automatic orchestration, or the deferred token/account-usage controls.
+**Partial delivery, not completion.** Each control is bounded by its ADR and
+the [protocol](../architecture/agent-collaboration-protocol.md#review-correction);
+budgets and stops are local guards, not account, cost or capacity budgets:
 
-A second, independent control implements a durable run-wide Agent claim
-budget: a default maximum of 16 claimed Agent attempts per run, spanning all
-six Agent-claiming paths. Every claim permanently consumes one slot,
-including claims that later fail or are interrupted; Simulated and Process
-attempts never consume it. Unlike the review-correction control, exhaustion
-has no human override — it is a hard stop for the run's remaining
-Agent-claiming paths. See
-[ADR-0012](../decisions/0012-add-a-durable-run-wide-agent-claim-budget.md).
+- the review-correction control: by default two claims per run, then a
+  durable escalation and one explicit human-authorized claim;
+- default run-wide ceilings of 16 claimed Agent attempts, with no human
+  override (ADR-0012), and 120 minutes of reserved, not measured, invocation
+  time (ADR-0013); smaller immutable values may be chosen at manual intake
+  (ADR-0028);
+- the per-provider token-activity stop, and the Codex-only account-usage stop
+  (ADR-0025) and advisory warning (ADR-0026); the account-usage stop exit
+  criterion is met for Codex only;
+- the optional Claude agentic-turn limit and advisory guidance for
+  diagnosis-origin corrections (ADR-0015, ADR-0018, ADR-0019);
+- root instruction context (ADR-0021) and attested untracked, tracked and
+  human-checkpoint text (ADR-0022, ADR-0024, ADR-0027);
+- the per-lineage plan-challenge cap and escalation (ADR-0016, ADR-0020;
+  [bounded loops](../architecture/workflow-model.md#bounded-loops)).
 
-A third, independent control implements a durable run-wide Agent
-invocation-time budget: a default maximum of 120 minutes of reserved Agent
-invocation time per run, enforced alongside (never instead of) the 16-claim
-count budget above, on the same six Agent-claiming paths, at the same check
-point. Every claim permanently reserves its own configured timeout, including
-claims that later fail or are interrupted; Simulated and Process attempts
-never consume it. A historical run recorded before this control existed keeps
-no time-budget policy at all (truthfully `NULL`), never a fabricated ceiling.
-See
-[ADR-0013](../decisions/0013-add-a-durable-run-wide-agent-invocation-time-budget.md).
-This is a reservation ceiling only — it does not measure actual wall-clock
-process duration, enforce provider account-usage limits, or independently
-guarantee a provider invocation cannot outlive its own configured timeout.
-
-A separate, owner-configured, run-scoped token-activity stop is also
-implemented for each of Codex and Claude Code: once that provider's locally
-recorded, provider-reported usage has reached the configured threshold, or
-staying below it cannot be proved from the persisted evidence, the next Agent
-claim for that provider is refused before any external work; an already
-claimed attempt is unaffected. It is a retrospective local guardrail, not a
-provider account allowance, a per-attempt cap, or a token reservation, and it
-is distinct from the advisory token-activity warning. See the
-[architecture description](../architecture/agent-collaboration-protocol.md#per-provider-run-token-activity-stop-at-agent-claim).
-An owner may also set an optional, run-scoped Codex account-usage percentage stop
-([ADR-0025](../decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)): it is enforced on
-new Codex claims and checked again before dispatch from a strict read-only observation, and ends a claimed attempt before
-dispatch with a recorded decision. It is a local guard, not eligibility or capacity, and covers Codex only.
-The provider account-usage stop-threshold exit criterion above is therefore met for Codex only. An owner may also save an optional,
-run-scoped, advisory Codex account-usage warning percentage
-([ADR-0026](../decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)) that an explicit "Check Codex account
-warning" request compares with one strict observation; it is independent of the stop, never refuses or stops work, and is shown only
-when asked for. Claude account usage, session resume, manual compaction, and the remaining Increment 4 loop, token, and
-account-usage controls, remain open.
-
-The two Claude paths that can edit the worktree also accept an optional,
-owner-requested, run-scoped agentic-turn limit (1 through 100), snapshotted
-immutably on each claimed attempt and passed as the provider's documented
-`--max-turns` argument; it is a provider-loop request alongside the host
-timeout, not a measured turn count, a token, cost, or account ceiling, a
-replacement for any budget or stop, or an eligibility claim. See the
-[architecture description](../architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts).
-
-An explicit Claude correction of the findings of a verification diagnosis ([ADR-0018](../decisions/0018-add-explicit-local-verification-failure-diagnosis-and-bounded-correction.md))
-may carry the same optional, bounded, advisory direct human guidance as the other explicit mutation requests
-([ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md), extended by
-[ADR-0019](../decisions/0019-add-direct-human-guidance-to-diagnosis-origin-corrections.md)): the same normalization and bounds, one immutable
-snapshot sealed once into the existing manifest envelope, and availability only within the shared correction allowance. It grants no extra
-correction, authorization, permission or source authority, and the recorded text shows what the host supplied, not that a provider followed it.
-See the [architecture description](../architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis).
-
-Every newly claimed Agent stage also receives the exact root `AGENTS.md` and `CLAUDE.md` of its own project's owned worktree
-as one bounded, identity-verified, fixed-boundary section of its sealed context manifest
-([ADR-0021](../decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md)), replacing the earlier fixed
-DevalCopilot documentation references. Only those two root files are read; each is Complete, Absent or Omitted with a fixed
-reason, already sealed manifests replay unchanged, and the content is untrusted advisory context that grants no authority.
-Imports, other instruction files, provider-side discovery, resume and compaction remain unselected. See the
-[architecture description](../architecture/agent-collaboration-protocol.md#project-instruction-context-in-agent-manifests).
-
-The bounded text previews of untracked files that those stages receive are admitted only from a physically proven, regular,
-single-name file ([ADR-0022](../decisions/0022-admit-generic-untracked-previews-only-from-physically-proven-single-name-files.md)):
-the open handle's final path must be exactly the reported path of the owned worktree and the operating system must report, before
-any read and again after the bounded read, exactly one link, so a file that any other name reaches is an explicit omission while
-its healthy siblings are still delivered. This closes generic untracked-preview delivery, not every filesystem read: raw Git
-hashing for the checkpoint fingerprint can still read an outside hard link, and hardening it remains an unselected, separate
-decision. See the
-[architecture description](../architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests).
-
-The tracked-file text those stages receive is closed the same way for newly claimed stages
-([ADR-0024](../decisions/0024-deliver-new-tracked-change-text-only-from-attested-snapshots.md)): the old side is the exact blob of
-the captured HEAD, the current side comes from a held handle proven physically inside the owned worktree as a single-name regular file,
-and the host writes a conservative one-hunk comparison from those two owned snapshots instead of delivering Git's working-path patch.
-Unsafe, unprovable or unsupported files are explicit omissions beside their delivered siblings, already sealed manifests replay
-unchanged, and the raw observation and checkpoint fingerprint are unchanged. See the
-[architecture description](../architecture/agent-collaboration-protocol.md#attested-tracked-change-text-in-agent-manifests).
-
-The authenticated human inspection of a checkpoint uses the same attestation
-([ADR-0027](../decisions/0027-compare-attested-tracked-sources-for-human-checkpoint-inspection.md)): the protected diff route returns a
-bounded host comparison (at most 512 KiB, whole file blocks) with explicit per-path omissions and fixed coverage statements instead of
-Git's raw working-path patch, a physically proven tracked root `AGENTS.md` or `CLAUDE.md` is inert displayed text there while Agent
-delivery still reserves both names, and the panel never reads an incomplete or all-omitted result as clean. This closes the HTTP/UI
-text-delivery route of the ordinary checkpoint diff, not every filesystem read. See the
-[architecture description](../architecture/agent-collaboration-protocol.md#attested-checkpoint-comparison-for-human-inspection).
-
-An owner recording a new manual run may also choose smaller immutable run-wide ceilings for claimed Agent attempts (1 through 16) and
-reserved invocation time (1 through 120 minutes)
-([ADR-0028](../decisions/0028-let-the-owner-choose-immutable-run-budgets-at-manual-intake.md)); the existing claims enforce those exact
-persisted values, claims and reservations stay consumed after failure or interruption, and a ceiling below a role's configured timeout
-prevents that claim. This is a creation-time choice only, with no change to existing runs, defaults, token or account policy, or any
-claim algorithm; the cockpit shows the actual ceilings and usage before exhaustion.
-
-The plan-challenge loop is bounded and its exhaustion escalates: a proposal
-lineage may have one optional second critical review of the first Resolver
-revision and, if challenged, one explicit second resolution. That successful
-second resolution records one orchestrator-authored human escalation in the
-same atomic save, and the resulting depth-two revision is never reviewable or
-resolved again and is implementable only through one explicit human authorization
-of exactly that final plan, followed by a separate explicit implementation request
-([ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md);
-the escalation's own fixed text says so, and both its current and original serialization are recognized by
-[ADR-0020](../decisions/0020-correct-the-escalation-explanation-and-accept-its-two-canonical-forms.md)).
-The cap is per lineage — more conservative than the
-per-material-issue wording in the [workflow model](../architecture/workflow-model.md#bounded-loops), because the system does not decide whether
-two challenges are the same issue. Other loop-exhaustion escalations (for
-example CI correction rounds) remain part of later increments. See the
-[architecture description](../architecture/agent-collaboration-protocol.md#optional-second-challenge-round-and-escalation).
+**Open:** Claude account usage, eligible session resume, live context
+capacity, manual compaction and additional safe permission profiles (each
+unavailable while its contract is unproven), the remaining loop, token and
+account-usage controls, other loop-exhaustion escalations (such as CI
+correction rounds, in later increments) and hardening raw Git observation,
+which can still read linked content outside the attested text routes.
 
 ## Increment 5: Local supervised delivery loop
 
-On 2026-10-06 the owner authorized one bounded Increment 5 slice before the remaining Increment 4 provider contracts are proven:
-an explicit host-executed local commit of the exact verified, Agent-reviewed and human-approved owned-worktree checkpoint,
-including its necessary durable intent and restart recovery. See
-[ADR-0029](../decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md) and
-[the planner handoff](planner-handoff.md). The explicit local commit is delivered as a bounded capability on `origin/main`; that is not
-increment completion. [ADR-0030](../decisions/0030-approve-the-complete-verification-set-as-one-human-decision.md) additionally lets one
-Human approve the complete verification set so the same commit works with several enabled recipes.
-[ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md) gives an owner one explicit, metadata-only
-exit from an inactive manual run (it cancels, repairs and deletes nothing) so another objective can be recorded; it is likewise not
-increment completion.
-[ADR-0032](../decisions/0032-show-a-recorded-local-delivery-receipt-from-pinned-evidence.md) adds a read-only, historical receipt of
-a completed local commit (the exact recorded checkpoint, approvals and ordered verification executions, reconstructed from pinned rows
-with no persistence change); it advances the final evidence summary for local delivery only and is likewise not increment completion.
-[ADR-0033](../decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md) adds a read-only, cursor-paged history of a
-project's recorded runs that locates an older run's own completed delivery for that receipt; it advances history access for recorded
-runs only (full event replay remains open) and is likewise not increment completion.
-[ADR-0034](../decisions/0034-browse-recorded-event-headers-of-a-historical-run.md) adds a bounded, on-demand, read-only browser of an older
-run's persisted event headers (exact string sequences, closed event and actor disclosures, no payload and no current-state claim); it is a
-first journal browser, not complete replay or envelope completion, and is likewise not increment completion.
-[ADR-0035](../decisions/0035-browse-recorded-collaboration-messages-of-a-historical-run.md) adds a bounded, on-demand, read-only browser of an
-older run's persisted collaboration messages (exact string sequences, closed disclosures, content admitted only through the existing content
-policy and shown as unavailable otherwise, no attempt or reply resolution and no current-state claim); full linked replay remains open and
-it is likewise not increment completion.
-[ADR-0036](../decisions/0036-inspect-the-recorded-reply-parent-of-a-historical-collaboration-message.md) adds an explicit, read-only inspection of
-one recorded message's own stored reply parent (a closed None, Unavailable or Available relationship, the parent under the unchanged ADR-0035
-disclosure, no chain traversal, attempt or evidence linkage and no current-state claim); full linked replay remains open and it is likewise
-not increment completion.
-[ADR-0037](../decisions/0037-inspect-the-recorded-agent-attempt-attribution-of-a-historical-collaboration-message.md) adds an explicit, read-only
-inspection of the one Agent attempt a recorded message itself references (a minimal recorded header under the unchanged attempt identity and
-assignment-snapshot rules, bounded scalar projections, a closed NoAgentAttempt, Unavailable or Available status, and no outcome, evidence, artifact
-or current-state claim); full linked replay remains open and it is likewise not increment completion.
-[ADR-0038](../decisions/0038-observe-stored-github-cli-authentication-on-explicit-request.md) adds an explicit, read-only observation of the default
-stored GitHub CLI authentication of github.com (one fixed privacy-filtered `gh auth status`, a closed status, no credential, environment-token or
-custom-config observation, no persistence); it is the authentication-health part of Increment 6's first deliverable only, grants no repository
-permission or publication authority, and the push, pull request, CI and reconciliation deliverables remain open.
-[ADR-0039](../decisions/0039-observe-the-project-local-github-origin-on-explicit-request.md) adds an explicit, read-only observation of the registered
-project's own repository-local `origin` URL (two fixed local Git invocations, a closed status and a normalized github.com target for a small supported
-subset, no remote, network, credential or persistence); it supplies a bounded input for later repository scoping only, is not remote identity, binding,
-permission or publication authority, and the remote binding, exact-SHA CI, push, pull request and reconciliation deliverables remain open.
-[ADR-0040](../decisions/0040-record-an-immutable-github-observation-scope-for-a-completed-local-delivery.md) adds the explicit, immutable Human selection of the
-GitHub owner and repository (fixed host) for the exact branch and commit of a completed manual local delivery, recorded with one Human event from pinned
-rows; it is local scope selection only, verifies no remote repository or permission, and grants no publication or automatic observation authority. Remote
-identity verification, exact-SHA CI, scoped publication and reconciliation remain open, separately gated slices.
-[ADR-0041](../decisions/0041-observe-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds one explicit, read-only observation
-of the opaque ID and names GitHub reports for that recorded owner and repository (one fixed `gh api graphql` query through the stored default authentication; not
-persisted, no binding); it proves no remote branch or commit, permission, CI result or publication approval, so the remaining deliverables stay open.
-[ADR-0042](../decisions/0042-observe-the-recorded-github-branch-tip-of-a-recorded-observation-target-on-explicit-request.md) adds one further explicit, read-only
-observation of the exact recorded branch tip in one remote response and whether it equals the recorded local commit (a point-in-time advisory fact, not persisted, with
-no CI result, permission, durable binding or publication approval), so exact-SHA CI, scoped publication and reconciliation remain open.
-[ADR-0043](../decisions/0043-bind-the-github-repository-identity-of-a-recorded-observation-target-on-explicit-request.md) adds the first durable remote fact: an explicit, immutable, human-confirmed binding of the opaque repository ID to a recorded target, recorded
-only after a fresh host observation agrees (historical identity evidence, not a permission, branch or commit proof, CI approval or publication authority).
-[ADR-0044](../decisions/0044-observe-the-check-summary-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only observation of GitHub's point-in-time
-aggregate check state for the recorded commit, shown only when the freshly observed repository ID equals the immutable binding and the exact recorded branch points at that
-commit (not complete check or workflow evidence, required-check approval, permission or publication authority); required-check policy, check and workflow enumeration, scoped
-publication, automatic monitoring and reconciliation remain open.
-[ADR-0045](../decisions/0045-inspect-the-check-contexts-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only inspection of the bounded collection
-(at most 50) of check-run and commit-status metadata GitHub returns for the recorded commit, shown only under the same identity and exact-branch conditions (not complete check or
-workflow evidence, workflow history, required-check approval, permission or publication authority); required-check policy, enumeration beyond 50 entries, workflow relation,
-failed-check diagnosis, scoped publication, automatic monitoring and reconciliation remain open.
-[ADR-0047](../decisions/0047-inspect-the-output-of-one-github-check-run-of-a-bound-recorded-local-commit-on-explicit-request.md) adds one explicit, read-only, two-phase inspection of the
-title, summary and text of one check run of the recorded commit, shown as untrusted post-redaction plain text only after the host proved the check's association with the bound repository and
-the recorded commit (not a diagnosis, complete check or workflow evidence, a log, required-check approval, permission or publication authority, and never persisted or sent to an Agent);
-required-check policy, workflow and log enumeration, durable output, Agent diagnosis and correction routing, rerun, scoped publication, automatic monitoring and reconciliation remain open.
-[ADR-0048](../decisions/0048-approve-one-future-github-branch-push-of-a-bound-recorded-local-commit-on-explicit-request.md) records the Human's explicit, immutable consent to ONE future
-normal push of the exact recorded local commit to its exact owned branch in the repository named by a coherent target and binding, as a separate local record with one Human event (consent
-only: not a push, readiness, a permission, a remote observation or an Agent decision); the actual push and draft pull request, remote permission discovery, CI monitoring and requiredness,
-diagnosis and correction routing, revocation, scheduling and restart reconciliation, and the remaining Increment 4 and 5 controls remain open.
-[ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md) (accepted) adds one explicit, read-only observation of the repository
-permission GitHub reports for the stored default authentication on the bound repository, shown only when the freshly observed repository ID equals the immutable binding (ephemeral reported
-access: not permission to push the branch, readiness, an approval or a publication, and no ADR-0048 approval is required, consumed or changed); branch-push permission evidence, rulesets and
-protection, scoped publication, the actual push and pull request, revocation, scheduling and restart reconciliation remain open.
-Claude account usage, eligible provider resume, compaction and additional safe permission profiles remain open and unavailable
-where their contracts are unproven. The remaining deliverables and exit criteria below are unchanged.
+On 2026-10-06 the owner authorized one bounded Increment 5 slice before the
+remaining Increment 4 provider contracts are proven: an explicit
+host-executed local commit of the exact verified, Agent-reviewed and
+human-approved owned-worktree checkpoint, with its durable intent and restart
+recovery
+([ADR-0029](../decisions/0029-deliver-an-explicit-local-commit-before-closing-provider-contract-gaps.md#sequencing-without-changing-completion-criteria)).
+It is delivered on `origin/main` as a bounded capability; this exception
+completes neither Increment 4 nor Increment 5.
+
+**Partial delivery, not completion.** Explicit Human-requested capabilities,
+each bounded by its [ADR](../decisions/README.md):
+
+- local delivery: complete-set approval, metadata-only abandonment of an
+  inactive manual run and a historical receipt (ADR-0030 to ADR-0032);
+- read-only browsers of run history, event headers, collaboration messages,
+  reply parents and attempt attribution (ADR-0033 to ADR-0037), not full
+  linked replay;
+- Increment 6 groundwork: unpersisted point-in-time observations (ADR-0038,
+  0039, 0041, 0042, 0044, 0045, 0047, 0049) and records of observation scope,
+  identity binding and consent to one future push (ADR-0040, 0043, 0048).
+
+No groundwork is readiness, permission, a push or publication authority:
+ADR-0048 records consent only, and ADR-0049's reported access is not
+branch-push permission. ADR-0050 is Proposed and authorizes nothing.
+
+**Open:** the coordination, scheduling, autonomy, recovery and replay
+deliverables below; Increment 6's push and draft pull request, branch-push
+permission, rulesets and protection, required-check policy, workflow and log
+enumeration, diagnosis and correction routing, rerun, revocation, monitoring
+and reconciliation. Increment 4's open provider contracts stay unavailable.
+The remaining deliverables and exit criteria below are unchanged.
 
 ### Outcome
 

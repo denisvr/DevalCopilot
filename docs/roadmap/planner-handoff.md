@@ -1,82 +1,76 @@
 # Planner/reviewer handoff
 
-Planner-owned current scope; replace rather than append. Follow
-[AGENTS.md](../../AGENTS.md) and the [workflow](development-workflow.md).
-Git and code prevail.
+Planner-owned scope; replace, never append. [AGENTS.md](../../AGENTS.md) and
+[workflow](development-workflow.md) apply. Git/code prevail.
 
 ## Priority and remaining objective
 
-Documentation rework is the owner's priority; functional work, including test
-improvements and P9 investigation, stays stopped until completion or an owner
-priority change. Codex plans/reviews; Claude implements. Reciprocal challenge,
-role ownership and explicit GO remain mandatory.
+Documentation is the owner's priority; functional work, tests and P9 stay
+stopped until completion or owner reprioritization. Codex plans/reviews;
+Claude implements; challenge, role ownership and explicit GO stay mandatory.
 
-- **Delivered:** WF-01 `4c9102c`: routing, checkpoints, frozen history, prompts
-  and continuity. WF-COL-01 `cab3756`: reciprocal challenge. DOC-49-01
-  `f7e42c1`: ADR-0049 accepted-status correction; do not repeat it.
-- **Reviewed:** WF-02A has GO below; publication is pending verification.
-- **Unselected:** WF-02B simplifies roadmap narratives, preserving outcomes,
-  dependencies, exit criteria and incomplete status. WF-03 then splits the
-  protocol into a core/router and roles/messages, provider, review/correction,
+- **Delivered:** WF-01 `4c9102c`, WF-COL-01 `cab3756`, DOC-49-01 `f7e42c1`,
+  TEST-48-01 `d60d718` and WF-02A `a593009`. Do not reopen or republish them.
+- **Reviewed:** WF-02B has GO below; publication is not yet verified.
+- **Unselected/incomplete:** WF-03 splits the protocol into a core/router and
+  roles/messages, provider, review/correction,
   context/evidence, usage/budgets and history documents, with section mapping
   and inbound-link/fragment compatibility. No runtime, permission, protocol or
-  architecture change. WF-02A completes neither WF-02 nor the whole objective.
+  architecture change. WF-02B alone cannot complete the documentation objective.
 
 ## Verified transition baseline
 
 2026-10-16: `main`; HEAD, local `origin/main` and live `refs/heads/main`
-equal `d60d718ccf5265f80d26ea06004dc0ad20d359e9`; divergence 0/0;
-empty index, clean tracked tree, no untracked paths. A sandboxed live-ref query failed;
-the elevated read-only retry succeeded. No reconciliation ran.
+equal `a59300972aa2519c1df5ed0cc4f8d63c238d0f26`; divergence 0/0;
+empty index/tree and no untracked paths before selection. Sandboxed live-ref
+queries failed; elevated read-only retries succeeded. No reconciliation ran.
 
-TEST-48-01 is published, sole parent `f7e42c1`. Committed pre-publication
-wording is historical; do not reopen or republish it. Prior review/failure
-details remain in both checkpoints at that baseline and in
-`logs/planner-review/test-48-01/`. The original selection changed only the planner checkpoint.
+WF-02A: `logs/planner-review/wf-02a/publication-verification.json`;
+pre-publication wording is historical.
 
-## Selected slice: WF-02A
+## Selected slice: WF-02B
 
-**2026-10-16: GO for the frozen four-document diff; R1 resolved.**
-Claude publishes in the same WF-02A chat; Codex independently verifies it.
-No next slice or runtime publication is authorized. Accept the 8192-byte
-context and 8186-byte execution checkpoint: the overage retains active risks
-and the disclosed development-evidence loss.
+**2026-10-16: GO for the frozen five-document diff; no blocking findings.**
+Claude publishes in the same chat; Codex verifies. Scope: [roadmap](mvp-delivery-plan.md),
+its [map](mvp-delivery-plan-rework-map.md), ADR index, current-work and this record.
+Planning meaning and incomplete Increments 4 to 6 stay; no contract/runtime change.
 
-Review 1's mapping, CR-01 to CR-05 and semantic review remain accepted.
-R1's independent `node logs/planner-review/wf-02a/review2/check-r1.mjs`
-passed: 16 links, UTF-8, disclosures, document identities, all 22 prior evidence
-hashes, frozen snapshots, scope/index and diff hygiene. Evidence:
-`logs/planner-review/wf-02a/review2/r1-checks.json`.
-Unchanged contract/product evidence is retained, not rerun.
+Independent `node logs/planner-review/wf-02b/review1/check-review.mjs` passed
+(4287 ms); checks and separate semantic acceptance:
+`logs/planner-review/wf-02b/review1/`. Executor final-01 (13 checks) and
+development/negative runs under `logs/executor/wf-02b/` are retained, not rerun;
+historical commands/timings remain executor evidence. Product evidence unchanged.
 
-### R1 - Resolved: development-check failure evidence
+Executor challenges resolved:
 
-Current-work now records failed checks and overwritten results. The
-`correction1/development-runs-transcribed.md` under the executor evidence
-directory is explicitly a derivative, partly abridged chat transcription.
-Original failed-run files, the earlier checker and timings are unavailable;
-run B's exit status is unknown. Original chat output is not independently
-authenticated here. This evidence-loss deviation remains recorded; no historical
-run was reconstructed. Fresh correction results use a separate output path.
+- **EX-01 accepted:** roadmap 16495 bytes (+111); retain precise links.
+- **EX-02 accepted:** current-work 6661 (+517); retain risks/WF-02A evidence loss.
+- **EX-03/CR-01 accepted:** ADR-0029 owns the sequencing exception.
+- **EX-04 resolved:** WF-02A's map is historical; ADR-0012's control stays locatable.
+
+Index-intro and six/eight-path observations: out of scope, unadjudicated.
 
 ## Publication boundary
 
-Preflight: main; HEAD/local/live main equal the transition baseline; index
-empty; context, current-work and planner-handoff unstaged; only the map
-untracked. This GO replaces NO-GO and is frozen with the other three documents:
-`logs/planner-review/wf-02a/publication-manifest.json`.
+Preflight: same branch/refs, 0/0, empty index; four tracked paths unstaged,
+only the map untracked. Claude preserved the dispatch checkpoint; Codex replaced
+it with this GO. Five final files are frozen in
+`logs/planner-review/wf-02b/publication-manifest.json`.
+Commit exactly those files once, sole parent `a593009`, subject
+`docs: simplify MVP roadmap and correct ADR index categories`.
+Verify bytes/hashes, modes and blobs; push `main` normally to `origin/main`
+and verify live main in the same turn. No closure edit. Changed substance
+returns for review; failed push/divergence stops, no force or reconciliation.
 
-Commit exactly its four paths once, sole parent
-`d60d718ccf5265f80d26ea06004dc0ad20d359e9`, subject
-`docs: reduce engineering startup context and preserve rule mapping`.
-Verify file bytes/hashes, staged/committed modes and blobs against the manifest.
-Push main normally to origin/main; verify the live ref and report the SHA in
-the same turn. Keep pre-publication wording; no closure edit. Changed substantive
-content returns for review; failed push/divergence stops without force-push or
-history reconciliation.
+## Retained review and evidence limits
 
-Index categorization of ADR-0001/0050 is deferred to WF-02B planning. Their
-record status prevails. WF-02B and WF-03 remain incomplete/unselected.
+WF-02A R1 resolved: `logs/planner-review/wf-02a/review2/r1-checks.json`.
+Accepted 8192-byte context/8186-byte checkpoint retain risks/evidence limits.
+`logs/executor/wf-02a/correction1/development-runs-transcribed.md` is derivative,
+partly abridged chat text, not independently authenticated original output.
+Earlier checker outputs were overwritten; original failed runs, checker and
+timings are unavailable; run B exit status is unknown. Keep this evidence-loss
+deviation; never reconstruct it. Unchanged evidence is retained, not rerun.
 
 ## Standing decision constraints
 
@@ -112,6 +106,3 @@ Frozen [execution history](current-work-history-ba1d4c2.md) blob
 `ebb007040fa73ab0252511180e53e2e64f5285df` and
 [planner history](planner-handoff-history-ba1d4c2.md) blob
 `dd3bb1d70459322db9147c99c8fe53a01829e38a` remain untouched.
-After independent publication verification, recommend CONTINUE_THIS_CHAT or
-START_NEW_CHAT with a complete prompt carrying the unfinished objective.
-No context-usage measurement is asserted.

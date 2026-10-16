@@ -6,7 +6,10 @@ supersedes it.
 
 ## Accepted decisions
 
-- [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)
+ADR-0001 (partially superseded by ADR-0006) is listed under
+[Partially superseded decisions](#partially-superseded-decisions) and ADR-0050
+under [Proposed decisions](#proposed-decisions).
+
 - [ADR-0002: Use Tauri, React, and .NET](0002-use-tauri-react-and-dotnet.md)
 - [ADR-0003: Use a durable SQLite event journal](0003-use-a-durable-sqlite-event-journal.md)
 - [ADR-0004: Use a structured agent collaboration protocol](0004-use-a-structured-agent-collaboration-protocol.md)
@@ -128,6 +131,13 @@ supersedes it.
   (accepted, additive; one protected, bodyless, read-only observation of the repository permission GitHub reports (`viewerPermission`: one of six exact literals or an explicit null) for the
   stored default authentication on the already-bound recorded repository, through one fixed `gh api graphql` invocation, shown only when the freshly observed repository ID equals the
   ADR-0043 binding; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and it neither requires nor changes an ADR-0048 approval)
+
+## Partially superseded decisions
+
+- [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)
+
+## Proposed decisions
+
 - [ADR-0050: Define the first approved GitHub branch publication execution contract](0050-define-the-first-approved-github-branch-publication-execution-contract.md)
   (proposed, documentation only, not accepted; a design-only contract for one future create-only push of the exact ADR-0048-approved commit to its exact owned branch, restricted to an already
   installed, explicitly enabled, noninteractive Git Credential Manager and a commit whose single parent equals the freshly admitted remote default-branch tip, with per-attempt isolated transport
