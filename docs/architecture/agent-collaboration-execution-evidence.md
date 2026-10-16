@@ -7,7 +7,8 @@ facts, and the run-wide Agent process-duration summary built on that evidence.
 The sections below are moved verbatim except two links that now point back to
 the protocol; the protocol's original headings forward here. The summary's
 references to process evidence "above" mean the preceding section. Provider
-token usage, model context limits and budgets stay in the protocol; provenance,
+token usage and model context limits are in the [usage evidence](agent-collaboration-usage-evidence.md)
+companion and budgets stay in the protocol; provenance,
 sealed artifact windows and attempt history are in the [evidence inspection](agent-collaboration-evidence-inspection.md) companion. Mapping: [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Execution evidence versus semantic outcome

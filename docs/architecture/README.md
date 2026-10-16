@@ -21,6 +21,9 @@ shared engineering contract.
 - [Agent collaboration format repair](agent-collaboration-format-repair.md)
   holds the protocol's manual read-only format repairs of the Codex Planner and
   the remaining read-only stages.
+- [Agent collaboration usage evidence](agent-collaboration-usage-evidence.md)
+  holds the protocol's provider token-usage contracts and Claude-reported model
+  context limits.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote

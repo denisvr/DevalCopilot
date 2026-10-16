@@ -4,10 +4,10 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds four separately pinned records, WF-03A, WF-03B, WF-03C and
-WF-03D; each record's identifiers and coordinates refer only to its own
-baseline. WF-03 remains incomplete. Future WF-03 moves remain unselected, and
-this map names no destination for them.
+prevail. It holds five separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D and WF-03E; each record's identifiers and coordinates refer only to its
+own baseline. WF-03 remains incomplete. Future WF-03 moves remain unselected,
+and this map names no destination for them.
 
 ## WF-03A record
 
@@ -366,3 +366,114 @@ only in its introduction, as above. WF-03C's not-moved list named format
 repair because it stayed at that move; WF-03D moves it. This is a relocation,
 not a reconciliation: moved facts and wording are as written at the baseline,
 except the one link repair above.
+
+## WF-03E record
+
+WF-03E moves the provider token-usage contracts and the Claude-reported model
+context limits, and repairs two companion introductions that placed them in
+the protocol. This record was written with WF-03E's uncommitted working-tree
+diff, for independent review before any GO; it describes that diff, not a
+published delivery. Publication, if any, is evidenced by Git history and the
+checkpoints, not by this record.
+
+- **Baseline.** Commit `022979790dca6327ce9844d1bbdb020236f594ed`, the
+  published WF-03D result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `ba650cecb4da331665a482441ed936cd96deef52`, SHA-256
+  `89970a47d952916aac3b8efbab005770915948080dd48db6320d909282748963`,
+  212418 bytes, 2537 lines, 66 Markdown headings. Read it with
+  `git show 02297979:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `ELstart-end` are WF-03E baseline line spans; `EPstart-end`
+  are lines of the protocol after WF-03E; `EUstart-end` are lines of the
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
+  companion. Row IDs carry an `E-` prefix. No WF-03E identifier refers to a
+  WF-03A, WF-03B, WF-03C or WF-03D row or coordinate. A section range spans
+  its heading through the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, with the same forwarder shape. All 66 baseline headings stay in the
+  protocol in order with identical text and level, so every fragment,
+  including the two new forwarding headings, resolves as before. The companion
+  promotes the two moved headings from `###` to `##` with identical text, so
+  their fragments are the same in both files. EU1-15 are the companion's title
+  and introduction, and EU162 is the blank separator EL1000.
+
+### WF-03E ranges
+
+The four ranges cover EL1-2537 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| E-R-01 | EL1-853 | Purpose through Agent-attempt history and evidence inspection, including Structured output failure, the four companion routing paragraphs and the WF-03A, WF-03B and WF-03C forwarders | Retain; one routing insertion | EP1-504 (EL1-504), EP505-509 (insertion), EP510-858 (EL505-853) | Verbatim apart from the insertion: a four-line paragraph and a blank line immediately after the format repair routing paragraph (EL501-504) and before `## Provider runtime configuration`, linking to the companion |
+| E-M-01 | EL854-1000 | Provider token-usage contracts | Move | EU16 heading, EU17-161 body (EL855-999); forwarder EP859-862; EP863 (EL1000) | Body verbatim except one authorized reference repair (EL858, EU20); the trailing duplicate `budget for either provider.` line (EL999, EU161) is kept |
+| E-M-02 | EL1001-1043 | Claude-reported model context limits | Move | EU163 heading, EU164-204 body (EL1002-1042); forwarder EP864-867; EP868 (EL1043) | Body verbatim |
+| E-R-02 | EL1044-2537 | Provider account-allowance contracts through protocol evolution, including the WF-03D forwarders | Retain | EP869-2362 | Verbatim |
+
+### WF-03E fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| E-M-01 | [`#provider-token-usage-contracts`](../architecture/agent-collaboration-protocol.md#provider-token-usage-contracts) | [`#provider-token-usage-contracts`](../architecture/agent-collaboration-usage-evidence.md#provider-token-usage-contracts) |
+| E-M-02 | [`#claude-reported-model-context-limits`](../architecture/agent-collaboration-protocol.md#claude-reported-model-context-limits) | [`#claude-reported-model-context-limits`](../architecture/agent-collaboration-usage-evidence.md#claude-reported-model-context-limits) |
+
+### WF-03E link and reference changes
+
+- **Repaired reference.** E-M-01's "the Claude Code CLI safety contract above"
+  (EL858, EU20) is now the link
+  `[the Claude Code CLI safety contract](agent-collaboration-provider-contracts.md#claude-code-critical-review-cli-safety-contract)`,
+  the provider contracts companion's critical-review contract, which records
+  the installed `claude.exe` embedded-string evidence method. At the baseline
+  the phrase reached the protocol's retained WF-03A forwarding headings
+  (EL544-553). The substitution drops "above"; the line is not rewrapped. No
+  other moved text changed.
+- **Relative wording.** E-M-01's `see "Claude-reported model context limits" below`
+  (EL883, EU45) means E-M-02, and its "the run-wide summary below" (EL935,
+  EU97) means its own later paragraph (EL947, EU109). E-M-02's "like the usage
+  contract above" (EL1003, EU165) means E-M-01. All resolve in the companion.
+  E-M-02's other links are two external documentation pages (EL1004-1005,
+  EU166-167) and [ADR-0023](../decisions/0023-record-claude-reported-model-context-limits-in-historical-attempt-evidence.md)
+  (EL1007, EU169), whose relative path resolves unchanged from the same
+  directory. The moved sections contain no other link.
+- **Retained references.** The protocol's account-allowance contracts' "the
+  Codex per-attempt token-usage contract above" (EL1046-1047, EP871-872) and the
+  Codex model catalog's "both contracts above" (EL1097-1098, EP922-923) still
+  reach the retained usage forwarding heading (EP859) above them, beside the
+  retained account-allowance contract; Token efficiency's `see "Provider token-usage contracts"`
+  (EL2517, EP2342) names that heading. None of those lines changed.
+- **Inbound references.** Links to the two protocol fragments from the
+  [execution evidence](../architecture/agent-collaboration-execution-evidence.md)
+  companion (lines 66 and 83, baseline 65 and 82), the
+  [evidence inspection](../architecture/agent-collaboration-evidence-inspection.md)
+  companion (line 175, baseline 174), the product
+  [cockpit specification](../product/run-cockpit-specification.md) (line 1726)
+  and the [documentation rework map](documentation-rework-map.md) (lines 165
+  and 168) still reach the retained forwarding headings, as does the
+  specification's unlinked "Provider token-usage contracts" reference (lines
+  559-560). None of those lines changed; the two companion lines moved down
+  one with the introduction repairs below. The WF-03B and WF-03C records above
+  name the fragments as history. The frozen history snapshots link to neither.
+- **Companion introductions.** At the baseline the execution evidence (line 10)
+  and evidence inspection (line 11) introductions said provider token usage
+  and model context limits stay in the protocol, which this move makes
+  inaccurate. Each now routes them to the
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
+  companion; the execution evidence introduction keeps budgets in the
+  protocol. Execution evidence line 10 became lines 10-11 and evidence
+  inspection line 11 became lines 11-12, so each introduction grows by one
+  line, and everything from each file's first `##` heading (baseline lines 13
+  and 14, now 14 and 15) through its end is byte-identical. These are
+  introduction repairs, not moved-body repairs; no body or existing contract
+  link changed.
+
+### WF-03E not moved
+
+Account allowances, the Codex model and effort catalog, model, effort and
+agentic-turn requests, token-activity warnings and stops, account-usage stops
+and warnings, budgets, runtime preflight, manifests, structured output
+failure, the challenge rounds and escalation, review correction and every other
+subject not moved by WF-03A to WF-03E stay in the protocol. The provider
+contracts and format repair companions are unchanged; the execution evidence
+and evidence inspection companions changed only in their introductions, as
+above. WF-03D's not-moved list named provider token usage
+and model context limits because they stayed at that move; WF-03E moves them.
+This is a relocation, not a reconciliation: moved facts and wording are as
+written at the baseline, including the duplicate line, except the one reference
+repair above.

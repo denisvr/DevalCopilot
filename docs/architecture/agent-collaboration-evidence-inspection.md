@@ -8,7 +8,8 @@ history, evidence and identity rules. The sections below are moved verbatim
 except three mechanical reference repairs; the protocol's original headings
 forward here. Per-attempt execution evidence is in the
 [execution evidence](agent-collaboration-execution-evidence.md) companion;
-provider token usage and model context limits stay in the core protocol.
+provider token usage and model context limits are in the
+[usage evidence](agent-collaboration-usage-evidence.md) companion.
 Mapping: [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Recorded collaboration-input provenance

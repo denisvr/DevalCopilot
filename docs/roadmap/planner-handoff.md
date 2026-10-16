@@ -2,47 +2,54 @@
 
 [AGENTS.md](../../AGENTS.md) and [workflow](development-workflow.md) apply.
 
-## Priority and remaining objective
+## Priority and verified baseline
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
-Claude implements. Challenge/GO apply. WF-03 incomplete:
-concise core/router, focused subjects, mapping and compatible fragments. Later moves unselected;
-no protocol/runtime/permission/architecture change.
+Claude implements. WF-03 incomplete: concise core/router and focused subjects,
+mapping and compatible fragments. Later moves unselected; no contract change.
+2026-10-16: main; HEAD, local origin/main and live main independently verified:
+022979790dca6327ce9844d1bbdb020236f594ed; 0/0; empty index; seven modified
+tracked documents and one new usage-evidence companion. This planner GO replaces
+the R1 dispatch checkpoint; the other seven documents retain R1-final bytes.
 
-## Verified baseline and review state
+WF-03D 02297979 delivered: logs/planner-review/wf-03d/publication-verification.json.
+Earlier deliveries stand; committed pending wording is historical. No reopening,
+republication or closure edit. WF-03D review/limits remain in
+logs/planner-review/wf-03d/review1/decision.md: EX-D01/02 accepted, N06 case vs
+N05 fragment, PL-D01 planner newline false positive; no executor edit. Parent
+console summaries are only in transcripts; child results/streams retained.
 
-2026-10-16: main; HEAD, origin/main and live main independently verified:
-fc14b5fd1caf3a910fc69921acf08306f75a7d71; 0/0; empty index; six modified
-tracked documents and one new companion. This GO replaces the preserved dispatch
-handoff; other six files stay exact.
+## Selected slice: WF-03E
 
-WF-03C fc14b5fd delivered: logs/planner-review/wf-03c/publication-verification.json.
-Earlier deliveries stand; no reopening/republication/closure edit.
-Committed pre-publication wording is historical.
+GO for eight frozen documents. Usage evidence extracted; 66 core headings
+preserved. WF-03E-R1 resolved: both companion introductions route correctly;
+contract suffixes exact, budgets retained. EX-E01 accepted/resolved. EX-E02
+accepted: current-work 6774 bytes (+630 target, -61 baseline), 3466-byte
+History/risks exact. No forced trim; compression impossibility unproven.
+Review: logs/planner-review/wf-03e/review2/decision.md; prior:
+logs/planner-review/wf-03e/review1/decision.md.
 
-## Selected slice: WF-03D
-
-**GO for seven frozen documents.** Manual format repairs
-extracted; reconstruction exact, 66 headings. Review:
-logs/planner-review/wf-03d/review1/decision.md.
-
-- EX-D01 accepted: two-hop history link follows the selected core router.
-- EX-D02 accepted: 6835 bytes (+691 target, -134 from C); 3466 bytes of
-  History/risks exact, limits retained. No trim/closure edit; 6 KiB stays a target.
-- Independent: six check-01 passes retained; check-02 1/1; 134 links, live ref.
-  Planner newline false positive corrected; failure/checker retained, no executor edit.
-- Executor dev 17/17, final 18/18, negative baseline 15/15 and 24 controls
-  inspected, not rerun. N06 changes case, not slug; N05 tests the fragment.
-  Scans lexical; Git/disk no mutants. No product/provider runs.
+Independent review1 6/6 retained; review2 9/9. Executor final 22/22 retained
+for unchanged inputs, R1 final 16/16 inspected; controls 19/19 then selected
+17/17 with passing baselines inspected, not rerun. Original G04 checker failure,
+N06 label defect and N19 clarification retained. N19 detected by links and
+conservation, not links alone; selected mutant failures cover selected checks
+only. Scans/coordinates lexical; Git/disk/live checks have no mutants. Python
+launcher unavailable; unused Python checker retained, Node checks passed.
+Planner console outputs remain in transcripts; structured results retained.
+No reconstructed streams or product/provider/browser/qualification runs.
 
 ## Publication boundary
 
-Claude publishes exactly seven frozen files, mode 100644, sole parent
-fc14b5fd. Freeze: logs/planner-review/wf-03d/publication-manifest.json. Subject:
-`docs: extract agent format repair`.
-Verify working/staged/committed bytes/tree; push main normally to origin/main,
-verify live ref. Failure/divergence/material change stops; no force,
-reconciliation or closure edit. Codex verifies publication.
+Claude publishes exactly eight frozen files, mode 100644, sole parent
+022979790dca6327ce9844d1bbdb020236f594ed. Freeze:
+logs/planner-review/wf-03e/publication-manifest.json. Subject:
+`docs: extract agent usage evidence`.
+Verify raw working/staged/committed identities, exact paths/modes and topology;
+normal fast-forward push of main to origin/main, then verify live ref.
+Failure/divergence/material change stops; no force, reconciliation or closure
+edit. Codex independently verifies publication. WF-03 remains incomplete.
+
 
 ## Retained review and evidence limits
 
