@@ -162,7 +162,7 @@
   exact owned branch in the repository named by a coherent ADR-0040 target and ADR-0043 binding, with complete exact snapshots and one Human event saved atomically under the write
   lock; recorded consent only, with no remote observation, push, permission, pull request or automatic execution).
 - [ADR-0049](decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md): Observe the GitHub repository permission of a bound recorded target on
-  explicit request (proposed, additive; one protected, bodyless, read-only observation of the permission GitHub reports for the stored default authentication on the bound repository, through one
+  explicit request (accepted, additive; one protected, bodyless, read-only observation of the permission GitHub reports for the stored default authentication on the bound repository, through one
   fixed `gh api graphql` invocation; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and no ADR-0048 approval is required, consumed or changed).
 
 ## Product-specific architecture

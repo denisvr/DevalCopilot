@@ -372,7 +372,7 @@ required-check policy, workflow and log enumeration, durable output, Agent diagn
 normal push of the exact recorded local commit to its exact owned branch in the repository named by a coherent target and binding, as a separate local record with one Human event (consent
 only: not a push, readiness, a permission, a remote observation or an Agent decision); the actual push and draft pull request, remote permission discovery, CI monitoring and requiredness,
 diagnosis and correction routing, revocation, scheduling and restart reconciliation, and the remaining Increment 4 and 5 controls remain open.
-[ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md) (proposed) adds one explicit, read-only observation of the repository
+[ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md) (accepted) adds one explicit, read-only observation of the repository
 permission GitHub reports for the stored default authentication on the bound repository, shown only when the freshly observed repository ID equals the immutable binding (ephemeral reported
 access: not permission to push the branch, readiness, an approval or a publication, and no ADR-0048 approval is required, consumed or changed); branch-push permission evidence, rulesets and
 protection, scoped publication, the actual push and pull request, revocation, scheduling and restart reconciliation remain open.

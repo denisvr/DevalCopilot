@@ -5,57 +5,64 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-COL-01 reciprocal critical collaboration instructions
+## Active slice: DOC-49-01 accepted-status reference correction
 
 - **Status: UNSTAGED, UNCOMMITTED and UNPUSHED; returned for Codex review.**
   Preflight matched the dispatch: `main`; `HEAD`, local `origin/main` and
-  live main `b48738f0f160336df945ad3a6ad1802a6876458b`; 0/0; empty index;
-  exactly `AGENTS.md`, `CLAUDE.md` and the planner file unstaged; no
-  untracked paths.
-- **Paths.** Modified: `AGENTS.md` (4513 bytes, `cff3b663...1c4f`),
-  `CLAUDE.md` (703 bytes, `d94da915...2453`), this file and
-  [planner-handoff.md](planner-handoff.md) (8013 bytes, `7f74fee3...a759`,
+  live main `cab3756c24e58524f25ef3ba607236d63fa9426e`; 0/0; empty index;
+  exactly the planner file unstaged; no untracked paths.
+- **Paths.** Modified: [engineering context](../engineering-context.md),
+  [MVP plan](mvp-delivery-plan.md), this file and
+  [planner-handoff.md](planner-handoff.md) (9240 bytes, `624a277a...45e1`,
   planner-owned, preserved byte-identically). Ignored: check records under
-  `logs/executor/wf-col-01/`.
-- **Provenance.** Codex made both root edits in the planner chat at the
-  owner's explicit request during P9-SEM-01, which deliberately excluded
-  them. The executor did not author or change them; their bytes are kept.
-- **Assessment (evidence for Codex, not acceptance).** The `AGENTS.md`
-  challenge section makes analysis, discussion and brainstorming reciprocal,
-  asks both roles to raise material concerns instead of silently following a
-  request believed flawed, requires the planner to address material executor
-  challenges with a recorded decision and rationale, and keeps brainstormed
-  ideas as proposals. The roles, the unchanged disagreement paragraph,
-  GO/NO-GO and publication authority, the startup routing link and the
-  `CLAUDE.md` `@AGENTS.md` import are intact; no messaging, orchestration,
-  tool or provider permission is introduced. The workflow's rule-location
-  table and the playbook's role reference still resolve. No material concern
-  was found, so the root text is retained unchanged.
-- **ADR-0021.** Both roots stay below the 8192-byte raw bound and remain the
-  only captured sources; `CLAUDE.md` names an `AGENTS.md` section that the
-  same manifest carries and imports nothing else. In a sealed product
-  manifest the new text stays untrusted advisory context beneath the fixed
-  boundary; existing sealed manifests replay unchanged.
-- **Non-blocking notes.** `CLAUDE.md` paraphrases the shared section, so a
-  later rename or rewrite of that heading must update it. "Initiate
-  discussion with Codex" relies on the human-operated workflow for the
-  channel; neither root names a mechanism. Only the planner's duty to answer
-  challenges is explicit; executor handling of review findings stays in the
-  workflow's findings rules.
-- **Checks.** Focused: complete root diffs, reciprocal and authority
-  wording, import, routing link and section reference. Final, once on stable
-  input: the reused P9-SEM-01 documentation checker (inspected, unchanged:
-  4173 bytes, `da16f21e...ff4b`) on the four paths, root and planner hashes,
-  raw-byte bounds and `git diff --check`. Commands, outcomes and times are in
-  the executor report and `logs/executor/wf-col-01/`.
-- **Retained.** P9-SEM-01 publication and review evidence with its original
-  limitations; not reread beyond the planner record.
+  `logs/executor/doc-49-01/`.
+- **Change.** The engineering context's ADR-0049 decision-list label
+  `proposed, additive` is now `accepted, additive`, and the MVP plan's
+  `(proposed) adds` is now `(accepted) adds`.
+  [ADR-0049](../decisions/0049-observe-the-github-repository-permission-of-a-bound-recorded-target-on-explicit-request.md)
+  records `Status: Accepted` and the decision index lists it as accepted, so
+  no stop gate applied. Surrounding text, links, every other status
+  (including Proposed ADR-0050) and product behavior are unchanged. The
+  correction concerns decision status only; it establishes no real CLI
+  compatibility, branch-push permission or increment completion.
+- **Checks.** Focused: each substantive file equals its HEAD blob after
+  exactly one substitution (one occurrence at HEAD, none remaining, equal
+  length); both ADR-0049 links resolve to the accepted record the index
+  names. Final, once on stable input: the reused P9-SEM-01 documentation
+  checker (inspected, unchanged: 4173 bytes, `da16f21e...ff4b`) on the four
+  paths, the complete four-path diff, planner length and SHA-256, and
+  `git diff --check`. The checker exited 1 with two pre-existing false
+  positives in the engineering context, on lines unchanged from `HEAD`:
+  `assignment-secret` at line 192 on ordinary token prose and `email` at
+  line 311 on the fictitious remote example; local links and fragments
+  resolved and `git diff --check` passed.
+  Commands, outcomes and times are in the executor report
+  and `logs/executor/doc-49-01/`.
+- **Retained.** WF-COL-01 publication and planner verification, the
+  permission-observation feature at
+  `810b99b8e4f9c5e4d1b92266d8039a34f5c7c39e` (confirmed an ancestor of
+  `HEAD`, not reinspected) and earlier evidence, each with its original scope
+  and limitations.
 - **Not run.** Build, suite, generation, provider invocation, native
-  experiment, qualification, cleanup or evidence sweep. No manifest was
-  sealed, so ADR-0021 delivery of the new text is not exercised.
+  experiment, qualification, security-state query, cleanup or evidence
+  sweep; no historical snapshot or ignored P9 evidence was reopened.
 - **Next authorized action:** Codex review of this diff. No commit or push.
 
 ## Prior published delivery
+
+WF-COL-01 `cab3756c24e58524f25ef3ba607236d63fa9426e` (sole parent
+`b48738f0f160336df945ad3a6ad1802a6876458b`) published the reciprocal
+critical-collaboration text in `AGENTS.md` and `CLAUDE.md` with both
+checkpoints (four paths, mode 100644); the planner independently verified
+the commit, parent, paths, blobs and hashes against its frozen manifest and
+local/live ref equality, and the retained verification establishes normal
+fast-forward publication. Its committed "UNSTAGED, UNCOMMITTED and UNPUSHED"
+wording was the pre-publication state. ADR-0021 delivery of the new root
+text was not exercised; existing sealed manifests replay unchanged. Its
+non-blocking notes stand: `CLAUDE.md` paraphrases the shared section
+heading, neither root names a discussion channel, and executor handling of
+review findings stays in the workflow's findings rules. Its checks are
+retained, not rerun.
 
 P9-SEM-01 `b48738f0f160336df945ad3a6ad1802a6876458b` (sole parent
 `465e60cfc31d02961fc3970d44e65bb4cfe5ee29`) published the

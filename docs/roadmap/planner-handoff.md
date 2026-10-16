@@ -5,89 +5,91 @@ approval log. It replaces its current state on each selection or review
 decision. Procedure: [development workflow](development-workflow.md). Git and
 code prevail over this summary.
 
-## Active slice: WF-COL-01 (GO for the reviewed documentation diff)
+## Active slice: DOC-49-01 (GO for the reviewed documentation diff)
 
-- **Decision (2026-10-16): GO.** Publish exactly `AGENTS.md`, `CLAUDE.md`,
-  [current-work.md](current-work.md) and this planner record at the frozen
-  manifest identities. No closure edit or additional substantive change.
-  Codex remains planner/reviewer; Claude remains executor. WF-02/WF-03 and
-  any P9 follow-up remain unselected.
-- **Accepted result.** Both roles may initiate technical discussion or
-  brainstorming, proactively raise material concerns and reconsider positions
-  using evidence. The planner must address material executor challenges with
-  a recorded decision and rationale. Neither role is infallible; brainstorming
-  ideas remain proposals. Existing roles, disagreement handling, explicit
-  acceptance and publication authority remain intact.
-- **Root identities.** SHA-256: `AGENTS.md`
-  `cff3b6632fc2124c77bd5ca3f639409d5fe67029f2b7821595b4a5eb07021c4f`;
-  `CLAUDE.md`
-  `d94da915f775011197904e19f0729d6437db9fcacc7b49d2d10a9fe53cd62453`.
-  Codex made these edits in this chat at the owner's explicit request during
-  P9-SEM-01. They are not executor-authored or accidental changes.
-- **Boundary.** No automatic messaging feature, product orchestration or
-  broader Agent permission is introduced. The root import, workflow routing
-  and accepted
-  [ADR-0021](../decisions/0021-add-bounded-root-instruction-context-to-agent-manifests.md)
-  boundary are preserved: bounded advisory root text, no link-following in
-  product capture, existing sealed manifests unchanged. New-text delivery
-  through a product manifest was not exercised and is not claimed proven.
-- **Minor notes accepted.** The named section creates a maintenance coupling
-  in CLAUDE; neither root selects a communication mechanism. Executor finding
-  dispositions remain governed by the shared workflow. No change is required.
+- **Decision (2026-10-16): GO.** Publish exactly the engineering context,
+  MVP plan, execution checkpoint and this planner record at the frozen
+  manifest identities. Codex remains planner/reviewer; Claude remains
+  executor. No closure edit or additional substantive change is authorized.
+- **Accepted result.** Exactly two stale ADR-0049 labels now say accepted,
+  consistent with the accepted ADR and decision index. Surrounding contract
+  text and all other statuses remain unchanged. The correction establishes
+  no real CLI compatibility, branch-push permission or increment completion.
+- **R1 - resolved.** The execution checkpoint now records the original
+  checker exit 1 and its two pre-existing false positives: assignment-secret
+  at engineering-context line 192 on ordinary prose, and email at line 311
+  on the fictitious remote. It also records resolved links/fragments and the
+  passing diff check. Neither baseline line nor the checker was changed.
+  Original failed output remains retained and classified, never a clean run.
+- **Executor concern addressed.** Codex agreed with the executor's concern
+  that the durable checkpoint omitted the nonzero outcome. The correction
+  carries that qualification without requiring the chat or ignored logs.
+  The Paths bullet's 9240-byte planner identity records the initial return;
+  it is retained as instructed, not used as the final publication identity.
+- **Independent review.** Review 1 inspected the complete four-path diff,
+  executor scripts and final evidence; exact byte proofs established each
+  intended substitution, unchanged baseline findings, planner preservation
+  and the unchanged P9 evidence/History/Open risks tail. Its checker exit 1
+  with two classified findings is retained. Review 2 inspected the R1 delta
+  script and output, confirmed the saved return against its reviewed hash,
+  and independently proved one 309-byte insertion with no deletion (45 ms).
+  The corrected checkpoint checker passed with zero findings (40 ms);
+  `git diff --check` passed. The substantive-file, checker and original
+  failed-output hashes still match. No blocking finding remains.
+- **Evidence and proportionality.** Review records are
+  `logs/planner-review/doc-49-01/review1/independent-review.json` and
+  `review2/independent-review.json`. Prior publication and product evidence
+  retain their original scope and limitations. No product build, suite,
+  generation, provider invocation, native work, qualification, security-state
+  query, historical snapshot, P9 input inspection or cleanup was needed.
 
-## Independent review and publication boundary
+## Publication boundary
 
 Review preflight: `main`; HEAD, local `origin/main` and live main all
-`b48738f0f160336df945ad3a6ad1802a6876458b`; 0/0; empty index; exactly the
-four slice paths unstaged, no untracked paths. The returned planner matched
-the dispatched 8013-byte `7f74fee3...a759` hash before this GO update.
+`cab3756c24e58524f25ef3ba607236d63fa9426e`; 0/0; empty index;
+exactly the four slice paths unstaged; no untracked paths.
 
-Independent review inspected the complete root/checkpoint diff and executor
-evidence. Root identities match; byte lengths 4513 and 703 are below 8192.
-The first-line import is preserved. History and Open risks are byte-identical
-from the History heading onward. The inspected unchanged checker passes on all
-four paths (41 ms, zero findings); `git diff --check` passes. No blocking
-finding. Evidence: `logs/planner-review/wf-col-01/review1/independent-review.json`.
-Prior P9 source/publication assessment is retained, not rerun; no experimental
-input, native/provider operation, product suite or manifest sealing was needed.
-Validation remains proportional under the [validation policy](validation-policy.md).
-
-`logs/planner-review/wf-col-01/publication-manifest.json` freezes all four
-reviewed paths, modes, Git blobs, working-byte SHA-256 values and parent entries.
-After verifying it, the executor stages only those four paths, commits once
-with sole parent `b48738f0f160336df945ad3a6ad1802a6876458b`, pushes `main`
-normally to `origin/main` and verifies the live ref in the same chat/turn.
+`logs/planner-review/doc-49-01/publication-manifest.json` freezes the four
+reviewed paths, modes, Git blobs, working-byte lengths/SHA-256 values and
+parent entries. Verify it before staging, stage only those four paths and
+commit once with sole parent `cab3756c24e58524f25ef3ba607236d63fa9426e`,
+subject `docs: align ADR-0049 references with accepted status`. Push `main`
+normally to `origin/main` and verify the live ref in the same executor turn.
 Expected final checkout: clean, empty index, no untracked paths and 0/0.
 A manifest discrepancy or material change returns for review. A failed push
-or diverged remote stops; no force-push, reset, cleanup or reconciliation.
-Do not edit the pre-publication checkpoint merely to announce the commit.
-No next slice or additional runtime authority follows from this GO.
+or diverged remote stops publication; no force-push, reset, cleanup or history
+reconciliation. Preserve pre-publication checkpoint wording; no closure edit.
+This GO authorizes only this repository's reviewed documentation publication,
+not product runtime publication, a next slice or renewed experimental work.
 
-## Verified published baseline
+## Verified baseline and continuity
 
-P9-SEM-01 is complete at `b48738f0f160336df945ad3a6ad1802a6876458b`,
-sole parent `465e60cfc31d02961fc3970d44e65bb4cfe5ee29`, subject
-`docs: record P9 native I/O semantics`. Exactly four approved paths, all mode
-100644, committed blobs and parent entries match the frozen manifest, and
-committed/working bytes match its lengths and SHA-256 values. R1-R3 and the
-index entry are accepted. The normal fast-forward push and live equality
-are independently verified; no closure edit or repeat publication is needed.
+WF-COL-01 remains published at `cab3756c24e58524f25ef3ba607236d63fa9426e`,
+sole parent `b48738f0f160336df945ad3a6ad1802a6876458b`, subject
+`docs: clarify reciprocal critical collaboration`. Its four-path frozen
+manifest SHA-256 is
+`75749f58fcb55d655795bfce74423d2e556871e262cf85d53bd160faa9e2662d`.
+The prior independent verification is retained at
+`logs/planner-review/wf-col-01/publication-verification.json`; this review
+rechecked local/live ref equality, not the complete prior publication matrix.
+No closure edit or repeat push follows. ADR-0021 delivery of the new root
+text was not exercised; existing sealed manifests remain unchanged.
 
-Pre-selection Git: `main`; HEAD, local `origin/main` and live main all equal
-that published SHA; 0/0; empty index; no untracked paths; only AGENTS/CLAUDE
-unstaged at the hashes above. Selection adds only this planner modification.
-The executor prompt carries its final byte length and hash.
+P9-SEM-01 remains published at `b48738f0f160336df945ad3a6ad1802a6876458b`,
+sole parent `465e60cfc31d02961fc3970d44e65bb4cfe5ee29`, with R1-R3 and its
+architecture-index entry accepted. Its publication manifest SHA-256 is
+`27a8e04c8e8c6cf9d9ccce9d22e19924a7441a7e7a5509b313ded13f60e0a6f5`;
+its independent verification is retained, not rerun.
 
-Publication evidence: `logs/planner-review/p9-sem-01/publication-manifest.json`
-(SHA-256 `27a8e04c8e8c6cf9d9ccce9d22e19924a7441a7e7a5509b313ded13f60e0a6f5`)
-and `publication-verification.json`. Independent verification read only the
-four document blobs/working files and excluded root instructions, not original
-experimental inputs, fixtures or live security state.
-
-Review and publication stay in the existing planner and WF-COL-01 executor
-chats. No context usage percentage is asserted. Codex independently verifies
-publication before the workflow's next continuity decision. No next slice or
-chat transition is dispatched now.
+Review and publication stay in this planner chat and the same DOC-49-01
+executor chat. Codex independently verifies publication before the next
+continuity decision. No observed context-usage percentage is asserted;
+no next slice or chat transition is dispatched by this GO.
+WF-02/WF-03 remain unselected. Increment 4's provider contracts and Agent
+qualification, Increment 5 coordination/recovery and Increment 6 publication
+and CI orchestration remain incomplete. ADR-0049 reports repository access
+only; ADR-0050 remains Proposed, P9 unproven and no mechanism selected.
+No native, experimental, credential/helper/provider or cleanup authority follows.
 
 ## Preserved evidence and uncertainty
 
