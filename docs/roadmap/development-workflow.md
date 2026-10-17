@@ -29,11 +29,14 @@ the root `AGENTS.md` and `CLAUDE.md`, and a link never imports this file.
 - One executor chat holds a selected slice's implementation and all its
   corrections. The next executor chat starts only after the prior slice is
   published and verified, except for a documented recovery transition.
-- Planner work and review corrections stay in the current planner chat unless
-  observed or owner-reported context usage exceeds 60%. A distinct outcome,
-  transcript length, uncertain capacity or compaction alone is not a reason
-  to start another planner chat. Never restart an active review merely
-  because of compaction.
+- Codex and Claude continuity are assessed separately. By default an active
+  review and its corrections stay in their current chats; transitions are
+  preferred after independently verified publication. Around 60% observed or
+  owner-reported context usage triggers reassessment, not a mandatory
+  restart; below it, a planner transition needs a concrete documented reason.
+  A different slice, transcript length, unknown capacity or compaction alone
+  is not a reason; never restart an active review merely because of
+  compaction. Detail: [continuity](#publication-verification-and-continuity).
 
 ## Planning and dispatch
 
@@ -102,15 +105,26 @@ remote stops publication without force-push or history reconciliation.
 ## Publication verification and continuity
 
 After independently verifying publication, the planner recommends exactly one
-of `CONTINUE_THIS_CHAT` or `START_NEW_CHAT` and explains why. Cite context usage
-only when observed or owner-reported, naming the source; never infer it from
-transcript length, account quota, model window limits or compaction. For the
-planner specifically, recommend `START_NEW_CHAT` only when observed or
-owner-reported context usage exceeds 60%; reaching exactly 60% does not meet
-that threshold. Above 60%, reassess whether a transition is useful rather than
-restart automatically. At or below 60%, recommend `CONTINUE_THIS_CHAT`.
-Unknown usage or uncertain capacity alone does not justify a new planner chat.
-This threshold does not change the executor's separate continuity rules.
+of `CONTINUE_THIS_CHAT` or `START_NEW_CHAT`, explains why and gives the
+matching complete prompt below. This human-operated policy changes no product
+behavior:
+
+- Assess Codex and Claude continuity separately. Keep an active review and its
+  corrections together by default; prefer transitions after independently
+  verified publication.
+- Around 60% observed or owner-reported context usage triggers reassessment.
+  It is neither a mandatory restart nor the only reason to transition. Above
+  about 60%, assess whether a transition would help; do not restart
+  automatically.
+- A planner transition below 60% requires a concrete documented reason, such
+  as repeated loss of governing constraints after targeted recovery, or a
+  deliberate owner instruction. Transcript length, unknown capacity, a
+  different slice or compaction alone is insufficient.
+- Cite context usage only when observed or owner-reported, naming the source.
+  Never invent a percentage, extrapolate an earlier report, or confuse context
+  usage with account quota or model window size.
+
+Each recommendation carries its prompt:
 
 - `CONTINUE_THIS_CHAT`: assess the next work, then select and dispatch one safe
   bounded slice once, with the complete executor prompt; or state the specific
@@ -118,12 +132,14 @@ This threshold does not change the executor's separate continuity rules.
 - `START_NEW_CHAT`: give a complete planner opening prompt with the verified
   published baseline, expected Git state, current decisions and constraints,
   authoritative references and remaining objective. The receiving planner
-  selects; the outgoing chat dispatches nothing.
+  selects the next slice; the outgoing chat dispatches nothing, so no
+  competing work exists.
 
-Executor continuity is assessed separately; a planner transition does not
-move an active executor. A recovery transition keeps the same slice, finding
-identifiers, exact Git state, evidence, unresolved work and authority
-boundaries; it is not a new grant or a different slice.
+Executor continuity is assessed separately under the one executor chat per
+slice rule in [Chats](#chats); a planner transition does not move an active
+executor. A recovery transition keeps the same slice, finding identifiers,
+exact Git state, evidence, unresolved work and authority boundaries; it is not
+a new grant or a different slice.
 
 ## Checkpoints
 
@@ -153,14 +169,23 @@ Exact baseline blobs of commit `ba1d4c2d9e9c5df285777267a7402e75f28e4f87`:
 [planner-handoff-history-0a57216.md](planner-handoff-history-0a57216.md) (blob
 `59c70e1add64aa4cbeeae789b8c0f9a9f9ed9532`, 25586 bytes, SHA-256
 `7dc1ae7dac4678f01a40b18f419472589f217a21aa5b9f97d320b26e413e7032`; the
-WF-03N final GO checkpoint). They preserve statements made at
+WF-03N final GO checkpoint). Exact baseline blobs of commit
+`e614c79553c92e1964d57fa9a4d9d5dbbfadb2b2`:
+[current-work-history-e614c79.md](current-work-history-e614c79.md) (blob
+`84b61b2800b238f49390ba308577d2c19841de71`, 8757 bytes, SHA-256
+`2b8e861daa62f61b60fdb8f804aeff2cbc4d8032aafe4215cce0742993ded53a`) and
+[planner-handoff-history-e614c79.md](planner-handoff-history-e614c79.md) (blob
+`f3b520dd7ae5a8015c58a43653408fba0e083350`, 11301 bytes, SHA-256
+`a7815594ce4ef465aee9cf25919e4e6015ec9d99f1767098557f55f3fdf0a297`; the
+WF-04 final GO checkpoint). Snapshots are progressive references, not
+mandatory startup reading. They preserve statements made at
 the time, including old GO, pending, uncommitted and publication wording, as
 evidence, never current instructions, renewed approval or current status.
 They are never edited; their links are frozen. A reference to either
 checkpoint's earlier entries, from a snapshot or another document, means that
 baseline content: within a snapshot, its own baseline; elsewhere, the latest
 pair whose baseline contained the entry, unless the reference names another
-commit. Entries recorded only between the two baselines are in the
+commit. Entries recorded only between pinned baselines are in the
 checkpoints' Git history. Archiving an issue does not resolve it.
 
 ## Rule locations

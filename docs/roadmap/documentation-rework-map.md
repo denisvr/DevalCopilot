@@ -189,7 +189,7 @@ frozen snapshots stay unchanged by rule.
 | ID | Lines | Subject | Disposition | Destination | Evidence |
 |---|---|---|---|---|---|
 | CW-I | L3-6 | Checkpoint purpose and Git precedence | Retain | [current-work](current-work.md) | Verbatim |
-| CW-A | L8-66 | TEST-48-01 active-slice record | Correct | [current-work](current-work.md#prior-published-delivery); [handoff](planner-handoff.md#verified-transition-baseline) | CR-04; detail pinned at d60d718 |
+| CW-A | L8-66 | TEST-48-01 active-slice record | Correct | [current-work](current-work.md#prior-published-delivery); [handoff at a593009](https://github.com/denisvr/DevalCopilot/blob/a59300972aa2519c1df5ed0cc4f8d63c238d0f26/docs/roadmap/planner-handoff.md#verified-transition-baseline) | CR-04; detail pinned at d60d718 |
 | CW-P | L68-117 | Earlier published deliveries | Deduplicate | [current-work](current-work.md#prior-published-delivery); [handoff](planner-handoff.md#standing-decision-constraints) | Pinned at d60d718; constraints in handoff |
 | CW-H | L119-125 | History snapshot | Retain | [current-work](current-work.md#history) | Frozen link kept |
 | CW-R01 | L129-137 | Account usage | Retain | [current-work](current-work.md#open-risks) | Condensed; past-correction sentence pinned at d60d718 |
