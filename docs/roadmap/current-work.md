@@ -5,22 +5,23 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03H invocation configuration extraction
+## Active slice: WF-03I guidance and escalation extraction
 
 - **Status: UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review; no GO.**
-  Preflight matched: `main`; `HEAD`, `origin/main` and live main `de8f1a72`;
-  0/0; empty index. Planner checkpoint (7956 bytes, `cdc62fd3...6a56`)
+  Preflight matched: `main`; `HEAD`, `origin/main` and live main `b81f7611`;
+  0/0; empty index. Planner checkpoint (8326 bytes, `b8bf291f...4780`)
   preserved byte-identically.
 - **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
-  (five forwarders, one router), [index](../architecture/README.md), the usage
-  evidence, token-activity controls and account usage introductions,
-  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03H record),
+  (five forwarders, one router), [index](../architecture/README.md), the
+  format repair introduction,
+  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03I record),
   this file. New:
-  [invocation configuration](../architecture/agent-collaboration-invocation-configuration.md).
-  Ignored: `logs/executor/wf-03h/`.
-- **Checks and limits.** `logs/executor/wf-03h/runs.log`. Conservation is
-  exact, no moved-body repair; link and sensitive scans are lexical; Git/disk
-  checks have no negative control; retained old wording is unreconciled.
+  [guidance and escalation](../architecture/agent-collaboration-guidance-and-escalation.md).
+  Ignored: `logs/executor/wf-03i/`.
+- **Checks and limits.** `logs/executor/wf-03i/runs.log`. Conservation is
+  exact apart from the one authorized IL957 role-first link repair; link and
+  sensitive scans are lexical; Git/disk checks have no negative control;
+  retained old wording is unreconciled.
 - **Next action:** independent Codex review. No commit or push.
 
 ## Documentation priority
@@ -32,12 +33,22 @@ Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E `5dd2e3a9`, WF-03D `02297979`,
-WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A `c1189f1a` and WF-02B `d1a7b457`
-(each the sole parent of the one before) are published per
-`logs/planner-review/<slice>/publication-verification.json`; WF-02A
-`a593009` (four documents) per `logs/planner-review/wf-02a/`. Pre-publication
-wording is historical; do not reopen or republish them. WF-03G limits
+The planning policy `b81f7611` (workflow and slice template), WF-03H
+`8a4223d5`, WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E `5dd2e3a9`, WF-03D
+`02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A `c1189f1a` and WF-02B
+`d1a7b457` (each the sole parent of the one before) are published per
+`logs/planner-review/<slice>/publication-verification.json` (planning policy:
+`wf-planning-policy`); WF-02A `a593009` (four documents) per
+`logs/planner-review/wf-02a/`. Pre-publication wording is historical; do not
+reopen or republish them. Planning-policy limits: planner-authored, lexical
+link checks, no negative controls; publisher phases inspected, not rerun; the
+fresh live stdout is only in the planner transcript. WF-03H limits
+(`logs/planner-review/wf-03h/review1/decision.md`): the dev-01 C10
+absolute-offset checker defect was fixed without a document change;
+generate-01 output files were overwritten (hashes, tool and streams survive);
+controls inspected, not rerun; the planner's freeze-01 wrong-path failure is
+retained; EX-H03 HL691-692 and prior G wording stay deferred and unreconciled.
+WF-03G limits
 (`logs/planner-review/wf-03g/review1/decision.md`): negative-01 N23 survived a
 checker weakness (fixed in negative-02, retargeted in negative-03); the
 planner's first link scan misread a code span (retained); controls inspected,

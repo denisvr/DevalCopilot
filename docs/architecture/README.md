@@ -36,6 +36,11 @@ shared engineering contract.
   explicit Codex model and reasoning-effort requests, explicit Claude
   model-alias and effort requests, and optional Claude agentic-turn limit for
   mutation attempts.
+- [Agent collaboration guidance and escalation](agent-collaboration-guidance-and-escalation.md)
+  holds the protocol's bounded human guidance for one authorized review
+  correction, optional direct human guidance for mutation requests, optional
+  second challenge round and escalation, explicit human authorization of one
+  escalated-plan implementation, and explicit verification failure diagnosis.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote

@@ -5,60 +5,81 @@
 ## Priority and verified baseline
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
-Claude implements. WF-03 remains incomplete; later extraction slices unselected.
-WF-03H independently verified published on 2026-10-17:
-main; HEAD, origin/main and live refs/heads/main all
-`8a4223d50b3a1db0cf5683d39fbba059f59818b3`; sole parent
-`de8f1a72e72e1a6839714764248cce56ce2fed1b`; divergence 0/0; empty index,
-clean tree, no nonignored untracked paths before this planner policy edit.
-Evidence: `logs/planner-review/wf-03h/publication-verification.json`, five
-passing groups; original child Git streams in `publication-verification-01/`;
-checker `publication-verify.mjs`. Separate fresh live lookup matched; its
-original stdout remains only in the chat tool transcript. Manifest: 2570 bytes,
-SHA-256 d65fd1890428c6a4ec09aef2186a3fccc0c0a1db0da0a589dd1d71e4b3275882.
-Publisher inspected, not rerun: pre 41/41, stage 30/30, commit 33/33,
-push 8/8, post 21/21; snapshots match publisher SHA-256
-10d99acd40d20711585fd710f9ae3d92078fb428fe405450b99761ca4b186a42.
-No failed publisher phase. No H closure edit, reopening or republication.
+Claude implements. WF-03 incomplete. 2026-10-17: main; HEAD, origin/main and
+independently checked live main `b81f761173f52e160acd9141df612b6c2a9c2812`;
+0/0; empty index, clean tree, no nonignored untracked paths before this edit.
+At dispatch only this unstaged checkpoint differed; the GO below supersedes it.
 
-H review: `logs/planner-review/wf-03h/review1/decision.md`; independent 5/5,
-freeze-02 4/4. Freeze-01 used a wrong baseline path; failure retained.
-Executor final 23/23 and negative baseline 16/16, controls 22/22 inspected,
-not rerun. Dev-01 C10 absolute-offset checker defect fixed with no document
-change. Generate-01 output files overwritten; hashes/tool/streams survive,
-not original output documents. No missing streams reconstructed. Scans and
-coordinates lexical; Git/disk/live lack negative controls. EX-H01 accepted:
-7399-byte current-work, exact 3466-byte History/risks. EX-H02 accepted:
-turn-limit routing. EX-H03 deferred: HL691-692 and prior GL613/690/705-707
-wording remains unchanged, unreconciled and not endorsed.
-Earlier G/F/E/D limits remain through `logs/planner-review/wf-03g/review1/decision.md`,
-`logs/planner-review/wf-03f/review1/decision.md` and its publication verification
-(publisher source hash only), E review2/review1 decisions and D review1 decision
-(N05, not N06, is the broken-fragment control). No product/provider checks.
+Planning policy published; sole parent `8a4223d50b3a1db0cf5683d39fbba059f59818b3`.
+`logs/planner-review/wf-planning-policy/publication-verification.json`: 5/5;
+original Git streams in publication-verification-01/; checker publication-verify.mjs.
+Fresh separate live stdout in chat transcript only. Publisher pre 21/21,
+stage 16/16, commit 19/19, push 6/6, post 13/13 inspected, not rerun;
+all snapshots match publisher; no failed phase. Cosmetic loose-list spacing
+accepted without closure edit. Largest-coherent-slice policy applies.
 
-## Owner-requested planning policy: publication GO
+WF-03H `8a4223d5`, sole parent `de8f1a72`, independently verified per
+`logs/planner-review/wf-03h/publication-verification.json` (5/5, original child
+streams retained). Review: `logs/planner-review/wf-03h/review1/decision.md`;
+independent 5/5, freeze-02 4/4; freeze-01 wrong-path failure retained.
+Executor final 23/23, negative baseline 16/16, controls 22/22 inspected, not
+rerun. Dev-01 C10 absolute-offset defect fixed without document change.
+Generate-01 output files overwritten: only hashes/tool/streams survive.
+EX-H01 accepted: current-work 7399 bytes, exact 3466-byte History/risks;
+EX-H02 turn-limit routing accepted; EX-H03 stale HL691-692 and prior G wording
+deferred, unchanged, unreconciled and not endorsed. No missing streams recreated.
+G/F/E/D limits remain through their review decisions: G review1, F review1 and
+publication verification (publisher source hash only), E review2/review1,
+D review1 (N05, not N06, is the broken-fragment control), under
+logs/planner-review/<slice>/. Scans/coordinates lexical; Git/disk/live have no
+negative controls. Earlier product/provider/qualification evidence not rerun.
+No reopening, republication or closure edit of delivered work.
 
-Owner explicitly requested that the planner always try the largest coherent
-slice to reduce Claude/Codex relays and routine owner involvement. Planner-owned
-policy is now specified in development-workflow.md; slice-start-template.md
-requires a sizing rationale and a concrete constraint for necessary splits.
-These are human workflow documents only: no product orchestration, architecture,
-role transfer or automatic messaging is introduced. Explicit GO stays mandatory.
+## Selected slice: WF-03I publication GO
 
-GO for exactly development-workflow.md, slice-start-template.md and this
-planner-handoff.md under docs/roadmap/, at the hashes in
-`logs/planner-review/wf-planning-policy/publication-manifest.json`.
-Subject: `docs: prefer the largest coherent planning slice`.
-Sole parent: `8a4223d50b3a1db0cf5683d39fbba059f59818b3`.
-The planner authored the owner-requested policy and its checkpoint; the executor
-only publishes the reviewed files. No execution delivery or current-work closure
-edit is requested. All other tracked files remain unchanged. Normal main push,
-live verification, stop on divergence/push failure/material change; no force.
+GO for seven documents frozen in
+`logs/planner-review/wf-03i/publication-manifest.json`; sole parent
+`b81f761173f52e160acd9141df612b6c2a9c2812`. Subject:
+`docs: extract guidance and escalation contracts`. No next slice selected.
+Five guidance/escalation/diagnosis sections moved; exactly one IL957 reference
+repair. All 66 protocol headings retained; baseline reconstructed exactly
+(135584 bytes). A-H map records, format-repair body, current-work History/risks
+(3466 bytes) and earlier evidence-limit suffix are exact. Base correction,
+budgets, manifests and local delivery remain in the protocol, unreconciled.
 
-CONTINUE_THIS_CHAT: the immediate follow-up is this bounded workflow policy
-publication and its verification; no context-usage measurement is claimed.
-After that, assess the largest coherent remaining documentation outcome.
-WF-03 is unfinished; no next extraction is selected by this policy change.
+Review: `logs/planner-review/wf-03i/review1/decision.md`.
+Independent verify-02: 5/5; original tools/results/stdout/stderr retained.
+235 local links, five in-protocol and 14 other inbound links pass lexical
+checks. Verify-01 was 4/5: Git ENOBUFS during a large historical baseline read;
+verify-02 compares consumer Git identities instead. Parent failure retained;
+child's buffered/truncated output was not separately retained or reconstructed.
+Executor final 24/24, negative baseline 17/17 and controls 27/27 inspected,
+not rerun. Current delivery inputs and all checker/tool snapshots match hashes.
+Fresh independent live lookup matched b81f7611; original stdout only in chat
+transcript. Git/disk/live have no negative controls; scans/coordinates lexical.
+No product, browser, provider or qualification checks run.
+
+EX-I01 resolved: dev-01 caught a real live-link defect in the I record;
+corrected before dev-02 with unchanged checker; first-appended fragment and
+failed evidence retained. EX-I02 accepted: article omission follows the exact
+planner-authorized substitution, preserves meaning and target; no cosmetic
+correction requested. EX-I03 accepted: current-work 8075 bytes (+1931 over
+6 KiB, +676 over H), with exact risks and earlier limitations; no forced trim.
+EX-I04 accepted limitation: reconstruction alone cannot catch an omitted repair;
+C02/C17 and N05 cover it; independent R01 separately checks the precise line.
+No blocking findings. Freeze-01's draft manifest had the prior slice label;
+retained as publication-manifest-draft-01.json; freeze-02 corrects and checks
+the metadata. Generate-01 outputs not retained, only hashes/tool/streams;
+map-append, current-work splice and inline map-fix console output exist only
+in executor chat, not original standalone streams. Missing streams not recreated.
+
+This GO replaces dispatch checkpoint b8bf291f...4780 (8326 bytes); executor G02
+checked that version only. Six executor documents retain reviewed bytes.
+Publish exactly seven manifest paths, mode 100644, normal main fast-forward
+push to origin/main and live verification. Same Claude chat publishes; no
+closure edit or extra approval. Stop for material change, failed push or
+divergence; no force/history reconciliation. Codex verifies publication.
+WF-03 remains incomplete; later slices unselected.
 
 ## Retained review and evidence limits
 

@@ -4,9 +4,9 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds eight separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E, WF-03F, WF-03G and WF-03H; each record's identifiers and
-coordinates refer only to its own baseline, and each earlier record's
+prevail. It holds nine separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E, WF-03F, WF-03G, WF-03H and WF-03I; each record's identifiers
+and coordinates refer only to its own baseline, and each earlier record's
 statements stay as written, as history. WF-03 remains incomplete. Future
 WF-03 moves remain unselected, and this map names no destination for them.
 
@@ -863,3 +863,164 @@ WF-03G's not-moved list named the Codex model and effort catalog and the
 model, effort and agentic-turn requests because they stayed at that move;
 WF-03H moves them. This is a relocation, not a reconciliation: moved facts and
 wording are as written at the baseline.
+
+## WF-03I record
+
+WF-03I moves bounded human guidance for one authorized review correction,
+optional direct human guidance for mutation requests, the optional second
+challenge round and escalation, explicit human authorization of one
+escalated-plan implementation and explicit verification failure diagnosis,
+including its diagnosis-origin correction guidance, and repairs the format
+repair companion introduction that placed the challenge rounds and escalation
+in the protocol. This record was written with WF-03I's uncommitted
+working-tree diff, for independent review before any GO; it describes that
+diff, not a published delivery. Publication, if any, is evidenced by Git
+history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `b81f761173f52e160acd9141df612b6c2a9c2812`, the
+  published planning-policy result after WF-03H, which left the protocol
+  unchanged: `docs/architecture/agent-collaboration-protocol.md` blob
+  `f6f17d090811404bcaa1a89ae7adecd4c09f9a08`, SHA-256
+  `47d11f5fd984f8d46dcdbf3cd2a70d9787fa773aa3e260c0d5521505099caefe`,
+  135584 bytes, 1640 lines, 66 Markdown headings. Read it with
+  `git show b81f7611:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `ILstart-end` are WF-03I baseline line spans; `IPstart-end`
+  are lines of the protocol after WF-03I; `IGstart-end` are lines of the
+  [guidance and escalation](../architecture/agent-collaboration-guidance-and-escalation.md)
+  companion. Row IDs carry an `I-` prefix. No WF-03I identifier refers to a
+  row or coordinate of WF-03A to WF-03H. A section range spans its heading
+  through the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, with the same forwarder shape. All 66 baseline headings stay in the
+  protocol in order with identical text and level, so every fragment,
+  including the five new forwarding headings, resolves as before. The
+  companion promotes the five moved headings from `###` to `##` with identical
+  text, so their fragments are the same in both files. IG1-32 are the
+  companion's title and introduction. Companion lines IG33-162 correspond one
+  to one to IL722-851, and IG163-450 to IL947-1234: the five headings (IG33,
+  IG94, IG163, IG287 and IG376) are promoted, IG173 (IL957) carries the one
+  authorized reference repair, and every other line is identical, including
+  the blank separators IG93, IG162, IG286 and IG375 (IL782, IL851, IL1070 and
+  IL1159). Those four separators and IL1235 are also the blank lines that
+  close the five forwarders.
+
+### WF-03I ranges
+
+The eight ranges cover IL1-1640 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| I-R-01 | IL1-721 | Purpose through review correction, including the eight companion routing paragraphs and the WF-03A forwarders | Retain; one routing insertion | IP1-527 (IL1-527), IP528-535 (insertion), IP536-729 (IL528-721) | Verbatim apart from the insertion: a seven-line paragraph and a blank line immediately after the invocation configuration routing paragraph (IL521-527) and before `## Provider runtime configuration`, linking to the companion |
+| I-M-01 | IL722-782 | Bounded human guidance for one authorized review correction | Move | IG33 heading, IG34-92 body (IL723-781), IG93 (IL782); forwarder IP730-733; IP734 (IL782) | Body verbatim |
+| I-M-02 | IL783-851 | Optional direct human guidance for mutation requests | Move | IG94 heading, IG95-161 body (IL784-850), IG162 (IL851); forwarder IP735-738; IP739 (IL851) | Body verbatim |
+| I-R-02 | IL852-946 | Execution evidence versus semantic outcome through the remaining read-only stages' format repair, all forwarders (WF-03B, WF-03C, WF-03E, WF-03G, WF-03H, WF-03F, WF-03G and WF-03D, in that order) | Retain | IP740-834 | Verbatim |
+| I-M-03 | IL947-1070 | Optional second challenge round and escalation | Move | IG163 heading, IG164-285 body (IL948-1069), IG286 (IL1070); forwarder IP835-838; IP839 (IL1070) | Body verbatim except the IG173 (IL957) reference repair |
+| I-M-04 | IL1071-1159 | Explicit human authorization of one escalated-plan implementation | Move | IG287 heading, IG288-374 body (IL1072-1158), IG375 (IL1159); forwarder IP840-843; IP844 (IL1159) | Body verbatim |
+| I-M-05 | IL1160-1235 | Explicit verification failure diagnosis, including its correction guidance | Move | IG376 heading, IG377-450 body (IL1161-1234); forwarder IP845-848; IP849 (IL1235) | Body verbatim |
+| I-R-03 | IL1236-1640 | Bounded untracked-file previews in Agent manifests through protocol evolution | Retain | IP850-1254 | Verbatim |
+
+### WF-03I fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| I-M-01 | [`#bounded-human-guidance-for-one-authorized-review-correction`](../architecture/agent-collaboration-protocol.md#bounded-human-guidance-for-one-authorized-review-correction) | [`#bounded-human-guidance-for-one-authorized-review-correction`](../architecture/agent-collaboration-guidance-and-escalation.md#bounded-human-guidance-for-one-authorized-review-correction) |
+| I-M-02 | [`#optional-direct-human-guidance-for-mutation-requests`](../architecture/agent-collaboration-protocol.md#optional-direct-human-guidance-for-mutation-requests) | [`#optional-direct-human-guidance-for-mutation-requests`](../architecture/agent-collaboration-guidance-and-escalation.md#optional-direct-human-guidance-for-mutation-requests) |
+| I-M-03 | [`#optional-second-challenge-round-and-escalation`](../architecture/agent-collaboration-protocol.md#optional-second-challenge-round-and-escalation) | [`#optional-second-challenge-round-and-escalation`](../architecture/agent-collaboration-guidance-and-escalation.md#optional-second-challenge-round-and-escalation) |
+| I-M-04 | [`#explicit-human-authorization-of-one-escalated-plan-implementation`](../architecture/agent-collaboration-protocol.md#explicit-human-authorization-of-one-escalated-plan-implementation) | [`#explicit-human-authorization-of-one-escalated-plan-implementation`](../architecture/agent-collaboration-guidance-and-escalation.md#explicit-human-authorization-of-one-escalated-plan-implementation) |
+| I-M-05 | [`#explicit-verification-failure-diagnosis`](../architecture/agent-collaboration-protocol.md#explicit-verification-failure-diagnosis) | [`#explicit-verification-failure-diagnosis`](../architecture/agent-collaboration-guidance-and-escalation.md#explicit-verification-failure-diagnosis) |
+
+### WF-03I link and reference changes
+
+- **Moved text.** One moved body line changed. At IL957 (IG173) "the
+  role-first rule above" became
+  `[role-first rule](agent-collaboration-protocol.md#role-first-message-authorization-and-eligibility)`,
+  because the rule (IL39, IP39) stays in the protocol. The line was not
+  rewrapped, and the replacement drops the article, so the link directly
+  follows "per". No other moved line changed.
+- **Relative wording.** I-M-01's "the same resolver a claim uses (below)"
+  (IL753, IG64) stays within I-M-01. I-M-02's "the authorization guidance
+  above" (IL790, IG101) reaches I-M-01, its unlinked "described under
+  "Explicit verification failure diagnosis"" (IL787, IG98) names I-M-05, and
+  its "the three states above" (IL843, IG154) stays within I-M-02. I-M-03's
+  "the rules above" (IL1060, IG276) stays within I-M-03, and its "the one
+  explicit authorization described next" (IL1067, IG283) reaches I-M-04.
+  I-M-05's "(see "Correction" below)" (IL1173, IG389) and "the idempotent
+  escalation above" (IL1222, IG438) stay within I-M-05. Temporal "earlier",
+  "later", "previous" and "before" wording carries no section direction.
+- **In-page and relative links.** I-M-03's two
+  `#explicit-human-authorization-of-one-escalated-plan-implementation` links
+  (IL1027, IG243; IL1042, IG258) are same-document fragments; at the baseline
+  they reached the protocol section, and they now reach I-M-04 in the
+  companion, unchanged. The workflow model link (IL990, IG206), the cockpit
+  specification link (IL1065, IG281) and the ADR-0015 to ADR-0020 links
+  (IL786, IG97; IL788, IG99; IL1024, IG240; IL1074, IG290; IL1089, IG305;
+  IL1154, IG370; IL1162, IG378; IL1214, IG430; IL1215, IG431) resolve
+  unchanged from the same directory. The moved sections have no absolute
+  `https` address.
+- **Unlinked references.** "The run-wide count and reserved-time budgets"
+  (IL769, IG80), "the ordinary correction budget" (IL813, IG124), "ordinary
+  correction" (IL1149, IG365) and "The existing `ReviewCorrection` contract"
+  (IL1205, IG421) name retained protocol content; the companion introduction
+  routes them to the protocol's Review correction section. "Its format
+  repair" (IL1152, IG368), the Codex and Claude token stops (IL1203, IG419;
+  IL1207, IG423), "the current requested Codex model and effort" (IL1204,
+  IG420) and "the current Claude model, effort, and turn-limit requests"
+  (IL1207, IG423) carry no link; the introduction routes them to the format
+  repair, token-activity controls and invocation configuration companions.
+  "As the ordinary correction" (IL1219, IG435) compares with the ordinary
+  correction's direct guidance, which is I-M-02 in the companion. The WF-03H
+  record cites the diagnosis wording of IL1204 and IL1207 as retained HL1667
+  and HL1670; WF-03I moves it unchanged, and that record keeps its statements
+  as history.
+- **Retained references.** The protocol's in-page links to the five
+  fragments (IL86, IL319, IL324, IL373 and IL439; unchanged as IP86, IP319,
+  IP324, IP373 and IP439) reach the retained forwarding headings. Review
+  correction's escalation at exhaustion and its one additional human
+  authorization (IL618-625, IP626-633), its quoted title "Optional Claude
+  agentic-turn limit for mutation attempts" and "no model or effort is
+  requested" (IL698-699, IP706-707), and the manifest sections' mentions of
+  diagnosis and diagnosis-origin correction (IL1243, IL1246, IL1551-1552 and
+  IL1585; IP857, IP860, IP1165-1166 and IP1199) carry no link or section
+  direction. None of those lines changed, and the relocation reconciles or
+  endorses none of them.
+- **Inbound references.** Links to the five protocol fragments from the
+  [workflow model](../architecture/workflow-model.md) (line 369),
+  [ADR-0015](../decisions/0015-add-direct-human-guidance-to-explicit-mutation-requests.md)
+  (line 10),
+  [ADR-0016](../decisions/0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)
+  (line 9), the product
+  [cockpit specification](../product/run-cockpit-specification.md) (lines 867,
+  1040, 1079 and 1124), the
+  [documentation rework map](documentation-rework-map.md) (lines 161, 162 and
+  164), the [delivery plan rework map](mvp-delivery-plan-rework-map.md) (lines
+  72 and 78) and the frozen
+  [execution history](current-work-history-ba1d4c2.md) (lines 2643 and 2888)
+  still reach the retained forwarding headings, and each forwarder reaches the
+  same fragment in the companion. The two rework maps keep their own earlier
+  coordinates. A test comment quoting the first moved title is not a link.
+  None of those lines changed.
+- **Companion introduction.** At the baseline the
+  [format repair](../architecture/agent-collaboration-format-repair.md)
+  introduction (lines 10-11) said the challenge rounds and escalation stay in
+  the protocol, which this move makes inaccurate. It now routes them to the
+  companion and keeps structured output failure and the base review-correction
+  contract in the protocol; lines 10-11 became lines 10-14, and the mapping
+  line 12 is now line 15. Everything from its first `##` heading (baseline line
+  14, now 17) through its end is byte-identical. This is an introduction
+  repair, not a moved-body repair.
+
+### WF-03I not moved
+
+Review correction (IL582-721) stays whole in the protocol, because it mixes
+the base correction loop with the run-wide claim-count and reserved-time
+budgets and provider configuration observations. Structured output failure,
+runtime preflight and the rest of provider runtime configuration, manifest
+capture, the local-delivery contracts and every other subject not moved by
+WF-03A to WF-03I stay in the protocol. The provider contracts, execution
+evidence, evidence inspection, usage evidence, token-activity controls,
+account usage and invocation configuration companions are unchanged; the
+format repair companion changed only in its introduction. WF-03H's not-moved
+list named the challenge rounds and escalation, review correction's human
+guidance and diagnosis because they stayed at that move; WF-03I moves them.
+This is a relocation, not a reconciliation: moved facts and wording are as
+written at the baseline, apart from the one authorized reference repair.

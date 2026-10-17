@@ -7,8 +7,11 @@ Planner, Claude Code CriticalReviewer, Codex Resolver or Codex CodeReviewer
 response fails structural validation. The sections below are moved verbatim
 except one link that now points back to the protocol; the protocol's original
 headings forward here. The second section's references to the Planner's repair
-mean the preceding section. Structured output failure, the challenge rounds and
-escalation, and review correction stay in the protocol. Mapping:
+mean the preceding section. Structured output failure and the base
+review-correction contract stay in the protocol; the challenge rounds and
+escalation are in the
+[guidance and escalation](agent-collaboration-guidance-and-escalation.md)
+companion. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## One manual Codex Planner format repair
