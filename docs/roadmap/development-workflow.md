@@ -22,21 +22,17 @@ the root `AGENTS.md` and `CLAUDE.md`, and a link never imports this file.
 - **Reuse:** during one slice and its correction rounds, reuse already-read
   unchanged instructions; read newly relevant or changed material. Compaction
   alone requires no full reread, handoff update or restart; recover missing
-  context from the checkpoints and verify it against Git.
+  context from the checkpoints and verify it against Git
+  ([recovery](#recovery)).
 
 ## Chats
 
 - One executor chat holds a selected slice's implementation and all its
   corrections. The next executor chat starts only after the prior slice is
   published and verified, except for a documented recovery transition.
-- Codex and Claude continuity are assessed separately. By default an active
-  review and its corrections stay in their current chats; transitions are
-  preferred after independently verified publication. Around 60% observed or
-  owner-reported context usage triggers reassessment, not a mandatory
-  restart; below it, a planner transition needs a concrete documented reason.
-  A different slice, transcript length, unknown capacity or compaction alone
-  is not a reason; never restart an active review merely because of
-  compaction. Detail: [continuity](#publication-verification-and-continuity).
+- Codex and Claude continuity are assessed separately under
+  [continuity](#publication-verification-and-continuity); by default an
+  active review and its corrections stay in their current chats.
 
 ## Planning and dispatch
 
@@ -55,32 +51,37 @@ the root `AGENTS.md` and `CLAUDE.md`, and a link never imports this file.
   prompt. Ask the owner only for a material unresolved choice, missing authority
   or information that cannot be obtained independently. This does not add
   automatic chat coordination or remove explicit GO and publication checks.
-
-- Every planning or review response includes a complete copy-and-paste prompt
-  inline; a file link may supplement it but never replaces it. The prompt
-  matches the actual decision (bounded execution, review correction,
-  authorized publication, evidence gathering, owner decision or chat
-  transition) and preserves a pending boundary instead of implying authority.
+- Each consolidated actionable decision includes one complete inline
+  copy-and-paste prompt: dispatch, correction, authorized publication,
+  evidence gathering, owner decision or chat transition. A file link may
+  supplement it but never replaces it, and the owner never assembles
+  instructions from several responses. Progress updates, questions and
+  technical discussion do not reissue an unchanged prompt. When a decision
+  changes, the new complete prompt explicitly supersedes the earlier
+  actionable version. The prompt actually dispatched preserves the verified
+  preflight, objective, scope, acceptance and authority boundaries, and keeps
+  a pending boundary instead of implying authority.
 - A prompt for repository action states the planner-verified expected
   branch, `HEAD` and staged/unstaged/untracked state; the recipient verifies
   them once before acting. Prompts state the objective and boundaries without
   repeating standing rules or copying roadmap, ADR or handoff contents; see
   the [template](slice-start-template.md).
 - Validation follows the [validation policy](validation-policy.md): focused
-  checks, one proportional final matrix, broadening triggers and retained
-  evidence, without every suite by default or repeated passes on unchanged
-  inputs. Mandatory CI, security, real-provider integration and release gates
-  stay. Dispatched acceptance requirements stay until the planner explicitly
-  revises them with evidence.
+  checks, one proportional final matrix, broadening triggers and proportional,
+  retained evidence, without every suite by default or repeated passes on
+  unchanged inputs. Mandatory CI, security, real-provider integration and
+  release gates stay. Dispatched acceptance requirements stay until the
+  planner explicitly revises them with evidence.
 
 ## Execution and reports
 
 - Return the completed slice unstaged, uncommitted and unpushed, with
-  current-work.md updated.
+  current-work.md updated as the implementation record for review
+  ([recovery](#recovery)).
 - Report changed and new files, exact check commands and outcomes, fresh
   versus retained versus not-run evidence, risks or blockers and short failure
-  excerpts; complete logs only on request. No document embeds its own future
-  commit SHA.
+  excerpts; complete logs or file contents only on request. No document embeds
+  its own future commit SHA.
 
 ## Review and corrections
 
@@ -102,6 +103,36 @@ including current-work.md, pushes `main` normally (fast-forward) to
 separate closure-document diff or approval round. A failed push or diverged
 remote stops publication without force-push or history reconciliation.
 
+The publication GO names the approved-content identity in a scheme the
+planner chooses: a manifest when its additional detail is justified or, for
+routine bounded slices, the lightweight tree below; one suffices. Either way
+the GO states the expected parent and approved paths; the tree scheme adds
+the expected tree ID, the manifest scheme its path and approved hash.
+
+- For the tree scheme, after reviewing the final diff, including any planner
+  review edits, the planner computes the expected tree in an isolated
+  temporary index from the verified parent and the explicit approved paths
+  (`GIT_INDEX_FILE=<temp>`: `git read-tree <parent>`, `git add -- <paths>`,
+  `git write-tree`), leaving the real index and unrelated work untouched.
+  These values go in the GO prompt or external review record, never inside
+  a file whose identity they determine.
+- The executor verifies the preconditions, stages only the approved paths,
+  verifies the staged content against the selected scheme (the staged tree
+  from `git write-tree`, or the manifest's entries), commits, verifies the
+  committed content against the same scheme and the expected sole parent,
+  pushes normally and verifies the live remote ref.
+- The planner's independent publication verification checks a fresh live
+  ref and the final Git state, and compares the exact published commit with
+  the GO identity: for the tree scheme, its tree and sole parent against the
+  GO values and its changed paths against the approved set; for a manifest,
+  its content and changed paths against the approved manifest and its sole
+  parent against the expected parent. Executor-reported success alone
+  establishes none of these comparisons.
+- A mismatch stops publication: no silent recomputation or broader staging.
+  Tree equality identifies tracked content, paths and modes only, not
+  semantic correctness, approval, remote publication or independent
+  verification.
+
 ## Publication verification and continuity
 
 After independently verifying publication, the planner recommends exactly one
@@ -110,8 +141,8 @@ matching complete prompt below. This human-operated policy changes no product
 behavior:
 
 - Assess Codex and Claude continuity separately. Keep an active review and its
-  corrections together by default; prefer transitions after independently
-  verified publication.
+  corrections together by default and never restart one merely because of
+  compaction; prefer transitions after independently verified publication.
 - Around 60% observed or owner-reported context usage triggers reassessment.
   It is neither a mandatory restart nor the only reason to transition. Above
   about 60%, assess whether a transition would help; do not restart
@@ -144,8 +175,9 @@ a new grant or a different slice.
 ## Checkpoints
 
 - [current-work.md](current-work.md) holds execution facts and delivery
-  evidence (delivered commit, uncommitted work, checks actually run, open
-  risks, next action); the executor updates it when delivering a slice.
+  evidence (the phase it was prepared at, the prior delivered commit,
+  uncommitted work, checks actually run and open risks); the executor updates
+  it when delivering a slice.
 - [planner-handoff.md](planner-handoff.md) holds selected scope, rationale and
   review decisions, distinguishing selected work from ideas and verified
   against Git, code, the roadmap and accepted ADRs; the planner updates it
@@ -155,38 +187,58 @@ a new grant or a different slice.
   conversation length or compaction. The planner carries delivered facts
   forward in its next selection record.
 
+## Recovery
+
+The implementation record, review decision, commit, remote publication and
+independent publication verification are distinct; none implies the next.
+A checkpoint records the phase at which it was prepared, and its wording
+never requires repeating an action that Git shows as completed. Nothing is
+called published in anticipation of a successful push, and no separate
+closure-document commit records a later phase. The executor's committed
+record therefore reads, in substance:
+
+> This document records the implementation delivered for review. Consult
+> planner-handoff.md for the review decision. Reconcile publication with Git
+> and the slice's independent publication-verification record, when
+> available. This record alone grants no publication authority.
+
+Reconcile Git first, then the records:
+
+- **Uncommitted changes:** reconcile them with the selected slice and its
+  review decision. Without GO, review or correction continues; with GO,
+  publish only the content the GO identifies.
+- **Local commit ahead of the remote:** publication is incomplete; reconcile
+  publication authority and the approved identity before retrying the push.
+- **Commit present on the remote:** do not republish; look for independent
+  verification of that exact commit.
+- **Verification evidence missing:** "remote commit confirmed" is not "prior
+  independent verification established"; perform the bounded verification
+  needed instead of inventing a previous result.
+- Missing local logs authorize neither reconstructing evidence nor
+  automatically reopening the implementation.
+
 ## Historical snapshots
 
-Exact baseline blobs of commit `ba1d4c2d9e9c5df285777267a7402e75f28e4f87`:
-[current-work-history-ba1d4c2.md](current-work-history-ba1d4c2.md) (blob
-`ebb007040fa73ab0252511180e53e2e64f5285df`) and
-[planner-handoff-history-ba1d4c2.md](planner-handoff-history-ba1d4c2.md) (blob
-`dd3bb1d70459322db9147c99c8fe53a01829e38a`). Exact baseline blobs of commit
-`0a57216c2a8f7e6d00228e6d0a315d25f526a180`:
-[current-work-history-0a57216.md](current-work-history-0a57216.md) (blob
-`7276c03eefd9a01273c8d746a825239c405a73a2`, 11601 bytes, SHA-256
-`926e175b1e09514e4efc6e5d12e5cff2a733364527a082b6f46f008fd0b207bc`) and
-[planner-handoff-history-0a57216.md](planner-handoff-history-0a57216.md) (blob
-`59c70e1add64aa4cbeeae789b8c0f9a9f9ed9532`, 25586 bytes, SHA-256
-`7dc1ae7dac4678f01a40b18f419472589f217a21aa5b9f97d320b26e413e7032`; the
-WF-03N final GO checkpoint). Exact baseline blobs of commit
-`e614c79553c92e1964d57fa9a4d9d5dbbfadb2b2`:
-[current-work-history-e614c79.md](current-work-history-e614c79.md) (blob
-`84b61b2800b238f49390ba308577d2c19841de71`, 8757 bytes, SHA-256
-`2b8e861daa62f61b60fdb8f804aeff2cbc4d8032aafe4215cce0742993ded53a`) and
-[planner-handoff-history-e614c79.md](planner-handoff-history-e614c79.md) (blob
-`f3b520dd7ae5a8015c58a43653408fba0e083350`, 11301 bytes, SHA-256
-`a7815594ce4ef465aee9cf25919e4e6015ec9d99f1767098557f55f3fdf0a297`; the
-WF-04 final GO checkpoint). Snapshots are progressive references, not
-mandatory startup reading. They preserve statements made at
-the time, including old GO, pending, uncommitted and publication wording, as
-evidence, never current instructions, renewed approval or current status.
-They are never edited; their links are frozen. A reference to either
-checkpoint's earlier entries, from a snapshot or another document, means that
-baseline content: within a snapshot, its own baseline; elsewhere, the latest
-pair whose baseline contained the entry, unless the reference names another
-commit. Entries recorded only between pinned baselines are in the
-checkpoints' Git history. Archiving an issue does not resolve it.
+| Source commit | Execution snapshot | Planner snapshot |
+|---|---|---|
+| `ba1d4c2d9e9c5df285777267a7402e75f28e4f87` | [current-work-history-ba1d4c2.md](current-work-history-ba1d4c2.md) | [planner-handoff-history-ba1d4c2.md](planner-handoff-history-ba1d4c2.md) |
+| `0a57216c2a8f7e6d00228e6d0a315d25f526a180` | [current-work-history-0a57216.md](current-work-history-0a57216.md) | [planner-handoff-history-0a57216.md](planner-handoff-history-0a57216.md) (WF-03N final GO) |
+| `e614c79553c92e1964d57fa9a4d9d5dbbfadb2b2` | [current-work-history-e614c79.md](current-work-history-e614c79.md) | [planner-handoff-history-e614c79.md](planner-handoff-history-e614c79.md) (WF-04 final GO) |
+
+Each snapshot is the exact blob of its checkpoint at the source commit;
+compare `git hash-object` of the snapshot with
+`git rev-parse <commit>:docs/roadmap/<checkpoint>.md`. Snapshots are
+progressive references, not mandatory startup reading. They preserve
+statements made at the time, including old GO, pending, uncommitted and
+publication wording, as evidence, never current instructions, renewed
+approval or current status. They are never edited; their links are frozen. A
+reference to either checkpoint's earlier entries, from a snapshot or another
+document, means that baseline content: within a snapshot, its own baseline;
+elsewhere, the latest pair whose baseline contained the entry, unless the
+reference names another commit. Entries recorded only between or after pinned
+baselines are in the checkpoints' Git history; cite them explicitly, as "this
+file at `<commit>`". A new snapshot needs a concrete access or preservation
+benefit. Archiving an issue does not resolve it.
 
 ## Rule locations
 
@@ -198,6 +250,6 @@ checkpoints' Git history. Archiving an issue does not resolve it.
 | Startup reading and reuse; chats | Startup routing; Chats |
 | Actionable prompts, preflight, validation | Planning and dispatch |
 | Reports; corrections; GO/NO-GO | Execution; Review and corrections |
-| Commit, push, closure | Publication |
+| Commit, push, closure | Publication; Recovery |
 | Next work | Publication verification and continuity |
 | Handoff ownership and updates | Checkpoints |

@@ -1,38 +1,48 @@
 # Current work and cross-chat handoff
 
 Execution facts and delivery evidence; not a transcript or approval. It
-replaces its current state on each delivery. Procedure:
-[development workflow](development-workflow.md). Git and code prevail; compare
-branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
+replaces its current state on each delivery and records the phase at which it
+was prepared ([recovery](development-workflow.md#recovery)). Git and code
+prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
+state first.
 
-## Active slice: WF-05 documentation workflow finishing
+## Active slice: WF-06 proportional evidence and workflow recovery
 
-- **Status: implemented; UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review;
-  no GO.** Preflight matched: `main`, `HEAD`/`origin/main`/live main
-  `e614c795`, 0/0, clean.
-- **Paths.** New exact `e614c795` checkpoint copies (History); modified this
-  file, [planner](planner-handoff.md), [workflow](development-workflow.md) and
-  [rework map](documentation-rework-map.md) row CW-A.
-- **Findings.** EX-05-01: the dispatched CW-A target (`d60d718` GO heading)
-  is pre-publication wording; the row's original fragment, at map commit
-  `a593009`, records TEST-48-01 as published. The owner chose that pinned
-  link; Codex reviews it.
-- **Checks.** `logs/executor/wf-05/runs.log`: snapshot, scope, mapping,
-  link, continuity, byte and hygiene checks; final 12/12. No product suites,
-  old checkers or mutation controls.
-- **Next action:** independent Codex review. No commit or push.
+This document records the implementation delivered for review. Consult
+[planner-handoff.md](planner-handoff.md) for the review decision. Reconcile
+publication with Git and the slice's independent publication-verification
+record, when available. This record alone grants no publication authority.
+
+- **Prepared at** delivery of correction 1 for Codex review. Preflight
+  matched: `main`, `HEAD`/`origin/main`/live main `e55709fe`, 0/0, empty
+  index, the five slice paths modified.
+- **Correction 1** (Codex NO-GO): WF06-R1 adds the planner's independent
+  comparison of the published commit with the GO identity, sole parent and
+  approved paths; WF06-R2 makes the template GO example scheme-aware.
+- **Paths:** this file, [planner handoff](planner-handoff.md),
+  [workflow](development-workflow.md), [validation policy](validation-policy.md)
+  and [template](slice-start-template.md).
+- **Checks:** `logs/executor/wf-06/runs.log`: path boundary, exact snapshots,
+  links and inbound fragments, rule and recovery review, sensitive-data scan,
+  UTF-8 sizes and `git diff --check`; correction 1 reran the affected wording,
+  link and hygiene checks and the path/index check. No product suites, old
+  checkers or publication operations.
 
 ## Documentation priority
 
-WF-01–WF-04 are published and the selected rework accepted at `e614c795`;
-functional work, tests and P9 stay stopped. Roles, challenge and explicit GO:
-[AGENTS.md](../../AGENTS.md); constraints: [planner-handoff.md](planner-handoff.md).
+WF-01–WF-05 are published and independently verified; WF-06 is selected for
+workflow evidence and recovery only. Functional work, tests and P9 stay
+stopped. Roles, challenge and explicit GO: [AGENTS.md](../../AGENTS.md);
+constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-04 `e614c795` (sole parent `0a57216c`, five mode-100644 paths) passed
-independent publication verification 5/5 (`logs/planner-review/wf-04/`); its
-[pre-GO record](current-work-history-e614c79.md#active-slice-wf-04-checkpoint-history-consolidation)
+WF-05 `e55709fe` (sole parent `e614c795`, six mode-100644 paths) passed
+independent publication verification
+(`logs/planner-review/wf-05/publication-verification.json`); its record,
+committed with pre-review wording, is this file at `e55709f`. WF-04
+`e614c795` (sole parent `0a57216c`) passed 5/5 (`logs/planner-review/wf-04/`);
+its [pre-GO record](current-work-history-e614c79.md#active-slice-wf-04-checkpoint-history-consolidation)
 is historical. WF-03N back to WF-02A:
 [deliveries](current-work-history-e614c79.md#prior-published-delivery),
 [per-slice limits](current-work-history-0a57216.md#prior-published-delivery);
@@ -42,18 +52,20 @@ not reopen or republish delivered slices.
 
 ## Active evidence limits
 
-Archiving and progressive reading resolve or waive none of these:
+Archiving, condensation and progressive reading resolve or waive none of these:
 - **WF-02A evidence loss.**
   `logs/executor/wf-02a/correction1/development-runs-transcribed.md` is a
   partly abridged derivative chat transcription, not recovered or
   independently authenticated output; original failed runs, checker and
   timings are unavailable; run B's exit status is unknown. Never reconstruct.
-- **Failed, missing and derivative evidence stays as recorded**, including C's
-  invalid negative-01 kills, recovered checker and aborted-write note, F N01
-  and G N23, H/I generator output, B/I ENOBUFS, M publisher and RV-N01 stream
-  gaps, WF-04 dev-01, invalid negative-01 and RV-04-01, failed planner
-  verifications, checker defects and chat-only output
-  ([detail](current-work-history-e614c79.md#active-evidence-limits)).
+- **Failed, missing and derivative evidence stays as recorded** in the
+  per-slice records: invalid mutation kills, recovered or unretained
+  checkers, surviving or no-op mutants, overwritten generator output,
+  unrecorded streams, failed planner verifications, checker defects and
+  chat-only output. Items through WF-03N:
+  [detail](current-work-history-e614c79.md#active-evidence-limits); WF-04
+  dev-01, invalid negative-01 and RV-04-01: this file at `e55709f`. WF-05
+  dev-01's failing pre-fix checker was not retained or reconstructed.
 - Scans are lexical; Git/disk/live checks lack negative controls; retained
   controls and publisher phases were inspected, not rerun or historically
   authenticated. Ordinals, counts, "real today", EX-G03, EX-H03 and WF-02B
@@ -66,7 +78,8 @@ Archiving and progressive reading resolve or waive none of these:
 [ba1d4c2](current-work-history-ba1d4c2.md) (earliest),
 [0a57216](current-work-history-0a57216.md) (WF-03N, earlier limits) and
 [e614c79](current-work-history-e614c79.md) (WF-04, prior risk wording); later
-entries are in Git history. Evidence, not current status or approval.
+entries, including WF-05, are in Git history. Evidence, not current status or
+approval.
 
 ## Open risks
 

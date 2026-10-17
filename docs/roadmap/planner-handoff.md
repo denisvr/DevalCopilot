@@ -6,29 +6,33 @@ is evidence, never renewed authority. Git and code prevail over summaries.
 
 ## Priority and verified baseline
 
-WF-01–WF-04 are published. WF-05 has Codex GO for exactly the six paths in
-`logs/planner-review/wf-05/publication-manifest.json`: checkpoint condensation,
-historical link repair and human-operated continuity policy. Review:
-`logs/planner-review/wf-05/review-01.json`; EX-05-01 accepted. No next slice
-selected. Functional development, test improvements and P9 remain stopped.
+WF-01–WF-05 are published and independently verified. WF-06 has Codex GO
+for the five reviewed documentation paths: proportional evidence,
+actionable prompts and reliable human-operated workflow recovery.
+WF06-R1 and WF06-R2 are resolved. The approved parent, tree and paths are
+recorded in the publication GO and `logs/planner-review/wf-06/review.log`.
+No next slice is selected. Functional development, test improvements and
+P9 investigation remain stopped until the owner explicitly directs otherwise.
 
-Codex plans/reviews; Claude implements. WF-05 dispatch baseline: main; HEAD,
-local origin/main and live main `e614c79553c92e1964d57fa9a4d9d5dbbfadb2b2`;
-0/0; empty index; clean tree. Earlier baseline, continuity and WF-04 GO:
+Codex plans/reviews; Claude implements. The owner authorized WF-06 after two
+independent audits. WF-06 dispatch baseline: main; HEAD, local origin/main
+and live main `e55709fe80898b6c977b39d09b85b9733f0c6f4c`; 0/0; empty index;
+clean tree. WF-05 baseline and GO: this file at `e55709f`; earlier:
 [priority](planner-handoff-history-e614c79.md#priority-and-verified-baseline),
 [WF-04 GO and review](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go).
 
 ## Latest verified publication
 
-WF-04 `e614c795`, sole parent `0a57216c`, five mode-100644 paths:
-independent publication verification 5/5
-(`logs/planner-review/wf-04/publication-verification.json`); review
-`logs/planner-review/wf-04/decision.md`. Publisher phases inspected, not rerun
-or historically authenticated; the supplementary live read's `started` field
-is a completion-side timestamp. The selected documentation/workflow rework is
-accepted at `e614c795` (`logs/planner-review/documentation-rework-acceptance.json`);
-WF-03 technical acceptance stands. EX-04-01 resolved, EX-04-02 accepted,
-RV-04-01 accepted measurement limit. WF-03N publication detail:
+WF-05 `e55709fe`, sole parent `e614c795`, exactly the six manifest paths:
+Codex GO `logs/planner-review/wf-05/review-01.json` with
+`publication-manifest.json`; EX-05-01 accepted; independent publication
+verification complete (`logs/planner-review/wf-05/publication-verification.json`).
+Publisher phases inspected, not rerun or historically authenticated; the
+executor's failing dev-01 pre-fix checker was not retained or reconstructed.
+WF-04 `e614c795` verification 5/5, its findings and the documentation/workflow
+rework acceptance at `e614c795`
+(`logs/planner-review/documentation-rework-acceptance.json`) stand as recorded
+in this file at `e55709f`; WF-03 technical acceptance stands. WF-03N detail:
 [exact record](planner-handoff-history-e614c79.md#latest-accepted-delivery).
 
 ## Retained review and evidence limits
@@ -37,17 +41,19 @@ Active execution-evidence limits:
 [current-work](current-work.md#active-evidence-limits). Detail as written:
 [WF-04-era limits](planner-handoff-history-e614c79.md#retained-review-and-evidence-limits),
 [earlier planner limits](planner-handoff-history-0a57216.md#retained-review-and-evidence-limits),
-[execution limits](current-work-history-0a57216.md#prior-published-delivery)
-and per-slice records under ignored `logs/planner-review/<slice>/` and
-`logs/executor/<slice>/`. Progressive reading waives none of them:
+[execution limits](current-work-history-0a57216.md#prior-published-delivery),
+this file at `e55709f`, and per-slice records under ignored
+`logs/planner-review/<slice>/` and `logs/executor/<slice>/`. Progressive
+reading and condensation waive none of them:
 - WF-02A evidence loss remains: derivative, partly abridged chat transcription;
   original failed runs/checker/timings unavailable; run B exit unknown. No
   reconstruction or historical authentication of missing originals.
 - Failed, derivative, missing, overwritten and chat-only evidence and all
   earlier stable findings/dispositions stay retained; later passes erase or
-  explain none of them.
-- EX-N01 and EX-N02 accepted; RV-N01 child-stream limit and failed planner
-  N verify-01/02 retained. Earlier legacy-route observations stay accepted.
+  explain none of them. Accepted dispositions (EX-N01, EX-N02, EX-04-02,
+  EX-05-01, the RV-04-01 measurement limit, earlier legacy-route
+  observations) and retained failures (RV-N01 child streams, planner N
+  verify-01/02) stand as recorded.
 - Scans/coordinates are lexical; Git/disk/live and independent checks have no
   negative controls. Retained controls and publication phases were inspected,
   not rerun or historically authenticated. Moved counts, ordinals, deferred controls,
@@ -59,7 +65,8 @@ and per-slice records under ignored `logs/planner-review/<slice>/` and
 
 ## Historical review routes
 
-Exact earlier review records: [WF-04](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go);
+Exact earlier review records: WF-05 in this file at `e55709f`;
+[WF-04](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go);
 WF-03I to WF-03N through the
 [route list](planner-handoff-history-e614c79.md#historical-review-routes).
 Their old GO/pending statements are not current instructions.
@@ -91,8 +98,5 @@ Their old GO/pending statements are not current instructions.
   [current-work](current-work.md#open-risks). No production, tests, dependencies,
   experiments, capture-limit or standards edits.
 
-Frozen snapshots ([registry](development-workflow.md#historical-snapshots)),
-including [execution history](current-work-history-ba1d4c2.md) blob
-`ebb007040fa73ab0252511180e53e2e64f5285df` and
-[planner history](planner-handoff-history-ba1d4c2.md) blob
-`dd3bb1d70459322db9147c99c8fe53a01829e38a`, remain untouched.
+All six frozen snapshots ([registry](development-workflow.md#historical-snapshots))
+remain untouched.

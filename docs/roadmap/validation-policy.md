@@ -33,7 +33,7 @@ every earlier result. Record the reasoning for retained results.
 
 | Change | Default final evidence | When to broaden |
 |---|---|---|
-| Documentation only | Changed-document links, diff and applicable secret checks | Changed commands/contracts also alter executable behavior |
+| Documentation only | Changed-document links and affected inbound fragments, diff inspection, applicable sensitive-data checks and checks specific to any changed normative contract | Changed commands/contracts also alter executable behavior |
 | One pure policy or isolated adapter/parser | Relevant policy/adapter classes and existing negative controls; appropriate build/analyzers | Shared execution, filesystem, environment or policy behavior changes |
 | One application use case | Its decision/handler tests and consumers of changed policies | Shared admission, mediator, transaction, budget or lifecycle behavior changes; affected consumers cannot be enumerated reliably |
 | One MVC operation | Its complete auth/validation/error/wire matrix plus directly related operation regressions and MVC authorization inventory | Host/authentication/global binding, serialization, error mapping or request pipeline changes; wider composition impact |
@@ -131,12 +131,36 @@ another class is a separately selected slice. A class that uses it must:
 Facts that must mutate the scene or run a supervisor or provider keep the
 per-test lineage.
 
+## Keep evidence proportional
+
+Each check answers a named risk. A smaller artifact count alone is not proof
+of better validation.
+
+- Repeat a check when a state transition, changed input, failure or
+  unresolved risk makes it necessary, and state what the repetition detects.
+- Prefer existing tools and simple commands. A custom checker requires a
+  named risk that those checks do not adequately cover. Do not create a
+  per-slice publication framework, mutation campaign, repeated tool
+  snapshots or per-command JSON/stream files by default.
+- One concise log may retain commands, outcomes, elapsed time, failures and
+  relevant identities. Preserve original failure output and enough
+  information to identify the tool used; never reconstruct missing evidence.
+- Read hashes, diffs and summaries when they are sufficient. Inspect full
+  file contents when review needs them; do not dump them repeatedly into
+  reports.
+- These rules are prospective: keep existing evidence; they authorize no
+  cleanup.
+- Explicit review and GO, the identity of approved content, preconditions
+  before Git mutations, a normal push and independent remote verification
+  remain required ([publication](development-workflow.md#publication)), as
+  do mandatory product CI, security, integration and release gates.
+
 ## Measure and retain evidence
 
 Record the exact command/filter, source revision, result and elapsed time for
 each validation phase. Distinguish focused, full, retained and not-run checks.
-Keep complete logs and named results for every failure, including failed
-development attempts; report aborted runs and active tests without inventing a
+Keep complete original output and named results for every failure, including
+failed development attempts; report aborted runs and active tests without inventing a
 cause. No blind rerun, log deletion, silent skip or flaky-test label is a speed
 optimization. Preserve the unexplained Api 2067/2068 failure and existing limits.
 
