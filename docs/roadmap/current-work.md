@@ -5,33 +5,28 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03J correction, budgets and configuration separation
+## Active slice: WF-03K source evidence and local delivery extraction
 
-- **Status: correction 1 after review 1 NO-GO; UNSTAGED, UNCOMMITTED and
-  UNPUSHED for Codex review; no GO.** Preflight matched: `main`; `HEAD` and
-  `origin/main` `578c83d3`; 0/0; empty index. Planner checkpoint (13506 bytes,
-  `2d78447a...a52f`) preserved byte-identically. Live main: dispatch
-  observation retained; the c1 final run's own lookup is in `runs.log`.
+- **Status: implemented; UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review;
+  no GO.** Preflight matched: `main`; `HEAD`, `origin/main` and live main
+  `0de51c01`; 0/0; empty index; only the planner checkpoint (17624 bytes,
+  `9b04c164...d861d`) modified, preserved byte-identically.
 - **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
-  (one forwarder, one router), [index](../architecture/README.md), the
-  invocation configuration companion (introduction and appended provider
-  configuration observations), the guidance and escalation, format repair,
-  execution evidence, account usage, usage evidence and token-activity
-  controls introductions,
-  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03J record),
-  this file. New:
-  [correction and budgets](../architecture/agent-collaboration-correction-and-budgets.md).
-  Ignored: `logs/executor/wf-03j/`.
-- **Findings.** WF-03J-R1/EX-J01: JL713 now carries the authorized link
-  form; the review-1 plain form and its checker oracle were wrong, and
-  review-1 final-01 and negative runs are retained as evidence for that wrong
-  oracle. WF-03J-R2/EX-J02: the two added introductions are repaired, bodies
-  exact. EX-J03 accepted (no trim).
-- **Checks and limits.** `logs/executor/wf-03j/runs.log` and its README
-  (correction 1 appended). Conservation is exact apart from the one authorized
-  JL713 link. Link and sensitive scans are lexical; Git/disk checks have no
-  negative control; retained six/eight-path, deferred-enforcement and null
-  model/effort wording is unreconciled.
+  (seven forwarders, two routers), [index](../architecture/README.md) (two
+  entries), [rework map](agent-collaboration-protocol-rework-map.md)
+  (introduction, WF-03K record), this file. New:
+  [source evidence](../architecture/agent-collaboration-source-evidence.md)
+  and [local delivery](../architecture/agent-collaboration-local-delivery.md).
+  No existing companion changed. Ignored: `logs/executor/wf-03k/`.
+- **Findings.** EX-K01 observation: the engineering context still routes
+  manifests and the approval set and receipt to the protocol (lines 36, 38),
+  as it does earlier moved subjects; the forwarders reach them, so nothing is
+  broken. Unchanged, outside the allowlist; no edit proposed for this slice.
+- **Checks and limits.** `logs/executor/wf-03k/runs.log` and its README.
+  Moved bodies exact, no substitution; the baseline reconstructs exactly.
+  Link, coordinate and sensitive scans are lexical; Git/disk/live checks have
+  no negative control; retained manifest-family, claim-handler, Windows-only
+  and raw Git observation wording is unreconciled.
 - **Next action:** independent Codex review. No commit or push.
 
 ## Documentation priority
@@ -43,14 +38,19 @@ Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03I `578c83d3`, the planning policy `b81f7611` (workflow and slice
-template), WF-03H `8a4223d5`, WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E
+WF-03J `0de51c01`, WF-03I `578c83d3`, the planning policy `b81f7611`
+(workflow and slice template), WF-03H `8a4223d5`, WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E
 `5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A
 `c1189f1a` and WF-02B `d1a7b457` (each the sole parent of the one before) are
 published per `logs/planner-review/<slice>/publication-verification.json`
 (planning policy: `wf-planning-policy`); WF-02A `a593009` (four documents) per
 `logs/planner-review/wf-02a/`. Pre-publication wording is historical; do not
-reopen or republish them. WF-03I limits
+reopen or republish them. WF-03J limits
+(`logs/planner-review/wf-03j/review2/decision.md`, review1 retained): the
+initial negative-01 expected-message defects and the c1-dev-01 C17 false
+positive are retained; the review-1 plain-form oracle evidence stays with its
+correction; the planner's misdirected status write is retained in review2;
+controls inspected, not rerun. WF-03I limits
 (`logs/planner-review/wf-03i/review1/decision.md`): the planner's verify-01
 Git ENOBUFS failure is retained (verify-02 passed); generate-01 output files
 are gone (hashes, tool and streams survive) and helper console output exists

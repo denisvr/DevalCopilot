@@ -6,12 +6,11 @@
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
 Claude implements. WF-03 incomplete. 2026-10-17: main; HEAD, origin/main and
-independently checked live main `578c83d3b9e6550d22ca7785ee76c6e15d66607d`;
+independently checked live main `0de51c01983be9e996d7c59bde44145be781a254`;
 0/0; empty index, clean tree, no nonignored untracked paths before this edit.
-At WF-03J dispatch only this checkpoint differed; publication GO below supersedes it.
-Initial live lookup failed (network); elevated read-only retry matched.
-Original lookup output is in the planner chat, not standalone evidence.
-
+At WF-03K dispatch only this checkpoint differed, unstaged; GO below supersedes it. Initial live lookup
+failed (`getaddrinfo`); elevated read-only retry matched. Original lookup
+outputs are in this planner chat only, not standalone evidence.
 Planning policy published; sole parent `8a4223d50b3a1db0cf5683d39fbba059f59818b3`.
 `logs/planner-review/wf-planning-policy/publication-verification.json`: 5/5;
 original Git streams in publication-verification-01/; checker publication-verify.mjs.
@@ -37,7 +36,63 @@ logs/planner-review/<slice>/. Scans/coordinates lexical; Git/disk/live have no
 negative controls. Earlier product/provider/qualification evidence not rerun.
 No reopening, republication or closure edit of delivered work.
 
-## Selected slice: WF-03J publication GO
+## Selected slice: WF-03K publication GO
+
+GO for exactly seven mode-100644 documents in
+`logs/planner-review/wf-03k/publication-manifest.json`; parent
+`0de51c01983be9e996d7c59bde44145be781a254`; subject
+`docs: extract source evidence and local delivery contracts`.
+Same Claude executor chat publishes the frozen manifest, normal main
+fast-forward push to origin/main and live verification. No later slice selected;
+WF-03 remains incomplete. Material changes return for review; failed push or
+divergence stops publication without force or history reconciliation.
+
+Seven bodies moved verbatim into two companions, seven direct forwarders,
+two routers; all 66 protocol headings retained. Exact 83364-byte inverse
+reconstruction; all ten A-J map records retain bytes and line positions;
+existing companions and current-work History/risks (3466 bytes) exact.
+No factual inconsistency reconciled or endorsed. Preflight/core unchanged.
+Review: `logs/planner-review/wf-03k/review1/decision.md`.
+
+Independent verify-02 5/5; original Git child streams retained. Independent
+link scan: 199 links after stripping inline code spans; inbound inventory:
+15 lines containing 16 links. Executor's differently scoped 272-link scan,
+final 24/24, negative baseline 17/17 and controls 28/28 inspected, not rerun.
+Final document/fragment hashes and ten tool/fragment hashes match. Git/disk/live
+checks have no negative controls; scans/coordinates lexical. No product suites.
+Planner verify-01 3/5: inline-code example misread as link by planner checker,
+and network lookup failed; checker fixed, elevated verify-02 passed. Failed
+outputs and initial checker retained; no executor correction needed.
+Executor dev-01 C06 directional-oracle gap and negative-01 N14 indentation
+mutant defect retained; fixed in dev-02/negative-02. Evidence README's "three"
+generator runs is an accepted summary-count typo: ledger retains four original
+runs, generate-01 through generate-04; no history rewritten.
+
+EX-K01 accepted: engineering-context routes through valid protocol routers and
+forwarders; unchanged, out of scope. No blocking findings. This checkpoint
+supersedes dispatch version (17624 bytes, `9b04c164...d861d`), which executor
+G02 checked; publication freeze covers this final version. Six executor
+documents retain final-01 bytes. Committed checkpoints may retain pre-publication
+wording; no closure diff, reopening or republication.
+## WF-03J publication evidence carried forward
+
+Delivered `0de51c0`, sole parent `578c83d3`; 13 mode-100644 paths. Retained
+`logs/planner-review/wf-03j/publication-verification.json`: 5/5; original child
+streams in publication-verification-01/, checker publication-verify.mjs.
+Manifest 3697 bytes, SHA-256
+`7bea454cfa6fbf2e75e269f058b3372425bb5d4a9da82cbf3325c95b2ab62c7e`.
+Publisher pre 53/53, stage 38/38, commit 41/41, push 8/8, post 25/25;
+five phases/81 records inspected previously, not rerun or historically
+authenticated. No failed phase; normal fast-forward evidence. Publisher/phase
+snapshots match `a5ae464944e1d7e4e0778f26c13cf4385f752d4110e9b49525cbf683fb243005`.
+This chat read the retained verification summary and freshly checked local/live
+refs; it did not rerun the old matrix. Final GO checkpoint: 12785 bytes,
+SHA-256 `2a8170f36c7b69586862fbfd5a1724627e6afedfa94dee105b3ae0895c2853fa`;
+executor G02 checked earlier 13506-byte version; freeze/publication covered
+final checkpoint. Initial negative-01 expected-message defects remain retained.
+All review dispositions and limitations below remain. Historical GO wording
+is delivered evidence, not current publication authority or a closure edit.
+## WF-03J delivered review (historical GO)
 
 GO for exactly 13 mode-100644 documents frozen in
 `logs/planner-review/wf-03j/publication-manifest.json`; parent

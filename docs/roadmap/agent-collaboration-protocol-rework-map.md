@@ -4,8 +4,8 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds ten separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I and WF-03J; each record's
+prevail. It holds eleven separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I, WF-03J and WF-03K; each record's
 identifiers and coordinates refer only to its own baseline, and each earlier
 record's statements stay as written, as history. WF-03 remains incomplete.
 Future WF-03 moves remain unselected, and this map names no destination for them.
@@ -1197,3 +1197,167 @@ WF-03I's not-moved
 paragraph named Review correction because it stayed whole at that move; WF-03J
 moves it. This is a relocation, not a reconciliation: moved facts and wording
 are as written at the baseline, apart from the one authorized substitution.
+
+## WF-03K record
+
+WF-03K moves the seven remaining source-evidence and local-delivery contract
+bodies out of the provider-runtime container: the bounded untracked-file
+previews, bounded tracked-hunk evidence, attested tracked-change text,
+attested checkpoint comparison and project instruction context sections move
+to a new source evidence companion, and the complete-set Human approval and
+recorded local-delivery receipt sections move to a new local delivery
+companion. Host runtime preflight and the dialogue and context core stay in
+the protocol. No existing companion changes. This record was written with
+WF-03K's uncommitted working-tree diff, for independent review before any GO;
+it describes that diff, not a published delivery. Publication, if any, is
+evidenced by Git history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `0de51c01983be9e996d7c59bde44145be781a254`, the
+  published WF-03J result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `3e95f9a41fe5c2cd5c93ef357b7f779e29beb31c`, SHA-256
+  `c7028c274ef1c8a0dbea0e246c924cbce99f8adb8c87bdb21917baa7b125696c`,
+  83364 bytes, 1131 lines, 66 Markdown headings. Read it with
+  `git show 0de51c01:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `KLstart-end` are WF-03K baseline line spans; `KPstart-end`
+  are lines of the protocol after WF-03K; `KSstart-end` are lines of the
+  [source evidence](../architecture/agent-collaboration-source-evidence.md)
+  companion; `KDstart-end` are lines of the
+  [local delivery](../architecture/agent-collaboration-local-delivery.md)
+  companion. Row IDs carry a `K-` prefix. No WF-03K identifier refers to a row
+  or coordinate of WF-03A to WF-03J. A section range spans its heading through
+  the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A. All 66 baseline headings stay in the protocol in order with
+  identical text and level, so every fragment resolves as before. Each moved
+  section keeps its heading and closing blank line in the protocol as a
+  forwarder: the heading, a blank line, a two-line link to the destination
+  fragment and the closing blank line. Each companion promotes its headings
+  from `###` to `##` with identical text, so each fragment is the same in the
+  protocol and its companion. KS1-23 are the source evidence companion's title,
+  introduction and blank line; KS24-282 correspond one to one to KL727-985 and
+  KS284-344 to KL1030-1090, with the five headings (KS24, KS88, KS166, KS253,
+  KS284) promoted and every other line identical. KS283 is a new blank
+  separator, and the blank separators KS87, KS165 and KS252 stand in the
+  positions of KL790, KL868 and KL955, whose blank lines also stay in the
+  protocol as forwarder closing lines. KD1-24 are the local delivery
+  companion's title, introduction and blank line; KD25-66 correspond one to one
+  to KL987-1028, with the two headings (KD25, KD49) promoted, and the blank
+  separator KD48 stands in the position of KL1010. Neither companion ends with
+  a blank line.
+
+### WF-03K ranges
+
+The nine ranges cover KL1-1131 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| K-R-01 | KL1-726 | Purpose through the explicit verification failure diagnosis forwarder, including the ten companion routing paragraphs and runtime preflight | Retain; one routing insertion | KP1-544 (KL1-544), KP545-557 (insertion), KP558-739 (KL545-726) | Verbatim apart from the insertion: two routing paragraphs, each followed by a blank line, after the correction and budgets routing paragraph (KL536-543) and its blank line (KL544) and before `## Provider runtime configuration` |
+| K-M-01 | KL727-790 | Bounded untracked-file previews in Agent manifests | Move | KS24 heading, KS25-86 body (KL728-789); forwarder KP740-744 | Body verbatim |
+| K-M-02 | KL791-868 | Bounded tracked-hunk evidence in Agent manifests | Move | KS88 heading, KS89-164 body (KL792-867); forwarder KP745-749 | Body verbatim |
+| K-M-03 | KL869-955 | Attested tracked-change text in Agent manifests | Move | KS166 heading, KS167-251 body (KL870-954); forwarder KP750-754 | Body verbatim |
+| K-M-04 | KL956-986 | Attested checkpoint comparison for human inspection | Move | KS253 heading, KS254-282 body (KL957-985); forwarder KP755-759 | Body verbatim |
+| K-M-05 | KL987-1010 | Complete-set Human approval for local delivery | Move | KD25 heading, KD26-47 body (KL988-1009); forwarder KP760-764 | Body verbatim |
+| K-M-06 | KL1011-1029 | Recorded local-delivery receipt | Move | KD49 heading, KD50-66 body (KL1012-1028); forwarder KP765-769 | Body verbatim |
+| K-M-07 | KL1030-1091 | Project instruction context in Agent manifests | Move | KS284 heading, KS285-344 body (KL1031-1090); forwarder KP770-774 | Body verbatim |
+| K-R-02 | KL1092-1131 | Token efficiency through protocol evolution | Retain | KP775-814 | Verbatim |
+
+In each forwarder the first line is the retained heading (KL727, KL791,
+KL869, KL956, KL987, KL1011, KL1030) and the last is the retained closing
+blank line (KL790, KL868, KL955, KL986, KL1010, KL1029, KL1091); the three
+lines between them are new.
+
+### WF-03K fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| K-M-01 | [`#bounded-untracked-file-previews-in-agent-manifests`](../architecture/agent-collaboration-protocol.md#bounded-untracked-file-previews-in-agent-manifests) | [`#bounded-untracked-file-previews-in-agent-manifests`](../architecture/agent-collaboration-source-evidence.md#bounded-untracked-file-previews-in-agent-manifests) |
+| K-M-02 | [`#bounded-tracked-hunk-evidence-in-agent-manifests`](../architecture/agent-collaboration-protocol.md#bounded-tracked-hunk-evidence-in-agent-manifests) | [`#bounded-tracked-hunk-evidence-in-agent-manifests`](../architecture/agent-collaboration-source-evidence.md#bounded-tracked-hunk-evidence-in-agent-manifests) |
+| K-M-03 | [`#attested-tracked-change-text-in-agent-manifests`](../architecture/agent-collaboration-protocol.md#attested-tracked-change-text-in-agent-manifests) | [`#attested-tracked-change-text-in-agent-manifests`](../architecture/agent-collaboration-source-evidence.md#attested-tracked-change-text-in-agent-manifests) |
+| K-M-04 | [`#attested-checkpoint-comparison-for-human-inspection`](../architecture/agent-collaboration-protocol.md#attested-checkpoint-comparison-for-human-inspection) | [`#attested-checkpoint-comparison-for-human-inspection`](../architecture/agent-collaboration-source-evidence.md#attested-checkpoint-comparison-for-human-inspection) |
+| K-M-05 | [`#complete-set-human-approval-for-local-delivery`](../architecture/agent-collaboration-protocol.md#complete-set-human-approval-for-local-delivery) | [`#complete-set-human-approval-for-local-delivery`](../architecture/agent-collaboration-local-delivery.md#complete-set-human-approval-for-local-delivery) |
+| K-M-06 | [`#recorded-local-delivery-receipt`](../architecture/agent-collaboration-protocol.md#recorded-local-delivery-receipt) | [`#recorded-local-delivery-receipt`](../architecture/agent-collaboration-local-delivery.md#recorded-local-delivery-receipt) |
+| K-M-07 | [`#project-instruction-context-in-agent-manifests`](../architecture/agent-collaboration-protocol.md#project-instruction-context-in-agent-manifests) | [`#project-instruction-context-in-agent-manifests`](../architecture/agent-collaboration-source-evidence.md#project-instruction-context-in-agent-manifests) |
+
+### WF-03K link and reference changes
+
+- **Moved text.** No moved line changed; there is no substitution.
+- **Directional wording.** The moved source-evidence sections keep their
+  baseline order, so their references to each other by quoted title name
+  sections of the same companion: "Bounded tracked-hunk evidence in Agent
+  manifests" (KL764, KS61) names KS88; "Attested tracked-change text in Agent
+  manifests" (KL784-785, KS81-82; KL794, KS91) names KS166; "Attested
+  checkpoint comparison for human inspection" (KL877-878, KS174-175) names
+  KS253. "Described below" (KL795, KS92) and "the omission metadata below"
+  (KL809, KS106) stay within K-M-02, and "the next file" (KL929, KS226) is the
+  next path in ordinal order within K-M-03. Other words such as "previous",
+  "later" and "earlier" in the moved text are temporal, and "this section"
+  (KL1054, KS308) means the manifest's instruction context section, not a
+  document section. The local-delivery sections have no directional reference.
+  No directional reference was broken by the relocation.
+- **Relative links.** The moved text's eleven links all reach ADRs and resolve
+  unchanged from the same directory: ADR-0022 (KL757, KS54), ADR-0024 (KL785,
+  KS82; KL793, KS90; KL875, KS172), ADR-0027 (KL877, KS174; KL961, KS258) and
+  ADR-0021 (KL1034, KS288) in the source evidence companion, and ADR-0029
+  (KL989, KD27; KL1013, KD51), ADR-0030 (KL991, KD29) and ADR-0032 (KL1014,
+  KD52) in the local delivery companion. The moved text has no in-page link
+  and no absolute `https` address.
+- **Retained wording.** The moved statements are as written at the baseline,
+  and the relocation reconciles or endorses none of them, including the five
+  Agent manifests that carry `changeEvidence` (KL731, KS28; KL799, KS96)
+  beside six manifest families (KL734, KS31); "Seven of the eight claim
+  handlers" (KL736, KS33) and the eight claim handlers (KL886, KS183; KL1041,
+  KS295); the Windows-only physical proofs and other-host omissions (KL744,
+  KS41; KL761-762, KS58-59; KL897-898, KS194-195; KL952, KS249;
+  KL982-983, KS279-280; KL1051-1052, KS305-306); the stated limits of the raw
+  Git observation (KL781-786, KS78-83; KL950, KS247; KL1052-1053, KS306-307);
+  the process doubles that do not establish real-provider reliability (KL952,
+  KS249); the Human decisions that still block local delivery (KL1008-1009,
+  KD46-47); and the receipt saying nothing about current workspace state or
+  remote publication (KL1027-1028, KD65-66). Both new introductions say so.
+- **Retained references.** The protocol's context assembly list names
+  "Project instruction context in Agent manifests" (KL472-473, KP472-473),
+  "Bounded tracked-hunk evidence in Agent manifests" and "Bounded
+  untracked-file previews in Agent manifests" (KL477-478, KP477-478); token
+  efficiency names the untracked previews (KL1103, KP786); untrusted content
+  names the instruction context (KL1122, KP805). These quoted titles carry no
+  link and reach the retained forwarding headings. Provider runtime
+  configuration's preflight body (KL545-582, KP558-595) is unchanged. Earlier
+  records' coordinates for these sections, such as WF-03J's JP607-1131 and
+  WF-03I's IL1236-1640, keep their statements as history.
+- **Inbound references.** Tracked links to the seven baseline fragments:
+  ADR-0022 (line 9) and ADR-0024 (line 8); the
+  [documentation rework map](documentation-rework-map.md) (lines 128, 130,
+  157, 158, 159 with two links, and 166); the
+  [delivery plan rework map](mvp-delivery-plan-rework-map.md) (lines 73 to
+  76); and the frozen
+  [execution history](current-work-history-ba1d4c2.md) (lines 2372, 2435 and
+  2534). All sixteen links still reach the retained forwarding headings, which
+  link to the destination fragments; none changed, and those maps keep their
+  own earlier coordinates. ADR-0021's prose mention of the protocol's untracked
+  previews and tracked-hunk evidence (line 16) and the
+  [engineering context](../engineering-context.md) rows that route manifests
+  and the approval set and receipt to the protocol (lines 36 and 38) carry no
+  fragment and reach the protocol, whose routing paragraphs and forwarders
+  lead on; they are unchanged.
+- **New links.** The protocol routing paragraphs (KP549 and KP554) and the
+  seven forwarders (KP742, KP747, KP752, KP757, KP762, KP767 and KP772) link to
+  the two companions. The source evidence introduction links to the protocol,
+  the local delivery companion and this map; the local delivery introduction
+  links to the protocol, ADR-0029, the source evidence companion,
+  [GitHub and CI integration](../architecture/github-ci-integration.md), the
+  [data and recovery](../architecture/data-and-recovery.md) local commit
+  recovery section and this map.
+- **Index.** The [architecture index](../architecture/README.md) adds two
+  entries, for the source evidence and local delivery companions, after the
+  correction and budgets entry.
+
+### WF-03K not moved
+
+Host runtime preflight and the rest of provider runtime configuration, the
+dialogue and context core (message envelope through context assembly), token
+efficiency, untrusted content, protocol evolution and every other subject not
+moved by WF-03A to WF-03K stay in the protocol. No existing companion changes.
+WF-03J's not-moved paragraph named manifest capture and the local-delivery
+contracts because they stayed in the protocol at that move; WF-03K moves them.
+This is a relocation, not a reconciliation: moved facts and wording are as
+written at the baseline.

@@ -45,6 +45,14 @@ shared engineering contract.
   holds the protocol's review correction with its correction budget and
   escalation, the run-wide Agent claim-count and reserved invocation-time
   budgets, and their manual-intake choice.
+- [Agent collaboration source evidence](agent-collaboration-source-evidence.md)
+  holds the protocol's bounded untracked-file previews, bounded tracked-hunk
+  evidence and attested tracked-change text in Agent manifests, attested
+  checkpoint comparison for human inspection, and project instruction context
+  in Agent manifests.
+- [Agent collaboration local delivery](agent-collaboration-local-delivery.md)
+  holds the protocol's complete-set Human approval for local delivery and
+  recorded local-delivery receipt.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote
