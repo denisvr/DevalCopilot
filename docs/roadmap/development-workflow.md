@@ -145,12 +145,23 @@ Exact baseline blobs of commit `ba1d4c2d9e9c5df285777267a7402e75f28e4f87`:
 [current-work-history-ba1d4c2.md](current-work-history-ba1d4c2.md) (blob
 `ebb007040fa73ab0252511180e53e2e64f5285df`) and
 [planner-handoff-history-ba1d4c2.md](planner-handoff-history-ba1d4c2.md) (blob
-`dd3bb1d70459322db9147c99c8fe53a01829e38a`). They preserve statements made at
-the time, including old pending, uncommitted and publication wording, as
+`dd3bb1d70459322db9147c99c8fe53a01829e38a`). Exact baseline blobs of commit
+`0a57216c2a8f7e6d00228e6d0a315d25f526a180`:
+[current-work-history-0a57216.md](current-work-history-0a57216.md) (blob
+`7276c03eefd9a01273c8d746a825239c405a73a2`, 11601 bytes, SHA-256
+`926e175b1e09514e4efc6e5d12e5cff2a733364527a082b6f46f008fd0b207bc`) and
+[planner-handoff-history-0a57216.md](planner-handoff-history-0a57216.md) (blob
+`59c70e1add64aa4cbeeae789b8c0f9a9f9ed9532`, 25586 bytes, SHA-256
+`7dc1ae7dac4678f01a40b18f419472589f217a21aa5b9f97d320b26e413e7032`; the
+WF-03N final GO checkpoint). They preserve statements made at
+the time, including old GO, pending, uncommitted and publication wording, as
 evidence, never current instructions, renewed approval or current status.
 They are never edited; their links are frozen. A reference to either
 checkpoint's earlier entries, from a snapshot or another document, means that
-baseline content. Archiving an issue does not resolve it.
+baseline content: within a snapshot, its own baseline; elsewhere, the latest
+pair whose baseline contained the entry, unless the reference names another
+commit. Entries recorded only between the two baselines are in the
+checkpoints' Git history. Archiving an issue does not resolve it.
 
 ## Rule locations
 

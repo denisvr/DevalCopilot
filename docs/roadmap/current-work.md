@@ -5,122 +5,88 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03N integrated routing and acceptance
+## Active slice: WF-04 checkpoint history consolidation
 
 - **Status: implemented; UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review;
-  no GO; not an acceptance of WF-03.** Preflight matched: `main`; `HEAD`,
-  `origin/main` and live main `b409983e`; 0/0; empty index; only the
-  owner-authorized [workflow](development-workflow.md) patch (9375 bytes,
-  `ebb9267d...37ac65`) and the planner checkpoint (26990 bytes,
-  `8c1e739b...70279a`) modified, both preserved byte-identically.
-- **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
-  (Purpose routing and the 15-row companion directory only),
-  [engineering context](../engineering-context.md) (the collaboration row
-  became nine rows), [rework map](agent-collaboration-protocol-rework-map.md)
-  (introduction, WF-03N record), this file; the workflow patch as found. New:
-  [acceptance report](agent-collaboration-protocol-acceptance.md). All 15
-  companions unchanged. Ignored: `logs/executor/wf-03n/`.
-- **Findings.** EX-N01 observation: WF-03A's retained final records a core
-  composition check and per-section verbatim bodies rather than a named
-  inverse reconstruction; B-M record named reconstructions. Disclosed in the
-  report, not a coverage gap. EX-N02 observation: the engineering context's
-  unchanged sibling row for the approval set, receipt and history (ADR-0030 to
-  ADR-0037) still routes to "protocol"; outside the replaced row. The known
-  missing `planner-handoff.md#verified-transition-baseline` link in the
-  documentation rework map is pre-existing and unchanged.
-- **Checks and limits.** `logs/executor/wf-03n/runs.log` and its README; the
-  report separates fresh WF-03N checks from retained A-M claims. Link,
-  ownership, coordinate and sensitive checks are lexical and prove no semantic
-  equivalence; Git/disk/live checks have no negative control; old checkers
-  were not rerun and no new whole-original reconstruction is claimed.
+  no GO.** Preflight matched: `main`; `HEAD`, `origin/main` and live main
+  `0a57216c`; 0/0; empty index; only the planner checkpoint (12358 bytes,
+  `04a5b8de...29eb6a`) modified, preserved byte-identically.
+- **Paths.** New exact `0a57216` copies:
+  [execution snapshot](current-work-history-0a57216.md) and
+  [planner snapshot](planner-handoff-history-0a57216.md). Modified: this
+  file before History and the workflow's
+  [Historical snapshots](development-workflow.md#historical-snapshots). The
+  planner checkpoint as found. Ignored: `logs/executor/wf-04/`.
+- **Findings.** EX-04-01 observation: the planner checkpoint's replaced
+  "Priority and verified baseline" body (`b409983e` selection baseline,
+  workflow patch identity, WF-03L publication summary) has no explicit
+  historical link; it is reachable through the same fragment in the planner
+  snapshot under the workflow routing rule. Not edited (planner-owned).
+- **Checks and limits.** `logs/executor/wf-04/runs.log` and its README:
+  preflight 11/11, snapshot 2/2, final 21/21, negative baseline 17/17 with
+  25/25 killed (negative-01 invalid: failed baseline). Startup bytes,
+  `0a57216` to now: current-work 11601 to 8757 (above the ~6 KiB target; no
+  limit dropped), planner checkpoint 25586 to 12358, workflow 9375 to 10137.
+  Scans lexical; Git/disk/live checks have no negative control; no product
+  suites or old checkers run.
 - **Next action:** independent Codex review. No commit or push.
 
 ## Documentation priority
 
 Documentation first; functional work, tests and P9 stay stopped. Codex plans
 and reviews; Claude implements; challenge, roles and explicit GO stay mandatory
-([AGENTS.md](../../AGENTS.md)). WF-03 stays incomplete; later moves unselected.
-Constraints: [planner-handoff.md](planner-handoff.md).
+([AGENTS.md](../../AGENTS.md)). WF-03 is accepted and published; the wider
+documentation/workflow objective stays open. Constraints:
+[planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03M `b409983e`, WF-03L `cc718a7d`, WF-03K `340d5e9d`, WF-03J `0de51c01`, WF-03I `578c83d3`, the planning policy `b81f7611`
-(workflow and slice template), WF-03H `8a4223d5`, WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E
-`5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A
-`c1189f1a` and WF-02B `d1a7b457` (each the sole parent of the one before) are
-published per `logs/planner-review/<slice>/publication-verification.json`
-(planning policy: `wf-planning-policy`); WF-02A `a593009` (four documents) per
-`logs/planner-review/wf-02a/`. Pre-publication wording is historical; do not
-reopen or republish them. WF-03M limits
-(`logs/planner-review/wf-03m/decision.md`): the publisher's committed-byte
-`git show` reads bypassed stream recording (independent committed-byte reads
-are retained); the executor dev-01 duplicate-link count checker defect is
-retained, fixed in dev-02; thirteen C03 throws are excluded from kills;
-EX-M01 was accepted with the challenge recorded and EX-M02 unchanged; final,
-negative and publisher records inspected, not rerun or historically
-authenticated; scans lexical; Git/disk/live checks lack negative controls;
-ordinals, counts and "real today" stay unreconciled. WF-03L limits
-(`logs/planner-review/wf-03l/decision.md`): the planner's verify-01 4/6 (an
-off-by-one body extractor; map character offsets compared instead of line
-positions) is retained and verify-02 passed; the executor dev-01 C01 boundary
-and C03 blank-line extractor defects and negative-01 N26 window defect are
-retained, fixed in dev-02 and negative-02; generate-03 corrected the L
-record's code-span coordinates; EX-L01 and EX-L02 were accepted unchanged;
-publisher phases and controls inspected, not rerun or historically
-authenticated; scans lexical; Git/disk/live checks lack negative controls; the
-planner parent output is chat-only. WF-03K limits
-(`logs/planner-review/wf-03k/review1/decision.md`): the planner's verify-01
-3/5 (an inline-code example misread as a link; a failed network lookup) is
-retained and verify-02 passed; the executor dev-01 C06 directional-oracle gap
-and negative-01 N14 indentation-mutant defect are retained, fixed in dev-02
-and negative-02; its evidence README's "three" generator runs is an accepted
-summary-count typo for the four runs in its ledger; controls inspected, not
-rerun; scans lexical; Git/disk/live checks lack negative controls. WF-03J limits
-(`logs/planner-review/wf-03j/review2/decision.md`, review1 retained): the
-initial negative-01 expected-message defects and the c1-dev-01 C17 false
-positive are retained; the review-1 plain-form oracle evidence stays with its
-correction; the planner's misdirected status write is retained in review2;
-controls inspected, not rerun. WF-03I limits
-(`logs/planner-review/wf-03i/review1/decision.md`): the planner's verify-01
-Git ENOBUFS failure is retained (verify-02 passed); generate-01 output files
-are gone (hashes, tool and streams survive) and helper console output exists
-only in the executor chat; controls inspected, not rerun; reconstruction alone
-cannot catch an omitted repair.
-Planning-policy limits: planner-authored, lexical
-link checks, no negative controls; publisher phases inspected, not rerun; the
-fresh live stdout is only in the planner transcript. WF-03H limits
-(`logs/planner-review/wf-03h/review1/decision.md`): the dev-01 C10
-absolute-offset checker defect was fixed without a document change;
-generate-01 output files were overwritten (hashes, tool and streams survive);
-controls inspected, not rerun; the planner's freeze-01 wrong-path failure is
-retained; EX-H03 HL691-692 and prior G wording stay deferred and unreconciled.
-WF-03G limits
-(`logs/planner-review/wf-03g/review1/decision.md`): negative-01 N23 survived a
-checker weakness (fixed in negative-02, retargeted in negative-03); the
-planner's first link scan misread a code span (retained); controls inspected,
-not rerun; scans lexical; Git/disk/live checks lack negative controls; EX-G03
-GL613/690/705-707 wording unreconciled. WF-03F limits:
-`logs/planner-review/wf-03f/review1/decision.md` (N01 no-op, controls not
-rerun) and its `publication-verification.json` (publisher source hash only).
-WF-03E limits:
-`logs/planner-review/wf-03e/review2/decision.md` and `review1/decision.md`.
-WF-03D limits (`logs/planner-review/wf-03d/review1/decision.md`): lexical
-scans; no Git/disk mutants; executor controls inspected, not rerun; N05, not
-N06, is the broken-fragment control. WF-03D and WF-03G planner parent console
-output is only in transcripts.
-WF-03C limits (`logs/planner-review/wf-03c/review2/decision.md`):
-negative-01's failed baseline invalidates its kills; the recovered dev-01
-checker matches its hash but is no original snapshot; the aborted write is an
-executor note, not an original stream. WF-02A's evidence-loss deviation stands:
-`logs/executor/wf-02a/correction1/development-runs-transcribed.md` is a partly
-abridged derivative chat transcription, not recovered or independently
-authenticated output; original failed runs, checker and timings are
-unavailable; run B's exit status is unknown. Other evidence is in this file at
-their commits; retained, not rerun. Product, test, browser, generation and
-qualification evidence keeps its original scope; none was run. Earlier
-deliveries (TEST-48-01 `d60d718` and before) remain in this file at `a593009`
-and before; their excluded-artifact reads grant no retrospective authorization
-or new read.
+WF-03N `0a57216c` (sole parent `b409983e`, seven mode-100644 paths) is
+published per `logs/planner-review/wf-03n/publication-verification.json`
+(independent 5/5; read, not rerun); review
+`logs/planner-review/wf-03n/decision.md`. WF-03 technical acceptance is
+effective. EX-N01 and EX-N02 are accepted; RV-N01 is an accepted evidence
+limit. The record's unpushed, pre-GO wording is historical:
+[WF-03N execution record](current-work-history-0a57216.md#active-slice-wf-03n-integrated-routing-and-acceptance).
+
+Earlier slices, WF-03M `b409983e` back to WF-02A `a593009`: commits, review
+record paths, publication evidence and limits as carried at `0a57216` are in
+the [execution snapshot](current-work-history-0a57216.md#prior-published-delivery);
+WF-03I to WF-03N review bodies and the retained B, C, WF-02B and WF-02A
+dispositions are in the
+[planner snapshot](planner-handoff-history-0a57216.md#retained-review-and-evidence-limits)
+and the sections above it. Every stable finding and disposition stays in its
+slice's `logs/planner-review/<slice>/` and `logs/executor/<slice>/` records;
+earlier checkpoint bodies are in Git history. TEST-48-01 `d60d718` and earlier
+are in this file at `a593009` and before; their excluded-artifact reads grant
+no retrospective authorization or new read. Do not reopen or republish them.
+
+## Active evidence limits
+
+Archiving and progressive reading resolve or waive none of these:
+- **WF-02A evidence loss.**
+  `logs/executor/wf-02a/correction1/development-runs-transcribed.md` is a
+  partly abridged derivative chat transcription, not recovered or
+  independently authenticated output; original failed runs, checker and
+  timings are unavailable; run B's exit status is unknown. Never reconstruct.
+- **Failed, missing and derivative evidence stays as recorded:** C's failed
+  negative-01 baseline (its kills invalid), recovered (not original) dev-01
+  checker and aborted-write note; no-op or surviving mutants (F N01, G N23);
+  overwritten or missing generator output (H, I); B and I ENOBUFS records;
+  M publisher `git show` reads without stream recording; RV-N01 child Git
+  reads without individual streams; failed planner verifications, executor
+  checker defects, excluded throws and chat-only console output in the
+  per-slice records. Later passes explain or erase none.
+- **Scope.** Link, ownership, coordinate and sensitive scans are lexical and
+  prove no semantic equivalence; Git/disk/live and independent checks have no
+  negative controls; retained controls and publisher phases were inspected,
+  not rerun or historically authenticated; no new whole-original inverse is
+  claimed. Ordinals, counts, "real today", EX-G03 and EX-H03 wording and the
+  WF-02B observations stay unreconciled or unadjudicated. Product, test,
+  browser, generation and qualification evidence keeps its original scope;
+  none was run.
+- The documentation rework map's known missing
+  `planner-handoff.md#verified-transition-baseline` link is unchanged.
 
 ## History
 
