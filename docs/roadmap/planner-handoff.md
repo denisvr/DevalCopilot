@@ -5,13 +5,18 @@
 ## Priority and verified baseline
 
 Documentation first; functional development, test improvements and P9 stopped.
-Codex plans/reviews; Claude implements. WF-03 incomplete; later moves unselected.
-Startup verified main; HEAD, local origin/main and independent live main
-`cc718a7d2f7f35ca2b2284dd131a550b7a8431f3`; divergence 0/0, empty index,
-clean tree and no nonignored untracked paths before this selection edit.
-Initial live lookup failed (`getaddrinfo`); elevated read-only retry matched.
-Startup console streams are chat-only; no negative controls or authentication
-of earlier execution. At dispatch only this checkpoint is modified, unstaged.
+Codex plans/reviews; Claude implements. WF-03 technical acceptance is below;
+publication pending, later work unselected.
+Selection startup verified main; HEAD, local origin/main and independent live
+main `b409983e947c73f53e3605cf3012c7d8807668e0`; divergence 0/0, empty index,
+no nonignored untracked paths. Before this planner edit, only
+`development-workflow.md` differed: the owner's planner-continuity rule,
+9375 bytes, SHA-256
+`ebb9267d69612f65eeec6e31f4f21313b6905dfae260fd3619d821381c37ac65`.
+Preserve and deliver that authorized change with WF-03N. At dispatch this
+checkpoint also differs, unstaged. Fresh live lookup matched; parent console
+output is chat-only. Owner reported 26% context before selection; continue
+this planner chat, with no inferred current measurement.
 
 WF-03L delivered: sole parent `340d5e9d0148c32e21796a96504c283f3da025db`,
 nine mode-100644 paths. Retained publication-verification.json under
@@ -31,47 +36,89 @@ limits remain below and in current-work and their linked review records.
 Largest-coherent-slice policy is published (`b81f7611`); its retained evidence
 and limits are in `logs/planner-review/wf-planning-policy/` and current-work.
 
-## Selected slice: WF-03M publication GO
+## Selected slice: WF-03N publication GO and technical acceptance
 
-GO for exactly eight mode-100644 documents frozen in
-`logs/planner-review/wf-03m/publication-manifest.json`; parent
-`cc718a7d2f7f35ca2b2284dd131a550b7a8431f3`; subject
-`docs: extract typed dialogue and durable ledger contracts`.
-Same Claude chat commits the frozen diff, normally pushes main to origin/main
-and verifies live main. Material changes return for review; failed push or
-divergence stops without force or history reconciliation. No closure edit.
-WF-03 incomplete; no next slice selected. Publication is pending.
+GO for seven mode-100644 documents frozen in
+`logs/planner-review/wf-03n/publication-manifest.json`; parent
+`b409983e947c73f53e3605cf3012c7d8807668e0`; subject
+`docs: integrate protocol routing and acceptance evidence`.
+Same Claude chat commits and normally pushes main to origin/main, then verifies
+live main. Material changes return for review; failed push/divergence stops
+without force or history reconciliation. No closure diff. Publication pending.
 
-Review: `logs/planner-review/wf-03m/decision.md`. Independent verify-01 5/5:
-exact 40977-byte inverse and separate moved-section comparisons, 24 direct
-forwarders, all 66 headings, 368 local links, A-L bytes and line positions,
-existing companion bodies and 3466-byte current-work History/Open risks exact.
-Original Git child streams/checker retained. Fresh live parent matches;
-lookup and planner parent console output are chat-only. Scans are lexical;
-independent/Git/disk/live checks have no negative controls.
+WF-03's protocol-reorganization criteria are technically accepted: focused
+owners, concise core/router, direct startup routes, preserved legacy fragments
+and explicit cumulative evidence limits. Delivery completion awaits independent
+publication verification. This does not close the wider documentation/workflow
+objective, resume functional work or select another slice. Candidate/pre-GO
+wording in executor documents remains historical; no reopening required.
 
-EX-M01 accepted: the executor correctly notes that original "above" referred
-to the ledger's own critical-review paragraph. The planner's assumption that
-relocation broke it was unnecessary. The explicit link nevertheless identifies
-the same critical-review stage without changing eligibility or authority;
-keep it, with the observation retained, rather than make a cosmetic reversal.
-EX-M02 accepted: existing protocol routes stay valid, unchanged/out of scope.
-No blockers. Companion EOF blank lines are restored in exact reconstruction.
+Review: `logs/planner-review/wf-03n/decision.md`. Independent verify-03 5/5:
+exact 17983-byte pre-N inverse; 66 original heading identities, 63 unchanged
+forwarders, one split, 15 unchanged companions, protected engineering-context
+boundary, A-M bytes/positions, workflow patch and 3466-byte risks suffix exact.
+Fresh A-M history checks: 13 manifests, 102 committed file identities, topology
+and stable forwarding targets; individual Git streams retained in verify-03/.
+Independent links-01: 1212 local links, 146 inbound protocol fragments, only the
+known pre-existing missing verified-transition-baseline fragment; 43 retained
+record hashes matched. Scans lexical, no independent negative controls; fresh
+live parent matched, stdout and planner parent console output chat-only.
 
+EX-N01 accepted: A records composition/per-section conservation, B-M named
+inverses; E's introduction correction retains suffix proof; B/C/E/J correction
+finals provide later complete hash records. Fresh identities are distinct from
+retained claims; no new whole-original inverse or historical authentication.
+EX-N02 accepted: untouched sibling startup row still reaches the protocol.
+RV-N01 accepted limit: executor history child Git reads lack individual streams;
+aggregate runner streams survive, independent history streams retained here.
+Chat-only failed edit/formatter attempts have no standalone original streams;
+none recreated. All earlier evidence limits remain active.
+
+Executor final 22/22, history-02 12/12 (history-01 11/11 retained), negative
+baseline 16/16 and controls 18/18 inspected, not rerun. Final inputs, thirteen
+tool/artifact hashes and eight runner snapshots match. No product suites.
+Planner verify-01 and verify-02 each 4/5: reader assumed uniform parent field;
+A uses expectedParent, C/D soleParent. Verify-03 handles all three. Both failed
+checkers/results/child streams retained; intermediate schema-survey PowerShell
+parser error is chat-only. Executor documents unchanged by these defects.
+
+This final GO supersedes dispatch checkpoint 26990 bytes, SHA-256
+`8c1e739bd6cd5d39814e3244d868a2f5f9a6d8b26e1a290f251e2f7c4570279a`,
+which executor C12 checked. Six executor paths retain final-01 bytes; freeze
+covers this final seventh planner path. Standing constraints and earlier
+records below remain; planner continuity follows the owner's >60% rule.
+
+## WF-03M delivered publication and review
+
+Published `b409983e947c73f53e3605cf3012c7d8807668e0`, sole parent
+`cc718a7d2f7f35ca2b2284dd131a550b7a8431f3`; eight mode-100644 paths.
+`logs/planner-review/wf-03m/publication-verification.json`: independent 5/5;
+checker publication-verify.mjs, original Git streams publication-verification-01/.
+Manifest 2325 bytes, SHA-256
+`c0185d4d14a3226342103ade670eef6f61a06e0cb7ee00d2c3ce94a396c7cd1b`.
+Publisher five phases/81 command records inspected, not rerun or historically
+authenticated: pre 38/38, stage 28/28, commit 33/33, push 9/9, post 40/40.
+Publisher/snapshots match
+`b54d1af6ab68cedf9805745ca94ebf59236130beaf36090104dd34ffbe2fe7d4`.
+Its committed-byte git show calls bypassed stream recording; independent
+committed-byte reads retained. Git/disk/live checks have no negative controls.
+No closure edit or reopening. Final GO checkpoint 22482 bytes,
+`a2886a18f4e367fa4c3b2b18b8dd9cfba4ded83ead650cc3c76d56ebfd31b07c`;
+dispatch checkpoint was 23765 bytes, `43e79b42...0fa3e9`, intentionally superseded.
+
+Review: `logs/planner-review/wf-03m/decision.md`; independent verify-01 5/5,
+freeze-01 three checks. Exact 40977-byte inverse, separate moved comparisons,
+66 headings, 24 forwarders, 368 links; A-L positions and 3466-byte suffix exact.
 Executor final 24/24, negative baseline 17/17, controls 38/38 inspected, not
-rerun or historically authenticated. Current final inputs, thirteen tool/
-fragment hashes and seven ledger tool snapshots matched. Thirteen C03 throws
-are not kills; every counted kill has an expected nonthrowing failure and a
-changed mutant. Dev-01 duplicate-link count checker defect retained; dev-02
-fixed it without document changes. All prior limitations remain. No product
-suites; moved counts, ordinals and "real today" wording unreconciled/unendorsed.
-
-This final GO supersedes dispatch checkpoint 23765 bytes, SHA-256
-`43e79b422d32d6cb3e39787f95d80caef59f3d7656e4698fb92f89cbcb0fa3e9`,
-which executor G02 checked. Seven executor documents retain final-01 bytes;
-publication freeze covers this updated eighth path. Standing constraints and
-historical decisions below remain unchanged. Assess continuity only after
-independently verifying publication.
+rerun. Final inputs, thirteen tool/fragment hashes and seven snapshots matched.
+Thirteen C03 throws excluded from kills; expected nonthrowing failures counted.
+Dev-01 duplicate-link count checker defect retained, corrected in dev-02 without
+document changes. EX-M01 accepted with challenge: original "above" referred to
+the ledger's preceding paragraph, but the explicit link names the same review
+stage without changing authority; EX-M02 legacy routes accepted unchanged.
+EOF blank lines restored by inverse. Scans lexical; independent checks lack
+negative controls; ordinals/counts/"real today" unreconciled and unendorsed.
+All earlier limits remain below and in current-work. No product suites run.
 
 ## WF-03L delivered review and publication (historical GO)
 

@@ -29,9 +29,11 @@ the root `AGENTS.md` and `CLAUDE.md`, and a link never imports this file.
 - One executor chat holds a selected slice's implementation and all its
   corrections. The next executor chat starts only after the prior slice is
   published and verified, except for a documented recovery transition.
-- Planner review and its correction rounds stay in one planner chat when
-  practical; a new one suits a distinct outcome or a long context. Never
-  restart an active review merely because of compaction.
+- Planner work and review corrections stay in the current planner chat unless
+  observed or owner-reported context usage exceeds 60%. A distinct outcome,
+  transcript length, uncertain capacity or compaction alone is not a reason
+  to start another planner chat. Never restart an active review merely
+  because of compaction.
 
 ## Planning and dispatch
 
@@ -102,9 +104,13 @@ remote stops publication without force-push or history reconciliation.
 After independently verifying publication, the planner recommends exactly one
 of `CONTINUE_THIS_CHAT` or `START_NEW_CHAT` and explains why. Cite context usage
 only when observed or owner-reported, naming the source; never infer it from
-transcript length, account quota, model window limits or compaction. About 60%
-reported usage triggers reassessment, not automatic abandonment. Prefer a
-fresh planner chat for substantial work when capacity is uncertain.
+transcript length, account quota, model window limits or compaction. For the
+planner specifically, recommend `START_NEW_CHAT` only when observed or
+owner-reported context usage exceeds 60%; reaching exactly 60% does not meet
+that threshold. Above 60%, reassess whether a transition is useful rather than
+restart automatically. At or below 60%, recommend `CONTINUE_THIS_CHAT`.
+Unknown usage or uncertain capacity alone does not justify a new planner chat.
+This threshold does not change the executor's separate continuity rules.
 
 - `CONTINUE_THIS_CHAT`: assess the next work, then select and dispatch one safe
   bounded slice once, with the complete executor prompt; or state the specific

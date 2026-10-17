@@ -5,38 +5,34 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03M dialogue, ledger and isolation extraction
+## Active slice: WF-03N integrated routing and acceptance
 
 - **Status: implemented; UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review;
-  no GO.** Preflight matched: `main`; `HEAD`, `origin/main` and live main
-  `cc718a7d`; 0/0; empty index; only the planner checkpoint (23765 bytes,
-  `43e79b42...0fa3e9`) modified, preserved byte-identically.
+  no GO; not an acceptance of WF-03.** Preflight matched: `main`; `HEAD`,
+  `origin/main` and live main `b409983e`; 0/0; empty index; only the
+  owner-authorized [workflow](development-workflow.md) patch (9375 bytes,
+  `ebb9267d...37ac65`) and the planner checkpoint (26990 bytes,
+  `8c1e739b...70279a`) modified, both preserved byte-identically.
 - **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
-  (Purpose routing, 24 forwarders, directory framing),
-  [format repair](../architecture/agent-collaboration-format-repair.md)
-  (introduction only), [index](../architecture/README.md) (protocol entry, two
-  entries), [rework map](agent-collaboration-protocol-rework-map.md)
-  (introduction, WF-03M record), this file. New:
-  [dialogue](../architecture/agent-collaboration-dialogue.md) and
-  [ledger](../architecture/agent-collaboration-ledger.md). Other companions
-  unchanged. Ignored: `logs/executor/wf-03m/`.
-- **Findings.** EX-M01 observation: the dispatched ledger repair links "the
-  critical-review path above" (baseline lines 157-158) to the dialogue's
-  Critical review stage, which the baseline placed below (line 366); "above"
-  followed the ledger's own critical-review attempt paragraph (lines 123-137),
-  which stays above it in the ledger. Implemented as dispatched; the link names
-  the same path's stage and changes no authority; keeping "above" unchanged is
-  the bounded alternative. EX-M02 observation: the engineering context (line
-  36), the guidance and escalation introduction (line 29) and a frontend test
-  comment still route roles, messages, the role-first rule or the
-  reply-semantics table to the protocol, like EX-K01 and EX-L02; the protocol's
-  Purpose routing and forwarders lead on. Both unchanged, outside the allowlist.
-- **Checks and limits.** `logs/executor/wf-03m/runs.log` and its README. Nine
-  authorized substitutions with exact bytes in the map record; every other
-  moved line exact; the baseline reconstructs exactly. Link, coordinate,
-  directional and sensitive scans are lexical and prove no semantic
-  equivalence; Git/disk/live checks have no negative control; retained stage
-  ordinal, "real today" and claim-path wording is unreconciled.
+  (Purpose routing and the 15-row companion directory only),
+  [engineering context](../engineering-context.md) (the collaboration row
+  became nine rows), [rework map](agent-collaboration-protocol-rework-map.md)
+  (introduction, WF-03N record), this file; the workflow patch as found. New:
+  [acceptance report](agent-collaboration-protocol-acceptance.md). All 15
+  companions unchanged. Ignored: `logs/executor/wf-03n/`.
+- **Findings.** EX-N01 observation: WF-03A's retained final records a core
+  composition check and per-section verbatim bodies rather than a named
+  inverse reconstruction; B-M record named reconstructions. Disclosed in the
+  report, not a coverage gap. EX-N02 observation: the engineering context's
+  unchanged sibling row for the approval set, receipt and history (ADR-0030 to
+  ADR-0037) still routes to "protocol"; outside the replaced row. The known
+  missing `planner-handoff.md#verified-transition-baseline` link in the
+  documentation rework map is pre-existing and unchanged.
+- **Checks and limits.** `logs/executor/wf-03n/runs.log` and its README; the
+  report separates fresh WF-03N checks from retained A-M claims. Link,
+  ownership, coordinate and sensitive checks are lexical and prove no semantic
+  equivalence; Git/disk/live checks have no negative control; old checkers
+  were not rerun and no new whole-original reconstruction is claimed.
 - **Next action:** independent Codex review. No commit or push.
 
 ## Documentation priority
@@ -48,14 +44,22 @@ Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03L `cc718a7d`, WF-03K `340d5e9d`, WF-03J `0de51c01`, WF-03I `578c83d3`, the planning policy `b81f7611`
+WF-03M `b409983e`, WF-03L `cc718a7d`, WF-03K `340d5e9d`, WF-03J `0de51c01`, WF-03I `578c83d3`, the planning policy `b81f7611`
 (workflow and slice template), WF-03H `8a4223d5`, WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E
 `5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A
 `c1189f1a` and WF-02B `d1a7b457` (each the sole parent of the one before) are
 published per `logs/planner-review/<slice>/publication-verification.json`
 (planning policy: `wf-planning-policy`); WF-02A `a593009` (four documents) per
 `logs/planner-review/wf-02a/`. Pre-publication wording is historical; do not
-reopen or republish them. WF-03L limits
+reopen or republish them. WF-03M limits
+(`logs/planner-review/wf-03m/decision.md`): the publisher's committed-byte
+`git show` reads bypassed stream recording (independent committed-byte reads
+are retained); the executor dev-01 duplicate-link count checker defect is
+retained, fixed in dev-02; thirteen C03 throws are excluded from kills;
+EX-M01 was accepted with the challenge recorded and EX-M02 unchanged; final,
+negative and publisher records inspected, not rerun or historically
+authenticated; scans lexical; Git/disk/live checks lack negative controls;
+ordinals, counts and "real today" stay unreconciled. WF-03L limits
 (`logs/planner-review/wf-03l/decision.md`): the planner's verify-01 4/6 (an
 off-by-one body extractor; map character offsets compared instead of line
 positions) is retained and verify-02 passed; the executor dev-01 C01 boundary

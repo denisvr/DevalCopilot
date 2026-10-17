@@ -4,8 +4,8 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds thirteen separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I, WF-03J, WF-03K, WF-03L and WF-03M;
+prevail. It holds fourteen separately pinned records: the moves WF-03A to WF-03M
+and the WF-03N routing integration, whose candidate acceptance report is separate;
 each record's identifiers and coordinates refer only to its own baseline, and
 each earlier record's statements stay as written, as history. WF-03 remains
 incomplete. Future WF-03 moves remain unselected and have no destination here.
@@ -1722,3 +1722,82 @@ paragraph named the dialogue, ledger, isolation and abandonment subjects
 because they stayed in the protocol at that move; WF-03M moves them. This is a
 relocation, not a reconciliation: moved facts and wording are as written at
 the baseline, apart from the nine substitutions above.
+
+## WF-03N record
+
+WF-03N moves no section. It integrates the protocol as a router: the Purpose
+routing paragraphs and the companion directory under the Context assembly
+heading are replaced by one routing paragraph and one 15-row directory table,
+and the [engineering context](../engineering-context.md) startup table routes
+directly to all 15 companions. The cumulative candidate acceptance evidence is
+in the
+[protocol acceptance report](agent-collaboration-protocol-acceptance.md). This
+record was written with WF-03N's uncommitted working-tree diff, for
+independent review before any GO; it describes that diff, not a published
+delivery or an acceptance decision. Publication, if any, is evidenced by Git
+history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `b409983e947c73f53e3605cf3012c7d8807668e0`, the
+  published WF-03M result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `a4627695f3995107a797e6772d83018a62fbf49f`, SHA-256
+  `5de823e1b99b379cd7a5ccc715f5015f68db94d43c4d6b83b80be776b8b823be`,
+  17983 bytes, 428 lines, 66 Markdown headings. Read it with
+  `git show b409983e:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `NLstart-end` are WF-03N baseline lines of the protocol;
+  `NPstart-end` are lines of the protocol after WF-03N; `NEstart-end` are
+  lines of the engineering context. Row IDs carry an `N-` prefix. No WF-03N
+  identifier refers to a row or coordinate of WF-03A to WF-03M.
+- **Dispositions.** Retain means kept verbatim. Replace means the authored
+  routing text replaced the listed baseline lines; it holds no contract text.
+  All 66 headings stay in order with identical text and level, and all 63
+  forwarders, including Review correction's two destinations, are unchanged.
+
+### WF-03N ranges
+
+The five ranges cover NL1-428 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| N-R-01 | NL1-12 | Title and the first two Purpose paragraphs | Retain | NP1-12 | Verbatim, including orchestrator authority |
+| N-X-01 | NL13-26 | The two Purpose routing paragraphs and the blank line between them | Replace | NP13-17 | One five-line routing paragraph that points to the directory and names no subject catalogue |
+| N-R-02 | NL27-152 | Blank line, the 24 dialogue and ledger forwarders, the Context assembly heading and forwarder and its blank line | Retain | NP18-143 | Verbatim |
+| N-X-02 | NL153-229 | Directory framing paragraph, its blank line and the twelve directory paragraphs | Replace | NP144-172 | Three-line framing, the 15-row table and a seven-line paragraph of routing distinctions |
+| N-R-03 | NL230-428 | Blank line, provider runtime configuration and the 35 subsection forwarders, token efficiency, untrusted content and protocol evolution | Retain | NP173-371 | Verbatim; protocol evolution NL424-428 is NP367-371 |
+
+The protocol's inverse is exact: replacing NP13-17 with NL13-26 and NP144-172
+with NL153-229 restores the 17983-byte baseline. In the engineering context
+the single collaboration row (baseline line 36) became the nine rows NE36-44;
+every other line is unchanged, and the rows cite ADR-0004 and ADR-0009 to
+ADR-0028, as the replaced row did.
+
+### WF-03N routes
+
+- **Directory.** One row per companion, in this order: dialogue, ledger,
+  context, provider contracts, execution evidence, evidence inspection, format
+  repair, usage evidence, token-activity controls, account usage, invocation
+  configuration (with a direct link to its provider configuration
+  observations), guidance and escalation, correction and budgets, source
+  evidence and local delivery. The table stays under the legacy Context
+  assembly heading, after its forwarder, and the framing says it is not part
+  of context assembly.
+- **Distinctions.** The paragraph after the table keeps the routing
+  distinctions of the replaced directory and companions: local delivery is
+  not remote publication; recorded evidence, provenance and observations are
+  not approval, readiness or workflow authority; the claim-count and reserved
+  invocation-time budgets are not measured duration, token activity or account
+  usage; and the Review correction heading forwards to both of its
+  destinations. They are routing summaries, not contracts.
+- **Startup.** The nine engineering context rows group the core, dialogue,
+  ledger, context and provider contracts, attempt evidence and controls,
+  invocation configuration and format repair, guidance and escalation,
+  correction and budgets, and source evidence and local delivery, linking each
+  of the 15 companions directly.
+- **Preserved.** All 15 companion files, every other protocol line, the A-M
+  records of this map and their line positions, and every inbound link to a
+  retained protocol fragment are unchanged. Earlier records' not-moved
+  statements and coordinates keep their statements as history.
+- **Acceptance.** The
+  [protocol acceptance report](agent-collaboration-protocol-acceptance.md)
+  summarizes the cumulative coverage of the 66 WF-03A baseline headings and
+  separates fresh WF-03N checks from retained A-M evidence. It is a candidate
+  for planner review, not a declaration that WF-03 is complete.

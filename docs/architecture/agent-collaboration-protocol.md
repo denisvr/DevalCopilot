@@ -10,20 +10,11 @@ Codex and Claude Code have primary roles, not absolute authority. The
 orchestrator owns authority and enforces the resolved plan, policies, budgets,
 and gates.
 
-The typed dialogue (the message envelope, role-first message authorization and
-eligibility, message types, version 1.0 reply semantics, default interaction,
-authority matrix and structured output failure) is in the
-[dialogue](agent-collaboration-dialogue.md) companion, and the durable ledger
-boundary, run execution mode and isolation and explicit abandonment are in the
-[ledger](agent-collaboration-ledger.md) companion; their original headings
-follow Purpose, before Context assembly, and forward there.
-
-Attempt-input preparation (context assembly, token efficiency and untrusted
-content) is in the [context](agent-collaboration-context.md) companion, and
-host runtime preflight is in the
-[provider contracts](agent-collaboration-provider-contracts.md#provider-runtime-configuration)
-companion; their original headings below forward there. The companion
-directory under Context assembly routes the protocol's other moved subjects.
+This document is the core of the agent collaboration protocol and routes its
+subjects. Apart from this Purpose and Protocol evolution, every subject it once
+held now has a companion owner, listed in the companion directory under the
+[Context assembly](#context-assembly) heading; each original heading below
+keeps its fragment and forwards directly to its owner.
 
 ## Message envelope
 
@@ -150,83 +141,35 @@ in the dialogue companion.
 Moved to [Context assembly](agent-collaboration-context.md#context-assembly)
 in the context companion.
 
-The companion directory that follows is not part of context assembly: it
-lists the companions that hold the protocol's other moved subjects, whose
-original headings below forward to them. The dialogue and ledger companions
-are routed from Purpose instead: their original headings precede Context
-assembly and forward to them.
+The companion directory below is not part of context assembly, whose contract
+is forwarded above. It routes every companion of this protocol; the original
+headings before and after it forward directly to these owners.
 
-The provider CLI safety contracts (Claude Code critical review and
-implementation, and the deferred Gemini CLI boundary) are in the
-[provider contracts](agent-collaboration-provider-contracts.md) companion; their
-original headings below forward there.
+| Companion | Subjects |
+|---|---|
+| [Dialogue](agent-collaboration-dialogue.md) | Message envelope; role-first message authorization and eligibility; message types; version 1.0 reply semantics; default interaction; authority matrix; structured output failure |
+| [Ledger](agent-collaboration-ledger.md) | Current durable ledger boundary; run execution mode and isolation; explicit abandonment and the claim paths |
+| [Context](agent-collaboration-context.md) | Attempt-input preparation: context assembly, token efficiency and untrusted content |
+| [Provider contracts](agent-collaboration-provider-contracts.md) | Host runtime preflight (provider runtime configuration); Claude Code critical-review and implementation CLI safety contracts; deferred Gemini CLI execution boundary |
+| [Execution evidence](agent-collaboration-execution-evidence.md) | Execution evidence versus semantic outcome; run-wide Agent process-duration evidence summary |
+| [Evidence inspection](agent-collaboration-evidence-inspection.md) | Recorded collaboration-input provenance; sealed Agent-artifact window inspection; Agent-attempt history and evidence inspection |
+| [Format repair](agent-collaboration-format-repair.md) | Manual read-only format repairs of the Codex Planner and of the remaining read-only stages |
+| [Usage evidence](agent-collaboration-usage-evidence.md) | Provider token-usage contracts; Claude-reported model context limits |
+| [Token-activity controls](agent-collaboration-token-activity-controls.md) | Advisory per-provider run token-activity warnings; per-provider run token-activity stop at Agent claim |
+| [Account usage](agent-collaboration-account-usage.md) | Provider account-allowance contracts; run-scoped Codex account-usage stop at claim and dispatch; run-scoped advisory Codex account-usage warning |
+| [Invocation configuration](agent-collaboration-invocation-configuration.md) | Codex model and reasoning-effort catalog contract and explicit requests; explicit Claude model-alias and effort requests; optional Claude agentic-turn limit for mutation attempts; [provider configuration observations](agent-collaboration-invocation-configuration.md#provider-configuration-observations) |
+| [Guidance and escalation](agent-collaboration-guidance-and-escalation.md) | Bounded human guidance for one authorized review correction; optional direct human guidance for mutation requests; optional second challenge round and escalation; explicit human authorization of one escalated-plan implementation; explicit verification failure diagnosis |
+| [Correction and budgets](agent-collaboration-correction-and-budgets.md) | Review correction with its correction budget and escalation; run-wide Agent claim-count and reserved invocation-time budgets and their manual-intake choice |
+| [Source evidence](agent-collaboration-source-evidence.md) | Bounded untracked-file previews, bounded tracked-hunk evidence and attested tracked-change text in Agent manifests; attested checkpoint comparison for human inspection; project instruction context in Agent manifests |
+| [Local delivery](agent-collaboration-local-delivery.md) | Complete-set Human approval for local delivery; recorded local-delivery receipt of the explicit local commit |
 
-Per-attempt execution evidence (semantic outcome versus host-measured and
-provider-reported facts) and the run-wide Agent process-duration summary are in
-the [execution evidence](agent-collaboration-execution-evidence.md) companion;
-their original headings below forward there.
-
-Read-only evidence inspection (recorded collaboration-input provenance, the
-sealed Agent-artifact window, and Agent-attempt history and evidence) is in the
-[evidence inspection](agent-collaboration-evidence-inspection.md) companion;
-their original headings below forward there.
-
-The manual read-only format repairs (the Codex Planner's and the remaining
-read-only stages') are in the [format repair](agent-collaboration-format-repair.md)
-companion; their original headings below forward there.
-
-Provider-reported usage evidence (the Claude Code and Codex token-usage
-contracts and Claude-reported model context limits) is in the
-[usage evidence](agent-collaboration-usage-evidence.md) companion; their
-original headings below forward there.
-
-Run-scoped token-activity controls (the advisory per-provider warnings and the
-per-provider stop at Agent claim) are in the
-[token-activity controls](agent-collaboration-token-activity-controls.md)
-companion; their original headings below forward there.
-
-Account-usage observation and controls (the provider account-allowance
-contracts, the run-scoped Codex account-usage stop at claim and dispatch and
-the advisory Codex account-usage warning) are in the
-[account usage](agent-collaboration-account-usage.md) companion; their original
-headings below forward there.
-
-Invocation configuration (the Codex model and reasoning-effort catalog
-contract, the explicit Codex model and reasoning-effort requests, the explicit
-Claude model-alias and effort requests and the optional Claude agentic-turn
-limit for mutation attempts) is in the
-[invocation configuration](agent-collaboration-invocation-configuration.md)
-companion; their original headings below forward there.
-
-Human guidance, escalation and diagnosis (bounded guidance for one authorized
-review correction, optional direct human guidance for mutation requests, the
-optional second challenge round and escalation, explicit human authorization
-of one escalated-plan implementation and explicit verification failure
-diagnosis) are in the
-[guidance and escalation](agent-collaboration-guidance-and-escalation.md)
-companion; their original headings below forward there.
-
-Review correction, with its correction budget and escalation, the run-wide
-Agent claim-count and reserved invocation-time budgets and their manual-intake
-choice, is in the
-[correction and budgets](agent-collaboration-correction-and-budgets.md)
-companion, and the provider configuration observations formerly in the same
-section are in the
-[invocation configuration](agent-collaboration-invocation-configuration.md#provider-configuration-observations)
-companion; the original Review correction heading below forwards to both.
-
-Repository source evidence (bounded untracked-file previews, bounded
-tracked-hunk evidence and attested tracked-change text in Agent manifests, the
-attested checkpoint comparison for human inspection and project instruction
-context in Agent manifests) is in the
-[source evidence](agent-collaboration-source-evidence.md) companion; their
-original headings below forward there.
-
-The complete-set Human approval for local delivery and the recorded
-local-delivery receipt of the explicit local commit are in the
-[local delivery](agent-collaboration-local-delivery.md) companion; their
-original headings below forward there. Local delivery is not remote
-publication.
+The rows are routing summaries, not contracts; each companion owns its
+subjects. Local delivery is not remote publication. Recorded evidence,
+provenance and observations are not approval, readiness or workflow
+authority. The claim-count and reserved invocation-time budgets are not
+measured duration, token activity or account usage. The original Review
+correction heading forwards both to correction and budgets and to the provider
+configuration observations in invocation configuration.
 
 ## Provider runtime configuration
 

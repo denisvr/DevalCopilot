@@ -33,7 +33,15 @@ Proposed, documentation only: it selects no mechanism and authorizes no push.
 | Scope and cockpit | [MVP scope](product/mvp-scope.md), [cockpit specification](product/run-cockpit-specification.md) |
 | Containers, ownership, bootstrap secret, notifications, background work, scheduling | [System overview](architecture/system-overview.md); ADR-0002, ADR-0006 to ADR-0008 |
 | Lifecycle, gates, verification, approval and publication state, recovery | [Workflow model](architecture/workflow-model.md) |
-| Roles, messages, manifests, provider safety, budgets, token and account controls, guidance, escalation, diagnosis, format repair | [Collaboration protocol](architecture/agent-collaboration-protocol.md); ADR-0004, ADR-0009 to ADR-0028 |
+| Collaboration core: purpose, companion directory, protocol evolution | [Collaboration protocol](architecture/agent-collaboration-protocol.md); ADR-0004 |
+| Messages, roles, reply semantics, authority matrix, structured output failure | [Dialogue](architecture/agent-collaboration-dialogue.md); ADR-0009 |
+| Durable ledger, execution-mode isolation, abandonment claim paths | [Ledger](architecture/agent-collaboration-ledger.md); ADR-0014 |
+| Attempt input preparation, runtime preflight, provider CLI safety | [Context](architecture/agent-collaboration-context.md), [provider contracts](architecture/agent-collaboration-provider-contracts.md); ADR-0011 |
+| Attempt evidence, token and account controls (evidence, not approval or readiness) | [Execution evidence](architecture/agent-collaboration-execution-evidence.md), [evidence inspection](architecture/agent-collaboration-evidence-inspection.md), [usage evidence](architecture/agent-collaboration-usage-evidence.md), [token-activity controls](architecture/agent-collaboration-token-activity-controls.md), [account usage](architecture/agent-collaboration-account-usage.md); ADR-0023, ADR-0025, ADR-0026 |
+| Invocation configuration, format repair | [Invocation configuration](architecture/agent-collaboration-invocation-configuration.md), [format repair](architecture/agent-collaboration-format-repair.md); ADR-0004 |
+| Guidance, escalation, diagnosis | [Guidance and escalation](architecture/agent-collaboration-guidance-and-escalation.md); ADR-0015, ADR-0016, ADR-0018 to ADR-0020 |
+| Review correction, claim and time budgets (not usage) | [Correction and budgets](architecture/agent-collaboration-correction-and-budgets.md); ADR-0010, ADR-0012, ADR-0013, ADR-0017, ADR-0028 |
+| Manifest source evidence, checkpoint comparison, local delivery (not remote publication) | [Source evidence](architecture/agent-collaboration-source-evidence.md), [local delivery](architecture/agent-collaboration-local-delivery.md); ADR-0021, ADR-0022, ADR-0024, ADR-0027 |
 | Journal, artifacts, secrets, leases, reconciliation, local commit, abandonment | [Data and recovery](architecture/data-and-recovery.md); ADR-0003, ADR-0029, ADR-0031 |
 | Approval set, receipt, run, event and collaboration history | ADR-0030 to ADR-0037; protocol |
 | GitHub observation, binding, checks, branch approval, permission | [GitHub and CI](architecture/github-ci-integration.md); ADR-0005, ADR-0038 to ADR-0049; ADR-0050 Proposed; publication evidence notes ([index](architecture/README.md)) are not contracts |
