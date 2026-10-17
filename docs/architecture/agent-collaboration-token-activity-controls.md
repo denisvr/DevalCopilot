@@ -13,7 +13,9 @@ below are moved verbatim; the protocol's original headings forward here, and
 the stop's "advisory warning above" means the warning section in this
 companion. Account-usage stops and warnings and account allowances are in the
 [account usage](agent-collaboration-account-usage.md) companion; model and
-effort controls, claim and time budgets and every other subject not moved to a
+effort controls and the Claude agentic-turn limit are in the
+[invocation configuration](agent-collaboration-invocation-configuration.md)
+companion; claim and time budgets and every other subject not moved to a
 companion stay in the protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 

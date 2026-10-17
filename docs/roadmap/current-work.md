@@ -5,24 +5,22 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03G account-usage extraction
+## Active slice: WF-03H invocation configuration extraction
 
 - **Status: UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review; no GO.**
-  Preflight matched: `main`; `HEAD`, `origin/main` and live main `bc649c50`;
-  0/0; empty index. Planner checkpoint (7262 bytes, `110e11f9...0cef`)
+  Preflight matched: `main`; `HEAD`, `origin/main` and live main `de8f1a72`;
+  0/0; empty index. Planner checkpoint (7956 bytes, `cdc62fd3...6a56`)
   preserved byte-identically.
 - **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
-  (three forwarders, one router, two catalog references),
-  [index](../architecture/README.md), introductions of
-  [usage evidence](../architecture/agent-collaboration-usage-evidence.md) and
-  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md),
-  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03G record),
+  (five forwarders, one router), [index](../architecture/README.md), the usage
+  evidence, token-activity controls and account usage introductions,
+  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03H record),
   this file. New:
-  [account usage](../architecture/agent-collaboration-account-usage.md).
-  Ignored: `logs/executor/wf-03g/`.
-- **Checks and limits.** Commands, hashes, exits, timings:
-  `logs/executor/wf-03g/runs.log`. Conservation is exact; link and sensitive
-  scans are lexical; Git/disk checks have no negative control.
+  [invocation configuration](../architecture/agent-collaboration-invocation-configuration.md).
+  Ignored: `logs/executor/wf-03h/`.
+- **Checks and limits.** `logs/executor/wf-03h/runs.log`. Conservation is
+  exact, no moved-body repair; link and sensitive scans are lexical; Git/disk
+  checks have no negative control; retained old wording is unreconciled.
 - **Next action:** independent Codex review. No commit or push.
 
 ## Documentation priority
@@ -34,20 +32,25 @@ Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03F `bc649c50`, WF-03E `5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`,
-WF-03B `a40d95bb`, WF-03A `c1189f1a` and WF-02B `d1a7b457` (each the sole
-parent of the one before) are published per
+WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E `5dd2e3a9`, WF-03D `02297979`,
+WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A `c1189f1a` and WF-02B `d1a7b457`
+(each the sole parent of the one before) are published per
 `logs/planner-review/<slice>/publication-verification.json`; WF-02A
 `a593009` (four documents) per `logs/planner-review/wf-02a/`. Pre-publication
-wording is historical; do not reopen or republish them. WF-03F limits:
+wording is historical; do not reopen or republish them. WF-03G limits
+(`logs/planner-review/wf-03g/review1/decision.md`): negative-01 N23 survived a
+checker weakness (fixed in negative-02, retargeted in negative-03); the
+planner's first link scan misread a code span (retained); controls inspected,
+not rerun; scans lexical; Git/disk/live checks lack negative controls; EX-G03
+GL613/690/705-707 wording unreconciled. WF-03F limits:
 `logs/planner-review/wf-03f/review1/decision.md` (N01 no-op, controls not
 rerun) and its `publication-verification.json` (publisher source hash only).
 WF-03E limits:
 `logs/planner-review/wf-03e/review2/decision.md` and `review1/decision.md`.
 WF-03D limits (`logs/planner-review/wf-03d/review1/decision.md`): lexical
 scans; no Git/disk mutants; executor controls inspected, not rerun; N05, not
-N06, is the broken-fragment control; planner parent console summaries only in
-transcripts.
+N06, is the broken-fragment control. WF-03D and WF-03G planner parent console
+output is only in transcripts.
 WF-03C limits (`logs/planner-review/wf-03c/review2/decision.md`):
 negative-01's failed baseline invalidates its kills; the recovered dev-01
 checker matches its hash but is no original snapshot; the aborted write is an

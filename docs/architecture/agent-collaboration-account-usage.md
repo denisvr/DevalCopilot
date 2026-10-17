@@ -17,8 +17,11 @@ companion, and the per-attempt token-usage contracts are in the
 no account-allowance observation and no account-usage threshold; Claude
 account usage stays open. The sections below are moved verbatim except one
 link to the Codex per-attempt token-usage contract; the protocol's original
-headings forward here. Model and effort controls, claim and time budgets and
-every other subject not moved to a companion stay in the protocol. Mapping:
+headings forward here. Model and effort controls and the Claude agentic-turn
+limit are in the
+[invocation configuration](agent-collaboration-invocation-configuration.md)
+companion; claim and time budgets and every other subject not moved to a
+companion stay in the protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Provider account-allowance contracts

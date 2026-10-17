@@ -5,60 +5,73 @@
 ## Priority and verified baseline
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
-Claude implements. WF-03 incomplete; later moves beyond G unselected.
-2026-10-17: main; HEAD, origin/main and independently checked live main:
-`bc649c50971b04161ae4d9ba3a8f91529fef4f0c`; 0/0; empty index, clean tree,
-no nonignored untracked paths before this selection edit. Dispatch includes
-the planner checkpoint; the publication GO below supersedes dispatch state.
+Claude implements. WF-03 incomplete. On 2026-10-17, verified main; HEAD,
+local origin/main and live refs/heads/main all
+`de8f1a72e72e1a6839714764248cce56ce2fed1b`; divergence 0/0; empty index,
+clean working tree, no nonignored untracked paths before this selection edit.
+The initial sandbox live lookup failed; an escalated read-only lookup matched.
+At dispatch only this unstaged checkpoint differed; the GO below supersedes it.
 
-WF-03F published; sole parent `5dd2e3a940a18e0ce44e2e60f89fbb66c1cded7e`.
-Evidence: logs/planner-review/wf-03f/publication-verification.json (five groups),
-publication-verification-01/ original streams; separate live lookup matched.
-No reopening, republication or closure edit. Frozen manifest SHA-256:
-0363ac605ee51af96e8284e04080cdf252f4d60f817aa93868d69098a56fa173.
-Review/limits: logs/planner-review/wf-03f/review1/decision.md; independent 6/6,
-freeze 4/4; executor 23/23 and negative-02 baseline 16/16, controls 23/23
-inspected, not rerun. Negative-01 N01 was a no-op; failure retained.
-EX-F01 accepted: current-work 6797 bytes, exact 3466-byte History/risks;
-EX-F02 accepted: word-preserving D rewrap, unchanged risk link via forwarder.
-Scans lexical; Git/disk/live lack mutants. Publisher initial 17/18 was a
-stdout-trim defect; raw status matched. Original publisher source overwritten:
-only hash retained, never reconstructed. Later snapshots match; pre-02 18/18,
-stage 25/25, commit 39/39, push 8/8, post 24/24. E limits retained through
-logs/planner-review/wf-03e/review2/decision.md and review1/decision.md.
+WF-03G is published, sole parent `bc649c50971b04161ae4d9ba3a8f91529fef4f0c`.
+Evidence: `logs/planner-review/wf-03g/publication-verification.json`, original
+`publication-verification-01/`, manifest and `review1/decision.md`.
+Prior publication evidence is retained, not rerun in this selection; the live
+ref was freshly checked. No reopening, republication or closure edit.
+Review 5/5, freeze 4/4; executor final 23/23, negative-03 baseline 16/16 and
+controls 25/25 inspected, not rerun. Negative-01 N23 survived a checker
+weakness; negative-02 tightened it, negative-03 retargeted it. Planner's first
+link scan misread a code span; corrected scan passed, failure retained.
+Parent console output remains in transcripts. Scans lexical; Git/disk/live
+lack negative controls. EX-G01: 7078-byte current-work, exact 3466-byte
+History/risks accepted. EX-G02: GP888 reference-only long-line repair accepted.
+EX-G03: GL613/690/705-707 wording remains unreconciled; relocation endorses
+nothing. F limits: `logs/planner-review/wf-03f/review1/decision.md` and
+`publication-verification.json` (publisher source hash only; original source
+overwritten); E: `logs/planner-review/wf-03e/review2/decision.md` and
+`review1/decision.md`; D: `logs/planner-review/wf-03d/review1/decision.md`
+(N05, not N06, is the broken-fragment control). Earlier limitations stand.
 
-## Selected slice: WF-03G publication GO
+## Selected slice: WF-03H publication GO
 
-GO for eight frozen documents; no next slice selected. Account allowance,
-Codex account-usage stop and advisory warning extracted; all 66 headings and
-legacy fragments retained. Three explicit reference repairs preserve meaning;
-cf5b8d6 confirms the catalog's original two preceding contracts. Two companion
-introductions repaired; their section bodies and map A-F records preserved.
+GO for nine documents frozen in
+`logs/planner-review/wf-03h/publication-manifest.json`; sole parent
+`de8f1a72e72e1a6839714764248cce56ce2fed1b`. Subject:
+`docs: extract invocation configuration contracts`. No next slice selected.
+Five model/catalog/effort/turn-limit sections moved together with exact bodies,
+five promoted headings, five protocol forwarders and one router. All 66
+protocol headings retained; exact 173122-byte baseline reconstruction.
+Three companion introductions only repair routing; A-G record bytes and the
+3466-byte current-work History/Open risks suffix are exact.
 
-Review: logs/planner-review/wf-03g/review1/decision.md. Independent 5/5;
-executor final 23/23 and negative-03 baseline 16/16, controls 25/25 inspected,
-not rerun. Negative-01 N23 survived a checker weakness; failure retained.
-Negative-02 fixed subject matching; negative-03 retargeted N23 after the
-companion introduction's precision edit. Planner first link scan treated a
-code-span example as active; original checker/result retained, corrected scan
-passed. Parent console outputs remain in chat transcripts, not reconstructed.
-Scans/coordinates lexical; Git/disk/live lack negative controls. No product or
-provider runs. Earlier evidence limitations remain through linked decisions.
+Review: `logs/planner-review/wf-03h/review1/decision.md`;
+`verify-01.mjs`, `independent-results-01.json` and original stdout/stderr.
+Independent 5/5, including 230 local links and five legacy fragments (lexical).
+Executor final 23/23; negative-01 baseline 16/16, controls 22/22 inspected,
+not rerun. Tool snapshots and all nine final inputs matched hashes. Dev-01
+21/22 failed C10 on absolute map offsets; checker corrected in dev-02,
+no document change; original failure retained. Generate-01 document outputs
+were overwritten, only hashes/tool/streams retained; not original output files.
+Current bytes independently conserved; no reconstruction of missing streams.
+Fresh independent live lookup matched de8f1a72; original output in chat tool
+transcript only. Scans and coordinate inventories lexical; Git/disk/live have
+no negative controls. No product, provider or qualification checks run.
 
-EX-G01 accepted: current-work 7078 bytes (+934 over target, +281 over F), exact
-3466-byte History/risks; no forced trim. EX-G02 accepted: long GP888 repairs
-only its reference, preserving neighboring retained lines. EX-G03 acknowledged:
-pre-existing GL613/690/705-707 wording remains unreconciled and out of scope;
-relocation does not endorse it. Engineering-context routes through forwarders.
+EX-H01 accepted: current-work 7399 bytes, +1255 over 6 KiB, +321 over G;
+exact risk suffix and carried evidence limitations justify no forced trim.
+EX-H02 accepted: routing explicitly includes the moved Claude agentic-turn
+limit; this describes the selected destination without changing a contract.
+EX-H03 acknowledged/deferred: HL691-692 (HP698-699) model/effort wording,
+and prior GL613/690/705-707 (HL619/696/711-713), remain unchanged and
+unreconciled. Relocation does not endorse them. No blocking findings. Planner freeze-01 failed on a wrong baseline evidence
+path; original failure retained, freeze-02 corrects only that checker path.
 
-This GO replaces dispatch checkpoint 110e11f9...0cef; old executor G02 applies
-only to that dispatch version. Seven executor documents retain reviewed bytes.
-Freeze: logs/planner-review/wf-03g/publication-manifest.json. Sole parent:
-`bc649c50971b04161ae4d9ba3a8f91529fef4f0c`. Subject:
-`docs: extract account usage contracts`. Publish exactly eight files, mode
-100644, normal fast-forward main to origin/main; verify live ref. A material
-change, push failure or divergence stops; no force, reconciliation or closure
-edit. Codex independently verifies publication. WF-03 remains incomplete.
+This GO supersedes the 7956-byte dispatch checkpoint (cdc62fd3...6a56);
+executor G02 checked that earlier version only. The other eight documents
+remain at reviewed hashes. Publish exactly nine paths, all mode 100644,
+normal fast-forward main to origin/main; verify live ref. No closure edit or
+extra acceptance round. Material change, failed push or divergence stops;
+no force or history reconciliation. Codex independently verifies publication.
+WF-03 remains incomplete; later slices unselected. Same Claude chat publishes.
 
 ## Retained review and evidence limits
 

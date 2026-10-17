@@ -31,6 +31,11 @@ shared engineering contract.
   holds the protocol's provider account-allowance contracts, run-scoped Codex
   account-usage stop at claim and dispatch, and run-scoped advisory Codex
   account-usage warning.
+- [Agent collaboration invocation configuration](agent-collaboration-invocation-configuration.md)
+  holds the protocol's Codex model and reasoning-effort catalog contract,
+  explicit Codex model and reasoning-effort requests, explicit Claude
+  model-alias and effort requests, and optional Claude agentic-turn limit for
+  mutation attempts.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote

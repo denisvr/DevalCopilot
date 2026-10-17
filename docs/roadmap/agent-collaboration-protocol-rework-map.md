@@ -4,11 +4,11 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds seven separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E, WF-03F and WF-03G; each record's identifiers and coordinates
-refer only to its own baseline, and each earlier record's statements stay as
-written, as history. WF-03 remains incomplete. Future WF-03 moves remain
-unselected, and this map names no destination for them.
+prevail. It holds eight separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E, WF-03F, WF-03G and WF-03H; each record's identifiers and
+coordinates refer only to its own baseline, and each earlier record's
+statements stay as written, as history. WF-03 remains incomplete. Future
+WF-03 moves remain unselected, and this map names no destination for them.
 
 ## WF-03A record
 
@@ -722,3 +722,144 @@ introductions, as above. WF-03F's not-moved list named the account-usage stop
 and warning and account allowances because they stayed at that move; WF-03G
 moves them. This is a relocation, not a reconciliation: moved facts and
 wording are as written at the baseline, except the one reference repair above.
+
+## WF-03H record
+
+WF-03H moves the Codex model and reasoning-effort catalog contract, the
+explicit Codex model and reasoning-effort requests, the explicit Claude
+model-alias and effort requests and the optional Claude agentic-turn limit for
+mutation attempts, and repairs the usage evidence, token-activity controls and
+account usage companion introductions that placed model and effort controls in
+the protocol. This record was written with WF-03H's uncommitted working-tree
+diff, for independent review before any GO; it describes that diff, not a
+published delivery. Publication, if any, is evidenced by Git history and the
+checkpoints, not by this record.
+
+- **Baseline.** Commit `de8f1a72e72e1a6839714764248cce56ce2fed1b`, the
+  published WF-03G result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `8c7ab934d936012018cd0d1e0d47e1ca084d0999`, SHA-256
+  `99e65cfebf891ad8ebc7652cf9a968cb8f9c1a6e4c8f196514e96a6a547590b9`,
+  173122 bytes, 2103 lines, 66 Markdown headings. Read it with
+  `git show de8f1a72:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `HLstart-end` are WF-03H baseline line spans; `HPstart-end`
+  are lines of the protocol after WF-03H; `HIstart-end` are lines of the
+  [invocation configuration](../architecture/agent-collaboration-invocation-configuration.md)
+  companion. Row IDs carry an `H-` prefix. No WF-03H identifier refers to a
+  row or coordinate of WF-03A to WF-03G. A section range spans its heading
+  through the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, with the same forwarder shape. All 66 baseline headings stay in the
+  protocol in order with identical text and level, so every fragment,
+  including the five new forwarding headings, resolves as before. The
+  companion promotes the five moved headings from `###` to `##` with identical
+  text, so their fragments are the same in both files. HI1-25 are the
+  companion's title and introduction. Companion lines HI26-519 correspond one
+  to one to HL885-1378: the five headings (HI26, HI87, HI267, HI343 and HI418)
+  are promoted, and every other line is identical, including the blank
+  separators HI86, HI266, HI342 and HI417 (HL945, HL1125, HL1201 and HL1276).
+  Those four separators and HL1379 are also the blank lines that close the
+  five forwarders.
+
+### WF-03H ranges
+
+The seven ranges cover HL1-2103 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| H-R-01 | HL1-884 | Purpose through the provider account-allowance forwarder, including the seven companion routing paragraphs and the WF-03A, WF-03B, WF-03C, WF-03E and WF-03G forwarders | Retain; one routing insertion | HP1-520 (HL1-520), HP521-527 (insertion), HP528-891 (HL521-884) | Verbatim apart from the insertion: a six-line paragraph and a blank line immediately after the account usage routing paragraph (HL515-520) and before `## Provider runtime configuration`, linking to the companion |
+| H-M-01 | HL885-945 | Codex model and reasoning-effort catalog contract | Move | HI26 heading, HI27-85 body (HL886-944), HI86 (HL945); forwarder HP892-895; HP896 (HL945) | Body verbatim |
+| H-M-02 | HL946-1125 | Explicit Codex model and reasoning-effort requests | Move | HI87 heading, HI88-265 body (HL947-1124), HI266 (HL1125); forwarder HP897-900; HP901 (HL1125) | Body verbatim |
+| H-M-03 | HL1126-1201 | Explicit Claude model-alias requests | Move | HI267 heading, HI268-341 body (HL1127-1200), HI342 (HL1201); forwarder HP902-905; HP906 (HL1201) | Body verbatim |
+| H-M-04 | HL1202-1276 | Explicit Claude effort requests | Move | HI343 heading, HI344-416 body (HL1203-1275), HI417 (HL1276); forwarder HP907-910; HP911 (HL1276) | Body verbatim |
+| H-M-05 | HL1277-1379 | Optional Claude agentic-turn limit for mutation attempts | Move | HI418 heading, HI419-519 body (HL1278-1378); forwarder HP912-915; HP916 (HL1379) | Body verbatim |
+| H-R-02 | HL1380-2103 | Per-provider run token-activity warnings through protocol evolution, including the WF-03F, WF-03G and WF-03D forwarders | Retain | HP917-1640 | Verbatim |
+
+### WF-03H fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| H-M-01 | [`#codex-model-and-reasoning-effort-catalog-contract`](../architecture/agent-collaboration-protocol.md#codex-model-and-reasoning-effort-catalog-contract) | [`#codex-model-and-reasoning-effort-catalog-contract`](../architecture/agent-collaboration-invocation-configuration.md#codex-model-and-reasoning-effort-catalog-contract) |
+| H-M-02 | [`#explicit-codex-model-and-reasoning-effort-requests`](../architecture/agent-collaboration-protocol.md#explicit-codex-model-and-reasoning-effort-requests) | [`#explicit-codex-model-and-reasoning-effort-requests`](../architecture/agent-collaboration-invocation-configuration.md#explicit-codex-model-and-reasoning-effort-requests) |
+| H-M-03 | [`#explicit-claude-model-alias-requests`](../architecture/agent-collaboration-protocol.md#explicit-claude-model-alias-requests) | [`#explicit-claude-model-alias-requests`](../architecture/agent-collaboration-invocation-configuration.md#explicit-claude-model-alias-requests) |
+| H-M-04 | [`#explicit-claude-effort-requests`](../architecture/agent-collaboration-protocol.md#explicit-claude-effort-requests) | [`#explicit-claude-effort-requests`](../architecture/agent-collaboration-invocation-configuration.md#explicit-claude-effort-requests) |
+| H-M-05 | [`#optional-claude-agentic-turn-limit-for-mutation-attempts`](../architecture/agent-collaboration-protocol.md#optional-claude-agentic-turn-limit-for-mutation-attempts) | [`#optional-claude-agentic-turn-limit-for-mutation-attempts`](../architecture/agent-collaboration-invocation-configuration.md#optional-claude-agentic-turn-limit-for-mutation-attempts) |
+
+### WF-03H link and reference changes
+
+- **Moved text.** No moved body line changed; WF-03H has no reference repair.
+- **Relative wording.** The catalog's two links to the usage evidence and
+  account usage companions (HL888, HI29; HL905, HI46) resolve unchanged from
+  the same directory. Its undirected "the allowance contract's limit id"
+  (HL921, HI62) and "exactly like the allowance contract" (HL941, HI82) carry
+  no link; the companion introduction routes them to the account usage
+  companion's allowance contract. H-M-02's "the catalog above" (HL950, HI91)
+  reaches H-M-01; its "factories below" and "further below" (HL958-959,
+  HI99-100) and "(see above)" (HL1002-1003, HI143-144) stay within H-M-02.
+  H-M-03's "the concurrency tokens below" (HL1155, HI296) stays within H-M-03,
+  and its "the later effort extension below" (HL1177, HI318) reaches H-M-04;
+  H-M-04's "The model-alias request above" (HL1204, HI345) reaches H-M-03.
+  H-M-05's "above 100" (HL1295, HI436; HL1325, HI466) is a numeric bound, not
+  a direction.
+- **In-page links.** H-M-02's `#explicit-claude-model-alias-requests` link
+  (HL1124, HI265) and H-M-03's `#explicit-claude-effort-requests` link
+  (HL1191, HI332) are same-document fragments; at the baseline they reached
+  the protocol sections, and they now reach H-M-03 and H-M-04 in the
+  companion, unchanged. H-M-02 links
+  [ADR-0009](../decisions/0009-separate-agent-roles-effects-and-provider-assignments.md)
+  (HL979, HI120); the relative path resolves unchanged from the same
+  directory. Every other link in the moved sections is an absolute `https`
+  address; the catalog's App Server documentation address (HL889, HI30) is a
+  code span, not a link.
+- **Retained references.** Review correction's quoted title "Optional Claude
+  agentic-turn limit for mutation attempts" (HL691, HP698) is not a link and
+  carries no direction; it names the retained forwarding heading. Its
+  following "no model or effort is requested" (HL692, HP699) predates the
+  Claude model-alias, effort and turn-limit requests and is kept as written.
+  Diagnosis's "the current requested Codex model and effort" (HL1667, HP1204)
+  and "the current Claude model, effort, and turn-limit requests" (HL1670,
+  HP1207) carry no direction. The account-usage wording the WF-03G review
+  deferred is here HL619, HL696 and HL711-713 (HP626, HP703 and HP718-720).
+  None of those lines changed, and the relocation reconciles or endorses none
+  of them.
+- **Inbound references.** Links to the five protocol fragments from the
+  product [cockpit specification](../product/run-cockpit-specification.md)
+  (lines 649, 671, 695, 729 and 759), the
+  [provider contracts](../architecture/agent-collaboration-provider-contracts.md)
+  companion (line 167), the
+  [documentation rework map](documentation-rework-map.md) (line 160), the
+  [delivery plan rework map](mvp-delivery-plan-rework-map.md) (line 71) and the
+  frozen [execution history](current-work-history-ba1d4c2.md) (lines 2218,
+  3087, 3194, 3471 and 3837) still reach the retained forwarding headings, and
+  each forwarder reaches the same fragment in the companion. The two rework
+  maps keep their own earlier coordinates. The WF-03A record's fragments
+  (lines 63-64 of this map) are code spans, as history. None of those lines
+  changed.
+- **Companion introductions.** At the baseline the
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
+  (lines 15-17),
+  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md)
+  (lines 15-17) and
+  [account usage](../architecture/agent-collaboration-account-usage.md)
+  (lines 20-21) introductions said model and effort controls stay in the
+  protocol, which this move makes inaccurate. Each now routes model and effort
+  controls and the Claude agentic-turn limit to the companion and keeps
+  budgets and every other unmoved subject in the protocol. In usage evidence
+  and token-activity controls, line 15 is unchanged and lines 16-17 became
+  lines 16-19; in account usage, lines 20-21 became lines 20-24. Everything
+  from each first `##` heading (baseline lines 20, 20 and 24, now 22, 22 and
+  27) through its end is byte-identical. These are introduction repairs, not
+  moved-body repairs.
+
+### WF-03H not moved
+
+Runtime preflight, the run-wide claim count and reserved-time budgets,
+manifests, structured output failure, the challenge rounds and escalation,
+review correction and its human guidance, diagnosis, local delivery and every
+other subject not moved by WF-03A to WF-03H stay in the protocol. The provider
+contracts, execution evidence, evidence inspection and format repair
+companions are unchanged; the usage evidence, token-activity controls and
+account usage companions changed only in their introductions, as above.
+WF-03G's not-moved list named the Codex model and effort catalog and the
+model, effort and agentic-turn requests because they stayed at that move;
+WF-03H moves them. This is a relocation, not a reconciliation: moved facts and
+wording are as written at the baseline.
