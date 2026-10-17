@@ -35,6 +35,22 @@ the root `AGENTS.md` and `CLAUDE.md`, and a link never imports this file.
 
 ## Planning and dispatch
 
+- The planner must always try to select the largest coherent slice that can
+  be safely implemented, validated and reviewed as one bounded outcome.
+  Group related work with a shared objective, compatible dependencies and
+  explicit acceptance criteria to reduce executor round trips and owner
+  copy-and-paste between chats. A slice is not limited by an arbitrary file,
+  section or task count. Do not split a coherent outcome merely to make each
+  dispatch smaller; when a smaller slice is necessary, state the concrete
+  dependency, uncertainty, authority, validation, rollback or context constraint.
+  Size never overrides scope, safety, role ownership or review quality.
+- Minimize routine owner intervention. Resolve ordinary planning and execution
+  choices from the contract and available evidence, inspect repository evidence
+  directly, and bundle related instructions or corrections into one actionable
+  prompt. Ask the owner only for a material unresolved choice, missing authority
+  or information that cannot be obtained independently. This does not add
+  automatic chat coordination or remove explicit GO and publication checks.
+
 - Every planning or review response includes a complete copy-and-paste prompt
   inline; a file link may supplement it but never replaces it. The prompt
   matches the actual decision (bounded execution, review correction,

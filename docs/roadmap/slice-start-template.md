@@ -14,6 +14,8 @@ untracked [state]. Verify once before editing. Stop and report any material
 discrepancy.
 
 Objective: [one observable result].
+Sizing rationale: [why this is the largest coherent safe outcome; name the
+concrete constraint if related work must be split].
 Scope: [specific paths/roles/operations and allowed changes].
 Exclusions: [nearby behavior and files that must not change].
 Stop gates: [conditions requiring a blocker report rather than scope expansion].

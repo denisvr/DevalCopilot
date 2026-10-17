@@ -5,73 +5,60 @@
 ## Priority and verified baseline
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
-Claude implements. WF-03 incomplete. On 2026-10-17, verified main; HEAD,
-local origin/main and live refs/heads/main all
+Claude implements. WF-03 remains incomplete; later extraction slices unselected.
+WF-03H independently verified published on 2026-10-17:
+main; HEAD, origin/main and live refs/heads/main all
+`8a4223d50b3a1db0cf5683d39fbba059f59818b3`; sole parent
 `de8f1a72e72e1a6839714764248cce56ce2fed1b`; divergence 0/0; empty index,
-clean working tree, no nonignored untracked paths before this selection edit.
-The initial sandbox live lookup failed; an escalated read-only lookup matched.
-At dispatch only this unstaged checkpoint differed; the GO below supersedes it.
+clean tree, no nonignored untracked paths before this planner policy edit.
+Evidence: `logs/planner-review/wf-03h/publication-verification.json`, five
+passing groups; original child Git streams in `publication-verification-01/`;
+checker `publication-verify.mjs`. Separate fresh live lookup matched; its
+original stdout remains only in the chat tool transcript. Manifest: 2570 bytes,
+SHA-256 d65fd1890428c6a4ec09aef2186a3fccc0c0a1db0da0a589dd1d71e4b3275882.
+Publisher inspected, not rerun: pre 41/41, stage 30/30, commit 33/33,
+push 8/8, post 21/21; snapshots match publisher SHA-256
+10d99acd40d20711585fd710f9ae3d92078fb428fe405450b99761ca4b186a42.
+No failed publisher phase. No H closure edit, reopening or republication.
 
-WF-03G is published, sole parent `bc649c50971b04161ae4d9ba3a8f91529fef4f0c`.
-Evidence: `logs/planner-review/wf-03g/publication-verification.json`, original
-`publication-verification-01/`, manifest and `review1/decision.md`.
-Prior publication evidence is retained, not rerun in this selection; the live
-ref was freshly checked. No reopening, republication or closure edit.
-Review 5/5, freeze 4/4; executor final 23/23, negative-03 baseline 16/16 and
-controls 25/25 inspected, not rerun. Negative-01 N23 survived a checker
-weakness; negative-02 tightened it, negative-03 retargeted it. Planner's first
-link scan misread a code span; corrected scan passed, failure retained.
-Parent console output remains in transcripts. Scans lexical; Git/disk/live
-lack negative controls. EX-G01: 7078-byte current-work, exact 3466-byte
-History/risks accepted. EX-G02: GP888 reference-only long-line repair accepted.
-EX-G03: GL613/690/705-707 wording remains unreconciled; relocation endorses
-nothing. F limits: `logs/planner-review/wf-03f/review1/decision.md` and
-`publication-verification.json` (publisher source hash only; original source
-overwritten); E: `logs/planner-review/wf-03e/review2/decision.md` and
-`review1/decision.md`; D: `logs/planner-review/wf-03d/review1/decision.md`
-(N05, not N06, is the broken-fragment control). Earlier limitations stand.
+H review: `logs/planner-review/wf-03h/review1/decision.md`; independent 5/5,
+freeze-02 4/4. Freeze-01 used a wrong baseline path; failure retained.
+Executor final 23/23 and negative baseline 16/16, controls 22/22 inspected,
+not rerun. Dev-01 C10 absolute-offset checker defect fixed with no document
+change. Generate-01 output files overwritten; hashes/tool/streams survive,
+not original output documents. No missing streams reconstructed. Scans and
+coordinates lexical; Git/disk/live lack negative controls. EX-H01 accepted:
+7399-byte current-work, exact 3466-byte History/risks. EX-H02 accepted:
+turn-limit routing. EX-H03 deferred: HL691-692 and prior GL613/690/705-707
+wording remains unchanged, unreconciled and not endorsed.
+Earlier G/F/E/D limits remain through `logs/planner-review/wf-03g/review1/decision.md`,
+`logs/planner-review/wf-03f/review1/decision.md` and its publication verification
+(publisher source hash only), E review2/review1 decisions and D review1 decision
+(N05, not N06, is the broken-fragment control). No product/provider checks.
 
-## Selected slice: WF-03H publication GO
+## Owner-requested planning policy: publication GO
 
-GO for nine documents frozen in
-`logs/planner-review/wf-03h/publication-manifest.json`; sole parent
-`de8f1a72e72e1a6839714764248cce56ce2fed1b`. Subject:
-`docs: extract invocation configuration contracts`. No next slice selected.
-Five model/catalog/effort/turn-limit sections moved together with exact bodies,
-five promoted headings, five protocol forwarders and one router. All 66
-protocol headings retained; exact 173122-byte baseline reconstruction.
-Three companion introductions only repair routing; A-G record bytes and the
-3466-byte current-work History/Open risks suffix are exact.
+Owner explicitly requested that the planner always try the largest coherent
+slice to reduce Claude/Codex relays and routine owner involvement. Planner-owned
+policy is now specified in development-workflow.md; slice-start-template.md
+requires a sizing rationale and a concrete constraint for necessary splits.
+These are human workflow documents only: no product orchestration, architecture,
+role transfer or automatic messaging is introduced. Explicit GO stays mandatory.
 
-Review: `logs/planner-review/wf-03h/review1/decision.md`;
-`verify-01.mjs`, `independent-results-01.json` and original stdout/stderr.
-Independent 5/5, including 230 local links and five legacy fragments (lexical).
-Executor final 23/23; negative-01 baseline 16/16, controls 22/22 inspected,
-not rerun. Tool snapshots and all nine final inputs matched hashes. Dev-01
-21/22 failed C10 on absolute map offsets; checker corrected in dev-02,
-no document change; original failure retained. Generate-01 document outputs
-were overwritten, only hashes/tool/streams retained; not original output files.
-Current bytes independently conserved; no reconstruction of missing streams.
-Fresh independent live lookup matched de8f1a72; original output in chat tool
-transcript only. Scans and coordinate inventories lexical; Git/disk/live have
-no negative controls. No product, provider or qualification checks run.
+GO for exactly development-workflow.md, slice-start-template.md and this
+planner-handoff.md under docs/roadmap/, at the hashes in
+`logs/planner-review/wf-planning-policy/publication-manifest.json`.
+Subject: `docs: prefer the largest coherent planning slice`.
+Sole parent: `8a4223d50b3a1db0cf5683d39fbba059f59818b3`.
+The planner authored the owner-requested policy and its checkpoint; the executor
+only publishes the reviewed files. No execution delivery or current-work closure
+edit is requested. All other tracked files remain unchanged. Normal main push,
+live verification, stop on divergence/push failure/material change; no force.
 
-EX-H01 accepted: current-work 7399 bytes, +1255 over 6 KiB, +321 over G;
-exact risk suffix and carried evidence limitations justify no forced trim.
-EX-H02 accepted: routing explicitly includes the moved Claude agentic-turn
-limit; this describes the selected destination without changing a contract.
-EX-H03 acknowledged/deferred: HL691-692 (HP698-699) model/effort wording,
-and prior GL613/690/705-707 (HL619/696/711-713), remain unchanged and
-unreconciled. Relocation does not endorse them. No blocking findings. Planner freeze-01 failed on a wrong baseline evidence
-path; original failure retained, freeze-02 corrects only that checker path.
-
-This GO supersedes the 7956-byte dispatch checkpoint (cdc62fd3...6a56);
-executor G02 checked that earlier version only. The other eight documents
-remain at reviewed hashes. Publish exactly nine paths, all mode 100644,
-normal fast-forward main to origin/main; verify live ref. No closure edit or
-extra acceptance round. Material change, failed push or divergence stops;
-no force or history reconciliation. Codex independently verifies publication.
-WF-03 remains incomplete; later slices unselected. Same Claude chat publishes.
+CONTINUE_THIS_CHAT: the immediate follow-up is this bounded workflow policy
+publication and its verification; no context-usage measurement is claimed.
+After that, assess the largest coherent remaining documentation outcome.
+WF-03 is unfinished; no next extraction is selected by this policy change.
 
 ## Retained review and evidence limits
 
