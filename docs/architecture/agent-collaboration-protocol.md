@@ -10,6 +10,13 @@ Codex and Claude Code have primary roles, not absolute authority. The
 orchestrator owns authority and enforces the resolved plan, policies, budgets,
 and gates.
 
+Attempt-input preparation (context assembly, token efficiency and untrusted
+content) is in the [context](agent-collaboration-context.md) companion, and
+host runtime preflight is in the
+[provider contracts](agent-collaboration-provider-contracts.md#provider-runtime-configuration)
+companion; their original headings below forward there. The companion
+directory under Context assembly routes the protocol's other moved subjects.
+
 ## Message envelope
 
 Every accepted agent message maps to a project-owned envelope:
@@ -466,22 +473,12 @@ There is no automatic retry, and no repair of a mutating Implementer or ReviewCo
 
 ## Context assembly
 
-Agent input is assembled from selected durable records:
+Moved to [Context assembly](agent-collaboration-context.md#context-assembly)
+in the context companion.
 
-- objective and current task;
-- the project's own root instruction files, accounted for exactly (see "Project instruction context in Agent
-  manifests");
-- current plan revision and unresolved challenges;
-- relevant decisions and findings;
-- Git fingerprint, a bounded selection of complete tracked-file hunks, and bounded previews of eligible untracked
-  text files, each marked as complete, shortened, or omitted (see "Bounded tracked-hunk evidence in Agent manifests"
-  and "Bounded untracked-file previews in Agent manifests");
-- verification evidence and selected log excerpts;
-- budgets, permissions, and expected response schema.
-
-The complete historical transcript is not replayed by default. Raw transcripts
-are artifacts available for inspection. Summaries carry source references so
-the receiving agent can distinguish derived context from primary evidence.
+The companion directory that follows is not part of context assembly: it
+lists the companions that hold the protocol's other moved subjects, whose
+original headings below forward to them.
 
 The provider CLI safety contracts (Claude Code critical review and
 implementation, and the deferred Gemini CLI boundary) are in the
@@ -557,42 +554,8 @@ publication.
 
 ## Provider runtime configuration
 
-Host runtime preflight is intentionally narrower than provider runtime configuration, and is
-itself layered into four distinct stages that must not be confused with one another:
-
-1. **Executable discovery** — resolving a fixed candidate name to an absolute, existing path
-   using only the host's normalized `PATH` and a small set of fixed fallback directories. Never a
-   shell, never `PATHEXT`, never a filesystem enumeration.
-2. **Launch-target validation** — for a provider whose only local discovery in Increment 2 is a
-   native executable, discovery and launch-target validation coincide. Increment 4 adds one
-   further, still narrowly bounded discovery path for a provider distributed as an npm package: a
-   fixed, catalog-owned package-root candidate's `package.json` is read directly (strict size
-   limit, strict parsing, exact expected package identity), and only its own declared `bin` entry
-   is resolved, and only when that entrypoint remains beneath the package root. This never
-   executes npm, npx, a package-manager shim, `.cmd`, `.bat`, cmd.exe, PowerShell, or any shell.
-   More than one independently valid launch target is treated as ambiguous and fails closed —
-   never chosen between silently.
-3. **Version observation** — a successful direct executable version probe (or, for a validated
-   npm-package launch target, a direct, fully qualified Node executable running that validated
-   entrypoint) proves only that DevalCopilot observed one local runtime version at a point in
-   time.
-4. **Authentication/invocation readiness** — everything beyond an observed version: model
-   availability, permission mode, context capacity, account usage, session continuity, and
-   whether an invocation is actually eligible. These facts remain explicit `Unknown` until a
-   later provider-owned adapter observes them through a reviewed contract. A future `Unsupported`
-   value requires affirmative provider evidence; it is never inferred from the absence of a
-   preflight probe.
-
-A locally installed Codex desktop application's own private, versioned installation layout was
-observed once, manually, through read-only inspection outside this discovery contract. That
-layout is evidence that a directly executable Codex CLI can exist on a host — it is not an
-approved stable discovery contract, and it is never added as an automatic fallback: it belongs to
-a different application, is not catalog-owned, and carries no stability guarantee DevalCopilot
-can rely on. In particular, an app-private or portable Codex desktop installation layout is never
-searched for automatically at attempt-dispatch time; resolving the actual launch target for a new
-Codex Planning attempt only reuses the durable `HostCapabilitySnapshot` row's resolved path from
-capability discovery's own last successful probe, and only when that snapshot's reason code is
-still `None` — it is revalidated, never re-searched, by this narrower dispatch-time read.
+Moved to [Provider runtime configuration](agent-collaboration-provider-contracts.md#provider-runtime-configuration)
+in the provider contracts companion.
 
 ### Claude Code critical-review CLI safety contract
 
@@ -774,38 +737,13 @@ in the source evidence companion.
 
 ## Token efficiency
 
-- Build a context manifest for each attempt and include only inputs required by
-  the current role and decision.
-- Retrieve project documentation and source progressively instead of attaching
-  the entire repository or documentation set.
-- Reuse one durable summary of stable facts and link it to primary evidence;
-  do not ask each agent to restate the same background.
-- Send changed hunks, unresolved findings, and relevant neighboring code before
-  considering a complete diff or file.
-- Never present a truncated or omitted file as complete evidence: a preview states its own completeness, and
-  every untracked path of a capture is accounted for (see "Bounded untracked-file previews in Agent manifests").
-- Prefer deterministic tools for discovery, validation, counting, formatting,
-  and status checks instead of spending model tokens inferring their results.
-- Do not repeat an agent attempt unless state, instructions, evidence, or the
-  expected response changed materially.
-- Track input, output, and cached token usage when the provider exposes it.
-  This is implemented as `AgentTokenUsageEvidence` for both Claude- and
-  Codex-produced attempts, each against its own proven, versioned parsing
-  contract (see "Provider token-usage contracts"); a provider without a
-  proven contract, or a report in an unrecognized shape, still records as
-  unknown rather than an inferred value.
-- Stop and escalate when a stage budget is exhausted rather than silently
-  borrowing unlimited tokens from the run.
-- Select model capability and reasoning depth according to task risk, not as a
-  universal maximum setting.
+Moved to [Token efficiency](agent-collaboration-context.md#token-efficiency)
+in the context companion.
 
 ## Untrusted content
 
-Repository files (including the project's own root `AGENTS.md` and `CLAUDE.md`, which are delivered only as the
-bounded, fixed-boundary section described in "Project instruction context in Agent manifests"), comments, issue text,
-test output, CI logs, generated files, and prior agent responses are quoted or delimited as untrusted evidence. They
-cannot grant permissions, alter the protocol, request credentials, change
-budgets, or bypass project instructions.
+Moved to [Untrusted content](agent-collaboration-context.md#untrusted-content)
+in the context companion.
 
 ## Protocol evolution
 

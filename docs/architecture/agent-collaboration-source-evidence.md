@@ -11,14 +11,15 @@ review decision or local delivery. The complete-set Human approval and the
 recorded receipt of the explicit local commit are in the
 [local delivery](agent-collaboration-local-delivery.md) companion. The
 sections below are moved verbatim; the protocol's original headings forward
-here, the protocol's references to them by quoted title reach those
-forwarding headings, and the sections' own quoted titles and "below"
+here, the [context](agent-collaboration-context.md) companion's introduction
+links its quoted titles of them; the sections' own quoted titles and "below"
 references mean sections or text in this companion. Their statements are as
 written at the baseline, including their counts of manifest families and
 claim handlers, their Windows-only physical proofs and the limits they state
 for the raw Git observation; the move reconciles or endorses none of them.
-Runtime preflight, context assembly and every other subject not moved to a
-companion stay in the protocol. Mapping:
+Context assembly is in the context companion and runtime preflight in the
+[provider contracts](agent-collaboration-provider-contracts.md) companion;
+every other subject not moved to a companion stays in the protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Bounded untracked-file previews in Agent manifests

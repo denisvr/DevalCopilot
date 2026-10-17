@@ -5,10 +5,11 @@
 ## Priority and verified baseline
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
-Claude implements. WF-03 incomplete. 2026-10-17: main; HEAD, origin/main and
+Claude implements. WF-03 incomplete. Historical WF-03K dispatch: main; HEAD, origin/main and
 independently checked live main `0de51c01983be9e996d7c59bde44145be781a254`;
 0/0; empty index, clean tree, no nonignored untracked paths before this edit.
-At WF-03K dispatch only this checkpoint differed, unstaged; GO below supersedes it. Initial live lookup
+Current baseline/selection are in WF-03L below. At WF-03K dispatch only this
+checkpoint differed, unstaged; historical GO superseded it. Initial live lookup
 failed (`getaddrinfo`); elevated read-only retry matched. Original lookup
 outputs are in this planner chat only, not standalone evidence.
 Planning policy published; sole parent `8a4223d50b3a1db0cf5683d39fbba059f59818b3`.
@@ -36,7 +37,71 @@ logs/planner-review/<slice>/. Scans/coordinates lexical; Git/disk/live have no
 negative controls. Earlier product/provider/qualification evidence not rerun.
 No reopening, republication or closure edit of delivered work.
 
-## Selected slice: WF-03K publication GO
+## Selected slice: WF-03L publication GO
+
+GO for exactly nine mode-100644 documents in
+`logs/planner-review/wf-03l/publication-manifest.json`; parent
+`340d5e9d0148c32e21796a96504c283f3da025db`; subject
+`docs: extract context preparation and host runtime preflight`.
+Same Claude chat publishes the frozen manifest, normal main fast-forward push
+and live verification. No later slice selected; WF-03 remains incomplete.
+Material changes return for review; failed push or divergence stops without
+force or history reconciliation. No closure diff or reopening delivered work.
+
+Fresh startup matched main/local/live parent, 0/0, empty index, clean tree;
+only this checkpoint differed at dispatch (21469 bytes,
+`343867fc...3ddd1`). Executor preserved it; this final GO supersedes dispatch.
+Initial live lookup failed, elevated retry matched; startup streams chat-only.
+A failed Python launcher made no edit; failed patch anchor changed nothing.
+Review live lookup now independently matches, original live-main.* retained.
+
+Four bodies moved verbatim: context assembly, token efficiency and untrusted
+content to context; host preflight to provider-contracts. Four direct
+forwarders, all 66 protocol headings and the exact directory retained. Exact
+45868-byte reconstruction; eleven A-K map records preserve bytes and line
+positions. Existing companion bodies, other companions, frozen snapshots and
+current-work History/Open risks (3466 bytes) exact; carried limits retained.
+Review: `logs/planner-review/wf-03l/decision.md`.
+
+Independent verify-02 6/6; 312 local links, scans/coordinates lexical. Original
+Git child streams and checker snapshots retained. Executor final 24/24,
+negative baseline 17/17 and 37/37 controls inspected, not rerun or historically
+authenticated. Final inputs, eleven fragments and eleven ledger tool snapshots
+match hashes. Eight executor documents retain final-01 bytes; publication
+freeze covers this updated planner checkpoint. No product suites.
+
+EX-L01 accepted: the immutable WF-03J configuration-observations body keeps
+its historical preflight-location statement; its link still forwards and the
+introduction explains the move. This is not endorsement of old ownership.
+EX-L02 accepted: engineering-context and two product comments route through
+valid protocol forwarders; unchanged/out of scope, like EX-K01. No blockers.
+Executor dev-01 C01 anchor/C03 blank-line checker defects and negative-01
+N26 window defect retained, corrected without substantive document changes.
+Generate-03 corrected map code-span coordinates to 1096/1132/1149; C17/N37
+cover the retained-title assertion. Planner verify-01 4/6 had an off-by-one
+body extractor and wrongly compared map character offsets instead of line
+positions; corrected in verify-02, executor documents untouched, failures
+retained. Independent/Git/disk/live checks have no negative controls;
+reconstruction alone is not routing proof. Planner parent output chat-only.
+All prior evidence limits and standing constraints below remain unchanged.
+
+## WF-03K delivered publication and historical review
+
+Published `340d5e9d0148c32e21796a96504c283f3da025db`, sole parent
+`0de51c01983be9e996d7c59bde44145be781a254`, seven mode-100644 paths.
+Retained publication-verification.json under logs/planner-review/wf-03k:
+5/5, original Git streams in publication-verification-01/ and checker
+publication-verify.mjs. This chat read the summary and freshly checked refs;
+it did not rerun that matrix. Publisher pre 35/35, stage 26/26, commit 30/30,
+push 8/8, post 29/29: five phases/74 records previously inspected, not rerun
+or historically authenticated. Publisher and phase snapshots match
+`5a1d08f73801e54c8aaa2a358e8d12256a98510fbdc24be1d88f17c493642332`.
+Final GO checkpoint: 16424 bytes, SHA-256
+`8bb391498f216f02dd0c665fc62118c417f1843d969b0a1af1c821ff12a02992`.
+The baseline and GO wording below are historical, not current publication
+authority. No closure edit or reopening of K is authorized.
+
+### WF-03K historical GO
 
 GO for exactly seven mode-100644 documents in
 `logs/planner-review/wf-03k/publication-manifest.json`; parent

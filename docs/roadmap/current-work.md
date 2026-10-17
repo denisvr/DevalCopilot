@@ -5,28 +5,37 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03K source evidence and local delivery extraction
+## Active slice: WF-03L context and runtime preparation extraction
 
 - **Status: implemented; UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review;
   no GO.** Preflight matched: `main`; `HEAD`, `origin/main` and live main
-  `0de51c01`; 0/0; empty index; only the planner checkpoint (17624 bytes,
-  `9b04c164...d861d`) modified, preserved byte-identically.
+  `340d5e9d`; 0/0; empty index; only the planner checkpoint (21469 bytes,
+  `343867fc...3ddd1`) modified, preserved byte-identically.
 - **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
-  (seven forwarders, two routers), [index](../architecture/README.md) (two
-  entries), [rework map](agent-collaboration-protocol-rework-map.md)
-  (introduction, WF-03K record), this file. New:
-  [source evidence](../architecture/agent-collaboration-source-evidence.md)
-  and [local delivery](../architecture/agent-collaboration-local-delivery.md).
-  No existing companion changed. Ignored: `logs/executor/wf-03k/`.
-- **Findings.** EX-K01 observation: the engineering context still routes
-  manifests and the approval set and receipt to the protocol (lines 36, 38),
-  as it does earlier moved subjects; the forwarders reach them, so nothing is
-  broken. Unchanged, outside the allowlist; no edit proposed for this slice.
-- **Checks and limits.** `logs/executor/wf-03k/runs.log` and its README.
+  (Purpose routing, four forwarders, directory framing),
+  [provider contracts](../architecture/agent-collaboration-provider-contracts.md)
+  (preflight section, introduction),
+  [source evidence](../architecture/agent-collaboration-source-evidence.md) and
+  [invocation configuration](../architecture/agent-collaboration-invocation-configuration.md)
+  (introductions only), [index](../architecture/README.md) (one entry, provider
+  entry), [rework map](agent-collaboration-protocol-rework-map.md)
+  (introduction, WF-03L record), this file. New:
+  [context](../architecture/agent-collaboration-context.md). Other companions
+  unchanged. Ignored: `logs/executor/wf-03l/`.
+- **Findings.** EX-L01 observation: the invocation configuration's provider
+  configuration observations paragraph (lines 544-546) keeps its WF-03J
+  statement that the host-runtime-preflight projection stays in the protocol;
+  the body is preserved by scope, its link reaches the retained heading's
+  forwarder and the introduction routes it. EX-L02 observation: the
+  engineering context (line 36) and two product comments still route these
+  subjects to the protocol, like EX-K01; the forwarders reach them. Both
+  unchanged, outside the allowlist; no edit proposed for this slice.
+- **Checks and limits.** `logs/executor/wf-03l/runs.log` and its README.
   Moved bodies exact, no substitution; the baseline reconstructs exactly.
-  Link, coordinate and sensitive scans are lexical; Git/disk/live checks have
-  no negative control; retained manifest-family, claim-handler, Windows-only
-  and raw Git observation wording is unreconciled.
+  Link, coordinate, directional and sensitive scans are lexical and prove no
+  semantic equivalence; Git/disk/live checks have no negative control;
+  retained increment, token-usage and installation-layout wording is
+  unreconciled.
 - **Next action:** independent Codex review. No commit or push.
 
 ## Documentation priority
@@ -38,14 +47,21 @@ Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03J `0de51c01`, WF-03I `578c83d3`, the planning policy `b81f7611`
+WF-03K `340d5e9d`, WF-03J `0de51c01`, WF-03I `578c83d3`, the planning policy `b81f7611`
 (workflow and slice template), WF-03H `8a4223d5`, WF-03G `de8f1a72`, WF-03F `bc649c50`, WF-03E
 `5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`, WF-03A
 `c1189f1a` and WF-02B `d1a7b457` (each the sole parent of the one before) are
 published per `logs/planner-review/<slice>/publication-verification.json`
 (planning policy: `wf-planning-policy`); WF-02A `a593009` (four documents) per
 `logs/planner-review/wf-02a/`. Pre-publication wording is historical; do not
-reopen or republish them. WF-03J limits
+reopen or republish them. WF-03K limits
+(`logs/planner-review/wf-03k/review1/decision.md`): the planner's verify-01
+3/5 (an inline-code example misread as a link; a failed network lookup) is
+retained and verify-02 passed; the executor dev-01 C06 directional-oracle gap
+and negative-01 N14 indentation-mutant defect are retained, fixed in dev-02
+and negative-02; its evidence README's "three" generator runs is an accepted
+summary-count typo for the four runs in its ledger; controls inspected, not
+rerun; scans lexical; Git/disk/live checks lack negative controls. WF-03J limits
 (`logs/planner-review/wf-03j/review2/decision.md`, review1 retained): the
 initial negative-01 expected-message defects and the c1-dev-01 C17 false
 positive are retained; the review-1 plain-form oracle evidence stays with its

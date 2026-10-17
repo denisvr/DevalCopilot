@@ -1,14 +1,57 @@
 # Agent collaboration provider contracts
 
 This companion to the [agent collaboration protocol](agent-collaboration-protocol.md)
-holds the provider CLI safety contracts formerly under its
-[provider runtime configuration](agent-collaboration-protocol.md#provider-runtime-configuration),
-which retains host runtime preflight and forwards extracted subjects through
-their original headings.
+holds host runtime preflight, the body of the protocol's
+[provider runtime configuration](agent-collaboration-protocol.md#provider-runtime-configuration)
+moved into the first section below, and the provider CLI safety contracts
+formerly under that heading. The protocol heading forwards to that section;
+its subsection headings forward to this and other companions. The preflight
+statements, including their increment wording and the one manual observation
+of a Codex desktop installation layout, are as written at the baseline; the
+move reconciles or endorses none of them.
 The sections below are moved verbatim; the protocol's original headings forward
 here. The implementation contract builds on the critical-review contract that
 precedes it, so its references to that contract "above" mean the preceding
 section. Mapping: [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
+
+## Provider runtime configuration
+
+Host runtime preflight is intentionally narrower than provider runtime configuration, and is
+itself layered into four distinct stages that must not be confused with one another:
+
+1. **Executable discovery** — resolving a fixed candidate name to an absolute, existing path
+   using only the host's normalized `PATH` and a small set of fixed fallback directories. Never a
+   shell, never `PATHEXT`, never a filesystem enumeration.
+2. **Launch-target validation** — for a provider whose only local discovery in Increment 2 is a
+   native executable, discovery and launch-target validation coincide. Increment 4 adds one
+   further, still narrowly bounded discovery path for a provider distributed as an npm package: a
+   fixed, catalog-owned package-root candidate's `package.json` is read directly (strict size
+   limit, strict parsing, exact expected package identity), and only its own declared `bin` entry
+   is resolved, and only when that entrypoint remains beneath the package root. This never
+   executes npm, npx, a package-manager shim, `.cmd`, `.bat`, cmd.exe, PowerShell, or any shell.
+   More than one independently valid launch target is treated as ambiguous and fails closed —
+   never chosen between silently.
+3. **Version observation** — a successful direct executable version probe (or, for a validated
+   npm-package launch target, a direct, fully qualified Node executable running that validated
+   entrypoint) proves only that DevalCopilot observed one local runtime version at a point in
+   time.
+4. **Authentication/invocation readiness** — everything beyond an observed version: model
+   availability, permission mode, context capacity, account usage, session continuity, and
+   whether an invocation is actually eligible. These facts remain explicit `Unknown` until a
+   later provider-owned adapter observes them through a reviewed contract. A future `Unsupported`
+   value requires affirmative provider evidence; it is never inferred from the absence of a
+   preflight probe.
+
+A locally installed Codex desktop application's own private, versioned installation layout was
+observed once, manually, through read-only inspection outside this discovery contract. That
+layout is evidence that a directly executable Codex CLI can exist on a host — it is not an
+approved stable discovery contract, and it is never added as an automatic fallback: it belongs to
+a different application, is not catalog-owned, and carries no stability guarantee DevalCopilot
+can rely on. In particular, an app-private or portable Codex desktop installation layout is never
+searched for automatically at attempt-dispatch time; resolving the actual launch target for a new
+Codex Planning attempt only reuses the durable `HostCapabilitySnapshot` row's resolved path from
+capability discovery's own last successful probe, and only when that snapshot's reason code is
+still `None` — it is revalidated, never re-searched, by this narrower dispatch-time read.
 
 ## Claude Code critical-review CLI safety contract
 

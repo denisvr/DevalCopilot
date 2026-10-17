@@ -24,8 +24,12 @@ and token-activity controls are in the
 [token-activity controls](agent-collaboration-token-activity-controls.md)
 companions; review correction and the claim and time budgets are in the
 [correction and budgets](agent-collaboration-correction-and-budgets.md)
-companion; runtime preflight and every other subject not moved to a companion
-stay in the protocol. Mapping:
+companion; runtime preflight is in the
+[provider contracts](agent-collaboration-provider-contracts.md#provider-runtime-configuration)
+companion. The last section's opening paragraph and link were written when that
+host-runtime-preflight projection stayed in the protocol; the link reaches the
+protocol's retained provider runtime configuration heading, which forwards to
+it. Every other subject not moved to a companion stays in the protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Codex model and reasoning-effort catalog contract

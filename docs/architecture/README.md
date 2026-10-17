@@ -9,8 +9,12 @@ shared engineering contract.
   transitions, gates, and recovery behavior.
 - [Agent collaboration protocol](agent-collaboration-protocol.md) defines typed
   dialogue, challenges, decisions, and bounded iteration.
+- [Agent collaboration context](agent-collaboration-context.md) holds the
+  protocol's attempt-input preparation: context assembly, token efficiency,
+  and untrusted content.
 - [Agent collaboration provider contracts](agent-collaboration-provider-contracts.md)
-  holds the protocol's Claude Code and deferred Gemini CLI safety contracts.
+  holds the protocol's host runtime preflight and its Claude Code and deferred
+  Gemini CLI safety contracts.
 - [Agent collaboration execution evidence](agent-collaboration-execution-evidence.md)
   holds the protocol's per-attempt execution evidence and run-wide Agent
   process-duration summary.

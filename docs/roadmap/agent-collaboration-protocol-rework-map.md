@@ -4,11 +4,11 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds eleven separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I, WF-03J and WF-03K; each record's
-identifiers and coordinates refer only to its own baseline, and each earlier
-record's statements stay as written, as history. WF-03 remains incomplete.
-Future WF-03 moves remain unselected, and this map names no destination for them.
+prevail. It holds twelve separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I, WF-03J, WF-03K and WF-03L;
+each record's identifiers and coordinates refer only to its own baseline, and
+each earlier record's statements stay as written, as history. WF-03 remains
+incomplete. Future WF-03 moves remain unselected and have no destination here.
 
 ## WF-03A record
 
@@ -1361,3 +1361,157 @@ WF-03J's not-moved paragraph named manifest capture and the local-delivery
 contracts because they stayed in the protocol at that move; WF-03K moves them.
 This is a relocation, not a reconciliation: moved facts and wording are as
 written at the baseline.
+
+## WF-03L record
+
+WF-03L separates attempt-input preparation and host runtime preflight from the
+protocol's dialogue, ledger and role core: the context assembly, token
+efficiency and untrusted content bodies move to a new context companion, and
+the provider runtime configuration body, host runtime preflight, moves to the
+provider contracts companion before its CLI contracts. The companion directory
+stays in the protocol under the context assembly heading. Run execution mode
+and isolation and protocol evolution stay in the protocol. This record was
+written with WF-03L's uncommitted working-tree diff, for independent review
+before any GO; it describes that diff, not a published delivery. Publication,
+if any, is evidenced by Git history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `340d5e9d0148c32e21796a96504c283f3da025db`, the
+  published WF-03K result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `8fd022bbf88a1dff2ef8d221dd34174f8285fd37`, SHA-256
+  `34ae1f9dac248f8742e1fa69782cc2f5b8a9fae3c77bfedb26b4c4e478cbc537`,
+  45868 bytes, 814 lines, 66 Markdown headings. Read it with
+  `git show 340d5e9d:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `LLstart-end` are WF-03L baseline line spans; `LPstart-end`
+  are lines of the protocol after WF-03L; `LCstart-end` are lines of the
+  [context](../architecture/agent-collaboration-context.md) companion;
+  `LVstart-end` are lines of the
+  [provider contracts](../architecture/agent-collaboration-provider-contracts.md)
+  companion after WF-03L. Row IDs carry an `L-` prefix. No WF-03L identifier
+  refers to a row or coordinate of WF-03A to WF-03K.
+- **Dispositions and headings.** Retain means kept verbatim at the original
+  path. Move here means that a section's body lines move verbatim while its
+  heading, the blank line after the heading and the blank line after the body
+  stay in the protocol; two new forwarder lines, a link to the destination
+  fragment and the companion name, replace the body. All 66 baseline headings
+  stay in the protocol in order with identical text and level, so every
+  fragment resolves as before. Each destination section has a new `##`
+  heading with the same text and level as its protocol heading, so each
+  fragment is the same in the protocol and its companion. LC1-27 are the
+  context companion's title, introduction and blank line; the headings LC28,
+  LC47 and LC74 are each followed by a blank line, and the blank separators
+  LC46 and LC73 are new. LV1-16 are the provider contracts companion's title,
+  introduction and blank line: LV3-11 replace the five baseline introduction
+  lines 3-7, and LV12-15 are its baseline lines 8-11, unchanged. LV17 is the
+  new heading, LV18 and LV55 are new blank lines, and LV56-231 are its
+  baseline lines 13-188, unchanged. The context companion does not end with a
+  blank line.
+
+### WF-03L ranges
+
+The nine ranges cover LL1-814 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| L-R-01 | LL1-468 | Purpose through the context assembly heading and its blank line | Retain; one Purpose routing insertion | LP1-12 (LL1-12), LP13-19 (insertion), LP20-475 (LL13-468) | Verbatim apart from the insertion: one six-line routing paragraph and a blank line after the Purpose paragraphs (LL5-11) and their blank line (LL12), before `## Message envelope` |
+| L-M-01 | LL469-484 | Context assembly body | Move | LC30-45 under heading LC28; forwarder LP476-477 | Body verbatim |
+| L-R-02 | LL485-559 | Blank line after the context assembly body, the companion directory (LL486-556), its blank line, and the provider runtime configuration heading and its blank line | Retain; one directory framing insertion | LP478 (LL485), LP479-482 (insertion), LP483-556 (LL486-559) | Verbatim apart from the insertion: one three-line framing paragraph and a blank line immediately before the directory; the directory LL486-556 is LP483-553, byte-identical |
+| L-M-02 | LL560-595 | Provider runtime configuration body: host runtime preflight | Move | LV19-54 under heading LV17; forwarder LP557-558 | Body verbatim |
+| L-R-03 | LL596-776 | Blank line, the 35 subsection forwarders from the Claude Code critical-review CLI safety contract through project instruction context in Agent manifests, and the token efficiency heading and its blank line | Retain | LP559-739 | Verbatim |
+| L-M-03 | LL777-800 | Token efficiency body | Move | LC49-72 under heading LC47; forwarder LP740-741 | Body verbatim |
+| L-R-04 | LL801-803 | Blank line, the untrusted content heading and its blank line | Retain | LP742-744 | Verbatim |
+| L-M-04 | LL804-808 | Untrusted content body | Move | LC76-80 under heading LC74; forwarder LP745-746 | Body verbatim |
+| L-R-05 | LL809-814 | Blank line and protocol evolution | Retain | LP747-752 | Verbatim |
+
+Each forwarder sits between its retained heading and blank line (LL467-468,
+LL558-559, LL775-776, LL802-803; LP474-475, LP555-556, LP738-739, LP743-744)
+and its retained closing blank line (LL485, LL596, LL801, LL809; LP478,
+LP559, LP742, LP747). The protocol's inverse is exact: removing LP13-19 and
+LP479-482 and replacing each forwarder's two lines with its destination body
+restores the 45868-byte baseline.
+
+### WF-03L fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| L-M-01 | [`#context-assembly`](../architecture/agent-collaboration-protocol.md#context-assembly) | [`#context-assembly`](../architecture/agent-collaboration-context.md#context-assembly) |
+| L-M-02 | [`#provider-runtime-configuration`](../architecture/agent-collaboration-protocol.md#provider-runtime-configuration) | [`#provider-runtime-configuration`](../architecture/agent-collaboration-provider-contracts.md#provider-runtime-configuration) |
+| L-M-03 | [`#token-efficiency`](../architecture/agent-collaboration-protocol.md#token-efficiency) | [`#token-efficiency`](../architecture/agent-collaboration-context.md#token-efficiency) |
+| L-M-04 | [`#untrusted-content`](../architecture/agent-collaboration-protocol.md#untrusted-content) | [`#untrusted-content`](../architecture/agent-collaboration-context.md#untrusted-content) |
+
+### WF-03L link and reference changes
+
+- **Moved text.** No moved line changed; there is no substitution. The four
+  moved bodies have no link and no absolute `https` address.
+- **Directional wording.** The moved bodies contain no "above", "below",
+  "preceding", "following" or "next". In the preflight body "later" (LL582,
+  LV41) is temporal, and "this discovery contract" (LL587, LV46) and "this
+  narrower dispatch-time read" (LL595, LV54) refer to the section itself. In
+  the provider contracts companion the preflight section precedes the CLI
+  contracts, so the implementation contract's "above" references (LV144,
+  LV147, LV167, LV201, LV206) still mean the preceding critical-review
+  contract (LV56) and text within it, as the retained introduction sentence
+  (LV13-15) says. No directional reference was broken by the relocation.
+- **Quoted titles.** The moved text names other sections by quoted title
+  without a link: "Project instruction context in Agent manifests" (LL472-473,
+  LC33-34; LL805, LC77), "Bounded tracked-hunk evidence in Agent manifests"
+  (LL477, LC38), "Bounded untracked-file previews in Agent manifests" (LL478,
+  LC39; LL786, LC58) and "Provider token-usage contracts" (LL794, LC66). Each
+  title is a retained protocol forwarding heading (LP733, LP708, LP703 and
+  LP618), and the context introduction links each destination directly
+  (LC17, LC18, LC20 and LC23) in the source evidence and usage evidence
+  companions.
+- **Retained wording.** The moved statements are as written at the baseline,
+  and the relocation reconciles or endorses none of them, including the token
+  usage implementation statement (LL791-796, LC63-68), the Increment 2 and
+  Increment 4 discovery wording (LL566-567, LV25-26), the `Unknown`
+  authentication and invocation readiness (LL579-584, LV38-43) and the one
+  manual observation of a Codex desktop installation layout (LL586-595,
+  LV45-54). Both affected introductions say so.
+- **Retained references.** The companion directory (LL486-556, LP483-553) is
+  unchanged; its "original headings below forward there" still names the
+  retained subsection forwarders after it. The new framing paragraph
+  (LP479-481) says the directory is not part of context assembly. The
+  protocol's retained text has no link to the four fragments and does not
+  name the four sections by quoted title. Earlier records' coordinates for
+  these sections, such as WF-03K's KP558-595 and KP775-814, keep their
+  statements as history.
+- **Inbound references.** Before WF-03L, two tracked links reached any of the
+  four baseline fragments: the provider contracts introduction (baseline line
+  5, now replaced by LV5) and the invocation configuration companion's
+  provider configuration observations (baseline line 570, now line 574), both
+  to `#provider-runtime-configuration`. The second still reaches the retained
+  heading LP555, whose forwarder LP557 links to LV17; that section's opening
+  paragraph (baseline lines 528-542, now lines 532-546) keeps its WF-03J
+  statement that the projection stays in the protocol, and the invocation
+  configuration introduction (its lines 27-32) routes it to the provider
+  contracts companion. The WF-03J record names that link and fragment only in
+  code spans (lines 1096, 1132 and 1149). Two product comments name "Token
+  efficiency" and "Context assembly" in the protocol by quoted title; they
+  reach the retained headings and are unchanged.
+- **Introductions.** The provider contracts introduction (LV3-11) now states
+  its host runtime preflight ownership and keeps its explanation of the
+  implementation contract's "above" references (LV13-15). The source evidence
+  introduction (its lines 14-15 and 20-22) routes quoted titles through the
+  context introduction and names the context and provider contracts
+  companions; the invocation configuration introduction (its lines 27-32)
+  routes runtime preflight. Their bodies are unchanged.
+- **New links.** The protocol Purpose routing (LP14 and LP16) and the four
+  forwarders (LP476, LP557, LP740 and LP745) link to the two companions. The
+  context introduction links to the protocol, the provider contracts, source
+  evidence and usage evidence companions and this map.
+- **Index.** The [architecture index](../architecture/README.md) adds one
+  entry, for the context companion, after the protocol entry, and updates the
+  provider contracts entry for host runtime preflight.
+
+### WF-03L not moved
+
+The companion directory, run execution mode and isolation, explicit
+abandonment, the message envelope, role-first authorization, the durable
+ledger boundary, message types, reply semantics, default interaction, the
+authority matrix, structured output failure, protocol evolution and every
+other subject not moved by WF-03A to WF-03L stay in the protocol. No other
+existing companion changes. WF-03K's not-moved paragraph named host runtime
+preflight, context assembly, token efficiency and untrusted content because
+they stayed in the protocol at that move; WF-03L moves their bodies. This is
+a relocation, not a reconciliation: moved facts and wording are as written at
+the baseline.
