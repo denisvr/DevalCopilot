@@ -13,14 +13,19 @@ is never an observed or effective model, effort or turn count. The catalog
 reuses the session mechanics of the account-allowance contract in the
 [account usage](agent-collaboration-account-usage.md) companion, which is what
 the catalog's unlinked "allowance contract" references mean. The sections
-below are moved verbatim; the protocol's original headings forward here, and
-their directional "above" and "below" references and their two in-page
-section links mean sections in this companion. Provider token-usage evidence
+below, except the last, are moved verbatim; the protocol's original headings
+forward here, and their directional "above" and "below" references and their
+two in-page section links mean sections in this companion. The last section
+relocates the provider configuration observations from the end of the
+protocol's former Review correction body with one wording change; its own
+opening paragraph states its historical scope. Provider token-usage evidence
 and token-activity controls are in the
 [usage evidence](agent-collaboration-usage-evidence.md) and
 [token-activity controls](agent-collaboration-token-activity-controls.md)
-companions; runtime preflight, claim and time budgets and every other subject
-not moved to a companion stay in the protocol. Mapping:
+companions; review correction and the claim and time budgets are in the
+[correction and budgets](agent-collaboration-correction-and-budgets.md)
+companion; runtime preflight and every other subject not moved to a companion
+stay in the protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Codex model and reasoning-effort catalog contract
@@ -517,3 +522,64 @@ invocation-eligibility claim. `CriticalReviewer` keeps exactly `--max-turns 1`; 
   versions of their own path for the existing configured facts; an unknown version still shows none. A malformed
   out-of-range attempt value fails a role status with the existing `agent_attempts.invalid_assignment` error and makes a
   history entry's identity invalid, without disclosing the stored value.
+
+## Provider configuration observations
+
+This section relocates, as written at the protocol baseline, the provider
+configuration observations formerly at the end of the protocol's Review
+correction section, whose correction contract and budgets are in the
+[correction and budgets](agent-collaboration-correction-and-budgets.md#review-correction)
+companion. It is historical wording, not a current configuration contract.
+The sections above and the
+[account usage](agent-collaboration-account-usage.md) and
+[token-activity controls](agent-collaboration-token-activity-controls.md)
+companions describe requests and controls separately, and this relocation
+reconciles or endorses none of the statements below, such as null requested
+and observed model and effort, unrecorded context and account usage, or
+nothing yet tracked or enforced. Its one wording change replaces
+"host-runtime-preflight projection above" with a link to that projection's
+section, the protocol's provider runtime configuration, because the
+projection stays in the protocol.
+
+Each agent attempt is intended to eventually record requested and effective
+provider configuration:
+
+- provider and provider-session identifier;
+- model and reasoning effort;
+- permission mode;
+- context-manifest revision;
+- reported context usage and compaction outcome when available.
+
+Every Agent attempt records only a subset of this today: the provider, role,
+and response contract are each fixed by the attempt's own dedicated factory
+(never caller-supplied), and a provider-session identifier is captured on a
+best-effort basis only when the provider's own JSON output reports one — never
+required, never trusted for anything beyond this closed, cosmetic field, and
+not currently exposed through any API response. The initial Implementer
+attempt additionally persists durable assignment facts: requested and observed
+model slots, requested and observed effort slots, a permission profile
+(`WorkspaceEditOnly`), and an adapter contract version
+(`claude-implementation-v1` for history and `claude-implementation-v2` for every new claim, see
+"Optional Claude agentic-turn limit for mutation attempts"). In practice its requested and observed model
+and effort currently remain null: no model or effort is requested, and the
+Claude adapter does not authoritatively report either, so nothing is
+inferred. There is still no provider selection — the initial Implementer
+remains fixed to Claude Code, no manual provider selection exists, and Gemini
+remains deferred by ADR-0011. Context usage and account usage are not recorded
+by any Agent attempt; they remain `Unknown` exactly as the
+[host-runtime-preflight projection](agent-collaboration-protocol.md#provider-runtime-configuration) already reports them, and no doc,
+response, or stored fact should be read as tracking or enforcing them yet.
+
+Adapters expose capabilities and supported values through typed queries. The
+application does not assume that Codex and Claude Code use equivalent names or
+offer identical controls. Unsupported or unavailable values remain explicit.
+
+A configuration change is persisted as run intent and applies only when the
+orchestrator creates the next eligible attempt. Provider permission mode cannot
+expand DevalCopilot policy. Manual context compaction is a typed between-turn
+operation that creates a new context-manifest revision; it never removes events,
+decisions, evidence, or raw artifacts from durable history.
+
+Provider account-usage snapshots are observation evidence rather than agent
+claims. A configured hard threshold participates in attempt eligibility and
+prevents a new invocation for only the affected provider.

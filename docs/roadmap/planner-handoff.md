@@ -6,9 +6,11 @@
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
 Claude implements. WF-03 incomplete. 2026-10-17: main; HEAD, origin/main and
-independently checked live main `b81f761173f52e160acd9141df612b6c2a9c2812`;
+independently checked live main `578c83d3b9e6550d22ca7785ee76c6e15d66607d`;
 0/0; empty index, clean tree, no nonignored untracked paths before this edit.
-At dispatch only this unstaged checkpoint differed; the GO below supersedes it.
+At WF-03J dispatch only this checkpoint differed; publication GO below supersedes it.
+Initial live lookup failed (network); elevated read-only retry matched.
+Original lookup output is in the planner chat, not standalone evidence.
 
 Planning policy published; sole parent `8a4223d50b3a1db0cf5683d39fbba059f59818b3`.
 `logs/planner-review/wf-planning-policy/publication-verification.json`: 5/5;
@@ -35,7 +37,63 @@ logs/planner-review/<slice>/. Scans/coordinates lexical; Git/disk/live have no
 negative controls. Earlier product/provider/qualification evidence not rerun.
 No reopening, republication or closure edit of delivered work.
 
-## Selected slice: WF-03I publication GO
+## Selected slice: WF-03J publication GO
+
+GO for exactly 13 mode-100644 documents frozen in
+`logs/planner-review/wf-03j/publication-manifest.json`; parent
+`578c83d3b9e6550d22ca7785ee76c6e15d66607d`; subject
+`docs: separate correction budgets and configuration observations`.
+Same Claude chat publishes; selection of later work is not authorized.
+Correction/budgets moved verbatim, configuration observations appended to
+invocation configuration with one JL713 link repair; 66 protocol headings,
+preflight, existing companion bodies and separately pinned A-I records exact.
+No stale factual wording reconciled or endorsed. WF-03 remains incomplete.
+
+Review: `logs/planner-review/wf-03j/review2/decision.md`; review1 retained.
+WF-03J-R1/EX-J01 resolved: inline dispatch/checkpoint required the link;
+plain-form delivery/oracle was wrong. Executor's report of a rendered-plain
+received prompt is not independently authenticated. Corrected JV570, framing,
+J record and oracle agree; original wrong evidence remains with correction.
+WF-03J-R2/EX-J02 resolved: planner omitted usage/token introductions; now
+repaired with authorized introduction-only edits and exact bodies.
+EX-J03 accepted: current-work 9203 bytes, exact 3466-byte History/risks and
+carried limits; no trim. c1-dev-01 C17 framing false positive corrected by
+restricting two searches to moved lines; no document change; failure retained.
+
+Independent verify-02 5/5; exact 91697-byte reconstruction and direct repair,
+313 local links, identities, scope/hygiene, 21 correction tool hashes and final
+inputs verified. Executor final 25/25, negative baseline 18/18 and controls
+35/35 inspected, not rerun. N05 omitted repair needs C02/C17, not reconstruction.
+Fresh independent live main matched parent; original stdout/stderr retained.
+Planner verify-01 4/5: status-write argument mistake created untracked `0`;
+confirmed planner artifact moved intact to review2/live-status-write-misdirected.txt;
+correct exit recorded, executor diff untouched. verify-02 completes scope/live
+and corrects a draft checker-diff diagnostic. Failed patch anchor and wrong
+manifest-path read outputs are transcript-only; no missing streams recreated.
+Lexical scans/coordinates; planner/Git/disk/live no negative controls. Earlier
+console-only preflight/probe and all prior evidence limitations remain.
+No product/provider/browser/build/test/qualification suites run.
+
+This GO supersedes the 13506-byte `2d78447a...a52f` checkpoint; executor G02
+checked that version only. Twelve executor documents retain c1-final-01 bytes.
+Publish only the manifest, normal main fast-forward push to origin/main and
+live verification; no closure diff. Stop for material change, failed push or
+divergence; no force/history reconciliation. Codex verifies publication.
+
+## WF-03I delivered review and publication evidence
+
+Published `578c83d3b9e6550d22ca7785ee76c6e15d66607d`; independent publication
+verification 5/5 in `logs/planner-review/wf-03i/publication-verification.json`.
+Original child streams: publication-verification-01/; checker:
+publication-verify.mjs; parent stdout/stderr retained. Separate fresh live
+lookup matched (chat output only). Seven paths, mode 100644; Claude Opus 5.5
+co-author. Manifest: 2012 bytes, SHA-256
+`63fe29b79d2b68672c76dd906ef8af94e8c649e787a94629e1f4727fc69ddf51`.
+Publisher publication-01 pre 35/35, stage 26/26, commit 29/29, push 8/8,
+post 19/19 inspected, not rerun; no failed phase. Snapshots match
+`fc07cdefc066d23e285a7d21ba03dad0da936d5a5a44d1f5c1746da43ec9c342`.
+Committed/index/working identities matched the reviewed manifest.
+The following review describes the delivered diff, not renewed authority.
 
 GO for seven documents frozen in
 `logs/planner-review/wf-03i/publication-manifest.json`; sole parent
@@ -75,11 +133,8 @@ in executor chat, not original standalone streams. Missing streams not recreated
 
 This GO replaces dispatch checkpoint b8bf291f...4780 (8326 bytes); executor G02
 checked that version only. Six executor documents retain reviewed bytes.
-Publish exactly seven manifest paths, mode 100644, normal main fast-forward
-push to origin/main and live verification. Same Claude chat publishes; no
-closure edit or extra approval. Stop for material change, failed push or
-divergence; no force/history reconciliation. Codex verifies publication.
-WF-03 remains incomplete; later slices unselected.
+Publication is complete. Committed checkpoints intentionally retain
+pre-publication wording; no reopening, republication or closure edit.
 
 ## Retained review and evidence limits
 

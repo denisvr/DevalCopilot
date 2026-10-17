@@ -20,8 +20,10 @@ link to the Codex per-attempt token-usage contract; the protocol's original
 headings forward here. Model and effort controls and the Claude agentic-turn
 limit are in the
 [invocation configuration](agent-collaboration-invocation-configuration.md)
-companion; claim and time budgets and every other subject not moved to a
-companion stay in the protocol. Mapping:
+companion; claim and time budgets are in the
+[correction and budgets](agent-collaboration-correction-and-budgets.md)
+companion; every other subject not moved to a companion stays in the
+protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Provider account-allowance contracts

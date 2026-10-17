@@ -15,8 +15,10 @@ companion; account allowances and account-usage stops and warnings are in the
 [account usage](agent-collaboration-account-usage.md) companion; model and
 effort controls and the Claude agentic-turn limit are in the
 [invocation configuration](agent-collaboration-invocation-configuration.md)
-companion; budgets and every other subject not moved to a companion stay in
-the protocol. Mapping:
+companion; the claim-count and reserved-time budgets are in the
+[correction and budgets](agent-collaboration-correction-and-budgets.md)
+companion; every other subject not moved to a companion stays in the
+protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
 
 ## Provider token-usage contracts

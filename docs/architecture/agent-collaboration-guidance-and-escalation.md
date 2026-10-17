@@ -15,11 +15,12 @@ is guidance. An escalation records that a human decision is needed and grants
 nothing by itself. A diagnosis is a read-only finding source that never
 produces a review approval. None of these is a review or local-delivery
 approval. The ordinary review-correction contract (eligibility, inputs,
-result, its correction budget and the escalation at exhaustion) stays in the
-protocol's [Review correction](agent-collaboration-protocol.md#review-correction)
-section, as do the run-wide claim-count and reserved-time budgets; this
-companion holds the guidance that may accompany that correction and its one
-extra authorization. Token stops, model, effort and turn-limit requests and
+result, its correction budget and the escalation at exhaustion) is in the
+[Review correction](agent-collaboration-correction-and-budgets.md#review-correction)
+section of the correction and budgets companion, as are the run-wide
+claim-count and reserved-time budgets; this companion holds the guidance that
+may accompany that correction and its one extra authorization. Token stops,
+model, effort and turn-limit requests and
 format repair are in the
 [token-activity controls](agent-collaboration-token-activity-controls.md),
 [invocation configuration](agent-collaboration-invocation-configuration.md)

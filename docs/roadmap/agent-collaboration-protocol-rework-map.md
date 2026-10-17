@@ -4,11 +4,11 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds nine separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E, WF-03F, WF-03G, WF-03H and WF-03I; each record's identifiers
-and coordinates refer only to its own baseline, and each earlier record's
-statements stay as written, as history. WF-03 remains incomplete. Future
-WF-03 moves remain unselected, and this map names no destination for them.
+prevail. It holds ten separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I and WF-03J; each record's
+identifiers and coordinates refer only to its own baseline, and each earlier
+record's statements stay as written, as history. WF-03 remains incomplete.
+Future WF-03 moves remain unselected, and this map names no destination for them.
 
 ## WF-03A record
 
@@ -1024,3 +1024,176 @@ list named the challenge rounds and escalation, review correction's human
 guidance and diagnosis because they stayed at that move; WF-03I moves them.
 This is a relocation, not a reconciliation: moved facts and wording are as
 written at the baseline, apart from the one authorized reference repair.
+
+## WF-03J record
+
+WF-03J removes the mixed Review correction body from the protocol: the
+correction loop with its budget and escalation, the run-wide claim-count and
+reserved-time budgets and their manual-intake choice move to a new correction
+and budgets companion, and the provider configuration observations that ended
+the same section move to the invocation configuration companion. It repairs
+the introductions of the invocation configuration, guidance and escalation,
+format repair, execution evidence, account usage, usage evidence and
+token-activity controls companions that placed review correction or budgets in
+the protocol. This record was written with
+WF-03J's uncommitted working-tree diff, for independent review before any GO;
+it describes that diff, not a published delivery. Publication, if any, is
+evidenced by Git history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `578c83d3b9e6550d22ca7785ee76c6e15d66607d`, the
+  published WF-03I result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `745f9c564e59a62a6f3f94332a49be9f09eb82dc`, SHA-256
+  `ec0fb085e8e696d86a8c53ba269691965d3e24ffcb0db1c39000d8f53f232cd1`,
+  91697 bytes, 1254 lines, 66 Markdown headings. Read it with
+  `git show 578c83d3:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `JLstart-end` are WF-03J baseline line spans; `JPstart-end`
+  are lines of the protocol after WF-03J; `JCstart-end` are lines of the
+  [correction and budgets](../architecture/agent-collaboration-correction-and-budgets.md)
+  companion; `JVstart-end` are lines of the
+  [invocation configuration](../architecture/agent-collaboration-invocation-configuration.md)
+  companion after WF-03J. Row IDs carry a `J-` prefix. No WF-03J identifier
+  refers to a row or coordinate of WF-03A to WF-03I. A section range spans its
+  heading through the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, except that the one forwarder names two destinations: its body is a
+  blank line and a five-line paragraph linking to both moved parts. All 66
+  baseline headings stay in the protocol in order with identical text and
+  level, so every fragment, including the `#review-correction` forwarder,
+  resolves as before. The correction and budgets companion promotes the Review
+  correction heading from `###` to `##` with identical text, so its fragment is
+  the same in both files. The invocation configuration companion's new
+  `## Provider configuration observations` heading (JV526) has no baseline
+  counterpart; its fragment is new. JC1-30 are the correction and budgets
+  companion's title and introduction, and JC31-126 correspond one to one to
+  JL590-685: the heading (JC31) is promoted and every other line is
+  identical. JV543-585 correspond one to one to JL686-728, and JV570 (JL713)
+  carries the one authorized substitution. JV525-542 are the new section's
+  blank separator, heading, blank line and framing paragraph, which says that
+  the section is relocated baseline wording.
+
+### WF-03J ranges
+
+The four ranges cover JL1-1254 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| J-R-01 | JL1-589 | Purpose through the deferred Gemini CLI forwarder, including the nine companion routing paragraphs and runtime preflight | Retain; one routing insertion | JP1-535 (JL1-535), JP536-544 (insertion), JP545-598 (JL536-589) | Verbatim apart from the insertion: an eight-line paragraph and a blank line after the guidance and escalation routing paragraph (JL528-534) and its blank line (JL535) and before `## Provider runtime configuration`, linking to both destinations |
+| J-M-01 | JL590-685 | Review correction: the correction loop, its budget and escalation, the run-wide claim-count and reserved-time budgets and their manual-intake choice | Move | JC31 heading, JC32 (JL591), JC33-126 body (JL592-685); forwarder JP599-605 | Body verbatim |
+| J-M-02 | JL686-729 | Provider configuration observations, with the blank line before them and the section's closing blank line | Move | JV543 (JL686), JV544-585 body (JL687-728); JP606 (JL729) | Body verbatim except the JV570 (JL713) substitution |
+| J-R-02 | JL730-1254 | Bounded human guidance forwarder through protocol evolution, including every later forwarder | Retain | JP607-1131 | Verbatim |
+
+### WF-03J fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| J-M-01 | [`#review-correction`](../architecture/agent-collaboration-protocol.md#review-correction) | [`#review-correction`](../architecture/agent-collaboration-correction-and-budgets.md#review-correction) |
+| J-M-02 | [`#review-correction`](../architecture/agent-collaboration-protocol.md#review-correction) (the same forwarder) | [`#provider-configuration-observations`](../architecture/agent-collaboration-invocation-configuration.md#provider-configuration-observations) (new) |
+
+### WF-03J link and reference changes
+
+- **Moved text.** One moved body line changed. At JL713 (JV570)
+  "host-runtime-preflight projection above" became
+  `[host-runtime-preflight projection](agent-collaboration-protocol.md#provider-runtime-configuration)`,
+  because that projection, the runtime preflight stages under
+  `## Provider runtime configuration` (JL536-573, JP545-582), stays in the
+  protocol, whose retained heading the link reaches. The line was not
+  rewrapped; the rest of it is unchanged. The new framing paragraph
+  (JV528-542) describes this change. No other moved line changed.
+- **Relative wording.** J-M-01's "the run-wide Agent invocation-*time*
+  reservation budget described immediately below" (JL636, JC77) reaches the
+  reserved-time paragraph (JL655-674, JC96-115), its "the narrower
+  review-correction budget above" (JL646, JC87) reaches the correction budget
+  paragraph (JL626-640, JC67-81) and its "the 16-claim count budget above"
+  (JL658, JC99) reaches the claim-count paragraph (JL642-653, JC83-94); all
+  three stay within J-M-01, which keeps the correction and both run-wide
+  budgets adjacent in their original order. "A ceiling below a role's
+  configured timeout" (JL683, JC124) and "above 16 claims" (JL684, JC125) are
+  comparisons, not section directions. In J-M-02, "the next eligible attempt"
+  (JL721, JV578) is temporal, and the quoted title "Optional Claude
+  agentic-turn limit for mutation attempts" (JL706, JV563) now names a
+  section of the same companion (JV423).
+- **Relative links.** The ADR-0013 links (JL638, JC79; JL674, JC115), the
+  ADR-0012 link (JL653, JC94) and the ADR-0028 link (JL677, JC118) resolve
+  unchanged from the same directory. Apart from the JV570 repair link, the
+  moved text gained no link; it has no in-page link and no absolute `https`
+  address.
+- **Retained wording.** The moved statements are as written at the baseline,
+  and the relocation reconciles or endorses none of them, including the six
+  Agent-claiming paths (JL643, JC84; JL659, JC100) beside the eight Agent
+  claim handlers (JL681, JC122); token and account-usage enforcement and
+  measured wall-clock duration remaining deferred (JL634-635, JC75-76); the
+  requested and observed model and effort that remain null (JL706-709,
+  JV563-566); context and account usage not recorded or read as tracked or
+  enforced (JL711-714, JV568-571); and the configured hard threshold (JL726-728,
+  JV583-585). Both new introductions say so.
+- **Retained references.** The protocol's "additional review-correction
+  claim" (JL317, JP317) carries no link or section direction. Provider
+  runtime configuration's preflight body (JL536-573, JP545-582) is unchanged.
+  The provider contracts companion's link to `#provider-runtime-configuration`
+  (line 5) is unchanged. Earlier records' coordinates for Review correction,
+  such as WF-03I's IL582-721 and IP626-633, keep their statements as history.
+- **Inbound references.** Links to the protocol's `#review-correction` from
+  the [delivery plan](mvp-delivery-plan.md) (line 185) and the
+  [delivery plan rework map](mvp-delivery-plan-rework-map.md) (line 67) still
+  reach the retained forwarding heading, which reaches both destinations; that
+  rework map keeps its own earlier coordinates. Neither line changed. The
+  guidance and escalation introduction's link to it (baseline line 19) is
+  repaired, as described below.
+- **New links.** The protocol routing paragraph (JP539 and JP542) and the
+  forwarder (JP601 and JP604) link to the two destinations; the correction and
+  budgets introduction links to the protocol, the execution evidence,
+  token-activity controls, account usage, guidance and escalation and
+  invocation configuration companions and this map; the framing paragraph
+  links to the correction and budgets companion's `#review-correction` and the
+  account usage and token-activity controls companions; the repaired JV570
+  links to the protocol's `#provider-runtime-configuration`; the seven repaired
+  introductions link to the correction and budgets companion.
+- **Companion introductions.** Each repair replaces only routing wording; from
+  each companion's first `##` heading through its baseline end, the text is
+  byte-identical. The
+  [invocation configuration](../architecture/agent-collaboration-invocation-configuration.md)
+  introduction (lines 16-23) said claim and time budgets stay in the protocol
+  and called every section verbatim; lines 16-28 now route review correction
+  and the budgets to the new companion and describe the last section's one
+  wording change. Its first `##` heading moved from line 26 to 31, and its
+  baseline lines 24-519 are JV29-524, followed by the appended section
+  (JV525-585). The
+  [guidance and escalation](../architecture/agent-collaboration-guidance-and-escalation.md)
+  introduction (lines 17-22) linked to the protocol's Review correction
+  section and kept the budgets there; lines 17-23 now link to the companion's
+  `#review-correction`, and its first `##` heading moved from line 33 to 34.
+  The [format repair](../architecture/agent-collaboration-format-repair.md)
+  introduction (lines 10-14) kept the base review-correction contract in the
+  protocol; lines 10-15 route it to the new companion, and its first `##`
+  heading moved from line 17 to 18. The
+  [execution evidence](../architecture/agent-collaboration-execution-evidence.md)
+  introduction (line 11) said budgets stay in the protocol; lines 11-13 route
+  the claim-count and reserved-time budgets to the new companion, and its
+  first `##` heading moved from line 14 to 16. The
+  [account usage](../architecture/agent-collaboration-account-usage.md)
+  introduction (lines 23-24) kept claim and time budgets in the protocol;
+  lines 23-26 route them to the new companion, and its first `##` heading moved
+  from line 27 to 29. The
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
+  introduction (lines 18-19) said budgets stay in the protocol, and the
+  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md)
+  introduction (lines 18-19) kept claim and time budgets there; in each, lines
+  18-21 now route the claim-count and reserved-time budgets to the new
+  companion, and the first `##` heading moved from line 22 to 24. These are
+  introduction repairs, not moved-body repairs.
+- **Index.** The [architecture index](../architecture/README.md) adds one
+  entry for the new companion after the guidance and escalation entry, and the
+  invocation configuration entry's last two lines (37-38) now also name the
+  relocated provider configuration observations.
+
+### WF-03J not moved
+
+Runtime preflight and the rest of provider runtime configuration, structured
+output failure, manifest capture, the local-delivery contracts and every other
+subject not moved by WF-03A to WF-03J stay in the protocol. The provider
+contracts and evidence inspection companions are unchanged; the usage evidence
+and token-activity controls companions changed only in their introductions.
+WF-03I's not-moved
+paragraph named Review correction because it stayed whole at that move; WF-03J
+moves it. This is a relocation, not a reconciliation: moved facts and wording
+are as written at the baseline, apart from the one authorized substitution.

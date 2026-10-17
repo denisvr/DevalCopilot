@@ -34,13 +34,17 @@ shared engineering contract.
 - [Agent collaboration invocation configuration](agent-collaboration-invocation-configuration.md)
   holds the protocol's Codex model and reasoning-effort catalog contract,
   explicit Codex model and reasoning-effort requests, explicit Claude
-  model-alias and effort requests, and optional Claude agentic-turn limit for
-  mutation attempts.
+  model-alias and effort requests, optional Claude agentic-turn limit for
+  mutation attempts, and relocated provider configuration observations.
 - [Agent collaboration guidance and escalation](agent-collaboration-guidance-and-escalation.md)
   holds the protocol's bounded human guidance for one authorized review
   correction, optional direct human guidance for mutation requests, optional
   second challenge round and escalation, explicit human authorization of one
   escalated-plan implementation, and explicit verification failure diagnosis.
+- [Agent collaboration correction and budgets](agent-collaboration-correction-and-budgets.md)
+  holds the protocol's review correction with its correction budget and
+  escalation, the run-wide Agent claim-count and reserved invocation-time
+  budgets, and their manual-intake choice.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote
