@@ -11,7 +11,8 @@ evidence both count are in the
 [usage evidence](agent-collaboration-usage-evidence.md) companion. The sections
 below are moved verbatim; the protocol's original headings forward here, and
 the stop's "advisory warning above" means the warning section in this
-companion. Account-usage stops and warnings, account allowances, model and
+companion. Account-usage stops and warnings and account allowances are in the
+[account usage](agent-collaboration-account-usage.md) companion; model and
 effort controls, claim and time budgets and every other subject not moved to a
 companion stay in the protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).

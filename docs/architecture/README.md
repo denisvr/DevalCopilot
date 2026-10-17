@@ -27,6 +27,10 @@ shared engineering contract.
 - [Agent collaboration token-activity controls](agent-collaboration-token-activity-controls.md)
   holds the protocol's advisory per-provider run token-activity warnings and
   per-provider run token-activity stop at Agent claim.
+- [Agent collaboration account usage](agent-collaboration-account-usage.md)
+  holds the protocol's provider account-allowance contracts, run-scoped Codex
+  account-usage stop at claim and dispatch, and run-scoped advisory Codex
+  account-usage warning.
 - [Data and recovery](data-and-recovery.md) defines durable entities, event
   journal invariants, artifacts, and startup reconciliation.
 - [GitHub and CI integration](github-ci-integration.md) defines remote

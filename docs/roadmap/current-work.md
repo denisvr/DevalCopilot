@@ -5,21 +5,23 @@ replaces its current state on each delivery. Procedure:
 [development workflow](development-workflow.md). Git and code prevail; compare
 branch, `HEAD`, `origin/main` and staged/unstaged/untracked state first.
 
-## Active slice: WF-03F token-activity controls extraction
+## Active slice: WF-03G account-usage extraction
 
 - **Status: UNSTAGED, UNCOMMITTED and UNPUSHED for Codex review; no GO.**
-  Preflight matched: `main`; `HEAD`, `origin/main` and live main `5dd2e3a9`;
-  0/0; empty index. Planner checkpoint (6653 bytes, `dae5e516...1cf2`)
+  Preflight matched: `main`; `HEAD`, `origin/main` and live main `bc649c50`;
+  0/0; empty index. Planner checkpoint (7262 bytes, `110e11f9...0cef`)
   preserved byte-identically.
 - **Paths.** Modified: [protocol](../architecture/agent-collaboration-protocol.md)
-  (two forwarders, one router), [index](../architecture/README.md),
-  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
-  (introduction), [rework map](agent-collaboration-protocol-rework-map.md)
-  (WF-03F record), this file. New:
-  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md).
-  Ignored: `logs/executor/wf-03f/`.
+  (three forwarders, one router, two catalog references),
+  [index](../architecture/README.md), introductions of
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md) and
+  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md),
+  [rework map](agent-collaboration-protocol-rework-map.md) (WF-03G record),
+  this file. New:
+  [account usage](../architecture/agent-collaboration-account-usage.md).
+  Ignored: `logs/executor/wf-03g/`.
 - **Checks and limits.** Commands, hashes, exits, timings:
-  `logs/executor/wf-03f/runs.log`. Conservation is exact; link and sensitive
+  `logs/executor/wf-03g/runs.log`. Conservation is exact; link and sensitive
   scans are lexical; Git/disk checks have no negative control.
 - **Next action:** independent Codex review. No commit or push.
 
@@ -32,12 +34,15 @@ Constraints: [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
 
-WF-03E `5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`, WF-03B `a40d95bb`,
-WF-03A `c1189f1a` and WF-02B `d1a7b457` (each the sole parent of the one
-before) are published per
+WF-03F `bc649c50`, WF-03E `5dd2e3a9`, WF-03D `02297979`, WF-03C `fc14b5fd`,
+WF-03B `a40d95bb`, WF-03A `c1189f1a` and WF-02B `d1a7b457` (each the sole
+parent of the one before) are published per
 `logs/planner-review/<slice>/publication-verification.json`; WF-02A
 `a593009` (four documents) per `logs/planner-review/wf-02a/`. Pre-publication
-wording is historical; do not reopen or republish them. WF-03E limits:
+wording is historical; do not reopen or republish them. WF-03F limits:
+`logs/planner-review/wf-03f/review1/decision.md` (N01 no-op, controls not
+rerun) and its `publication-verification.json` (publisher source hash only).
+WF-03E limits:
 `logs/planner-review/wf-03e/review2/decision.md` and `review1/decision.md`.
 WF-03D limits (`logs/planner-review/wf-03d/review1/decision.md`): lexical
 scans; no Git/disk mutants; executor controls inspected, not rerun; N05, not

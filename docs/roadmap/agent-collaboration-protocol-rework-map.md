@@ -4,11 +4,11 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds six separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E and WF-03F; each record's identifiers and coordinates refer only
-to its own baseline, and each earlier record's statements stay as written, as
-history. WF-03 remains incomplete. Future WF-03 moves remain unselected, and
-this map names no destination for them.
+prevail. It holds seven separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E, WF-03F and WF-03G; each record's identifiers and coordinates
+refer only to its own baseline, and each earlier record's statements stay as
+written, as history. WF-03 remains incomplete. Future WF-03 moves remain
+unselected, and this map names no destination for them.
 
 ## WF-03A record
 
@@ -585,3 +585,140 @@ evidence companion changed only in its introduction, as above. WF-03E's
 not-moved list named token-activity warnings and stops because they stayed at
 that move; WF-03F moves them. This is a relocation, not a reconciliation:
 moved facts and wording are as written at the baseline.
+
+## WF-03G record
+
+WF-03G moves the provider account-allowance contracts, the run-scoped Codex
+account-usage stop at claim and dispatch and the run-scoped advisory Codex
+account-usage warning, and repairs the usage evidence and token-activity
+controls companion introductions that placed them in the protocol. This record
+was written with WF-03G's uncommitted working-tree diff, for independent review
+before any GO; it describes that diff, not a published delivery. Publication,
+if any, is evidenced by Git history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `bc649c50971b04161ae4d9ba3a8f91529fef4f0c`, the
+  published WF-03F result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `a45ec4779f0ac5c1b7e62d69aee11bbb70b9db8f`, SHA-256
+  `6925bae10e1966a38e050986de5a1776bae94a28ac3d782fdecefabf025fd3c1`,
+  182906 bytes, 2211 lines, 66 Markdown headings. Read it with
+  `git show bc649c50:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `GLstart-end` are WF-03G baseline line spans; `GPstart-end`
+  are lines of the protocol after WF-03G; `GAstart-end` are lines of the
+  [account usage](../architecture/agent-collaboration-account-usage.md)
+  companion. Row IDs carry a `G-` prefix. No WF-03G identifier refers to a
+  WF-03A, WF-03B, WF-03C, WF-03D, WF-03E or WF-03F row or coordinate. A section
+  range spans its heading through the blank line before the next heading.
+- **Dispositions and headings.** Retain and Move mean what they mean in
+  WF-03A, with the same forwarder shape. All 66 baseline headings stay in the
+  protocol in order with identical text and level, so every fragment,
+  including the three new forwarding headings, resolves as before. The
+  companion promotes the three moved headings from `###` to `##` with
+  identical text, so their fragments are the same in both files. GA1-23 are
+  the companion's title and introduction; GA74 and GA118 are the blank
+  separators GL924 and GL1473. Companion lines GA24-74 correspond one to one
+  to GL874-924 and GA75-151 to GL1430-1506: the three headings are promoted,
+  GA27 (GL877) carries the one moved-body reference repair, and every other
+  line is identical.
+
+### WF-03G ranges
+
+The six ranges cover GL1-2211 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| G-R-01 | GL1-873 | Purpose through Claude-reported model context limits, including the six companion routing paragraphs and the WF-03A, WF-03B, WF-03C and WF-03E forwarders | Retain; one routing insertion | GP1-514 (GL1-514), GP515-520 (insertion), GP521-879 (GL515-873) | Verbatim apart from the insertion: a five-line paragraph and a blank line immediately after the token-activity controls routing paragraph (GL510-514) and before `## Provider runtime configuration`, linking to the companion |
+| G-M-01 | GL874-924 | Provider account-allowance contracts | Move | GA24 heading, GA25-73 body (GL875-923); forwarder GP880-883; GP884 (GL924) | Body verbatim except one authorized reference repair (GL877, GA27) |
+| G-R-02 | GL925-1429 | Codex model and reasoning-effort catalog contract through the WF-03F forwarders | Retain; two reference repairs | GP885-1389 | Verbatim except the catalog's two repaired references (GL928, GP888; GL945, GP905) |
+| G-M-02 | GL1430-1473 | Run-scoped Codex account-usage stop at claim and dispatch | Move | GA75 heading, GA76-117 body (GL1431-1472); forwarder GP1390-1393; GP1394 (GL1473) | Body verbatim |
+| G-M-03 | GL1474-1507 | Run-scoped advisory Codex account-usage warning | Move | GA119 heading, GA120-151 body (GL1475-1506); forwarder GP1395-1398; GP1399 (GL1507) | Body verbatim |
+| G-R-03 | GL1508-2211 | One manual Codex Planner format repair through protocol evolution, including the WF-03D forwarders | Retain | GP1400-2103 | Verbatim |
+
+### WF-03G fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| G-M-01 | [`#provider-account-allowance-contracts`](../architecture/agent-collaboration-protocol.md#provider-account-allowance-contracts) | [`#provider-account-allowance-contracts`](../architecture/agent-collaboration-account-usage.md#provider-account-allowance-contracts) |
+| G-M-02 | [`#run-scoped-codex-account-usage-stop-at-claim-and-dispatch`](../architecture/agent-collaboration-protocol.md#run-scoped-codex-account-usage-stop-at-claim-and-dispatch) | [`#run-scoped-codex-account-usage-stop-at-claim-and-dispatch`](../architecture/agent-collaboration-account-usage.md#run-scoped-codex-account-usage-stop-at-claim-and-dispatch) |
+| G-M-03 | [`#run-scoped-advisory-codex-account-usage-warning`](../architecture/agent-collaboration-protocol.md#run-scoped-advisory-codex-account-usage-warning) | [`#run-scoped-advisory-codex-account-usage-warning`](../architecture/agent-collaboration-account-usage.md#run-scoped-advisory-codex-account-usage-warning) |
+
+### WF-03G link and reference changes
+
+- **Repaired moved reference.** G-M-01's "the Codex per-attempt token-usage
+  contract above" (GL876-877, GA26-27) reached the retained usage evidence
+  forwarding heading (GL864) above it. GL877 is now GA27, where "token-usage
+  contract above" became the link
+  `[token-usage contract](agent-collaboration-usage-evidence.md#provider-token-usage-contracts)`,
+  the usage evidence companion's token-usage section, which holds the Codex
+  per-attempt contract. The substitution drops "above"; the line is not
+  rewrapped. No other moved text changed.
+- **Repaired retained references.** The Codex model catalog's "distinct from
+  both contracts above" (GL927-928, GP887-888) meant the two sections above it
+  when it was written, the provider token-usage contracts and the provider
+  account-allowance contracts; GL928 is now GP888, where "both contracts above"
+  became "both the" followed by a link to each,
+  `[provider token-usage contracts](agent-collaboration-usage-evidence.md#provider-token-usage-contracts)`
+  and
+  `[provider account-allowance contracts](agent-collaboration-account-usage.md#provider-account-allowance-contracts)`.
+  Its "the account-allowance contract above" (GL945, GP905) became
+  `the [account-allowance contract](agent-collaboration-account-usage.md#provider-account-allowance-contracts)`.
+  Both substitutions drop "above" and neither line is rewrapped. The catalog's
+  undirected "the allowance contract's limit id" (GL961, GP921) and "exactly
+  like the allowance contract" (GL981, GP941) and the model requests' "the
+  catalog above" (GL990, GP950), which stays above, are unchanged.
+- **Relative wording.** G-M-02's "never over the display-only allowance
+  projection" (GL1440-1441, GA85-86) and "separately from token activity and
+  from the display-only allowance" (GL1470, GA115), and G-M-03's "reuses
+  neither the stop's gate, facts or decisions nor the display-only allowance"
+  (GL1500, GA145) and "beside the stop control" (GL1502, GA147) carry no
+  direction; the named sections are in the companion. G-M-02 links
+  [ADR-0025](../decisions/0025-stop-new-codex-attempts-at-an-explicit-account-usage-percentage.md)
+  (GL1440, GA85) and G-M-03 links
+  [ADR-0026](../decisions/0026-warn-explicitly-about-a-codex-account-usage-percentage.md)
+  (GL1487, GA132); both relative paths resolve unchanged from the same
+  directory. G-M-01's Codex App Server and documentation addresses are code
+  spans, not links. The moved sections contain no other link.
+- **Retained references.** The protocol's unlinked runtime preflight "account
+  usage" (GL537, GP543), review correction's "Token and account-usage
+  enforcement" (GL613, GP619) and "Context usage and account usage" (GL690,
+  GP696), the "Provider account-usage snapshots" paragraph (GL705, GP711), the
+  challenge rounds' "account-usage input" (GL1523, GP1415) and "Claude account
+  allowance," (GL1638, GP1530) carry no direction and are kept as written,
+  including their historical wording. None of those lines changed.
+- **Inbound references.** Links to the protocol fragments from the product
+  [cockpit specification](../product/run-cockpit-specification.md) (lines 617
+  and 803) still reach the retained forwarding headings, as does the frozen
+  [execution history](current-work-history-ba1d4c2.md) link at line 3983. No
+  document links the stop's fragment. The
+  [delivery plan rework map](mvp-delivery-plan-rework-map.md) (line 70) names
+  the Codex account-usage stop and warning with protocol line numbers of its
+  own earlier baseline, and the [engineering context](../engineering-context.md)
+  (line 36) routes token and account controls to the protocol, whose new
+  routing paragraph reaches the companion. None of those lines changed. The
+  WF-03D, WF-03E and WF-03F records above name these subjects as history; the
+  WF-03F record's "separately from token activity" (its FL1621, FP1470) is now
+  GL1470 and GA115.
+- **Companion introductions.** At the baseline the
+  [usage evidence](../architecture/agent-collaboration-usage-evidence.md)
+  (lines 14-16) and
+  [token-activity controls](../architecture/agent-collaboration-token-activity-controls.md)
+  (lines 14-16) introductions said account allowances and account-usage stops
+  and warnings stay in the protocol, which this move makes inaccurate. Each
+  now routes them to the companion and keeps model and effort controls,
+  budgets and every other unmoved subject in the protocol. In each, lines
+  14-16 became lines 14-17, and everything from its first `##` heading
+  (baseline line 19, now 20) through its end is byte-identical. These are
+  introduction repairs, not moved-body repairs.
+
+### WF-03G not moved
+
+The Codex model and effort catalog, model, effort and agentic-turn requests,
+the run-wide claim count and reserved-time budgets, runtime preflight,
+manifests, structured output failure, the challenge rounds and escalation,
+review correction, diagnosis, local delivery and every other subject not moved
+by WF-03A to WF-03G stay in the protocol. The provider contracts, execution
+evidence, evidence inspection and format repair companions are unchanged; the
+usage evidence and token-activity controls companions changed only in their
+introductions, as above. WF-03F's not-moved list named the account-usage stop
+and warning and account allowances because they stayed at that move; WF-03G
+moves them. This is a relocation, not a reconciliation: moved facts and
+wording are as written at the baseline, except the one reference repair above.

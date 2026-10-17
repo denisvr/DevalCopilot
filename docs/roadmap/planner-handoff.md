@@ -5,43 +5,59 @@
 ## Priority and verified baseline
 
 Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
-Claude implements. WF-03 incomplete; later moves unselected; no contract change.
-2026-10-17: main; HEAD, local origin/main and independently observed live main:
-5dd2e3a940a18e0ce44e2e60f89fbb66c1cded7e; 0/0; empty index, clean tree,
-no nonignored untracked paths before this planner selection edit.
+Claude implements. WF-03 incomplete; later moves beyond G unselected.
+2026-10-17: main; HEAD, origin/main and independently checked live main:
+`bc649c50971b04161ae4d9ba3a8f91529fef4f0c`; 0/0; empty index, clean tree,
+no nonignored untracked paths before this selection edit. Dispatch includes
+the planner checkpoint; the publication GO below supersedes dispatch state.
 
-WF-03E delivered: logs/planner-review/wf-03e/publication-verification.json
-(6/6). Pending wording is historical; no reopening/republication/closure edit.
-R1/EX-E01 resolved; EX-E02 accepted (6774-byte current-work, exact 3466-byte
-History/risks). Evidence/limits: logs/planner-review/wf-03e/review2/decision.md
-and review1/decision.md. Review1 6/6 retained, review2 9/9, freeze 4/4;
-executor 22/22 retained, R1 16/16 and controls inspected, not rerun. G04/N06
-defects and N19 nonexclusive detection retained. Scans lexical; Git/disk/live
-lack mutants. Python unavailable; Node passed. Console in transcripts;
-child streams retained, never reconstructed.
+WF-03F published; sole parent `5dd2e3a940a18e0ce44e2e60f89fbb66c1cded7e`.
+Evidence: logs/planner-review/wf-03f/publication-verification.json (five groups),
+publication-verification-01/ original streams; separate live lookup matched.
+No reopening, republication or closure edit. Frozen manifest SHA-256:
+0363ac605ee51af96e8284e04080cdf252f4d60f817aa93868d69098a56fa173.
+Review/limits: logs/planner-review/wf-03f/review1/decision.md; independent 6/6,
+freeze 4/4; executor 23/23 and negative-02 baseline 16/16, controls 23/23
+inspected, not rerun. Negative-01 N01 was a no-op; failure retained.
+EX-F01 accepted: current-work 6797 bytes, exact 3466-byte History/risks;
+EX-F02 accepted: word-preserving D rewrap, unchanged risk link via forwarder.
+Scans lexical; Git/disk/live lack mutants. Publisher initial 17/18 was a
+stdout-trim defect; raw status matched. Original publisher source overwritten:
+only hash retained, never reconstructed. Later snapshots match; pre-02 18/18,
+stage 25/25, commit 39/39, push 8/8, post 24/24. E limits retained through
+logs/planner-review/wf-03e/review2/decision.md and review1/decision.md.
 
-## Selected slice: WF-03F publication GO
+## Selected slice: WF-03G publication GO
 
-GO for seven frozen documents; no next slice selected. Token-activity warning
-and claim stop extracted verbatim; all 66 protocol headings preserved.
-Review: logs/planner-review/wf-03f/review1/decision.md. Independent 6/6;
-executor final 23/23 and negative-02 baseline 16/16, controls 23/23 inspected,
-not rerun. Negative-01 N01 was an invalid no-op; original failure retained,
-only that mutant and its comment changed. Scans/coordinates lexical;
-Git/disk/live have no negative controls. No product/provider runs.
+GO for eight frozen documents; no next slice selected. Account allowance,
+Codex account-usage stop and advisory warning extracted; all 66 headings and
+legacy fragments retained. Three explicit reference repairs preserve meaning;
+cf5b8d6 confirms the catalog's original two preceding contracts. Two companion
+introductions repaired; their section bodies and map A-F records preserved.
 
-EX-F01 accepted: current-work 6797 bytes (+653 over target, +23 over E);
-3466-byte History/risks exact. No forced trim; safe compression unproven.
-EX-F02 accepted: WF-03D rewrap changes no words; risk link stays exact and
-routes via the protocol forwarder. No executor correction required.
+Review: logs/planner-review/wf-03g/review1/decision.md. Independent 5/5;
+executor final 23/23 and negative-03 baseline 16/16, controls 25/25 inspected,
+not rerun. Negative-01 N23 survived a checker weakness; failure retained.
+Negative-02 fixed subject matching; negative-03 retargeted N23 after the
+companion introduction's precision edit. Planner first link scan treated a
+code-span example as active; original checker/result retained, corrected scan
+passed. Parent console outputs remain in chat transcripts, not reconstructed.
+Scans/coordinates lexical; Git/disk/live lack negative controls. No product or
+provider runs. Earlier evidence limitations remain through linked decisions.
 
-This planner GO replaces the dispatch selection checkpoint; the six executor
-documents retain reviewed bytes. Freeze:
-logs/planner-review/wf-03f/publication-manifest.json. Sole parent:
-5dd2e3a940a18e0ce44e2e60f89fbb66c1cded7e. Subject:
-`docs: extract token activity controls`. Publish exactly those seven files,
-mode 100644, normal fast-forward main to origin/main; verify live ref.
-Failure/divergence/material change stops; no force, reconciliation or closure
+EX-G01 accepted: current-work 7078 bytes (+934 over target, +281 over F), exact
+3466-byte History/risks; no forced trim. EX-G02 accepted: long GP888 repairs
+only its reference, preserving neighboring retained lines. EX-G03 acknowledged:
+pre-existing GL613/690/705-707 wording remains unreconciled and out of scope;
+relocation does not endorse it. Engineering-context routes through forwarders.
+
+This GO replaces dispatch checkpoint 110e11f9...0cef; old executor G02 applies
+only to that dispatch version. Seven executor documents retain reviewed bytes.
+Freeze: logs/planner-review/wf-03g/publication-manifest.json. Sole parent:
+`bc649c50971b04161ae4d9ba3a8f91529fef4f0c`. Subject:
+`docs: extract account usage contracts`. Publish exactly eight files, mode
+100644, normal fast-forward main to origin/main; verify live ref. A material
+change, push failure or divergence stops; no force, reconciliation or closure
 edit. Codex independently verifies publication. WF-03 remains incomplete.
 
 ## Retained review and evidence limits

@@ -11,7 +11,8 @@ protocol's original headings forward here. The two sections' references to each
 other "above" and "below" mean the neighboring section in this companion.
 Token-activity warnings and stops are in the
 [token-activity controls](agent-collaboration-token-activity-controls.md)
-companion; account allowances, account-usage stops and warnings, model and
+companion; account allowances and account-usage stops and warnings are in the
+[account usage](agent-collaboration-account-usage.md) companion; model and
 effort controls, budgets and every other subject not moved to a companion stay
 in the protocol. Mapping:
 [protocol rework map](../roadmap/agent-collaboration-protocol-rework-map.md).
