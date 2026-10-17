@@ -7,8 +7,16 @@ shared engineering contract.
   responsibility ownership.
 - [Workflow model](workflow-model.md) defines lifecycle dimensions,
   transitions, gates, and recovery behavior.
-- [Agent collaboration protocol](agent-collaboration-protocol.md) defines typed
-  dialogue, challenges, decisions, and bounded iteration.
+- [Agent collaboration protocol](agent-collaboration-protocol.md) is the core
+  and router of the agent collaboration companions: its purpose, the
+  forwarding headings, the companion directory, and protocol evolution.
+- [Agent collaboration dialogue](agent-collaboration-dialogue.md) holds the
+  protocol's typed dialogue: the message envelope, role-first message
+  authorization and eligibility, message types, version 1.0 reply semantics,
+  default interaction, the authority matrix, and structured output failure.
+- [Agent collaboration ledger](agent-collaboration-ledger.md) holds the
+  protocol's current durable ledger boundary, run execution mode and
+  isolation, and explicit abandonment and the claim paths.
 - [Agent collaboration context](agent-collaboration-context.md) holds the
   protocol's attempt-input preparation: context assembly, token efficiency,
   and untrusted content.

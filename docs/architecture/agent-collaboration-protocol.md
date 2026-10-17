@@ -10,6 +10,14 @@ Codex and Claude Code have primary roles, not absolute authority. The
 orchestrator owns authority and enforces the resolved plan, policies, budgets,
 and gates.
 
+The typed dialogue (the message envelope, role-first message authorization and
+eligibility, message types, version 1.0 reply semantics, default interaction,
+authority matrix and structured output failure) is in the
+[dialogue](agent-collaboration-dialogue.md) companion, and the durable ledger
+boundary, run execution mode and isolation and explicit abandonment are in the
+[ledger](agent-collaboration-ledger.md) companion; their original headings
+follow Purpose, before Context assembly, and forward there.
+
 Attempt-input preparation (context assembly, token efficiency and untrusted
 content) is in the [context](agent-collaboration-context.md) companion, and
 host runtime preflight is in the
@@ -19,457 +27,123 @@ directory under Context assembly routes the protocol's other moved subjects.
 
 ## Message envelope
 
-Every accepted agent message maps to a project-owned envelope:
-
-```json
-{
-  "protocolVersion": "1.0",
-  "messageId": "msg_01...",
-  "runId": "run_01...",
-  "taskId": "task_01...",
-  "attemptId": "attempt_01...",
-  "actor": { "kind": "Agent", "role": "Resolver", "provider": "Codex" },
-  "recipient": { "kind": "Agent", "role": null, "provider": "ClaudeCode" },
-  "type": "challenge",
-  "inReplyTo": "msg_01...",
-  "summary": "The proposed transaction boundary includes a long-running process.",
-  "content": "Persist intent before launching the process.",
-  "evidenceRefs": ["artifact_01..."],
-  "suggestedActions": ["revise-plan"],
-  "createdAtUtc": "2026-09-11T12:00:00Z"
-}
-```
-
-Provider session identifiers and raw response locations are metadata on the
-attempt. They do not replace the project envelope.
+Moved to [Message envelope](agent-collaboration-dialogue.md#message-envelope)
+in the dialogue companion.
 
 ## Role-first message authorization and eligibility
 
-Per ADR-0009, both a real Agent attempt's own message-authoring authority
-(write side) and every later attempt's upstream-input eligibility (read side)
-are decided by immutable role, never by which provider produced an attempt.
-The attempt's `AgentRole` is resolved once, at claim time, and never changes
-afterward; `CollaborationMessageAuthorPolicy` maps that role to the closed set
-of message types the role may author. Provider identity (`AgentProvider`) is
-provenance only. Durable participant references use a neutral
-`ParticipantIdentity`: `Kind` is one of None, Orchestrator, Agent, or Human,
-while an Agent carries its role and provider as separate fields when those
-facts are known. Runs, events, and collaboration messages persist those fields
-separately and expose the same structured shape through the API. Provider
-grants no authoring or eligibility authority and is never consulted when
-deciding whether a role may author a message type or consume one as input.
-
-Real terminal protocol output — a Proposal, an Acceptance or Challenge, a
-Decision and revised Proposal, an Execution report, or a Review approval or
-finding — is written only by that role's own atomic result handler
-(`RecordAgentAttemptResult`, `RecordClaudeCriticalReviewResult`,
-`RecordChallengeResolutionResult`, `RecordImplementationResult`,
-`RecordImplementationReviewResult`), alongside the terminal Domain transition,
-cardinality, artifact, checkpoint, and review-evidence invariants that
-handler alone enforces. The generic collaboration-recording command cannot
-write this output for a real Agent attempt: it rejects one outright, so a
-caller can never append an extra message, record output with no corresponding
-terminal outcome, or bypass a role's cardinality or evidence rules through
-that path.
-
-Human-authored, Orchestrator-authored, and the deterministic Simulated
-walking-skeleton sequence's messages retain the legacy participant-kind
-policy (`ValidateActorForType`) — these have no owning Agent attempt, or no
-role at all, so no role-based authorization can apply to them. That legacy
-policy is unchanged and unweakened by this stabilization.
-
-On the read side, every `Create*Attempt` handler that consumes an earlier
-role's collaboration output as its own workflow input — the Claude
-critical-review attempt consuming a Planner Proposal, the Codex
-challenge-resolution attempt consuming a CriticalReviewer Challenged review,
-the Claude implementation attempt consuming an accepted or resolved Proposal,
-the Codex code-review attempt consuming an Implementer Execution report —
-resolves the message's owning attempt and checks its role, response-contract
-coherence, and outcome/checkpoint facts; `AgentProvider` participates only as
-provenance-integrity evidence against the message's own recorded `Actor`,
-never as a fixed value compared to authorize the role. A Proposal that is a
-Planner root or a Resolver revision is validated through one shared lineage
-rule (`PlanningLineage`, see
-[Optional second challenge round and escalation](#optional-second-challenge-round-and-escalation)).
-The same correction
-applies to every "already reviewed/resolved/implemented/code-reviewed"
-deduplication query and its shared identity helper
-(`ChallengeResolutionInputIdentity`, `CodeReviewInputIdentity`,
-`ImplementationInputIdentity`): a prior successful attempt is found by role,
-response contract, outcome, and exact input identity, never narrowed to one
-fixed provider first.
-
-Recipient uses the same neutral identity shape. A recipient role remains null
-when the historical fact records only the target provider; the system does not
-invent a role during migration or projection. Frontend eligibility selectors
-use the actor's role and provenance rather than provider-branded participant
-values. Provider assignment facts are now durably recorded on the Attempt, but
-the current initial Implementer claim path still fixes Claude Code. Provider
-substitution and manual provider selection are not enabled. Gemini remains
-deferred behind ADR-0011; the provider-neutral workflow owns role, contract,
-and outcome semantics independently of provider provenance.
+Moved to [Role-first message authorization and eligibility](agent-collaboration-dialogue.md#role-first-message-authorization-and-eligibility)
+in the dialogue companion.
 
 ## Current durable ledger boundary
 
-The current implementation persists a project-owned, append-only ledger of
-validated `1.0` envelopes for one run, with an optional owning attempt and a
-monotonic timeline sequence. It records bounded summaries and typed structured
-details only; it does not persist a provider-native transcript, executable
-path, environment value, credential, provider configuration, or raw output.
-The deterministic walking-skeleton sequence writes envelopes marked
-`Simulated`; this label is not evidence of provider observation, authentication,
-or invocation.
-
-Codex's Planning step, Claude Code's Critical review step, and Codex's
-challenge-resolution step are the first three message-producing stages with a
-real, live provider invocation. A durable Agent attempt of either provider
-records a bounded context manifest, runs the provider's own CLI as a real
-child process, and preserves its raw stdout, stderr, and final-response
-content only as bounded sealed artifacts outside the database — never as
-ledger or API content. A structurally valid Proposal, Acceptance, Challenge
-set, or Decision-set-plus-revised-Proposal is appended to the ledger only
-after passing the same protocol/schema validation as any other message; an
-invalid, failed, or source-drifted attempt appends none. A Claude
-critical-review attempt reviews exactly one already-recorded,
-provider-observed Codex Proposal bound to the same run, isolated workspace,
-checkpoint, and fresh Git fingerprint; it never edits the repository, and it
-returns exactly one Acceptance or one to five Challenge messages, never both
-and never neither.
-
-A Codex challenge-resolution attempt is claimed only against one specific,
-already-completed Challenged Claude critical-review attempt, and persists the
-exact ordered input set that attempt is bound to as `AttemptInputMessage`
-rows: the original Proposal at sequence 0, then every Challenge that review
-raised, in the same timeline order the review itself recorded them — never a
-caller-selected subset, never a different order. Given that fixed context, the
-provider resolves every Challenge explicitly and proposes a revision; on
-success, the attempt atomically appends one Decision per Challenge (each
-replying to the Challenge it resolves) plus exactly one revised Proposal
-(replying to the original Proposal) in a single transaction — never a partial
-set, never a Decision left unresolved. Before that provider invocation ever
-starts, and again in the same short transaction that commits the dispatch
-marker, the run/workspace/lease/checkpoint eligibility is revalidated and the
-attempt's own exact ordered input set is independently re-checked against
-every other already-Resolved challenge-resolution attempt; a resolution of the
-identical ordered Proposal-plus-Challenge-set already existing supersedes this
-attempt with a truthful `InputAlreadyResolved` outcome before the provider is
-ever invoked — never a duplicated resolution, and never silently retried. The
-revised Proposal a resolution produces can re-enter the critical-review path
-above as an ordinary Proposal; Acceptance remains terminal for that review
-cycle.
-
-Claude Code's Implementer step is the fourth message-producing stage with a
-real, live provider invocation: it durably implements exactly one
-authoritative resolved plan, edited entirely inside the run's owned worktree.
-Exactly two resolved-plan forms are eligible, identified only by the plan's
-own Proposal message id, never reconstructed from display text: an original,
-provider-observed Codex Proposal with a completed, successful Claude Accepted
-review; or the provider-observed revised Proposal a completed, successful
-Codex Resolver attempt itself produced. The attempt persists the exact
-ordered input identity that form is bound to as `AttemptInputMessage` rows —
-the Proposal at sequence 0, then either its Acceptance or its complete
-ordered Decision set, never both. Claude never runs Git, a verification
-command, a commit, a push, a package install, or any network operation during
-this attempt; its only capability is reading and editing files inside the
-worktree. Because Claude's implementation tool allowlist never includes Git
-or any process tool, it can never move `HEAD` itself: after the process
-exits, the orchestrator independently re-reads fresh Git evidence and first
-checks whether `HEAD` itself still matches the immutable starting
-checkpoint's own `HEAD` — a changed `HEAD` is proof of an external or
-unauthorized mutation and is recorded as `ImplementationHeadChanged`, never
-`Implemented`, regardless of what the report itself claims to have changed.
-Only when `HEAD` is unchanged, the process succeeded, and a valid, schema-
-conformant implementation report's self-reported changed-path set exactly
-matches that independently observed evidence does the attempt record one new
-immutable Git checkpoint plus its changed-file rows, mark itself
-`Implemented`, and append exactly one Execution report replying to the
-implemented Proposal — all atomically, after every external process has
-already finished. Any other outcome — a failed invocation, an invalid or
-untrustworthy report, a changed `HEAD`, or evidence that could not be
-captured — is recorded truthfully instead (`NoChangesProduced`,
-`InvalidStructuredOutput`, `ProviderInvocationFailed`,
-`ImplementationHeadChanged`, or `CheckpointEvidenceUnavailable`), and the
-filesystem is never rolled back or silently discarded; whenever the worktree
-may have changed without a verified, trustworthy result, the workspace is
-also flagged `NeedsAttention` for a human to inspect, and no further attempt
-is auto-retried against it. Every boundary value a recording command
-receives — the starting checkpoint reference, the completion `HEAD`/
-fingerprint shapes, every independently observed changed path, the sealed
-artifacts, and the implementation report itself (even one a caller
-constructed by hand rather than through the schema parser) — is
-independently re-validated before any mutation, through the same shared
-validation both the parser and the recording command call, so the two can
-never silently drift apart.
-Before that provider invocation ever starts, and again in the same short
-transaction that commits the dispatch marker, eligibility is revalidated and
-this attempt's exact plan-and-starting-checkpoint identity is independently
-re-checked against every other already-`Implemented` attempt; an
-implementation of the identical plan and checkpoint already existing
-supersedes this attempt with a truthful `InputAlreadyImplemented` outcome
-before the provider is ever invoked. A host restart that finds a
-dispatched-but-unrecorded implementation attempt never guesses its outcome:
-reconciliation independently re-reads fresh Git evidence before marking the
-attempt `Interrupted` and, if the fingerprint no longer matches (or that
-evidence itself could not be captured), the workspace `NeedsAttention` as
-well.
-
-The durable Review-finding, Revision-response, and Codex implementation-review
-envelopes are now explicit, bounded workflow facts. Production contains real
-Codex and Claude provider adapters and supervisors for the implemented roles;
-automated tests use deterministic adapters and doubles and never invoke a real
-provider. The durable envelopes do not authorize automatic verification,
-publication, fallback, or parallel execution.
-
-The cockpit presents the bounded `Challenge`, `Decision`, `ReviewFinding`, and
-`RevisionResponse` fields as typed cards, including `Decision.resolution`'s own
-closed enum (`accepted`, `partiallyAccepted`, `rejected` — see
-`ChallengeResolutionOutputSchema`); any other value fails closed rather than
-rendering as if it were a valid protocol value. A reply is presented as a
-verified parent relationship only when the parent message is both present in
-the current run's currently loaded timeline and an earlier, protocol-compatible
-parent for the reply's own type per the reply-semantics table below; a matching
-id that fails either check is reported only as an observed reference, never
-reconstructed into an asserted relationship. A parent absent from the loaded
-timeline is reported only as not present in what is currently loaded — never
-asserted to be outside the API's bounded window, since its absence does not
-prove that. The presentation never adds affected paths to the durable
-`ReviewFinding` ledger and never treats malformed or unknown structured content
-as a semantic fact.
+Moved to [Current durable ledger boundary](agent-collaboration-ledger.md#current-durable-ledger-boundary)
+in the ledger companion.
 
 ## Run execution mode and isolation
 
-Every run carries an immutable execution mode ([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)):
-`Legacy` (0, recorded before modes existed), `Simulated` (1), or `ManualAgent` (2). The deterministic simulator, including
-step recording, completion, and Simulated-provenance messages, operates only on `Simulated` and `Legacy` runs; the six Agent
-claim paths (with their repair variants), their eligibility feeds, and the final dispatch gate operate only on `ManualAgent`
-and `Legacy` runs; standalone Process attempts operate only on `Legacy` runs. The mode is read afresh at the claim, at the
-commit seam, and at dispatch, so a stale tracked entity never confers authority, and a stored number outside the set admits
-nothing. A manual run is created by recording an objective only; it creates no attempt, manifest, lease, or budget
-consumption, and the explicit stage requests keep every existing workspace, checkpoint, provider, contract, source, budget,
-and authorization gate. `CompleteSimulatedRun` accepts only a `Simulated` attempt, so it can never conclude an Agent
-attempt or a manual run.
+Moved to [Run execution mode and isolation](agent-collaboration-ledger.md#run-execution-mode-and-isolation)
+in the ledger companion.
 
 ### Explicit abandonment and the claim paths
 
-A human may end an inactive manual run as `Abandoned` ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)). The protected
-`POST /api/runs/{runId}/abandon` decides only from fresh untracked reads under the write lock and is refused while any attempt of the
-project is not `Completed`, `Failed` or `Interrupted` (including an unrecognized status), so no Agent claim can already be in flight
-when it commits. The other direction is the claim's own guard: the three Claude claim paths (critical review, implementation, review
-correction) and the dispatch marker commit through a Run update that includes the `Lifecycle` concurrency token and therefore lose to a
-concurrent abandonment; the Codex planning, challenge-resolution and code-review claims, which can claim a `Running` run without
-changing a Run column, read the lifecycle untracked inside their short claim transaction after their first guard write took the write
-lock and refuse before any insert (the sealed manifest is removed and nothing is consumed), including their repair variants, with the code
-each already uses for an ended run: `runs.not_active` for planning and `runs.not_running` for challenge resolution and code review; the verification-diagnosis and diagnosis-correction claims already re-read it there. No new claim path, budget slot,
-authorization or provider invocation is created by an abandonment or by reading its status, and an abandoned run offers no Agent request.
+Moved to [Explicit abandonment and the claim paths](agent-collaboration-ledger.md#explicit-abandonment-and-the-claim-paths)
+in the ledger companion.
 
 ## Message types
 
+Moved to [Message types](agent-collaboration-dialogue.md#message-types)
+in the dialogue companion.
+
 ### Proposal
 
-Introduces a plan, design, implementation approach, or corrective action. A
-proposal states assumptions, affected areas, verification, and known risks.
+Moved to [Proposal](agent-collaboration-dialogue.md#proposal)
+in the dialogue companion.
 
 ### Acceptance
 
-Confirms that a proposal is feasible and consistent. Acceptance must include a
-short rationale; passive agreement without evaluation is not sufficient.
+Moved to [Acceptance](agent-collaboration-dialogue.md#acceptance)
+in the dialogue companion.
 
 ### Challenge
 
-Disputes a concrete claim, assumption, omission, sequence, or approach. A valid
-challenge contains:
-
-- the disputed item;
-- impact if left unresolved;
-- reasoning or evidence;
-- a proposed alternative or a precise question.
-
-Contrarian language without a material consequence is not a challenge.
+Moved to [Challenge](agent-collaboration-dialogue.md#challenge)
+in the dialogue companion.
 
 ### Question
 
-Requests information required to continue. It identifies why the answer
-changes the work. Questions that require product authority are escalated to the
-human rather than guessed.
+Moved to [Question](agent-collaboration-dialogue.md#question)
+in the dialogue companion.
 
 ### Decision
 
-Resolves one or more proposals or challenges as `Accepted`, `PartiallyAccepted`,
-`Rejected`, or `Escalated`. It includes rationale, resulting plan changes, and
-the exact next action.
+Moved to [Decision](agent-collaboration-dialogue.md#decision)
+in the dialogue companion.
 
 ### Execution report
 
-Describes completed work and references the actual diff, commands, tests, and
-artifacts. It does not assert success beyond the evidence.
+Moved to [Execution report](agent-collaboration-dialogue.md#execution-report)
+in the dialogue companion.
 
 ### Review finding
 
-Records severity, affected location, expected behavior, evidence, and required
-disposition. Findings are stable records, not embedded only in prose.
+Moved to [Review finding](agent-collaboration-dialogue.md#review-finding)
+in the dialogue companion.
 
 ### Revision response
 
-Maps each finding to `Fixed`, `Disputed`, `Deferred`, or `NeedsHumanDecision`
-with evidence and resulting source changes.
+Moved to [Revision response](agent-collaboration-dialogue.md#revision-response)
+in the dialogue companion.
 
 ### Escalation
 
-Summarizes the unresolved decision, available options, consequences, evidence,
-and recommended choice. It contains no hidden default action.
+Moved to [Escalation](agent-collaboration-dialogue.md#escalation)
+in the dialogue companion.
 
 ### Human instruction
 
-Records one human authorization replying to an Escalation: authorize one
-additional review-correction claim, or, for the escalation that ends a proposal lineage, authorize one implementation claim
-of its final plan (see
-[Explicit human authorization of one escalated-plan implementation](#explicit-human-authorization-of-one-escalated-plan-implementation));
-the fixed instruction text distinguishes the two. It is HumanSubmitted, addressed to the
-Orchestrator, and carries the fixed authorization instruction plus either the
-fixed default rationale or, only for an explicit guided authorization, one
-bounded, normalized guidance text (see
-[Bounded human guidance for one authorized review correction](#bounded-human-guidance-for-one-authorized-review-correction)).
-It is never a general instruction channel.
+Moved to [Human instruction](agent-collaboration-dialogue.md#human-instruction)
+in the dialogue companion.
 
 ## Version 1.0 reply semantics
 
-The durable ledger validates each reply against this closed relationship table
-(`CollaborationMessageReplyPolicy`). A root proposal starts a thread with no
-reply; a revised proposal instead replies to the exact prior proposal it
-supersedes, so a proposal's own reply is optional, never forbidden. Every
-other message type must reply to an earlier message in the same run.
-
-| Message type | Allowed parent type |
-|---|---|
-| Proposal (revised only; a root proposal has no parent) | Proposal |
-| Acceptance, Challenge | Proposal |
-| Decision | Proposal or Challenge |
-| Execution report | Decision or Proposal (the current Increment 4 Implementer path always replies to Proposal; Decision remains the aspirational later full-loop shape) |
-| Review finding | Execution report |
-| Revision response | Review finding |
-| Question | Proposal, Challenge, Decision, Execution report, or Review finding |
-| Escalation | Proposal, Challenge, Decision, Execution report, Review finding, Revision response, or Question |
-| Review approval | Execution report |
-| Human instruction | Escalation |
-
-Question and escalation are therefore bounded by the fact that needs an answer
-or cannot be resolved; neither starts an ungrounded side conversation.
+Moved to [Version 1.0 reply semantics](agent-collaboration-dialogue.md#version-10-reply-semantics)
+in the dialogue companion.
 
 ## Default interaction
 
+Moved to [Default interaction](agent-collaboration-dialogue.md#default-interaction)
+in the dialogue companion.
+
 ### Planning
 
-Codex receives the objective, project context, baseline, relevant instructions,
-and selected evidence. It returns a proposal with scope, sequence, risks,
-verification, and escalation points.
+Moved to [Planning](agent-collaboration-dialogue.md#planning)
+in the dialogue companion.
 
 ### Critical review
 
-Claude Code receives the objective and proposal before implementation. It must
-return either:
-
-- an acceptance with feasibility rationale; or
-- one or more material challenges.
-
-This stage is real today, bound to one durable attempt per requested review. A
-Challenged outcome leaves the plan awaiting an explicit resolution request
-rather than looping automatically; resolution itself is a separate, real,
-requested attempt described next. A Planner Proposal, or a Resolver's first
-revised Proposal, may be reviewed once; the second review and its resolution
-are the lineage's only additional round (see
-[Optional second challenge round and escalation](#optional-second-challenge-round-and-escalation)).
+Moved to [Critical review](agent-collaboration-dialogue.md#critical-review)
+in the dialogue companion.
 
 ### Resolution
 
-This stage is also real today, bound to one durable attempt per requested
-resolution of one specific Challenged review. Codex receives that review's
-original Proposal and its complete, ordered Challenge set, and resolves every
-challenge explicitly as `accepted`, `partiallyAccepted`, or `rejected`; a
-partially accepted or rejected challenge must include reasoning. Resolving
-never edits the repository. Changes become a new plan revision — one revised
-Proposal replying to the original — rather than silently editing history, and
-that revision can re-enter Critical review above once (the first revision
-only). Resolving a challenged review of a first revision produces the final,
-depth-two revision and records one human escalation atomically with it; that
-revision is not reviewable or implementable and no further round exists.
-Never a duplicated resolution of the exact same review: a resolution already
-recorded for the identical ordered Proposal-plus-Challenge-set supersedes any
-further attempt at claim or dispatch time.
+Moved to [Resolution](agent-collaboration-dialogue.md#resolution)
+in the dialogue companion.
 
 ### Execution and review
 
-The initial Implementer currently uses Claude Code and implements only the
-resolved plan, recording unexpected discoveries as challenges or questions.
-Gemini is deferred until its administrator-provisioned policy prerequisite is
-met. This stage is real today, bound to one durable
-attempt per requested implementation of one specific resolved plan (an
-accepted original Proposal, or a first revised Proposal that no later review
-challenged, bound to its exact Acceptance when it was re-reviewed and
-accepted — never a second revision); execution never
-edits anything outside the run's owned worktree, and it never runs Git, a
-verification command, or any network operation itself. It records only the
-implementation's own Execution report and the new Git checkpoint its
-independently observed changes produced; it never claims automatic
-verification, review, or publication of those changes.
-
-Codex reviewing the implementation is also real today, bound to one durable
-attempt per requested review of one specific Execution report. Codex receives
-that report, the exact plan the implementation consumed (the implemented Proposal;
-[ADR-0017](../decisions/0017-review-the-implemented-plan-through-correction.md)), fresh bounded Git
-evidence for its exact result checkpoint, and the exact status of every
-currently enabled verification command's latest execution against that
-checkpoint — every one of which must already be Passed, or the review is
-never claimable. Codex never runs a verification command itself, and it
-never edits the worktree: this stage is read-only, using the same bounded,
-non-interactive invocation contract as Planning and Resolution above. It
-returns either:
-
-- an approval with a bounded rationale and residual risks, and zero
-  findings; or
-- one to ten material findings, each with a closed severity, a closed
-  category, evidence, and the required change — never mixed with an
-  approval in the same response.
-
-A finding's optional repository-relative affected path is never recorded to
-the durable collaboration ledger; it is surfaced only through the sealed,
-redacted final-response artifact, exactly like every other bounded field
-this protocol keeps out of structured content. Never a duplicated review of
-the exact same evidence: a review already recorded for the identical
-Execution report plus the identical ordered verification-execution set
-supersedes any further attempt at claim or dispatch time — mirroring
-Resolution's own exact-input-identity rule one level further down the
-protocol. A successful correction appends a new checkpoint and report, but
-re-review is an explicit user request only: the new checkpoint must first have
-fresh Passed verification, and no state transition automatically re-enters
-Execution from a changes-requested review. When the verification itself failed, the
-review is not claimable; the human may instead request an explicit read-only diagnosis of that failure
-(see [Explicit verification failure diagnosis](#explicit-verification-failure-diagnosis)).
+Moved to [Execution and review](agent-collaboration-dialogue.md#execution-and-review)
+in the dialogue companion.
 
 ## Authority matrix
 
-| Action | Codex | Claude Code | Orchestrator | Human |
-|---|---|---|---|---|
-| Propose or challenge a plan | Yes | Yes | Records | May intervene |
-| Resolve technical challenge | Primary | May dispute | Enforces bounds | Final escalation authority |
-| Modify source in executor stage | Read-only by default | Primary | Grants scoped workspace | May take over |
-| Run configured local verification | Recommends | Recommends | Executes | May execute manually |
-| Approve review | Primary | Responds | Validates evidence and state | May override explicitly |
-| Commit | No direct authority | No direct authority | Executes after gate | Approves policy-sensitive cases |
-| Push or create PR | No direct authority | No direct authority | Executes after gate | Approves in MVP |
-| Merge, release, deploy | No | No | Not enabled in MVP | External/manual |
+Moved to [Authority matrix](agent-collaboration-dialogue.md#authority-matrix)
+in the dialogue companion.
 
 ## Structured output failure
 
-An adapter validates protocol version, type, identifiers, cardinality, text
-limits, and referenced artifacts. Invalid output produces a failed attempt with
-the raw response preserved. The system may request one bounded format repair,
-but it never invents missing decisions, evidence, or success. Today that
-provision exists only as a **human-requested** repair of a read-only stage's
-attempt: the Codex Planner Proposal (see
-[One manual Codex Planner format repair](#one-manual-codex-planner-format-repair)) and the Claude
-CriticalReviewer, Codex Resolver, and Codex CodeReviewer stages (see
-[One manual format repair of the remaining read-only stages](#one-manual-format-repair-of-the-remaining-read-only-stages)).
-There is no automatic retry, and no repair of a mutating Implementer or ReviewCorrection attempt.
+Moved to [Structured output failure](agent-collaboration-dialogue.md#structured-output-failure)
+in the dialogue companion.
 
 ## Context assembly
 
@@ -478,7 +152,9 @@ in the context companion.
 
 The companion directory that follows is not part of context assembly: it
 lists the companions that hold the protocol's other moved subjects, whose
-original headings below forward to them.
+original headings below forward to them. The dialogue and ledger companions
+are routed from Purpose instead: their original headings precede Context
+assembly and forward to them.
 
 The provider CLI safety contracts (Claude Code critical review and
 implementation, and the deferred Gemini CLI boundary) are in the

@@ -4,8 +4,8 @@ WF-03 mapping of the long-form
 [agent collaboration protocol](../architecture/agent-collaboration-protocol.md)
 to focused companion documents; a coverage record, not a ledger or a contract.
 It never replaces a destination: where they differ, the destination and Git
-prevail. It holds twelve separately pinned records, WF-03A, WF-03B, WF-03C,
-WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I, WF-03J, WF-03K and WF-03L;
+prevail. It holds thirteen separately pinned records, WF-03A, WF-03B, WF-03C,
+WF-03D, WF-03E, WF-03F, WF-03G, WF-03H, WF-03I, WF-03J, WF-03K, WF-03L and WF-03M;
 each record's identifiers and coordinates refer only to its own baseline, and
 each earlier record's statements stay as written, as history. WF-03 remains
 incomplete. Future WF-03 moves remain unselected and have no destination here.
@@ -1515,3 +1515,210 @@ preflight, context assembly, token efficiency and untrusted content because
 they stayed in the protocol at that move; WF-03L moves their bodies. This is
 a relocation, not a reconciliation: moved facts and wording are as written at
 the baseline.
+
+## WF-03M record
+
+WF-03M moves the protocol's remaining substantial bodies to two new
+companions: the message envelope, role-first message authorization and
+eligibility, message types, version 1.0 reply semantics, default interaction,
+authority matrix and structured output failure move to a dialogue companion,
+and the current durable ledger boundary, run execution mode and isolation and
+explicit abandonment move to a ledger companion. Purpose, the forwarding
+headings, the companion directory and protocol evolution stay in the protocol,
+which becomes the core and router. This does not declare WF-03 or the
+documentation rework complete. This record was written with WF-03M's
+uncommitted working-tree diff, for independent review before any GO; it
+describes that diff, not a published delivery. Publication, if any, is
+evidenced by Git history and the checkpoints, not by this record.
+
+- **Baseline.** Commit `cc718a7d2f7f35ca2b2284dd131a550b7a8431f3`, the
+  published WF-03L result: `docs/architecture/agent-collaboration-protocol.md`
+  blob `b6afafbd40d55b186d69c13e898c0882114d212b`, SHA-256
+  `6ea1994530bd226017484139060c1c3e4cc356cde7533d080c6a8e18e71f3c76`,
+  40977 bytes, 752 lines, 66 Markdown headings. Read it with
+  `git show cc718a7d:docs/architecture/agent-collaboration-protocol.md`.
+- **Identifiers.** `MLstart-end` are WF-03M baseline line spans; `MPstart-end`
+  are lines of the protocol after WF-03M; `MDstart-end` are lines of the
+  [dialogue](../architecture/agent-collaboration-dialogue.md) companion;
+  `MGstart-end` are lines of the
+  [ledger](../architecture/agent-collaboration-ledger.md) companion. Row IDs
+  carry an `M-` prefix. No WF-03M identifier refers to a row or coordinate of
+  WF-03A to WF-03L.
+- **Dispositions and headings.** Retain means kept verbatim at the original
+  path. Move here means that a section, from its heading through the blank
+  line before the next heading, moves to its companion with the same heading
+  text and level, and a copy of its heading stays in the protocol as a
+  five-line forwarder: the heading, a blank line, a link to the destination
+  fragment, the companion name and a blank line. Every moved heading has its
+  own forwarder, including `###` headings and the two headings with no body of
+  their own (Message types and Default interaction). All 66 baseline headings
+  stay in the protocol in order with identical text and level, so every
+  fragment resolves as before, and each fragment is the same in the protocol
+  and its companion. MD1-22 are the dialogue companion's title, introduction
+  and blank line; MD23-114 are ML20-111 and MD115-322 are ML265-472, in source
+  order. MG1-17 are the ledger companion's title, introduction and blank line;
+  MG18-169 are ML112-263. The closing blank lines ML264 and ML473 are not
+  carried, so neither companion ends with a blank line. Moved lines are
+  byte-identical except the nine substitutions listed below.
+
+### WF-03M ranges
+
+The 26 ranges cover ML1-752 without gaps or overlap.
+
+| ID | Lines | Subject | Disposition | Destination | Evidence |
+|---|---|---|---|---|---|
+| M-R-01 | ML1-19 | Title, Purpose and its context and preflight routing paragraph | Retain; one Purpose routing insertion | MP1-12 (ML1-12), MP13-20 (insertion), MP21-27 (ML13-19) | Verbatim apart from the insertion: one seven-line routing paragraph and a blank line after the Purpose paragraphs (ML5-11) and their blank line (ML12), before the existing routing paragraph (ML13-18) |
+| M-M-01 | ML20-45 | Message envelope | Move | MD23-48; forwarder MP28-32 | Verbatim |
+| M-M-02 | ML46-111 | Role-first message authorization and eligibility | Move | MD49-114; forwarder MP33-37 | One link qualified (ML93, MD96) |
+| M-M-03 | ML112-238 | Current durable ledger boundary | Move | MG18-144; forwarder MP38-42 | Two directional repairs (ML157-158, MG63-64; ML230, MG136) |
+| M-M-04 | ML239-251 | Run execution mode and isolation | Move | MG145-157; forwarder MP43-47 | Verbatim |
+| M-M-05 | ML252-264 | Explicit abandonment and the claim paths (`###`) | Move | MG158-169 (ML252-263); forwarder MP48-52 | Verbatim; ML264 not carried |
+| M-M-06 | ML265-266 | Message types (heading only) | Move | MD115-116; forwarder MP53-57 | Verbatim |
+| M-M-07 | ML267-271 | Proposal (`###`) | Move | MD117-121; forwarder MP58-62 | Verbatim |
+| M-M-08 | ML272-276 | Acceptance (`###`) | Move | MD122-126; forwarder MP63-67 | Verbatim |
+| M-M-09 | ML277-288 | Challenge (`###`) | Move | MD127-138; forwarder MP68-72 | Verbatim |
+| M-M-10 | ML289-294 | Question (`###`) | Move | MD139-144; forwarder MP73-77 | Verbatim |
+| M-M-11 | ML295-300 | Decision (`###`) | Move | MD145-150; forwarder MP78-82 | Verbatim |
+| M-M-12 | ML301-305 | Execution report (`###`) | Move | MD151-155; forwarder MP83-87 | Verbatim |
+| M-M-13 | ML306-310 | Review finding (`###`) | Move | MD156-160; forwarder MP88-92 | Verbatim |
+| M-M-14 | ML311-315 | Revision response (`###`) | Move | MD161-165; forwarder MP93-97 | Verbatim |
+| M-M-15 | ML316-320 | Escalation (`###`) | Move | MD166-170; forwarder MP98-102 | Verbatim |
+| M-M-16 | ML321-333 | Human instruction (`###`) | Move | MD171-183; forwarder MP103-107 | Two links qualified (ML326, MD176; ML331, MD181) |
+| M-M-17 | ML334-357 | Version 1.0 reply semantics | Move | MD184-207; forwarder MP108-112 | Verbatim |
+| M-M-18 | ML358-359 | Default interaction (heading only) | Move | MD208-209; forwarder MP113-117 | Verbatim |
+| M-M-19 | ML360-365 | Planning (`###`) | Move | MD210-215; forwarder MP118-122 | Verbatim |
+| M-M-20 | ML366-381 | Critical review (`###`) | Move | MD216-231; forwarder MP123-127 | One link qualified (ML380, MD230) |
+| M-M-21 | ML382-398 | Resolution (`###`) | Move | MD232-248; forwarder MP128-132 | Verbatim |
+| M-M-22 | ML399-447 | Execution and review (`###`) | Move | MD249-297; forwarder MP133-137 | One link qualified (ML446, MD296) |
+| M-M-23 | ML448-460 | Authority matrix | Move | MD298-310; forwarder MP138-142 | Verbatim |
+| M-M-24 | ML461-473 | Structured output failure | Move | MD311-322 (ML461-472); forwarder MP143-147 | Two links qualified (ML469, MD319; ML471, MD321); ML473 not carried |
+| M-R-02 | ML474-752 | Context assembly forwarder and framing, the companion directory, the subsection forwarders, token efficiency and untrusted content forwarders, protocol evolution | Retain; one framing replacement | MP148-154 (ML474-480), MP155-157 (replace ML481), MP158-428 (ML482-752) | Verbatim apart from the framing: ML481 becomes three lines that keep its sentence and add one; the directory ML483-553 is MP159-229 and protocol evolution ML748-752 is MP424-428, byte-identical |
+
+The protocol's inverse is exact: removing MP13-20, restoring ML481 from
+MP155-157, replacing each five-line forwarder with its destination section
+(heading through the line before the next heading, plus the closing blank line
+ML264 or ML473 where a companion ends) and reversing the nine substitutions
+restores the 40977-byte baseline.
+
+### WF-03M fragments
+
+| ID | Baseline fragment (protocol forwarder) | Companion fragment |
+|---|---|---|
+| M-M-01 | [`#message-envelope`](../architecture/agent-collaboration-protocol.md#message-envelope) | [`#message-envelope`](../architecture/agent-collaboration-dialogue.md#message-envelope) |
+| M-M-02 | [`#role-first-message-authorization-and-eligibility`](../architecture/agent-collaboration-protocol.md#role-first-message-authorization-and-eligibility) | [`#role-first-message-authorization-and-eligibility`](../architecture/agent-collaboration-dialogue.md#role-first-message-authorization-and-eligibility) |
+| M-M-03 | [`#current-durable-ledger-boundary`](../architecture/agent-collaboration-protocol.md#current-durable-ledger-boundary) | [`#current-durable-ledger-boundary`](../architecture/agent-collaboration-ledger.md#current-durable-ledger-boundary) |
+| M-M-04 | [`#run-execution-mode-and-isolation`](../architecture/agent-collaboration-protocol.md#run-execution-mode-and-isolation) | [`#run-execution-mode-and-isolation`](../architecture/agent-collaboration-ledger.md#run-execution-mode-and-isolation) |
+| M-M-05 | [`#explicit-abandonment-and-the-claim-paths`](../architecture/agent-collaboration-protocol.md#explicit-abandonment-and-the-claim-paths) | [`#explicit-abandonment-and-the-claim-paths`](../architecture/agent-collaboration-ledger.md#explicit-abandonment-and-the-claim-paths) |
+| M-M-06 | [`#message-types`](../architecture/agent-collaboration-protocol.md#message-types) | [`#message-types`](../architecture/agent-collaboration-dialogue.md#message-types) |
+| M-M-07 | [`#proposal`](../architecture/agent-collaboration-protocol.md#proposal) | [`#proposal`](../architecture/agent-collaboration-dialogue.md#proposal) |
+| M-M-08 | [`#acceptance`](../architecture/agent-collaboration-protocol.md#acceptance) | [`#acceptance`](../architecture/agent-collaboration-dialogue.md#acceptance) |
+| M-M-09 | [`#challenge`](../architecture/agent-collaboration-protocol.md#challenge) | [`#challenge`](../architecture/agent-collaboration-dialogue.md#challenge) |
+| M-M-10 | [`#question`](../architecture/agent-collaboration-protocol.md#question) | [`#question`](../architecture/agent-collaboration-dialogue.md#question) |
+| M-M-11 | [`#decision`](../architecture/agent-collaboration-protocol.md#decision) | [`#decision`](../architecture/agent-collaboration-dialogue.md#decision) |
+| M-M-12 | [`#execution-report`](../architecture/agent-collaboration-protocol.md#execution-report) | [`#execution-report`](../architecture/agent-collaboration-dialogue.md#execution-report) |
+| M-M-13 | [`#review-finding`](../architecture/agent-collaboration-protocol.md#review-finding) | [`#review-finding`](../architecture/agent-collaboration-dialogue.md#review-finding) |
+| M-M-14 | [`#revision-response`](../architecture/agent-collaboration-protocol.md#revision-response) | [`#revision-response`](../architecture/agent-collaboration-dialogue.md#revision-response) |
+| M-M-15 | [`#escalation`](../architecture/agent-collaboration-protocol.md#escalation) | [`#escalation`](../architecture/agent-collaboration-dialogue.md#escalation) |
+| M-M-16 | [`#human-instruction`](../architecture/agent-collaboration-protocol.md#human-instruction) | [`#human-instruction`](../architecture/agent-collaboration-dialogue.md#human-instruction) |
+| M-M-17 | [`#version-10-reply-semantics`](../architecture/agent-collaboration-protocol.md#version-10-reply-semantics) | [`#version-10-reply-semantics`](../architecture/agent-collaboration-dialogue.md#version-10-reply-semantics) |
+| M-M-18 | [`#default-interaction`](../architecture/agent-collaboration-protocol.md#default-interaction) | [`#default-interaction`](../architecture/agent-collaboration-dialogue.md#default-interaction) |
+| M-M-19 | [`#planning`](../architecture/agent-collaboration-protocol.md#planning) | [`#planning`](../architecture/agent-collaboration-dialogue.md#planning) |
+| M-M-20 | [`#critical-review`](../architecture/agent-collaboration-protocol.md#critical-review) | [`#critical-review`](../architecture/agent-collaboration-dialogue.md#critical-review) |
+| M-M-21 | [`#resolution`](../architecture/agent-collaboration-protocol.md#resolution) | [`#resolution`](../architecture/agent-collaboration-dialogue.md#resolution) |
+| M-M-22 | [`#execution-and-review`](../architecture/agent-collaboration-protocol.md#execution-and-review) | [`#execution-and-review`](../architecture/agent-collaboration-dialogue.md#execution-and-review) |
+| M-M-23 | [`#authority-matrix`](../architecture/agent-collaboration-protocol.md#authority-matrix) | [`#authority-matrix`](../architecture/agent-collaboration-dialogue.md#authority-matrix) |
+| M-M-24 | [`#structured-output-failure`](../architecture/agent-collaboration-protocol.md#structured-output-failure) | [`#structured-output-failure`](../architecture/agent-collaboration-dialogue.md#structured-output-failure) |
+
+### WF-03M link and reference changes
+
+- **Moved text.** Nine substitutions, each on its original line or lines
+  without rewrapping, change ten baseline lines; every other moved line is
+  byte-identical. Seven qualify an in-page link whose target is outside the
+  dialogue companion, inserting `agent-collaboration-protocol.md` (31 bytes)
+  before `#`, so the link reaches the protocol's retained forwarding heading:
+  `](#optional-second-challenge-round-and-escalation)` (ML93, MD96; ML380,
+  MD230),
+  `](#explicit-human-authorization-of-one-escalated-plan-implementation)`
+  (ML326, MD176),
+  `](#bounded-human-guidance-for-one-authorized-review-correction)` (ML331,
+  MD181), `](#explicit-verification-failure-diagnosis)` (ML446, MD296),
+  `](#one-manual-codex-planner-format-repair)` (ML469, MD319) and
+  `](#one-manual-format-repair-of-the-remaining-read-only-stages)` (ML471,
+  MD321), each becoming `](agent-collaboration-protocol.md#` plus the same
+  fragment and `)`. Two repair directional references in the ledger: the
+  29 bytes `critical-review path`, a line break and `above as` (ML157-158)
+  became the 74 bytes
+  `[critical-review path](agent-collaboration-dialogue.md#critical-review)`,
+  a line break and `as` (MG63-64); the 27 bytes `reply-semantics table below`
+  (ML230) became the 83 bytes
+  `[reply-semantics table](agent-collaboration-dialogue.md#version-10-reply-semantics)`
+  (MG136). The ledger body has no other link change.
+- **Directional wording.** In the dialogue companion "described next" (ML377,
+  MD227), "Critical review above" (ML391, MD241) and "Planning and Resolution
+  above" (ML424, MD274) keep their baseline order and still mean sections of
+  the same companion; "this protocol" (ML436, MD286) means the collaboration
+  protocol as a whole. "The exact next action" (ML299, MD149) is not a
+  document reference, and "later" and "earlier" (ML49, MD52; ML81, MD84;
+  ML229, MG135; ML340, MD190; ML347, MD197; ML406, MD256) are temporal or
+  ordinal. In the baseline the ledger's "critical-review path above"
+  (ML157-158) followed the ledger's own critical-review attempt paragraph
+  (ML123-137, MG29-43) and the role-first read side (ML81-86, MD84-89) and
+  preceded the Critical review stage (ML366, MD216); the repair links that
+  stage, as dispatched. The ledger's "reply-semantics table below" (ML230)
+  meant the table in ML334-357, now MD184-207. No other directional reference
+  was affected by the relocation.
+- **Relative links.** The moved text's three ADR links resolve unchanged from
+  the same directory: ADR-0014 (ML241, MG147), ADR-0031 (ML254, MG160) and
+  ADR-0017 (ML418, MD268). The moved text has no absolute `https` address.
+- **Retained wording.** The moved statements are as written at the baseline,
+  and the relocation reconciles or endorses none of them, including the stage
+  ordinals of the ledger (ML123-125, MG29-31; ML161, MG67), "real today" and
+  the current Increment 4 Implementer path (ML347, MD197; ML374, MD224; ML384,
+  MD234; ML404, MD254; ML415, MD265), the fixed initial Implementer claim
+  provider (ML106-108, MD109-111) and the claim paths of explicit abandonment
+  (ML257-262, MG163-168). Both new introductions say so.
+- **Retained references.** Purpose's existing routing paragraph (ML13-18,
+  MP21-26), the companion directory (ML483-553, MP159-229) and protocol
+  evolution (ML748-752, MP424-428) are unchanged; protocol evolution's "The
+  envelope" names the message envelope now in the dialogue companion, whose
+  introduction routes back to it. The retained framing sentence (ML479-481,
+  MP153-155) still describes the directory's later forwarders, and the added
+  sentence (MP155-157) says the dialogue and ledger forwarders precede Context
+  assembly. Earlier records' coordinates for these sections, such as WF-03L's
+  LP20-473, keep their statements as history.
+- **Inbound references.** Tracked links to the 24 baseline fragments: the
+  guidance and escalation companion (line 174) to
+  `#role-first-message-authorization-and-eligibility`, the
+  [documentation rework map](documentation-rework-map.md) (line 129) to
+  `#explicit-abandonment-and-the-claim-paths`, and this map's WF-03I record,
+  which names the role-first link only in a code span (line 936). Both links
+  still reach the retained forwarding headings, which link to the destination
+  fragments; none changed. The guidance and escalation introduction's "the
+  protocol's role-first rule" (line 29), the
+  [engineering context](../engineering-context.md) row that routes roles and
+  messages to the protocol (line 36) and a frontend test comment that cites
+  the protocol for the reply-semantics table carry no fragment and reach the
+  protocol, whose Purpose routing and forwarders lead on; they are unchanged.
+- **Introductions.** The format repair introduction now links
+  [structured output failure](../architecture/agent-collaboration-dialogue.md#structured-output-failure)
+  in the dialogue companion instead of saying that it stays in the protocol;
+  its line count and body are unchanged.
+- **New links.** The protocol Purpose routing (MP16 and MP18) and the 24
+  forwarders (MP30 to MP145, every fifth line) link to the two companions. The
+  dialogue introduction links to the protocol, the ledger companion, protocol
+  evolution and this map; the ledger introduction links to the protocol, the
+  dialogue companion and this map.
+- **Index.** The [architecture index](../architecture/README.md) describes the
+  protocol as the core and router and adds two entries, for the dialogue and
+  ledger companions, after the protocol entry.
+
+### WF-03M not moved
+
+Purpose, the context and preflight routing, the Context assembly forwarder and
+its framing, the companion directory, every earlier forwarder and protocol
+evolution stay in the protocol. No other existing companion changes; the
+format repair companion changes only its introduction. WF-03L's not-moved
+paragraph named the dialogue, ledger, isolation and abandonment subjects
+because they stayed in the protocol at that move; WF-03M moves them. This is a
+relocation, not a reconciliation: moved facts and wording are as written at
+the baseline, apart from the nine substitutions above.

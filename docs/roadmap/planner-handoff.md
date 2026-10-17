@@ -4,40 +4,76 @@
 
 ## Priority and verified baseline
 
-Documentation first; functional work/tests/P9 stopped. Codex plans/reviews;
-Claude implements. WF-03 incomplete. Historical WF-03K dispatch: main; HEAD, origin/main and
-independently checked live main `0de51c01983be9e996d7c59bde44145be781a254`;
-0/0; empty index, clean tree, no nonignored untracked paths before this edit.
-Current baseline/selection are in WF-03L below. At WF-03K dispatch only this
-checkpoint differed, unstaged; historical GO superseded it. Initial live lookup
-failed (`getaddrinfo`); elevated read-only retry matched. Original lookup
-outputs are in this planner chat only, not standalone evidence.
-Planning policy published; sole parent `8a4223d50b3a1db0cf5683d39fbba059f59818b3`.
-`logs/planner-review/wf-planning-policy/publication-verification.json`: 5/5;
-original Git streams in publication-verification-01/; checker publication-verify.mjs.
-Fresh separate live stdout in chat transcript only. Publisher pre 21/21,
-stage 16/16, commit 19/19, push 6/6, post 13/13 inspected, not rerun;
-all snapshots match publisher; no failed phase. Cosmetic loose-list spacing
-accepted without closure edit. Largest-coherent-slice policy applies.
+Documentation first; functional development, test improvements and P9 stopped.
+Codex plans/reviews; Claude implements. WF-03 incomplete; later moves unselected.
+Startup verified main; HEAD, local origin/main and independent live main
+`cc718a7d2f7f35ca2b2284dd131a550b7a8431f3`; divergence 0/0, empty index,
+clean tree and no nonignored untracked paths before this selection edit.
+Initial live lookup failed (`getaddrinfo`); elevated read-only retry matched.
+Startup console streams are chat-only; no negative controls or authentication
+of earlier execution. At dispatch only this checkpoint is modified, unstaged.
 
-WF-03H `8a4223d5`, sole parent `de8f1a72`, independently verified per
-`logs/planner-review/wf-03h/publication-verification.json` (5/5, original child
-streams retained). Review: `logs/planner-review/wf-03h/review1/decision.md`;
-independent 5/5, freeze-02 4/4; freeze-01 wrong-path failure retained.
-Executor final 23/23, negative baseline 16/16, controls 22/22 inspected, not
-rerun. Dev-01 C10 absolute-offset defect fixed without document change.
-Generate-01 output files overwritten: only hashes/tool/streams survive.
-EX-H01 accepted: current-work 7399 bytes, exact 3466-byte History/risks;
-EX-H02 turn-limit routing accepted; EX-H03 stale HL691-692 and prior G wording
-deferred, unchanged, unreconciled and not endorsed. No missing streams recreated.
-G/F/E/D limits remain through their review decisions: G review1, F review1 and
-publication verification (publisher source hash only), E review2/review1,
-D review1 (N05, not N06, is the broken-fragment control), under
-logs/planner-review/<slice>/. Scans/coordinates lexical; Git/disk/live have no
-negative controls. Earlier product/provider/qualification evidence not rerun.
-No reopening, republication or closure edit of delivered work.
+WF-03L delivered: sole parent `340d5e9d0148c32e21796a96504c283f3da025db`,
+nine mode-100644 paths. Retained publication-verification.json under
+`logs/planner-review/wf-03l/`: 5/5; original streams in
+publication-verification-01/, checker publication-verify.mjs. This chat read
+the summary and freshly checked local/live refs; it did not rerun that matrix.
+Publisher five phases/82 records inspected previously, not rerun or historically
+authenticated; pre 41/41, stage 30/30, commit 34/34, push 8/8, post 33/33.
+Publisher/snapshots: `995778343120d4dcc35738f16111a258edc3c9049e505b3087f9a153c3517140`.
+Manifest: 2680 bytes, SHA-256
+`76927aa81c6d2cfa3462adfd7944e4b2715921d63852aad63499dd65dc3baa5d`.
+Final GO checkpoint: 20445 bytes, SHA-256
+`8795088bb116bda1aa42eaa0eac4a48f14c7b5d6487c010910af3beae61cab1a`.
+Historical pre-publication wording is retained evidence, not pending work;
+no reopening, republication or closure edit. Earlier decisions and evidence
+limits remain below and in current-work and their linked review records.
+Largest-coherent-slice policy is published (`b81f7611`); its retained evidence
+and limits are in `logs/planner-review/wf-planning-policy/` and current-work.
 
-## Selected slice: WF-03L publication GO
+## Selected slice: WF-03M publication GO
+
+GO for exactly eight mode-100644 documents frozen in
+`logs/planner-review/wf-03m/publication-manifest.json`; parent
+`cc718a7d2f7f35ca2b2284dd131a550b7a8431f3`; subject
+`docs: extract typed dialogue and durable ledger contracts`.
+Same Claude chat commits the frozen diff, normally pushes main to origin/main
+and verifies live main. Material changes return for review; failed push or
+divergence stops without force or history reconciliation. No closure edit.
+WF-03 incomplete; no next slice selected. Publication is pending.
+
+Review: `logs/planner-review/wf-03m/decision.md`. Independent verify-01 5/5:
+exact 40977-byte inverse and separate moved-section comparisons, 24 direct
+forwarders, all 66 headings, 368 local links, A-L bytes and line positions,
+existing companion bodies and 3466-byte current-work History/Open risks exact.
+Original Git child streams/checker retained. Fresh live parent matches;
+lookup and planner parent console output are chat-only. Scans are lexical;
+independent/Git/disk/live checks have no negative controls.
+
+EX-M01 accepted: the executor correctly notes that original "above" referred
+to the ledger's own critical-review paragraph. The planner's assumption that
+relocation broke it was unnecessary. The explicit link nevertheless identifies
+the same critical-review stage without changing eligibility or authority;
+keep it, with the observation retained, rather than make a cosmetic reversal.
+EX-M02 accepted: existing protocol routes stay valid, unchanged/out of scope.
+No blockers. Companion EOF blank lines are restored in exact reconstruction.
+
+Executor final 24/24, negative baseline 17/17, controls 38/38 inspected, not
+rerun or historically authenticated. Current final inputs, thirteen tool/
+fragment hashes and seven ledger tool snapshots matched. Thirteen C03 throws
+are not kills; every counted kill has an expected nonthrowing failure and a
+changed mutant. Dev-01 duplicate-link count checker defect retained; dev-02
+fixed it without document changes. All prior limitations remain. No product
+suites; moved counts, ordinals and "real today" wording unreconciled/unendorsed.
+
+This final GO supersedes dispatch checkpoint 23765 bytes, SHA-256
+`43e79b422d32d6cb3e39787f95d80caef59f3d7656e4698fb92f89cbcb0fa3e9`,
+which executor G02 checked. Seven executor documents retain final-01 bytes;
+publication freeze covers this updated eighth path. Standing constraints and
+historical decisions below remain unchanged. Assess continuity only after
+independently verifying publication.
+
+## WF-03L delivered review and publication (historical GO)
 
 GO for exactly nine mode-100644 documents in
 `logs/planner-review/wf-03l/publication-manifest.json`; parent
