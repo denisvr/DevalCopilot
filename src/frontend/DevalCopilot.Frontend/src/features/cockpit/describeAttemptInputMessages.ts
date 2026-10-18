@@ -1,6 +1,11 @@
 import { typeLabelFor } from './collaborationMessageTypeLabel'
 import type { CollaborationTimelineCard } from './types'
 
+/** The caveat every recorded-input view states: references the attempt was launched against, never its complete prompt or session. */
+export const RECORDED_INPUTS_CAVEAT =
+  'Recorded collaboration inputs — the durable messages this attempt was launched against, never the complete prompt, '
+  + 'complete context manifest, or a resumable provider session.'
+
 /** One recorded collaboration input the producing Agent attempt was launched against.
  * Structurally matches the generated `AttemptInputMessageEvidenceResponse`. Carries no message
  * content of its own — only `collaborationMessageId` cross-references the caller's own already-

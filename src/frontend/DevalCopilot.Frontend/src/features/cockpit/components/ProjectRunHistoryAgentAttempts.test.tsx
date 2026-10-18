@@ -4,6 +4,7 @@ import {
   agentAttemptArtifactWindowClient,
   agentAttemptEvidenceClient,
   agentAttemptHistoryClient,
+  agentAttemptInputsClient,
   localDeliveryReceiptClient,
   projectRunHistoryClient,
 } from '../../../api/clients'
@@ -14,6 +15,7 @@ import type {
 } from '../../../api/generated/api-client'
 import { AgentProcessExecutionResponse, AgentTokenUsageResponse } from '../../../api/generated/api-client'
 import { attemptEvidenceFor, attemptIdFor, attemptPageOf, windowOf } from '../agentAttemptHistoryFixture'
+import { recordedInputsFor } from '../agentAttemptInputsFixture'
 import { availableFor } from '../localDeliveryReceiptFixture'
 import { deliveredEntryFor, entryFor, pageOf } from '../projectRunHistoryFixture'
 import { ProjectRunHistoryPanel } from './ProjectRunHistoryPanel'
@@ -25,6 +27,7 @@ vi.mock('../../../api/clients', async (importOriginal) => ({
   agentAttemptHistoryClient: vi.fn(),
   agentAttemptEvidenceClient: vi.fn(),
   agentAttemptArtifactWindowClient: vi.fn(),
+  agentAttemptInputsClient: vi.fn(),
 }))
 
 function deferred<T>() {
@@ -38,10 +41,12 @@ function deferred<T>() {
 type HistoryRead = (runId: string, before: number | null | undefined, limit: number | null | undefined) => Promise<AgentAttemptHistoryResponse>
 type EvidenceRead = (runId: string, attemptId: string) => Promise<AgentAttemptEvidenceResponse>
 type WindowRead = (runId: string, attemptId: string, segment: string, fromOffset: number | undefined) => Promise<SealedAgentArtifactWindowResponse>
+type InputsRead = (runId: string, attemptId: string) => Promise<unknown>
 
 let historyRead: ReturnType<typeof vi.fn<HistoryRead>>
 let evidenceRead: ReturnType<typeof vi.fn<EvidenceRead>>
 let windowRead: ReturnType<typeof vi.fn<WindowRead>>
+let inputsRead: ReturnType<typeof vi.fn<InputsRead>>
 let runHistoryRead: ReturnType<typeof vi.fn>
 let view: ReturnType<typeof render>
 
@@ -50,12 +55,15 @@ const defaults = {
   history: ((runId) => Promise.resolve(attemptPageOf(runId, [2, 1]))) as HistoryRead,
   evidence: ((runId, attemptId) => Promise.resolve(attemptEvidenceFor(runId, Number(attemptId.split('-').pop())))) as EvidenceRead,
   window: ((runId, attemptId) => Promise.resolve(windowOf(`manifest of ${runId} ${attemptId}`))) as WindowRead,
+  inputs: ((runId, attemptId) => Promise.resolve(recordedInputsFor(runId, Number(attemptId.split('-').pop()), 2))) as InputsRead,
 }
 
 function installAttempts(overrides: Partial<typeof defaults> = {}) {
   historyRead = vi.fn(overrides.history ?? defaults.history)
   evidenceRead = vi.fn(overrides.evidence ?? defaults.evidence)
   windowRead = vi.fn(overrides.window ?? defaults.window)
+  inputsRead = vi.fn(overrides.inputs ?? defaults.inputs)
+  vi.mocked(agentAttemptInputsClient).mockReturnValue({ readAgentAttemptInputs: inputsRead } as unknown as ReturnType<typeof agentAttemptInputsClient>)
   vi.mocked(agentAttemptHistoryClient).mockReturnValue({ getAgentAttemptHistory: historyRead } as unknown as ReturnType<typeof agentAttemptHistoryClient>)
   vi.mocked(agentAttemptEvidenceClient).mockReturnValue({ getAgentAttemptEvidence: evidenceRead } as unknown as ReturnType<typeof agentAttemptEvidenceClient>)
   vi.mocked(agentAttemptArtifactWindowClient).mockReturnValue({
@@ -296,6 +304,66 @@ describe('the Agent attempts of a historical run detail', () => {
     consoleError.mockRestore()
   })
 
+  /** Opens the attempts of the selected run, selects `attemptNumber` and opens its recorded collaboration inputs. */
+  async function openInputs(attemptNumber: number) {
+    toggleAttempts()
+    await waitFor(() => expect(attemptRows().length).toBeGreaterThan(0))
+    inspectAttempt(attemptNumber)
+    const section = await within(attempts()).findByRole('region', { name: 'Recorded collaboration inputs' })
+    fireEvent.click(within(section).getByRole('button', { name: 'Recorded collaboration inputs' }))
+  }
+
+  it("shows each historical run's own recorded inputs and none of a replaced run, reload or project in a successor's first frame", async () => {
+    const late = deferred<unknown>()
+    installAttempts({ inputs: (runId, attemptId) => (runId === 'run-3' ? late.promise : defaults.inputs(runId, attemptId)) })
+    inspectRun(2)
+    await openInputs(1)
+    expect(await within(attempts()).findByText('2 recorded inputs.')).toBeInTheDocument()
+    expect(within(attempts()).getAllByRole('listitem').some((item) => item.textContent?.includes('run-2-attempt-1-input-0'))).toBe(true)
+
+    inspectRun(3)
+    expectNoAttemptData()
+    await openInputs(2)
+    expect(within(attempts()).getByText('Loading recorded collaboration inputs…')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload latest runs' }))
+    await screen.findByRole('button', { name: 'Inspect run #3' })
+    inspectRun(3)
+    expectNoAttemptData()
+    view.rerender(<ProjectRunHistoryPanel projectId="project-2" />)
+    view.rerender(<ProjectRunHistoryPanel projectId="project-1" />)
+    await act(async () => {
+      late.resolve(recordedInputsFor('run-3', 2, 9))
+      await late.promise
+    })
+
+    expect(screen.queryByText(/9 recorded inputs/)).toBeNull()
+    expect(screen.queryByText(/run-3-attempt-2-input/)).toBeNull()
+    expect(inputsRead.mock.calls).toEqual([
+      ['run-2', attemptIdFor('run-2', 1)],
+      ['run-3', attemptIdFor('run-3', 2)],
+    ])
+    expect(windowRead).not.toHaveBeenCalled()
+  })
+
+  it('settles no recorded-input read and reports no React error after the detail unmounted', async () => {
+    const late = deferred<unknown>()
+    installAttempts({ inputs: () => late.promise })
+    const consoleError = vi.spyOn(console, 'error')
+    inspectRun(3)
+    await openInputs(1)
+
+    view.unmount()
+    await act(async () => {
+      late.resolve(recordedInputsFor('run-3', 1, 2))
+      await late.promise
+    })
+
+    expect(consoleError).not.toHaveBeenCalled()
+    expect(inputsRead).toHaveBeenCalledTimes(1)
+    consoleError.mockRestore()
+  })
+
   it('shows an identity-invalid attempt without evidence, an incoherent answer without text, and retries without duplicating rows', async () => {
     let historyReads = 0
     installAttempts({
@@ -474,6 +542,8 @@ describe('the Agent attempts of a historical run detail', () => {
       'Inspect attempt 2',
       'Inspect attempt 1',
       'Close attempt',
+      // HIST-INP-01: the collapsed, read-only recorded-input toggle of the selected attempt.
+      'Recorded collaboration inputs',
       'Close selected run',
     ])
     expect(detail().querySelector('form, input, textarea, [role="textbox"]')).toBeNull()
@@ -484,6 +554,7 @@ describe('the Agent attempts of a historical run detail', () => {
     expect(historyRead).toHaveBeenCalledTimes(1)
     expect(evidenceRead).toHaveBeenCalledTimes(1)
     expect(windowRead).toHaveBeenCalledTimes(1)
+    expect(inputsRead).not.toHaveBeenCalled()
     setItem.mockRestore()
   })
 })

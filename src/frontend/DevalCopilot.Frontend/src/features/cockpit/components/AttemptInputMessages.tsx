@@ -1,4 +1,5 @@
 import {
+  RECORDED_INPUTS_CAVEAT,
   describeAttemptInputMessage,
   describeAttemptInputMessagesStatus,
   type AttemptInputMessagesEvidenceView,
@@ -34,10 +35,7 @@ export function AttemptInputMessages({ evidence, cardsById }: AttemptInputMessag
 
   return (
     <div className="dc-attempt-input-messages" data-input-messages-status="Recorded">
-      <p className="dc-attempt-input-messages-caveat">
-        Recorded collaboration inputs — the durable messages this attempt was launched against, never the complete prompt,
-        complete context manifest, or a resumable provider session.
-      </p>
+      <p className="dc-attempt-input-messages-caveat">{RECORDED_INPUTS_CAVEAT}</p>
       <ol>
         {entries.map((entry) => (
           <li key={entry.collaborationMessageId ?? entry.sequence}>{describeAttemptInputMessage(entry, cardsById)}</li>

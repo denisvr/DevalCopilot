@@ -9,24 +9,40 @@ is evidence, never renewed authority. Git and code prevail over summaries.
 WF-01–WF-06 are published and independently verified. On 2026-10-18 the owner
 explicitly resumed functional roadmap development, superseding the
 documentation-first pause and its runtime/test exclusions, without renewing
-experimental authority. Codex plans/reviews; Claude implements.
+experimental authority. Codex plans/reviews. Claude began HIST-INP-01; the
+owner explicitly transferred its execution completion to Codex when Claude's
+credits ran out. The owner explicitly requested this planner chat transition.
 
 Selection baseline independently checked: `main`; HEAD, local origin/main
-and fresh live main `5e588a44b5ebc0e633cf1f2e1dbb3af442515a2b`; divergence
-0/0; empty index; clean tree and no nonignored untracked paths. ART-WIN-01
-is published and independently verified. Checkpoints describe their prepared
-phases; do not reopen or republish it. After this selection only this handoff
-is modified, unstaged, with HEAD unchanged. No implementation or publication
-GO was granted at selection; HIST-MET-01 is now reviewed below after correction
-2. HEAD is unchanged, the real index is empty and the reviewed diff has ten
-modified tracked paths and six new sources/tests. Publication is pending under
-the exact GO identity; no next slice is selected.
+and fresh live main `96a21d737777980724cc7351d8d7a2c10b0e6e2d`; divergence
+0/0; empty index; clean tree and no nonignored untracked paths. HIST-MET-01
+is published and independently verified. Checkpoints describe prepared phases;
+do not reopen or republish it. After this selection, the handoff and decision
+index were modified unstaged, and ADR-0051 was new/untracked; no runtime change
+existed at selection. Review now covers the delivered implementation below:
+HEAD remains the selection baseline, the real index is empty, and the diff
+contains 16 modified paths, one deletion and 32 new files. Publication and its
+independent verification remain pending under the exact GO identity.
 
 WF-05 baseline and GO: this file at `e55709f`; earlier:
 [priority](planner-handoff-history-e614c79.md#priority-and-verified-baseline),
 [WF-04 GO and review](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go).
 
 ## Latest verified publication
+
+HIST-MET-01 `96a21d737777980724cc7351d8d7a2c10b0e6e2d`, tree
+`206f8a387ad459fe11f905e95f3f1086d0cda9f9`, sole parent
+`5e588a44b5ebc0e633cf1f2e1dbb3af442515a2b`: independently compared with
+the GO tree, sole parent and exact 16 paths (10 M, six A); fresh live main,
+HEAD and local origin/main agree, 0/0, clean index/tree, no nonignored untracked
+paths. Evidence: `logs/planner-review/hist-met-01/publication-verification.log`.
+HMT-R1 resolved after two corrections; immutable identity, raw timestamp and
+section-isolation evidence, accepted executor challenges and limits: this file
+at `96a21d7` and `logs/planner-review/hist-met-01/`. Independent final focused
+checks: 247 passed. The 4471-test full-suite pass remains prior-input evidence,
+not a correction-2 full-suite rerun. Known token counts are not browser-proven.
+Nested timestamp/other-operation parsing, duplicate React keys and compiler
+locks retain their stated limits. No publication-time product retest needed.
 
 ART-WIN-01 `5e588a44b5ebc0e633cf1f2e1dbb3af442515a2b`, tree
 `420617062a7bb2ebcdec87ac5bca314c5df03d35`, sole parent
@@ -72,153 +88,141 @@ rework acceptance at `e614c795`
 in this file at `e55709f`; WF-03 technical acceptance stands. WF-03N detail:
 [exact record](planner-handoff-history-e614c79.md#latest-accepted-delivery).
 
-## Selected slice: HIST-MET-01 historical attempt execution and usage facts
+## Selected slice: HIST-INP-01 recorded inputs of a selected Agent attempt
 
-**Decision and evidence:** show the selected Agent attempt's existing recorded
-process and token evidence beside its semantic result, with its response
-contract and recorded dispatch time. `GetAgentAttemptEvidence` already returns
-`processExecution` and `tokenUsage` through the Domain's fail-closed getters;
-`AgentAttemptEvidenceBody` currently omits both, unlike the latest-attempt view.
-The run-level inspector serves both the current rail and a selected historical
-run, including attempts with no collaboration message. No new read or backend
-capability is needed.
+**Decision:** implement accepted
+[ADR-0051](../decisions/0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)
+as one vertical slice: protected read query, bounded SQLite projections,
+API-owned response/generated client, and an on-demand recorded-input view in
+the selected attempt, including failed/interrupted attempts without an output
+message. Planner owns the resolved contract; the executor implements, not
+selects it.
 
-**Roadmap and size:** one complete selected-attempt fact view in Increment 4's
-execution evidence and Increment 5's historical access, not complete replay or
-increment completion. Include process, configured timeout, token/cache counts,
-truthful absence, numeric/date admission and composed/browser proof together.
-Do not split known values from absence or safety cases. Automatic advancement
-would require its own recorded decision about ADR-0014's explicit manual stage
-authority and durable dispatch/recovery; it is not inferred from the roadmap.
-P9/remote publication and unproven provider contracts are not dependencies.
+**Evidence and roadmap:** the existing message-linked input reader starts from
+an output message; `AgentAttemptEvidenceBody` has no input inspector. Durable
+`AttemptInputMessage` rows already hold these references. The bounded scalar
+identity approach is delivered under ADR-0037; reuse its rules, not full entity
+materialization or its message actor assumptions. This advances Increment 4's
+progressive-context inspection and Increment 5's historical evidence access.
+It is neither complete context/replay nor increment completion. Autonomy would
+need a separate recorded decision about ADR-0014's manual authority and durable
+dispatch/recovery; publication remains bounded by Proposed ADR-0050/P9.
 
-**Scope:** feature-local selected-attempt fact presentation and normalization,
-`agentAttemptHistory`/evidence admission only where needed, the existing panel,
-focused tests and the two existing artifact/history journeys. Reuse
-`ProcessEvidenceLine`/`TokenUsageLine` and their established wording where
-suitable, admitting safe facts before passing them to shared presentation.
-Do not broaden the latest-attempt, status-action or run-summary behavior;
-shared presentation changes require evidence of necessity and direct-consumer
-regressions. No backend/client/schema/dependency or provider-parser change.
-Contracts: [execution evidence](../architecture/agent-collaboration-execution-evidence.md),
-[usage evidence](../architecture/agent-collaboration-usage-evidence.md),
-[inspection](../architecture/agent-collaboration-evidence-inspection.md), ADR-0023
-and ADR-0033. Domain rules and API projection prevail over UI assumptions.
+**Sizing:** query, identity/set coherence, wire/decoder, selection ownership and
+one authenticated browser proof form one outcome. A metadata-only UI without
+the new query cannot inspect an attempt lacking a producing message. Do not
+split successful and unavailable/empty cases. Content navigation, input chains,
+provider sessions, autonomous advancement and raw filesystem access are not
+required and are excluded.
 
-**Acceptance:** display the selected response contract and valid recorded UTC
-dispatch/claim/completion facts; validate newly used optional timestamps before
-display. Separate semantic result, host-measured process outcome/exit/duration,
-configured timeout and provider-reported token/cache counts. A clean exit does
-not assert semantic success. No aggregate, cost, quota, capacity or readiness
-claim. Still-running or undispatched attempts expose no measured result or
-known usage even if their answer contains plausible values. Preserve terminal
-unknown/legacy/interrupted evidence as unknown, never zero; valid zero duration
-and zero counts remain known. Configured timeout is independent and may be
-shown when measured evidence is absent.
+**Resolved boundaries:** one bodyless GET
+`/api/runs/{runId}/agent-attempts/{attemptId}/inputs`; exact selected Agent
+attempt only. Shared Problem Details 404 `agent_attempt_inputs.not_found` for
+unknown/foreign/non-Agent sources. Closed `Unavailable`/`Empty`/`Recorded`
+shapes and disclosure exactly as ADR-0051; no new persistence, mutation or
+invocation. Read at most 65 input rows, inspect at most 64, display first 10
+only after proving the entire inspected set; a 65th yields Unavailable without
+count or partial data, not a declaration that the stored set is invalid.
+SQL-classify stored enums/version and guard assignment storage as in ADR-0037;
+keep Domain identity/assignment rules unchanged. Exact Int64 message sequences
+are canonical strings; occurred time is an invariant UTC round-trip string,
+validated before display, not a generated Date property. No summary/content,
+artifact, prompt, session or chain reads. Existing routes retain behavior.
 
-Admit only the actual wire ranges: nonnegative safe-integer whole-millisecond
-duration, positive safe-integer configured timeout, int32 exit code only for
-Exited, and nonnegative int32 input/output/cache counts. Null/missing usage is
-unknown, not a zero default; caches may be independently absent under the
-provider contract. Negative/fractional/nonfinite/unsafe/wrong-type/contradictory
-optional evidence is unavailable in that section, never clamped or invented;
-valid independent metadata and artifact access stay usable. Use the existing
-host trust boundaries; do not invent provider-schema proof from browser fields.
-Preserve exact selected ID/number/role/provider/contract binding, replacement
-lifetimes, literal rendering and no extra requests, logging, storage or mutation.
+**Frontend:** collapsed input control inside the selected attempt, independent
+of its facts/artifact controls. Explicit open/read/retry only; reuse owned
+lifetimes and validate the whole answer against the selected immutable header.
+Preserve Unknown/Unavailable versus genuine Planner Empty; source refs are
+recorded inputs, never complete prompt/context/session. No page draining,
+content navigation, storage, logging or mutation. New timestamp text may reuse
+the proven instant parser; do not broaden the existing wire facade.
 
-**Validation:** pure optional-fact normalization cases plus the real composed
-panel: exit zero with failed semantic result; nonzero exit, timeout/cancellation;
-known/unknown/zero process and token facts; independent cache absence; invalid
-numbers/dates; running/undispatched injection; and A-to-B replacement with
-contrasting facts. Retain artifact paging and ownership regressions. Frontend
-lint/build, focused changed-file filters and the relevant existing process/token
-fact/attempt-display tests; broaden only if shared consumers change or failures
-make impact uncertain. Extend the authenticated sealed-artifact journey to
-inspect the planning attempt's recorded facts from Run history after a newer
-objective, using existing production commands and deterministic fixtures.
-Extend the historical-agent-attempts journey to assert no measured/known usage
-for its stopped-before-dispatch attempt. Run serially; strict e2e typecheck.
-Compare values with real recorded evidence; no SQL lineage fabrication. Inspecting
-facts adds no provider call, mutation or artifact-window read before requested.
-Retain unchanged architecture evidence; no routine backend/API suite or client
-generation. Update current-work and the relevant inspection/cockpit copy only
-as necessary. Preserve full original check/failure output with commands/timings.
+**Scope:** new GetAgentAttemptInputs query/endpoint and operation-owned models,
+feature-local frontend hook/decoder/view, necessary generated client and tests.
+A narrow extraction of identical scalar attempt projection/identity evaluation
+is permitted with ADR-0037 equivalence regressions; its actor comparison stays
+unchanged. No generic reader/repository/framework, raw SQL in Application,
+new dependency, migration, claim/dispatch change or new snapshot fixture reuse.
+Update the inspection/cockpit contract and current-work at delivery. Preserve
+these planner-written selection/decision files in the review diff; the accepted
+ADR is a contract, not already delivered functionality.
 
-**Prior limits:** HATT-R1 remains resolved; ART-WIN-01 is accepted/published.
-Earlier missing output, limited browser coverage, duplicate React keys,
-compiler/runner failures, unexplained 409/500 and all P9 restrictions remain
-as recorded. No new experiment, profile, credential or real-provider authority.
+**Validation:** file-backed SQLite new handler/identity/set refusal tests,
+endpoint full auth/404/status/wire matrix and MVC inventory; exact sequences
+above 2^53 and omission/bounds; source query inspection proving no full text or
+aggregate reads. New frontend decoder/hook/composition tests plus selected
+attempt and existing recorded-input regressions. Normal API build/NSwag
+reproducibility, focused project builds/analyzers, architecture tests,
+frontend lint/build and strict e2e typecheck. One new authenticated
+`historical-attempt-inputs.journey.ts` using existing production commands and
+deterministic providers must inspect a nonempty input set after a newer
+objective, compare references with stored rows, and start no invocation,
+mutation or artifact-window read. Extend the existing no-message historical
+Planner journey for the genuine Empty case; non-Planner empty/corrupt/oversized
+cases belong to SQLite/API tests, not fabricated browser lineage. Retain other
+unchanged journey evidence. Broaden for shared projection/identity changes,
+failures or uncertainty, not a routine full backend/API suite. No mutation
+campaign, new test infrastructure or real-provider experiment.
 
-**Continuity:** `CONTINUE_THIS_CHAT` for Codex: current constraints/evidence
-remain available; no observed or owner-reported usage percentage. Start one new
-Claude chat for HIST-MET-01 after verified ART-WIN-01 publication, keeping its
-corrections there. Return unstaged/uncommitted/unpushed; no commit/push GO.
+**Continuity at selection:** Codex recommended continuing its planner chat and
+one new Claude executor chat. The owner's subsequent Codex execution recovery
+and explicit planner transition supersede that chat placement, not the slice
+or its authority boundaries. No observed or owner-reported context percentage.
+No second slice is selected while publication remains pending.
 
-## HIST-MET-01 review: GO after correction 2
+## HIST-INP-01 review: GO
 
-Codex independently reviewed the final facts presentation, raw-wire facade,
-factory wiring, composed tests, journey changes and executor evidence. GO
-includes these planner review edits and the factual correction in current-work.
-Expected sole parent, tree and exact 16 approved paths are supplied in the
-publication prompt and `logs/planner-review/hist-met-01/publication-go.log`.
-Publication and independent verification remain pending. Keep publication in
-the same Claude chat; no next slice is selected.
+Codex independently reviewed all 49 changed/new/deleted paths against ADR-0051
+and the resolved selection above, including scalar SQL, the ADR-0037 extraction,
+API-owned mapping, generated output, raw-body facade, decoder, ownership,
+composition, journeys, documentation and the executor's evidence. No blocking
+finding remains. This GO includes the planner's final checkpoint and decision
+index edits. The expected sole parent, exact approved paths and expected tree
+are recorded in `logs/planner-review/hist-inp-01/publication-go.json` and the
+complete publication prompt; no document embeds its own future commit SHA.
 
-- **HMT-R1 (P2), resolved:** the first delivery trusted Date objects produced
-  by permissive generated conversion: raw dispatch `1` became 2001-01-01 and
-  admitted known process/usage. Correction 1 judged raw fields but still let
-  `{"toString":0}` reach generated conversion, throwing and hiding valid
-  sibling metadata/artifacts. Both reproductions remain under
-  `logs/planner-review/hist-met-01/`. Correction 2 removes the three root
-  timestamp members during generated JSON parsing through the protected reviver
-  seam, then applies the raw absent/valid/invalid verdicts. Invalid optional
-  timestamps never reach generated conversion; invalid claim still rejects the
-  answer, and invalid dispatch withholds measured process/known usage while
-  independent metadata and artifact access remain usable. The calendar/offset
-  parser, exact identity binding, URL/auth/non-200 handling and single-request
-  behavior remain intact. No generated source or backend change.
-- **Independent checks:** six affected wire/factory/facts/panel/historical/hook
-  files pass all 247 tests; complete output in
-  `logs/planner-review/hist-met-01/correction2-focused.log`. The tests cover
-  non-callable toString objects and nested arrays, numeric/falsy/calendar
-  coercion, valid formats and absence, malformed claim rejection, invalid
-  optional timestamps with usable siblings, preserved Infinity and nested
-  conversion, status/auth/errors and composed artifact access. Final newline,
-  CR and Unicode separator probes in correction 1 were rejected; no format
-  finding. Diff hygiene passes; fresh live main, HEAD and local origin/main
-  remain `5e588a44`; index empty. No planner commit or push.
-- **Executor evidence:** correction 2 d03/d04 pass 247/316 tests (overlapping),
-  lint/build and both authenticated journeys pass. The no-reviver control has
-  19 assertion/runtime failures from the intended generated conversion across
-  20 selected tests, no compilation kill, and records an equal restored hash;
-  inspected, not independently rerun. Correction 1's 4471-test full-suite pass
-  is retained as prior-input evidence, not a final full-suite rerun; its factory
-  wiring is unchanged and correction 2 directly covers the modified operation.
-  Strict e2e evidence and host build are retained for unchanged inputs.
-  Preserve r07/r09/r19/r23/c13 failures, previous evidence loss and limitations.
-- **Executor challenges and scope:** accept the operation-specific handwritten
-  facade and original-text reviver; reserialization is not used, so Infinity
-  is not silently turned into null. Known-token browser proof is absent because
-  the fixture reports unknown usage; pure/composed known-count proof plus the
-  real unknown-usage journey is proportional. Existing duplicate semantic
-  summary is accepted for compatibility. StrictMode causation is now explicitly
-  an inference; no on/off control or shared lifetime change is claimed.
-- **Remaining parsing limits:** unchecked nested timestamps and other operations
-  are outside these three root timestamp fields. A malformed nested retrieval
-  timestamp can still fail the whole read; do not extend this slice to it.
-  The executor's claim that generated code loops over non-array artifacts was
-  inaccurate: direct inspection found an Array.isArray guard, followed by the
-  existing evidence decoder's whole-answer refusal when the list is absent.
-  Codex corrected that mechanism in current-work without changing behavior.
-  These existing failure paths are not evidence of newly resolved general
-  schema validation. Browser proof covers known process and unknown/undispatched
-  usage, not known token counts or every malformed wire permutation. Duplicate
-  React keys and compiler locks remain unexplained; all P9 restrictions stand.
+- **Independent checks:** 183 Application tests (new query, ADR-0037 and old
+  input-reader regressions), 30 API tests (new/related routes and launch
+  authentication), and 255 tests across nine frontend decoder, wire, hook,
+  composition and existing input-view files passed. Exact commands, complete
+  outputs, exits and elapsed times are in `logs/planner-review/hist-inp-01/`.
+  The first Application run built successfully but aborted when testhost did
+  not connect within 90 seconds; the same binaries passed outside the sandbox.
+  Preserve that failure without claiming its cause. Fresh live main agrees
+  with HEAD/local origin/main at `96a21d73`; index empty, divergence 0/0.
+- **Review evidence:** the guarded attempt projection and assignment/identity
+  evaluation are the previous operation's same expressions and rules; its
+  actor comparison remains local. The new indexed input read stops at 65,
+  resolves at most 64 same-run message identities and validates every inspected
+  reference before returning ten. The role-aware Empty/Unavailable distinction,
+  exact Int64/time strings, authentication, fixed 404, fault propagation and
+  absence of writes/content/chain reads are preserved. The raw-body facade
+  keeps explicit nulls and wrong types for whole-answer refusal without
+  changing generated URL/auth/error processing. Existing owned lifetimes and
+  serial guards isolate selections, openings, requests and retained callbacks.
+- **Retained evidence and limits:** inspected executor final outputs support
+  153 architecture tests, API/NSwag reproducibility, lint/build and hygiene;
+  the full frontend result is 4621 tests before only the required fixture
+  `traceId` correction, followed by that file's 18 tests and the fresh 255-test
+  review set, not a later full-suite rerun. The strict e2e check, journey-host
+  build and three authenticated deterministic-provider journeys remain
+  retained evidence on unchanged functional inputs. Browser proof covers
+  ordinary small nonempty sets and a stopped-before-dispatch Planner with no
+  output message; corrupt/oversized sets and values above 2^53 have narrower
+  SQLite/API/frontend evidence. No real-provider or P9 experiment was run.
+  Initial failures, the surviving settle control and later overlap coverage,
+  duplicate keys, negotiation errors and every older evidence limit remain.
+- **Accepted implementation choices:** the operation-specific parsed-body
+  facade is necessary because generated models erase required null/falsy
+  distinctions. The malformed-position SQL guard prevents SQLite conversion
+  from silently turning damaged storage into a valid position; it changes no
+  write rule. These are within the resolved contract, not new architecture.
 
-No further correction or routine retest is required for this reviewed diff.
-Material post-GO changes return for review. The GO authorizes only our exact
-reviewed development publication, never product remote-publication capability.
+GO authorizes only the exact reviewed development commit and normal push of
+`main` to `origin/main`, by a bounded Codex executor. It grants no product
+publication capability. A content mismatch, remote divergence, failed push or
+material post-GO change stops publication and returns for review. No routine
+product retest or implementation change is required before publication.
 
 ## Retained review and evidence limits
 
@@ -280,8 +284,8 @@ Their old GO/pending statements are not current instructions.
   Later passes prove neither flakiness nor irrelevance. TEST-48-01 cannot cover
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
-  [current-work](current-work.md#open-risks). Production frontend and necessary
-  tests are authorized only for HIST-MET-01. No dependency, experiment,
+  [current-work](current-work.md#open-risks). Production code and necessary
+  tests are authorized only for HIST-INP-01 under ADR-0051. No dependency, experiment,
   capture-limit or standards edits; the old documentation-only production/test
   exclusion is superseded, not the other restrictions.
 

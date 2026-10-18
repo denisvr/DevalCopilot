@@ -26,6 +26,11 @@ const SOURCES = [
   './components/AgentAttemptHistoryPanel.tsx',
   './components/AgentAttemptArtifactViewer.tsx',
   './components/SealedArtifactWindowView.tsx',
+  // HIST-INP-01: the selected attempt's on-demand recorded collaboration inputs.
+  './agentAttemptInputs.ts',
+  './agentAttemptInputsWire.ts',
+  './hooks/useAgentAttemptInputs.ts',
+  './components/SelectedAttemptRecordedInputs.tsx',
 ]
 
 describe('the run history region boundary', () => {
@@ -82,6 +87,26 @@ describe('the run history region boundary', () => {
     const collaboration = read('./components/CollaborationHistoryPanel.tsx')
     expect(collaboration).not.toContain('AgentAttemptHistoryPanel')
     expect(collaboration).not.toContain('useAgentAttemptEvidence')
+  })
+
+  it('reads recorded inputs only through their factory, owns them with the shared hooks and keeps them apart from evidence and artifacts', () => {
+    const hook = read('./hooks/useAgentAttemptInputs.ts')
+    const section = read('./components/SelectedAttemptRecordedInputs.tsx')
+    const panel = read('./components/AgentAttemptHistoryPanel.tsx')
+
+    expect(hook).toContain('agentAttemptInputsClient()')
+    expect(hook).toContain('useOwnedLifetime')
+    expect(hook).toContain('useOwnedState')
+    expect(hook).not.toContain('useRef(0)')
+    for (const forbidden of ['agentAttemptEvidenceClient', 'agentAttemptArtifactWindowClient', 'collaborationMessageEvidenceClient', 'console.']) {
+      expect(hook, forbidden).not.toContain(forbidden)
+      expect(section, forbidden).not.toContain(forbidden)
+    }
+
+    expect(section).not.toContain('useAgentAttemptEvidence')
+    expect(section).not.toContain('useAgentAttemptArtifactWindow')
+    expect(panel).toContain('<SelectedAttemptRecordedInputs selectionKey={selectionKey} runId={runId} expected={expected} />')
+    expect(panel).not.toMatch(/<SelectedAttemptRecordedInputs[^>]*\bkey=/)
   })
 
   it('is composed once in the app without a key or remount workaround, and the receipt decoder and endpoint are untouched', () => {

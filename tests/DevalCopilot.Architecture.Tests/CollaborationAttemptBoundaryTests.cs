@@ -11,6 +11,14 @@ public sealed partial class CollaborationAttemptBoundaryTests
     private const string Folder = "DevalCopilot.Application/Features/Runs/Queries/GetCollaborationHistoryAttempt";
     private const string Endpoint = "DevalCopilot.Api/Features/Runs/GetCollaborationHistoryAttempt/GetCollaborationHistoryAttemptEndpoint.cs";
 
+    // ADR-0051 extracted the attempt projection and identity evaluation unchanged into these shared files; they are part of this read.
+    private static readonly string[] SharedAttemptIdentity =
+    [
+        "DevalCopilot.Application/Features/Runs/ScalarAgentAttemptIdentity.cs",
+        "DevalCopilot.Application/Features/Runs/ScalarAgentAttemptRow.cs",
+        "DevalCopilot.Application/Features/Runs/CoherentAgentAttemptIdentity.cs",
+    ];
+
     private static string BackendRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
@@ -31,7 +39,8 @@ public sealed partial class CollaborationAttemptBoundaryTests
     {
         var folder = Path.Combine(BackendRoot(), Folder.Replace('/', Path.DirectorySeparatorChar));
         Assert.True(Directory.Exists(folder), "The attempt-attribution slice must live in its own operation folder.");
-        return string.Join('\n', Directory.EnumerateFiles(folder, "*.cs").Order(StringComparer.Ordinal).Select(Code));
+        var shared = SharedAttemptIdentity.Select(path => Path.Combine(BackendRoot(), path.Replace('/', Path.DirectorySeparatorChar)));
+        return string.Join('\n', Directory.EnumerateFiles(folder, "*.cs").Order(StringComparer.Ordinal).Concat(shared).Select(Code));
     }
 
     [GeneratedRegex(@"dbContext\.([A-Za-z]+)")]
@@ -90,7 +99,7 @@ public sealed partial class CollaborationAttemptBoundaryTests
         Assert.Equal(2, Regex.Matches(code, @"FirstOrDefaultAsync\(").Count);
         Assert.Contains("candidate.RunId == runId && candidate.Id == attemptId", code, StringComparison.Ordinal);
         Assert.Contains("message.RunId == query.RunId && message.Id == query.MessageId", code, StringComparison.Ordinal);
-        Assert.Single(Regex.Matches(code, @"\.ProjectAttempt\(\)"));
+        Assert.Single(Regex.Matches(code, @"\.ProjectScalarIdentity\(\)"));
         Assert.Single(Regex.Matches(code, @"\.ProjectSource\(\)"));
         foreach (var forbidden in new[] { "while (", "for (", "foreach (", "do\n", "Take(", "Skip(", "OrderBy", "LastOrDefault", "Last(", "First(", "Max(", "Min(" })
         {

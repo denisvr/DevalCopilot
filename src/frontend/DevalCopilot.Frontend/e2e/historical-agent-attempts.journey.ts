@@ -24,7 +24,8 @@ import { injectJourneySession, registerProject, selectProject } from './journey/
 // selected attempt, never the current run; the evidence and the exact sealed bytes are shown; a reload keeps the same access; and the
 // inspection itself invokes no provider, changes no workflow row, Git state or source file, and leaves the current selection as it was.
 // It is not replay, provider reliability or a claim about any other attempt. HIST-MET-01 adds the stopped attempt's recorded execution facts:
-// a truthful absence of any measured process result or usage beside its semantic result and configured timeout, as stored.
+// a truthful absence of any measured process result or usage beside its semantic result and configured timeout, as stored. HIST-INP-01
+// adds its recorded collaboration inputs: the genuine empty set of a planner that recorded none, read only when opened.
 
 const PROJECT = 'Historical attempts journey fixture'
 const FIRST_OBJECTIVE = 'Plan the ledger total, stopped before dispatch'
@@ -32,6 +33,7 @@ const SECOND_OBJECTIVE = 'Record a newer objective after the stopped one'
 const REASON = 'The stopped plan is superseded by a newer objective.'
 const STOP_PATH = /\/api\/runs\/[^/]+\/codex-account-usage-stop$/
 const ATTEMPT_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts(?:\/([^/]+)\/evidence(?:\/artifact-window\/([^/]+))?)?$/i
+const INPUTS_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/inputs$/i
 
 const data = new JourneyData(PROJECT)
 const lower = (value: string) => value.toLowerCase()
@@ -61,6 +63,12 @@ function attemptsOfProject(): AttemptFact[] {
 function messagesOfAttempt(attemptId: string): number {
   return withJourneyDb(
     (db) => (db.prepare('select count(*) as Count from collaboration_messages where AttemptId = ?').get(attemptId) as { Count: number }).Count,
+  )
+}
+
+function inputRowCount(attemptId: string): number {
+  return withJourneyDb(
+    (db) => (db.prepare('select count(*) as Count from attempt_input_messages where AttemptId = ?').get(attemptId) as { Count: number }).Count,
   )
 }
 
@@ -293,6 +301,35 @@ test('the historical attempts journey: stop an attempt before dispatch, record a
       await expect.poll(async () => ((await text.textContent()) ?? '').length, { timeout: 15_000 }).toBeGreaterThan(before.length)
     }
     expect(await text.textContent()).toBe(manifestText)
+
+    // HIST-INP-01: the stopped planner emitted no message and recorded no input row, so its recorded inputs are the genuine empty set,
+    // read once only when opened, through the older run and this attempt, and shown without a list beside the loaded manifest.
+    expect(inputRowCount(stopped.Id)).toBe(0)
+    const inputs = detail.getByRole('region', { name: 'Recorded collaboration inputs' })
+    const inputsToggle = inputs.getByRole('button', { name: 'Recorded collaboration inputs', exact: true })
+    await expect(inputsToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(mine().filter((request) => INPUTS_ROUTE.test(request.path))).toEqual([])
+    const inputsAnswered = page.waitForResponse((response) => INPUTS_ROUTE.test(new URL(response.url()).pathname), { timeout: 30_000 })
+    await inputsToggle.click()
+    const inputsResponse = await inputsAnswered
+    expect(inputsResponse.status()).toBe(200)
+    expect(lower(new URL(inputsResponse.url()).pathname)).toBe(`/api/runs/${lower(olderRun.Id)}/agent-attempts/${lower(stopped.Id)}/inputs`)
+    expect(await inputsResponse.json()).toMatchObject({
+      status: 'Empty',
+      attempt: { attemptNumber: 1, role: 'Planner', provider: 'Codex', responseContract: 'Proposal' },
+      inputMessages: [],
+      inputMessageTotalCount: 0,
+      inputMessagesOmitted: false,
+    })
+    await expect(inputs).toContainText('No recorded collaboration inputs — this attempt started from none.')
+    await expect(inputs.locator('li')).toHaveCount(0)
+    expect(await text.textContent()).toBe(manifestText)
+    for (const request of mine().filter((entry) => INPUTS_ROUTE.test(entry.path))) {
+      const [, runId, attemptId] = INPUTS_ROUTE.exec(request.path)!
+      expect(request.method).toBe('GET')
+      expect(sameId(runId, olderRun.Id)).toBe(true)
+      expect(sameId(attemptId, stopped.Id)).toBe(true)
+    }
 
     // Every attempt request named the older run and the selected attempt; nothing else was requested for the attempt, and the newer run
     // was never addressed by the inspection.

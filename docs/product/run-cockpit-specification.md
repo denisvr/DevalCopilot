@@ -1354,7 +1354,8 @@ Inside the selected historical run of the Run history, beside Recorded collabora
 for exactly that run, so a failed or interrupted attempt that emitted no collaboration message stays reachable after a newer objective. It is an
 independent run-level path: the ADR-0037 inspector above is unchanged and does not lead here. Opening it requests one page of
 `GET /api/runs/{runId}/agent-attempts` for the selected run; "Inspect" reads that attempt's evidence, and a sealed window is read only after a
-purpose is chosen and "Load" is pressed. A page or evidence answer that is not coherent for exactly its request is a distinct error that shows none
+purpose is chosen and "Load" is pressed. The selected attempt also offers the collapsed **Recorded collaboration inputs** section described
+below, independent of evidence and any producing message. A page or evidence answer that is not coherent for exactly its request is a distinct error that shows none
 of it, including a verified row or answer whose status, role, provider or response contract is unrecognized or unsupported, and evidence whose role,
 provider or response contract differs from the selected row (its status may have advanced); Retry re-reads the same cursor or attempt. The region mounts no mutation, live, eligibility or configuration control and changes neither the
 current project and run selection nor intake. Its rows, selection, evidence and text belong to the committed run, open, selected-attempt and
@@ -1759,6 +1760,20 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   time (for example a number, `false`, or February 30) is shown as unavailable, never as a date and never as "not
   dispatched". Rules:
   [selected-attempt execution facts](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
+- **Recorded collaboration inputs.** The selected attempt has its own collapsed "Recorded collaboration inputs" button
+  ([ADR-0051](../decisions/0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)), including when it failed or was interrupted
+  without producing a message. Opening reads once for exactly that run and attempt, independently of evidence, facts and artifacts;
+  closing discards the result. It shows the recorded-input caveat and says only references are shown, with no content loaded.
+  A recorded set shows its exact inspected count and an ordered list of input position, recognized message type, exact timeline
+  sequence, recorded UTC time and message ID, all plain text with no navigation. Above ten it says only the first ten are shown.
+  A coherent Planner with zero inputs says "No recorded collaboration inputs — this attempt started from none." An unverifiable
+  or oversized set says the inputs are unavailable and that this does not mean the attempt had no inputs. Loading, a failed read,
+  a missing attempt and an incoherent answer are explicit; the latter shows no partial list. "Try the recorded inputs again" retries
+  only on request. The host inspects at most 64 inputs; observing a 65th returns no count or references. The prefix is not pagination,
+  full context or a resumable provider session. Each selection and opening owns its reads and callbacks, so close/reopen, another
+  attempt/run/project, A-to-B-to-A, parent reload and unmount cannot retain or fetch another owner's references. No polling, automatic
+  retry, browser persistence, artifact read or workflow mutation is added. Validation and wire rules:
+  [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
 - **Claude-reported model limits.** For a Claude attempt, the selected detail also shows a "Claude-reported model limits" section
   (a historical fact stored when the attempt concluded; see
   ["Claude-reported model context limits"](../architecture/agent-collaboration-protocol.md#claude-reported-model-context-limits)

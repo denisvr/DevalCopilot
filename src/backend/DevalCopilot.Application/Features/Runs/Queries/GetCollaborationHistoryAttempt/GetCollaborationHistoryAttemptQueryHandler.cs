@@ -12,27 +12,10 @@ public sealed class GetCollaborationHistoryAttemptQueryHandler(IDevalCopilotDbCo
     private const int ProviderObserved = 2;
     private const int AgentKind = 3;
 
-    private static readonly AttemptStatus[] StatusesByCode =
-        [AttemptStatus.Running, AttemptStatus.Completed, AttemptStatus.Failed, AttemptStatus.Interrupted];
-
     private static readonly AgentRole[] RolesByCode =
         [AgentRole.Planner, AgentRole.CriticalReviewer, AgentRole.Resolver, AgentRole.Implementer, AgentRole.CodeReviewer];
 
     private static readonly AgentProvider[] ProvidersByCode = [AgentProvider.Codex, AgentProvider.ClaudeCode];
-
-    private static readonly AgentResponseContract[] ContractsByCode =
-    [
-        AgentResponseContract.Proposal,
-        AgentResponseContract.CriticalReview,
-        AgentResponseContract.ChallengeResolution,
-        AgentResponseContract.ImplementationReport,
-        AgentResponseContract.ImplementationReview,
-        AgentResponseContract.ReviewCorrection,
-        AgentResponseContract.VerificationDiagnosis,
-    ];
-
-    private static readonly AgentPermissionProfile[] ProfilesByCode =
-        [AgentPermissionProfile.Unknown, AgentPermissionProfile.WorkspaceEditOnly, AgentPermissionProfile.ReadOnly];
 
     public async Task<Result<GetCollaborationHistoryAttemptQueryResult>> HandleAsync(
         GetCollaborationHistoryAttemptQuery query, CancellationToken cancellationToken)
@@ -90,66 +73,25 @@ public sealed class GetCollaborationHistoryAttemptQueryHandler(IDevalCopilotDbCo
         // At most one attempt, by the message's own stored identity, within this run. Nothing else is ever substituted.
         var attempt = await dbContext.Attempts.AsNoTracking()
             .Where(candidate => candidate.RunId == runId && candidate.Id == attemptId)
-            .ProjectAttempt()
+            .ProjectScalarIdentity()
             .FirstOrDefaultAsync(cancellationToken);
-        if (attempt is null || attempt.Id == Guid.Empty || attempt.AttemptNumber <= 0 || !attempt.IsAgent)
-        {
-            return unavailable;
-        }
 
-        var actorRole = RolesByCode[source.ActorRoleCode - 1];
-        var actorProvider = ProvidersByCode[source.ActorProviderCode - 1];
-        AttemptStatus? status = attempt.StatusCode is >= 1 and <= 4 ? StatusesByCode[attempt.StatusCode - 1] : null;
-        AgentRole? role = attempt.RoleCode is >= 1 and <= 5 ? RolesByCode[attempt.RoleCode - 1] : null;
-        AgentProvider? provider = attempt.ProviderCode is >= 1 and <= 2 ? ProvidersByCode[attempt.ProviderCode - 1] : null;
-        AgentResponseContract? contract = attempt.ContractCode is >= 1 and <= 7 ? ContractsByCode[attempt.ContractCode - 1] : null;
-        if (role != actorRole || provider != actorProvider || status is null || contract is null)
-        {
-            return unavailable;
-        }
-
-        // A rejected oversized storage is never read as a legitimate null: it is invalid by itself.
-        if (attempt.RequestedModelOversized
-            || attempt.ObservedModelOversized
-            || attempt.RequestedEffortOversized
-            || attempt.ObservedEffortOversized
-            || attempt.AdapterContractVersionOversized)
-        {
-            return unavailable;
-        }
-
-        // A stored profile that is not a defined member is passed as such, so the unchanged policy rejects it.
-        AgentPermissionProfile? profile = attempt.ProfileCode switch
-        {
-            0 => null,
-            >= 1 and <= 3 => ProfilesByCode[attempt.ProfileCode - 1],
-            _ => (AgentPermissionProfile)(-1),
-        };
-        var maxTurns = attempt.StoredMaxTurnsOversized
-            ? ClaudeMutationTurnLimitReading.Malformed
-            : ClaudeMutationTurnLimit.Read(attempt.StoredMaxTurns);
-        var assignment = AgentAssignmentSnapshotPolicy.Read(
-            AttemptKind.Agent,
-            provider,
-            attempt.RequestedModel,
-            attempt.ObservedModel,
-            attempt.RequestedEffort,
-            attempt.ObservedEffort,
-            profile,
-            attempt.AdapterContractVersion,
-            maxTurns);
-        if (!AgentAttemptIdentity.IsCoherent(AttemptKind.Agent, status, role, provider, contract, assignment))
+        // The shared evaluation applies the unchanged assignment policy and identity rule; the attempt must also be exactly the actor.
+        var identity = attempt is null ? null : ScalarAgentAttemptIdentity.Evaluate(attempt);
+        if (identity is null
+            || identity.Role != RolesByCode[source.ActorRoleCode - 1]
+            || identity.Provider != ProvidersByCode[source.ActorProviderCode - 1])
         {
             return unavailable;
         }
 
         return (CollaborationAttemptStatus.Available, new CollaborationAttemptHeader(
-            attempt.Id,
+            attempt!.Id,
             attempt.AttemptNumber,
-            actorRole,
-            actorProvider,
-            contract.Value,
-            status.Value,
+            identity.Role,
+            identity.Provider,
+            identity.ResponseContract,
+            identity.Status,
             attempt.ClaimedAtUtc,
             attempt.DispatchedAtUtc,
             attempt.CompletedAtUtc));

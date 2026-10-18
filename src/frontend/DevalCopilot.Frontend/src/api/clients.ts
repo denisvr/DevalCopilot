@@ -90,6 +90,7 @@ import {
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 import { AgentAttemptEvidenceWireClient } from '../features/cockpit/agentAttemptEvidenceWire'
+import { AgentAttemptInputsWireClient } from '../features/cockpit/agentAttemptInputsWire'
 
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
@@ -109,6 +110,8 @@ export const sealedAgentArtifactWindowClient = () => new GetSealedAgentArtifactW
 export const agentAttemptHistoryClient = () => new GetAgentAttemptHistoryEndpointClient(getApiBaseUrl(), authenticatedHttp)
 // Judges the raw wire timestamps before the generated client revives them (see AgentAttemptEvidenceWireClient).
 export const agentAttemptEvidenceClient = () => new AgentAttemptEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)
+// Hands the parsed body to the whole-answer decoder instead of the generated model (see AgentAttemptInputsWireClient).
+export const agentAttemptInputsClient = () => new AgentAttemptInputsWireClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptArtifactWindowClient = () => new GetAgentAttemptArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)

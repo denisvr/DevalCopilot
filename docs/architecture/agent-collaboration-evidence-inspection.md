@@ -294,6 +294,39 @@ rendering above are unchanged. Nothing is polled, retried automatically or writt
 log; the historical region mounts no mutation, live, eligibility or configuration control and changes neither the
 current project and run selection nor intake.
 
+**Selected-attempt recorded inputs.** [ADR-0051](../decisions/0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)
+adds the protected, bodyless `GET /api/runs/{runId}/agent-attempts/{attemptId}/inputs`, independently of any message the
+attempt produced or of its evidence/artifact reads. Unknown runs and missing, foreign or non-Agent attempts share the
+fixed `agent_attempt_inputs.not_found` 404. An existing Agent attempt is judged by the unchanged scalar identity and
+assignment rules, using the same guarded projection as ADR-0037; no complete entity, message content, prompt, session,
+artifact or chain is read. Stored enums are classified before materialization and assignment strings are byte-bounded.
+
+The query reads at most 65 ordered input rows through the existing attempt/sequence index. At most 64 can be inspected;
+a 65th yields `Unavailable`, with no count or partial list, not a declaration that the stored set is invalid. Before
+showing any prefix it proves the whole inspected set: gapless positions from zero, unique nonempty references, every
+message in the same run, a known protocol/type and an exact positive timeline sequence. Malformed stored positions are
+refused before integer conversion can hide them. Unexpected database/cancellation and malformed identity/timestamp
+storage faults retain the normal fault pipeline.
+
+The API owns the whole response. `Unavailable` has no attempt or count, no references and no omission; `Empty` names a
+coherent Planner, with count zero and no references or omission (zero inputs for another role are unavailable).
+`Recorded` names the immutable attempt identity/number/role/provider/contract, exact count 1-64 and first at most ten
+references; omission is true exactly above ten. References contain only their zero-based input position, message ID,
+recognized type, canonical positive Int64 timeline sequence **string**, and invariant UTC round-trip timestamp
+**string** (`yyyy-MM-ddTHH:mm:ss.fffffffZ`). No JavaScript numeric sequence or generated Date conversion precedes
+validation. This is an inspected prefix, not paging or a complete-history claim.
+
+The selected attempt has a collapsed "Recorded collaboration inputs" section. Opening reads once, retry is explicit,
+and plain-text references carry the recorded-input caveat: they are not the complete prompt, context manifest or a
+resumable session. Referenced content is not loaded or linked. A facade preserves the parsed successful body for the
+whole-answer decoder while URL, authentication and non-200 handling remain generated. The decoder binds the exact
+run/attempt and selected immutable header, validates the status shape, counts, order, uniqueness, recognized types,
+exact sequences and timestamp text, and copies only admitted fields. A malformed answer is one fixed error with no
+partial list. Both selection and each opening use the existing owned-lifetime primitives: closing/reopening,
+attempt/run/project changes, A-to-B-to-A, parent reload and unmount discard old work before the replacement's first
+frame; late responses and retained callbacks cannot affect successors. Nothing is polled, automatically retried,
+logged or persisted in the browser or URL. Existing message-linked input and attribution contracts stay unchanged.
+
 **Selected-attempt execution facts.** The accepted evidence answer of a verified attempt also shows, from that same
 answer and with no further read, its response contract, its claim, dispatch and end times, its semantic `outcome`, the
 host-measured `processExecution` result, the configured timeout and the provider-reported `tokenUsage` counts, as

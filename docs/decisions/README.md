@@ -132,6 +132,9 @@ under [Proposed decisions](#proposed-decisions).
   stored default authentication on the already-bound recorded repository, through one fixed `gh api graphql` invocation, shown only when the freshly observed repository ID equals the
   ADR-0043 binding; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and it neither requires nor changes an ADR-0048 approval)
 
+- [ADR-0051: Inspect recorded inputs of a selected Agent attempt](0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)
+  (accepted, implemented in HIST-INP-01; one protected, bounded inspection of the selected attempt's recorded collaboration-input references, independent of a producing message, with no persistence, invocation, replay, autonomy or publication authority; publication is reconciled through the workflow)
+
 ## Partially superseded decisions
 
 - [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)

@@ -6,167 +6,85 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: HIST-MET-01 historical attempt execution and usage facts
+## Active slice: HIST-INP-01 recorded inputs of a selected Agent attempt
 
 This document records the implementation delivered for review. Consult
 [planner-handoff.md](planner-handoff.md) for the review decision. Reconcile
 publication with Git and the slice's independent publication-verification
 record, when available. This record alone grants no publication authority.
 
-- **Prepared at** correction 2 (HMT-R1) of the delivery for review.
-  Correction 2 preflight: the same refs and 0/0, empty index, correction 1's
-  diff (ten modified tracked paths, six untracked) plus Codex's correction-2
-  NO-GO edit to the handoff. First
-  delivery preflight: `main`, `HEAD`/`origin/main`/live main `5e588a44`, 0/0,
-  empty index, only the planner's handoff selection modified, no nonignored
-  untracked paths. Correction preflight: the same refs and 0/0, empty index,
-  the delivered diff (nine modified tracked paths, three untracked) plus
-  Codex's NO-GO edit to the handoff. Nothing is staged, committed or pushed.
-- **Outcome.** The selected Agent attempt in the attempt history (the current
-  run's rail and a run selected in Run history alike) now shows, from the
-  evidence answer it already read, a "Recorded execution facts" section: the
-  response contract; claim, dispatch and end times; the semantic result; the
-  host-measured process result; the configured timeout; and the
-  provider-reported token and cache counts, each a separate fact with a caveat
-  that a clean exit is not success and that counts are not cost, quota,
-  capacity, readiness or approval. Rules:
-  [selected-attempt execution facts](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection);
-  copy: [cockpit specification](../product/run-cockpit-specification.md#agent-attempt-history-and-evidence).
-- **Changes (frontend only).** The new pure `agentAttemptExecutionFacts.ts`
-  admits each section on its own: an instant only as a valid `Date` (nothing
-  else is parsed; a running attempt naming an end time is contradictory);
-  dispatch and status first (undispatched, running, or an
-  unreadable dispatch time expose no measured result or usage, whatever the
-  answer carries); for a concluded dispatched attempt, all members absent is
-  unknown; otherwise a closed process outcome, an int32 exit code exactly for
-  `Exited` and a nonnegative safe-integer whole-millisecond duration; nonnegative
-  int32 input/output and each cache count independently absent or one too;
-  a positive safe-integer timeout independent of dispatch. Anything else makes
-  only that section unavailable. The new `SelectedAttemptExecutionFacts.tsx`
-  passes only admitted values to the unchanged `ProcessEvidenceLine` and
-  `TokenUsageLine` (their wording reused) and renders the times, timeout and
-  unavailable states itself; `AgentAttemptHistoryPanel.tsx` mounts it in place
-  of its former claim/end line. No hook, request, shared presentation, latest-
-  attempt, status-action, run-summary, backend, generated client, schema,
-  dependency or harness change.
-- **Correction 1 (HMT-R1, proposed resolved for Codex to verify).** A `Date`
-  check after generated revival could not prove the wire value: the generated
-  client turns raw `dispatchedAtUtc: 1` into 2001-01-01 and drops falsy values.
-  The new handwritten `agentAttemptEvidenceWire.ts` (`AgentAttemptEvidenceWireClient`,
-  extending the generated evidence operation; `src/api/clients.ts` changes only
-  that factory) reads a 200 body once, judges the raw claim, dispatch and
-  completion values, hands the same text to the unchanged generated processing
-  and then sets each timestamp from its verdict: missing or null stays absent;
-  exactly the `DateTimeOffset` wire text (`yyyy-MM-ddTHH:mm:ss`, 0-7 fractional
-  digits, `Z` or `±HH:mm` within 14 hours) of a real calendar date and time
-  within the `DateTimeOffset` range becomes the instant computed from its
-  fields; anything else becomes an invalid `Date`, which the facts reader shows
-  as unavailable (dispatch, and so process and usage) and the identity binding
-  rejects for the mandatory claim time. Non-200 answers, URL, authentication
-  and the single request stay generated. Comments and the contract no longer
-  claim that post-revival checks suffice.
-- **Correction 2 (HMT-R1 remainder, proposed resolved for Codex to verify).**
-  Correction 1 still handed the original timestamp members to the generated
-  conversion, so a raw value such as `{"toString": 0}` threw a `TypeError` and
-  rejected the whole answer before its verdict applied. The facade now sets the
-  generated operation's protected `jsonParseReviver` to a stateless
-  `withoutRootTimestamps`, which removes the three root timestamp members while
-  the generated processing parses the original text; the verdicts still come
-  from the facade's own parse of that text, and only the root's three members
-  are affected (the same names below the root and nested timestamps such as
-  `accountUsageDecision.retrievedAtUtc` stay generated). A first draft that
-  re-serialized the body instead was dropped before any test ran: `1e400`
-  parses to `Infinity` and would have been written back as `null`, turning a
-  malformed count into absence.
-- **Checks** in `logs/executor/hist-met-01/` (`index.txt`, complete output in
-  `output/`): development runs r01-r04 (existing panel/composition tests,
-  then the new pure and composed tests, all passed); red-first of the 18 new
-  composed tests against the HEAD panel (r05: all 18 failed; restored by hash)
-  and of the extended sealed journey (r15: facts region not found; restored by
-  hash); strict e2e `tsc` (r06, r10, r12 after each journey edit); journey host
-  build (r07 failed with the recurring CS2012 Domain.dll compiler lock, r08
-  retry passed); `sealed-artifact-inspection.journey.ts` (r09 failed on the
-  journey's own evidence-read count, below; r11 and r13 passed) and
-  `historical-agent-attempts.journey.ts` (r14 passed); the prescribed final
-  regression set (r16: 11 files, 306 passed) and the three added/modified test
-  files by exact path (r17: 151 passed); lint (r18, exit 0, the nine existing
-  warnings, none in changed files; r22 on the final input); build with `tsc -b`
-  (r19 failed on a type error in the new pure test, fixed; r20 passed; that
-  file 77 passed, r21); hygiene (r23 failed only on its own over-strict new
-  heading check, which flagged the routine slice-heading replacements; r24,
-  with an inbound-anchor search for each removed heading instead, passed; r25
-  after the last document edits, passed). Not run: the whole frontend suite
-  (shared presentation and hooks unchanged, so no broadening trigger),
-  architecture and backend/API tests and client generation (backend inputs
-  unchanged).
-- **Correction 1 checks** in `logs/executor/hist-met-01/correction1/`
-  (`index.txt`, `output/`): new raw-wire and factory tests (c01, 60 passed) and
-  the panel with its facade-composed cases (c02, 67 passed); red-first with the
-  facade's override replaced by plain generated processing (c03: 32 of the new
-  through-client, factory and composed tests failed, the 35 others, covering
-  valid and absent values, status handling and malformed values the browser
-  already revives as invalid, passed; restored by hash); raw-wire, facts and
-  composed regressions (c04, 4 files, 214 passed); factory, session and hook
-  checks (c05, 23 passed); the prescribed regression set (c06, 11 files, 313
-  passed); the whole frontend suite, broadened because the client factory
-  changed (c07, 234 files, 4471 passed); lint (c08, the nine existing warnings,
-  none in changed files); build with `tsc -b` (c09); strict e2e `tsc` (c10, the
-  journey comment changed); both journeys through the facade with real host
-  timestamps (c11 sealed, c12 historical, passed); hygiene (c13 failed only
-  because its lexical scan matched the clearly fictitious bearer value in the
-  new factory test; renamed, that file passed again in c14, hygiene passed in
-  c15, and lint and build were rerun on the final input, c16 and c17). Retained:
-  the r08 journey-host build (backend unchanged). Not run: architecture and
-  backend/API tests and client generation.
-- **Correction 2 checks** in `logs/executor/hist-met-01/correction2/`
-  (`index.txt`, `output/`): raw-JSON-through-facade cases with non-callable
-  `toString` objects and arrays for dispatch, completion and claim, a
-  parse-fidelity case (`1e400` stays `Infinity`, nested timestamps stay
-  generated) and composed facade cases, which also assert that the evidence
-  route was the only evidence request and that the artifact still loads
-  explicitly (d01, 2 files, 143 passed); red-first with only the reviver line
-  removed, i.e. correction 1's behavior (d02: 19 of 20 selected tests failed
-  with the generated `TypeError`s; the passing one is the bare-generated-client
-  contrast; restored by hash); wire, factory, facts, panel, historical
-  composition and evidence-hook tests (d03, 6 files, 247 passed); the
-  prescribed regression set (d04, 11 files, 316 passed); lint (d05, the nine
-  existing warnings, none in changed files); build with `tsc -b` (d06); both
-  journeys serially (d07 sealed, d08 historical, passed); hygiene (d09).
-  Retained with their scope: correction 1's whole frontend suite (c07, 4471
-  passed; its broadening trigger, the client factory, is unchanged since) and
-  strict e2e `tsc` (c10; the journey files are unchanged since), and the r08
-  journey-host build (backend unchanged). Not run: architecture and
-  backend/API tests and client generation.
-- **r09 failure.** All new fact assertions passed; the journey then expected
-  exactly one evidence GET and saw two identical ones for the same run and
-  attempt. The journey host serves the development build and `main.tsx` wraps
-  the app in React `StrictMode`; a second run of the unchanged selection effect
-  is the likely cause, inferred and not independently proven (no StrictMode
-  on/off control was run; the composed tests, without StrictMode, show one
-  read). The assertion now requires every evidence read to name exactly that
-  run and attempt and no request for any attempt or the inspected run after the
-  facts are shown.
-- **Journey scope.** Production frontend, generated client, MVC
-  authentication, SQLite and the deterministic doubles. The sealed journey
-  abandons the planning run through its form, records a newer objective
-  through the intake and, with the newer run still selected, inspects the
-  planning attempt from Run history: the evidence answer equals the stored row
-  (duration truncated from ticks, timeout, counts, dispatch time) and the page
-  shows its contract, times, `Proposed`, a clean exit with that duration and
-  the timeout, with no artifact window, provider invocation, non-GET request
-  or durable change. The Codex double emits no terminal turn event, so this
-  attempt's usage is recorded as null and the page shows "Token usage unknown";
-  known token and cache counts are proven only by the pure and composed tests.
-  The historical journey asserts the stopped-before-dispatch attempt's stored
-  nulls, the host's null answer and the page's truthful absence ("not
-  dispatched", "Process not started", "Token usage: none (provider not
-  invoked)") beside its semantic result and configured timeout. Since
-  correction 1 both read through the timestamp facade, so the host's real
-  serialized claim, dispatch and end times are accepted there. Nonzero exits,
-  timeouts, cancellations, zero values and malformed answers, including
-  malformed timestamps, are not constructed in the browser; they are proven at
-  the pure, raw-wire and composed boundaries. The pre-existing
-  duplicate-React-key console error also appears in these runs.
+- **Prepared at** execution completion, unstaged, uncommitted and unpushed.
+  Claude began from `main`, HEAD/local origin/main/live main `96a21d73`,
+  divergence 0/0, empty index, only the planner's two modified documents and
+  new ADR-0051. The owner then explicitly asked Codex to finish Claude's work
+  after Claude's credits ran out. Codex recovered the same slice and HEAD,
+  local origin/main 0/0, empty index and the in-progress implementation;
+  no reset, cleanup, new slice or publication authority was introduced. The
+  three planner-written files were unchanged at execution delivery; the planner
+  subsequently records its review in the handoff and updates the decision index.
+- **Outcome.** The selected attempt now has a collapsed "Recorded collaboration
+  inputs" inspector, independent of evidence, artifacts and any message it
+  produced. It shows plain references with exact sequence and timestamp text,
+  an inspected count and a first-ten disclosure, or truthful Empty/Unavailable
+  states. Each selection and opening owns its requests, results and callbacks;
+  explicit retry is the only retry. Rules and copy:
+  [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection),
+  [cockpit specification](../product/run-cockpit-specification.md#agent-attempt-history-and-evidence),
+  [ADR-0051](../decisions/0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md).
+- **Backend.** One protected, bodyless GET and mediator query read scalar
+  projections of exactly the attempt, at most 65 ordered input rows and at
+  most 64 referenced message identities. A 65th row yields Unavailable without
+  a count, not a declaration that the stored set is invalid. The entire
+  inspected set is checked before the first ten are shown. The ADR-0037
+  guarded attempt projection and identity evaluation were narrowly extracted;
+  its source/actor comparison stays in its operation. No Domain rule, old
+  message-input reader, persistence, migration, invocation or authority changed.
+  The API owns its response graph; Int64 sequences and UTC round-trip times
+  are strings. The NSwag addition is generated and reproducible. A handwritten
+  facade preserves raw types and explicit nulls for whole-answer validation;
+  URL, authentication and non-200 handling remain generated.
+- **Fresh completion checks.** Complete outputs and exact commands/exits/times:
+  `logs/executor/hist-inp-01/codex-completion/index.txt`. Application new-query,
+  ADR-0037 and old input-reader regressions: 183 passed (c05); API new/related
+  routes and launch authentication: 30 passed (c10); architecture: 153 passed
+  (c11). Whole frontend: 238 files, 4621 passed (c04). Its only subsequent test
+  correction supplies a required `traceId` in the hook's 404 fixture; that
+  file then passed 18/18 (c08), without assertion removal. The full suite was
+  not repeated after that fixture-only correction. Lint passed with the same
+  nine warnings in unchanged files (c06); frontend build including `tsc -b`
+  passed (c09; existing bundle-size warning). API build/NSwag passed (c02),
+  with unchanged generated-client SHA256 before/after generation. Hygiene
+  passed: 169 local links, missing-file/fragment and sensitive-data controls,
+  added-line scan, whitespace and unchanged planner-file hashes (c12).
+- **Retained same-slice evidence.** Claude's commands and complete output remain
+  in `logs/executor/hist-inp-01/index.txt` and `output/`. The strict e2e
+  typecheck (j01), journey-host build (j02), new historical-input journey
+  (j03), extended no-message historical-attempt journey (j04), and sealed
+  artifact journey (j05) passed. Their production behavior, journey and host
+  inputs were unchanged during completion; Codex changed one test fixture,
+  explanatory comments and delivery docs only. The new journey produces a
+  plan, critical review and resolution through production controls, abandons
+  that run, records a newer objective and compares the older attempts' input
+  references/counts with SQLite after reload, with no invocation, mutation,
+  artifact-window read or source change and the newer run still selected.
+  The stopped-before-dispatch Planner proves Empty without an output message.
+  Browser proof covers ordinary small sets; malformed/oversized sets and
+  sequences above 2^53 are proven by SQLite, API and frontend tests.
+- **Failures and controls retained.** Claude's b03 analyzer failure, b04/b05
+  development failures, b08 architecture assertion failure, f02/f06 failures
+  and all their output remain. b07 caught six malformed-position controls;
+  f09's first settle control survived (28 passed), a missing overlap test was
+  added and f11 caught it; panel/serial and journey controls failed as expected.
+  Source restoration was hash-checked. Completion c01 failed at restore with
+  no diagnostic beyond exit 1; c02 succeeded without restore, serially. c03
+  aborted before executing tests when testhost did not connect within 90s;
+  c05 passed outside the sandbox. These passes do not establish the causes.
+  c07 found the missing test-fixture `traceId`; c08/c09 passed after its fix.
+  No failure output was removed or reconstructed.
+- **Not run.** Whole backend/API suites, unrelated journeys, real providers or
+  P9 experiments. No dependency, schema, harness or shared database-fixture
+  change. Existing duplicate React keys and connection-negotiation console
+  errors are retained; they are not fixed or causally explained by this slice.
 
 ## Functional development
 
@@ -177,6 +95,13 @@ challenge and explicit GO: [AGENTS.md](../../AGENTS.md); constraints:
 [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
+
+HIST-MET-01 `96a21d73` (sole parent `5e588a44`, 16 paths) passed independent
+publication verification (`logs/planner-review/hist-met-01/publication-verification.log`).
+Its implementation, two HMT-R1 corrections, all failures and validation scopes
+are recorded in this file at `96a21d7`; 247 independent focused tests passed.
+The 4471-test full-suite result remains correction-1 input evidence, not a
+correction-2 full rerun. Known token counts remain outside browser proof.
 
 ART-WIN-01 `5e588a44` (sole parent `75372b18`, 19 paths) passed independent
 publication verification
@@ -244,7 +169,7 @@ Archiving, condensation and progressive reading resolve or waive none of these:
 [ba1d4c2](current-work-history-ba1d4c2.md) (earliest),
 [0a57216](current-work-history-0a57216.md) (WF-03N, earlier limits) and
 [e614c79](current-work-history-e614c79.md) (WF-04, prior risk wording); later
-entries, including WF-05, WF-06, HIST-ATT-01 and ART-WIN-01, are in Git history. Evidence, not current status or
+entries, including WF-05, WF-06, HIST-ATT-01, ART-WIN-01 and HIST-MET-01, are in Git history. Evidence, not current status or
 approval.
 
 ## Open risks
@@ -264,12 +189,12 @@ approval.
   (ADR-0011).
 - Raw linked artifact inspection beyond the existing bounded views is open.
 - **Attempt and artifact inspection limits (HIST-ATT-01, ART-WIN-01,
-  HIST-MET-01).** All read existing bounded views only: no replay, export,
+  HIST-MET-01, HIST-INP-01).** All read bounded views only: no replay, export,
   session resume or complete history. The three window defects HIST-ATT-01
   found are addressed by the published ART-WIN-01; its window acceptance bounds
   the text by the cursor advance but cannot prove that the text is the decoding
-  of those bytes; the host remains the authority for content. HIST-MET-01,
-  delivered for review and not accepted, shows the selected attempt's recorded
+  of those bytes; the host remains the authority for content. Published HIST-MET-01
+  shows the selected attempt's recorded
   execution facts; the browser checks their shape and range only. Its
   evidence timestamps are judged raw by an operation-scoped facade (HMT-R1);
   other operations still rely on the generated client's unchecked revival,
