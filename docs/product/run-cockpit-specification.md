@@ -1347,6 +1347,21 @@ polled or retried automatically, and the loaded pages, their cursor and "Load ol
 run's open history lifetime and to each selection: another run, closing, reopening, reloading, another message, or closing and inspecting the same one
 again cannot show or settle another owner's answer, and a retained close of an ended inspector cannot close its successor.
 
+### Agent attempts of a historical run
+
+Inside the selected historical run of the Run history, beside Recorded collaboration, the cockpit shows the same collapsed
+**Agent attempt history** region the rail offers for the current run (see [Agent attempt history and evidence](#agent-attempt-history-and-evidence)),
+for exactly that run, so a failed or interrupted attempt that emitted no collaboration message stays reachable after a newer objective. It is an
+independent run-level path: the ADR-0037 inspector above is unchanged and does not lead here. Opening it requests one page of
+`GET /api/runs/{runId}/agent-attempts` for the selected run; "Inspect" reads that attempt's evidence, and a sealed window is read only after a
+purpose is chosen and "Load" is pressed. A page or evidence answer that is not coherent for exactly its request is a distinct error that shows none
+of it, including a verified row or answer whose status, role, provider or response contract is unrecognized or unsupported, and evidence whose role,
+provider or response contract differs from the selected row (its status may have advanced); Retry re-reads the same cursor or attempt. The region mounts no mutation, live, eligibility or configuration control and changes neither the
+current project and run selection nor intake. Its rows, selection, evidence and text belong to the committed run, open, selected-attempt and
+purpose lifetimes, so another run or project, a return to an earlier one, closing the selection, closing, reopening, a Run history reload or an
+obsolete read or callback cannot show, fetch or close for another owner. Navigation, validation and lifetimes:
+[inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
+
 ### Abandon run
 
 For a selected `ManualAgent` run the cockpit shows an **Abandon run** panel ([ADR-0031](../decisions/0031-abandon-an-inactive-manual-run-through-an-explicit-human-decision.md)) whose form is offered only after a
@@ -1712,8 +1727,9 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
 - **History list.** Opening it requests one bounded page (10 attempts, server cap 20) of the
   run's Agent attempts, newest first, showing attempt number, role, provider, status, and result.
   "Load older attempts" follows the server's before-number cursor; rows are appended without
-  duplicates or gaps. An empty run shows an explicit empty state. A failed page shows a fixed
-  message with Retry; already-loaded rows stay visible and Retry re-requests the same cursor. An
+  duplicates or gaps. An empty run shows an explicit empty state. A failed page, or one the host
+  answered incoherently (none of it is shown), shows a fixed message with Retry; already-loaded rows
+  stay visible and Retry re-requests the same cursor. An
   attempt whose recorded identity could not be verified is listed by number and status only, says so,
   and offers no Inspect action.
 - **Selected attempt.** "Inspect" on a row fetches that attempt's evidence metadata (status,

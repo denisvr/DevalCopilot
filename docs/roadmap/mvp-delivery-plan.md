@@ -225,8 +225,11 @@ each bounded by its [ADR](../decisions/README.md):
 - local delivery: complete-set approval, metadata-only abandonment of an
   inactive manual run and a historical receipt (ADR-0030 to ADR-0032);
 - read-only browsers of run history, event headers, collaboration messages,
-  reply parents and attempt attribution (ADR-0033 to ADR-0037), not full
-  linked replay;
+  reply parents and attempt attribution (ADR-0033 to ADR-0037), and the
+  existing Agent-attempt history, evidence and sealed windows of a selected
+  historical run, including an attempt that emitted no message
+  ([inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection)),
+  not full linked replay;
 - Increment 6 groundwork: unpersisted point-in-time observations (ADR-0038,
   0039, 0041, 0042, 0044, 0045, 0047, 0049) and records of observation scope,
   identity binding and consent to one future push (ADR-0040, 0043, 0048).

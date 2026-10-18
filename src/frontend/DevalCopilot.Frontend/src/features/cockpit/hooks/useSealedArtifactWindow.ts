@@ -1,5 +1,7 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef } from 'react'
 import type { SealedAgentArtifactWindowResponse } from '../../../api/clients'
+import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
+import type { OwnedLifetime } from './useOwnedLifetime'
 
 export const SEALED_WINDOW_MAX_BYTES = 16 * 1024
 
@@ -30,7 +32,7 @@ export interface UseSealedAgentArtifactWindowResult {
   state: SealedAgentArtifactWindowState
   /** Fetches the first window when idle/errored, or the next window once a prior one has
    * loaded — never a "current" or "latest" offset inferred from elsewhere in state. A call while
-   * already loading, or before a purpose is selected, is a no-op. */
+   * already loading, before a purpose is selected, or retained from an ended scope or purpose is a no-op. */
   loadNextWindow: () => void
 }
 
@@ -40,135 +42,127 @@ export type SealedWindowRequest = (
   maxBytes: number,
 ) => Promise<SealedAgentArtifactWindowResponse>
 
+// What one (scope, purpose) lifetime owns: the displayed state, the text accumulated across its windows and the offset it last requested.
+interface WindowFrame {
+  state: SealedAgentArtifactWindowState
+  accumulated: string
+  lastRequestedOffset: number
+}
+
+const createWindowFrame = (): WindowFrame => ({ state: { status: 'idle' }, accumulated: '', lastRequestedOffset: 0 })
+
+const ERROR_MESSAGE = 'This artifact window is unavailable.'
+
+function settleResponse(previous: WindowFrame, response: SealedAgentArtifactWindowResponse, fromOffset: number): WindowFrame {
+  switch (response.status) {
+    case 'Ok': {
+      const accumulated = previous.accumulated + (response.text ?? '')
+      const nextOffset = response.nextOffset ?? fromOffset
+      const totalLengthSoFar = response.totalLengthSoFar ?? 0
+      return {
+        ...previous,
+        accumulated,
+        state: {
+          status: 'loaded',
+          text: accumulated,
+          nextOffset,
+          totalLengthSoFar,
+          isComplete: nextOffset >= totalLengthSoFar,
+          truncated: response.truncated ?? null,
+        },
+      }
+    }
+    case 'Missing':
+      return { ...previous, state: { status: 'missing' } }
+    case 'IntegrityMismatch':
+      return { ...previous, state: { status: 'integrity-mismatch' } }
+    case 'AttemptIdentityInvalid':
+      return { ...previous, state: { status: 'identity-invalid' } }
+    case 'NoAgentEvidence':
+    case 'AttemptLinkBroken':
+    case 'PurposeNotAllowlisted':
+    case 'ArtifactNotFound':
+      return { ...previous, state: { status: 'unavailable' } }
+    default:
+      // A status this client does not recognize is never rendered as if it were a known, safe state — reject it explicitly, exactly
+      // like the collaboration-evidence hook.
+      return { ...previous, state: { status: 'error', message: ERROR_MESSAGE } }
+  }
+}
+
 /**
- * Fetches bounded, verified text windows of one sealed Agent-attempt artifact, scoped to exactly
- * one `(scopeKey, purpose)` pair. `scopeKey` identifies the run and the message or attempt the
- * caller resolved the artifact through, and `request` performs that route's fetch; the accumulation,
- * reset, and retry behavior is identical for every route. State is on-demand (idle until first
- * requested) and resets to `idle` whenever the scope or purpose changes — mirrors
- * `useCollaborationMessageEvidence`'s own render-time reset pattern rather than an effect-based
- * reset, so a change can never flash a previous purpose's or a previous scope's text before this
- * hook's own state catches up.
+ * Fetches bounded, verified text windows of one sealed Agent-attempt artifact, scoped to exactly one `(scopeKey, purpose)` pair.
+ * `scopeKey` identifies the run and the message or attempt (and, for a selection, its lifetime) the caller resolved the artifact
+ * through, and `request` performs that route's fetch; the accumulation and retry behavior is identical for every route. State is
+ * on-demand (idle until first requested) and every committed scope or purpose — including a return to an earlier one — is a new owned
+ * lifetime whose first frame is derived idle in the same render, so a change can never flash a previous purpose's or scope's text. A
+ * late answer of an ended lifetime settles nothing, and its retained `loadNextWindow` starts nothing.
  *
- * Fetched text is accumulated across windows entirely in a ref, not component state, and is
- * reset alongside `state` on every scope or purpose change — accumulation must never survive a
- * purpose, attempt, or run switch. Never persists fetched text to `localStorage`/`sessionStorage`/
- * the URL, and never logs it.
+ * Fetched text is accumulated across the windows of one lifetime only and never survives a purpose, attempt, or run switch. Never
+ * persists fetched text to `localStorage`/`sessionStorage`/the URL, and never logs it.
  *
- * A failed request for a LATER window (one requested after at least one window already loaded)
- * can be retried without duplicating or losing text: the failed offset is tracked independently
- * of `state`, a failure never touches the accumulated text, and retrying re-requests that same
- * offset rather than restarting from 0.
+ * A failed request for a LATER window (one requested after at least one window already loaded) can be retried without duplicating or
+ * losing text: the failed offset is kept beside the state, a failure never touches the accumulated text, and retrying re-requests that
+ * same offset rather than restarting from 0.
  */
 export function useSealedArtifactWindow(
   scopeKey: string,
   purpose: string | null,
   request: SealedWindowRequest,
 ): UseSealedAgentArtifactWindowResult {
-  const [state, setState] = useState<SealedAgentArtifactWindowState>({ status: 'idle' })
-  const generationRef = useRef(0)
-  const loadingRef = useRef(false)
-  const accumulatedTextRef = useRef('')
-  // The offset most recently requested (regardless of outcome) — lets a retry after a failed
-  // LATER window re-request that same failed offset rather than assuming offset 0.
-  const lastRequestedOffsetRef = useRef(0)
-  const [renderedScope, setRenderedScope] = useState({ scopeKey, purpose })
+  const owner = useOwnedLifetime(purpose === null ? null : JSON.stringify([scopeKey, purpose]))
+  const [frame, commit] = useOwnedState(owner, createWindowFrame)
 
-  if (renderedScope.scopeKey !== scopeKey || renderedScope.purpose !== purpose) {
-    setRenderedScope({ scopeKey, purpose })
-    setState({ status: 'idle' })
-  }
+  // The frame this render committed and the window read in flight, both keyed by their lifetime, so a retained callback can never act
+  // on a later lifetime and two calls in the same tick send one request.
+  const displayed = useRef<{ owner: OwnedLifetime; frame: WindowFrame } | null>(null)
+  const inFlight = useRef<{ owner: OwnedLifetime; isCurrent: () => boolean } | null>(null)
 
-  // accumulatedTextRef is never read during render (only inside fetchWindow's async
-  // continuations), so clearing it here — alongside the other bookkeeping refs — is safe and keeps
-  // the reset co-located with the generation bump it must happen before any new fetch can start.
   useLayoutEffect(() => {
-    generationRef.current += 1
-    loadingRef.current = false
-    accumulatedTextRef.current = ''
-    lastRequestedOffsetRef.current = 0
-  }, [scopeKey, purpose])
+    displayed.current = { owner, frame }
+  })
 
   const fetchWindow = useCallback(
     (fromOffset: number) => {
-      if (loadingRef.current || purpose === null) {
+      if (purpose === null || !owner.isActive() || owner.key === null || (inFlight.current?.owner === owner && inFlight.current.isCurrent())) {
         return
       }
 
-      const generation = generationRef.current
-      loadingRef.current = true
-      lastRequestedOffsetRef.current = fromOffset
-      setState({ status: 'loading' })
+      const isCurrent = owner.begin('window')
+      inFlight.current = { owner, isCurrent }
+      const settle = (update: (previous: WindowFrame) => WindowFrame) => {
+        if (isCurrent()) {
+          inFlight.current = null
+          commit(update)
+        }
+      }
 
-      request(purpose, fromOffset, SEALED_WINDOW_MAX_BYTES)
-        .then((response: SealedAgentArtifactWindowResponse) => {
-          if (generationRef.current !== generation) {
-            return
-          }
-
-          loadingRef.current = false
-          switch (response.status) {
-            case 'Ok': {
-              accumulatedTextRef.current += response.text ?? ''
-              const nextOffset = response.nextOffset ?? fromOffset
-              const totalLengthSoFar = response.totalLengthSoFar ?? 0
-              setState({
-                status: 'loaded',
-                text: accumulatedTextRef.current,
-                nextOffset,
-                totalLengthSoFar,
-                isComplete: nextOffset >= totalLengthSoFar,
-                truncated: response.truncated ?? null,
-              })
-              break
-            }
-            case 'Missing':
-              setState({ status: 'missing' })
-              break
-            case 'IntegrityMismatch':
-              setState({ status: 'integrity-mismatch' })
-              break
-            case 'AttemptIdentityInvalid':
-              setState({ status: 'identity-invalid' })
-              break
-            case 'NoAgentEvidence':
-            case 'AttemptLinkBroken':
-            case 'PurposeNotAllowlisted':
-            case 'ArtifactNotFound':
-              setState({ status: 'unavailable' })
-              break
-            default:
-              // A status this client does not recognize is never rendered as if it were a known,
-              // safe state — reject it explicitly, exactly like the collaboration-evidence hook.
-              setState({ status: 'error', message: 'This artifact window is unavailable.' })
-          }
-        })
-        .catch(() => {
-          if (generationRef.current === generation) {
-            loadingRef.current = false
-            setState({ status: 'error', message: 'This artifact window is unavailable.' })
-          }
-        })
+      commit((previous) => ({ ...previous, state: { status: 'loading' }, lastRequestedOffset: fromOffset }))
+      request(purpose, fromOffset, SEALED_WINDOW_MAX_BYTES).then(
+        (response: SealedAgentArtifactWindowResponse) => settle((previous) => settleResponse(previous, response, fromOffset)),
+        () => settle((previous) => ({ ...previous, state: { status: 'error', message: ERROR_MESSAGE } })),
+      )
     },
-    [purpose, request],
+    [owner, commit, purpose, request],
   )
 
   const loadNextWindow = useCallback(() => {
-    if (state.status === 'loaded') {
+    const current = displayed.current
+    if (current === null || current.owner !== owner) {
+      return
+    }
+
+    const { state, lastRequestedOffset } = current.frame
+    if (state.status === 'idle') {
+      fetchWindow(0)
+    } else if (state.status === 'loaded' && !state.isComplete) {
       fetchWindow(state.nextOffset)
-      return
+    } else if (state.status === 'error') {
+      // Retries the exact offset that failed, preserving any earlier successfully-accumulated text (never touched on failure) — never
+      // restarts at offset 0, which would re-fetch and re-append already-accumulated text and duplicate it.
+      fetchWindow(lastRequestedOffset)
     }
+  }, [owner, fetchWindow])
 
-    if (state.status === 'error') {
-      // Retries the exact offset that failed, preserving any earlier successfully-accumulated
-      // text (never touched on failure) — never restarts at offset 0, which would re-fetch and
-      // re-append already-accumulated text and duplicate it.
-      fetchWindow(lastRequestedOffsetRef.current)
-      return
-    }
-
-    fetchWindow(0)
-  }, [state, fetchWindow])
-
-  return { state, loadNextWindow }
+  return { state: frame.state, loadNextWindow }
 }

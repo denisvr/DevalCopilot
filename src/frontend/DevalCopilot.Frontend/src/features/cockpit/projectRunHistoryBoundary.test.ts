@@ -17,6 +17,15 @@ const SOURCES = [
   './hooks/useProjectRunHistory.ts',
   './components/ProjectRunHistoryPanel.tsx',
   './components/ProjectRunHistoryDetail.tsx',
+  // HIST-ATT-01: the Agent-attempt history composed into the selected run, with its evidence and sealed-window reads.
+  './agentAttemptHistory.ts',
+  './hooks/useAgentAttemptHistory.ts',
+  './hooks/useAgentAttemptEvidence.ts',
+  './hooks/useAgentAttemptArtifactWindow.ts',
+  './hooks/useSealedArtifactWindow.ts',
+  './components/AgentAttemptHistoryPanel.tsx',
+  './components/AgentAttemptArtifactViewer.tsx',
+  './components/SealedArtifactWindowView.tsx',
 ]
 
 describe('the run history region boundary', () => {
@@ -52,6 +61,27 @@ describe('the run history region boundary', () => {
     expect(hook).toContain('useOwnedState')
     expect(hook).not.toContain('useRef(0)')
     expect(read('./components/ProjectRunHistoryDetail.tsx')).toContain('<LocalDeliveryReceipt source={source} />')
+  })
+
+  it('composes the existing Agent-attempt history into the selected run without a key, owning every read with the shared hooks', () => {
+    const detail = read('./components/ProjectRunHistoryDetail.tsx')
+
+    expect(detail).toContain('<AgentAttemptHistoryPanel runId={entry.runId} />')
+    expect(detail).not.toMatch(/<AgentAttemptHistoryPanel[^>]*\bkey=/)
+    for (const hook of ['./hooks/useAgentAttemptHistory.ts', './hooks/useAgentAttemptEvidence.ts', './hooks/useSealedArtifactWindow.ts']) {
+      expect(read(hook), hook).toContain('useOwnedLifetime')
+      expect(read(hook), hook).toContain('useOwnedState')
+      expect(read(hook), hook).not.toContain('useRef(0)')
+    }
+
+    expect(read('./hooks/useAgentAttemptHistory.ts')).toContain('agentAttemptHistoryClient()')
+    expect(read('./hooks/useAgentAttemptEvidence.ts')).toContain('agentAttemptEvidenceClient()')
+    expect(read('./hooks/useAgentAttemptArtifactWindow.ts')).toContain('agentAttemptArtifactWindowClient()')
+    expect(read('./components/AgentAttemptHistoryPanel.tsx')).not.toMatch(/\bkey=\{`/)
+    // ADR-0037's minimal attribution inspector stays an independent path: it neither mounts nor reads attempt evidence.
+    const collaboration = read('./components/CollaborationHistoryPanel.tsx')
+    expect(collaboration).not.toContain('AgentAttemptHistoryPanel')
+    expect(collaboration).not.toContain('useAgentAttemptEvidence')
   })
 
   it('is composed once in the app without a key or remount workaround, and the receipt decoder and endpoint are untouched', () => {

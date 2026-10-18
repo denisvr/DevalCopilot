@@ -34,8 +34,20 @@ const evidenceFor = (attemptNumber: number, purposes: string[] = ['AgentStandard
   claimedAtUtc: new Date('2026-09-29T10:00:00Z'),
   role: 'Implementer',
   provider: 'ClaudeCode',
+  responseContract: 'ImplementationReport',
   artifacts: purposes.map((purpose) => ({ purpose, byteLength: 12, truncated: false, captureOutcome: 'Captured' })),
 })
+
+/** `count` coherent rows numbered downward from `highest`, as one page carries them. */
+const entriesFrom = (highest: number, count: number) => Array.from({ length: count }, (_, index) => entry(highest - index))
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
 
 let history: ReturnType<typeof vi.fn>
 let evidence: ReturnType<typeof vi.fn>
@@ -82,7 +94,7 @@ describe('AgentAttemptHistoryPanel', () => {
 
   it('does not offer inspection for an attempt whose identity could not be verified', async () => {
     history.mockResolvedValue({
-      items: [entry(2, { identityValid: false, role: undefined, provider: undefined }), entry(1)],
+      items: [entry(2, { identityValid: false, role: undefined, provider: undefined, responseContract: undefined }), entry(1)],
       hasMore: false,
     })
     render(<AgentAttemptHistoryPanel runId="run-1" />)
@@ -96,25 +108,25 @@ describe('AgentAttemptHistoryPanel', () => {
 
   it('pages older attempts with the server cursor and never duplicates or skips a row', async () => {
     history
-      .mockResolvedValueOnce({ items: [entry(4), entry(3)], hasMore: true, nextBeforeAttemptNumber: 3 })
+      .mockResolvedValueOnce({ items: entriesFrom(12, 10), hasMore: true, nextBeforeAttemptNumber: 3 })
       .mockResolvedValueOnce({ items: [entry(2), entry(1)], hasMore: false })
     render(<AgentAttemptHistoryPanel runId="run-1" />)
     openHistory()
-    await screen.findByText(/Attempt #4/)
+    await screen.findByText(/Attempt #12/)
 
     fireEvent.click(screen.getByRole('button', { name: 'Load older attempts' }))
 
     await screen.findByText(/Attempt #1 /)
     expect(history).toHaveBeenNthCalledWith(2, 'run-1', 3, 10)
     const rows = screen.getAllByRole('listitem').map((row) => row.textContent ?? '')
-    expect(rows.map((row) => /Attempt #(\d+)/.exec(row)?.[1])).toEqual(['4', '3', '2', '1'])
+    expect(rows.map((row) => Number(/Attempt #(\d+)/.exec(row)?.[1]))).toEqual([12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1])
     expect(screen.queryByRole('button', { name: 'Load older attempts' })).toBeNull()
   })
 
   it('retries a failed first page and a failed later page at the same cursor while keeping loaded rows', async () => {
     history
       .mockRejectedValueOnce(new Error('boom'))
-      .mockResolvedValueOnce({ items: [entry(3)], hasMore: true, nextBeforeAttemptNumber: 3 })
+      .mockResolvedValueOnce({ items: entriesFrom(12, 10), hasMore: true, nextBeforeAttemptNumber: 3 })
       .mockRejectedValueOnce(new Error('boom'))
       .mockResolvedValueOnce({ items: [entry(2)], hasMore: false })
     render(<AgentAttemptHistoryPanel runId="run-1" />)
@@ -122,18 +134,59 @@ describe('AgentAttemptHistoryPanel', () => {
 
     expect(await screen.findByText('The Agent attempt history could not be loaded.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-    await screen.findByText(/Attempt #3/)
+    await screen.findByText(/Attempt #3 /)
     expect(history).toHaveBeenNthCalledWith(2, 'run-1', null, 10)
 
     fireEvent.click(screen.getByRole('button', { name: 'Load older attempts' }))
-    expect(await screen.findByText('The Agent attempt history could not be loaded.')).toBeTruthy()
-    expect(screen.getByText(/Attempt #3/)).toBeTruthy()
+    expect(await screen.findByText(/The older attempts could not be loaded\. The attempts already shown are unchanged\./)).toBeTruthy()
+    expect(screen.getByText(/Attempt #3 /)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Load older attempts' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
 
-    await screen.findByText(/Attempt #2/)
+    await screen.findByText(/Attempt #2 /)
     expect(history).toHaveBeenNthCalledWith(3, 'run-1', 3, 10)
     expect(history).toHaveBeenNthCalledWith(4, 'run-1', 3, 10)
-    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getAllByRole('listitem')).toHaveLength(11)
+  })
+
+  it('rejects a malformed page whole, keeps the valid rows and retries the same cursor without duplication', async () => {
+    history
+      .mockResolvedValueOnce({ items: entriesFrom(12, 10), hasMore: true, nextBeforeAttemptNumber: 3 })
+      // Out of order: 1 before 2 — none of this page may be shown.
+      .mockResolvedValueOnce({ items: [entry(1), entry(2)], hasMore: false })
+      .mockResolvedValueOnce({ items: [entry(2), entry(1)], hasMore: false })
+    render(<AgentAttemptHistoryPanel runId="run-1" />)
+    openHistory()
+    await screen.findByText(/Attempt #12/)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load older attempts' }))
+
+    expect(await screen.findByText(/older attempts that are not coherent, so none of that page is shown/)).toBeTruthy()
+    expect(screen.getAllByRole('listitem')).toHaveLength(10)
+    expect(screen.queryByText(/Attempt #1 /)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await screen.findByText(/Attempt #1 /)
+    expect(history.mock.calls.map((call) => call[1])).toEqual([null, 3, 3])
+    expect(screen.getAllByRole('listitem')).toHaveLength(12)
+  })
+
+  it.each([
+    ['a continuation that is not a full page', { items: [entry(4), entry(3)], hasMore: true, nextBeforeAttemptNumber: 3 }],
+    ['a continuation cursor that is not the last number', { items: entriesFrom(12, 10), hasMore: true, nextBeforeAttemptNumber: 2 }],
+    ['a duplicated attempt identity', { items: [entry(2), { ...entry(1), attemptId: 'attempt-2' }], hasMore: false }],
+    ['a duplicated attempt number', { items: [entry(2), { ...entry(2), attemptId: 'attempt-other' }], hasMore: false }],
+    ['more rows than requested', { items: entriesFrom(11, 11), hasMore: false }],
+    ['a verified row without a role', { items: [entry(1, { role: undefined })], hasMore: false }],
+    ['an unverified row that still names its provider', { items: [entry(1, { identityValid: false, role: undefined, responseContract: undefined })], hasMore: false }],
+  ])('shows nothing of a first page with %s', async (_label, page) => {
+    history.mockResolvedValue(page)
+    render(<AgentAttemptHistoryPanel runId="run-1" />)
+    openHistory()
+
+    expect(await screen.findByText('The host answered with an Agent attempt history that is not coherent, so none of it is shown.')).toBeTruthy()
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0)
+    expect(screen.queryByRole('button', { name: /Inspect attempt/ })).toBeNull()
+    expect(evidence).not.toHaveBeenCalled()
   })
 
   it('discards the loaded history when it is closed and refetches when it is reopened', async () => {
@@ -171,7 +224,94 @@ describe('AgentAttemptHistoryPanel', () => {
     fireEvent.click(within(detail).getByRole('button', { name: 'Load' }))
 
     expect(await within(detail).findByText('boom')).toBeTruthy()
-    expect(windowRead).toHaveBeenCalledWith('run-1', 'attempt-1', 'AgentStandardError', 0, 16384)
+    // The attempt route answers only its own closed purpose segments.
+    expect(windowRead).toHaveBeenCalledWith('run-1', 'attempt-1', 'stderr', 0, 16384)
+  })
+
+  it.each([
+    ['AgentContextManifest', 'context-manifest'],
+    ['AgentStandardOutput', 'stdout'],
+    ['AgentStandardError', 'stderr'],
+    ['AgentFinalResponse', 'final-response'],
+  ])('requests the %s window through the route segment %s', async (purpose, segment) => {
+    history.mockResolvedValue({ items: [entry(1)], hasMore: false })
+    evidence.mockResolvedValue(evidenceFor(1, [purpose]))
+    windowRead.mockResolvedValue({ status: 'Ok', text: 'window', nextOffset: 6, totalLengthSoFar: 6, truncated: false })
+    render(<AgentAttemptHistoryPanel runId="run-1" />)
+    openHistory()
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 1' }))
+    const detail = await screen.findByRole('region', { name: 'Selected Agent attempt evidence' })
+    await within(detail).findByText(/12 bytes/)
+    fireEvent.change(within(detail).getByRole('combobox'), { target: { value: purpose } })
+    fireEvent.click(within(detail).getByRole('button', { name: 'Load' }))
+
+    expect(await within(detail).findByText('window')).toBeTruthy()
+    expect(windowRead).toHaveBeenCalledWith('run-1', 'attempt-1', segment, 0, 16384)
+  })
+
+  it.each([
+    ['another attempt identity', { ...evidenceFor(1), attemptId: 'attempt-9' }],
+    ['another attempt number', { ...evidenceFor(1), attemptNumber: 9 }],
+    ['no identity verdict', { ...evidenceFor(1), identityValid: undefined }],
+    ['a purpose outside the allowlist', evidenceFor(1, ['ProcessStandardOutput'])],
+    ['a prototype-shaped purpose', evidenceFor(1, ['toString'])],
+    ['a repeated purpose', evidenceFor(1, ['AgentStandardError', 'AgentStandardError'])],
+  ])('fails closed on evidence that names %s and offers no artifact from it', async (_label, answer) => {
+    history.mockResolvedValue({ items: [entry(1)], hasMore: false })
+    evidence.mockResolvedValue(answer)
+    render(<AgentAttemptHistoryPanel runId="run-1" />)
+    openHistory()
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 1' }))
+    const detail = await screen.findByRole('region', { name: 'Selected Agent attempt evidence' })
+
+    expect(await within(detail).findByText(/attempt evidence that is not coherent for this attempt, so none of it is shown/)).toBeTruthy()
+    expect(within(detail).queryByRole('combobox')).toBeNull()
+    expect(within(detail).queryByText(/bytes/)).toBeNull()
+    expect(windowRead).not.toHaveBeenCalled()
+  })
+
+  it('never shows the evidence of an earlier selection that answers after another attempt was selected', async () => {
+    const slow = deferred<unknown>()
+    history.mockResolvedValue({ items: [entry(2), entry(1)], hasMore: false })
+    evidence.mockImplementation((_runId: string, attemptId: string) =>
+      attemptId === 'attempt-2' ? slow.promise : Promise.resolve(evidenceFor(1, ['AgentFinalResponse'])),
+    )
+    render(<AgentAttemptHistoryPanel runId="run-1" />)
+    openHistory()
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect attempt 1' }))
+    const detail = await screen.findByRole('region', { name: 'Selected Agent attempt evidence' })
+    await within(detail).findByText(/Final response: 12 bytes/)
+
+    slow.resolve(evidenceFor(2, ['AgentStandardError']))
+    await Promise.resolve()
+
+    expect(within(detail).queryByText(/Standard error/)).toBeNull()
+    expect(within(detail).getByText(/Attempt #1 · Implementer/)).toBeTruthy()
+  })
+
+  it('never appends the late window of an earlier purpose to the purpose that replaced it', async () => {
+    const slowStderr = deferred<unknown>()
+    history.mockResolvedValue({ items: [entry(1)], hasMore: false })
+    evidence.mockResolvedValue(evidenceFor(1))
+    windowRead.mockImplementation((_runId: string, _attemptId: string, segment: string) =>
+      segment === 'stderr' ? slowStderr.promise : Promise.resolve({ status: 'Ok', text: 'final text', nextOffset: 10, totalLengthSoFar: 10 }),
+    )
+    const { container } = render(<AgentAttemptHistoryPanel runId="run-1" />)
+    openHistory()
+    fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 1' }))
+    const detail = await screen.findByRole('region', { name: 'Selected Agent attempt evidence' })
+    await within(detail).findByText(/Standard error: 12 bytes/)
+    fireEvent.change(within(detail).getByRole('combobox'), { target: { value: 'AgentStandardError' } })
+    fireEvent.click(within(detail).getByRole('button', { name: 'Load' }))
+    fireEvent.change(within(detail).getByRole('combobox'), { target: { value: 'AgentFinalResponse' } })
+    fireEvent.click(within(detail).getByRole('button', { name: 'Load' }))
+    await within(detail).findByText('final text')
+
+    slowStderr.resolve({ status: 'Ok', text: 'stderr text', nextOffset: 11, totalLengthSoFar: 11 })
+    await Promise.resolve()
+
+    expect(container.querySelector('pre')?.textContent).toBe('final text')
   })
 
   it('renders markup-shaped artifact text literally and never as elements', async () => {
@@ -432,16 +572,21 @@ describe('AgentAttemptHistoryPanel', () => {
   })
 
   describe('Codex account-usage stop evidence', () => {
+    // A Codex attempt is a Planner with the Proposal contract, a Claude attempt an Implementer: the evidence repeats the selected row's identity.
+    const identityOf = (provider: string) =>
+      provider === 'Codex'
+        ? { role: 'Planner', provider, responseContract: 'Proposal' }
+        : { role: 'Implementer', provider, responseContract: 'ImplementationReport' }
     const stoppedEvidence = (overrides: Record<string, unknown>, provider = 'Codex') => ({
       ...evidenceFor(1),
-      provider,
+      ...identityOf(provider),
       attemptStatus: 'Failed',
       outcome: 'AccountUsageStopReached',
       ...overrides,
     })
 
-    async function openDetail() {
-      history.mockResolvedValue({ items: [entry(1, { provider: 'Codex' })], hasMore: false })
+    async function openDetail(provider = 'Codex') {
+      history.mockResolvedValue({ items: [entry(1, identityOf(provider))], hasMore: false })
       render(<AgentAttemptHistoryPanel runId="run-1" />)
       openHistory()
       await screen.findByText(/Attempt #1/)
@@ -497,8 +642,8 @@ describe('AgentAttemptHistoryPanel', () => {
         stoppedEvidence({ accountUsageStop: { state: 'Configured', percent: 80 }, accountUsageDecision: { state: 'Unavailable', windows: [] } }, 'ClaudeCode'),
       )
 
-      const detail = await openDetail()
-      await within(detail).findByText(/Attempt #1/)
+      const detail = await openDetail('ClaudeCode')
+      await within(detail).findByText(/Attempt #1 · Implementer · ClaudeCode/)
 
       expect(within(detail).queryByRole('region', { name: 'Codex account-usage stop' })).toBeNull()
     })

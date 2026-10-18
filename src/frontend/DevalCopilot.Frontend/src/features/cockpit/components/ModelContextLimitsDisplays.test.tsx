@@ -124,6 +124,7 @@ describe('the selected historical attempt detail', () => {
     identityValid: true,
     role: 'Implementer',
     provider: 'ClaudeCode',
+    responseContract: 'ImplementationReport',
   })
 
   const evidenceFor = (attemptId: string, provider: string, modelContextLimits?: AgentModelContextLimitsResponse) => ({
@@ -132,8 +133,10 @@ describe('the selected historical attempt detail', () => {
     attemptNumber: Number(attemptId.split('-')[1]),
     attemptStatus: 'Completed',
     claimedAtUtc: new Date('2026-10-04T10:00:00Z'),
-    role: 'Implementer',
+    // The evidence repeats the selected row's immutable identity: a Codex row is a Planner, a Claude row an Implementer.
+    role: provider === 'Codex' ? 'Planner' : 'Implementer',
     provider,
+    responseContract: provider === 'Codex' ? 'Proposal' : 'ImplementationReport',
     artifacts: [],
     modelContextLimits,
   })
@@ -181,7 +184,7 @@ describe('the selected historical attempt detail', () => {
   })
 
   it('shows no model-limits section for a Codex attempt', async () => {
-    history.mockResolvedValue({ items: [{ ...entry(1), provider: 'Codex' }], hasMore: false })
+    history.mockResolvedValue({ items: [{ ...entry(1), role: 'Planner', provider: 'Codex', responseContract: 'Proposal' }], hasMore: false })
     evidence.mockResolvedValue(evidenceFor('attempt-1', 'Codex', undefined))
     render(<AgentAttemptHistoryPanel runId="run-1" />)
     fireEvent.click(screen.getByRole('button', { name: 'Show Agent attempt history' }))

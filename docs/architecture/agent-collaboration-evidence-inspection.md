@@ -4,9 +4,10 @@ This companion to the [agent collaboration protocol](agent-collaboration-protoco
 holds the read-only evidence inspection contracts: an Agent attempt's recorded
 collaboration inputs, the sealed Agent-artifact text window with its
 containment, integrity and disclosure limits, and the historical Agent-attempt
-history, evidence and identity rules. The sections below are moved verbatim
+history, evidence and identity rules. The sections below were moved verbatim
 except three mechanical reference repairs; the protocol's original headings
-forward here. Per-attempt execution evidence is in the
+forward here. The cockpit navigation and lifetime paragraphs that close the
+attempt-history section were added later. Per-attempt execution evidence is in the
 [execution evidence](agent-collaboration-execution-evidence.md) companion;
 provider token usage and model context limits are in the
 [usage evidence](agent-collaboration-usage-evidence.md) companion.
@@ -231,3 +232,41 @@ output that may still contain sensitive text, exactly as for the message-linked 
 makes a provider call, opens
 a session, replays or retries an attempt, mutates workflow state, or reads a live
 partial capture.
+
+**Cockpit navigation and lifetimes.** One read-only "Agent attempt history" region serves the current run in the
+usage rail and, as an independent run-level access path, a run selected in Run history
+([ADR-0033](../decisions/0033-browse-project-run-history-and-locate-prior-delivery-receipts.md)), beside its receipt,
+event headers and collaboration messages; ADR-0037's attribution inspector is unchanged and does not lead here. The
+region is collapsed for every committed run and reads nothing until opened; opening reads one page of 10, and older
+pages and the retry of a failed page are explicit actions with the host's exact cursor. Evidence is read only for a
+selected identity-valid row, and sealed text only after a purpose present in that evidence is chosen and loaded, with
+further windows on request. The attempt route's request maps each allowlisted recorded purpose to that route's own
+segment (`context-manifest`, `stdout`, `stderr`, `final-response`) and sends nothing for any other value.
+
+A page is accepted only whole and only when coherent for exactly its request and the rows already retained: no more
+entries than requested; unique identities and numbers that are safe positive integers, strictly descending, below the
+cursor and the last retained row; valid instants; a verified row naming a recorded status (`Running`, `Completed`,
+`Failed` or `Interrupted`) and a coherent identity by the identity rule above (a supported role/provider pair and a
+response contract that belongs to that role, restated in the cockpit; the Domain is authoritative); an unverified row
+carrying no role, provider, contract or outcome; a repair source only as an identity with an earlier number; and a
+continuation that is a full page whose cursor is its last number, or none. Anything else fails the whole page; earlier
+valid rows stay and the same cursor is read again only on request. The response names no run, so the run is the one
+the owning lifetime requested. A selected row carries its identity, number and immutable role, provider and response
+contract into the evidence read. Evidence is used only when it names that identity and number, carries an explicit
+identity verdict and, when verified, a recorded status, the same role, provider and response contract as the row, a
+claim time and distinct allowlisted purposes; its status and times are fresh observations and may have advanced since
+the page. Otherwise it is one error and no metadata, purpose or text from it is shown. An unverified row offers no
+evidence, and an unverified evidence answer keeps the identity-invalid disclosure.
+
+Reads and selections belong to lifetimes built on the shared owned-lifetime hooks, with no key, remount or reset
+effect: the committed run, each opening of it, each selected attempt (another attempt, a return from B to A, or
+selecting again after a close is a new selection) and each chosen purpose inside that selection. Another run or
+project, closing or reopening the region or the selected run, a Run history reload and unmounting end every
+subordinate read, selection, cursor and accumulated text; the replacement derives its empty first frame in the same
+render, a late answer settles nothing, and a retained retry, close or next-window callback starts or closes nothing.
+The shared sealed-window hook follows the same rule, so the message-linked viewer gains these guards with its
+accumulation and same-offset retry otherwise unchanged. Loading, empty, unavailable, missing, integrity-mismatch,
+identity-invalid and error states with manual retry stay explicit, and the purpose-matched caveats and literal text
+rendering above are unchanged. Nothing is polled, retried automatically or written to browser storage, a URL or a
+log; the historical region mounts no mutation, live, eligibility or configuration control and changes neither the
+current project and run selection nor intake.

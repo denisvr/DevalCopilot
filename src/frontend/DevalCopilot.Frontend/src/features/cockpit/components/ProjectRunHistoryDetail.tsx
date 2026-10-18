@@ -2,6 +2,7 @@ import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDiscl
 import { lifecycleLabel, stageLabel } from '../projectRunHistory'
 import type { RunHistoryEntry } from '../projectRunHistory'
 import { toUtcText } from '../utcText'
+import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 import { LocalDeliveryReceipt } from './LocalDeliveryReceipt'
 import { CollaborationHistoryPanel } from './CollaborationHistoryPanel'
 import { RunEventHistoryPanel } from './RunEventHistoryPanel'
@@ -27,8 +28,9 @@ interface ProjectRunHistoryDetailProps {
 
 /**
  * The recorded metadata of one historical run, when the host located a delivery source for it the existing local-delivery receipt
- * for exactly that source, and collapsed, on-demand lists of the run's recorded event headers (ADR-0034) and recorded collaboration messages (ADR-0035) for exactly this run. It
- * mounts no live cockpit, eligibility, configuration or mutation control. Every value is rendered as text.
+ * for exactly that source, and collapsed, on-demand lists of the run's recorded event headers (ADR-0034), recorded collaboration messages (ADR-0035) and Agent
+ * attempts with their evidence and sealed artifact windows (including an attempt that emitted no message) for exactly this run. It mounts no live cockpit,
+ * eligibility, configuration or mutation control. Every value is rendered as text.
  */
 export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDetailProps) {
   const source = entry.receiptSource
@@ -54,6 +56,7 @@ export function ProjectRunHistoryDetail({ entry, onClose }: ProjectRunHistoryDet
       {source ? <LocalDeliveryReceipt source={source} /> : <p>{NO_SOURCE}</p>}
       <RunEventHistoryPanel runId={entry.runId} />
       <CollaborationHistoryPanel runId={entry.runId} />
+      <AgentAttemptHistoryPanel runId={entry.runId} />
       <p>
         <button type="button" onClick={onClose}>
           Close selected run
