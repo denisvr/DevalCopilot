@@ -7,6 +7,7 @@ import { ClaudeTurnLimitFacts } from './ClaudeTurnLimitFacts'
 import { DirectGuidanceFact } from './DirectGuidanceFact'
 import { ModelContextLimitsFact } from './ModelContextLimitsFact'
 import { CodexAccountUsageDecisionFact } from './CodexAccountUsageDecisionFact'
+import { SelectedAttemptExecutionFacts } from './SelectedAttemptExecutionFacts'
 import { ARTIFACT_PURPOSE_LABELS } from '../artifactPurposes'
 import { describeRepairLineage } from '../describeRepairLineage'
 import { toAgentAttemptIdentityExpectation } from '../agentAttemptHistory'
@@ -22,15 +23,6 @@ const MESSAGES = {
     invalid: 'The host answered with older attempts that are not coherent, so none of that page is shown. The attempts already shown are unchanged.',
   },
 } as const
-
-function formatUtc(value: Date | string | undefined): string | null {
-  if (value === undefined) {
-    return null
-  }
-
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : `${date.toISOString().slice(0, 19).replace('T', ' ')} UTC`
-}
 
 function describeEntry(entry: AgentAttemptHistoryEntryResponse): string {
   if (entry.identityValid !== true) {
@@ -93,8 +85,6 @@ function AgentAttemptDetail({ selectionKey, runId, expected, onClose }: AgentAtt
 
 function AgentAttemptEvidenceBody({ target, evidence }: { target: AgentAttemptArtifactWindowTarget; evidence: AgentAttemptEvidenceResponse }) {
   const artifacts = evidence.artifacts ?? []
-  const claimed = formatUtc(evidence.claimedAtUtc)
-  const completed = formatUtc(evidence.completedAtUtc)
   const lineage = describeRepairLineage(evidence.repairSourceAttemptId, evidence.repairSourceAttemptNumber)
 
   return (
@@ -104,7 +94,7 @@ function AgentAttemptEvidenceBody({ target, evidence }: { target: AgentAttemptAr
         {evidence.outcome ? ` · Result: ${evidence.outcome}` : ''}
       </p>
       {lineage && <p className="dc-attempt-history-lineage">{lineage}. Provenance only.</p>}
-      {claimed && <p>Claimed {claimed}{completed ? `, ended ${completed}` : ''}.</p>}
+      <SelectedAttemptExecutionFacts evidence={evidence} />
       {artifacts.length === 0 ? (
         <p className="dc-empty-state">No sealed artifacts were recorded for this attempt.</p>
       ) : (

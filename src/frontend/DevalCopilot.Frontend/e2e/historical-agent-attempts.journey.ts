@@ -23,7 +23,8 @@ import { injectJourneySession, registerProject, selectProject } from './journey/
 // It proves: the historical attempt control is collapsed and reads nothing until opened; every request names the older run and the
 // selected attempt, never the current run; the evidence and the exact sealed bytes are shown; a reload keeps the same access; and the
 // inspection itself invokes no provider, changes no workflow row, Git state or source file, and leaves the current selection as it was.
-// It is not replay, provider reliability or a claim about any other attempt.
+// It is not replay, provider reliability or a claim about any other attempt. HIST-MET-01 adds the stopped attempt's recorded execution facts:
+// a truthful absence of any measured process result or usage beside its semantic result and configured timeout, as stored.
 
 const PROJECT = 'Historical attempts journey fixture'
 const FIRST_OBJECTIVE = 'Plan the ledger total, stopped before dispatch'
@@ -72,6 +73,37 @@ function artifactsOfProject(): { AttemptId: string; Purpose: string; ContentHash
         )
         .all(data.projectId()) as unknown as { AttemptId: string; Purpose: string; ContentHash: string; ByteLength: number; RelativeStoragePath: string }[],
   )
+}
+
+/** The attempt's stored execution evidence: dispatch marker, process result, timeout (milliseconds) and the two required counts. */
+interface ExecutionFacts {
+  AgentDispatchedAtUtc: string | null
+  AgentProcessOutcome: string | null
+  AgentProcessDuration: number | null
+  AgentTimeout: number | null
+  AgentInputTokens: number | null
+  AgentOutputTokens: number | null
+}
+
+function executionFactsOf(attemptId: string): ExecutionFacts {
+  return withJourneyDb(
+    (db) =>
+      db
+        .prepare('select AgentDispatchedAtUtc, AgentProcessOutcome, AgentProcessDuration, AgentTimeout, AgentInputTokens, AgentOutputTokens from attempts where Id = ?')
+        .get(attemptId) as unknown as ExecutionFacts,
+  )
+}
+
+/** An independent oracle of the cockpit's millisecond wording: below a second, below a minute, then whole minutes and seconds. */
+function durationText(milliseconds: number): string {
+  if (milliseconds < 1000) {
+    return `${milliseconds} ms`
+  }
+  if (milliseconds < 60_000) {
+    return `${(milliseconds / 1000).toFixed(1)} s`
+  }
+  const seconds = Math.floor(milliseconds / 1000)
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
 }
 
 function rail(page: Page) {
@@ -211,6 +243,35 @@ test('the historical attempts journey: stop an attempt before dispatch, record a
     await expect(detail).toContainText(`Context manifest: ${manifests[0].ByteLength} bytes`)
     await expect(detail).toContainText('Historical evidence for a past attempt')
     await expect(detail.getByRole('region', { name: 'Codex account-usage stop' })).toContainText('Claimed with account-usage stop: 80% used')
+
+    // HIST-MET-01: the attempt stopped before dispatch, so its recorded facts are a truthful absence: no measured process result and no
+    // usage, never zero, beside its semantic result and its configured timeout, exactly as the host answered from the stored row.
+    const stored = executionFactsOf(stopped.Id)
+    expect(stored).toMatchObject({ AgentDispatchedAtUtc: null, AgentProcessOutcome: null, AgentProcessDuration: null, AgentInputTokens: null, AgentOutputTokens: null })
+    expect(stored.AgentTimeout).toBeGreaterThan(0)
+    const answer = (await evidenceResponse.json()) as {
+      dispatchedAtUtc?: string | null
+      processExecution?: Record<string, unknown> | null
+      tokenUsage?: Record<string, unknown> | null
+    }
+    expect(answer.dispatchedAtUtc ?? null).toBeNull()
+    expect(answer.processExecution?.timeoutMilliseconds).toBe(stored.AgentTimeout)
+    for (const member of ['outcome', 'exitCode', 'durationMilliseconds']) {
+      expect(answer.processExecution?.[member] ?? null).toBeNull()
+    }
+    for (const member of ['inputTokens', 'outputTokens', 'cacheCreationInputTokens', 'cacheReadInputTokens']) {
+      expect(answer.tokenUsage?.[member] ?? null).toBeNull()
+    }
+    const facts = detail.getByRole('region', { name: 'Recorded execution facts' })
+    await expect(facts).toContainText('Response contract: Proposal')
+    await expect(facts).toContainText(', not dispatched, ended ')
+    await expect(facts.locator('.dc-attempt-history-semantic-result')).toHaveText('Semantic result: AccountUsageStopReached')
+    await expect(facts.locator('.dc-process-evidence')).toHaveText('Process not started')
+    await expect(facts.locator('.dc-token-usage')).toHaveText('Token usage: none (provider not invoked)')
+    await expect(facts.locator('.dc-attempt-history-timeout')).toHaveText(
+      `Configured timeout: ${durationText(stored.AgentTimeout!)} (set when the attempt was claimed; not a measurement)`,
+    )
+    await expect(facts).not.toContainText(/exited|timed out|cancelled|Tokens:|\b0 (ms|input|output)/)
 
     await detail.getByRole('combobox').selectOption('AgentContextManifest')
     await expect(detail).toContainText('never raw, unexamined provider output')

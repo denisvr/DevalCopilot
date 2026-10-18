@@ -12,19 +12,33 @@ documentation-first pause and its runtime/test exclusions, without renewing
 experimental authority. Codex plans/reviews; Claude implements.
 
 Selection baseline independently checked: `main`; HEAD, local origin/main
-and fresh live main `75372b18d3d669f744010a3b9a628a408acaed4c`; divergence
-0/0; empty index; clean tracked tree and no nonignored untracked paths.
-HIST-ATT-01 is published and independently verified. The committed checkpoints
-record earlier phases; do not reopen or republish it. ART-WIN-01 is now delivered
-and reviewed below: HEAD unchanged, empty index, 14 modified tracked paths and
-five new frontend paths, all unstaged/uncommitted/unpushed. Publication is
-pending under the exact GO identity; no next slice is selected.
+and fresh live main `5e588a44b5ebc0e633cf1f2e1dbb3af442515a2b`; divergence
+0/0; empty index; clean tree and no nonignored untracked paths. ART-WIN-01
+is published and independently verified. Checkpoints describe their prepared
+phases; do not reopen or republish it. After this selection only this handoff
+is modified, unstaged, with HEAD unchanged. No implementation or publication
+GO was granted at selection; HIST-MET-01 is now reviewed below after correction
+2. HEAD is unchanged, the real index is empty and the reviewed diff has ten
+modified tracked paths and six new sources/tests. Publication is pending under
+the exact GO identity; no next slice is selected.
 
 WF-05 baseline and GO: this file at `e55709f`; earlier:
 [priority](planner-handoff-history-e614c79.md#priority-and-verified-baseline),
 [WF-04 GO and review](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go).
 
 ## Latest verified publication
+
+ART-WIN-01 `5e588a44b5ebc0e633cf1f2e1dbb3af442515a2b`, tree
+`420617062a7bb2ebcdec87ac5bca314c5df03d35`, sole parent
+`75372b18d3d669f744010a3b9a628a408acaed4c`: independently compared with
+the GO tree, sole parent and exact 19 paths (14 M, five A); fresh live main,
+HEAD and local origin/main agree, 0/0, clean index/tree and no nonignored
+untracked paths. Evidence: `logs/planner-review/art-win-01/publication-verification.log`.
+No blocking findings; independent focused tests: 179 passed. The broad frontend
+run remains 4307 passes/two invalid-fixture failures, then the corrected file
+43/43, not a later full-suite pass. Detailed GO and accepted executor challenges:
+this file at `5e588a4` and `logs/planner-review/art-win-01/`. Browser proof is
+short ASCII/empty artifacts; other permutations have narrower test evidence.
 
 HIST-ATT-01 `75372b18d3d669f744010a3b9a628a408acaed4c`, tree
 `d49a3eac47b8d8a9d19c5b27fd6c6c622f695d40`, sole parent
@@ -58,124 +72,153 @@ rework acceptance at `e614c795`
 in this file at `e55709f`; WF-03 technical acceptance stands. WF-03N detail:
 [exact record](planner-handoff-history-e614c79.md#latest-accepted-delivery).
 
-## Selected slice: ART-WIN-01 reliable sealed text inspection from collaboration
+## Selected slice: HIST-MET-01 historical attempt execution and usage facts
 
-**Decision and evidence:** restore the message-linked artifact text path and
-make window acceptance coherent across both existing readers. The message
-hook currently sends recorded names such as `AgentStandardError`, but its
-endpoint accepts `stderr` (and the other three closed route segments), so
-legitimate reads fail with 404. `availableArtifactPurposes` uses `in`, admitting
-prototype keys; `useSealedArtifactWindow` defaults missing success cursors and
-accepts backward/nonprogressing or unsafe values. These are concrete functional
-inspection defects retained by HIST-ATT-01, not an authorization gap for P9.
+**Decision and evidence:** show the selected Agent attempt's existing recorded
+process and token evidence beside its semantic result, with its response
+contract and recorded dispatch time. `GetAgentAttemptEvidence` already returns
+`processExecution` and `tokenUsage` through the Domain's fail-closed getters;
+`AgentAttemptEvidenceBody` currently omits both, unlike the latest-attempt view.
+The run-level inspector serves both the current rail and a selected historical
+run, including attempts with no collaboration message. No new read or backend
+capability is needed.
 
-**Roadmap and size:** one outcome in Increment 4's evidence inspection and
-Increment 5's historical access: the user can manually inspect a message's
-sealed artifact text, with truthful paging in both routes. Include the route
-repair, own-property purpose allowlist, shared window decoder, both consumers'
-regressions and authenticated browser proof as one safe reviewable unit.
-No new backend route, schema, artifact type or provider capability; no complete
-replay or completion of Increments 4/5/6. Autonomous stages and remote
-publication remain independently bounded and are not selected.
+**Roadmap and size:** one complete selected-attempt fact view in Increment 4's
+execution evidence and Increment 5's historical access, not complete replay or
+increment completion. Include process, configured timeout, token/cache counts,
+truthful absence, numeric/date admission and composed/browser proof together.
+Do not split known values from absence or safety cases. Automatic advancement
+would require its own recorded decision about ADR-0014's explicit manual stage
+authority and durable dispatch/recovery; it is not inferred from the roadmap.
+P9/remote publication and unproven provider contracts are not dependencies.
 
-**Scope:** feature-owned `artifactPurposes`, both sealed-window route hooks,
-shared window state/decoding and affected viewer tests; minimal viewer changes
-only if necessary for this outcome. Reuse existing generated clients and owned
-lifetimes. A small shared mapping of the same four purposes/segments is allowed
-because both readers intentionally change together; no generic artifact or
-history framework. Contract: the
-[inspection views](../architecture/agent-collaboration-evidence-inspection.md);
-compare the existing MVC endpoints and filesystem read semantics before editing.
-Backend implementation, generated clients, persistence and dependencies remain
-unchanged. Update the inspection contract, relevant cockpit copy and execution
-checkpoint only as necessary; preserve prior evidence and open risks.
+**Scope:** feature-local selected-attempt fact presentation and normalization,
+`agentAttemptHistory`/evidence admission only where needed, the existing panel,
+focused tests and the two existing artifact/history journeys. Reuse
+`ProcessEvidenceLine`/`TokenUsageLine` and their established wording where
+suitable, admitting safe facts before passing them to shared presentation.
+Do not broaden the latest-attempt, status-action or run-summary behavior;
+shared presentation changes require evidence of necessity and direct-consumer
+regressions. No backend/client/schema/dependency or provider-parser change.
+Contracts: [execution evidence](../architecture/agent-collaboration-execution-evidence.md),
+[usage evidence](../architecture/agent-collaboration-usage-evidence.md),
+[inspection](../architecture/agent-collaboration-evidence-inspection.md), ADR-0023
+and ADR-0033. Domain rules and API projection prevail over UI assumptions.
 
-**Acceptance:** only the four own allowlisted recorded purposes present in the
-attempt's metadata are offered; unknown/prototype names start no request.
-Both route hooks send their exact existing closed segments. Accept an Ok window
-only whole: text is a string, truncation is boolean or null, cursors/total are
-nonnegative safe integers; requested offset <= next <= total, delta <= requested
-byte cap; progress is positive while data remains (an empty file is valid).
-A sealed total stays identical across accepted pages. Reject absent, fractional,
-unsafe, negative, backward, nonprogressing, overshooting or contradictory fields
-before appending text or advancing the cursor. Preserve validated earlier text
-internally and retry the same failed offset, never display rejected text or use
-its cursor. Do not infer cursor bytes from JavaScript string length or require
-TextEncoder equality: the host decodes malformed UTF-8 with replacement, and
-UTF-8 cursor/EOF semantics must remain compatible. Closed non-Ok statuses never
-show text; preserve their distinct disclosures without inventing an incompatible
-backend envelope rule. No auto paging/retry, logging, storage, mutation or live
-tail; keep sensitivity caveats, literal rendering and lifetime isolation.
+**Acceptance:** display the selected response contract and valid recorded UTC
+dispatch/claim/completion facts; validate newly used optional timestamps before
+display. Separate semantic result, host-measured process outcome/exit/duration,
+configured timeout and provider-reported token/cache counts. A clean exit does
+not assert semantic success. No aggregate, cost, quota, capacity or readiness
+claim. Still-running or undispatched attempts expose no measured result or
+known usage even if their answer contains plausible values. Preserve terminal
+unknown/legacy/interrupted evidence as unknown, never zero; valid zero duration
+and zero counts remain known. Configured timeout is independent and may be
+shown when measured evidence is absent.
 
-**Validation:** pure purpose/window-decoder permutations, both route-hook and
-viewer regressions, history composition and direct shared consumers; frontend
-lint/build and strict journey typecheck as applicable. One focused authenticated
-`sealed-artifact-inspection.journey.ts` must create a provider-observed message
-through existing deterministic-provider commands, open its evidence in the
-production UI and compare loaded text with its actual sealed artifact. Run the
-existing historical-agent-attempts journey serially as the other route's
-regression. No raw-SQL lineage fabrication. Prove inspection starts no provider
-invocation or workflow/Git mutation. Retain unchanged architecture evidence
-unless inputs change. Broaden for shared ownership/harness changes, failures or
-uncertain impact; no routine full backend/API suite or client generation.
-Preserve complete original check/failure output with commands/timings in one
-concise indexed evidence directory; do not reconstruct earlier losses.
+Admit only the actual wire ranges: nonnegative safe-integer whole-millisecond
+duration, positive safe-integer configured timeout, int32 exit code only for
+Exited, and nonnegative int32 input/output/cache counts. Null/missing usage is
+unknown, not a zero default; caches may be independently absent under the
+provider contract. Negative/fractional/nonfinite/unsafe/wrong-type/contradictory
+optional evidence is unavailable in that section, never clamped or invented;
+valid independent metadata and artifact access stay usable. Use the existing
+host trust boundaries; do not invent provider-schema proof from browser fields.
+Preserve exact selected ID/number/role/provider/contract binding, replacement
+lifetimes, literal rendering and no extra requests, logging, storage or mutation.
 
-**Prior review and evidence:** HATT-R1 remains resolved. The accepted missing
-original output for HIST-ATT-01 runs 02/13, unretained interim pass and Codex's
-first ENOENT runner output remain limited as recorded in this file at `75372b1`
-and current-work. Duplicate React keys and compiler/runner failures stay
-unexplained. The three artifact defects above are now selected work, not fixed
-in anticipation. No prior gate or evidence is retroactively strengthened.
+**Validation:** pure optional-fact normalization cases plus the real composed
+panel: exit zero with failed semantic result; nonzero exit, timeout/cancellation;
+known/unknown/zero process and token facts; independent cache absence; invalid
+numbers/dates; running/undispatched injection; and A-to-B replacement with
+contrasting facts. Retain artifact paging and ownership regressions. Frontend
+lint/build, focused changed-file filters and the relevant existing process/token
+fact/attempt-display tests; broaden only if shared consumers change or failures
+make impact uncertain. Extend the authenticated sealed-artifact journey to
+inspect the planning attempt's recorded facts from Run history after a newer
+objective, using existing production commands and deterministic fixtures.
+Extend the historical-agent-attempts journey to assert no measured/known usage
+for its stopped-before-dispatch attempt. Run serially; strict e2e typecheck.
+Compare values with real recorded evidence; no SQL lineage fabrication. Inspecting
+facts adds no provider call, mutation or artifact-window read before requested.
+Retain unchanged architecture evidence; no routine backend/API suite or client
+generation. Update current-work and the relevant inspection/cockpit copy only
+as necessary. Preserve full original check/failure output with commands/timings.
 
-**Continuity:** `CONTINUE_THIS_CHAT` for Codex: constraints and review evidence
-are available, no observed or owner-reported context percentage. Start one new
-Claude chat for ART-WIN-01 after the independently verified HIST-ATT-01
-publication; keep all its corrections there. The publication decision follows.
+**Prior limits:** HATT-R1 remains resolved; ART-WIN-01 is accepted/published.
+Earlier missing output, limited browser coverage, duplicate React keys,
+compiler/runner failures, unexplained 409/500 and all P9 restrictions remain
+as recorded. No new experiment, profile, credential or real-provider authority.
 
-## ART-WIN-01 review: GO
+**Continuity:** `CONTINUE_THIS_CHAT` for Codex: current constraints/evidence
+remain available; no observed or owner-reported usage percentage. Start one new
+Claude chat for HIST-MET-01 after verified ART-WIN-01 publication, keeping its
+corrections there. Return unstaged/uncommitted/unpushed; no commit/push GO.
 
-Codex reviewed the complete substantive diff and executor evidence; no blocking
-finding. GO includes this planner review edit. The exact tree, expected sole
-parent and 19 approved paths are supplied in the publication prompt and
-`logs/planner-review/art-win-01/publication-go.log`; publication and independent
-verification remain pending. Publish in the same Claude chat. No next slice.
+## HIST-MET-01 review: GO after correction 2
 
-- **Independent verification:** all 179 tests in eight affected decoder,
-  purpose, hook, viewer and composed test files pass; original output retained
-  in `logs/planner-review/art-win-01/focused-01.log`. Both route mappings agree
-  with their existing MVC endpoints; offset/replacement compatibility was
-  compared with `FilesystemArtifactStore.ReadWindowAsync`/`Utf8Boundary`.
-  Fresh live main, HEAD and local origin/main still equal `75372b18`; index
-  empty; diff whitespace clean. Backend, generated clients and dependencies
-  unchanged; no new provider or publication capability.
-- **Executor evidence:** inspected r01-r18 and their failure dispositions.
-  r10 passes 136; the broad r11 run has 4307 passes and two invalid-fixture
-  failures, not a full-suite pass. The corrected file passes all 43 in r12;
-  the later test-only type fix passes its 15 tests in r16. Passing unaffected
-  suites are retained, not relabeled as a later full run. Lint/build, strict
-  e2e typecheck and both authenticated journeys pass. Red-first results and
-  equal restored hashes were inspected, not independently rerun. r02's bad
-  invocation, r04's unexplained compiler lock and r14's corrected test type
-  error remain preserved; later passes do not explain the lock.
-- **Executor challenges resolved:** accept `text.length <= cursor advance`:
-  each UTF-16 code unit produced by this host's UTF-8 decoder consumes at
-  least one byte, including replacement fallback; this is an inequality,
-  not re-encoding or byte equality. Only sealed total stability was required;
-  accepting each boolean/null truncation fact without cross-page equality is
-  within this slice. The same fixed error for transport failure and malformed
-  windows is accepted: both keep the validated cursor/text and allow the same
-  explicit retry; distinct closed non-Ok disclosures remain unchanged.
-- **Scope and limits:** the empty-file disclosure and coherent fixture repairs
-  are accepted. Browser proof covers four short ASCII artifacts, including an
-  empty stderr; multi-window/non-ASCII/malformed behavior is tested at pure,
-  hook and viewer boundaries, not claimed as browser proof. No cryptographic
-  verification is added in the browser. Duplicate React keys and compiler
-  locks remain unexplained; earlier missing evidence and P9 constraints stand.
+Codex independently reviewed the final facts presentation, raw-wire facade,
+factory wiring, composed tests, journey changes and executor evidence. GO
+includes these planner review edits and the factual correction in current-work.
+Expected sole parent, tree and exact 16 approved paths are supplied in the
+publication prompt and `logs/planner-review/hist-met-01/publication-go.log`.
+Publication and independent verification remain pending. Keep publication in
+the same Claude chat; no next slice is selected.
 
-No additional implementation changes or routine test reruns are required for
-this diff. Material post-GO changes return for review. The publication GO is
-only for our development delivery, never product remote-publication authority.
+- **HMT-R1 (P2), resolved:** the first delivery trusted Date objects produced
+  by permissive generated conversion: raw dispatch `1` became 2001-01-01 and
+  admitted known process/usage. Correction 1 judged raw fields but still let
+  `{"toString":0}` reach generated conversion, throwing and hiding valid
+  sibling metadata/artifacts. Both reproductions remain under
+  `logs/planner-review/hist-met-01/`. Correction 2 removes the three root
+  timestamp members during generated JSON parsing through the protected reviver
+  seam, then applies the raw absent/valid/invalid verdicts. Invalid optional
+  timestamps never reach generated conversion; invalid claim still rejects the
+  answer, and invalid dispatch withholds measured process/known usage while
+  independent metadata and artifact access remain usable. The calendar/offset
+  parser, exact identity binding, URL/auth/non-200 handling and single-request
+  behavior remain intact. No generated source or backend change.
+- **Independent checks:** six affected wire/factory/facts/panel/historical/hook
+  files pass all 247 tests; complete output in
+  `logs/planner-review/hist-met-01/correction2-focused.log`. The tests cover
+  non-callable toString objects and nested arrays, numeric/falsy/calendar
+  coercion, valid formats and absence, malformed claim rejection, invalid
+  optional timestamps with usable siblings, preserved Infinity and nested
+  conversion, status/auth/errors and composed artifact access. Final newline,
+  CR and Unicode separator probes in correction 1 were rejected; no format
+  finding. Diff hygiene passes; fresh live main, HEAD and local origin/main
+  remain `5e588a44`; index empty. No planner commit or push.
+- **Executor evidence:** correction 2 d03/d04 pass 247/316 tests (overlapping),
+  lint/build and both authenticated journeys pass. The no-reviver control has
+  19 assertion/runtime failures from the intended generated conversion across
+  20 selected tests, no compilation kill, and records an equal restored hash;
+  inspected, not independently rerun. Correction 1's 4471-test full-suite pass
+  is retained as prior-input evidence, not a final full-suite rerun; its factory
+  wiring is unchanged and correction 2 directly covers the modified operation.
+  Strict e2e evidence and host build are retained for unchanged inputs.
+  Preserve r07/r09/r19/r23/c13 failures, previous evidence loss and limitations.
+- **Executor challenges and scope:** accept the operation-specific handwritten
+  facade and original-text reviver; reserialization is not used, so Infinity
+  is not silently turned into null. Known-token browser proof is absent because
+  the fixture reports unknown usage; pure/composed known-count proof plus the
+  real unknown-usage journey is proportional. Existing duplicate semantic
+  summary is accepted for compatibility. StrictMode causation is now explicitly
+  an inference; no on/off control or shared lifetime change is claimed.
+- **Remaining parsing limits:** unchecked nested timestamps and other operations
+  are outside these three root timestamp fields. A malformed nested retrieval
+  timestamp can still fail the whole read; do not extend this slice to it.
+  The executor's claim that generated code loops over non-array artifacts was
+  inaccurate: direct inspection found an Array.isArray guard, followed by the
+  existing evidence decoder's whole-answer refusal when the list is absent.
+  Codex corrected that mechanism in current-work without changing behavior.
+  These existing failure paths are not evidence of newly resolved general
+  schema validation. Browser proof covers known process and unknown/undispatched
+  usage, not known token counts or every malformed wire permutation. Duplicate
+  React keys and compiler locks remain unexplained; all P9 restrictions stand.
+
+No further correction or routine retest is required for this reviewed diff.
+Material post-GO changes return for review. The GO authorizes only our exact
+reviewed development publication, never product remote-publication capability.
 
 ## Retained review and evidence limits
 
@@ -238,7 +281,7 @@ Their old GO/pending statements are not current instructions.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production frontend and necessary
-  tests are authorized only for ART-WIN-01. No dependency, experiment,
+  tests are authorized only for HIST-MET-01. No dependency, experiment,
   capture-limit or standards edits; the old documentation-only production/test
   exclusion is superseded, not the other restrictions.
 

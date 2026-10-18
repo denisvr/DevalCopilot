@@ -39,7 +39,6 @@ import {
   GetCollaborationMessageEvidenceEndpointClient,
   GetSealedAgentArtifactWindowEndpointClient,
   GetAgentAttemptHistoryEndpointClient,
-  GetAgentAttemptEvidenceEndpointClient,
   GetAgentAttemptArtifactWindowEndpointClient,
   GetRunEventsEndpointClient,
   PrepareRepositoryWorkspaceEndpointClient,
@@ -90,6 +89,7 @@ import {
   GetGitHubBranchPublicationApprovalEndpointClient,
 } from './generated/api-client'
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
+import { AgentAttemptEvidenceWireClient } from '../features/cockpit/agentAttemptEvidenceWire'
 
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
@@ -107,7 +107,8 @@ export const collaborationTimelineClient = () => new GetCollaborationTimelineEnd
 export const collaborationMessageEvidenceClient = () => new GetCollaborationMessageEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const sealedAgentArtifactWindowClient = () => new GetSealedAgentArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptHistoryClient = () => new GetAgentAttemptHistoryEndpointClient(getApiBaseUrl(), authenticatedHttp)
-export const agentAttemptEvidenceClient = () => new GetAgentAttemptEvidenceEndpointClient(getApiBaseUrl(), authenticatedHttp)
+// Judges the raw wire timestamps before the generated client revives them (see AgentAttemptEvidenceWireClient).
+export const agentAttemptEvidenceClient = () => new AgentAttemptEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptArtifactWindowClient = () => new GetAgentAttemptArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)

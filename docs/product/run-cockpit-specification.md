@@ -1737,10 +1737,28 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   attempt whose recorded identity could not be verified is listed by number and status only, says so,
   and offers no Inspect action.
 - **Selected attempt.** "Inspect" on a row fetches that attempt's evidence metadata (status,
-  claim and end times, and the size and truncation of each recorded artifact among context manifest,
+  claim, dispatch and end times, and the size and truncation of each recorded artifact among context manifest,
   standard output, standard error, and final response) and shows one attempt at a time under a
   clear "historical evidence" caveat that says nothing about the run's current state. Loading,
   retryable error, "no longer available", and "identity could not be verified" states are explicit.
+- **Recorded execution facts.** The selected detail also shows, from the same evidence answer and with no further
+  request, a "Recorded execution facts" section: "Response contract: …"; one line with the claim time, the dispatch time
+  ("not dispatched" when the provider was never dispatched) and the end time, each as "YYYY-MM-DD HH:MM:SS UTC"; "Semantic
+  result: …"; the host-measured process line in the latest-attempt wording ("Process exited with code N after …",
+  "Process timed out after …", "Process cancelled after …", "Process evidence unknown", "Process result not yet recorded",
+  "Process not started"); "Configured timeout: … (set when the attempt was claimed; not a measurement)" or "not
+  recorded"; and the provider-reported token line ("Tokens: N input · N output", plus "N cache write" and "N cache read"
+  only when reported, "Token usage unknown", "Token usage not yet recorded", "Token usage: none (provider not invoked)").
+  A caveat says the process result is host-measured and the counts provider-reported, that neither is the semantic
+  result, that a clean exit does not mean the attempt succeeded, and that the counts are not cost, quota, remaining
+  capacity, readiness or approval. A running or undispatched attempt never shows a measured result or known usage, a
+  concluded attempt with nothing recorded says unknown (never zero), and a valid zero stays zero. A malformed or
+  contradictory value makes only its own section say it is unavailable ("dispatch time unavailable", "end time
+  unavailable", "Process evidence unavailable: …", "Configured timeout unavailable: …", "Token usage unavailable: …")
+  without hiding the rest. A host timestamp that is not exactly the serialized `DateTimeOffset` text of a real date and
+  time (for example a number, `false`, or February 30) is shown as unavailable, never as a date and never as "not
+  dispatched". Rules:
+  [selected-attempt execution facts](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
 - **Claude-reported model limits.** For a Claude attempt, the selected detail also shows a "Claude-reported model limits" section
   (a historical fact stored when the attempt concluded; see
   ["Claude-reported model context limits"](../architecture/agent-collaboration-protocol.md#claude-reported-model-context-limits)

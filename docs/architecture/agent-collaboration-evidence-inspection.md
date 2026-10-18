@@ -6,9 +6,10 @@ collaboration inputs, the sealed Agent-artifact text window with its
 containment, integrity and disclosure limits, and the historical Agent-attempt
 history, evidence and identity rules. The sections below were moved verbatim
 except three mechanical reference repairs; the protocol's original headings
-forward here. The cockpit navigation and lifetime paragraphs that close the
-attempt-history section, and the window-acceptance paragraph that closes the
-sealed-window section, were added later. Per-attempt execution evidence is in the
+forward here. The cockpit navigation, lifetime and selected-attempt
+execution-fact paragraphs that close the attempt-history section, and the
+window-acceptance paragraph that closes the sealed-window section, were added
+later. Per-attempt execution evidence is in the
 [execution evidence](agent-collaboration-execution-evidence.md) companion;
 provider token usage and model context limits are in the
 [usage evidence](agent-collaboration-usage-evidence.md) companion.
@@ -292,3 +293,32 @@ identity-invalid and error states with manual retry stay explicit, and the purpo
 rendering above are unchanged. Nothing is polled, retried automatically or written to browser storage, a URL or a
 log; the historical region mounts no mutation, live, eligibility or configuration control and changes neither the
 current project and run selection nor intake.
+
+**Selected-attempt execution facts.** The accepted evidence answer of a verified attempt also shows, from that same
+answer and with no further read, its response contract, its claim, dispatch and end times, its semantic `outcome`, the
+host-measured `processExecution` result, the configured timeout and the provider-reported `tokenUsage` counts, as
+separate facts (see [execution evidence](agent-collaboration-execution-evidence.md#execution-evidence-versus-semantic-outcome)
+and [usage evidence](agent-collaboration-usage-evidence.md#provider-token-usage-contracts)). Each is admitted on its own
+before it reaches the shared process and token lines. The generated client coerces any truthy timestamp value with
+`new Date(String(value))` and drops falsy ones, so a `Date` alone cannot prove what the host sent. The evidence operation
+is therefore read through a handwritten facade over the generated operation (`AgentAttemptEvidenceWireClient`, wired by
+its factory only): for a successful answer it judges the raw claim, dispatch and completion values from its own parse
+of the body, lets the generated processing parse the same text with a stateless reviver that removes those three root
+members (so no raw timestamp, including an object whose own `toString` is not callable, reaches the generated
+conversion or can reject the whole answer), then gives each its verdict. A missing or null value stays absent; a string of exactly the `DateTimeOffset`
+wire shape (`yyyy-MM-ddTHH:mm:ss`, up to seven fractional digits, `Z` or a `±HH:mm` offset within 14 hours), naming a real
+calendar day and time inside the `DateTimeOffset` range, becomes the instant computed from those fields (milliseconds kept);
+anything else (a number, boolean, array, object, other text or an impossible date that JavaScript would normalize) becomes
+an invalid `Date`, which stays unavailable and is never read as absent. The request, URL, authentication, model
+construction and every non-success answer remain the generated operation's own. Only a valid `Date` is an instant here,
+the claim time stays mandatory, and a running attempt that names an end time contradicts itself. Dispatch and status
+decide first, as in the Domain getters: an undispatched attempt has no measured result or usage, a running one has none yet, and an unreadable
+dispatch time trusts neither, whatever numbers the answer carries. For a concluded, dispatched attempt, all members
+absent is unknown, never zero. Otherwise the process result needs a closed outcome (`Exited`, `TimedOut`, `Cancelled`),
+an int32 exit code exactly for `Exited` and a nonnegative safe-integer duration in whole milliseconds; usage needs
+nonnegative int32 input and output counts, each cache count independently absent or one too, with no default and no
+derivation between members. The configured timeout is independent of dispatch and measurement and must be a positive
+safe integer. Anything else makes only that section unavailable; it is never clamped or invented and leaves valid
+siblings, metadata and artifact access usable. A clean exit is not a semantic success, and the counts are not cost,
+quota, remaining capacity, readiness or approval. The browser checks shape and range only; the provider schema and
+provenance remain the host's proof.

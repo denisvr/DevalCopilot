@@ -6,6 +6,7 @@ import {
   agentAttemptEvidenceClient,
   agentAttemptHistoryClient,
 } from '../../../api/clients'
+import { AgentAttemptEvidenceWireClient } from '../agentAttemptEvidenceWire'
 import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 
 vi.mock('../../../api/clients', () => ({
@@ -569,6 +570,311 @@ describe('AgentAttemptHistoryPanel', () => {
       expect(screen.getByRole('region', { name: 'Selected Agent attempt evidence' }).textContent).not.toContain(
         'Repair request',
       )
+    })
+  })
+
+  describe('recorded execution facts', () => {
+    const DISPATCHED = new Date('2026-09-29T10:00:02Z')
+    const ENDED = new Date('2026-09-29T10:01:05Z')
+    const cleanExit = { outcome: 'Exited', exitCode: 0, durationMilliseconds: 1234, timeoutMilliseconds: 900_000 }
+    const claudeUsage = { inputTokens: 1200, outputTokens: 80, cacheCreationInputTokens: 0, cacheReadInputTokens: 30 }
+    const concluded = (attemptNumber: number, overrides: Record<string, unknown> = {}) => ({
+      ...evidenceFor(attemptNumber),
+      attemptStatus: 'Failed',
+      outcome: 'ProviderInvocationFailed',
+      dispatchedAtUtc: DISPATCHED,
+      completedAtUtc: ENDED,
+      processExecution: cleanExit,
+      tokenUsage: claudeUsage,
+      ...overrides,
+    })
+
+    async function factsOf(answer: Record<string, unknown>) {
+      history.mockResolvedValue({ items: [entry(1)], hasMore: false })
+      evidence.mockResolvedValue(answer)
+      render(<AgentAttemptHistoryPanel runId="run-1" />)
+      openHistory()
+      fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 1' }))
+      const detail = await screen.findByRole('region', { name: 'Selected Agent attempt evidence' })
+      return within(detail).findByRole('region', { name: 'Recorded execution facts' })
+    }
+
+    const line = (facts: HTMLElement, selector: string) => facts.querySelector(selector)?.textContent
+
+    it('shows a clean process exit beside a failed semantic result as separate facts, with the contract and recorded times', async () => {
+      const facts = await factsOf(concluded(1))
+
+      expect(within(facts).getByText('Response contract: ImplementationReport')).toBeTruthy()
+      expect(within(facts).getByText('Claimed 2026-09-29 10:00:00 UTC, dispatched 2026-09-29 10:00:02 UTC, ended 2026-09-29 10:01:05 UTC.')).toBeTruthy()
+      expect(line(facts, '.dc-attempt-history-semantic-result')).toBe('Semantic result: ProviderInvocationFailed')
+      expect(line(facts, '.dc-process-evidence')).toBe('Process exited with code 0 after 1.2 s')
+      expect(line(facts, '.dc-attempt-history-timeout')).toBe('Configured timeout: 15m 00s (set when the attempt was claimed; not a measurement)')
+      expect(line(facts, '.dc-token-usage')).toBe('Tokens: 1,200 input · 80 output · 0 cache write · 30 cache read')
+      expect(facts.textContent).toMatch(/A clean exit does not mean the attempt succeeded/)
+      expect(facts.textContent).toMatch(/not cost, quota, remaining capacity, readiness or approval/)
+      expect(facts.textContent).not.toMatch(/total|budget|remaining tokens|%/i)
+    })
+
+    it.each([
+      ['a nonzero exit', { outcome: 'Exited', exitCode: 3, durationMilliseconds: 250, timeoutMilliseconds: 900_000 }, 'Process exited with code 3 after 250 ms', 'Exited'],
+      ['a timeout', { outcome: 'TimedOut', exitCode: null, durationMilliseconds: 900_000, timeoutMilliseconds: 900_000 }, 'Process timed out after 15m 00s', 'TimedOut'],
+      ['a cancellation', { outcome: 'Cancelled', exitCode: null, durationMilliseconds: 42_000, timeoutMilliseconds: 900_000 }, 'Process cancelled after 42.0 s', 'Cancelled'],
+      ['a zero duration', { outcome: 'Exited', exitCode: 0, durationMilliseconds: 0, timeoutMilliseconds: 900_000 }, 'Process exited with code 0 after 0 ms', 'Exited'],
+    ])('shows %s as host-measured evidence with the configured timeout on its own line', async (_label, processExecution, text, outcome) => {
+      const facts = await factsOf(concluded(1, { processExecution }))
+
+      expect(line(facts, '.dc-process-evidence')).toBe(text)
+      expect(facts.querySelector('.dc-process-evidence')?.getAttribute('data-process-outcome')).toBe(outcome)
+      expect(line(facts, '.dc-attempt-history-timeout')).toMatch(/^Configured timeout: 15m 00s/)
+    })
+
+    it('shows known zero counts as zero and omits each cache count the provider contract does not report', async () => {
+      const zero = await factsOf(concluded(1, { tokenUsage: { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: null, cacheReadInputTokens: 0 } }))
+
+      expect(line(zero, '.dc-token-usage')).toBe('Tokens: 0 input · 0 output · 0 cache read')
+      expect(zero.querySelector('.dc-token-usage')?.getAttribute('data-token-usage')).toBe('Known')
+    })
+
+    it('shows Codex usage without any cache count', async () => {
+      history.mockResolvedValue({ items: [entry(1, { role: 'Planner', provider: 'Codex', responseContract: 'Proposal' })], hasMore: false })
+      evidence.mockResolvedValue(
+        concluded(1, {
+          role: 'Planner',
+          provider: 'Codex',
+          responseContract: 'Proposal',
+          outcome: 'Proposed',
+          tokenUsage: { inputTokens: 24763, outputTokens: 122, cacheCreationInputTokens: null, cacheReadInputTokens: null },
+        }),
+      )
+      render(<AgentAttemptHistoryPanel runId="run-1" />)
+      openHistory()
+      fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 1' }))
+      const facts = await screen.findByRole('region', { name: 'Recorded execution facts' })
+
+      expect(line(facts, '.dc-token-usage')).toBe('Tokens: 24,763 input · 122 output')
+      expect(within(facts).getByText('Response contract: Proposal')).toBeTruthy()
+    })
+
+    it('keeps a concluded attempt with nothing recorded unknown, never zero', async () => {
+      const facts = await factsOf(
+        concluded(1, {
+          attemptStatus: 'Interrupted',
+          outcome: null,
+          processExecution: { outcome: null, exitCode: null, durationMilliseconds: null, timeoutMilliseconds: 900_000 },
+          tokenUsage: { inputTokens: null, outputTokens: null, cacheCreationInputTokens: null, cacheReadInputTokens: null },
+        }),
+      )
+
+      expect(line(facts, '.dc-attempt-history-semantic-result')).toBe('Semantic result: not recorded')
+      expect(line(facts, '.dc-process-evidence')).toBe('Process evidence unknown')
+      expect(line(facts, '.dc-token-usage')).toBe('Token usage unknown')
+      expect(line(facts, '.dc-attempt-history-timeout')).toMatch(/^Configured timeout: 15m 00s/)
+      expect(facts.textContent).not.toMatch(/\b0 (ms|input|output)/)
+    })
+
+    it('shows a configured timeout as not recorded when the host has none, and nothing for missing evidence objects', async () => {
+      const facts = await factsOf(concluded(1, { processExecution: undefined, tokenUsage: undefined }))
+
+      expect(line(facts, '.dc-process-evidence')).toBe('Process evidence unknown')
+      expect(line(facts, '.dc-attempt-history-timeout')).toBe('Configured timeout: not recorded')
+      expect(line(facts, '.dc-token-usage')).toBe('Token usage unknown')
+    })
+
+    it('makes invalid numbers unavailable in their own section while metadata and artifact access stay usable', async () => {
+      windowRead.mockResolvedValue({ status: 'Ok', text: 'kept', nextOffset: 4, totalLengthSoFar: 4, truncated: false })
+      const facts = await factsOf(
+        concluded(1, {
+          processExecution: { outcome: 'Exited', exitCode: 0, durationMilliseconds: -5, timeoutMilliseconds: 900_000 },
+          tokenUsage: { inputTokens: 1.5, outputTokens: 80, cacheCreationInputTokens: null, cacheReadInputTokens: null },
+        }),
+      )
+      const detail = screen.getByRole('region', { name: 'Selected Agent attempt evidence' })
+
+      expect(line(facts, '.dc-process-evidence')).toBe('Process evidence unavailable: the recorded values are not coherent, so no measured result is shown')
+      expect(facts.querySelector('.dc-process-evidence')?.getAttribute('data-process-outcome')).toBe('Unavailable')
+      expect(line(facts, '.dc-token-usage')).toBe('Token usage unavailable: the recorded counts are not coherent, so none is shown')
+      expect(line(facts, '.dc-attempt-history-timeout')).toMatch(/^Configured timeout: 15m 00s/)
+      expect(facts.textContent).not.toMatch(/after 0 ms|\b0 input|\b1 input|exited with code/)
+      expect(within(detail).getByText(/Standard error: 12 bytes/)).toBeTruthy()
+      fireEvent.change(within(detail).getByRole('combobox'), { target: { value: 'AgentStandardError' } })
+      fireEvent.click(within(detail).getByRole('button', { name: 'Load' }))
+      expect(await within(detail).findByText('kept')).toBeTruthy()
+    })
+
+    it('makes an invalid configured timeout unavailable without touching the measured result', async () => {
+      const facts = await factsOf(concluded(1, { processExecution: { ...cleanExit, timeoutMilliseconds: 0 } }))
+
+      expect(line(facts, '.dc-attempt-history-timeout')).toBe('Configured timeout unavailable: the recorded value is not coherent, so none is shown')
+      expect(line(facts, '.dc-process-evidence')).toBe('Process exited with code 0 after 1.2 s')
+    })
+
+    it('never shows a malformed dispatch or end time as a date and trusts no measured fact behind an unreadable dispatch', async () => {
+      const facts = await factsOf(concluded(1, { dispatchedAtUtc: new Date(Number.NaN), completedAtUtc: 0 }))
+
+      expect(within(facts).getByText('Claimed 2026-09-29 10:00:00 UTC, dispatch time unavailable, end time unavailable.')).toBeTruthy()
+      expect(line(facts, '.dc-process-evidence')).toMatch(/^Process evidence unavailable/)
+      expect(line(facts, '.dc-token-usage')).toMatch(/^Token usage unavailable/)
+      expect(facts.textContent).not.toMatch(/1970|NaN|Invalid/)
+    })
+
+    it('shows no measured result or known usage for a still-running attempt whose answer carries plausible numbers', async () => {
+      const facts = await factsOf(concluded(1, { attemptStatus: 'Running', outcome: null, completedAtUtc: undefined }))
+
+      expect(within(facts).getByText('Claimed 2026-09-29 10:00:00 UTC, dispatched 2026-09-29 10:00:02 UTC.')).toBeTruthy()
+      expect(line(facts, '.dc-attempt-history-semantic-result')).toBe('Semantic result: not yet recorded (the attempt is still running)')
+      expect(line(facts, '.dc-process-evidence')).toBe('Process result not yet recorded')
+      expect(facts.querySelector('.dc-process-evidence')?.getAttribute('data-process-outcome')).toBe('Unknown')
+      expect(line(facts, '.dc-token-usage')).toBe('Token usage not yet recorded')
+      expect(line(facts, '.dc-attempt-history-timeout')).toMatch(/^Configured timeout: 15m 00s/)
+      expect(facts.textContent).not.toMatch(/exited|1,200|1\.2 s/)
+    })
+
+    it('shows no measured result or known usage for an undispatched attempt whose answer carries plausible numbers', async () => {
+      const facts = await factsOf(concluded(1, { outcome: 'AccountUsageStopReached', dispatchedAtUtc: undefined }))
+
+      expect(within(facts).getByText('Claimed 2026-09-29 10:00:00 UTC, not dispatched, ended 2026-09-29 10:01:05 UTC.')).toBeTruthy()
+      expect(line(facts, '.dc-attempt-history-semantic-result')).toBe('Semantic result: AccountUsageStopReached')
+      expect(line(facts, '.dc-process-evidence')).toBe('Process not started')
+      expect(line(facts, '.dc-token-usage')).toBe('Token usage: none (provider not invoked)')
+      expect(facts.querySelector('.dc-token-usage')?.getAttribute('data-token-usage')).toBe('Unknown')
+      expect(facts.textContent).not.toMatch(/exited|1,200|1\.2 s/)
+    })
+
+    it('renders a markup-shaped recorded outcome literally', async () => {
+      const facts = await factsOf(concluded(1, { outcome: '<img src=x onerror="alert(1)">' }))
+
+      expect(line(facts, '.dc-attempt-history-semantic-result')).toBe('Semantic result: <img src=x onerror="alert(1)">')
+      expect(document.querySelector('img')).toBeNull()
+    })
+
+    it('replaces A with B with contrasting facts and never shows a late answer of A', async () => {
+      const slowA = deferred<unknown>()
+      history.mockResolvedValue({ items: [entry(2), entry(1)], hasMore: false })
+      evidence
+        .mockImplementationOnce(() => slowA.promise)
+        .mockResolvedValueOnce(
+          concluded(1, {
+            outcome: 'Implemented',
+            processExecution: { outcome: 'TimedOut', exitCode: null, durationMilliseconds: 900_000, timeoutMilliseconds: 900_000 },
+            tokenUsage: { inputTokens: null, outputTokens: null, cacheCreationInputTokens: null, cacheReadInputTokens: null },
+          }),
+        )
+        .mockResolvedValueOnce(concluded(2, { processExecution: { ...cleanExit, exitCode: 9 }, tokenUsage: { ...claudeUsage, inputTokens: 777 } }))
+      render(<AgentAttemptHistoryPanel runId="run-1" />)
+      openHistory()
+      fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 2' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Inspect attempt 1' }))
+      const facts = await screen.findByRole('region', { name: 'Recorded execution facts' })
+
+      expect(line(facts, '.dc-process-evidence')).toBe('Process timed out after 15m 00s')
+      expect(line(facts, '.dc-token-usage')).toBe('Token usage unknown')
+      slowA.resolve(concluded(2, { processExecution: { ...cleanExit, exitCode: 9 }, tokenUsage: { ...claudeUsage, inputTokens: 777 } }))
+      await Promise.resolve()
+      expect(screen.getByRole('region', { name: 'Recorded execution facts' }).textContent).not.toMatch(/code 9|777/)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Inspect attempt 2' }))
+      await waitFor(() => expect(line(screen.getByRole('region', { name: 'Recorded execution facts' }), '.dc-process-evidence')).toBe('Process exited with code 9 after 1.2 s'))
+      const replaced = screen.getByRole('region', { name: 'Recorded execution facts' })
+      expect(line(replaced, '.dc-token-usage')).toBe('Tokens: 777 input · 80 output · 0 cache write · 30 cache read')
+      expect(replaced.textContent).not.toMatch(/timed out|Token usage unknown|Implemented/)
+      expect(evidence.mock.calls.map((call) => call[1])).toEqual(['attempt-2', 'attempt-1', 'attempt-2'])
+    })
+
+    describe('through the evidence facade with a raw host answer', () => {
+      const rawAnswer = (dispatchedAtUtc: unknown) =>
+        JSON.stringify({
+          identityValid: true,
+          attemptId: 'attempt-1',
+          attemptNumber: 1,
+          attemptStatus: 'Failed',
+          claimedAtUtc: '2026-09-29T10:00:00+00:00',
+          completedAtUtc: '2026-09-29T10:01:05.1234567+00:00',
+          provider: 'ClaudeCode',
+          role: 'Implementer',
+          responseContract: 'ImplementationReport',
+          outcome: 'ProviderInvocationFailed',
+          dispatchedAtUtc,
+          processExecution: { outcome: 'Exited', exitCode: 0, durationMilliseconds: 1234, timeoutMilliseconds: 900000 },
+          tokenUsage: { inputTokens: 1200, outputTokens: 80, cacheCreationInputTokens: 0, cacheReadInputTokens: 30 },
+          artifacts: [
+            { purpose: 'AgentStandardError', byteLength: 12, truncated: false, captureOutcome: 'Captured' },
+            { purpose: 'AgentFinalResponse', byteLength: 12, truncated: false, captureOutcome: 'Captured' },
+          ],
+        })
+
+      async function factsThroughFacade(text: string) {
+        const transport = vi.fn(() => Promise.resolve(new Response(text, { status: 200, headers: { 'Content-Type': 'application/json' } })))
+        vi.mocked(agentAttemptEvidenceClient).mockReturnValue(new AgentAttemptEvidenceWireClient('http://host.invalid', { fetch: transport }) as never)
+        history.mockResolvedValue({ items: [entry(1)], hasMore: false })
+        render(<AgentAttemptHistoryPanel runId="run-1" />)
+        openHistory()
+        fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 1' }))
+        const facts = await screen.findByRole('region', { name: 'Recorded execution facts' })
+        return { facts, transport }
+      }
+
+      it.each<[string, unknown]>([
+        ['the number 1 (revived as 2001-01-01 by the generated client alone)', 1],
+        ['zero (dropped as absent by the generated client alone)', 0],
+        ['false', false],
+        ['an impossible calendar date that JavaScript rolls forward', '2026-02-30T00:00:00Z'],
+        ['a text that JavaScript parses', 'Tue Sep 29 2026 10:00:02 GMT+0000'],
+        ['an object whose own toString is 0 (the generated conversion would throw)', { toString: 0 }],
+        ['an object whose own toString is null', { toString: null }],
+        ['an array holding such an object', [{ toString: 0 }]],
+      ])('shows a raw dispatch time that is %s as unavailable, with no measured result or known usage', async (_label, dispatchedAtUtc) => {
+        windowRead.mockResolvedValue({ status: 'Ok', text: 'still here', nextOffset: 10, totalLengthSoFar: 10, truncated: false })
+        const { facts, transport } = await factsThroughFacade(rawAnswer(dispatchedAtUtc))
+        const detail = screen.getByRole('region', { name: 'Selected Agent attempt evidence' })
+
+        expect(within(facts).getByText('Claimed 2026-09-29 10:00:00 UTC, dispatch time unavailable, ended 2026-09-29 10:01:05 UTC.')).toBeTruthy()
+        expect(line(facts, '.dc-attempt-history-semantic-result')).toBe('Semantic result: ProviderInvocationFailed')
+        expect(line(facts, '.dc-process-evidence')).toMatch(/^Process evidence unavailable/)
+        expect(line(facts, '.dc-token-usage')).toMatch(/^Token usage unavailable/)
+        expect(line(facts, '.dc-attempt-history-timeout')).toMatch(/^Configured timeout: 15m 00s/)
+        expect(facts.textContent).not.toMatch(/2001|2026-03-02|not dispatched|Process not started|exited|1,200/)
+        expect(within(detail).getByText(/Standard error: 12 bytes/)).toBeTruthy()
+        fireEvent.change(within(detail).getByRole('combobox'), { target: { value: 'AgentStandardError' } })
+        fireEvent.click(within(detail).getByRole('button', { name: 'Load' }))
+        expect(await within(detail).findByText('still here')).toBeTruthy()
+        // The one evidence request went to the selected attempt's route; the explicit load used only the window route.
+        expect(transport).toHaveBeenCalledTimes(1)
+        expect(transport.mock.calls[0]).toEqual(['http://host.invalid/api/runs/run-1/agent-attempts/attempt-1/evidence', expect.anything()])
+        expect(windowRead).toHaveBeenCalledTimes(1)
+        expect(windowRead).toHaveBeenCalledWith('run-1', 'attempt-1', 'stderr', 0, 16384)
+        expect(history).toHaveBeenCalledTimes(1)
+        expect(evidence).not.toHaveBeenCalled()
+      })
+
+      it('shows the known facts of a valid raw answer, and an absent dispatch time as not dispatched', async () => {
+        const { facts } = await factsThroughFacade(rawAnswer('2026-09-29T12:00:02.5+02:00'))
+
+        expect(within(facts).getByText('Claimed 2026-09-29 10:00:00 UTC, dispatched 2026-09-29 10:00:02 UTC, ended 2026-09-29 10:01:05 UTC.')).toBeTruthy()
+        expect(line(facts, '.dc-process-evidence')).toBe('Process exited with code 0 after 1.2 s')
+        expect(line(facts, '.dc-token-usage')).toBe('Tokens: 1,200 input · 80 output · 0 cache write · 30 cache read')
+      })
+
+      it('shows a null raw dispatch time as not dispatched, never as unavailable', async () => {
+        const { facts } = await factsThroughFacade(rawAnswer(null))
+
+        expect(within(facts).getByText(/, not dispatched, ended /)).toBeTruthy()
+        expect(line(facts, '.dc-process-evidence')).toBe('Process not started')
+        expect(line(facts, '.dc-token-usage')).toBe('Token usage: none (provider not invoked)')
+      })
+    })
+
+    it('starts no request, storage write or log for showing the facts', async () => {
+      const local = vi.spyOn(Storage.prototype, 'setItem')
+      const log = vi.spyOn(console, 'log')
+      const facts = await factsOf(concluded(1))
+      expect(line(facts, '.dc-process-evidence')).toBe('Process exited with code 0 after 1.2 s')
+      await Promise.resolve()
+
+      expect(history).toHaveBeenCalledTimes(1)
+      expect(evidence).toHaveBeenCalledTimes(1)
+      expect(windowRead).not.toHaveBeenCalled()
+      expect(local).not.toHaveBeenCalled()
+      expect(log).not.toHaveBeenCalled()
     })
   })
 

@@ -26,9 +26,16 @@ import { injectJourneySession, registerProject, selectProject } from './journey/
 // disk, with an empty sealed file shown as empty; closing and reopening the evidence discards the text; and the inspection invokes no
 // provider, sends no non-GET request and changes no workflow row, artifact, Git state or source file. Multi-window, non-ASCII and
 // malformed-answer permutations are proven by the decoder, hook and viewer tests, not here. It is not replay or provider reliability.
+//
+// HIST-MET-01 extends it: after the run is abandoned through its form and a newer objective is recorded through the intake, the same
+// planning attempt is inspected from Run history while the newer run stays selected. The shown response contract, times, semantic result,
+// host-measured process result, configured timeout and token counts equal the stored attempt row, the evidence read is the only request,
+// and no artifact text, provider invocation, non-GET request or durable change follows. It does not prove the provider's usage report true.
 
 const PROJECT = 'Sealed artifact inspection journey fixture'
 const OBJECTIVE = 'Plan the ledger total and inspect its sealed evidence'
+const NEWER_OBJECTIVE = 'Record a newer objective after the inspected plan'
+const REASON = 'The inspected plan is superseded by a newer objective.'
 const WINDOW_ROUTE = /\/api\/runs\/([^/]+)\/collaboration-messages\/([^/]+)\/evidence(?:\/artifact-window\/([^/]+))?$/i
 const ROUTE_SEGMENTS: Record<string, string> = {
   AgentContextManifest: 'context-manifest',
@@ -80,6 +87,90 @@ function durableState(repositoryPath: string, attemptId: string) {
     artifacts: artifactsOfAttempt(attemptId).map((artifact) => ({ ...artifact, text: sealedText(artifact) })),
     repository: repositorySnapshot(repositoryPath),
   }
+}
+
+/** The attempt's recorded execution evidence exactly as stored: times as text, the duration as ticks, the timeout as milliseconds. */
+interface RecordedFacts {
+  AgentResponseContract: string
+  AgentOutcome: string | null
+  ClaimedAtUtc: string
+  AgentDispatchedAtUtc: string | null
+  CompletedAtUtc: string | null
+  AgentProcessOutcome: string | null
+  AgentProcessExitCode: number | null
+  AgentProcessDuration: number | null
+  AgentTimeout: number | null
+  AgentInputTokens: number | null
+  AgentOutputTokens: number | null
+  AgentCacheCreationInputTokens: number | null
+  AgentCacheReadInputTokens: number | null
+}
+
+function recordedFactsOf(attemptId: string): RecordedFacts {
+  const rows = withJourneyDb(
+    (db) =>
+      db
+        .prepare(
+          'select AgentResponseContract, AgentOutcome, ClaimedAtUtc, AgentDispatchedAtUtc, CompletedAtUtc, AgentProcessOutcome, AgentProcessExitCode, AgentProcessDuration, AgentTimeout, AgentInputTokens, AgentOutputTokens, AgentCacheCreationInputTokens, AgentCacheReadInputTokens from attempts where Id = ?',
+        )
+        .all(attemptId) as unknown as RecordedFacts[],
+  )
+  expect(rows).toHaveLength(1)
+  return { ...rows[0] }
+}
+
+/** Every durable row of this project and the source repository, for the Run-history inspection that must change nothing. */
+function historyDurableState(repositoryPath: string) {
+  const projectRows = (table: string) =>
+    withJourneyDb((db) =>
+      db.prepare(`select t.* from ${table} t join runs r on r.Id = t.RunId where r.ProjectId = ? order by t.Id`).all(data.projectId()),
+    )
+  return {
+    totals: data.projectTotals(),
+    runs: data.runs(),
+    attempts: projectRows('attempts'),
+    messages: projectRows('collaboration_messages'),
+    artifacts: projectRows('artifacts'),
+    repository: repositorySnapshot(repositoryPath),
+  }
+}
+
+/** A stored UTC instant as ISO text; the stored form is checked rather than assumed. */
+function isoOf(stored: string): string {
+  const parts = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(\.\d{1,7})?(?:Z|\+00:00)$/.exec(stored)
+  expect(parts, `unexpected stored instant ${stored}`).not.toBeNull()
+  return `${parts![1]}T${parts![2]}${(parts![3] ?? '').slice(0, 4)}Z`
+}
+
+/** The cockpit's whole-second UTC rendering of a stored instant. */
+const utcText = (stored: string) => `${isoOf(stored).slice(0, 19).replace('T', ' ')} UTC`
+
+/** An independent oracle of the cockpit's millisecond wording: below a second, below a minute, then whole minutes and seconds. */
+function durationText(milliseconds: number): string {
+  if (milliseconds < 1000) {
+    return `${milliseconds} ms`
+  }
+  if (milliseconds < 60_000) {
+    return `${(milliseconds / 1000).toFixed(1)} s`
+  }
+  const seconds = Math.floor(milliseconds / 1000)
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s`
+}
+
+/** The token line for the recorded counts: known only with both input and output, each cache count only when recorded. */
+function tokenText(recorded: RecordedFacts): string {
+  if (recorded.AgentInputTokens === null || recorded.AgentOutputTokens === null) {
+    return 'Token usage unknown'
+  }
+  const count = (value: number) => value.toLocaleString('en-US')
+  const parts = [`${count(recorded.AgentInputTokens)} input`, `${count(recorded.AgentOutputTokens)} output`]
+  if (recorded.AgentCacheCreationInputTokens !== null) {
+    parts.push(`${count(recorded.AgentCacheCreationInputTokens)} cache write`)
+  }
+  if (recorded.AgentCacheReadInputTokens !== null) {
+    parts.push(`${count(recorded.AgentCacheReadInputTokens)} cache read`)
+  }
+  return `Tokens: ${parts.join(' · ')}`
 }
 
 /** Selects one purpose, loads it and every further window on request, and returns what the page shows for it. */
@@ -213,4 +304,108 @@ test('the sealed artifact inspection journey: plan, open the message evidence an
   expect(requests.filter((request) => request.method !== 'GET')).toEqual([])
   expect(readInvocations(mark)).toHaveLength(invocationsBefore)
   expect(durableState(repository.path, attempt.Id)).toEqual(stateBefore)
+
+  // 6. HIST-MET-01: the run is abandoned through its form and a newer objective is recorded through the intake, then the planning attempt
+  // is inspected from Run history while the newer run stays selected. Its shown execution facts must be exactly the recorded row's.
+  const recorded = recordedFactsOf(attempt.Id)
+  expect(recorded).toMatchObject({ AgentResponseContract: 'Proposal', AgentOutcome: 'Proposed', AgentProcessOutcome: 'Exited' })
+  expect(recorded.AgentDispatchedAtUtc).not.toBeNull()
+  expect(recorded.CompletedAtUtc).not.toBeNull()
+  expect(recorded.AgentProcessExitCode).toBe(0)
+  expect(recorded.AgentTimeout).toBeGreaterThan(0)
+  // The Codex double writes no terminal turn event, so the host recorded no usage: the page must say unknown, never zero. Known counts are
+  // proven by the pure and composed tests, not by this journey.
+  expect([recorded.AgentInputTokens, recorded.AgentOutputTokens]).toEqual([null, null])
+  const abandon = page.getByRole('region', { name: 'Abandon run' })
+  await abandon.getByLabel('Reason').fill(REASON)
+  await page.getByRole('button', { name: 'Abandon run', exact: true }).click()
+  await expect(abandon).toContainText(REASON, { timeout: 30_000 })
+  await expect(page.getByRole('textbox', { name: 'Objective' })).toBeVisible({ timeout: 30_000 })
+  await page.getByRole('textbox', { name: 'Objective' }).fill(NEWER_OBJECTIVE)
+  await page.getByRole('button', { name: 'Record manual run' }).click()
+  await expect(page.getByRole('heading', { name: NEWER_OBJECTIVE })).toBeVisible({ timeout: 15_000 })
+  const runs = data.runs()
+  expect(runs.map((run) => [run.ExecutionNumber, run.Objective, run.Lifecycle])).toEqual([
+    [1, OBJECTIVE, 'Abandoned'],
+    [2, NEWER_OBJECTIVE, 'Created'],
+  ])
+  expect(sameId(runs[0].Id, runId)).toBe(true)
+  // Recording the newer objective left the attempt's recorded evidence exactly as it was.
+  expect(recordedFactsOf(attempt.Id)).toEqual(recorded)
+
+  const historyInvocationsBefore = readInvocations(mark).length
+  const historyStateBefore = historyDurableState(repository.path)
+  const historyStart = requests.length
+  const history = page.getByRole('region', { name: 'Run history' })
+  await history.getByRole('button', { name: 'Show run history' }).click()
+  await history.getByRole('button', { name: 'Inspect run #1', exact: true }).click()
+  const selectedRun = history.getByRole('region', { name: 'Selected run' })
+  await expect(selectedRun).toContainText(OBJECTIVE)
+  const attempts = selectedRun.getByRole('region', { name: 'Agent attempt history' })
+  await attempts.getByRole('button', { name: 'Show Agent attempt history' }).click()
+  await expect(attempts.locator('.dc-attempt-history-items > li')).toHaveCount(1, { timeout: 15_000 })
+  const attemptEvidenceAnswered = page.waitForResponse((response) => /\/agent-attempts\/[^/]+\/evidence$/i.test(new URL(response.url()).pathname), {
+    timeout: 30_000,
+  })
+  await attempts.getByRole('button', { name: 'Inspect attempt 1', exact: true }).click()
+  const attemptEvidence = await attemptEvidenceAnswered
+  expect(attemptEvidence.status()).toBe(200)
+  expect(lower(new URL(attemptEvidence.url()).pathname)).toBe(`/api/runs/${lower(runId)}/agent-attempts/${lower(attempt.Id)}/evidence`)
+
+  // The host answered with exactly the recorded row: whole milliseconds truncated from the stored ticks, the stored timeout and counts.
+  const durationMilliseconds = Math.trunc(recorded.AgentProcessDuration! / 10_000)
+  const answer = (await attemptEvidence.json()) as Record<string, unknown>
+  expect(answer).toMatchObject({
+    identityValid: true,
+    responseContract: recorded.AgentResponseContract,
+    outcome: recorded.AgentOutcome,
+    processExecution: { outcome: 'Exited', exitCode: 0, durationMilliseconds, timeoutMilliseconds: recorded.AgentTimeout },
+    tokenUsage: {
+      inputTokens: recorded.AgentInputTokens,
+      outputTokens: recorded.AgentOutputTokens,
+      cacheCreationInputTokens: recorded.AgentCacheCreationInputTokens,
+      cacheReadInputTokens: recorded.AgentCacheReadInputTokens,
+    },
+  })
+  expect(isoOf(answer.dispatchedAtUtc as string)).toBe(isoOf(recorded.AgentDispatchedAtUtc!))
+
+  const detail = attempts.getByRole('region', { name: 'Selected Agent attempt evidence' })
+  const facts = detail.getByRole('region', { name: 'Recorded execution facts' })
+  await expect(facts).toBeVisible({ timeout: 15_000 })
+  const factsShownAt = requests.length
+  await expect(facts).toContainText(`Response contract: ${recorded.AgentResponseContract}`)
+  await expect(facts).toContainText(
+    `Claimed ${utcText(recorded.ClaimedAtUtc)}, dispatched ${utcText(recorded.AgentDispatchedAtUtc!)}, ended ${utcText(recorded.CompletedAtUtc!)}.`,
+  )
+  await expect(facts.locator('.dc-attempt-history-semantic-result')).toHaveText(`Semantic result: ${recorded.AgentOutcome}`)
+  await expect(facts.locator('.dc-process-evidence')).toHaveText(`Process exited with code 0 after ${durationText(durationMilliseconds)}`)
+  await expect(facts.locator('.dc-attempt-history-timeout')).toHaveText(
+    `Configured timeout: ${durationText(recorded.AgentTimeout!)} (set when the attempt was claimed; not a measurement)`,
+  )
+  await expect(facts.locator('.dc-token-usage')).toHaveText(tokenText(recorded))
+  await expect(facts).toContainText('A clean exit does not mean the attempt succeeded')
+  // The metadata and artifact access stay as they were, and no artifact text is read before it is requested.
+  for (const artifact of artifacts) {
+    await expect(detail).toContainText(`${PURPOSE_LABELS[artifact.Purpose]}: ${artifact.ByteLength} bytes`)
+  }
+
+  // The development server has been seen to send the selection's evidence read twice; React StrictMode (main.tsx) re-running the unchanged
+  // selection effect is the likely cause, inferred and not independently proven. So the count is not pinned: every evidence read must name
+  // exactly this run and attempt, and once the facts are shown nothing further is requested for any attempt or for the inspected run (the
+  // live cockpit of the newer run may make its own display-only reads).
+  const historyRequests = requests.slice(historyStart)
+  expect(historyRequests.filter((request) => /artifact-window/.test(request.path))).toEqual([])
+  const evidenceReads = historyRequests.filter((request) => /\/agent-attempts\/[^/]+\/evidence$/i.test(request.path))
+  expect(evidenceReads.length).toBeGreaterThanOrEqual(1)
+  for (const request of evidenceReads) {
+    expect(lower(request.path)).toBe(`/api/runs/${lower(runId)}/agent-attempts/${lower(attempt.Id)}/evidence`)
+  }
+  expect(
+    requests.slice(factsShownAt).filter((request) => /\/agent-attempts|artifact-window/i.test(request.path) || lower(request.path).includes(lower(runId))),
+  ).toEqual([])
+  expect(historyRequests.filter((request) => request.method !== 'GET')).toEqual([])
+  expect(readInvocations(mark)).toHaveLength(historyInvocationsBefore)
+  expect(historyDurableState(repository.path)).toEqual(historyStateBefore)
+  await expect(page.getByRole('heading', { name: NEWER_OBJECTIVE, exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: OBJECTIVE, exact: true })).toHaveCount(0)
 })

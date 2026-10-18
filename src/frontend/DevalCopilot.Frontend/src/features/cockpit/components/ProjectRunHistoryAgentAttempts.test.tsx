@@ -12,6 +12,7 @@ import type {
   AgentAttemptHistoryResponse,
   SealedAgentArtifactWindowResponse,
 } from '../../../api/generated/api-client'
+import { AgentProcessExecutionResponse, AgentTokenUsageResponse } from '../../../api/generated/api-client'
 import { attemptEvidenceFor, attemptIdFor, attemptPageOf, windowOf } from '../agentAttemptHistoryFixture'
 import { availableFor } from '../localDeliveryReceiptFixture'
 import { deliveredEntryFor, entryFor, pageOf } from '../projectRunHistoryFixture'
@@ -372,6 +373,55 @@ describe('the Agent attempts of a historical run detail', () => {
 
     expect(await within(attempts()).findByText(/Attempt #1 · Planner · Codex · Completed · Result: Proposed/)).toBeInTheDocument()
     expect(within(attempts()).getByText(/Context manifest: 21 bytes/)).toBeInTheDocument()
+  })
+
+  it("shows each historical run's own recorded execution facts, never another run's, without any further read", async () => {
+    const dispatchedAtUtc = new Date(Date.UTC(2026, 9, 9, 10, 1, 2))
+    installAttempts({
+      evidence: (runId, attemptId) =>
+        Promise.resolve(
+          attemptEvidenceFor(runId, Number(attemptId.split('-').pop()), ['AgentContextManifest'], {
+            attemptStatus: runId === 'run-3' ? 'Completed' : 'Failed',
+            outcome: runId === 'run-3' ? 'Proposed' : 'AccountUsageStopReached',
+            // Run 2's attempt stopped before dispatch; its answer carries plausible numbers that must not be shown as known.
+            dispatchedAtUtc: runId === 'run-3' ? dispatchedAtUtc : undefined,
+            processExecution: new AgentProcessExecutionResponse({ outcome: 'Exited', exitCode: 0, durationMilliseconds: 1500, timeoutMilliseconds: 600_000 }),
+            tokenUsage: new AgentTokenUsageResponse({ inputTokens: 300, outputTokens: 20 }),
+          }),
+        ),
+    })
+    const facts = () => within(attempts()).getByRole('region', { name: 'Recorded execution facts' })
+    inspectRun(3)
+    toggleAttempts()
+    await waitFor(() => expect(attemptRows()).toHaveLength(2))
+    inspectAttempt(1)
+    await within(attempts()).findByRole('region', { name: 'Recorded execution facts' })
+
+    expect(facts()).toHaveTextContent('Response contract: Proposal')
+    expect(facts()).toHaveTextContent('dispatched 2026-10-09 10:01:02 UTC')
+    expect(facts()).toHaveTextContent('Semantic result: Proposed')
+    expect(facts()).toHaveTextContent('Process exited with code 0 after 1.5 s')
+    expect(facts()).toHaveTextContent('Configured timeout: 10m 00s')
+    expect(facts()).toHaveTextContent('Tokens: 300 input · 20 output')
+
+    inspectRun(2)
+    expectNoAttemptData()
+    toggleAttempts()
+    await waitFor(() => expect(attemptRows()).toHaveLength(2))
+    inspectAttempt(1)
+    await within(attempts()).findByRole('region', { name: 'Recorded execution facts' })
+
+    expect(facts()).toHaveTextContent('not dispatched')
+    expect(facts()).toHaveTextContent('Semantic result: AccountUsageStopReached')
+    expect(facts()).toHaveTextContent('Process not started')
+    expect(facts()).toHaveTextContent('Token usage: none (provider not invoked)')
+    expect(facts()).toHaveTextContent('Configured timeout: 10m 00s')
+    expect(facts().textContent).not.toMatch(/exited|1\.5 s|300 input|Proposed/)
+    expect(evidenceRead.mock.calls).toEqual([
+      ['run-3', attemptIdFor('run-3', 1)],
+      ['run-2', attemptIdFor('run-2', 1)],
+    ])
+    expect(windowRead).not.toHaveBeenCalled()
   })
 
   it('rejects an incoherent window of the historical attempt whole, keeps the accepted text and retries the same offset once', async () => {
