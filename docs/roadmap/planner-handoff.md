@@ -12,16 +12,30 @@ documentation-first pause and its runtime/test exclusions, without renewing
 experimental authority. Codex plans/reviews; Claude implements.
 
 Selection baseline independently checked: `main`; HEAD, local origin/main
-and fresh live main `4b52e1cfc3dbfbcb20908da5e87459b6e7c3e4f7`; divergence
-0/0; empty index; initially clean tracked tree and no nonignored untracked
-paths. After this selection, only this handoff is modified, unstaged; HEAD
-is unchanged. No implementation or publication GO has been given.
+and fresh live main `75372b18d3d669f744010a3b9a628a408acaed4c`; divergence
+0/0; empty index; clean tracked tree and no nonignored untracked paths.
+HIST-ATT-01 is published and independently verified. The committed checkpoints
+record earlier phases; do not reopen or republish it. ART-WIN-01 is now delivered
+and reviewed below: HEAD unchanged, empty index, 14 modified tracked paths and
+five new frontend paths, all unstaged/uncommitted/unpushed. Publication is
+pending under the exact GO identity; no next slice is selected.
 
 WF-05 baseline and GO: this file at `e55709f`; earlier:
 [priority](planner-handoff-history-e614c79.md#priority-and-verified-baseline),
 [WF-04 GO and review](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go).
 
 ## Latest verified publication
+
+HIST-ATT-01 `75372b18d3d669f744010a3b9a628a408acaed4c`, tree
+`d49a3eac47b8d8a9d19c5b27fd6c6c622f695d40`, sole parent
+`4b52e1cfc3dbfbcb20908da5e87459b6e7c3e4f7`: independently compared with
+the GO tree, sole parent and exact 26 paths (18 M, eight A); fresh live main,
+HEAD and local origin/main agree, 0/0, clean index/tree and no nonignored
+untracked paths. Evidence: `logs/planner-review/hist-att-01/publication-verification.log`.
+HATT-R1 resolved; review detail: this file at `75372b1` and
+`logs/planner-review/hist-att-01/`. Independent correction tests: 104 passed;
+executor final matrices and authenticated journey inspected, retained scopes
+unchanged. No publication-time product retest was needed.
 
 WF-06 `4b52e1cfc3dbfbcb20908da5e87459b6e7c3e4f7`, tree
 `e888fe69ac5b790aec793822f84865381a6bb8ec`, sole parent
@@ -44,122 +58,124 @@ rework acceptance at `e614c795`
 in this file at `e55709f`; WF-03 technical acceptance stands. WF-03N detail:
 [exact record](planner-handoff-history-e614c79.md#latest-accepted-delivery).
 
-## Selected slice: HIST-ATT-01 historical run Agent-attempt inspection
+## Selected slice: ART-WIN-01 reliable sealed text inspection from collaboration
 
-**Decision:** expose the existing read-only Agent-attempt history, evidence
-metadata and sealed artifact-window viewer inside the selected historical
-run. This is one functional access path, including attempts that emitted no
-collaboration message; it does not extend ADR-0037's attribution inspector.
+**Decision and evidence:** restore the message-linked artifact text path and
+make window acceptance coherent across both existing readers. The message
+hook currently sends recorded names such as `AgentStandardError`, but its
+endpoint accepts `stderr` (and the other three closed route segments), so
+legitimate reads fail with 404. `availableArtifactPurposes` uses `in`, admitting
+prototype keys; `useSealedArtifactWindow` defaults missing success cursors and
+accepts backward/nonprogressing or unsafe values. These are concrete functional
+inspection defects retained by HIST-ATT-01, not an authorization gap for P9.
 
-**Evidence and roadmap:** `ProjectRunHistoryDetail` currently mounts only
-the receipt, event headers and collaboration history. `AgentAttemptHistoryPanel`
-is mounted in production only by `UsageEvidenceRail` for the current run.
-The existing protected history/evidence/window operations already resolve an
-explicit run and attempt (see the
-[inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection)).
-ADR-0033's historical selection ownership remains mandatory; ADR-0037's
-minimal attribution stays unchanged. This advances Increment 5's historical
-evidence access, not complete replay. Increments 4/5/6 remain incomplete.
+**Roadmap and size:** one outcome in Increment 4's evidence inspection and
+Increment 5's historical access: the user can manually inspect a message's
+sealed artifact text, with truthful paging in both routes. Include the route
+repair, own-property purpose allowlist, shared window decoder, both consumers'
+regressions and authenticated browser proof as one safe reviewable unit.
+No new backend route, schema, artifact type or provider capability; no complete
+replay or completion of Increments 4/5/6. Autonomous stages and remote
+publication remain independently bounded and are not selected.
 
-**Sizing:** include navigation, necessary state ownership and response-coherence
-guards, focused tests and one authenticated browser journey as one reviewable
-outcome. Autonomous coordination needs separate dispatch/recovery authority;
-remote publication remains blocked by Proposed ADR-0050/P9. Neither is needed
-for these existing read operations. No new backend contract, schema, provider
-capability, generic history framework or architecture reversal is selected.
+**Scope:** feature-owned `artifactPurposes`, both sealed-window route hooks,
+shared window state/decoding and affected viewer tests; minimal viewer changes
+only if necessary for this outcome. Reuse existing generated clients and owned
+lifetimes. A small shared mapping of the same four purposes/segments is allowed
+because both readers intentionally change together; no generic artifact or
+history framework. Contract: the
+[inspection views](../architecture/agent-collaboration-evidence-inspection.md);
+compare the existing MVC endpoints and filesystem read semantics before editing.
+Backend implementation, generated clients, persistence and dependencies remain
+unchanged. Update the inspection contract, relevant cockpit copy and execution
+checkpoint only as necessary; preserve prior evidence and open risks.
 
-**Scope and acceptance:** reuse the existing generated clients and attempt
-viewer; open history, select an attempt, then explicitly select/load sealed
-text windows. No eager evidence/artifact request, polling or automatic retry.
-Run/project replacement, A-to-B-to-A, closing/reopening and parent reload end
-every child selection/read/text lifetime before replacement is displayed;
-obsolete results and retained callbacks cannot affect a successor. Page
-ordering, continuation and selected evidence identity must be checked before
-display. Failed later pages retain only valid rows and retry the same cursor.
-Unknown/incoherent identity offers no evidence; unavailable/missing/integrity
-failures disclose no text. Preserve literal-text rendering, purpose allowlist,
-manual paging and existing sensitivity caveats. Mount no live/mutation control
-and change neither current run selection nor workflow state.
+**Acceptance:** only the four own allowlisted recorded purposes present in the
+attempt's metadata are offered; unknown/prototype names start no request.
+Both route hooks send their exact existing closed segments. Accept an Ok window
+only whole: text is a string, truncation is boolean or null, cursors/total are
+nonnegative safe integers; requested offset <= next <= total, delta <= requested
+byte cap; progress is positive while data remains (an empty file is valid).
+A sealed total stays identical across accepted pages. Reject absent, fractional,
+unsafe, negative, backward, nonprogressing, overshooting or contradictory fields
+before appending text or advancing the cursor. Preserve validated earlier text
+internally and retry the same failed offset, never display rejected text or use
+its cursor. Do not infer cursor bytes from JavaScript string length or require
+TextEncoder equality: the host decodes malformed UTF-8 with replacement, and
+UTF-8 cursor/EOF semantics must remain compatible. Closed non-Ok statuses never
+show text; preserve their distinct disclosures without inventing an incompatible
+backend envelope rule. No auto paging/retry, logging, storage, mutation or live
+tail; keep sensitivity caveats, literal rendering and lifetime isolation.
 
-**Validation:** focused frontend tests for the composed history and its
-modified hooks/decoders, existing attempt/artifact and project-selection
-regressions, frontend lint/build (includes typecheck), and one new
-`historical-agent-attempts.journey.ts` through the existing authenticated
-deterministic-provider journey host. Prove old-run inspection after a newer
-objective, including a no-message failed/interrupted attempt, and no new
-provider invocation or product mutation during inspection. Build the unchanged
-journey host once as needed; do not infer native/provider qualification.
-Run architecture tests, applicable dependency/secret checks, changed-document
-links and diff hygiene. Broaden only for changed shared ownership/window code,
-failures or uncertain impact; no routine complete backend/API suite or client
-regeneration with unchanged inputs. Retain one concise executor log and all
-original failures. Executor updates current-work at delivery, including the
-resumption and outstanding risks; this planner edit belongs to the review diff.
+**Validation:** pure purpose/window-decoder permutations, both route-hook and
+viewer regressions, history composition and direct shared consumers; frontend
+lint/build and strict journey typecheck as applicable. One focused authenticated
+`sealed-artifact-inspection.journey.ts` must create a provider-observed message
+through existing deterministic-provider commands, open its evidence in the
+production UI and compare loaded text with its actual sealed artifact. Run the
+existing historical-agent-attempts journey serially as the other route's
+regression. No raw-SQL lineage fabrication. Prove inspection starts no provider
+invocation or workflow/Git mutation. Retain unchanged architecture evidence
+unless inputs change. Broaden for shared ownership/harness changes, failures or
+uncertain impact; no routine full backend/API suite or client generation.
+Preserve complete original check/failure output with commands/timings in one
+concise indexed evidence directory; do not reconstruct earlier losses.
 
-**Continuity:** keep Codex in this chat; context usage is unknown. Start one
-Claude chat for HIST-ATT-01 after the completed WF-06 slice, retaining its
-corrections there. Return unstaged/uncommitted/unpushed for explicit review;
-no second slice and no commit/push authorization.
+**Prior review and evidence:** HATT-R1 remains resolved. The accepted missing
+original output for HIST-ATT-01 runs 02/13, unretained interim pass and Codex's
+first ENOENT runner output remain limited as recorded in this file at `75372b1`
+and current-work. Duplicate React keys and compiler/runner failures stay
+unexplained. The three artifact defects above are now selected work, not fixed
+in anticipation. No prior gate or evidence is retroactively strengthened.
 
-## HIST-ATT-01 review: GO after correction 1
+**Continuity:** `CONTINUE_THIS_CHAT` for Codex: constraints and review evidence
+are available, no observed or owner-reported context percentage. Start one new
+Claude chat for ART-WIN-01 after the independently verified HIST-ATT-01
+publication; keep all its corrections there. The publication decision follows.
 
-Codex independently reviewed the final production diff, decoder, owned lifetimes,
-composed tests, browser journey and final evidence. GO for this reviewed slice,
-including this review edit; publication identity, expected sole parent and exact
-approved paths are supplied in the publication prompt and ignored review record.
-Publication and its independent verification remain pending, not implied by GO.
-Keep publication in the same Claude chat. No next slice is selected.
+## ART-WIN-01 review: GO
 
-- **HATT-R1 (P2), resolved in correction 1:** the first delivery's
-  `agentAttemptHistory.ts` accepted a verified history
-  row with arbitrary nonblank status/role/provider and an absent or incompatible
-  response contract. Its evidence decoder accepts the same unsupported identity
-  and binds only ID/number, allowing a different role/provider/contract from the
-  selected row. A direct execution of the transpiled production decoder accepted
-  UnknownStatus/UnknownRole/UnknownProvider/UnknownContract as both a page and
-  success evidence. The correction now requires recognized supported identity
-  combinations, compared directly with `AgentAttemptIdentity` and
-  `AgentAttemptContract`, and binds verified evidence to the accepted row's
-  immutable role/provider/contract. Recorded status/times remain fresh
-  observations, not equality to the page. Identity-invalid behavior is retained;
-  unsupported/contradictory responses are rejected whole. Pure, hook and composed
-  regressions cover unknown members, unsupported combinations, contradiction and
-  valid status progression. Codex independently reran all 104 tests in the three
-  correction-focused files: passed, complete output in
-  `logs/planner-review/hist-att-01/correction1-focused.log`.
-- **Independent checks:** focused frontend filter (history decoder/hooks,
-  composed historical inspection and both artifact viewers): 7 files, 135 tests
-  passed; full output in `logs/planner-review/hist-att-01/focused-02.log`.
-  First attempt: 45 tests passed, six suites failed to load temporary module
-  files (ENOENT); output is in the Codex tool transcript, with truncation, not a
-  complete retained log. Second attempt used an ignored workspace TEMP/TMP root;
-  the underlying first failure is not explained. `git diff --check` passed.
-- **Final evidence:** inspected executor correction c01-c09 outputs and the
-  retained initial matrix. Correction c03/c04/c05 pass 104/170/199 tests (overlap,
-  not additive), lint/build pass with unchanged warnings, authenticated journey
-  passes. The binding mutant produces six assertion failures, not a compilation
-  kill, and records equal restored hashes; inspected, not independently rerun.
-  Architecture, strict journey typecheck and unchanged shared-window consumer
-  evidence are retained for their unchanged inputs. The unretained interim
-  four-fixture passing run is not relied on. Fresh live main still equals
-  `4b52e1cfc3dbfbcb20908da5e87459b6e7c3e4f7`; index empty.
-- **Scope dispositions:** cockpit-spec documentation and the attempt route's
-  purpose mapping are accepted as necessary parts of this outcome. The
-  message-linked route mapping, prototype-key allowlist and window-offset
-  validation are pre-existing limits, retained without claiming resolution;
-  they do not require a second slice or expansion of this correction. Duplicate
-  React-key controls support pre-existence, not cause or harmlessness.
-- **Evidence disposition:** executor run 02 and run 13 complete output was
-  not retained, contrary to the validation policy. Accept this delivery's
-  explicitly recorded loss as a limitation: the reported fixture failures and
-  compiler failure are not authenticated by their later passes. Do not recreate
-  originals or rerun solely to simulate lost evidence. Retain complete original
-  output for every correction check and every new failure prospectively.
+Codex reviewed the complete substantive diff and executor evidence; no blocking
+finding. GO includes this planner review edit. The exact tree, expected sole
+parent and 19 approved paths are supplied in the publication prompt and
+`logs/planner-review/art-win-01/publication-go.log`; publication and independent
+verification remain pending. Publish in the same Claude chat. No next slice.
 
-No further implementation correction is required for this diff. The publication
-GO authorizes only its exact approved content and paths, with a normal
-fast-forward push of main and independent publication verification afterward.
-Material post-GO changes return for review; no next-slice authority.
+- **Independent verification:** all 179 tests in eight affected decoder,
+  purpose, hook, viewer and composed test files pass; original output retained
+  in `logs/planner-review/art-win-01/focused-01.log`. Both route mappings agree
+  with their existing MVC endpoints; offset/replacement compatibility was
+  compared with `FilesystemArtifactStore.ReadWindowAsync`/`Utf8Boundary`.
+  Fresh live main, HEAD and local origin/main still equal `75372b18`; index
+  empty; diff whitespace clean. Backend, generated clients and dependencies
+  unchanged; no new provider or publication capability.
+- **Executor evidence:** inspected r01-r18 and their failure dispositions.
+  r10 passes 136; the broad r11 run has 4307 passes and two invalid-fixture
+  failures, not a full-suite pass. The corrected file passes all 43 in r12;
+  the later test-only type fix passes its 15 tests in r16. Passing unaffected
+  suites are retained, not relabeled as a later full run. Lint/build, strict
+  e2e typecheck and both authenticated journeys pass. Red-first results and
+  equal restored hashes were inspected, not independently rerun. r02's bad
+  invocation, r04's unexplained compiler lock and r14's corrected test type
+  error remain preserved; later passes do not explain the lock.
+- **Executor challenges resolved:** accept `text.length <= cursor advance`:
+  each UTF-16 code unit produced by this host's UTF-8 decoder consumes at
+  least one byte, including replacement fallback; this is an inequality,
+  not re-encoding or byte equality. Only sealed total stability was required;
+  accepting each boolean/null truncation fact without cross-page equality is
+  within this slice. The same fixed error for transport failure and malformed
+  windows is accepted: both keep the validated cursor/text and allow the same
+  explicit retry; distinct closed non-Ok disclosures remain unchanged.
+- **Scope and limits:** the empty-file disclosure and coherent fixture repairs
+  are accepted. Browser proof covers four short ASCII artifacts, including an
+  empty stderr; multi-window/non-ASCII/malformed behavior is tested at pure,
+  hook and viewer boundaries, not claimed as browser proof. No cryptographic
+  verification is added in the browser. Duplicate React keys and compiler
+  locks remain unexplained; earlier missing evidence and P9 constraints stand.
+
+No additional implementation changes or routine test reruns are required for
+this diff. Material post-GO changes return for review. The publication GO is
+only for our development delivery, never product remote-publication authority.
 
 ## Retained review and evidence limits
 
@@ -222,7 +238,7 @@ Their old GO/pending statements are not current instructions.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production frontend and necessary
-  tests are authorized only for HIST-ATT-01. No dependency, experiment,
+  tests are authorized only for ART-WIN-01. No dependency, experiment,
   capture-limit or standards edits; the old documentation-only production/test
   exclusion is superseded, not the other restrictions.
 

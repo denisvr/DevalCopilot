@@ -295,7 +295,7 @@ describe('AgentAttemptHistoryPanel', () => {
     history.mockResolvedValue({ items: [entry(1)], hasMore: false })
     evidence.mockResolvedValue(evidenceFor(1))
     windowRead.mockImplementation((_runId: string, _attemptId: string, segment: string) =>
-      segment === 'stderr' ? slowStderr.promise : Promise.resolve({ status: 'Ok', text: 'final text', nextOffset: 10, totalLengthSoFar: 10 }),
+      segment === 'stderr' ? slowStderr.promise : Promise.resolve({ status: 'Ok', text: 'final text', nextOffset: 10, totalLengthSoFar: 10, truncated: false }),
     )
     const { container } = render(<AgentAttemptHistoryPanel runId="run-1" />)
     openHistory()
@@ -308,7 +308,7 @@ describe('AgentAttemptHistoryPanel', () => {
     fireEvent.click(within(detail).getByRole('button', { name: 'Load' }))
     await within(detail).findByText('final text')
 
-    slowStderr.resolve({ status: 'Ok', text: 'stderr text', nextOffset: 11, totalLengthSoFar: 11 })
+    slowStderr.resolve({ status: 'Ok', text: 'stderr text', nextOffset: 11, totalLengthSoFar: 11, truncated: false })
     await Promise.resolve()
 
     expect(container.querySelector('pre')?.textContent).toBe('final text')
@@ -318,7 +318,8 @@ describe('AgentAttemptHistoryPanel', () => {
     const hostile = '<img src=x onerror="alert(1)"><script>alert(2)</script> **not bold**'
     history.mockResolvedValue({ items: [entry(1)], hasMore: false })
     evidence.mockResolvedValue(evidenceFor(1))
-    windowRead.mockResolvedValue({ status: 'Ok', text: hostile, nextOffset: 60, totalLengthSoFar: 60, truncated: false })
+    // One byte per ASCII character: a coherent window never decodes to more code units than the bytes it consumed.
+    windowRead.mockResolvedValue({ status: 'Ok', text: hostile, nextOffset: hostile.length, totalLengthSoFar: hostile.length, truncated: false })
     const { container } = render(<AgentAttemptHistoryPanel runId="run-1" />)
     openHistory()
     fireEvent.click(await screen.findByRole('button', { name: 'Inspect attempt 1' }))

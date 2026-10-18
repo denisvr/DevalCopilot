@@ -84,7 +84,10 @@ export function SealedArtifactWindowView({
               </button>
             </p>
           )}
-          {state.status === 'loaded' && (
+          {state.status === 'loaded' && state.totalLengthSoFar === 0 && (
+            <p className="dc-empty-state">This sealed artifact is empty (0 bytes).</p>
+          )}
+          {state.status === 'loaded' && state.totalLengthSoFar > 0 && (
             <div>
               <pre className="dc-artifact-window-text">{state.text}</pre>
               {state.truncated === true && <p className="dc-empty-state">Captured content was truncated.</p>}

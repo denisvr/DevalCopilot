@@ -7,7 +7,8 @@ containment, integrity and disclosure limits, and the historical Agent-attempt
 history, evidence and identity rules. The sections below were moved verbatim
 except three mechanical reference repairs; the protocol's original headings
 forward here. The cockpit navigation and lifetime paragraphs that close the
-attempt-history section were added later. Per-attempt execution evidence is in the
+attempt-history section, and the window-acceptance paragraph that closes the
+sealed-window section, were added later. Per-attempt execution evidence is in the
 [execution evidence](agent-collaboration-execution-evidence.md) companion;
 provider token usage and model context limits are in the
 [usage evidence](agent-collaboration-usage-evidence.md) companion.
@@ -145,6 +146,27 @@ redacted provider output, may still remain. No window is ever rendered or
 persisted anywhere but this one on-demand view (no browser storage, no URL,
 no log).
 
+**Window requests and acceptance (both routes).** The cockpit offers only the
+distinct purposes the metadata names as one of the four allowlisted recorded
+names (an own key of the allowlist, never an inherited name such as `toString`),
+and both the message-linked and the attempt-history request map that recorded
+name to the route's closed segment (`context-manifest`, `stdout`, `stderr`,
+`final-response`); any other value starts no request. A closed non-`Ok` status
+maps to its own disclosure and nothing else of its envelope is used or shown (an
+integrity mismatch legitimately reports the observed file length). An `Ok`
+window is accepted only whole: `text` is a string and `truncated` a boolean or
+null; `nextOffset` and `totalLengthSoFar` are present, nonnegative safe integers
+with requested offset <= `nextOffset` <= `totalLengthSoFar`; the advance is at
+most the requested byte cap and positive while bytes remain (an empty file or a
+read at the end advances by zero); zero advance carries no text and a positive
+one some text, never more UTF-16 code units than bytes consumed; and the sealed
+length equals the one the lifetime's first accepted window established. Cursors
+stay the host's UTF-8 byte offsets: the text is never re-encoded to recompute or
+require the advance, because a split codepoint is deferred whole and malformed
+bytes are decoded with replacement. Anything else is one fixed error that
+contributes no text or cursor; the accepted text is kept internally and the
+manual retry requests that same offset, appending once after a valid answer.
+
 ## Agent-attempt history and evidence inspection
 
 The message-linked evidence and artifact-window routes require a collaboration
@@ -240,8 +262,9 @@ event headers and collaboration messages; ADR-0037's attribution inspector is un
 region is collapsed for every committed run and reads nothing until opened; opening reads one page of 10, and older
 pages and the retry of a failed page are explicit actions with the host's exact cursor. Evidence is read only for a
 selected identity-valid row, and sealed text only after a purpose present in that evidence is chosen and loaded, with
-further windows on request. The attempt route's request maps each allowlisted recorded purpose to that route's own
-segment (`context-manifest`, `stdout`, `stderr`, `final-response`) and sends nothing for any other value.
+further windows on request. Window requests and acceptance follow the
+[shared rule](#sealed-agent-artifact-window-inspection) of both routes: each allowlisted recorded purpose maps to the route's
+own segment and nothing is sent for any other value.
 
 A page is accepted only whole and only when coherent for exactly its request and the rows already retained: no more
 entries than requested; unique identities and numbers that are safe positive integers, strictly descending, below the
@@ -264,8 +287,7 @@ selecting again after a close is a new selection) and each chosen purpose inside
 project, closing or reopening the region or the selected run, a Run history reload and unmounting end every
 subordinate read, selection, cursor and accumulated text; the replacement derives its empty first frame in the same
 render, a late answer settles nothing, and a retained retry, close or next-window callback starts or closes nothing.
-The shared sealed-window hook follows the same rule, so the message-linked viewer gains these guards with its
-accumulation and same-offset retry otherwise unchanged. Loading, empty, unavailable, missing, integrity-mismatch,
+The shared sealed-window hook follows the same rule for both routes, beside its window acceptance and same-offset retry. Loading, empty, unavailable, missing, integrity-mismatch,
 identity-invalid and error states with manual retry stay explicit, and the purpose-matched caveats and literal text
 rendering above are unchanged. Nothing is polled, retried automatically or written to browser storage, a URL or a
 log; the historical region mounts no mutation, live, eligibility or configuration control and changes neither the

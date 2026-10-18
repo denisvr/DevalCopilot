@@ -1,5 +1,7 @@
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import type { SealedAgentArtifactWindowResponse } from '../../../api/clients'
+import { decideSealedWindowAnswer } from '../sealedArtifactWindow'
+import type { SealedWindowRequestFacts } from '../sealedArtifactWindow'
 import { useOwnedLifetime, useOwnedState } from './useOwnedLifetime'
 import type { OwnedLifetime } from './useOwnedLifetime'
 
@@ -42,51 +44,44 @@ export type SealedWindowRequest = (
   maxBytes: number,
 ) => Promise<SealedAgentArtifactWindowResponse>
 
-// What one (scope, purpose) lifetime owns: the displayed state, the text accumulated across its windows and the offset it last requested.
+// What one (scope, purpose) lifetime owns: the displayed state, the text of its accepted windows, the cursor of its next window (which a
+// failed or rejected read never advances, so a retry requests that same offset) and the sealed length its first accepted window established.
 interface WindowFrame {
   state: SealedAgentArtifactWindowState
   accumulated: string
-  lastRequestedOffset: number
+  cursor: number
+  sealedTotal: number | null
 }
 
-const createWindowFrame = (): WindowFrame => ({ state: { status: 'idle' }, accumulated: '', lastRequestedOffset: 0 })
+const createWindowFrame = (): WindowFrame => ({ state: { status: 'idle' }, accumulated: '', cursor: 0, sealedTotal: null })
 
 const ERROR_MESSAGE = 'This artifact window is unavailable.'
 
-function settleResponse(previous: WindowFrame, response: SealedAgentArtifactWindowResponse, fromOffset: number): WindowFrame {
-  switch (response.status) {
-    case 'Ok': {
-      const accumulated = previous.accumulated + (response.text ?? '')
-      const nextOffset = response.nextOffset ?? fromOffset
-      const totalLengthSoFar = response.totalLengthSoFar ?? 0
+function settleResponse(previous: WindowFrame, response: SealedAgentArtifactWindowResponse, request: SealedWindowRequestFacts): WindowFrame {
+  const answer = decideSealedWindowAnswer(response, request)
+  switch (answer.kind) {
+    case 'ok': {
+      const accumulated = previous.accumulated + answer.text
       return {
-        ...previous,
         accumulated,
+        cursor: answer.nextOffset,
+        sealedTotal: answer.totalLength,
         state: {
           status: 'loaded',
           text: accumulated,
-          nextOffset,
-          totalLengthSoFar,
-          isComplete: nextOffset >= totalLengthSoFar,
-          truncated: response.truncated ?? null,
+          nextOffset: answer.nextOffset,
+          totalLengthSoFar: answer.totalLength,
+          isComplete: answer.nextOffset === answer.totalLength,
+          truncated: answer.truncated,
         },
       }
     }
-    case 'Missing':
-      return { ...previous, state: { status: 'missing' } }
-    case 'IntegrityMismatch':
-      return { ...previous, state: { status: 'integrity-mismatch' } }
-    case 'AttemptIdentityInvalid':
-      return { ...previous, state: { status: 'identity-invalid' } }
-    case 'NoAgentEvidence':
-    case 'AttemptLinkBroken':
-    case 'PurposeNotAllowlisted':
-    case 'ArtifactNotFound':
-      return { ...previous, state: { status: 'unavailable' } }
-    default:
-      // A status this client does not recognize is never rendered as if it were a known, safe state — reject it explicitly, exactly
-      // like the collaboration-evidence hook.
+    case 'incoherent':
+      // An unrecognized status or an incoherent window is never rendered as if it were a known, safe state: none of it is used, and the
+      // accepted text and cursor stay as they were.
       return { ...previous, state: { status: 'error', message: ERROR_MESSAGE } }
+    default:
+      return { ...previous, state: { status: answer.kind } }
   }
 }
 
@@ -101,9 +96,10 @@ function settleResponse(previous: WindowFrame, response: SealedAgentArtifactWind
  * Fetched text is accumulated across the windows of one lifetime only and never survives a purpose, attempt, or run switch. Never
  * persists fetched text to `localStorage`/`sessionStorage`/the URL, and never logs it.
  *
- * A failed request for a LATER window (one requested after at least one window already loaded) can be retried without duplicating or
- * losing text: the failed offset is kept beside the state, a failure never touches the accumulated text, and retrying re-requests that
- * same offset rather than restarting from 0.
+ * Each answer is decided whole by `decideSealedWindowAnswer` against the offset and byte cap it was requested with and the sealed length
+ * an earlier accepted window established; only an accepted `Ok` window appends text or advances the cursor. A failed request or an
+ * incoherent answer shows one fixed error, contributes no text or cursor, and keeps the accepted text internally, so retrying re-requests
+ * that same offset and appends exactly once after a valid answer — never restarting from 0.
  */
 export function useSealedArtifactWindow(
   scopeKey: string,
@@ -123,7 +119,7 @@ export function useSealedArtifactWindow(
   })
 
   const fetchWindow = useCallback(
-    (fromOffset: number) => {
+    (facts: SealedWindowRequestFacts) => {
       if (purpose === null || !owner.isActive() || owner.key === null || (inFlight.current?.owner === owner && inFlight.current.isCurrent())) {
         return
       }
@@ -137,9 +133,9 @@ export function useSealedArtifactWindow(
         }
       }
 
-      commit((previous) => ({ ...previous, state: { status: 'loading' }, lastRequestedOffset: fromOffset }))
-      request(purpose, fromOffset, SEALED_WINDOW_MAX_BYTES).then(
-        (response: SealedAgentArtifactWindowResponse) => settle((previous) => settleResponse(previous, response, fromOffset)),
+      commit((previous) => ({ ...previous, state: { status: 'loading' } }))
+      request(purpose, facts.fromOffset, facts.maxBytes).then(
+        (response: SealedAgentArtifactWindowResponse) => settle((previous) => settleResponse(previous, response, facts)),
         () => settle((previous) => ({ ...previous, state: { status: 'error', message: ERROR_MESSAGE } })),
       )
     },
@@ -152,15 +148,11 @@ export function useSealedArtifactWindow(
       return
     }
 
-    const { state, lastRequestedOffset } = current.frame
-    if (state.status === 'idle') {
-      fetchWindow(0)
-    } else if (state.status === 'loaded' && !state.isComplete) {
-      fetchWindow(state.nextOffset)
-    } else if (state.status === 'error') {
-      // Retries the exact offset that failed, preserving any earlier successfully-accumulated text (never touched on failure) — never
-      // restarts at offset 0, which would re-fetch and re-append already-accumulated text and duplicate it.
-      fetchWindow(lastRequestedOffset)
+    // The next window always starts at the lifetime's accepted cursor: 0 before any window, the last accepted window's end after one,
+    // and, after a failed or rejected read, the exact offset that read requested — never offset 0 again, which would re-append text.
+    const { state, cursor, sealedTotal } = current.frame
+    if (state.status === 'idle' || state.status === 'error' || (state.status === 'loaded' && !state.isComplete)) {
+      fetchWindow({ fromOffset: cursor, maxBytes: SEALED_WINDOW_MAX_BYTES, sealedTotal })
     }
   }, [owner, fetchWindow])
 

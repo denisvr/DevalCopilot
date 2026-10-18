@@ -374,6 +374,36 @@ describe('the Agent attempts of a historical run detail', () => {
     expect(within(attempts()).getByText(/Context manifest: 21 bytes/)).toBeInTheDocument()
   })
 
+  it('rejects an incoherent window of the historical attempt whole, keeps the accepted text and retries the same offset once', async () => {
+    let reads = 0
+    installAttempts({
+      window: (_runId, _attemptId, _segment, from) => {
+        reads += 1
+        if (from === 0) {
+          return Promise.resolve(windowOf('first ', 0, 10))
+        }
+
+        // The first answer for offset 6 overshoots the byte cap and the sealed length; the retry is coherent.
+        return Promise.resolve(reads === 2 ? windowOf('x'.repeat(20000), 6) : windowOf('half', 6, 10))
+      },
+    })
+    inspectRun(3)
+    await showManifest(1)
+    await waitFor(() => expect(within(attempts()).getByText('first')).toBeInTheDocument())
+
+    fireEvent.click(within(attempts()).getByRole('button', { name: 'Load next window' }))
+    expect(await within(attempts()).findByText('This artifact window is unavailable.')).toBeInTheDocument()
+    expect(within(attempts()).queryByText(/xxxx/)).toBeNull()
+    fireEvent.click(within(attempts()).getByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(attempts().querySelector('pre')?.textContent).toBe('first half'))
+    expect(windowRead.mock.calls.map((call) => [call[0], call[2], call[3]])).toEqual([
+      ['run-3', 'context-manifest', 0],
+      ['run-3', 'context-manifest', 6],
+      ['run-3', 'context-manifest', 6],
+    ])
+  })
+
   it('renders hostile recorded text literally, stores nothing in the browser, mounts no mutation control and never polls', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const hostile = '<img src=x onerror="alert(1)"><script>alert(2)</script>'

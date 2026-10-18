@@ -1,17 +1,45 @@
 import type { AgentAttemptArtifactMetadataResponse } from '../../api/clients'
 
-export const ARTIFACT_PURPOSE_LABELS: Record<string, string> = {
+export const ARTIFACT_PURPOSE_LABELS: Readonly<Record<string, string>> = {
   AgentContextManifest: 'Context manifest',
   AgentStandardOutput: 'Standard output',
   AgentStandardError: 'Standard error',
   AgentFinalResponse: 'Final response',
 }
 
-/** The purposes the artifact metadata actually offers, restricted to the closed allowlist. */
+/**
+ * The closed route segment of each allowlisted recorded purpose. Both sealed-window routes (the message-linked
+ * `GetSealedAgentArtifactWindowEndpoint` and the attempt-history `GetAgentAttemptArtifactWindowEndpoint`) accept exactly these
+ * segments and answer anything else, including the recorded purpose name itself, with a 404.
+ */
+const ARTIFACT_PURPOSE_ROUTE_SEGMENTS: Readonly<Record<string, string>> = {
+  AgentContextManifest: 'context-manifest',
+  AgentStandardOutput: 'stdout',
+  AgentStandardError: 'stderr',
+  AgentFinalResponse: 'final-response',
+}
+
+/** Whether a value names one of the four allowlisted purposes as an own key (never an inherited name such as `toString`). */
+export function isAllowlistedArtifactPurpose(purpose: unknown): purpose is string {
+  return typeof purpose === 'string' && Object.hasOwn(ARTIFACT_PURPOSE_LABELS, purpose)
+}
+
+/** The sealed-window route segment of an allowlisted recorded purpose, or null for any other value (which must start no request). */
+export function artifactPurposeRouteSegment(purpose: string): string | null {
+  return Object.hasOwn(ARTIFACT_PURPOSE_ROUTE_SEGMENTS, purpose) ? ARTIFACT_PURPOSE_ROUTE_SEGMENTS[purpose] : null
+}
+
+/** The distinct allowlisted purposes the artifact metadata actually names, in its order; anything else is never offered. */
 export function availableArtifactPurposes(artifacts: readonly AgentAttemptArtifactMetadataResponse[]): string[] {
-  return artifacts
-    .map((artifact) => artifact.purpose)
-    .filter((purpose): purpose is string => Boolean(purpose) && purpose! in ARTIFACT_PURPOSE_LABELS)
+  const purposes: string[] = []
+  for (const artifact of artifacts) {
+    const purpose: unknown = artifact?.purpose
+    if (isAllowlistedArtifactPurpose(purpose) && !purposes.includes(purpose)) {
+      purposes.push(purpose)
+    }
+  }
+
+  return purposes
 }
 
 /**

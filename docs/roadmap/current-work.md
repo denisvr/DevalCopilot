@@ -6,91 +6,69 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: HIST-ATT-01 historical run Agent-attempt inspection
+## Active slice: ART-WIN-01 reliable sealed text inspection from collaboration
 
 This document records the implementation delivered for review. Consult
 [planner-handoff.md](planner-handoff.md) for the review decision. Reconcile
 publication with Git and the slice's independent publication-verification
 record, when available. This record alone grants no publication authority.
 
-- **Prepared at** delivery of correction 1 (Codex NO-GO, HATT-R1) for review.
-  First preflight: `main`, `HEAD`/`origin/main`/live main `4b52e1cf`, 0/0,
-  empty index, only the planner's handoff selection modified. Correction 1
-  preflight: same `HEAD`/`origin/main`, empty index, the delivered diff (15
-  modified, eight untracked) with Codex's review record in the handoff.
-  Nothing is staged, committed or pushed.
-- **Correction 1, HATT-R1 (proposed resolution, for Codex to verify).** A
-  verified history row or evidence answer now needs a recorded status and a
-  supported role/provider pair whose response contract belongs to that role
-  (restated from `AgentAttemptIdentity` and `AgentAttemptContract`). The
-  accepted row's identity, number and immutable role, provider and contract
-  travel to the evidence read (`toAgentAttemptIdentityExpectation`), and
-  verified evidence must repeat all of them; status and times may advance.
-  Unknown, unsupported or contradictory answers fail whole and expose no
-  metadata, purpose or text; unverified rows and answers keep their
-  disclosure. Test fixtures that omitted the contract or paired Codex with
-  Implementer were corrected to supported identities.
-- **Outcome.** Run history's selected run now mounts the existing collapsed
-  Agent-attempt history for exactly that run: an owner can open an older run,
-  browse its attempts manually, select one and read its evidence and sealed
-  windows, including a failed attempt that emitted no message. The rail keeps
-  the same component for the current run. ADR-0037's inspector is unchanged.
-  Navigation, validation and lifetimes:
-  [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection);
-  cockpit copy: [specification](../product/run-cockpit-specification.md#agent-attempts-of-a-historical-run).
-- **Changes (frontend only).** A feature-local decoder accepts history pages
-  and evidence only whole and only when coherent for their request and the
-  selected row's identity, number, role, provider and response contract. The history, evidence and artifact viewer
-  moved from key remounts and generation counters to the shared owned-lifetime
-  hooks (run, opening, selected attempt, chosen purpose), so replacement,
-  return to an earlier run or attempt, close, reload and unmount end every
-  subordinate read, text and retained callback. The shared sealed-window hook
-  follows the same rule; its consumers are this viewer and the message-linked
-  viewer (`AttemptArtifactWindowViewer` in `CollaborationEvidenceDrilldown`).
-  The attempt route's window request now maps each recorded purpose to the
-  route's own segment: before, the client sent `AgentStandardError` etc.,
-  which `GetAgentAttemptArtifactWindowEndpoint` answers with 404, so its
-  windows could never load. No backend, schema, generated client, dependency,
-  permission or provider change.
-- **Functional resumption.** The owner resumed functional roadmap work on
-  2026-10-18; this is the first functional slice after it. Experimental
-  restrictions and P9 limits are unchanged.
-- **Correction 1 checks (fresh, complete output)** indexed in
-  `logs/executor/hist-att-01/correction1/index.txt`: the expected fixture
-  failures after the decoder change (c01, 35 failed); a hash-guarded mutant
-  without the evidence-to-row binding (c02, killed by six decoder, hook and
-  composed tests, restored); decoder, evidence hook and composed detail
-  (c03, 104 passed); the dispatched filter (c04, 170); the other slice tests
-  and panel consumers (c05, 199); lint (c06, exit 0, nine warnings in
-  untouched files); build (c07); the journey, rerun because its production
-  path changed (c08, passed). One interim fixture run was not retained.
-  Retained unchanged: architecture tests (backend inputs unchanged), strict
-  e2e `tsc` (journey unchanged), shared window-hook consumer runs (window code
-  unchanged). No red-first run of the pre-correction decoder: that file was
-  untracked and no copy was kept; Codex's reproduction is the red evidence.
-- **First-delivery checks** in `logs/executor/hist-att-01/runs.log`: the dispatched
-  Vitest filter (8 files, 170 tests); every added or modified test file
-  (8 files, 169); direct consumers of the shared window hook, rail, cockpit
-  and run-history detail (12 files, 257); a red-first run of the new window
-  tests against the original shared hook (3 of 7 fail) and the composed
-  tests against the naive composition (4 of 10 fail), both restored by hash;
-  `npm run lint` (exit 0, nine warnings in untouched files); `npm run build`
-  (includes `tsc -b`); the recorded strict e2e `tsc` flag set; the journey
-  host build (the first attempt failed with a compiler file lock, the retry
-  passed); `historical-agent-attempts.journey.ts` (passed); architecture
-  tests (148 passed); links, sensitive-data and diff hygiene. No backend/API
-  suites or client regeneration (inputs unchanged).
+- **Prepared at** first delivery for review. Preflight: `main`,
+  `HEAD`/`origin/main`/live main `75372b18`, 0/0, empty index, only the
+  planner's handoff selection modified, no untracked paths. Nothing is
+  staged, committed or pushed.
+- **Outcome.** An owner can open a collaboration message's attempt evidence
+  and manually load its sealed artifact text: the message-linked request now
+  sends the route's closed segment instead of the recorded purpose name, which
+  `GetSealedAgentArtifactWindowEndpoint` answered with 404. Both readers (that
+  viewer and the attempt-history viewer) accept a window only whole and
+  coherent and keep text and paging intact when it is not. Rules:
+  [window requests and acceptance](../architecture/agent-collaboration-evidence-inspection.md#sealed-agent-artifact-window-inspection);
+  copy: [cockpit specification](../product/run-cockpit-specification.md#sealed-agent-artifact-window-inspection).
+- **Changes (frontend only).** `artifactPurposes.ts` offers only distinct own
+  allowlisted purposes (no inherited names such as `toString`) and owns the one
+  purpose-to-segment mapping both route hooks use; anything else starts no
+  request. The new pure `sealedArtifactWindow.ts` decides each answer whole
+  (string text, boolean-or-null truncation, present nonnegative safe-integer
+  cursors, offset <= next <= total, advance within the byte cap and positive
+  while bytes remain, zero advance exactly when the text is empty, no more
+  UTF-16 units than bytes, and the sealed total of the lifetime's first
+  accepted window); closed non-`Ok` statuses keep their disclosures and use
+  nothing else of their envelope. The shared hook keeps an accepted cursor and
+  sealed total per lifetime, advances only on an accepted window, and retries
+  the same offset after a failure or rejection. The viewer says when a sealed
+  file is empty. The two `AgentAttemptHistoryPanel` fixtures the stricter rule
+  rejected (no `truncated`; 68 characters claiming 60 bytes) were corrected,
+  assertions unchanged. No backend, generated client, schema, dependency or
+  harness change.
+- **Checks** in `logs/executor/art-win-01/` (`index.txt`, complete output in
+  `output/`): red-first of the new and updated tests against the HEAD
+  production files (r01: 42 failed, 53 passed; restored by hash) and of the new
+  journey against the HEAD frontend (r08: 404 at the first Load; restored by
+  hash); focused slice tests (r10, 7 files, 136 passed); the whole frontend
+  suite, broadened because shared window and purpose code changed (r11: 2
+  fixture failures above, 4307 passed; that file then 43 passed, r12); lint
+  (r13, exit 0, the nine existing warnings, none in changed files); build with
+  `tsc -b` (r14 failed on a type error in a new test, fixed; r15 passed); strict
+  e2e `tsc` (r03, then r17 after the journey changed; r02 was an invocation
+  error); journey host build (r04 failed with a compiler file lock, r05 retry
+  passed); `sealed-artifact-inspection.journey.ts` (r06, then r07 with the
+  scene pinned) and `historical-agent-attempts.journey.ts` (r09), both passed;
+  hygiene (see the index). Not run: architecture and backend/API tests and
+  client generation (backend inputs unchanged).
 - **Journey scope.** Production frontend, generated client, MVC
-  authentication, SQLite and the deterministic doubles. The scene uses only
-  existing behavior: the account-usage stop ends a claimed planning attempt
-  before dispatch (no message), the run is abandoned through its form and a
-  newer objective is recorded. After a reload, and again after a second
-  reload, the older attempt and its exact sealed manifest bytes are inspected
-  from Run history; each inspection adds no invocation, non-GET request,
-  workflow row, artifact, Git or source change and keeps the newer run
-  selected. Its browser console shows a duplicate-React-key error that the
-  unchanged `abandon-run` journey also shows against the HEAD frontend (37
-  times); it is pre-existing and unexplained.
+  authentication, SQLite and the deterministic doubles. One Codex planning
+  attempt through its rendered control produces the provider-observed
+  proposal; its attempt sealed the four purposes, standard error empty. From
+  the live timeline the journey opens the message evidence, sees each purpose
+  offered once, loads each through its segment for exactly that run and
+  message, and compares the shown text with the integrity-checked sealed bytes
+  (the empty one shown as empty); closing and reopening discards the text. The
+  inspection adds no provider invocation, non-GET request, workflow row,
+  artifact, Git or source change. The scene does not construct multi-window,
+  non-ASCII or malformed answers; those are proven only by the decoder, hook
+  and viewer tests. The pre-existing duplicate-React-key console error also
+  appears here (12-14 times), as with the HEAD frontend (13 times, r08).
 
 ## Functional development
 
@@ -102,7 +80,11 @@ challenge and explicit GO: [AGENTS.md](../../AGENTS.md); constraints:
 
 ## Prior published delivery
 
-WF-06 `4b52e1cf` (sole parent `e55709fe`, five paths) passed independent
+HIST-ATT-01 `75372b18` (sole parent `4b52e1cf`, 26 paths) passed independent
+publication verification
+(`logs/planner-review/hist-att-01/publication-verification.log`); its record,
+committed with pre-review wording, is this file at `75372b1`. WF-06
+`4b52e1cf` (sole parent `e55709fe`, five paths) passed independent
 publication verification (final section of
 `logs/planner-review/wf-06/review.log`); its record, committed with
 pre-publication wording, is this file at `4b52e1c`. WF-05 `e55709fe` (sole
@@ -141,7 +123,11 @@ Archiving, condensation and progressive reading resolve or waive none of these:
   those failures. Codex's first independent focused run failed to load six
   suites (temporary-module ENOENT); its retry with a workspace TEMP/TMP passed
   (`logs/planner-review/hist-att-01/focused-02.log`). That first failure is
-  unexplained and not attributed to product code.
+  unexplained and not attributed to product code. ART-WIN-01 keeps complete
+  output of every check, including its failures; its first journey-host build
+  hit the same compiler file lock (r04, also naming Microsoft Defender) with
+  only its own build processes running, and the retry passed. Its cause is
+  unproven.
 - Scans are lexical; Git/disk/live checks lack negative controls; retained
   controls and publisher phases were inspected, not rerun or historically
   authenticated. Ordinals, counts, "real today", EX-G03, EX-H03 and WF-02B
@@ -154,7 +140,7 @@ Archiving, condensation and progressive reading resolve or waive none of these:
 [ba1d4c2](current-work-history-ba1d4c2.md) (earliest),
 [0a57216](current-work-history-0a57216.md) (WF-03N, earlier limits) and
 [e614c79](current-work-history-e614c79.md) (WF-04, prior risk wording); later
-entries, including WF-05 and WF-06, are in Git history. Evidence, not current status or
+entries, including WF-05, WF-06 and HIST-ATT-01, are in Git history. Evidence, not current status or
 approval.
 
 ## Open risks
@@ -173,16 +159,16 @@ approval.
   usage or account availability; no human override. Gemini stays disabled
   (ADR-0011).
 - Raw linked artifact inspection beyond the existing bounded views is open.
-- **Historical attempt inspection limits (HIST-ATT-01).** It reads existing
-  bounded views only: no replay, export, session resume or complete history.
-  Found and not fixed, being outside the selected scope: the message-linked
-  window viewer still sends recorded purpose names that
-  `GetSealedAgentArtifactWindowEndpoint` refuses with 404, so its windows show
-  the generic error; `availableArtifactPurposes` filters with `in`, which
-  admits prototype keys (the attempt path is guarded by its decoder); window
-  `Ok` offsets are defaulted, not validated. A duplicate React key console
-  error seen in the journeys and a one-time compiler file lock while building
-  the journey host remain unexplained.
+- **Attempt and artifact inspection limits (HIST-ATT-01, ART-WIN-01).** Both
+  read existing bounded views only: no replay, export, session resume or
+  complete history. The three window defects HIST-ATT-01 found (message-route
+  purpose names refused with 404, `in` admitting prototype purposes, defaulted
+  `Ok` cursors) are addressed by ART-WIN-01, delivered for review and not
+  accepted. Its window acceptance bounds the text by the cursor advance but
+  cannot prove that the text is the decoding of those bytes; the host remains
+  the authority for content. A duplicate React key console error seen in the
+  journeys (also with the HEAD frontend) and a recurring compiler file lock on
+  the first journey-host build remain unexplained.
 - Raw checkpoint Git observation can read named linked content; ADR-0024/0027
   constrain delivered tracked text only. Physical proofs are Windows-only:
   elsewhere previews are omitted and `FilesystemArtifactStore` containment is

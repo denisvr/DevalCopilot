@@ -1715,8 +1715,12 @@ cannot be verified (missing or failed integrity check), and a genuinely
 unavailable evidence link (mirroring the drill-down's own existing
 `NoAgentEvidence`/`AttemptLinkBroken` states) each show their own distinct,
 non-alarming message — never a generic error, and never partial or
-unverified text. Fetched text is never written to browser storage, a URL, or
-any log.
+unverified text. A verified empty sealed file says it is empty. A window the
+host answered incoherently (see the
+[window acceptance rule](../architecture/agent-collaboration-evidence-inspection.md#sealed-agent-artifact-window-inspection))
+shows the same fixed error with Retry as a failed request and none of that
+answer; text already loaded is kept and Retry asks for the same offset again.
+Fetched text is never written to browser storage, a URL, or any log.
 
 ### Agent attempt history and evidence
 
@@ -1753,8 +1757,8 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   (host-composed manifest versus best-effort-redacted provider output that may still contain
   secrets). The text is shown exactly as captured, so it may itself contain prompt-, session-, path-, or
   hash-like content; only the metadata and status fields are guaranteed free of such data. A window that is missing, fails integrity verification, or belongs to an unverifiable
-  attempt shows a fixed message and no text. A failed later window retries at the same offset
-  without duplicating text.
+  attempt shows a fixed message and no text. A failed or incoherently answered later window retries at the same offset
+  without duplicating text, exactly as in the message-linked viewer.
 - **Resets and storage.** Closing the history, closing the attempt, choosing another purpose, choosing
   another attempt, or switching runs discards the loaded rows, the selection, and all accumulated
   artifact text, and a late response for a previous run or attempt is never applied. Artifact text is

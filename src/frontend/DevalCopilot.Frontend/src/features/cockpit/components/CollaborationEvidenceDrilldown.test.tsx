@@ -312,4 +312,43 @@ describe('CollaborationEvidenceDrilldown', () => {
     expect(screen.queryByText('final text')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Artifact:')).toHaveValue('')
   })
+
+  it('loads the message attempt sealed text through the route segment of a recorded purpose, offering only its own allowlisted purposes', async () => {
+    const getSealedAgentArtifactWindow = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 'Ok', text: 'warning: ', nextOffset: 9, totalLengthSoFar: 13, truncated: null })
+      // Incoherent: no progress although bytes remain. None of it is used and the retry asks for the same offset.
+      .mockResolvedValueOnce({ status: 'Ok', text: '', nextOffset: 9, totalLengthSoFar: 13, truncated: null })
+      .mockResolvedValueOnce({ status: 'Ok', text: 'done', nextOffset: 13, totalLengthSoFar: 13, truncated: null })
+    vi.mocked(sealedAgentArtifactWindowClient).mockReturnValue({
+      getSealedAgentArtifactWindow,
+    } as unknown as ReturnType<typeof sealedAgentArtifactWindowClient>)
+    const metadata = (purpose: string) =>
+      new AgentAttemptArtifactMetadataResponse({ purpose, byteLength: 13, truncated: false, captureOutcome: 'Captured' })
+    mockClient(
+      vi.fn().mockResolvedValue(
+        evidence({ artifacts: ['toString', 'AgentStandardError', 'ProcessStandardError'].map(metadata), artifactTotalCount: 3 }),
+      ),
+    )
+    render(<CollaborationEvidenceDrilldown runId="run-1" messageId="message-1" cardsById={emptyCardsById} />)
+
+    fireEvent.click(screen.getByText('Attempt evidence'))
+    await waitFor(() => expect(screen.getByLabelText('Artifact:')).toBeInTheDocument())
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Select an artifact…', 'Standard error'])
+    expect(getSealedAgentArtifactWindow).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Artifact:'), { target: { value: 'AgentStandardError' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Load' }))
+    await waitFor(() => expect(document.querySelector('pre')).toHaveTextContent('warning:'))
+    fireEvent.click(screen.getByRole('button', { name: 'Load next window' }))
+    await waitFor(() => expect(screen.getByText('This artifact window is unavailable.')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+
+    await waitFor(() => expect(document.querySelector('pre')?.textContent).toBe('warning: done'))
+    expect(getSealedAgentArtifactWindow.mock.calls.map((call) => call.slice(0, 4))).toEqual([
+      ['run-1', 'message-1', 'stderr', 0],
+      ['run-1', 'message-1', 'stderr', 9],
+      ['run-1', 'message-1', 'stderr', 9],
+    ])
+  })
 })

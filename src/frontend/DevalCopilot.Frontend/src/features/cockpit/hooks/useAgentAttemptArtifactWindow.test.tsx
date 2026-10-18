@@ -66,14 +66,54 @@ describe('useAgentAttemptArtifactWindow', () => {
     expect(get.mock.calls).toEqual([['run-a', attemptIdFor('run-a', 4), 'context-manifest', 0, 16384]])
   })
 
-  it('requests nothing for a purpose outside the allowlist and reports the window unavailable', async () => {
-    const get = install(() => Promise.resolve(windowOf('x')))
-    const { result } = mounted({ ...base, purpose: 'ProcessStandardOutput' })
+  it.each([
+    ['AgentContextManifest', 'context-manifest'],
+    ['AgentStandardOutput', 'stdout'],
+    ['AgentStandardError', 'stderr'],
+    ['AgentFinalResponse', 'final-response'],
+  ])('requests %s through the attempt route segment %s', async (purpose, segment) => {
+    const get = install(() => Promise.resolve(windowOf('text')))
+    const { result } = mounted({ ...base, purpose })
 
     act(() => result.current.loadNextWindow())
 
+    await waitFor(() => expect(textOf(result.current.state)).toBe('text'))
+    expect(get.mock.calls).toEqual([['run-a', attemptIdFor('run-a', 4), segment, 0, 16384]])
+  })
+
+  it.each(['ProcessStandardOutput', 'Unknown', 'toString', 'constructor'])(
+    'requests nothing for %s, outside the allowlist, and reports the window unavailable',
+    async (purpose) => {
+      const get = install(() => Promise.resolve(windowOf('x')))
+      const { result } = mounted({ ...base, purpose })
+
+      act(() => result.current.loadNextWindow())
+
+      await waitFor(() => expect(result.current.state.status).toBe('error'))
+      expect(get).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rejects an incoherent later window whole and retries its offset, appending once', async () => {
+    let laterReads = 0
+    const get = install((_run, _attempt, _segment, from) => {
+      if (from === 0) {
+        return Promise.resolve(windowOf('AAAA', 0, 8))
+      }
+
+      laterReads += 1
+      // The first answer for offset 4 moves the cursor backwards; the retry is coherent.
+      return Promise.resolve(laterReads === 1 ? windowOf('BB', 0, 8) : windowOf('BBBB', 4, 8))
+    })
+    const { result } = mounted(base)
+    act(() => result.current.loadNextWindow())
+    await waitFor(() => expect(textOf(result.current.state)).toBe('AAAA'))
+
+    act(() => result.current.loadNextWindow())
     await waitFor(() => expect(result.current.state.status).toBe('error'))
-    expect(get).not.toHaveBeenCalled()
+    act(() => result.current.loadNextWindow())
+    await waitFor(() => expect(textOf(result.current.state)).toBe('AAAABBBB'))
+    expect(get.mock.calls.map((call) => call[3])).toEqual([0, 4, 4])
   })
 
   it('sends one request for calls in the same tick and appends later windows without duplication', async () => {

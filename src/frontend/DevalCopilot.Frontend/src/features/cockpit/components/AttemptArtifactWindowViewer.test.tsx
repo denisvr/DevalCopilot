@@ -28,6 +28,16 @@ function windowResponse(overrides: Partial<SealedAgentArtifactWindowResponse> = 
   })
 }
 
+/** A coherent ASCII window from `fromOffset`: one byte per character, ending at `total` unless stated. */
+function textWindow(text: string, fromOffset = 0, total = fromOffset + text.length): SealedAgentArtifactWindowResponse {
+  return windowResponse({ text, nextOffset: fromOffset + text.length, totalLengthSoFar: total })
+}
+
+async function selectAndLoad(purpose = 'AgentFinalResponse') {
+  fireEvent.change(screen.getByLabelText('Artifact:'), { target: { value: purpose } })
+  fireEvent.click(screen.getByRole('button', { name: 'Load' }))
+}
+
 function mockClient(getSealedAgentArtifactWindow: ReturnType<typeof vi.fn>) {
   vi.mocked(sealedAgentArtifactWindowClient).mockReturnValue({
     getSealedAgentArtifactWindow,
@@ -58,18 +68,42 @@ describe('AttemptArtifactWindowViewer', () => {
     expect(screen.queryByRole('option', { name: 'Context manifest' })).not.toBeInTheDocument()
   })
 
+  it('offers each purpose once and never an unknown, Process or prototype-shaped name, which starts no request', () => {
+    const getSealedAgentArtifactWindow = vi.fn()
+    mockClient(getSealedAgentArtifactWindow)
+    const { container, rerender } = render(
+      <AttemptArtifactWindowViewer
+        runId="run-1"
+        messageId="message-1"
+        artifacts={['toString', 'constructor', '__proto__', 'ProcessStandardOutput', 'Unknown'].map(artifact)}
+      />,
+    )
+
+    expect(container).toBeEmptyDOMElement()
+
+    rerender(
+      <AttemptArtifactWindowViewer
+        runId="run-1"
+        messageId="message-1"
+        artifacts={['AgentStandardError', 'toString', 'AgentStandardError'].map(artifact)}
+      />,
+    )
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Select an artifact…', 'Standard error'])
+    expect(getSealedAgentArtifactWindow).not.toHaveBeenCalled()
+  })
+
   it('fetches and renders the verified window as plain text once a purpose is selected and Load is clicked', async () => {
-    const getSealedAgentArtifactWindow = vi.fn().mockResolvedValue(windowResponse({ text: '<script>evil()</script>' }))
+    const getSealedAgentArtifactWindow = vi.fn().mockResolvedValue(textWindow('<script>evil()</script>'))
     mockClient(getSealedAgentArtifactWindow)
     render(
       <AttemptArtifactWindowViewer runId="run-1" messageId="message-1" artifacts={[artifact('AgentFinalResponse')]} />,
     )
 
-    fireEvent.change(screen.getByLabelText('Artifact:'), { target: { value: 'AgentFinalResponse' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Load' }))
+    await selectAndLoad()
 
     await waitFor(() => expect(screen.getByText('<script>evil()</script>')).toBeInTheDocument())
-    expect(getSealedAgentArtifactWindow).toHaveBeenCalledWith('run-1', 'message-1', 'AgentFinalResponse', 0, expect.any(Number))
+    // The message route's own closed segment, never the recorded purpose name (which the endpoint answers with 404).
+    expect(getSealedAgentArtifactWindow).toHaveBeenCalledWith('run-1', 'message-1', 'final-response', 0, expect.any(Number))
     // Rendered as literal text content, never parsed/executed markup.
     expect(document.querySelector('script')).not.toBeInTheDocument()
   })
@@ -77,20 +111,55 @@ describe('AttemptArtifactWindowViewer', () => {
   it('loads the next window and appends to the accumulated text when the window is incomplete', async () => {
     const getSealedAgentArtifactWindow = vi
       .fn()
-      .mockResolvedValueOnce(windowResponse({ text: 'part one ', nextOffset: 9, totalLengthSoFar: 18 }))
-      .mockResolvedValueOnce(windowResponse({ text: 'part two', nextOffset: 18, totalLengthSoFar: 18 }))
+      .mockResolvedValueOnce(textWindow('part one ', 0, 17))
+      .mockResolvedValueOnce(textWindow('part two', 9, 17))
     mockClient(getSealedAgentArtifactWindow)
     render(
       <AttemptArtifactWindowViewer runId="run-1" messageId="message-1" artifacts={[artifact('AgentFinalResponse')]} />,
     )
 
-    fireEvent.change(screen.getByLabelText('Artifact:'), { target: { value: 'AgentFinalResponse' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Load' }))
+    await selectAndLoad()
     await waitFor(() => expect(screen.getByText('part one')).toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Load next window' }))
     await waitFor(() => expect(screen.getByText('part one part two')).toBeInTheDocument())
-    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(2, 'run-1', 'message-1', 'AgentFinalResponse', 9, expect.any(Number))
+    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(2, 'run-1', 'message-1', 'final-response', 9, expect.any(Number))
+    expect(screen.queryByRole('button', { name: 'Load next window' })).not.toBeInTheDocument()
+  })
+
+  it('shows a fixed error and none of an incoherent window, keeps the earlier text and appends once after the same-offset retry', async () => {
+    const getSealedAgentArtifactWindow = vi
+      .fn()
+      .mockResolvedValueOnce(textWindow('part one ', 0, 17))
+      // Contradictory: the cursor moves backwards and the sealed length changed.
+      .mockResolvedValueOnce(windowResponse({ text: 'INJECTED', nextOffset: 3, totalLengthSoFar: 40 }))
+      .mockResolvedValueOnce(textWindow('part two', 9, 17))
+    mockClient(getSealedAgentArtifactWindow)
+    render(
+      <AttemptArtifactWindowViewer runId="run-1" messageId="message-1" artifacts={[artifact('AgentFinalResponse')]} />,
+    )
+
+    await selectAndLoad()
+    await waitFor(() => expect(screen.getByText('part one')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Load next window' }))
+
+    await waitFor(() => expect(screen.getByText('This artifact window is unavailable.')).toBeInTheDocument())
+    expect(screen.queryByText(/INJECTED/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getByText('part one part two')).toBeInTheDocument())
+    expect(screen.queryByText(/INJECTED/)).not.toBeInTheDocument()
+    expect(getSealedAgentArtifactWindow.mock.calls.map((call) => call[3])).toEqual([0, 9, 9])
+  })
+
+  it('shows an explicit empty state for a verified empty sealed file', async () => {
+    mockClient(vi.fn().mockResolvedValue(textWindow('')))
+    render(<AttemptArtifactWindowViewer runId="run-1" messageId="message-1" artifacts={[artifact('AgentStandardError')]} />)
+
+    await selectAndLoad('AgentStandardError')
+
+    await waitFor(() => expect(screen.getByText('This sealed artifact is empty (0 bytes).')).toBeInTheDocument())
+    expect(document.querySelector('pre')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Load next window' })).not.toBeInTheDocument()
   })
 
@@ -123,18 +192,18 @@ describe('AttemptArtifactWindowViewer', () => {
     await waitFor(() => expect(screen.getByText('part one part two')).toBeInTheDocument())
 
     expect(getSealedAgentArtifactWindow).toHaveBeenCalledTimes(3)
-    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(1, 'run-1', 'message-1', 'AgentFinalResponse', 0, expect.any(Number))
-    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(2, 'run-1', 'message-1', 'AgentFinalResponse', 9, expect.any(Number))
+    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(1, 'run-1', 'message-1', 'final-response', 0, expect.any(Number))
+    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(2, 'run-1', 'message-1', 'final-response', 9, expect.any(Number))
     // The retry re-requests the SAME offset (9) the failed attempt requested — never 0 (which
     // would re-fetch and re-append the first window) and never a different, guessed offset.
-    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(3, 'run-1', 'message-1', 'AgentFinalResponse', 9, expect.any(Number))
+    expect(getSealedAgentArtifactWindow).toHaveBeenNthCalledWith(3, 'run-1', 'message-1', 'final-response', 9, expect.any(Number))
   })
 
   it('resets accumulated text and offset when the selected purpose changes', async () => {
     const getSealedAgentArtifactWindow = vi
       .fn()
-      .mockResolvedValueOnce(windowResponse({ text: 'stdout text' }))
-      .mockResolvedValueOnce(windowResponse({ text: 'final text' }))
+      .mockResolvedValueOnce(textWindow('stdout text'))
+      .mockResolvedValueOnce(textWindow('final text'))
     mockClient(getSealedAgentArtifactWindow)
     render(
       <AttemptArtifactWindowViewer
@@ -184,8 +253,8 @@ describe('AttemptArtifactWindowViewer', () => {
     )
   })
 
-  it('shows a distinct integrity-mismatch state', async () => {
-    mockClient(vi.fn().mockResolvedValue(windowResponse({ status: 'IntegrityMismatch', text: '' })))
+  it('shows a distinct integrity-mismatch state, whose envelope may report the observed file length', async () => {
+    mockClient(vi.fn().mockResolvedValue(windowResponse({ status: 'IntegrityMismatch', text: '', nextOffset: 0, totalLengthSoFar: 4096, truncated: undefined })))
     render(
       <AttemptArtifactWindowViewer runId="run-1" messageId="message-1" artifacts={[artifact('AgentFinalResponse')]} />,
     )
@@ -202,7 +271,7 @@ describe('AttemptArtifactWindowViewer', () => {
     const getSealedAgentArtifactWindow = vi
       .fn()
       .mockRejectedValueOnce(new Error('boom'))
-      .mockResolvedValueOnce(windowResponse({ text: 'recovered' }))
+      .mockResolvedValueOnce(textWindow('recovered'))
     mockClient(getSealedAgentArtifactWindow)
     render(
       <AttemptArtifactWindowViewer runId="run-1" messageId="message-1" artifacts={[artifact('AgentFinalResponse')]} />,
@@ -221,7 +290,7 @@ describe('AttemptArtifactWindowViewer', () => {
     localStorage.clear()
     sessionStorage.clear()
     const sentinel = 'SENTINEL-artifact-window-do-not-persist-me'
-    mockClient(vi.fn().mockResolvedValue(windowResponse({ text: sentinel })))
+    mockClient(vi.fn().mockResolvedValue(textWindow(sentinel)))
     render(
       <AttemptArtifactWindowViewer runId="run-1" messageId="message-1" artifacts={[artifact('AgentFinalResponse')]} />,
     )
