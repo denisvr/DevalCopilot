@@ -3103,6 +3103,139 @@ export class GetCollaborationHistoryAttemptEndpointClient {
     }
 }
 
+export class GetAgentAttemptVerificationOutputWindowEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentAttemptVerificationOutputWindow(runId: string, attemptId: string, executionId: string, stream: string, fromOffset: number | null | undefined, maxBytes: number | null | undefined): Promise<GetAgentAttemptVerificationOutputWindowResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/{attemptId}/verification-evidence/{executionId}/artifact-window/{stream}?";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (attemptId === undefined || attemptId === null)
+            throw new globalThis.Error("The parameter 'attemptId' must be defined.");
+        url_ = url_.replace("{attemptId}", encodeURIComponent("" + attemptId));
+        if (executionId === undefined || executionId === null)
+            throw new globalThis.Error("The parameter 'executionId' must be defined.");
+        url_ = url_.replace("{executionId}", encodeURIComponent("" + executionId));
+        if (stream === undefined || stream === null)
+            throw new globalThis.Error("The parameter 'stream' must be defined.");
+        url_ = url_.replace("{stream}", encodeURIComponent("" + stream));
+        if (fromOffset !== undefined && fromOffset !== null)
+            url_ += "fromOffset=" + encodeURIComponent("" + fromOffset) + "&";
+        if (maxBytes !== undefined && maxBytes !== null)
+            url_ += "maxBytes=" + encodeURIComponent("" + maxBytes) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentAttemptVerificationOutputWindow(_response);
+        });
+    }
+
+    protected processGetAgentAttemptVerificationOutputWindow(response: Response): Promise<GetAgentAttemptVerificationOutputWindowResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetAgentAttemptVerificationOutputWindowResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetAgentAttemptVerificationOutputWindowResponse>(null as any);
+    }
+}
+
+export class GetAgentAttemptVerificationEvidenceEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentAttemptVerificationEvidence(runId: string, attemptId: string): Promise<GetAgentAttemptVerificationEvidenceResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/{attemptId}/verification-evidence";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (attemptId === undefined || attemptId === null)
+            throw new globalThis.Error("The parameter 'attemptId' must be defined.");
+        url_ = url_.replace("{attemptId}", encodeURIComponent("" + attemptId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentAttemptVerificationEvidence(_response);
+        });
+    }
+
+    protected processGetAgentAttemptVerificationEvidence(response: Response): Promise<GetAgentAttemptVerificationEvidenceResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetAgentAttemptVerificationEvidenceResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetAgentAttemptVerificationEvidenceResponse>(null as any);
+    }
+}
+
 export class GetAgentAttemptInputsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -12077,6 +12210,366 @@ export interface IChallengeResolutionAttemptStatusResponse {
     configuredRolloutPersistence?: string | undefined;
     repairSourceAttemptId?: string | undefined;
     repairSourceAttemptNumber?: number | undefined;
+}
+
+export class GetAgentAttemptVerificationOutputWindowResponse implements IGetAgentAttemptVerificationOutputWindowResponse {
+    runId?: string;
+    attemptId?: string;
+    executionId?: string;
+    stream?: string;
+    status?: string;
+    artifact?: AgentAttemptVerificationStreamResponse | undefined;
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+
+    constructor(data?: IGetAgentAttemptVerificationOutputWindowResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.attemptId = _data["attemptId"];
+            this.executionId = _data["executionId"];
+            this.stream = _data["stream"];
+            this.status = _data["status"];
+            this.artifact = _data["artifact"] ? AgentAttemptVerificationStreamResponse.fromJS(_data["artifact"]) : undefined as any;
+            this.text = _data["text"];
+            this.nextOffset = _data["nextOffset"];
+            this.totalLength = _data["totalLength"];
+        }
+    }
+
+    static fromJS(data: any): GetAgentAttemptVerificationOutputWindowResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetAgentAttemptVerificationOutputWindowResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["attemptId"] = this.attemptId;
+        data["executionId"] = this.executionId;
+        data["stream"] = this.stream;
+        data["status"] = this.status;
+        data["artifact"] = this.artifact ? this.artifact.toJSON() : undefined as any;
+        data["text"] = this.text;
+        data["nextOffset"] = this.nextOffset;
+        data["totalLength"] = this.totalLength;
+        return data;
+    }
+}
+
+export interface IGetAgentAttemptVerificationOutputWindowResponse {
+    runId?: string;
+    attemptId?: string;
+    executionId?: string;
+    stream?: string;
+    status?: string;
+    artifact?: AgentAttemptVerificationStreamResponse | undefined;
+    text?: string;
+    nextOffset?: number;
+    totalLength?: number;
+}
+
+export class AgentAttemptVerificationStreamResponse implements IAgentAttemptVerificationStreamResponse {
+    status?: string;
+    artifactId?: string | undefined;
+    byteLength?: number | undefined;
+    captureOutcome?: string | undefined;
+    truncated?: boolean | undefined;
+
+    constructor(data?: IAgentAttemptVerificationStreamResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.status = _data["status"];
+            this.artifactId = _data["artifactId"];
+            this.byteLength = _data["byteLength"];
+            this.captureOutcome = _data["captureOutcome"];
+            this.truncated = _data["truncated"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptVerificationStreamResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptVerificationStreamResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["status"] = this.status;
+        data["artifactId"] = this.artifactId;
+        data["byteLength"] = this.byteLength;
+        data["captureOutcome"] = this.captureOutcome;
+        data["truncated"] = this.truncated;
+        return data;
+    }
+}
+
+export interface IAgentAttemptVerificationStreamResponse {
+    status?: string;
+    artifactId?: string | undefined;
+    byteLength?: number | undefined;
+    captureOutcome?: string | undefined;
+    truncated?: boolean | undefined;
+}
+
+export class GetAgentAttemptVerificationEvidenceResponse implements IGetAgentAttemptVerificationEvidenceResponse {
+    runId?: string;
+    attemptId?: string;
+    status?: string;
+    attempt?: AgentAttemptVerificationHeaderResponse | undefined;
+    checkpoint?: AgentAttemptVerificationCheckpointResponse | undefined;
+    memberTotalCount?: number | undefined;
+    members?: AgentAttemptVerificationMemberResponse[];
+
+    constructor(data?: IGetAgentAttemptVerificationEvidenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.attemptId = _data["attemptId"];
+            this.status = _data["status"];
+            this.attempt = _data["attempt"] ? AgentAttemptVerificationHeaderResponse.fromJS(_data["attempt"]) : undefined as any;
+            this.checkpoint = _data["checkpoint"] ? AgentAttemptVerificationCheckpointResponse.fromJS(_data["checkpoint"]) : undefined as any;
+            this.memberTotalCount = _data["memberTotalCount"];
+            if (Array.isArray(_data["members"])) {
+                this.members = [] as any;
+                for (let item of _data["members"])
+                    this.members!.push(AgentAttemptVerificationMemberResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): GetAgentAttemptVerificationEvidenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetAgentAttemptVerificationEvidenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["attemptId"] = this.attemptId;
+        data["status"] = this.status;
+        data["attempt"] = this.attempt ? this.attempt.toJSON() : undefined as any;
+        data["checkpoint"] = this.checkpoint ? this.checkpoint.toJSON() : undefined as any;
+        data["memberTotalCount"] = this.memberTotalCount;
+        if (Array.isArray(this.members)) {
+            data["members"] = [];
+            for (let item of this.members)
+                data["members"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IGetAgentAttemptVerificationEvidenceResponse {
+    runId?: string;
+    attemptId?: string;
+    status?: string;
+    attempt?: AgentAttemptVerificationHeaderResponse | undefined;
+    checkpoint?: AgentAttemptVerificationCheckpointResponse | undefined;
+    memberTotalCount?: number | undefined;
+    members?: AgentAttemptVerificationMemberResponse[];
+}
+
+export class AgentAttemptVerificationHeaderResponse implements IAgentAttemptVerificationHeaderResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+
+    constructor(data?: IAgentAttemptVerificationHeaderResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptVerificationHeaderResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptVerificationHeaderResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        return data;
+    }
+}
+
+export interface IAgentAttemptVerificationHeaderResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+}
+
+export class AgentAttemptVerificationCheckpointResponse implements IAgentAttemptVerificationCheckpointResponse {
+    id?: string;
+    checkpointNumber?: number;
+
+    constructor(data?: IAgentAttemptVerificationCheckpointResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.checkpointNumber = _data["checkpointNumber"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptVerificationCheckpointResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptVerificationCheckpointResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["checkpointNumber"] = this.checkpointNumber;
+        return data;
+    }
+}
+
+export interface IAgentAttemptVerificationCheckpointResponse {
+    id?: string;
+    checkpointNumber?: number;
+}
+
+export class AgentAttemptVerificationMemberResponse implements IAgentAttemptVerificationMemberResponse {
+    sequence?: number;
+    commandId?: string;
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    status?: string;
+    exitCode?: number;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string;
+    completedAtUtc?: string;
+    standardOutput?: AgentAttemptVerificationStreamResponse;
+    standardError?: AgentAttemptVerificationStreamResponse;
+
+    constructor(data?: IAgentAttemptVerificationMemberResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sequence = _data["sequence"];
+            this.commandId = _data["commandId"];
+            this.executionId = _data["executionId"];
+            this.executionNumber = _data["executionNumber"];
+            this.commandName = _data["commandName"];
+            this.status = _data["status"];
+            this.exitCode = _data["exitCode"];
+            this.claimedAtUtc = _data["claimedAtUtc"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"];
+            this.completedAtUtc = _data["completedAtUtc"];
+            this.standardOutput = _data["standardOutput"] ? AgentAttemptVerificationStreamResponse.fromJS(_data["standardOutput"]) : undefined as any;
+            this.standardError = _data["standardError"] ? AgentAttemptVerificationStreamResponse.fromJS(_data["standardError"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptVerificationMemberResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptVerificationMemberResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sequence"] = this.sequence;
+        data["commandId"] = this.commandId;
+        data["executionId"] = this.executionId;
+        data["executionNumber"] = this.executionNumber;
+        data["commandName"] = this.commandName;
+        data["status"] = this.status;
+        data["exitCode"] = this.exitCode;
+        data["claimedAtUtc"] = this.claimedAtUtc;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc;
+        data["completedAtUtc"] = this.completedAtUtc;
+        data["standardOutput"] = this.standardOutput ? this.standardOutput.toJSON() : undefined as any;
+        data["standardError"] = this.standardError ? this.standardError.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IAgentAttemptVerificationMemberResponse {
+    sequence?: number;
+    commandId?: string;
+    executionId?: string;
+    executionNumber?: number;
+    commandName?: string;
+    status?: string;
+    exitCode?: number;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string;
+    completedAtUtc?: string;
+    standardOutput?: AgentAttemptVerificationStreamResponse;
+    standardError?: AgentAttemptVerificationStreamResponse;
 }
 
 export class AgentAttemptStatusResponse implements IAgentAttemptStatusResponse {

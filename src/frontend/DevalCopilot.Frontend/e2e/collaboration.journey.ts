@@ -2,8 +2,8 @@ import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import type { Locator, Page } from '@playwright/test'
-import { JourneyData, sameId } from './journey/journeyDb'
+import type { Locator, Page, Request } from '@playwright/test'
+import { JourneyData, sameId, withJourneyDb } from './journey/journeyDb'
 import type { CollaborationHistoryRow, EventHeaderRow } from './journey/journeyDb'
 import { normalizeGuidance, sha256Hex } from './journey/guidance'
 import {
@@ -2624,9 +2624,15 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
     await expect(detail).toContainText(lower(firstRunId))
     await expect(detail).toContainText(`commit ${deliveredCommit}, operation ${lower(operation!.Id)}, checkpoint #3 (${lower(cps[2].Id)})`)
     await assertReceiptRegion(detail.getByRole('region', { name: 'Local delivery receipt' }))
-    // The selected historical run offers only its own close control and the two collapsed toggles (recorded events and recorded collaboration), which have read nothing:
-    // no mutation, configuration or live-progress control.
-    expect(await detail.getByRole('button').allTextContents()).toEqual(['Show recorded events', 'Show recorded collaboration', 'Close selected run'])
+    // The selected historical run offers only its own close control and the three collapsed toggles (recorded events, recorded collaboration and,
+    // since HIST-ATT-01, the Agent attempt history), which have read nothing: no mutation, configuration or live-progress control. This
+    // expectation predates the attempt history panel mounted in the selected run and had not been updated for it.
+    expect(await detail.getByRole('button').allTextContents()).toEqual([
+      'Show recorded events',
+      'Show recorded collaboration',
+      'Show Agent attempt history',
+      'Close selected run',
+    ])
     await expectCollapsedEvents()
     expect(eventRequests).toHaveLength(eventsBefore)
     await expectCollapsedMessages()
@@ -2895,6 +2901,288 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
         && request.path.startsWith(`/api/runs/${lower(firstRunId)}/collaboration-history/`),
     ),
   ).toBe(true)
+
+  // 16. Recorded verification evidence of the older run's attempts (ADR-0052), after the newer objective. The earlier diagnosis recorded
+  // the two FAILED executions of the first checkpoint and the ordinary review the two PASSED executions of the corrected one. Through
+  // the rendered controls only, "Recorded verification evidence" is opened once per selected attempt and every member's metadata is
+  // compared with the stored rows (identity, snapshot name, status, exit code, instants, checkpoint, stream descriptors), then each
+  // recorded stream is selected and loaded explicitly and the returned and rendered text is compared with the sealed bytes on disk and
+  // with what the verification executable wrote. The inspection requests only GETs, starts no stage, drains nothing by itself and
+  // changes neither a durable row, the artifact root, Git nor the source; the newer run stays selected. Malformed, oversized, 33-member
+  // and tampered permutations are proven by the SQLite, API, artifact-store and frontend tests, not here.
+  const VERIFICATION_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/verification-evidence$/i
+  const VERIFICATION_WINDOW_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/verification-evidence\/([^/]+)\/artifact-window\/(stdout|stderr)$/i
+  interface StoredVerificationMember {
+    Sequence: number
+    ExecutionId: string
+    CommandId: string
+    ExecutionNumber: number
+    CommandName: string
+    Status: string
+    ExitCode: number
+    ClaimedAtUtc: string
+    DispatchedAtUtc: string
+    CompletedAtUtc: string
+  }
+  interface StoredVerificationOutput {
+    Id: string
+    Purpose: string
+    RelativeStoragePath: string
+    ByteLength: number
+    Truncated: number | null
+    CaptureOutcome: string
+  }
+  const storedMembers = (attemptId: string) =>
+    withJourneyDb(
+      (db) =>
+        db
+          .prepare(
+            'select e.Sequence as Sequence, x.Id as ExecutionId, x.VerificationCommandId as CommandId, x.ExecutionNumber, x.CommandName, x.Status, x.ExitCode, x.ClaimedAtUtc, x.DispatchedAtUtc, x.CompletedAtUtc from attempt_verification_evidence e join verification_executions x on x.Id = e.VerificationExecutionId where e.AttemptId = ? order by e.Sequence',
+          )
+          .all(attemptId) as unknown as StoredVerificationMember[],
+    )
+  const storedCheckpointOf = (attemptId: string) =>
+    withJourneyDb(
+      (db) =>
+        db
+          .prepare('select c.Id as Id, c.CheckpointNumber as CheckpointNumber from attempts a join git_checkpoints c on c.Id = a.AgentGitCheckpointId where a.Id = ?')
+          .get(attemptId) as unknown as { Id: string; CheckpointNumber: number },
+    )
+  const storedOutputsOf = (executionId: string) =>
+    withJourneyDb(
+      (db) =>
+        db
+          .prepare('select Id, Purpose, RelativeStoragePath, ByteLength, Truncated, CaptureOutcome from verification_output_artifacts where VerificationExecutionId = ?')
+          .all(executionId) as unknown as StoredVerificationOutput[],
+    )
+  const verificationRowCounts = () =>
+    withJourneyDb(
+      (db) => ({
+        memberships: (db.prepare('select count(*) as Count from attempt_verification_evidence').get() as { Count: number }).Count,
+        executions: (db.prepare('select count(*) as Count from verification_executions').get() as { Count: number }).Count,
+        outputs: (db.prepare('select count(*) as Count from verification_output_artifacts').get() as { Count: number }).Count,
+      }),
+    )
+  const roundTrip = (stored: string): string => {
+    const parts = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d{1,7}))?(?:Z|\+00:00)$/.exec(stored)
+    expect(parts, `unexpected stored instant ${stored}`).not.toBeNull()
+    return `${parts![1]}T${parts![2]}.${(parts![3] ?? '').padEnd(7, '0')}Z`
+  }
+  const purposeOf = { stdout: 'StandardOutput', stderr: 'StandardError' } as const
+  const streamLabel = { stdout: 'Standard output', stderr: 'Standard error' } as const
+  // What the verification executable wrote for each outcome (VerifyRole): a failed run writes both streams, a passed one only stdout.
+  const FIXTURE_OUTPUT = {
+    Failed: { stdout: 'verification started\n', stderr: 'FAIL TOTAL-NOT-SUM: Total does not add left and right.\n' },
+    Passed: { stdout: 'PASS: Total adds its operands.\n', stderr: '' },
+  } as const
+  const sealedTextOf = (output: StoredVerificationOutput) => readFileSync(join(journeyRoot().root, 'artifacts', output.RelativeStoragePath), 'utf8')
+
+  // The run-scoped helpers of the journey data cover only a single-run project, so the older run's attempts are read by its identity.
+  const olderAttempts = () =>
+    withJourneyDb(
+      (db) =>
+        db
+          .prepare('select AttemptNumber, Id, AgentRole, AgentResponseContract from attempts where RunId = ? order by AttemptNumber')
+          .all(firstRunId) as unknown as { AttemptNumber: number; Id: string; AgentRole: string; AgentResponseContract: string }[],
+    )
+  const verificationRowsBefore = verificationRowCounts()
+  const verificationStateBefore = { totals: data.projectTotals(), executions: data.executions(), attempts: olderAttempts() }
+  let loadedStreams = 0
+  const verificationRequests: { method: string; path: string; search: string; body: string | null }[] = []
+  const recordVerificationRequest = (request: Request) => {
+    const { pathname, search } = new URL(request.url())
+    if (pathname.startsWith('/api/')) {
+      verificationRequests.push({ method: request.method(), path: pathname.toLowerCase(), search, body: request.postData() })
+    }
+  }
+  page.on('request', recordVerificationRequest)
+
+  const attemptsPanel = historyRegion.getByRole('region', { name: 'Selected run' }).getByRole('region', { name: 'Agent attempt history' })
+  await attemptsPanel.getByRole('button', { name: 'Show Agent attempt history' }).click()
+  await expect(attemptsPanel.locator('.dc-attempt-history-items > li')).toHaveCount(olderAttempts().length, { timeout: 15_000 })
+
+  const inspectVerification = async (attemptNumber: number, contract: 'VerificationDiagnosis' | 'ImplementationReview', outcome: 'Failed' | 'Passed') => {
+    const attempt = olderAttempts().find((row) => row.AttemptNumber === attemptNumber)!
+    expect(attempt).toMatchObject({ AgentRole: 'CodeReviewer', AgentResponseContract: contract })
+    await attemptsPanel.getByRole('button', { name: `Inspect attempt ${attemptNumber}`, exact: true }).click()
+    const detail = attemptsPanel.getByRole('region', { name: 'Selected Agent attempt evidence' })
+    await expect(detail).toContainText(`Attempt #${attemptNumber} · CodeReviewer · Codex`, { timeout: 15_000 })
+    const section = detail.getByRole('region', { name: 'Recorded verification evidence' })
+    const toggle = section.getByRole('button', { name: 'Recorded verification evidence', exact: true })
+    // Collapsed, and nothing read for it, until the owner opens it.
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(section.locator('.dc-attempt-recorded-verification-items')).toHaveCount(0)
+    expect(verificationRequests.filter((request) => VERIFICATION_ROUTE.test(request.path) && request.path.includes(lower(attempt.Id)))).toEqual([])
+
+    const answered = page.waitForResponse((response) => VERIFICATION_ROUTE.test(new URL(response.url()).pathname), { timeout: 30_000 })
+    await toggle.click()
+    const response = await answered
+    expect(response.status()).toBe(200)
+    expect(lower(new URL(response.url()).pathname)).toBe(`/api/runs/${lower(firstRunId)}/agent-attempts/${lower(attempt.Id)}/verification-evidence`)
+    const body = (await response.json()) as Record<string, any>
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+
+    // The wire answer equals the stored membership, checkpoint and stream rows.
+    const members = storedMembers(attempt.Id)
+    const checkpoint = storedCheckpointOf(attempt.Id)
+    expect(members).toHaveLength(2)
+    expect(body.status).toBe('Recorded')
+    expect(sameId(body.runId, firstRunId)).toBe(true)
+    expect(sameId(body.attemptId, attempt.Id)).toBe(true)
+    expect(body.attempt).toMatchObject({ attemptNumber, role: 'CodeReviewer', provider: 'Codex', responseContract: contract })
+    expect(sameId(body.attempt.id, attempt.Id)).toBe(true)
+    expect(body.checkpoint).toEqual({ id: expect.any(String), checkpointNumber: checkpoint.CheckpointNumber })
+    expect(sameId(body.checkpoint.id, checkpoint.Id)).toBe(true)
+    expect(body.memberTotalCount).toBe(members.length)
+    const expectedStream = (executionId: string, stream: 'stdout' | 'stderr') => {
+      const row = storedOutputsOf(executionId).find((output) => output.Purpose === purposeOf[stream])
+      return row === undefined
+        ? { status: 'NotRecorded', artifactId: null, byteLength: null, captureOutcome: null, truncated: null }
+        : {
+            status: 'Recorded',
+            artifactId: lower(row.Id),
+            byteLength: row.ByteLength,
+            captureOutcome: row.CaptureOutcome,
+            truncated: row.Truncated === null ? null : row.Truncated === 1,
+          }
+    }
+    const lowerStream = (stream: Record<string, unknown>) => ({ ...stream, artifactId: typeof stream.artifactId === 'string' ? lower(stream.artifactId) : stream.artifactId })
+    expect(
+      (body.members as Record<string, any>[]).map((member) => ({
+        ...member,
+        commandId: lower(member.commandId),
+        executionId: lower(member.executionId),
+        standardOutput: lowerStream(member.standardOutput),
+        standardError: lowerStream(member.standardError),
+      })),
+    ).toEqual(
+      members.map((member) => ({
+        sequence: member.Sequence,
+        commandId: lower(member.CommandId),
+        executionId: lower(member.ExecutionId),
+        executionNumber: member.ExecutionNumber,
+        commandName: member.CommandName,
+        status: outcome,
+        exitCode: outcome === 'Failed' ? 1 : 0,
+        claimedAtUtc: roundTrip(member.ClaimedAtUtc),
+        dispatchedAtUtc: roundTrip(member.DispatchedAtUtc),
+        completedAtUtc: roundTrip(member.CompletedAtUtc),
+        standardOutput: expectedStream(member.ExecutionId, 'stdout'),
+        standardError: expectedStream(member.ExecutionId, 'stderr'),
+      })),
+    )
+    expect(members.map((member) => [member.Status, member.ExitCode])).toEqual([[outcome, outcome === 'Failed' ? 1 : 0], [outcome, outcome === 'Failed' ? 1 : 0]])
+    const wireText = JSON.stringify(body)
+    for (const hidden of ['RelativeStoragePath', '.sealed', 'sha256:', 'SnapshotSha256', worktree, repository.path, journeyRoot().root]) {
+      expect(wireText).not.toContain(JSON.stringify(hidden).slice(1, -1))
+    }
+
+    // The rendered section shows the same facts as plain text, with the caveat.
+    await expect(section).toContainText('do not prove which bytes the Agent saw')
+    await expect(section).toContainText('a historical Passed is never a current approval')
+    await expect(section).toContainText(`Recorded checkpoint #${checkpoint.CheckpointNumber} (${lower(checkpoint.Id)}).`)
+    await expect(section).toContainText('2 recorded verification runs.')
+    await expect(section.locator('.dc-attempt-recorded-verification-items > li > span')).toHaveText(
+      members.map(
+        (member) =>
+          `Check ${member.Sequence + 1}: ${member.CommandName} · ${outcome} (exit code ${outcome === 'Failed' ? 1 : 0}) · execution #${member.ExecutionNumber}`
+          + ` · claimed ${roundTrip(member.ClaimedAtUtc)} · dispatched ${roundTrip(member.DispatchedAtUtc)} · completed ${roundTrip(member.CompletedAtUtc)}`,
+      ),
+    )
+    const describeStream = (name: string, descriptor: ReturnType<typeof expectedStream>) =>
+      descriptor.status === 'NotRecorded'
+        ? `${name}: not recorded.`
+        : `${name}: ${descriptor.byteLength} bytes · ${descriptor.truncated ? 'truncated at capture' : 'not truncated at capture'}`
+    await expect(section.locator('.dc-attempt-recorded-verification-items > li > ul > li > span')).toHaveText(
+      members.flatMap((member) => [
+        describeStream('Standard output', expectedStream(member.ExecutionId, 'stdout')),
+        describeStream('Standard error', expectedStream(member.ExecutionId, 'stderr')),
+      ]),
+    )
+    expect(verificationRequests.filter((request) => VERIFICATION_WINDOW_ROUTE.test(request.path) && request.path.includes(lower(attempt.Id)))).toEqual([])
+
+    // Each recorded stream is selected and loaded explicitly: one request for exactly this member and stream, the returned and rendered
+    // text equal the sealed bytes on disk and what the executable wrote, and the cursor and total equal the recorded length.
+    for (const member of members) {
+      for (const stream of ['stdout', 'stderr'] as const) {
+        const output = storedOutputsOf(member.ExecutionId).find((row) => row.Purpose === purposeOf[stream])
+        const name = `${streamLabel[stream].toLowerCase()} of check ${member.Sequence + 1}`
+        if (output === undefined) {
+          await expect(section.getByRole('button', { name: `View ${name}`, exact: true })).toHaveCount(0)
+          continue
+        }
+
+        const view = section.getByRole('button', { name: `View ${name}`, exact: true })
+        const windowsBefore = verificationRequests.filter((request) => VERIFICATION_WINDOW_ROUTE.test(request.path)).length
+        await view.click()
+        await expect(section.getByRole('button', { name: `Hide ${name}`, exact: true })).toHaveAttribute('aria-pressed', 'true')
+        expect(verificationRequests.filter((request) => VERIFICATION_WINDOW_ROUTE.test(request.path))).toHaveLength(windowsBefore)
+        loadedStreams += 1
+        const windowAnswered = page.waitForResponse((reply) => VERIFICATION_WINDOW_ROUTE.test(new URL(reply.url()).pathname), { timeout: 30_000 })
+        await section.getByRole('button', { name: `Load ${name}`, exact: true }).click()
+        const windowResponse = await windowAnswered
+        expect(windowResponse.status()).toBe(200)
+        const url = new URL(windowResponse.url())
+        expect(lower(url.pathname)).toBe(
+          `/api/runs/${lower(firstRunId)}/agent-attempts/${lower(attempt.Id)}/verification-evidence/${lower(member.ExecutionId)}/artifact-window/${stream}`,
+        )
+        expect(url.search).toBe('?fromOffset=0&maxBytes=16384')
+        const answer = (await windowResponse.json()) as Record<string, any>
+        const sealed = sealedTextOf(output)
+        const sealedBytes = Buffer.byteLength(sealed)
+        expect(sealed).toBe(FIXTURE_OUTPUT[outcome][stream])
+        expect(sealedBytes).toBe(output.ByteLength)
+        expect(answer).toMatchObject({ status: 'Ok', stream, text: sealed, nextOffset: sealedBytes, totalLength: sealedBytes })
+        expect(sameId(answer.executionId, member.ExecutionId)).toBe(true)
+        expect(sameId(answer.attemptId, attempt.Id)).toBe(true)
+        expect(lowerStream(answer.artifact)).toEqual(expectedStream(member.ExecutionId, stream))
+        const row = section.locator('.dc-attempt-recorded-verification-items > li').nth(member.Sequence)
+        if (sealedBytes === 0) {
+          await expect(row).toContainText('This sealed output is empty (0 bytes).')
+          await expect(row.locator('pre')).toHaveCount(0)
+        } else {
+          await expect(row.locator('pre')).toHaveText(sealed)
+          await expect(row).toContainText(`${sealedBytes} of ${sealedBytes} bytes read. This is the end of the recorded output.`)
+        }
+
+        await expect(row.getByRole('button', { name: 'Load next window' })).toHaveCount(0)
+        // Nothing further loads by itself, and the other members' and streams' text is not shown at the same time.
+        await expect(section.locator('pre')).toHaveCount(sealedBytes === 0 ? 0 : 1)
+      }
+    }
+
+    return { attempt, section, toggle }
+  }
+
+  const diagnosisEvidenceAttempt = olderAttempts().find((row) => row.AgentResponseContract === 'VerificationDiagnosis')!
+  const reviewEvidenceAttempt = olderAttempts().find((row) => row.AgentResponseContract === 'ImplementationReview')!
+  const diagnosisSection = await inspectVerification(diagnosisEvidenceAttempt.AttemptNumber, 'VerificationDiagnosis', 'Failed')
+  // Another attempt shows the section collapsed in its first frame, and a return to the first attempt starts collapsed again.
+  const reviewSection = await inspectVerification(reviewEvidenceAttempt.AttemptNumber, 'ImplementationReview', 'Passed')
+  await attemptsPanel.getByRole('button', { name: `Inspect attempt ${diagnosisEvidenceAttempt.AttemptNumber}`, exact: true }).click()
+  await expect(diagnosisSection.toggle).toHaveAttribute('aria-expanded', 'false')
+  await expect(attemptsPanel.locator('.dc-attempt-recorded-verification-items')).toHaveCount(0)
+  expect(reviewSection.attempt.Id).not.toBe(diagnosisSection.attempt.Id)
+
+  // Every request of the inspection was a bodyless GET for the older run: exactly one membership read per opening, one window per loaded
+  // stream, no inputs, no Agent artifact window and nothing else of the verification, review or source routes.
+  const membershipReads = verificationRequests.filter((request) => VERIFICATION_ROUTE.test(request.path))
+  expect(membershipReads).toHaveLength(2)
+  const windowReads = verificationRequests.filter((request) => VERIFICATION_WINDOW_ROUTE.test(request.path))
+  expect(loadedStreams).toBeGreaterThanOrEqual(4)
+  expect(windowReads).toHaveLength(loadedStreams)
+  for (const request of verificationRequests) {
+    expect(request.method).toBe('GET')
+    expect(request.body).toBeNull()
+    expect(request.path).not.toContain(lower(followUpRun.Id))
+  }
+
+  expect(verificationRequests.filter((request) => /\/evidence\/artifact-window\//.test(request.path))).toEqual([])
+  expect(verificationRequests.filter((request) => /\/inputs$/.test(request.path))).toEqual([])
+  page.off('request', recordVerificationRequest)
+  expect(verificationRowCounts()).toEqual(verificationRowsBefore)
+  expect({ totals: data.projectTotals(), executions: data.executions(), attempts: olderAttempts() }).toEqual(verificationStateBefore)
+  await expect(page.getByRole('heading', { name: FOLLOW_UP_OBJECTIVE, exact: true })).toBeVisible()
 
   // The history reads created nothing: no row of any workflow kind, no provider invocation, no new commit, an untouched source.
   expect(data.projectTotals()).toEqual(afterFollowUp)

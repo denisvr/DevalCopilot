@@ -1355,7 +1355,8 @@ for exactly that run, so a failed or interrupted attempt that emitted no collabo
 independent run-level path: the ADR-0037 inspector above is unchanged and does not lead here. Opening it requests one page of
 `GET /api/runs/{runId}/agent-attempts` for the selected run; "Inspect" reads that attempt's evidence, and a sealed window is read only after a
 purpose is chosen and "Load" is pressed. The selected attempt also offers the collapsed **Recorded collaboration inputs** section described
-below, independent of evidence and any producing message. A page or evidence answer that is not coherent for exactly its request is a distinct error that shows none
+below and, for a CodeReviewer review or diagnosis, the collapsed **Recorded verification evidence** section, each independent of evidence and any
+producing message. A page or evidence answer that is not coherent for exactly its request is a distinct error that shows none
 of it, including a verified row or answer whose status, role, provider or response contract is unrecognized or unsupported, and evidence whose role,
 provider or response contract differs from the selected row (its status may have advanced); Retry re-reads the same cursor or attempt. The region mounts no mutation, live, eligibility or configuration control and changes neither the
 current project and run selection nor intake. Its rows, selection, evidence and text belong to the committed run, open, selected-attempt and
@@ -1773,6 +1774,26 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   full context or a resumable provider session. Each selection and opening owns its reads and callbacks, so close/reopen, another
   attempt/run/project, A-to-B-to-A, parent reload and unmount cannot retain or fetch another owner's references. No polling, automatic
   retry, browser persistence, artifact read or workflow mutation is added. Validation and wire rules:
+  [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
+- **Recorded verification evidence.** A selected CodeReviewer attempt of an ordinary implementation review or a verification
+  diagnosis has its own collapsed "Recorded verification evidence" button
+  ([ADR-0052](../decisions/0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md)), including when it produced no
+  message; no other attempt shows it. Opening reads the metadata once for exactly that run and attempt, independently of evidence,
+  collaboration inputs and artifacts; closing discards the result and any chosen stream. It shows a caveat that the section lists the
+  verification runs the attempt recorded as its evidence as read now, and does not prove which bytes the Agent saw, that a diagnosis
+  still matches its claim-time snapshot, or that a check is current or approved (a historical Passed is never a current approval),
+  then the recorded checkpoint and every member in recorded order: check position, snapshot command name, Passed or Failed with its
+  exit code, execution number and the claim, dispatch and completion times as the host wrote them, with its standard output and
+  standard error each stated as not recorded, metadata unavailable, or a byte length with "not truncated at capture", "truncated at
+  capture" or "truncation unknown (recovered after a host interruption)". Unavailable says the membership could not be verified or
+  is larger than the view inspects (32 members) and does not mean the attempt recorded no verification; an incoherent answer shows
+  none of it. Only a recorded stream offers "View"; choosing it reads nothing, "Load" reads one 16 KiB window, "Load next window"
+  appends the next, and a failed window keeps the text already loaded and offers "Retry" for that same window only. Empty sealed
+  output, a missing or tampered sealed file, unavailable or no longer recorded output and read errors are distinct. A view keeps at
+  most 256 KiB of source bytes of one output and then says so as a local view limit, not as the end of the capture or the file.
+  Choosing another member or stream, hiding and viewing a stream again (even at once), closing and reopening, another attempt, run
+  or project, a reload and unmount start from zero, and an earlier "Hide" never hides a later choice.
+  Everything is literal text with no link, polling, automatic paging, download, export, browser storage or URL state. Rules:
   [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
 - **Claude-reported model limits.** For a Claude attempt, the selected detail also shows a "Claude-reported model limits" section
   (a historical fact stored when the attempt concluded; see

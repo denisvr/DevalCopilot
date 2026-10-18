@@ -91,6 +91,10 @@ import {
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 import { AgentAttemptEvidenceWireClient } from '../features/cockpit/agentAttemptEvidenceWire'
 import { AgentAttemptInputsWireClient } from '../features/cockpit/agentAttemptInputsWire'
+import {
+  AgentAttemptVerificationEvidenceWireClient,
+  AgentAttemptVerificationWindowWireClient,
+} from '../features/cockpit/agentAttemptVerificationWire'
 
 // One instance per endpoint client is enough for this slice; components import the
 // factory functions rather than constructing a client or a URL themselves.
@@ -112,7 +116,11 @@ export const agentAttemptHistoryClient = () => new GetAgentAttemptHistoryEndpoin
 export const agentAttemptEvidenceClient = () => new AgentAttemptEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)
 // Hands the parsed body to the whole-answer decoder instead of the generated model (see AgentAttemptInputsWireClient).
 export const agentAttemptInputsClient = () => new AgentAttemptInputsWireClient(getApiBaseUrl(), authenticatedHttp)
-export const agentAttemptArtifactWindowClient = () => new GetAgentAttemptArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
+// Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
+export const agentAttemptVerificationEvidenceClient = () =>
+  new AgentAttemptVerificationEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)
+export const agentAttemptVerificationWindowClient = () => new AgentAttemptVerificationWindowWireClient(getApiBaseUrl(), authenticatedHttp)
+export const agentAttemptArtifactWindowClient =() => new GetAgentAttemptArtifactWindowEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const runEventsClient = () => new GetRunEventsEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const environmentClient = () => new RequestHostCapabilityRefreshEndpointClient(getApiBaseUrl(), authenticatedHttp)
 export const providerRuntimePreflightClient = () => new GetProviderRuntimePreflightEndpointClient(getApiBaseUrl(), authenticatedHttp)

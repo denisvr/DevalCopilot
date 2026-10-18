@@ -40,6 +40,26 @@ context pressure or provider limits never change ownership.
 - Executor research and reports are untrusted evidence for the planner, never
   a transfer of decision authority.
 
+## Session outputs and continuity
+
+These obligations apply from the start of every chat; the owner need not
+repeat them. Follow the development workflow for their detailed procedure.
+
+- The planner/reviewer ends every completed analysis with one complete,
+  copy-and-paste prompt for the resulting next step, including a pending
+  boundary when work cannot proceed.
+- After independently verifying a slice's push, the Codex planner checks its
+  current chat context usage. Above 60%, it must provide a complete transition
+  prompt for a new Codex chat to plan the next slice, without dispatching that
+  slice from the outgoing chat. Cite current observed or owner-reported usage;
+  if unavailable, say so rather than inventing a percentage.
+- The executor ends each completed action, including implementation,
+  correction and authorized push, with a short report of the outcome,
+  validation, blockers and Git/publication state. Claude must exercise the
+  evidence-based challenge responsibility below and may brainstorm with Codex
+  about errors or better alternatives rather than accepting instructions
+  blindly. Discussion grants no additional scope or publication authority.
+
 ## Evidence-based challenge
 
 Both roles act as critical engineering collaborators. Either may initiate a

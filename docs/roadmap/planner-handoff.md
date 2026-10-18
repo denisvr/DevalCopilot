@@ -6,29 +6,50 @@ is evidence, never renewed authority. Git and code prevail over summaries.
 
 ## Priority and verified baseline
 
-WF-01–WF-06 are published and independently verified. On 2026-10-18 the owner
-explicitly resumed functional roadmap development, superseding the
-documentation-first pause and its runtime/test exclusions, without renewing
-experimental authority. Codex plans/reviews. Claude began HIST-INP-01; the
-owner explicitly transferred its execution completion to Codex when Claude's
-credits ran out. The owner explicitly requested this planner chat transition.
+WF-01–WF-06 are published and independently verified. The owner's 2026-10-18
+resumption of functional roadmap development and explicit planner transition
+stand; experimental authority is not renewed. Codex plans/reviews. Claude began
+HIST-INP-01; the owner transferred its execution completion to Codex when
+Claude's credits ran out. A bounded Codex executor published its exact reviewed
+GO; the planner independently verified that publication before selecting below.
 
-Selection baseline independently checked: `main`; HEAD, local origin/main
-and fresh live main `96a21d737777980724cc7351d8d7a2c10b0e6e2d`; divergence
-0/0; empty index; clean tree and no nonignored untracked paths. HIST-MET-01
-is published and independently verified. Checkpoints describe prepared phases;
-do not reopen or republish it. After this selection, the handoff and decision
-index were modified unstaged, and ADR-0051 was new/untracked; no runtime change
-existed at selection. Review now covers the delivered implementation below:
-HEAD remains the selection baseline, the real index is empty, and the diff
-contains 16 modified paths, one deletion and 32 new files. Publication and its
-independent verification remain pending under the exact GO identity.
+Selection baseline independently checked: `main`; HEAD, local origin/main and
+fresh live main `26c3f24a5165f9735b6fe50ee6cfc112a70b88bc`; divergence 0/0;
+empty index, clean tree and no nonignored untracked paths. Claude has now returned
+HIST-VER-01 correction round 1 for review. Final review preflight independently
+confirms the same HEAD, local origin/main and fresh live main, divergence 0/0,
+empty index, 12 modified paths and 62 new/untracked files (74 paths), including
+the planner selection documents and owner-requested workflow instructions.
+Publication GO is bounded by the fixed content identity below; publication
+and independent publication verification have not happened yet. The
+committed execution checkpoint describes its preparation phase, not pending
+HIST-INP-01 publication; do not reopen or republish it.
 
 WF-05 baseline and GO: this file at `e55709f`; earlier:
 [priority](planner-handoff-history-e614c79.md#priority-and-verified-baseline),
 [WF-04 GO and review](planner-handoff-history-e614c79.md#selected-slice-wf-04-publication-go).
 
 ## Latest verified publication
+
+HIST-INP-01 `26c3f24a5165f9735b6fe50ee6cfc112a70b88bc`, tree
+`2db3fbe53bc2ad5a6ecd35a63a9edb02ae5e6095`, sole parent
+`96a21d737777980724cc7351d8d7a2c10b0e6e2d`: independently compared with
+the fixed GO tree and exact 49 approved paths/statuses without rename detection
+(16 M, one D, 32 A). Fresh live main, HEAD and local origin/main agree, 0/0;
+index/tree clean and no nonignored untracked files. Evidence:
+`logs/planner-review/hist-inp-01/publication-verification.log`; exact GO:
+`publication-go.json` in that directory. Full review and selected prompt:
+this file at `26c3f24`. Independent review checks: 183 Application, 30 API and
+255 frontend tests passed. The first independent Application testhost timed
+out; the same binaries passed outside the sandbox, without proving the cause.
+The 4621-test whole-frontend result remains pre-fixture-correction evidence,
+followed by the corrected file's 18 tests and focused review, not a later full
+rerun. Three journeys and strict e2e typecheck are retained same-slice evidence
+on unchanged functional inputs. All recorded failures, surviving controls and
+browser coverage limits remain in current-work and the ignored evidence.
+Publisher preflight helper recursion, stderr-contaminated comparison and
+sandbox network failure are preserved in `logs/executor/hist-inp-01/publication/`;
+no approved content changed. No publication-time product retest was needed.
 
 HIST-MET-01 `96a21d737777980724cc7351d8d7a2c10b0e6e2d`, tree
 `206f8a387ad459fe11f905e95f3f1086d0cda9f9`, sole parent
@@ -88,141 +109,236 @@ rework acceptance at `e614c795`
 in this file at `e55709f`; WF-03 technical acceptance stands. WF-03N detail:
 [exact record](planner-handoff-history-e614c79.md#latest-accepted-delivery).
 
-## Selected slice: HIST-INP-01 recorded inputs of a selected Agent attempt
+## HIST-VER-01 review: GO after correction round 1
+
+Codex accepts the corrected substantive diff and authorizes Claude to publish
+only its fixed reviewed identity in the same HIST-VER-01 executor chat. This
+supersedes the initial NO-GO; no other slice is selected or dispatched. The
+exact tree, expected sole parent and 74 approved paths are fixed outside the
+tracked tree in `logs/planner-review/hist-ver-01/publication-go.json` and the
+complete publication prompt. A mismatch stops publication, never broadens GO.
+
+The owner's subsequent workflow amendment is included in the pending diff:
+every completed planner analysis returns a prompt; after verified publication,
+current context usage above 60% requires a new Codex planning chat. Claude's
+critical discussion authority and short report after each completed action
+are explicit in AGENTS.md, the workflow and CLAUDE.md. Codex made those edits
+at the owner's request; the executor's reported discrepancy is reconciled.
+They are reviewed and included in this GO, not executor scope expansion.
+
+- **HVR-R1 (P2), resolved: valid negative Int32 exit code rejected.** In
+  `RecordedVerificationProjection.ProjectExecution`, the original same-typed
+  modulus guard special-cased Int32 minimum and maximum but omitted `-2147483647`.
+  Its remainder modulo `2147483647` is zero, so a coherent failed diagnosis
+  became Unavailable, including otherwise readable members and windows.
+  An independent actual-handler/file-backed-SQLite sweep reproduced this
+  while neighboring values and both extremes remained Recorded. The guard
+  now compares all three exceptional values directly with same-typed Int32
+  operands; the rest retain their own-remainder check. File-backed SQLite
+  regressions cover the value, extremes/neighbors and REAL/TEXT/BLOB/out-of-range
+  refusals, including the last of 32 members and no store call on refusal.
+  Both handlers and the HTTP number/window representation are covered. The
+  wider-modulus EF CAST defect is not restored.
+- **HVR-R2 (P2), resolved: member/stream visit ownership incomplete.** The metadata
+  hook's original `clearSelection` belonged to the opening, not the selected visit.
+  Retaining A's Hide callback, selecting B, then invoking it cleared B; this
+  also happened within one React batch and after A-B-A. A composed two-hook
+  reproduction additionally loaded A, hid and reselected that same tuple in
+  one batch: old text/cursor survived because the window key had no visit
+  identity. The corrected choice frame numbers visits against queued state;
+  Hide clears only its own visit and the window key includes that visit.
+  Selecting the already selected tuple preserves its visit; Hide/reselect
+  creates a fresh one even in one batch. Hook/composed/rendered regressions
+  prove fresh idle/offset-zero state, no automatic read and inert earlier
+  callbacks/results. Shared lifetime primitives and byte budgets are unchanged.
+- **HVR-R3 (P3), resolved: top-level test types share files.**
+  `SeededVerificationMember`, `SeededVerificationScene` and
+  `SeededVerificationLineage` now have matching feature-owned files, with
+  unchanged declarations/visibility and no seed or shared-fixture redesign.
+
+Initial independent checks passed: 122 Application handler tests, 50 API tests
+(the two endpoint classes plus launch-auth inventory), and 301 frontend tests
+(five new files and the existing attempt panel/history composition). Those
+passes did not cover R1/R2. The separate diagnostic numeric sweep exposed R1;
+that round's final independent lifetime reproduction had four failing scenarios
+and one passing current-Hide control. Temporary reproduction tests were removed
+from the source tree; originals and full outputs remain under ignored
+`logs/planner-review/hist-ver-01/` (`numeric-reproduction.log`,
+`lifetime-reproduction-02.log`, `independent-*`). Commands are retained beside
+the outputs. No product fix, stage, commit or push was performed by review.
+
+Executor challenges resolved: a rooted path remains Unavailable before a store
+call, as ADR-0052 requires a relative path. The journey's added existing
+HIST-ATT-01 button is an accepted stale-expectation repair. The first test-build
+TypeScript failure output is missing, as reported; accept the evidence loss
+as a limitation, never reconstruct it or relabel later passes as its original
+output. The three planner-document delivery hashes and the generated-client
+hash were independently matched before this review edit. Reported full-suite,
+architecture and browser results retain their actual scopes; the browser
+oracle control is an assertion-sensitivity check, not a production mutation.
+
+Correction review independently passed 150 Application tests, 58 API tests
+(both endpoints plus launch-auth inventory), 317 frontend tests across the
+same seven affected/regression files, and the unchanged five-case planner
+reproduction that previously had four failures. Its temporary source copy was
+removed. Complete commands/results: `logs/planner-review/hist-ver-01/correction-01/`.
+Fresh live main also matches the expected parent. ADR/index and generated
+client hashes still match their reviewed identities.
+
+Executor final evidence inspected, not independently rerun in this round:
+161 architecture tests, 4852 full-frontend tests across 243 files (one run),
+lint with nine unchanged-file warnings, frontend/API/host builds, generated
+client reproducibility, strict e2e typecheck and the serialized collaboration
+journey. Retained pre-fix controls fail on the targeted defects and fixed
+regressions pass; this is inspected evidence, not historical authentication.
+The journey's 154 duplicate-key and 14 negotiation console errors begin before
+the new section is used; no HEAD browser comparison or comparable first-delivery
+console capture establishes their cause or whether their counts changed.
+Accept this unresolved diagnostic limit without calling it proved pre-existing.
+The missing first TypeScript failure output remains lost. Unchanged identity,
+store containment and other journeys retain their recorded scope and limits.
+
+GO includes the 12 modified and 62 added reviewed paths, including the owner's
+three workflow instruction files, the planner ADR/index/handoff and the
+executor's current-work record. No product retest is required for the final
+planner-only decision edit. Claude must verify the fixed tree and exact paths,
+commit with the expected sole parent, push main normally and verify the live
+ref. A changed substantive diff, divergent remote or failed push stops the
+flow. No amendments, force push, unrelated staging or closure-document edits.
+Codex will independently verify publication before any next-slice planning
+and then check current context usage under the owner's greater-than-60% rule.
+
+## Selected slice: HIST-VER-01 historical verification membership and sealed output
 
 **Decision:** implement accepted
-[ADR-0051](../decisions/0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)
-as one vertical slice: protected read query, bounded SQLite projections,
-API-owned response/generated client, and an on-demand recorded-input view in
-the selected attempt, including failed/interrupted attempts without an output
-message. Planner owns the resolved contract; the executor implements, not
-selects it.
+[ADR-0052](../decisions/0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md)
+as one vertical inspection: the selected CodeReviewer attempt's exact recorded
+verification membership, its historical execution metadata and manual sealed
+stdout/stderr windows. Include ordinary ImplementationReview and failed
+VerificationDiagnosis, including attempts without an output message. The owner
+explicitly clarified that Claude is the executor for HIST-VER-01; Codex remains
+the planner/reviewer. This supersedes the earlier Codex executor assignment
+only, without changing scope, acceptance or publication authority.
 
-**Evidence and roadmap:** the existing message-linked input reader starts from
-an output message; `AgentAttemptEvidenceBody` has no input inspector. Durable
-`AttemptInputMessage` rows already hold these references. The bounded scalar
-identity approach is delivered under ADR-0037; reuse its rules, not full entity
-materialization or its message actor assumptions. This advances Increment 4's
-progressive-context inspection and Increment 5's historical evidence access.
-It is neither complete context/replay nor increment completion. Autonomy would
-need a separate recorded decision about ADR-0014's manual authority and durable
-dispatch/recovery; publication remains bounded by Proposed ADR-0050/P9.
+**Evidence and roadmap:** `AttemptVerificationEvidence` persists ordered
+command/execution pairs at both claim paths. `AgentAttemptEvidenceBody` shows
+neither this set nor its streams. `GetProjectVerificationExecutions` returns
+only the latest 20 project executions; `useVerificationExecutionOutput` drains
+windows on a timer. Neither is suitable for detached historical inspection.
+The local receipt names only passing delivery members. Existing deterministic
+`collaboration.journey.ts` already produces failed diagnosis and passing review
+members, completes delivery, records a newer objective and opens the prior run.
+This advances Increment 4's verification inputs and Increment 5's historical
+evidence access under ADR-0003/0009/0018/0033/0051, not complete replay or either
+increment. ADR-0032's receipt and all authority rules remain unchanged.
 
-**Sizing:** query, identity/set coherence, wire/decoder, selection ownership and
-one authenticated browser proof form one outcome. A metadata-only UI without
-the new query cannot inspect an attempt lacking a producing message. Do not
-split successful and unavailable/empty cases. Content navigation, input chains,
-provider sessions, autonomous advancement and raw filesystem access are not
-required and are excluded.
+**Sizing and alternatives:** membership, exact historical ownership, truthful
+stream metadata and manually bounded bytes are one useful evidence outcome;
+shipping only IDs leaves the verification's evidence inaccessible. Include both
+review and diagnosis, the two streams, missing/recovered capture and lifetime
+refusals together. Reusing current-project readers would substitute latest
+records and drain output; broadening the receipt would miss failed diagnoses
+and couple historical access to completed delivery. Autonomous coordination
+requires a separate ADR-0014 authority/dispatch/recovery decision, and remote
+publication is constrained by Proposed ADR-0050/P9; neither is a dependency or
+part of this slice. Session, account and compaction contracts remain unproven.
 
-**Resolved boundaries:** one bodyless GET
-`/api/runs/{runId}/agent-attempts/{attemptId}/inputs`; exact selected Agent
-attempt only. Shared Problem Details 404 `agent_attempt_inputs.not_found` for
-unknown/foreign/non-Agent sources. Closed `Unavailable`/`Empty`/`Recorded`
-shapes and disclosure exactly as ADR-0051; no new persistence, mutation or
-invocation. Read at most 65 input rows, inspect at most 64, display first 10
-only after proving the entire inspected set; a 65th yields Unavailable without
-count or partial data, not a declaration that the stored set is invalid.
-SQL-classify stored enums/version and guard assignment storage as in ADR-0037;
-keep Domain identity/assignment rules unchanged. Exact Int64 message sequences
-are canonical strings; occurred time is an invariant UTC round-trip string,
-validated before display, not a generated Date property. No summary/content,
-artifact, prompt, session or chain reads. Existing routes retain behavior.
+**Resolved read contract:** two bodyless protected GETs, API-owned graphs:
+`.../agent-attempts/{attemptId}/verification-evidence` and
+`.../verification-evidence/{executionId}/artifact-window/{stream}`, under the
+exact run. ADR-0052 fixes fields, statuses, safe errors and bounds. Read at most
+33 ordered scalar memberships, inspect at most 32, show all only after proving
+the entire set and exact historical project/workspace/checkpoint/fingerprint
+ownership. Zero/oversized/unprovable/unsupported sets are Unavailable, never an
+invented Empty or partial set. Read execution snapshot names, not current
+recipes; classify stored enums and prevent SQLite numeric conversion from
+hiding damaged values. Reuse the unchanged scalar attempt identity evaluation.
+No full entity/argument/session/source materialization, raw SQL in Application,
+latest/current eligibility or invocation. New shared read policy, only where
+the two operations deliberately co-evolve, belongs in an explicit Policies
+subfolder; do not refactor existing feature-root types.
 
-**Frontend:** collapsed input control inside the selected attempt, independent
-of its facts/artifact controls. Explicit open/read/retry only; reuse owned
-lifetimes and validate the whole answer against the selected immutable header.
-Preserve Unknown/Unavailable versus genuine Planner Empty; source refs are
-recorded inputs, never complete prompt/context/session. No page draining,
-content navigation, storage, logging or mutation. New timestamp text may reuse
-the proven instant parser; do not broaden the existing wire facade.
+**Sealed windows:** at most the two allowlisted descriptors per member;
+NotRecorded/Unavailable/Recorded with exact capture/truncation tuples. List
+reads no paths, hashes or bytes. A window re-proves membership, resolves only
+that execution/stream, then delegates unchanged to
+`IArtifactStore.VerifyAndReadSealedAsync`; path/hash remain guarded and internal.
+No partial file, capture change, other stream bytes or source read. Default
+16 KiB, reject invalid cap/offset rather than clamp; cap 64..65536, safe integer
+cursors and lengths. Preserve Missing versus IntegrityMismatch and truthful
+unknown truncation. This reads membership and referenced rows as stored now;
+it does not recompute the diagnosis snapshot or prove which bytes the Agent
+saw, current eligibility, approval or success. Do not expose snapshot digests.
 
-**Scope:** new GetAgentAttemptInputs query/endpoint and operation-owned models,
-feature-local frontend hook/decoder/view, necessary generated client and tests.
-A narrow extraction of identical scalar attempt projection/identity evaluation
-is permitted with ADR-0037 equivalence regressions; its actor comparison stays
-unchanged. No generic reader/repository/framework, raw SQL in Application,
-new dependency, migration, claim/dispatch change or new snapshot fixture reuse.
-Update the inspection/cockpit contract and current-work at delivery. Preserve
-these planner-written selection/decision files in the review diff; the accepted
-ADR is a contract, not already delivered functionality.
+**Frontend:** collapsed selected-attempt section, independent of evidence,
+collaboration inputs and Agent artifacts. Metadata open/read once; explicit
+member/stream selection, Load, Load next and failure-only retry. No polling or
+automatic paging. Maximum retained 256 KiB of source bytes per member/stream
+selection, with an honest local-view limit before exceeding it. Whole-answer
+raw validation binds exact requested IDs, immutable header, every member and
+stream tuple, timestamp text and stable artifact/cursor facts. Reuse the proven
+instant parser and sealed-window acceptance invariants without changing their
+existing consumers. Owned lifetimes cover selection, opening and member/stream;
+replacement's first frame, A-B-A, retained callbacks, overlap, reload and unmount
+must isolate all results. Literal text only; no browser/URL persistence, logs,
+download, export or mutation. An unavailable stream leaves valid siblings and
+membership readable. Malformed membership shows none of that answer.
 
-**Validation:** file-backed SQLite new handler/identity/set refusal tests,
-endpoint full auth/404/status/wire matrix and MVC inventory; exact sequences
-above 2^53 and omission/bounds; source query inspection proving no full text or
-aggregate reads. New frontend decoder/hook/composition tests plus selected
-attempt and existing recorded-input regressions. Normal API build/NSwag
-reproducibility, focused project builds/analyzers, architecture tests,
-frontend lint/build and strict e2e typecheck. One new authenticated
-`historical-attempt-inputs.journey.ts` using existing production commands and
-deterministic providers must inspect a nonempty input set after a newer
-objective, compare references with stored rows, and start no invocation,
-mutation or artifact-window read. Extend the existing no-message historical
-Planner journey for the genuine Empty case; non-Planner empty/corrupt/oversized
-cases belong to SQLite/API tests, not fabricated browser lineage. Retain other
-unchanged journey evidence. Broaden for shared projection/identity changes,
-failures or uncertainty, not a routine full backend/API suite. No mutation
-campaign, new test infrastructure or real-provider experiment.
+**Scope:** the two new query/endpoint folders, necessary feature-owned read
+policy, API mapping/generated client and operation-specific raw facades,
+frontend decoder/hooks/view, focused tests and the existing collaboration
+journey extension. Update inspection/cockpit copy and current-work at delivery.
+Keep planner selection/ADR/index changes in the review diff. No dependency,
+migration, persistence, claim/dispatch/result, snapshot/digest, recipe,
+artifact-store/capture, existing reader or test-harness change; no new shared
+SQLite snapshot reuse. Stop and challenge if this contract cannot be proved
+without one of those changes; do not substitute another source or widen it.
 
-**Continuity at selection:** Codex recommended continuing its planner chat and
-one new Claude executor chat. The owner's subsequent Codex execution recovery
-and explicit planner transition supersede that chat placement, not the slice
-or its authority boundaries. No observed or owner-reported context percentage.
-No second slice is selected while publication remains pending.
+**Validation matrix:**
+- Application: real file-backed SQLite tests for both new handlers, 1/32/33,
+  malformed last member/positions/IDs/storage, exact ownership despite newer
+  runs/checkpoints/executions and recipe edits, review/diagnosis terminal shapes,
+  bounded indexed scalar SQL, no writes/files in list and exact admitted row
+  passed to sealed verification in windows. Fault/cancellation propagation;
+  guard unrecognized enum, huge/NUL-hidden strings and numeric coercion.
+- API: both endpoint classes' complete launch-auth/404/validation/status/wire/
+  OpenAPI matrices plus launch-auth inventory; generated client from the normal
+  API build, reproducibility and owned response graph. Verify member/stream
+  substitution starts no artifact read. Old verification output endpoint stays
+  unchanged; inspect its diff and retain its existing evidence unless affected.
+- Artifact boundary: feature tests with the real store over disposable owned
+  files prove correct delegation, verified empty/missing/tampered text and
+  multiwindow UTF-8. Retain existing unchanged store containment proofs; no
+  new native/profile/provider experiment. Broaden only if the store changes,
+  which first requires planner scope review.
+- Frontend: new raw-wire/decoder/hook/composition tests; both capture outcomes,
+  false/true/null truncation, malformed counts/times/descriptors, hostile text,
+  paging/EOF/cap and every lifetime replacement. Existing attempt panel,
+  historical run composition, inputs, execution facts and artifact-window
+  regressions. Lint/build, including product TypeScript. The new factories and
+  shared composition justify one final whole-frontend run, not repeated passes.
+- Browser: extend `collaboration.journey.ts` after its newer objective to inspect
+  the prior diagnosis's failed members and ordinary review's passing members,
+  compare metadata to SQLite and requested stdout/stderr to sealed fixture
+  bytes, with no extra stage, non-GET, automatic draining or source mutation.
+  No fabricated lineage or new shared harness. Strict e2e typecheck, stable host
+  build, serialize the journey. Keep corrupt/oversized cases below the browser.
+- Architecture suite and changed-document links, whitespace and sensitive-data
+  hygiene. Preserve complete failure output, commands and elapsed times.
 
-## HIST-INP-01 review: GO
+Focused new test classes should be named after each query handler and endpoint;
+run their filters first. Reuse unchanged prior evidence with its actual scope.
+Rerun ADR-0037/0051 consumers if shared identity changes (otherwise retain their
+183-test review evidence). Broaden only for changed shared behavior, a failure
+or a concrete unresolved concern; no routine whole backend/API matrix or
+mutation campaign. Run one final proportional matrix on stable inputs.
 
-Codex independently reviewed all 49 changed/new/deleted paths against ADR-0051
-and the resolved selection above, including scalar SQL, the ADR-0037 extraction,
-API-owned mapping, generated output, raw-body facade, decoder, ownership,
-composition, journeys, documentation and the executor's evidence. No blocking
-finding remains. This GO includes the planner's final checkpoint and decision
-index edits. The expected sole parent, exact approved paths and expected tree
-are recorded in `logs/planner-review/hist-inp-01/publication-go.json` and the
-complete publication prompt; no document embeds its own future commit SHA.
-
-- **Independent checks:** 183 Application tests (new query, ADR-0037 and old
-  input-reader regressions), 30 API tests (new/related routes and launch
-  authentication), and 255 tests across nine frontend decoder, wire, hook,
-  composition and existing input-view files passed. Exact commands, complete
-  outputs, exits and elapsed times are in `logs/planner-review/hist-inp-01/`.
-  The first Application run built successfully but aborted when testhost did
-  not connect within 90 seconds; the same binaries passed outside the sandbox.
-  Preserve that failure without claiming its cause. Fresh live main agrees
-  with HEAD/local origin/main at `96a21d73`; index empty, divergence 0/0.
-- **Review evidence:** the guarded attempt projection and assignment/identity
-  evaluation are the previous operation's same expressions and rules; its
-  actor comparison remains local. The new indexed input read stops at 65,
-  resolves at most 64 same-run message identities and validates every inspected
-  reference before returning ten. The role-aware Empty/Unavailable distinction,
-  exact Int64/time strings, authentication, fixed 404, fault propagation and
-  absence of writes/content/chain reads are preserved. The raw-body facade
-  keeps explicit nulls and wrong types for whole-answer refusal without
-  changing generated URL/auth/error processing. Existing owned lifetimes and
-  serial guards isolate selections, openings, requests and retained callbacks.
-- **Retained evidence and limits:** inspected executor final outputs support
-  153 architecture tests, API/NSwag reproducibility, lint/build and hygiene;
-  the full frontend result is 4621 tests before only the required fixture
-  `traceId` correction, followed by that file's 18 tests and the fresh 255-test
-  review set, not a later full-suite rerun. The strict e2e check, journey-host
-  build and three authenticated deterministic-provider journeys remain
-  retained evidence on unchanged functional inputs. Browser proof covers
-  ordinary small nonempty sets and a stopped-before-dispatch Planner with no
-  output message; corrupt/oversized sets and values above 2^53 have narrower
-  SQLite/API/frontend evidence. No real-provider or P9 experiment was run.
-  Initial failures, the surviving settle control and later overlap coverage,
-  duplicate keys, negotiation errors and every older evidence limit remain.
-- **Accepted implementation choices:** the operation-specific parsed-body
-  facade is necessary because generated models erase required null/falsy
-  distinctions. The malformed-position SQL guard prevents SQLite conversion
-  from silently turning damaged storage into a valid position; it changes no
-  write rule. These are within the resolved contract, not new architecture.
-
-GO authorizes only the exact reviewed development commit and normal push of
-`main` to `origin/main`, by a bounded Codex executor. It grants no product
-publication capability. A content mismatch, remote divergence, failed push or
-material post-GO change stops publication and returns for review. No routine
-product retest or implementation change is required before publication.
+**Continuity:** `CONTINUE_THIS_CHAT` for the planner: constraints and evidence
+remain available, with no observed or owner-reported context percentage. Start
+one new Claude executor chat for HIST-VER-01 and keep its corrections there.
+The prior publication executor has completed; no concurrent implementation is
+dispatched. Return unstaged/uncommitted/unpushed for review. Selection grants
+no commit or push; all standing and retained constraints below remain.
 
 ## Retained review and evidence limits
 
@@ -285,7 +401,7 @@ Their old GO/pending statements are not current instructions.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary
-  tests are authorized only for HIST-INP-01 under ADR-0051. No dependency, experiment,
+  tests are authorized only for HIST-VER-01 under ADR-0052. No dependency, experiment,
   capture-limit or standards edits; the old documentation-only production/test
   exclusion is superseded, not the other restrictions.
 

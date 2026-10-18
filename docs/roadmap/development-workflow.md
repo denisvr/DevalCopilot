@@ -51,13 +51,14 @@ the root `AGENTS.md` and `CLAUDE.md`, and a link never imports this file.
   prompt. Ask the owner only for a material unresolved choice, missing authority
   or information that cannot be obtained independently. This does not add
   automatic chat coordination or remove explicit GO and publication checks.
-- Each consolidated actionable decision includes one complete inline
-  copy-and-paste prompt: dispatch, correction, authorized publication,
-  evidence gathering, owner decision or chat transition. A file link may
+- Every completed planner/reviewer analysis returns one complete inline
+  copy-and-paste prompt for the resulting next step: dispatch, correction,
+  authorized publication, evidence gathering, owner decision or chat transition. A file link may
   supplement it but never replaces it, and the owner never assembles
-  instructions from several responses. Progress updates, questions and
-  technical discussion do not reissue an unchanged prompt. When a decision
-  changes, the new complete prompt explicitly supersedes the earlier
+  instructions from several responses. This also applies when the analysis
+  concludes that work must wait: the prompt preserves the pending boundary.
+  Intermediate progress updates and questions do not reissue an unchanged
+  prompt. When a decision changes, the new complete prompt explicitly supersedes the earlier
   actionable version. The prompt actually dispatched preserves the verified
   preflight, objective, scope, acceptance and authority boundaries, and keeps
   a pending boundary instead of implying authority.
@@ -75,9 +76,20 @@ the root `AGENTS.md` and `CLAUDE.md`, and a link never imports this file.
 
 ## Execution and reports
 
+- The executor independently evaluates requests and findings rather than
+  accepting them blindly. Claude may challenge Codex and initiate technical
+  discussion or brainstorming when it sees an error or a better alternative,
+  under the shared [evidence-based challenge rules](../../AGENTS.md#evidence-based-challenge).
+  Discussion does not transfer acceptance or publication authority.
 - Return the completed slice unstaged, uncommitted and unpushed, with
   current-work.md updated as the implementation record for review
   ([recovery](#recovery)).
+- Finish every completed executor action with a short report, including
+  implementation, correction, evidence gathering and authorized commit/push.
+  State the outcome, validation, blockers and Git/publication state appropriate
+  to that action; a publication report includes the commit SHA and live-remote
+  verification. Routine tool calls within an ongoing action need no separate
+  final report.
 - Report changed and new files, exact check commands and outcomes, fresh
   versus retained versus not-run evidence, risks or blockers and short failure
   excerpts; complete logs or file contents only on request. No document embeds
@@ -143,17 +155,21 @@ behavior:
 - Assess Codex and Claude continuity separately. Keep an active review and its
   corrections together by default and never restart one merely because of
   compaction; prefer transitions after independently verified publication.
-- Around 60% observed or owner-reported context usage triggers reassessment.
-  It is neither a mandatory restart nor the only reason to transition. Above
-  about 60%, assess whether a transition would help; do not restart
-  automatically.
-- A planner transition below 60% requires a concrete documented reason, such
-  as repeated loss of governing constraints after targeted recovery, or a
+- After independently verifying each slice's push, check the current Codex
+  planner chat's context usage. If current observed or owner-reported usage is
+  greater than 60%, `START_NEW_CHAT` is mandatory: return a complete prompt for
+  a new Codex chat to plan the next slice. Do not select or dispatch that slice
+  from the outgoing chat. This owner-required threshold supersedes the former
+  optional reassessment above about 60%.
+- A planner transition at or below 60% requires a concrete documented reason,
+  such as repeated loss of governing constraints after targeted recovery, or a
   deliberate owner instruction. Transcript length, unknown capacity, a
   different slice or compaction alone is insufficient.
 - Cite context usage only when observed or owner-reported, naming the source.
   Never invent a percentage, extrapolate an earlier report, or confuse context
-  usage with account quota or model window size.
+  usage with account quota or model window size. If a current percentage is
+  unavailable, state that limitation explicitly; unknown usage is not a
+  measured value at or below 60%.
 
 Each recommendation carries its prompt:
 

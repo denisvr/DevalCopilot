@@ -327,6 +327,55 @@ attempt/run/project changes, A-to-B-to-A, parent reload and unmount discard old 
 frame; late responses and retained callbacks cannot affect successors. Nothing is polled, automatically retried,
 logged or persisted in the browser or URL. Existing message-linked input and attribution contracts stay unchanged.
 
+**Selected-attempt recorded verification evidence.**
+[ADR-0052](../decisions/0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md) adds two protected,
+bodyless GETs, `/api/runs/{runId}/agent-attempts/{attemptId}/verification-evidence` and
+`.../verification-evidence/{executionId}/artifact-window/{stream}` (`stdout` or `stderr`), independent of any message the
+attempt produced and of its evidence, input and Agent-artifact reads. Both are used for a CodeReviewer attempt of
+`ImplementationReview` or `VerificationDiagnosis` only. An unknown run, a missing, foreign or non-Agent attempt and, for a
+window, a nonmember execution or unsupported stream share the fixed `agent_attempt_verification.not_found` 404 that repeats no
+value. The two operations share one deliberately co-evolving read policy; the unchanged scalar identity rules of ADR-0037/0051
+judge the attempt, and nothing else consults a current recipe, latest execution, current checkpoint, eligibility, applicability or
+authority reader or reads a membership digest.
+
+The membership is at most 33 scalar `AttemptVerificationEvidence` rows read in stored order through the attempt/sequence
+index, of which 32 are inspected: a 33rd, none, or any incoherence makes the answer `Unavailable` with no count and no partial
+list, not a declaration that stored data is invalid. Before any member is shown the whole set is proved: gapless positions from
+zero, unique nonempty command and execution identities, each execution present by its recorded identity with the recorded
+command, project, workspace and checkpoint, the attempt's recorded workspace and checkpoint belonging together to the run's
+project, and well-formed equal claim/completion fingerprints of the attempt, checkpoint and every execution. The workspace need
+not be active nor the checkpoint latest. An ordinary review admits only Passed/Exited/0; a diagnosis also Failed/Exited/nonzero,
+with at least one failure. Stored enums are classified and numbers and strings guarded by the database before conversion can hide
+malformed SQLite storage; the command name comes only from the execution's immutable snapshot. These are this inspection's
+disclosure bounds, not new write rules.
+
+The API owns the response. `Recorded` names the immutable attempt header, the recorded checkpoint, the exact count 1-32 and every
+member: zero-based position, command and execution identity, positive execution number, snapshot command name, Passed/Failed,
+Int32 exit code, invariant UTC round-trip claim/dispatch/completion **strings** and two stream descriptors. A descriptor is
+`NotRecorded` (no row for that execution and stream), `Unavailable` (metadata that cannot be admitted) or `Recorded` (artifact
+identity, safe-integer byte length and either a known-truncation capture with a Boolean or a recovered capture with unknown
+`null` truncation, kept distinct); an unusable stream hides neither its sibling nor the members. The list reads no artifact path,
+hash or byte. A window re-proves the whole membership, resolves only the requested stream's row, admits its guarded relative
+path and exact `sha256:`-plus-64-lowercase-hex hash and passes them unchanged to `IArtifactStore.VerifyAndReadSealedAsync`;
+`Ok`, `Unavailable`, `NotRecorded`, `Missing` and `IntegrityMismatch` are distinct, non-Ok answers carry no artifact, text or
+observed length, and an offset past the recorded length or outside 0..2^53-1, or a cap outside 64..65536 (default 16 KiB), is a
+shared validation refusal that is never clamped. This is recorded membership and referenced rows as read now: it does not prove
+which bytes the Agent saw, that a diagnosis still matches its claim-time snapshot, or any current approval.
+
+The selected attempt has a collapsed "Recorded verification evidence" section, independent of the sections above. Opening reads
+the metadata once; selecting a Recorded stream, "Load", "Load next window" and retry after a failure are explicit and no read
+repeats by itself. A facade preserves the parsed bodies for whole-answer decoders that bind the requested identities and selected
+immutable header, closed shapes, counts, positions, unique identities, raw timestamps and capture tuples, and, for a window, the
+selected descriptor, its stable artifact and length and the byte cursor (`requestedOffset <= nextOffset <= length`, advance within
+the cap, progress while bytes remain, empty text exactly when there is none, `text.length <= advance`); decoded UTF-8 is never
+re-encoded to infer consumed bytes. A view retains at most 256 KiB of source bytes per member/stream selection, requests are
+capped by what remains and none is sent below 64 bytes; this local view limit is disclosed as such, never as the end of the capture
+or the file. Attempt selection, each opening and each member/stream selection visit use the existing owned-lifetime primitives:
+close/reopen, another attempt/run/project, A-to-B-to-A, Hide then reselection of the same stream (even in one batch), parent reload
+and unmount discard old work before the replacement's first frame, and late responses and retained callbacks, including a Hide of
+an earlier visit, cannot affect successors. Output is literal text; nothing is polled, retried
+automatically, logged, downloaded, exported or persisted in the browser or URL.
+
 **Selected-attempt execution facts.** The accepted evidence answer of a verified attempt also shows, from that same
 answer and with no further read, its response contract, its claim, dispatch and end times, its semantic `outcome`, the
 host-measured `processExecution` result, the configured timeout and the provider-reported `tokenUsage` counts, as

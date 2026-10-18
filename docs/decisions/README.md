@@ -135,6 +135,9 @@ under [Proposed decisions](#proposed-decisions).
 - [ADR-0051: Inspect recorded inputs of a selected Agent attempt](0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)
   (accepted, implemented in HIST-INP-01; one protected, bounded inspection of the selected attempt's recorded collaboration-input references, independent of a producing message, with no persistence, invocation, replay, autonomy or publication authority; publication is reconciled through the workflow)
 
+- [ADR-0052: Inspect recorded verification evidence of a selected Agent attempt](0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md)
+  (accepted, selected for HIST-VER-01, not yet implemented; bounded historical verification membership and manually requested sealed stdout/stderr windows of a selected review or diagnosis attempt, with no current eligibility, snapshot revalidation, mutation, invocation or publication authority)
+
 ## Partially superseded decisions
 
 - [ADR-0001: Build a local-first supervised orchestrator](0001-build-a-local-first-supervised-orchestrator.md)

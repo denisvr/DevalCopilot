@@ -9,6 +9,7 @@ import { ModelContextLimitsFact } from './ModelContextLimitsFact'
 import { CodexAccountUsageDecisionFact } from './CodexAccountUsageDecisionFact'
 import { SelectedAttemptExecutionFacts } from './SelectedAttemptExecutionFacts'
 import { SelectedAttemptRecordedInputs } from './SelectedAttemptRecordedInputs'
+import { SelectedAttemptRecordedVerification } from './SelectedAttemptRecordedVerification'
 import { ARTIFACT_PURPOSE_LABELS } from '../artifactPurposes'
 import { describeRepairLineage } from '../describeRepairLineage'
 import { toAgentAttemptIdentityExpectation } from '../agentAttemptHistory'
@@ -82,6 +83,7 @@ function AgentAttemptDetail({ selectionKey, runId, expected, onClose }: AgentAtt
         <AgentAttemptEvidenceBody target={{ selectionKey, runId, attemptId }} evidence={state.evidence} />
       )}
       <SelectedAttemptRecordedInputs selectionKey={selectionKey} runId={runId} expected={expected} />
+      <SelectedAttemptRecordedVerification selectionKey={selectionKey} runId={runId} expected={expected} />
     </section>
   )
 }
