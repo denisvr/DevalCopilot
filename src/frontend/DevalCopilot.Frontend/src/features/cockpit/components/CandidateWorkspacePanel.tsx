@@ -9,6 +9,8 @@ interface CandidateWorkspacePanelProps {
   projectId: string
   /** Told once per explicit Refresh evidence, so the project's run can read its verification-dependent status again. */
   onEvidenceRefreshRequested?: () => void
+  /** The fixed reason a planning sequence withholds verification Run for this project's run (ADR-0055); null or absent withholds nothing. */
+  runWithheldReason?: string | null
 }
 
 function abbreviate(sha: string | undefined): string {
@@ -31,7 +33,7 @@ function createEvidenceRefresh(): EvidenceRefresh {
  * (the user's stable checkout vs. a tool-owned, isolated candidate) that must never be shown in
  * a way that could be confused with one another.
  */
-export function CandidateWorkspacePanel({ projectId, onEvidenceRefreshRequested }: CandidateWorkspacePanelProps) {
+export function CandidateWorkspacePanel({ projectId, onEvidenceRefreshRequested, runWithheldReason = null }: CandidateWorkspacePanelProps) {
   const { workspace, loading, preparing, rechecking, error, prepare, recheckIdentity } = useProjectWorkspace(projectId)
   const refreshOwner = useOwnedLifetime(projectId)
   const [{ generation }, commitRefresh] = useOwnedState(refreshOwner, createEvidenceRefresh)
@@ -106,7 +108,12 @@ export function CandidateWorkspacePanel({ projectId, onEvidenceRefreshRequested 
         refreshGeneration={generation}
         onCaptured={requestEvidenceRefresh}
       />
-      <VerificationCommandsPanel key={`commands:${projectId}`} projectId={projectId} refreshGeneration={generation} />
+      <VerificationCommandsPanel
+        key={`commands:${projectId}`}
+        projectId={projectId}
+        refreshGeneration={generation}
+        runWithheldReason={runWithheldReason}
+      />
       <CheckpointReviewPanel key={`reviews:${projectId}`} projectId={projectId} refreshGeneration={generation} />
 
       {!needsIdentityRecheck && workspace.state === 'Blocked' ? (

@@ -7,6 +7,7 @@ using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptCheckpoi
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptResult;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptSourceChanged;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptWorkspaceIneligible;
+using DevalCopilot.Application.Features.Runs.Commands.RecordPlanningSequenceDispatchRefusal;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetCodexLaunchTarget;
 using DevalCopilot.Application.Features.Runs.Queries.GetEligibleAgentAttempts;
@@ -142,6 +143,13 @@ public sealed class AgentAttemptSupervisor(
             {
                 await DispatchAsync(
                     new RecordAgentAttemptWorkspaceIneligibleCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
+            }
+            else if (dispatched.Errors[0].Code == MarkAgentAttemptDispatchedCommandHandler.PlanningSequenceDispatchRefusedCode)
+            {
+                // The linked step of a planning sequence whose authority or deadline no longer permits dispatch (ADR-0055): its own
+                // dedicated outcome, never WorkspaceNoLongerEligible. The recorder independently proves the association.
+                await DispatchAsync(
+                    new RecordPlanningSequenceDispatchRefusalCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
             }
 
             return;

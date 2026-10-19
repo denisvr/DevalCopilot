@@ -19,6 +19,7 @@ using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVe
 using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
+using DevalCopilot.Application.Features.Runs.Commands.InterruptPlanningSequences;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecoverLocalCommitOperations;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedImplementationAttempts;
@@ -105,6 +106,8 @@ builder.Services.AddDbContext<DevalCopilotDbContext>((provider, options) =>
 builder.Services.AddScoped<IDevalCopilotDbContext>(provider => provider.GetRequiredService<DevalCopilotDbContext>());
 builder.Services.AddScoped<IAttemptDurabilityProbe>(
     provider => new AttemptDurabilityProbe(provider.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
+builder.Services.AddScoped<IPlanningSequenceStepProbe>(
+    provider => new PlanningSequenceStepProbe(provider.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ILaunchSessionAccessor, LaunchSessionAccessor>();
@@ -249,6 +252,11 @@ builder.Services.AddHostedService<ImplementationSupervisor>();
 builder.Services.AddSingleton<IClaudeReviewCorrectionAdapter, ClaudeReviewCorrectionAdapter>();
 builder.Services.AddHostedService<ReviewCorrectionSupervisor>();
 
+// The one fixed read-only planning coordinator (ADR-0055): it observes explicitly armed sequences and composes the existing claims;
+// the provider supervisors above keep executing durably claimed attempts exactly as before. Startup recovery interrupts every
+// formerly advancing sequence before this service starts.
+builder.Services.AddHostedService<PlanningSequenceCoordinator>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -362,6 +370,11 @@ if (!isSideEffectFreeComposition)
     // flagged NeedsAttention. Must still complete before ImplementationSupervisor can claim any
     // work, same ordering rule as above.
     await mediator.SendAsync(new ReconcileInterruptedImplementationAttemptsCommand(), CancellationToken.None);
+
+    // Only after the artifact and Agent/implementation reconciliation above, and before any hosted coordinator or provider supervisor
+    // starts (ADR-0055): every sequence that could still advance or drain, including Armed, preparation-only and between-step sessions,
+    // becomes Interrupted. Nothing resumes, redispatches or adopts a result.
+    await mediator.SendAsync(new InterruptPlanningSequencesCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

@@ -17,7 +17,8 @@ export interface RunExecutionModeDisclosure {
   agentActionsNote: string | null
 }
 
-export const WAITING_FOR_PLANNING_HINT = 'Waiting for an explicit planning request. Nothing runs until one is requested.'
+export const WAITING_FOR_PLANNING_HINT =
+  'Waiting for an explicit planning request or an explicit planning-sequence arming. Run intake starts nothing by itself; nothing runs until the Human requests or arms one.'
 
 export function deriveRunExecutionModeDisclosure(
   mode: string | null | undefined,

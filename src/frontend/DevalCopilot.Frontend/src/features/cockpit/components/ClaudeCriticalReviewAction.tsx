@@ -3,6 +3,7 @@ import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { describeGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { AgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { describeAgentClaimPathTimeFitBlock, isAgentClaimPathTimeFitBlocking } from '../deriveAgentClaimPathTimeFit'
+import { PLANNING_SEQUENCE_DISPATCH_REFUSED_LABEL } from '../planningSequenceCopy'
 import { ProcessEvidenceLine } from './ProcessEvidenceLine'
 import { TokenUsageLine } from './TokenUsageLine'
 
@@ -33,6 +34,7 @@ const OUTCOME_LABEL: Record<string, string> = {
   ProviderInvocationFailed: 'Claude could not be invoked',
   CheckpointEvidenceUnavailable: 'Source evidence could not be captured',
   WorkspaceNoLongerEligible: 'Workspace no longer eligible for dispatch',
+  PlanningSequenceDispatchRefused: PLANNING_SEQUENCE_DISPATCH_REFUSED_LABEL,
   InputAlreadyReviewed: 'Proposal already reviewed by another attempt',
 }
 

@@ -4,6 +4,7 @@ using DevalCopilot.Application.Features.Runs.Commands.RecordCodexAccountUsageSto
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -25,6 +26,12 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
     : ICommandHandler<MarkAgentAttemptDispatchedCommand, Result<DateTimeOffset>>
 {
     public const string WorkspaceNoLongerEligibleCode = "agent_attempts.workspace_no_longer_eligible";
+
+    /// <summary>Distinct from <see cref="WorkspaceNoLongerEligibleCode"/> on purpose (ADR-0055): the attempt is the linked step of a planning
+    /// sequence whose authority, result deadline or pinned source no longer permits dispatch, while the run, workspace, lease and
+    /// checkpoint need not have changed at all. It maps to its own terminal outcome and its own dedicated recording command; the provider
+    /// is never invoked.</summary>
+    public const string PlanningSequenceDispatchRefusedCode = "agent_attempts.planning_sequence_dispatch_refused";
 
     /// <summary>Distinct from <see cref="WorkspaceNoLongerEligibleCode"/> on purpose: the run,
     /// workspace, lease, and checkpoint all remain fully eligible here — only the reviewed
@@ -183,6 +190,25 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
         if (executionModeError is not null)
         {
             return Result<DateTimeOffset>.Failure(executionModeError);
+        }
+
+        // The planning-sequence half of the same authoritative last gate (ADR-0055). A coordinator-linked attempt is dispatchable only
+        // while its exact sequence, step, pinned source and unexpired result deadline still authorize it (Stopping retains its already
+        // claimed step's grant). The sequence revision it decided against is required unchanged at this marker's own commit, so an expiry
+        // or a restart that committed in between refuses it. An unlinked attempt is unaffected.
+        var sequenceGate = await PlanningSequenceDispatchGate.EvaluateAsync(
+            dbContext, attempt, timeProvider.GetUtcNow(), trackSequence: true, cancellationToken);
+        if (sequenceGate.Verdict == PlanningSequenceDispatchGate.Verdict.Refused)
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.Conflict(
+                    PlanningSequenceDispatchRefusedCode,
+                    "The planning sequence no longer authorizes dispatching this attempt."));
+        }
+
+        if (sequenceGate.Sequence is { } linkedSequence)
+        {
+            PlanningSequenceDispatchGate.Guard(dbContext, linkedSequence);
         }
 
         var workspace = await dbContext.GitWorkspaces

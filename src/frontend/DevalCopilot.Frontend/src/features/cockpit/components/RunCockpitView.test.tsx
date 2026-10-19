@@ -51,6 +51,8 @@ import * as useLocalCommitStatusModule from '../hooks/useLocalCommitStatus'
 import * as useRequestLocalCommitModule from '../hooks/useRequestLocalCommit'
 import * as useManualRunAbandonmentModule from '../hooks/useManualRunAbandonment'
 import * as useAbandonManualRunModule from '../hooks/useAbandonManualRun'
+import * as usePlanningSequenceModule from '../hooks/usePlanningSequence'
+import { armableStatusFor, hookResultFor, statusFor, unknownHookResult } from '../planningSequenceFixture'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -82,6 +84,7 @@ vi.mock('../hooks/useLocalCommitStatus')
 vi.mock('../hooks/useRequestLocalCommit')
 vi.mock('../hooks/useManualRunAbandonment')
 vi.mock('../hooks/useAbandonManualRun')
+vi.mock('../hooks/usePlanningSequence')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   planningImplementationAuthorizationClient: vi.fn(),
@@ -164,6 +167,10 @@ function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineC
 }
 
 beforeEach(() => {
+  // No planning sequence is recorded for any run: the fence withholds nothing (its own tests replace this).
+  vi.mocked(usePlanningSequenceModule.usePlanningSequence).mockImplementation((runId) =>
+    hookResultFor(armableStatusFor(runId ?? 'run-1'), runId ?? 'run-1'),
+  )
   useLocalCommitStatusMock.mockReturnValue({ status: null, loading: true, error: null, current: false, refresh: vi.fn() })
   useRequestLocalCommitMock.mockReturnValue({ requesting: false, error: null, submit: vi.fn() })
   useManualRunAbandonmentMock.mockReturnValue({ status: null, loading: true, error: null, current: false, refresh: vi.fn() })
@@ -3109,5 +3116,359 @@ describe('RunCockpitView abandonment composition', () => {
 
     expect(screen.getByRole('button', { name: 'Request Codex plan' })).toBeInTheDocument()
     expect(screen.queryByText(/This run was abandoned/)).not.toBeInTheDocument()
+  })
+})
+
+describe('RunCockpitView PlanningSequence fence', () => {
+  const usePlanningSequenceMock = vi.mocked(usePlanningSequenceModule.usePlanningSequence)
+
+  function mockRun(overrides: Record<string, unknown> = {}) {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, ...overrides } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh: async () => true,
+    })
+  }
+
+  const failedInvalid = { hasAttempt: true, attemptId: 'attempt-9', attemptNumber: 3, status: 'Failed', outcome: 'InvalidStructuredOutput' }
+
+  // Each scenario is arranged so that exactly its action is offered when nothing withholds it.
+  const scenarios: { name: string; offered: () => HTMLElement | null; arrange: () => void }[] = [
+    { name: 'Codex planning', offered: () => screen.queryByRole('button', { name: 'Request Codex plan' }), arrange: () => undefined },
+    {
+      name: 'Codex planning repair',
+      offered: () => screen.queryByRole('button', { name: 'Request one format-repair plan' }),
+      arrange: () =>
+        useAgentAttemptStatusMock.mockReturnValue({ status: new AgentAttemptStatusResponse(failedInvalid), loading: false, error: null, refresh: vi.fn() }),
+    },
+    {
+      name: 'Claude critical review',
+      offered: () => screen.queryByRole('button', { name: 'Request Claude review' }),
+      arrange: () =>
+        useCollaborationTimelineMock.mockReturnValue({
+          cards: [providerObservedCodexProposal({ sequence: 1, id: 'message-1' })],
+          loading: false,
+          error: null,
+          hasSuccessfulResponse: true,
+        }),
+    },
+    {
+      name: 'Claude critical review repair',
+      offered: () => screen.queryByRole('button', { name: 'Request one format-repair critical review' }),
+      arrange: () =>
+        useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+          status: new ClaudeCriticalReviewAttemptStatusResponse(failedInvalid),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'challenge resolution',
+      offered: () => screen.queryByRole('button', { name: 'Resolve challenges with Codex' }),
+      arrange: () =>
+        useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+          status: new ClaudeCriticalReviewAttemptStatusResponse({
+            attemptId: 'review-1',
+            attemptNumber: 1,
+            status: 'Completed',
+            outcome: 'Challenged',
+            reviewedProposalMessageId: 'message-1',
+          }),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'challenge resolution repair',
+      offered: () => screen.queryByRole('button', { name: 'Request one format-repair resolution' }),
+      arrange: () =>
+        useChallengeResolutionAttemptStatusMock.mockReturnValue({
+          status: new ChallengeResolutionAttemptStatusResponse(failedInvalid),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'implementation',
+      offered: () => screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' }),
+      arrange: () => {
+        useCollaborationTimelineMock.mockReturnValue({
+          cards: [providerObservedCodexProposal({ sequence: 1, id: 'root' })],
+          loading: false,
+          error: null,
+          hasSuccessfulResponse: true,
+        })
+        useClaudeCriticalReviewAttemptStatusMock.mockReturnValue({
+          status: new ClaudeCriticalReviewAttemptStatusResponse({
+            attemptId: 'review-x',
+            attemptNumber: 2,
+            status: 'Completed',
+            outcome: 'Accepted',
+            reviewedProposalMessageId: 'root',
+          }),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        })
+      },
+    },
+    {
+      name: 'code review',
+      offered: () => screen.queryByRole('button', { name: 'Request code review' }),
+      arrange: () =>
+        useReviewCorrectionAttemptStatusMock.mockReturnValue({
+          status: new ReviewCorrectionAttemptStatusResponse({ reviewableExecutionReportMessageId: 'report-1' }),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'code review repair',
+      offered: () => screen.queryByRole('button', { name: 'Request one format-repair code review' }),
+      arrange: () =>
+        useCodeReviewAttemptStatusMock.mockReturnValue({
+          status: new CodeReviewAttemptStatusResponse(failedInvalid),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'review correction',
+      offered: () => screen.queryByRole('button', { name: 'Request review correction' }),
+      arrange: () =>
+        useCodeReviewAttemptStatusMock.mockReturnValue({
+          status: { hasAttempt: true, attemptId: 'review-1', outcome: 'ReviewChangesRequested' } as never,
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'review correction authorization',
+      offered: () => screen.queryByRole('button', { name: 'Authorize one additional correction' }),
+      arrange: () => {
+        useCodeReviewAttemptStatusMock.mockReturnValue({
+          status: { hasAttempt: true, attemptId: 'review-1', outcome: 'ReviewChangesRequested' } as never,
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        })
+        useReviewCorrectionAttemptStatusMock.mockReturnValue({
+          status: new ReviewCorrectionAttemptStatusResponse({
+            hasAttempt: true,
+            attemptId: 'correction-1',
+            attemptNumber: 2,
+            implementationReviewAttemptId: 'review-1',
+            status: 'Failed',
+            budgetExhausted: true,
+            escalationId: 'escalation-1',
+            hasAvailableHumanAuthorization: false,
+          }),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        })
+      },
+    },
+    {
+      name: 'verification diagnosis',
+      offered: () => screen.queryByRole('button', { name: 'Diagnose failed verification with Codex' }),
+      arrange: () =>
+        useVerificationDiagnosisStatusMock.mockReturnValue({
+          status: new VerificationDiagnosisStatusResponse({ hasAttempt: false, diagnosableExecutionReportMessageId: 'report-9' }),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'diagnosis correction',
+      offered: () => screen.queryByRole('button', { name: 'Correct the diagnosed findings with Claude' }),
+      arrange: () =>
+        useVerificationDiagnosisStatusMock.mockReturnValue({
+          status: new VerificationDiagnosisStatusResponse({
+            hasAttempt: true,
+            attemptId: 'diagnosis-3',
+            attemptNumber: 3,
+            status: 'Completed',
+            outcome: 'DiagnosisFindingsRecorded',
+            findingCount: 2,
+            correctionApplicable: true,
+            maximumReviewCorrectionAttempts: 3,
+            reviewCorrectionAttemptsUsed: 1,
+            verification: [
+              new VerificationDiagnosisMemberResponse({ position: 1, commandName: 'unit', executionNumber: 4, status: 'Failed', exitCode: 1 }),
+            ],
+          }),
+          loading: false,
+          error: null,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'local commit request',
+      offered: () => screen.queryByRole('button', { name: 'Commit locally' }),
+      arrange: () =>
+        useLocalCommitStatusMock.mockReturnValue({
+          status: { eligible: true, checkpointId: 'c-1', codeReviewAttemptId: 'r-1', humanCheckpointReviewId: 'h-1' } as never,
+          loading: false,
+          error: null,
+          current: true,
+          refresh: vi.fn(),
+        }),
+    },
+    {
+      name: 'abandon',
+      offered: () => screen.queryByRole('button', { name: 'Abandon run' }),
+      arrange: () =>
+        useManualRunAbandonmentMock.mockReturnValue({
+          status: { eligible: true } as never,
+          loading: false,
+          error: null,
+          current: true,
+          refresh: vi.fn(),
+        }),
+    },
+  ]
+
+  const WITHHELD = /Withheld/
+  const control = (state: 'unknown' | 'blocked' | 'released' | 'none') => {
+    const runId = 'run-1'
+    return state === 'unknown'
+      ? unknownHookResult()
+      : state === 'blocked'
+        ? hookResultFor(statusFor(runId, 'AwaitingStepResult'), runId)
+        : state === 'released'
+          ? hookResultFor(statusFor(runId, 'Stopped'), runId)
+          : hookResultFor(armableStatusFor(runId), runId)
+  }
+
+  describe.each(scenarios)('$name', (scenario) => {
+    it.each(['none', 'released'] as const)('is left exactly as the ordinary gates decide when the fence is %s', (state) => {
+      mockRun()
+      scenario.arrange()
+      usePlanningSequenceMock.mockReturnValue(control(state))
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(scenario.offered()).toBeInTheDocument()
+      expect(screen.queryByText(WITHHELD)).not.toBeInTheDocument()
+    })
+
+    it.each(['unknown', 'blocked'] as const)('is withheld, with the fixed reason, while the fence is %s', (state) => {
+      mockRun()
+      scenario.arrange()
+      usePlanningSequenceMock.mockReturnValue(control(state))
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(scenario.offered()).not.toBeInTheDocument()
+      expect(screen.getAllByText(WITHHELD).length).toBeGreaterThan(0)
+    })
+  })
+
+  it('does not enable what the ordinary gates disable when the fence is released', () => {
+    mockRun()
+    usePlanningSequenceMock.mockReturnValue(control('released'))
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.queryByRole('button', { name: 'Request Claude review' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Resolve challenges with Codex' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Implement the resolved plan with Claude' })).not.toBeInTheDocument()
+  })
+
+  it('names the fixed reason for each withheld fence', () => {
+    mockRun()
+    usePlanningSequenceMock.mockReturnValue(control('unknown'))
+    const { unmount } = render(<RunCockpitView runId="run-1" />)
+    expect(screen.getAllByText(/Withheld until the planning sequence status is confirmed/).length).toBeGreaterThan(0)
+    unmount()
+
+    usePlanningSequenceMock.mockReturnValue(control('blocked'))
+    render(<RunCockpitView runId="run-1" />)
+    expect(screen.getAllByText(/a planning sequence holds automatic authority.*Stop after current step/).length).toBeGreaterThan(0)
+  })
+
+  it('mounts the panel for a manual Agent run, and reports the fence to the project through the callback', () => {
+    mockRun()
+    usePlanningSequenceMock.mockReturnValue(control('blocked'))
+    const report = vi.fn()
+
+    const { unmount } = render(<RunCockpitView runId="run-1" onPlanningSequenceControlChange={report} />)
+
+    expect(screen.getByRole('region', { name: 'Planning sequence' })).toBeInTheDocument()
+    expect(report).toHaveBeenLastCalledWith('run-1', 'blocked')
+    unmount()
+    expect(report).toHaveBeenLastCalledWith('run-1', 'unknown')
+  })
+
+  it('does not mount the panel for a simulated run', () => {
+    mockRun({ executionMode: 'Simulated' })
+    usePlanningSequenceMock.mockReturnValue(control('none'))
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.queryByRole('region', { name: 'Planning sequence' })).not.toBeInTheDocument()
+  })
+
+  describe('header and runtime treatment', () => {
+    it('shows the lifecycle as recorded, and the duration as lifecycle elapsed time, for a run with a sequence', () => {
+      mockRun()
+      usePlanningSequenceMock.mockReturnValue(control('blocked'))
+
+      render(<RunCockpitView runId="run-1" />)
+
+      const badge = screen.getByText('Running · Plan')
+      expect(badge).toHaveAttribute('data-recorded-lifecycle', 'true')
+      expect(badge).toHaveAttribute('data-tone', 'default')
+      expect(screen.getByTitle('Lifecycle elapsed time as recorded: not measured agent activity')).toBeInTheDocument()
+      expect(screen.queryByTitle('Autonomous session time: excludes paused and terminal time')).not.toBeInTheDocument()
+    })
+
+    it('keeps the legacy live treatment for a run with no recorded sequence', () => {
+      mockRun()
+      usePlanningSequenceMock.mockReturnValue(control('none'))
+
+      render(<RunCockpitView runId="run-1" />)
+
+      const badge = screen.getByText('Running · Plan')
+      expect(badge).toHaveAttribute('data-tone', 'running')
+      expect(badge).not.toHaveAttribute('data-recorded-lifecycle')
+      expect(screen.getByTitle('Autonomous session time: excludes paused and terminal time')).toBeInTheDocument()
+    })
+
+    it('treats a status that is not established as recorded only, never as live execution', () => {
+      mockRun()
+      usePlanningSequenceMock.mockReturnValue(control('unknown'))
+
+      render(<RunCockpitView runId="run-1" />)
+
+      expect(screen.getByText('Running · Plan')).toHaveAttribute('data-tone', 'default')
+    })
+
+    it('hides the waiting hint of a Created run once a sequence is recorded or its status is unknown, and keeps it otherwise', () => {
+      mockRun({ lifecycle: 'Created' })
+      usePlanningSequenceMock.mockReturnValue(control('none'))
+      const { unmount } = render(<RunCockpitView runId="run-1" />)
+      expect(screen.getByText(/Waiting for an explicit planning request/)).toBeInTheDocument()
+      unmount()
+
+      for (const state of ['blocked', 'released', 'unknown'] as const) {
+        usePlanningSequenceMock.mockReturnValue(control(state))
+        const view = render(<RunCockpitView runId="run-1" />)
+        expect(screen.queryByText(/Waiting for an explicit planning request/)).not.toBeInTheDocument()
+        view.unmount()
+      }
+    })
   })
 })

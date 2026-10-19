@@ -408,6 +408,8 @@ public sealed class GetRunEventHistoryQueryHandlerTests : IAsyncLifetime
                 "local_commit.interrupted", "local_commit.needs_attention", "run.abandoned",
                 "run.github_observation_target_recorded", "run.github_repository_identity_bound",
                 "run.github_branch_publication_approved",
+                "planning_sequence.armed", "planning_sequence.step_reserved", "planning_sequence.step_claimed",
+                "planning_sequence.step_concluded", "planning_sequence.stop_requested", "planning_sequence.ended",
             ],
             constants);
 

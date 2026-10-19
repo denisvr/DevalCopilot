@@ -14,6 +14,11 @@ interface VerificationCommandsPanelProps {
   projectId: string
   // Advanced by the project's owner when the current checkpoint metadata must be read again.
   refreshGeneration?: number
+  /**
+   * The fixed reason a planning sequence withholds Run (ADR-0055): it holds automatic authority over the project's run or workspace, or
+   * whether it does is not established. Null or absent: this fence withholds nothing, which never means Run is otherwise eligible.
+   */
+  runWithheldReason?: string | null
 }
 
 const DEFAULT_TIMEOUT_SECONDS = 300
@@ -72,7 +77,7 @@ function outputCaptureDescription(execution: VerificationExecutionResponse, stre
   return truncated ? `${stream} captured · truncated` : `${stream} captured · truncation known`
 }
 
-export function VerificationCommandsPanel({ projectId, refreshGeneration }: VerificationCommandsPanelProps) {
+export function VerificationCommandsPanel({ projectId, refreshGeneration, runWithheldReason = null }: VerificationCommandsPanelProps) {
   const { commands, loading, saving, error, configure, update, remove } = useProjectVerificationCommands(projectId)
   const { evidence, current: evidenceCurrent, loading: evidenceLoading } = useProjectGitEvidence(projectId, true, refreshGeneration)
   const {
@@ -120,12 +125,12 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration }: Veri
   const uncertaintyDischarged =
     uncertainAtGeneration !== null && (refreshGeneration ?? 0) > uncertainAtGeneration && executionsCurrent && evidenceCurrent
   const startUncertain = uncertainAtGeneration !== null && !uncertaintyDischarged
-  const canRun = Boolean(checkpointId) && evidenceCurrent && executionsCurrent && !workspaceRunning && !startUncertain
+  const canRun = Boolean(checkpointId) && evidenceCurrent && executionsCurrent && !workspaceRunning && !startUncertain && runWithheldReason === null
 
   // Handlers are rebound on every render, but one retained from an earlier render must decide from the newest authority.
-  const latest = useRef({ canRun, checkpointId, generation: refreshGeneration ?? 0 })
+  const latest = useRef({ canRun, checkpointId, generation: refreshGeneration ?? 0, withheld: runWithheldReason })
   useLayoutEffect(() => {
-    latest.current = { canRun, checkpointId, generation: refreshGeneration ?? 0 }
+    latest.current = { canRun, checkpointId, generation: refreshGeneration ?? 0, withheld: runWithheldReason }
   })
   // A later explicit refresh that read the status acknowledges the uncertainty for good: it is cleared from the lifetime's state, so a
   // later pending or failed read can never revive it.
@@ -146,7 +151,7 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration }: Veri
 
     const authority = latest.current
     if (!commandId || !authority.checkpointId || !authority.canRun) {
-      commit(previous => ({ ...previous, runMessage: 'Capture or refresh a current source checkpoint, and wait for no running verification, before running verification.' }))
+      commit(previous => ({ ...previous, runMessage: authority.withheld ?? 'Capture or refresh a current source checkpoint, and wait for no running verification, before running verification.' }))
       return
     }
 
@@ -192,6 +197,10 @@ export function VerificationCommandsPanel({ projectId, refreshGeneration }: Veri
           <span className="dc-workspace-evidence-subtitle">Runs only from the current isolated-workspace checkpoint</span>
         </div>
       </div>
+
+      {runWithheldReason !== null ? (
+        <span className="dc-workspace-evidence-empty" role="status">{runWithheldReason}</span>
+      ) : null}
 
       {!evidenceCurrent ? (
         <span className="dc-workspace-evidence-empty">

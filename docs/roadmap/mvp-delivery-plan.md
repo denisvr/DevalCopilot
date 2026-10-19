@@ -219,6 +219,11 @@ recovery
 It is delivered on `origin/main` as a bounded capability; this exception
 completes neither Increment 4 nor Increment 5.
 
+**Planning coordination (partial).** ADR-0055 / PLAN-COORD-01 adds one explicitly armed, read-only planning sequence that the host
+advances to Accepted planning or the Human escalation. It is a bounded capability (review and publication provenance: roadmap checkpoints and Git), not an Increment 4
+or 5 completion: it starts no implementation, mutating coordination, verification, commit or publication, and every provider-contract
+boundary below stays open.
+
 **Partial delivery, not completion.** Explicit Human-requested capabilities,
 each bounded by its [ADR](../decisions/README.md):
 

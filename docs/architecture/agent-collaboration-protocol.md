@@ -354,6 +354,20 @@ in the local delivery companion.
 Moved to [Project instruction context in Agent manifests](agent-collaboration-source-evidence.md#project-instruction-context-in-agent-manifests)
 in the source evidence companion.
 
+### Explicitly authorized read-only planning sequence
+
+One explicit, single-use arming per run ([ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md))
+lets the host's coordinator claim the existing Planner, CriticalReviewer and Resolver steps through the existing claim handlers, composed
+through the mediator with an internal ticket so the step link commits in the claim's own transaction. Preparation has a 2-minute
+deadline and the claimed result a claim-plus-timeout-plus-2-minute deadline; expiry ends the sequence without terminating an attempt. A result recorded at or after that deadline, even before
+the coordinator's next observation, never authorizes a successor or successful planning (the status reads attention at once and the
+terminal attempt stays recorded), whereas a timely completion that is only observed later is not late; a Stop that already won stays
+Stopped. Observation of deadlines is independent of any blocked external preparation, which loses its claim if it returns late.
+Manual claims, verification, local commit and abandonment are fenced in both directions by the live sequence or its Running attempt,
+backed by database guards. A dispatch the sequence no longer authorizes ends as `PlanningSequenceDispatchRefused`. The sequence
+ends in Accepted planning or the existing depth-two Human escalation, never in implementation, and startup interrupts every formerly
+advancing sequence without creating or adopting an attempt.
+
 ## Token efficiency
 
 Moved to [Token efficiency](agent-collaboration-context.md#token-efficiency)

@@ -123,6 +123,40 @@ describe('VerificationCommandsPanel', () => {
     expect(claimVerificationExecution.mock.calls[0][2].gitCheckpointId).toBe('checkpoint-1')
   })
 
+  it('withholds Run with the fixed planning sequence reason, and sends nothing, while a sequence holds authority or is unknown', async () => {
+    const command = new VerificationCommandResponse({
+      verificationCommandId: 'command-1',
+      commandNumber: 1,
+      name: 'Backend tests',
+      executablePath: String.raw`C:Program Filesdotnetdotnet.exe`,
+      arguments: ['test'],
+      timeoutSeconds: 300,
+      isEnabled: true,
+    })
+    vi.mocked(projectVerificationCommandsClient).mockReturnValue({
+      getProjectVerificationCommands: vi.fn().mockResolvedValue([command]),
+    } as unknown as ReturnType<typeof projectVerificationCommandsClient>)
+    vi.mocked(projectGitEvidenceClient).mockReturnValue({
+      getProjectGitEvidence: vi.fn().mockResolvedValue(new GetProjectGitEvidenceResponse({ checkpointId: 'checkpoint-1' })),
+    } as unknown as ReturnType<typeof projectGitEvidenceClient>)
+    vi.mocked(projectVerificationExecutionsClient).mockReturnValue({
+      getProjectVerificationExecutions: vi.fn().mockResolvedValue([]),
+    } as unknown as ReturnType<typeof projectVerificationExecutionsClient>)
+    const claimVerificationExecution = vi.fn().mockResolvedValue({ executionNumber: 2 })
+    vi.mocked(claimVerificationExecutionClient).mockReturnValue({ claimVerificationExecution } as unknown as ReturnType<typeof claimVerificationExecutionClient>)
+
+    const view = render(<VerificationCommandsPanel projectId="project-1" runWithheldReason="Withheld: a planning sequence holds automatic authority." />)
+
+    const runButton = await screen.findByText('Run')
+    expect(runButton).toBeDisabled()
+    expect(screen.getByText('Withheld: a planning sequence holds automatic authority.')).toBeInTheDocument()
+    fireEvent.click(runButton)
+    expect(claimVerificationExecution).not.toHaveBeenCalled()
+
+    view.rerender(<VerificationCommandsPanel projectId="project-1" runWithheldReason={null} />)
+    await waitFor(() => expect(screen.getByText('Run')).toBeEnabled())
+  })
+
   it('reports an accepted claim as requested, never as a start failure or a pending claim that outlives its terminal result', async () => {
     const command = new VerificationCommandResponse({
       verificationCommandId: 'command-1',

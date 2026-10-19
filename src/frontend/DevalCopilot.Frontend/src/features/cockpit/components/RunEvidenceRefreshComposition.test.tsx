@@ -48,6 +48,8 @@ import * as useRequestReviewCorrectionModule from '../hooks/useRequestReviewCorr
 import * as useAuthorizeReviewCorrectionModule from '../hooks/useAuthorizeReviewCorrection'
 import * as usePlanningImplementationAuthorizationModule from '../hooks/usePlanningImplementationAuthorization'
 import * as useAuthorizePlanningImplementationModule from '../hooks/useAuthorizePlanningImplementation'
+import * as usePlanningSequenceModule from '../hooks/usePlanningSequence'
+import { armableStatusFor, hookResultFor } from '../planningSequenceFixture'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -72,6 +74,7 @@ vi.mock('../hooks/useRequestReviewCorrection')
 vi.mock('../hooks/useAuthorizeReviewCorrection')
 vi.mock('../hooks/usePlanningImplementationAuthorization')
 vi.mock('../hooks/useAuthorizePlanningImplementation')
+vi.mock('../hooks/usePlanningSequence')
 vi.mock('./AgentCollaboration', () => ({ AgentCollaboration: () => null }))
 vi.mock('./UsageEvidenceRail', () => ({ UsageEvidenceRail: () => null }))
 vi.mock('./LiveOutputDrawer', () => ({ LiveOutputDrawer: () => null }))
@@ -322,6 +325,9 @@ async function renderReady(projectId = 'project-1', runId = 'run-1') {
 
 describe('Refresh evidence reaches the run\'s verification-dependent display', () => {
   beforeEach(() => {
+    vi.mocked(usePlanningSequenceModule.usePlanningSequence).mockImplementation((runId) =>
+      hookResultFor(armableStatusFor(runId ?? 'run-1'), runId ?? 'run-1'),
+    )
     vi.clearAllMocks()
     servers.clear()
     fallbackReportId = null

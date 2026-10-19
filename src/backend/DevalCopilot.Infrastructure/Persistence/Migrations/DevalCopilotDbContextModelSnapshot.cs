@@ -1626,6 +1626,180 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("planning_implementation_authorizations", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningSequence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ArmedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CheckpointId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetailCode")
+                        .HasMaxLength(96)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("EndedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FingerprintSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ObjectiveSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("StopRequestedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("WorkspaceId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckpointId");
+
+                    b.HasIndex("RunId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_sequences_run");
+
+                    b.HasIndex("WorkspaceId")
+                        .HasDatabaseName("ix_planning_sequences_workspace");
+
+                    b.ToTable("planning_sequences", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_planning_sequences_fingerprint", "length(\"FingerprintSha256\") = 64 AND \"FingerprintSha256\" NOT GLOB '*[^0-9a-f]*'");
+
+                            t.HasCheckConstraint("ck_planning_sequences_objective", "length(\"ObjectiveSha256\") = 64 AND \"ObjectiveSha256\" NOT GLOB '*[^0-9a-f]*'");
+
+                            t.HasCheckConstraint("ck_planning_sequences_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("ck_planning_sequences_state", "\"State\" IN ('Armed', 'PreparingStep', 'AwaitingStepResult', 'Stopping', 'ReadyForImplementation', 'AwaitingHumanDecision', 'Stopped', 'NeedsAttention', 'Interrupted')");
+                        });
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningSequenceStep", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("InputProposalMessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("PredecessorAttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PreparationDeadlineUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PreparationOwnerToken")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PreparationReservedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ReservedAttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SequenceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_sequence_steps_attempt")
+                        .HasFilter("\"AttemptId\" IS NOT NULL");
+
+                    b.HasIndex("InputProposalMessageId");
+
+                    b.HasIndex("PredecessorAttemptId");
+
+                    b.HasIndex("ReservedAttemptId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_sequence_steps_reserved_attempt");
+
+                    b.HasIndex("SequenceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_sequence_steps_outstanding")
+                        .HasFilter("\"State\" IN ('Reserved', 'Claimed')");
+
+                    b.HasIndex("SequenceId", "Ordinal")
+                        .IsUnique()
+                        .HasDatabaseName("ix_planning_sequence_steps_ordinal");
+
+                    b.ToTable("planning_sequence_steps", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_planning_sequence_steps_attempt_link", "(\"State\" IN ('Claimed', 'Concluded')) = (\"AttemptId\" IS NOT NULL) AND (\"AttemptId\" IS NULL OR \"AttemptId\" = \"ReservedAttemptId\")");
+
+                            t.HasCheckConstraint("ck_planning_sequence_steps_ordinal", "\"Ordinal\" BETWEEN 0 AND 4");
+
+                            t.HasCheckConstraint("ck_planning_sequence_steps_predecessor", "(\"Ordinal\" = 0) = (\"PredecessorAttemptId\" IS NULL) AND (\"Ordinal\" = 0) = (\"InputProposalMessageId\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_planning_sequence_steps_revision", "\"Revision\" >= 1");
+
+                            t.HasCheckConstraint("ck_planning_sequence_steps_role", "(\"Ordinal\" = 0 AND \"Role\" = 'Planner') OR (\"Ordinal\" IN (1, 3) AND \"Role\" = 'CriticalReviewer') OR (\"Ordinal\" IN (2, 4) AND \"Role\" = 'Resolver')");
+
+                            t.HasCheckConstraint("ck_planning_sequence_steps_state", "\"State\" IN ('Reserved', 'Claimed', 'Concluded', 'Revoked', 'Unresolved')");
+                        });
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.ReviewCorrectionAuthorization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1706,7 +1880,7 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("AbandonedAtUtc")
+                    b.Property<string>("AbandonedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AbandonmentReason")
@@ -2295,6 +2469,52 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
                         .WithMany()
                         .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningSequence", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitCheckpoint", null)
+                        .WithMany()
+                        .HasForeignKey("CheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Projects.GitWorkspace", null)
+                        .WithMany()
+                        .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.PlanningSequenceStep", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.CollaborationMessage", null)
+                        .WithMany()
+                        .HasForeignKey("InputProposalMessageId")
+                        .HasPrincipalKey("Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("PredecessorAttemptId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.PlanningSequence", null)
+                        .WithMany()
+                        .HasForeignKey("SequenceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

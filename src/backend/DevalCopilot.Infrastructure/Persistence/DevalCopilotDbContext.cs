@@ -65,6 +65,10 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<GitHubBranchPublicationApproval> GitHubBranchPublicationApprovals => Set<GitHubBranchPublicationApproval>();
 
+    public DbSet<PlanningSequence> PlanningSequences => Set<PlanningSequence>();
+
+    public DbSet<PlanningSequenceStep> PlanningSequenceSteps => Set<PlanningSequenceStep>();
+
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
         Database.BeginTransactionAsync(cancellationToken);
 

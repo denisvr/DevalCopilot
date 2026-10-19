@@ -112,4 +112,25 @@ public static class RunEventType
     /// of the approval snapshot; it records consent only and never an executed push, remote observation, permission or any other
     /// publication.</summary>
     public const string GitHubBranchPublicationApproved = "run.github_branch_publication_approved";
+
+    /// <summary>A Human armed one explicitly authorized read-only planning sequence for the run (ADR-0055). The payload carries only the
+    /// sequence identity and the exact pinned workspace, checkpoint and fingerprint; arming invoked nothing and consumed no budget.</summary>
+    public const string PlanningSequenceArmed = "planning_sequence.armed";
+
+    /// <summary>The coordinator reserved the one preparation intent of the next step. The payload carries identities and the ordinal
+    /// only; a reservation is not a claim and consumes no budget.</summary>
+    public const string PlanningSequenceStepReserved = "planning_sequence.step_reserved";
+
+    /// <summary>The reserved step's attempt, inputs, artifact metadata and budget consumption committed atomically with its link. A claim
+    /// is not proof that a provider process is running.</summary>
+    public const string PlanningSequenceStepClaimed = "planning_sequence.step_claimed";
+
+    /// <summary>The coordinator classified the terminal result of a claimed step.</summary>
+    public const string PlanningSequenceStepConcluded = "planning_sequence.step_concluded";
+
+    /// <summary>The Human chose Stop after current step. This is not process cancellation, run Stop or Pause.</summary>
+    public const string PlanningSequenceStopRequested = "planning_sequence.stop_requested";
+
+    /// <summary>The sequence ended in a terminal, attention or interrupted state with a fixed reason code.</summary>
+    public const string PlanningSequenceEnded = "planning_sequence.ended";
 }

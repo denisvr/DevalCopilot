@@ -37,6 +37,12 @@ export const KNOWN_EVENT_TYPES = [
   'run.github_observation_target_recorded',
   'run.github_repository_identity_bound',
   'run.github_branch_publication_approved',
+  'planning_sequence.armed',
+  'planning_sequence.step_reserved',
+  'planning_sequence.step_claimed',
+  'planning_sequence.step_concluded',
+  'planning_sequence.stop_requested',
+  'planning_sequence.ended',
 ] as const
 
 export type KnownEventType = (typeof KNOWN_EVENT_TYPES)[number]
@@ -237,6 +243,12 @@ const EVENT_TYPE_LABELS: Record<KnownEventType, string> = {
   'run.github_observation_target_recorded': 'GitHub observation target recorded',
   'run.github_repository_identity_bound': 'GitHub repository identity bound',
   'run.github_branch_publication_approved': 'GitHub branch publication approved (consent recorded, not pushed)',
+  'planning_sequence.armed': 'Planning sequence armed',
+  'planning_sequence.step_reserved': 'Planning step reserved',
+  'planning_sequence.step_claimed': 'Planning step claimed',
+  'planning_sequence.step_concluded': 'Planning step concluded',
+  'planning_sequence.stop_requested': 'Planning sequence stop requested',
+  'planning_sequence.ended': 'Planning sequence ended',
 }
 
 const ROLE_LABELS: Record<RunEventActorRole, string> = {

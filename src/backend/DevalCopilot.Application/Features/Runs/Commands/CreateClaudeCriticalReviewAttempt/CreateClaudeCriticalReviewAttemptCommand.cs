@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalReviewAttempt;
 
@@ -13,11 +14,15 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateClaudeCriticalRe
 /// one human-requested format repair of that exact failed critical-review attempt: the target
 /// Proposal is derived from the source's persisted input, never supplied, and the claim adds
 /// source-eligibility checks at the request and again inside the durable claim transaction.
+/// <see cref="PlanningStep"/> is the internal identity of a coordinator-composed step (ADR-0055); it has an internal initializer, so no
+/// MVC request can supply it.
 /// </summary>
 public sealed record CreateClaudeCriticalReviewAttemptCommand(
     Guid RunId, Guid? ProposalMessageId, Guid? RepairSourceAttemptId = null)
     : IManualTransactionCommand<Result<CreateClaudeCriticalReviewAttemptCommandResult>>
 {
+    internal PlanningSequenceStepTicket? PlanningStep { get; init; }
+
     public static CreateClaudeCriticalReviewAttemptCommand ForRepair(Guid runId, Guid sourceAttemptId) =>
         new(runId, null, sourceAttemptId);
 }

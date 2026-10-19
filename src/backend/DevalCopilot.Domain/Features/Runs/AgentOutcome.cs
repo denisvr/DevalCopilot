@@ -225,4 +225,13 @@ public enum AgentOutcome
     /// expired observation, or an unusable stored threshold), so the attempt was never dispatched. Same effects as
     /// <see cref="AccountUsageStopReached"/>. Valid only for a Codex attempt.</summary>
     AccountUsageEvidenceUnavailable = 27,
+
+    /// <summary>Detected immediately before dispatch, distinct from <see cref="WorkspaceNoLongerEligible"/> (ADR-0055): the attempt
+    /// was claimed as the linked step of an explicitly authorized planning sequence whose authority or result deadline no longer
+    /// permits dispatch (it was stopped, ended, expired, interrupted or superseded), while the run, workspace, lease and checkpoint
+    /// need not have changed at all. The provider is never invoked, no protocol output is written and no budget is refunded.
+    /// Recorded only by a dedicated command that independently proves the linked, Running, undispatched association and the closed
+    /// sequence authority under the write lock, never by an ordinary provider-result recorder. Valid only for the Planner,
+    /// CriticalReviewer and Resolver read-only contracts.</summary>
+    PlanningSequenceDispatchRefused = 28,
 }

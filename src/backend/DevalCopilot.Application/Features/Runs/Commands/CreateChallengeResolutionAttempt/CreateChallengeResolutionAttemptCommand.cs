@@ -1,5 +1,6 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 
 namespace DevalCopilot.Application.Features.Runs.Commands.CreateChallengeResolutionAttempt;
 
@@ -13,11 +14,15 @@ namespace DevalCopilot.Application.Features.Runs.Commands.CreateChallengeResolut
 /// is <see langword="null"/> for an ordinary request. When set (see <see cref="ForRepair"/>), this
 /// is the one human-requested format repair of that exact failed resolution attempt: the challenged
 /// review is derived from the source's persisted inputs, never supplied.
+/// <see cref="PlanningStep"/> is the internal identity of a coordinator-composed step (ADR-0055); it has an internal initializer, so no
+/// MVC request can supply it.
 /// </summary>
 public sealed record CreateChallengeResolutionAttemptCommand(
     Guid RunId, Guid? ChallengedReviewAttemptId, Guid? RepairSourceAttemptId = null)
     : IManualTransactionCommand<Result<CreateChallengeResolutionAttemptCommandResult>>
 {
+    internal PlanningSequenceStepTicket? PlanningStep { get; init; }
+
     public static CreateChallengeResolutionAttemptCommand ForRepair(Guid runId, Guid sourceAttemptId) =>
         new(runId, null, sourceAttemptId);
 }

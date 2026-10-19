@@ -6,82 +6,91 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: HIST-OUT-01 recorded outputs and selected content of a historical Agent attempt
+## Active slice: PLAN-COORD-01 bounded read-only planning coordination
 
 This document records the implementation delivered for review. Consult
 [planner-handoff.md](planner-handoff.md) for the review decision. Reconcile
 publication with Git and the slice's independent publication-verification
 record, when available. This record alone grants no publication authority.
 
-- **Prepared at** completion of the first delivery, unstaged, uncommitted and unpushed; no GO exists. Preflight matched the
-  planner's: `main`, HEAD/local origin/main/fresh live main `459344d3`, divergence 0/0, empty index, the planner's two modified
-  documents (decision index, planner handoff) and new untracked ADR-0054, none edited here. HIST-INPC-01 was not reopened.
-- **Outcome.** From a selected historical Agent attempt the owner can discover every message of its admitted bounded output set (at
-  most 64) and explicitly read one message at a time, without searching unrelated collaboration-history pages
-  ([ADR-0054](../decisions/0054-inspect-recorded-outputs-of-a-selected-agent-attempt.md)). Rules:
-  [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection),
-  [cockpit specification](../product/run-cockpit-specification.md#agent-attempt-history-and-evidence).
-- **Backend.** Two protected bodyless MVC GETs through `IApplicationMediator`, `GetAgentAttemptOutputsQuery` and
-  `GetAgentAttemptOutputMessageQuery`, share one feature-owned `Policies/AgentAttemptOutputs` reader. It reuses the unchanged
-  `ScalarAgentAttemptIdentity` and `CollaborationMessageAuthorPolicy`, selects at most 65 ordered scalar message headers by the message's
-  own `AttemptId` (before the run is judged, through the existing attempt-reference index), inspects 64 and judges the whole set before any
-  reference or text is returned: selected run, unique nonempty ID, strictly increasing positive sequence, protocol 1.0, a type the role may
-  author, ProviderObserved provenance, an Agent actor equal to the attempt's role/provider and, for a nonempty set, a recorded dispatch
-  time. Nothing is filtered; zero rows is `Empty` for any admitted role. The member query repeats that proof, then reads only the
-  admitted selected message constrained to its run and `AttemptId` through the unchanged `CollaborationHistoryRows.Project`/`ToEntry` and
-  rechecks ID, sequence, `EqualsExact` time, version, type, provenance and actor; the fixed 404s are `agent_attempt_outputs.not_found` and
-  `agent_attempt_output_message.not_found`. API-owned closed graphs with canonical Int64 and UTC round-trip strings. No Domain,
-  persistence, migration, index, claim/dispatch/result, artifact-store, provider, dependency, shared lifetime or shared harness change;
-  `ScalarAgentAttemptIdentity`, `CollaborationHistoryRows` and every input, history, reply, attribution and verification reader are
-  byte-unchanged. The generated client is additive (+623/-0, two operations and their models).
-- **Frontend.** Operation-scoped raw-JSON facades (`AgentAttemptOutputsWireClient`, `AgentAttemptOutputMessageWireClient`) and whole-answer
-  decoders check exact keys at every level, the status tuples, the selected immutable header, every position, unique ID, strictly
-  increasing exact Int64 text, canonical time text and the role/type table, then selected-member equality (provenance provider-observed,
-  actor exactly the attempt) over the unchanged history content admission, with raw sequence/time text kept as the host wrote it. New
-  `useAgentAttemptOutputs`/`useAgentAttemptOutputMessage` use the unchanged `useOwnedLifetime`/`useOwnedState`: the opening owns a local
-  disclosure (ten, then groups of ten, no request) and numbered visits decided against the queued choice; the content hook is keyed by
-  `(opening, run, attempt, message, visit)`. The independent collapsed "Recorded collaboration outputs" section (beside inputs and
-  verification) reads once on opening, offers "Inspect output N" per visible reference into one replaceable inspector with Close and
-  failure-only Retry, and renders everything as literal text with the read-now limitations. No prefetch, polling, automatic retry, link,
-  storage or mutation.
-- **Journey.** `historical-attempt-inputs.journey.ts` keeps every input assertion and, after them with the newer objective still selected,
-  opens the older Resolver's outputs once (no query), compares the complete host answer and the rendered references to the stored
-  messages that record that attempt (count, order, identities, types, sequences, times, exact keys), then explicitly inspects a Decision
-  and the revised Proposal and compares each answer and rendered body to its stored row. Exactly one outputs GET and those two content GETs
-  occurred, none before the explicit clicks, none for the newer run; no non-GET, artifact-window read, provider invocation or durable/source
-  change. Empty, oversized, 11/64/65 and corrupt output sets stay below the browser.
-- **Checks.** Execution evidence: `logs/executor/hist-out-01/` (`dev-*`, `neg-*`, `final-*`). Ordinary failed runs retain diagnostics;
-  the negative-control logs mostly retain abridged named failures/counts and restoration hashes, not complete command/mutation/output
-  records. The first M2 compiler diagnostic and the original strict-e2e invocation are not retained; neither can be reconstructed or
-  authenticated from later passes. See the planner review for independent checks and the accepted evidence limits. Final matrix on stable
-  inputs (only two test-only fixture files changed after the input-hash baseline `final-00`, listed in `final-10`): API `--no-incremental`
-  build ran NSwag and reproduced the client byte-for-byte (blob `a18c1e36…`, the generator writes CRLF, Git normalizes) (`final-01`);
-  Application `GetAgentAttemptOutputs`+`GetAgentAttemptOutputMessage` 129 passed in 33 s (`final-03`); API endpoint classes plus launch
-  authentication plus the Int64 wire class 23 passed (`final-04`); architecture 172 passed (`final-05`); lint 0 errors with the same nine
-  warnings in unchanged files (`final-06`); `npm run build` (includes `tsc -b`) passed (`final-08`); whole frontend once, 253 files/5299
-  passed (`final-09`). Strict e2e `tsc` (recorded flag set) exit 0 (`dev-11`), journey-host build 0/0 (`dev-12`) and one serialized
-  journey passed in 11.6 s (`dev-13`) ran on the final product and e2e inputs and are retained (later changes touched only test fixtures
-  and documents). Bounded negative controls, each restored by SHA-256: backend M1 foreign run not refused (3 failed), M2b undispatched
-  nonempty admitted (3), M3 65th row not observed (3), M4 role/type policy ignored (4), M5 reread association dropped (3), M6 reread
-  actor dropped (6), M7 reread time not exact (1) (`neg-01`, `neg-01b`); frontend F1 actor not bound (1), F2 type table ignored (6), F3
-  sequence order unchecked (3), F4 Close not visit-scoped (1), F5 visit missing from the content key (1), F6 disclosure starts at eleven
-  (6), F7 selection not decided against the queued choice (7) (`neg-02`); journey altered expected Decision summary failed at that
-  assertion (`neg-03`).
-- **Failures retained.** First Application run (`dev-02`, 26 failed) and first API run (`dev-05`, 1 failed) exposed defects of the new
-  tests: a run holds one running attempt (`UNIQUE constraint failed: attempts.RunId`) and the tests seeded a second one; an Application
-  parameter assertion also failed to recognize an Int32 limit parameter. The seeding now completes the earlier attempt first and
-  the parameter assertion accepts its actual numeric type; `dev-03`/`dev-06` passed. The first component run (`dev-10`) also failed an
-  existing exact-toggle-list expectation, corrected to include the new outputs toggle. The first backend mutant M2 did not compile
-  (only its failure summary is retained, not the compiler diagnostic) and is not counted as a kill; M2b replaced it (`neg-01b`). The first final
-  `npm run build` (`final-07`) failed with three `tsc` type errors in new tests whose fixture typed the output type as a three-member
-  literal union; the fixture field was widened and `final-08`/`final-09` passed. The retained ordinary failure diagnostics identify test
-  defects; they do not establish a blanket historical absence of product failures or authenticate missing/abridged originals.
-- **Retained, unrerun evidence.** `CollaborationHistoryRows`, `ScalarAgentAttemptIdentity`, the message-linked reader, the input,
-  verification and attribution readers and every other journey are byte-unchanged and keep their prior evidence with its scope; they were
-  not rerun. Journey console output shows 44 duplicate-React-key and 3 connection-negotiation errors; no HEAD comparison was run, so
-  cause and count equivalence remain unproved, as for the earlier journeys.
-- **Not run.** Whole backend/API suites, other journeys, a mutation campaign beyond the bounded controls above, real providers and P9
-  experiments. Increments 4/5/6 remain incomplete, ADR-0050 stays Proposed, P9 unproven and AI Memory deferred.
+- **Prepared at** completion of the first correction (Codex review 1, NO-GO), unstaged, uncommitted and unpushed; no GO exists.
+  Preflight matched the planner's: `main`, HEAD and `origin/main` `1f22a37`, divergence 0/0, empty index, 171 changed files listed in
+  `logs/planner-review/plan-coord-01/reviewed-paths.txt`. The planner's documents and ADR-0055 were not rewritten here.
+- **Outcome.** One explicit, single-use authorization lets the host itself claim the existing read-only Planner, CriticalReviewer and
+  Resolver steps (at most five attempts) until Accepted planning (`ReadyForImplementation`) or the existing depth-two Human escalation
+  (`AwaitingHumanDecision`). It never starts implementation, verification, commit or publication
+  ([ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md)).
+- **Domain/persistence.** `PlanningSequence` and `PlanningSequenceStep` with fixed reason codes and `PlanningSequencePolicy` (roles,
+  contracts, 2-minute preparation and result deadlines); `AgentOutcome.PlanningSequenceDispatchRefused`; six `planning_sequence.*`
+  events; additive migration `AddPlanningSequence` with eight database guards (attempt, verification, local-commit and abandonment
+  fences, arming, tuple coherence, sequence and step immutability).
+- **Application.** Arm, Stop-after-current-step, Observe, Claim (composed through `IApplicationMediator` with an internal ticket so the
+  step link commits in the claiming handler's own transaction), preparation resolution, startup interruption and dispatch-refusal
+  commands; advanceable and status queries; an independent-connection probe resolves ambiguous commits. Manual Agent claims,
+  verification, local commit and abandonment are fenced in both directions while a sequence is live or its attempt is Running.
+- **Host.** `PlanningSequenceCoordinator` hosted service; all three supervisors record `PlanningSequenceDispatchRefused`; startup
+  interrupts every formerly advancing sequence after attempt reconciliation and before any worker starts. Three protected MVC
+  operations (arm, status, stop); the generated client was regenerated and reproduced byte-identically by a non-incremental build.
+- **Frontend.** Operation-scoped strict wire clients, owned-lifetime hooks, a Planning sequence panel in the cockpit, and withholding of
+  manual actions while a sequence holds the run.
+- **Review 1 findings and dispositions (NO-GO; correction of the same slice).** Review: [planner-handoff.md](planner-handoff.md)
+  and `logs/planner-review/plan-coord-01/review-01.md` (ignored evidence).
+  - **PCO-R1 [P1] late terminal results bypassed the result deadline: corrected.** `PlanningSequencePolicy.IsResultLate` is the one
+    deadline test. The observation now judges a Completed attempt by its own recorded completion time before any classification, so a
+    completion at or after the deadline (the exact boundary is late) ends the sequence `NeedsAttention` /
+    `result_deadline_elapsed` with the step concluded and the terminal attempt and outputs retained; a completion one tick earlier
+    stays timely even when observed long after the deadline; a Stop that won stays `Stopped`. The status query reads a late
+    completion as attention before persistence.
+  - **PCO-R2 [P2] preparation blocked its own deadline observation: corrected.** The coordinator holds `inFlight` only while the
+    observation command runs; the one preparation of a reserved step runs on its own task keyed by step, still one claimant, still
+    bounded by the four preparation slots, atomic linkage and no retry. A later poll expires a blocked preparation durably; its late
+    return loses the claim.
+  - **PCO-R5 [P2] deadline status contradicted the frontend contract: corrected.** The query result's top-level state is the
+    effective state, so the endpoint's `status` equals `sequence.state` (`recordedState` stays separate and
+    `observedBeforePersisted` true). The frontend decoder is unchanged and still strict.
+  - **PCO-R3 [P2] routed documentation: corrected.** `engineering-context.md`, `workflow-model.md` (intake and correction
+    wording), the ledger, the MVP delivery plan, the protocol and the cockpit specification now state the narrow ADR-0055 capability and
+    keep inert intake, immutable modes, no mutating coordination and every incomplete increment/provider boundary. No accepted ADR
+    was rewritten.
+  - **PCO-R4 [P2] validation provenance: corrected below.**
+  - **PCO-C1 accepted nonblocking limitation:** no Resolver production change and no mirror test; the hosted production-mediator
+    paths remain the boundary.
+- **Correction regressions (permanent).** `PlanningSequenceLateResultTests` (Application; Proposal, Acceptance and Resolution at the
+  exact deadline and one tick before it, observation and status, Stop precedence); hosted
+  `A_blocked_preparation_is_expired_by_an_independent_observation_and_its_late_return_claims_nothing` and
+  `An_expired_deadline_is_reported_with_one_coherent_effective_status_and_the_recorded_state_kept` (both preparation and result
+  expiry through the real query and endpoint mapping); a frontend decoder case for a late completed attempt read before persistence;
+  the pinned status test now asserts the effective top-level state. Compiling mutants of the observation check, the coordinator
+  decoupling and the effective top-level state each failed their regression and were restored by hash.
+- **Validation provenance (distinguished).**
+  - *Original executor runs, reported to Codex but not saved as log files:* the whole Application run (6515 tests) had **one
+    failure**, `GetRunEventHistoryQueryHandlerTests.Every_known_event_type_is_disclosed_exactly_and_the_allow_list_names_every_constant`;
+    after the pinned list was updated only the 93-test `GetRunEventHistoryQueryHandlerTests` class was rerun (passed). **No complete
+    Application rerun on the final first-delivery inputs was run**, so the first record's "fresh final inputs" wording was wrong. The
+    Infrastructure `PlanningSequence|Migration` run first failed 3 tests (two table-set assertions and one schema diff of earlier
+    migration tests) before those tests were updated. The Domain, API (410), Architecture, Vitest, lint, build, strict `tsc`, 11-journey,
+    NSwag and format results and the four mutation controls were executed in the executor session; their only retained originals are the
+    session transcript (`C:\Users\denis\.claude\projects\C--Users-denis-Desktop-AIProjects-DevalCopilot\873cb431-1909-4ac7-b740-dc68b3c4f2cf.jsonl`)
+    and, for the controls, the retained copies in
+    `logs/executor/plan-coord-01-correction-01/retained-original-control-outputs/` (the first predecessor-control output, which showed that
+    mutant surviving the Application tests, was overwritten by the second hosted run and is lost; the loss is not reconstructed). Later passes
+    do not authenticate these originals.
+  - *Independent Codex review evidence (retained, ignored):* `logs/planner-review/plan-coord-01/` (Application 121/123 with the two
+    reproductions failing, API 36/37, Infrastructure 15, frontend 546, Architecture 172, wire reproductions 2 failing).
+  - *Fresh correction checks (2026-10-19, on the corrected sources, logs in `logs/executor/plan-coord-01-correction-01/`):* Application
+    `--filter FullyQualifiedName~PlanningSequence` first run 127/128 with one failure (the pinned status test asserting the old recorded
+    top-level state; `application-planningsequence-01-one-failure-pinned-status-test.log`), then after updating it 128/128
+    (`application-planningsequence-02.log`); API `PlanningSequence` 39/39 (`api-planningsequence-02.log`); Infrastructure
+    `PlanningSequence` 15/15; Architecture 172/172 (`architecture.log`); Vitest of the seven planning-sequence files 344/344
+    (`frontend-planningsequence.log`); `planning-sequence` and `collaboration` journeys 2/2
+    (`journey-planning-collaboration.log`); `dotnet format --verify-no-changes --include` over the edited sources clean.
+  - *Retained, not rerun:* Domain 1507 predates the additive `IsResultLate` helper (covered by the correction's Application regressions;
+    no new full Domain pass is claimed). Unchanged covered inputs: Infrastructure migration/guard, Vitest outside the planning-sequence files,
+    strict e2e `tsc`, the other nine journeys, the generated client (byte-identical, no API contract change). *Not run:* the wide API
+    regression filter and a full Application rerun after the correction, any real provider, P9 or live-clock wait.
+- **Limits.** No real provider, P9 or live-clock deadline wait (deadlines use controllable clocks, the hosted blocked-capture case an
+  injected clock). Local-commit handler early refusals are covered by the database trigger, not a handler-level test. Increments 4/5/6
+  remain incomplete, ADR-0050 stays Proposed, P9 unproven and AI Memory deferred.
 
 ## Functional development
 

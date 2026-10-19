@@ -4,7 +4,9 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Processes.Ports;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
@@ -21,7 +23,8 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
     IArtifactStore artifactStore,
     TimeProvider timeProvider,
     IAttemptDurabilityProbe attemptDurabilityProbe,
-    IAccountUsageObserver? accountUsageGuardAdapter = null)
+    IAccountUsageObserver? accountUsageGuardAdapter = null,
+    IPlanningSequenceStepProbe? planningStepProbe = null)
     : ICommandHandler<CreateCodexPlanningAttemptCommand, Result<CreateCodexPlanningAttemptCommandResult>>
 {
     /// <summary>Hard ceiling on the sealed context-manifest artifact — a bounded reference
@@ -48,6 +51,21 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         if (executionModeError is not null)
         {
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(executionModeError);
+        }
+
+        // A planning sequence (ADR-0055) holds the run against every claim that does not carry its own exact step identity, checked
+        // before any external work; the database guard of the same predicate decides at the durable commit. A coordinator step never
+        // carries a repair source: the sequence has no format repair.
+        var ticket = command.PlanningStep;
+        if (ticket is not null && command.RepairSourceAttemptId is not null)
+        {
+            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(PlanningSequenceErrors.StepAuthorityLost());
+        }
+
+        if (ticket is null
+            && await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
+        {
+            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(fenceError);
         }
 
         if (run.Lifecycle is not (RunLifecycle.Created or RunLifecycle.Running))
@@ -82,6 +100,13 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
         {
             return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
                 Error.Conflict("agent_attempts.checkpoint_missing", "A current Git checkpoint is required to request a Codex plan."));
+        }
+
+        if (ticket is not null
+            && await PlanningSequenceStepAuthority.CheckEarlyAsync(
+                dbContext, ticket, run, AgentRole.Planner, workspace, checkpoint, timeProvider.GetUtcNow(), cancellationToken) is { } stepError)
+        {
+            return Result<CreateCodexPlanningAttemptCommandResult>.Failure(stepError);
         }
 
         // A manual format repair additionally requires an eligible source (see
@@ -195,7 +220,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 Error.Conflict("agent_attempts.checkpoint_not_current", "The selected source checkpoint is no longer current for this workspace."));
         }
 
-        var attemptId = Guid.NewGuid();
+        var attemptId = ticket?.ReservedAttemptId ?? Guid.NewGuid();
         var manifestArtifactId = Guid.NewGuid();
         var nowUtc = timeProvider.GetUtcNow();
 
@@ -318,8 +343,18 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
             bool modeStillAdmitted;
             bool runStillActive;
             Error? repairSourceError = null;
+            Error? stepSeamError = null;
+            PlanningSequenceStepLink? stepLink = null;
             try
             {
+                // A coordinator step first confirms and locks its exact reserved step, re-reads the pinned source and keeps its link
+                // tracked for the one SaveChanges below (ADR-0055); an ordinary claim has no step and is unaffected.
+                if (ticket is not null)
+                {
+                    (stepSeamError, stepLink) = await PlanningSequenceStepAuthority.ConfirmAtSeamAsync(
+                        dbContext, ticket, run, AgentRole.Planner, timeProvider.GetUtcNow(), cancellationToken);
+                }
+
                 // One atomic UPDATE ... WHERE statement requiring the Run's requested model/effort
                 // to still exactly match what was just read above.
                 preferenceStillCurrent = await CurrentCodexAssignmentPreference.ConfirmUnchangedAsync(
@@ -373,6 +408,15 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
                     Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+            }
+
+            if (stepSeamError is not null)
+            {
+                // The sequence no longer authorizes this exact step (stopped, expired, interrupted or its pinned source changed):
+                // rolled back before any insert, so no attempt, artifact or budget is consumed and the sealed manifest is removed.
+                await RollbackBestEffortAsync(claimTransaction, cancellationToken);
+                await DeleteManifestUnlessAnotherWorkerClaimedAsync(run.Id, attemptId, ticket!);
+                return Result<CreateCodexPlanningAttemptCommandResult>.Failure(stepSeamError);
             }
 
             if (!runStillActive)
@@ -442,6 +486,9 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 run.Claim(nowUtc);
             }
 
+            // The step link, its event, the attempt and the manifest artifact commit in this one transaction.
+            stepLink?.Apply(dbContext, attemptId, nowUtc);
+
             try
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -456,7 +503,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 // converted into a Result.
                 await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
 
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                var durability = await ProbeAsync(command.PlanningStep, attemptId, CancellationToken.None);
                 if (durability == AttemptDurabilityCheckResult.NotPersisted)
                 {
                     artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
@@ -469,7 +516,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
 
                 throw;
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException exception)
             {
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
 
@@ -477,7 +524,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 // what actually committed — the cause is never inferred from what this request
                 // attempted, only from an independent probe of what the database actually holds
                 // now.
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                var durability = await ProbeAsync(command.PlanningStep, attemptId, cancellationToken);
                 if (durability == AttemptDurabilityCheckResult.Persisted)
                 {
                     // Committed despite the thrown exception (e.g. the failure came from an
@@ -507,6 +554,22 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
                 dbContext.Attempts.Remove(attempt);
                 dbContext.Artifacts.Remove(manifestArtifact);
+
+                if (ticket is not null)
+                {
+                    // The step's own compare-and-set (a Stop, an expiry or a restart committed first) or any other refusal of a
+                    // step claim is never reinterpreted as a race that allows a retry: the sequence decides what happens next.
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(
+                        exception is DbUpdateConcurrencyException
+                            ? PlanningSequenceErrors.StepAuthorityLost()
+                            : Error.Failure("attempts.persistence_failed", "The attempt could not be durably recorded."));
+                }
+
+                if (await PlanningSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+                {
+                    // The database guard of an armed sequence refused this claim at the write seam (ADR-0055).
+                    return Result<CreateCodexPlanningAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+                }
 
                 if (command.RepairSourceAttemptId is { } repairSourceOnRace
                     && await dbContext.Attempts.AsNoTracking().AnyAsync(
@@ -606,7 +669,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 // propagates regardless of what it finds, never converted into a Result.
                 await RollbackBestEffortAsync(claimTransaction, CancellationToken.None);
 
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, CancellationToken.None);
+                var durability = await ProbeAsync(command.PlanningStep, attemptId, CancellationToken.None);
                 if (durability == AttemptDurabilityCheckResult.NotPersisted)
                 {
                     artifactStore.DeleteOrphanedSealedFile(run.Id, attemptId, ArtifactPurpose.AgentContextManifest);
@@ -627,7 +690,7 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
                 // referenced artifact.
                 await RollbackBestEffortAsync(claimTransaction, cancellationToken);
 
-                var durability = await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+                var durability = await ProbeAsync(command.PlanningStep, attemptId, cancellationToken);
                 if (durability == AttemptDurabilityCheckResult.Persisted)
                 {
                     return Result<CreateCodexPlanningAttemptCommandResult>.Success(
@@ -654,6 +717,37 @@ public sealed class CreateCodexPlanningAttemptCommandHandler(
 
         return Result<CreateCodexPlanningAttemptCommandResult>.Success(
             new CreateCodexPlanningAttemptCommandResult(attempt.Id, attempt.AttemptNumber, command.RepairSourceAttemptId));
+    }
+
+    /// <summary>The seam refused this step. The sealed manifest is removed only when an independent read proves that no other worker claimed
+    /// the same step: a duplicate worker that lost the compare-and-set shares the winner's sealed path, so deleting it unconditionally could
+    /// destroy the winner's referenced artifact. Absence or uncertainty never authorizes deleting a possibly referenced file.</summary>
+    private async Task DeleteManifestUnlessAnotherWorkerClaimedAsync(Guid runId, Guid attemptId, PlanningSequenceStepTicket ticket)
+    {
+        if (await ProbeAsync(ticket, attemptId, CancellationToken.None) == AttemptDurabilityCheckResult.NotPersisted)
+        {
+            artifactStore.DeleteOrphanedSealedFile(runId, attemptId, ArtifactPurpose.AgentContextManifest);
+        }
+    }
+
+    /// <summary>The independent durability read of this claim: the attempt row for an ordinary claim, or the exact step/attempt
+    /// association for a coordinator step (ADR-0055). A step claim without a probe is unresolved, never assumed absent.</summary>
+    private async Task<AttemptDurabilityCheckResult> ProbeAsync(
+        PlanningSequenceStepTicket? ticket, Guid attemptId, CancellationToken cancellationToken)
+    {
+        if (ticket is null)
+        {
+            return await attemptDurabilityProbe.CheckAsync(attemptId, cancellationToken);
+        }
+
+        return planningStepProbe is null
+            ? AttemptDurabilityCheckResult.Unresolved
+            : await planningStepProbe.CheckAsync(ticket.StepId, cancellationToken) switch
+            {
+                PlanningSequenceStepProbeResult.Claimed => AttemptDurabilityCheckResult.Persisted,
+                PlanningSequenceStepProbeResult.NotClaimed => AttemptDurabilityCheckResult.NotPersisted,
+                _ => AttemptDurabilityCheckResult.Unresolved,
+            };
     }
 
     /// <summary>

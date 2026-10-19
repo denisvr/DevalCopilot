@@ -18,12 +18,14 @@ under [Proposed decisions](#proposed-decisions).
 - [ADR-0007: Registration-time repository identity is non-authoritative for mutation exclusion](0007-registration-time-repository-identity-is-non-authoritative-for-mutation-exclusion.md)
 - [ADR-0008: Physical repository identity and tool-owned worktree ownership](0008-physical-repository-identity-and-tool-owned-worktree-ownership.md)
 - [ADR-0009: Separate agent roles, effects, and provider assignments](0009-separate-agent-roles-effects-and-provider-assignments.md)
+  (ADR-0055 narrowly extends its ordering for explicitly authorized read-only planning coordination only)
 - [ADR-0010: Add a role-scoped review-correction response contract](0010-add-review-correction-response-contract.md)
   (its changes-requested-review-only finding source is narrowly extended by ADR-0018)
 - [ADR-0011: Require administrator-provisioned policy before Gemini CLI execution](0011-require-administrator-provisioned-policy-before-gemini-cli-execution.md)
 - [ADR-0012: Add a durable run-wide Agent claim budget](0012-add-a-durable-run-wide-agent-claim-budget.md)
 - [ADR-0013: Add a durable run-wide Agent invocation-time budget](0013-add-a-durable-run-wide-agent-invocation-time-budget.md)
 - [ADR-0014: Add manual Agent run intake with durable execution-mode isolation](0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)
+  (ADR-0055 narrowly supersedes per-stage requests only inside one explicitly authorized planning sequence; modes and inert intake remain)
 - [ADR-0015: Add direct human guidance to explicit mutation requests](0015-add-direct-human-guidance-to-explicit-mutation-requests.md)
   (its request scope is narrowly extended to the diagnosis-origin correction by ADR-0019)
 - [ADR-0016: Add explicit human authorization of one escalated-plan implementation](0016-add-explicit-human-authorization-of-one-escalated-plan-implementation.md)
@@ -143,6 +145,9 @@ under [Proposed decisions](#proposed-decisions).
 
 - [ADR-0054: Inspect recorded outputs of a selected Agent attempt](0054-inspect-recorded-outputs-of-a-selected-agent-attempt.md)
   (accepted, implementation delivered for review in HIST-OUT-01; complete bounded references and explicit member-content inspection of messages whose own AttemptId attributes them to the selected Agent attempt, with whole-set relationship proof, unchanged historical content admission and exact wire values; no event-derived attribution, full response/replay claim, invocation, mutation or publication authority; publication is reconciled through the workflow)
+
+- [ADR-0055: Coordinate one explicitly authorized read-only planning sequence](0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md)
+  (accepted, selected for PLAN-COORD-01, not implemented; one explicit single-use authorization joins at most five existing read-only planning/critique/resolution attempts with exact input identity, atomic step linkage, stop-after-current-step, bounded attention deadlines and restart interruption; narrowly supersedes ADR-0014's per-stage request rule and extends ADR-0009's ordering only for this sequence, with no automatic source mutation, verification, commit or publication)
 
 ## Partially superseded decisions
 

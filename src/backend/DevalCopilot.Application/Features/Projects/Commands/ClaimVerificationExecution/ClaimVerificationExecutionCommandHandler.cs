@@ -2,6 +2,8 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Ports;
+using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -115,6 +117,13 @@ public sealed class ClaimVerificationExecutionCommandHandler(
         {
             return new AuthorityRead(
                 Error.Conflict("verification.workspace_not_ready", "A ready, owned workspace is required to run verification."), null);
+        }
+
+        // A planning sequence (ADR-0055) that still holds this workspace refuses verification. This read runs both before the Git capture
+        // and again after the claim transaction took the write lock, so the exclusion is decided against locked state.
+        if (await PlanningSequenceFence.IsWorkspaceBlockedAsync(dbContext, workspace.Id, cancellationToken))
+        {
+            return new AuthorityRead(PlanningSequenceErrors.ManualControlBlocked(), null);
         }
 
         if (await dbContext.VerificationExecutions.AsNoTracking().AnyAsync(

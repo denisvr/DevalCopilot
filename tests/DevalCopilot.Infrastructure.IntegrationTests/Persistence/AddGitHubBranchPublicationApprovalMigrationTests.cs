@@ -18,6 +18,8 @@ namespace DevalCopilot.Infrastructure.IntegrationTests.Persistence;
 public sealed class AddGitHubBranchPublicationApprovalMigrationTests : IAsyncLifetime
 {
     private const string PriorMigration = "20261013174647_AddGitHubRepositoryIdentityBinding";
+    // The schema-diff proof targets this migration itself, so later migrations never count as its additions.
+    private const string ThisMigration = "20261014215118_AddGitHubBranchPublicationApproval";
 
     private const string Table = "github_branch_publication_approvals";
 
@@ -91,7 +93,7 @@ public sealed class AddGitHubBranchPublicationApprovalMigrationTests : IAsyncLif
         var bindingsBefore = await QueryAsync("SELECT * FROM github_repository_identity_bindings", 14);
         await using (var upgraded = CreateContext())
         {
-            await upgraded.Database.MigrateAsync();
+            await upgraded.Database.GetService<IMigrator>().MigrateAsync(ThisMigration);
         }
 
         var after = await SchemaObjectsAsync();

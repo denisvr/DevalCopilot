@@ -8,7 +8,9 @@ using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateCodexPlanningAttempt;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
+using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -60,6 +62,13 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
         if (executionModeError is not null)
         {
             return Result<CreateCodeReviewAttemptCommandResult>.Failure(executionModeError);
+        }
+
+        // A planning sequence (ADR-0055) holds the run against every claim that does not carry its own exact step identity; the
+        // database guard of the same predicate decides at the durable commit.
+        if (await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
+        {
+            return Result<CreateCodeReviewAttemptCommandResult>.Failure(fenceError);
         }
 
         if (run.Lifecycle != RunLifecycle.Running)
@@ -611,6 +620,17 @@ public sealed class CreateCodeReviewAttemptCommandHandler(
                     return Result<CreateCodeReviewAttemptCommandResult>.Failure(Error.Conflict(
                         PlanningRepairSource.AlreadyRequestedCode, "A repair was already requested for this attempt."));
                 }
+
+                if (await PlanningSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+
+                {
+
+                    // The database guard of an armed sequence refused this claim at the write seam (ADR-0055).
+
+                    return Result<CreateCodeReviewAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+
+                }
+
 
                 var competingRunningAttemptExists = await dbContext.Attempts
                     .AsNoTracking()

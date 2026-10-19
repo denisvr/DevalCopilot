@@ -1469,6 +1469,29 @@ public sealed class Attempt
         CompletedAtUtc = nowUtc;
     }
 
+    /// <summary>The terminal pre-dispatch transition of a planning-sequence dispatch refusal (ADR-0055): a Running, never-dispatched
+    /// Agent attempt of one of the three read-only planning contracts ends as Failed with the dedicated outcome and no dispatch,
+    /// process, token or model-limit evidence. The Application recorder proves the sequence association before calling this.</summary>
+    public void CompletePlanningSequenceDispatchRefused(DateTimeOffset nowUtc)
+    {
+        if (Kind != AttemptKind.Agent
+            || AgentResponseContract is not (Runs.AgentResponseContract.Proposal
+                or Runs.AgentResponseContract.CriticalReview
+                or Runs.AgentResponseContract.ChallengeResolution))
+        {
+            throw new InvalidOperationException("Only a Planner, CriticalReviewer or Resolver attempt can record a planning-sequence refusal.");
+        }
+
+        if (Status != AttemptStatus.Running || AgentDispatchedAtUtc.HasValue)
+        {
+            throw new InvalidOperationException("A planning-sequence refusal is recorded once, for a claimed attempt that was never dispatched.");
+        }
+
+        AgentOutcome = Runs.AgentOutcome.PlanningSequenceDispatchRefused;
+        Status = AttemptStatus.Failed;
+        CompletedAtUtc = nowUtc;
+    }
+
     public void Complete(DateTimeOffset nowUtc)
     {
         if (Status != AttemptStatus.Running)
@@ -1667,6 +1690,12 @@ public sealed class Attempt
         if (!Enum.IsDefined(outcome))
         {
             throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Not a defined agent outcome.");
+        }
+
+        if (outcome == Runs.AgentOutcome.PlanningSequenceDispatchRefused)
+        {
+            throw new InvalidOperationException(
+                "PlanningSequenceDispatchRefused is recorded only through CompletePlanningSequenceDispatchRefused.");
         }
 
         var contract = AgentAttemptContract.For(AgentResponseContract!.Value);

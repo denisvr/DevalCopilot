@@ -83,7 +83,13 @@ Implemented today: the explicit local commit and the Human-requested surfaces of
 ADR-0030 to 0045 and 0047 to 0049. GitHub readings are point-in-time,
 never readiness, permission to push or publication authority; installed `gh`
 and schema compatibility are unverified. No push, pull request, CI routing or
-automatic orchestration exists; ADR-0048 records consent only. Increments 4 to
+mutating orchestration exists; ADR-0048 records consent only. The one narrow
+exception to explicit per-stage requests is ADR-0055: a single explicit
+authorization may arm one read-only planning sequence (Planner,
+CriticalReviewer, Resolver; at most five attempts) that the host advances to
+Accepted planning or the existing Human escalation. It never starts
+implementation, verification, commit or publication. PLAN-COORD-01's review
+and publication provenance are recorded in the roadmap checkpoints and Git. Increments 4 to
 6 stay incomplete; no MVP completion is implied. Text-delivery controls
 (ADR-0021, 0022, 0024, 0027) close named routes, not every filesystem read;
 their physical proofs are Windows-only. Token and account-usage controls are

@@ -6,7 +6,9 @@ describe('deriveRunExecutionModeDisclosure', () => {
     const created = deriveRunExecutionModeDisclosure('ManualAgent', 'Created')
     expect(created.label).toBe('Manual Agent run')
     expect(created.agentActionsAllowed).toBe(true)
-    expect(created.waitingHint).toBe('Waiting for an explicit planning request. Nothing runs until one is requested.')
+    expect(created.waitingHint).toBe(
+      'Waiting for an explicit planning request or an explicit planning-sequence arming. Run intake starts nothing by itself; nothing runs until the Human requests or arms one.',
+    )
     expect(created.waitingHint).not.toMatch(/autonomous|ready/i)
     expect(deriveRunExecutionModeDisclosure('ManualAgent', 'Running').waitingHint).toBeNull()
   })

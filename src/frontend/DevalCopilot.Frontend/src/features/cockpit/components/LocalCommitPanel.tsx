@@ -35,6 +35,11 @@ interface LocalCommitPanelProps {
   latestSequence: number | undefined
   /** Advanced by the project's explicit Refresh evidence action; re-reads the status. */
   evidenceRefreshGeneration?: number
+  /**
+   * The fixed reason a planning sequence withholds the request (ADR-0055: it holds automatic authority, or whether it does is not
+   * established). Only the request form is replaced by it; a recorded operation and its receipt stay visible. Null: nothing withheld.
+   */
+  withheldReason?: string | null
   /** Re-queries the authoritative cockpit after an admitted request. */
   onSaved?: () => unknown
 }
@@ -123,7 +128,7 @@ function OperationCard({ operation }: { operation: LocalCommitOperationResponse 
  * obsolete completion can never act on a replacement. The recorded operation is shown read-only and never implies a push, a clean
  * workspace or provider reliability.
  */
-export function LocalCommitPanel({ runId, projectId, latestSequence, evidenceRefreshGeneration = 0, onSaved }: LocalCommitPanelProps) {
+export function LocalCommitPanel({ runId, projectId, latestSequence, evidenceRefreshGeneration = 0, withheldReason = null, onSaved }: LocalCommitPanelProps) {
   const { status, loading, error: statusError, current, refresh } = useLocalCommitStatus(runId, latestSequence, evidenceRefreshGeneration)
   const identity = identityOf(status)
   const identityKey = identity ? localCommitIdentityKey(runId, identity) : null
@@ -139,7 +144,7 @@ export function LocalCommitPanel({ runId, projectId, latestSequence, evidenceRef
   const { requesting, error: requestError, submit } = useRequestLocalCommit(runId, identityKey ?? '', owned.draftVersion, refresh, onSaved)
 
   const validation = validateLocalCommitMessage(owned.draft)
-  const canSubmit = current && identity !== null && validation.valid && !requesting
+  const canSubmit = current && identity !== null && validation.valid && !requesting && withheldReason === null
 
   const handleSubmit = () => {
     if (!canSubmit || !identity) {
@@ -161,6 +166,8 @@ export function LocalCommitPanel({ runId, projectId, latestSequence, evidenceRef
         {status.operation.status === 'Completed' && <LocalDeliveryReceipt source={receiptSource} />}
       </>
     )
+  } else if (identity && withheldReason !== null) {
+    body = <p role="status">{withheldReason}</p>
   } else if (identity) {
     body = (
       <>

@@ -95,6 +95,11 @@ import { AgentAttemptInputMessageWireClient } from '../features/cockpit/agentAtt
 import { AgentAttemptOutputsWireClient } from '../features/cockpit/agentAttemptOutputsWire'
 import { AgentAttemptOutputMessageWireClient } from '../features/cockpit/agentAttemptOutputMessageWire'
 import {
+  ArmPlanningSequenceWireClient,
+  PlanningSequenceStatusWireClient,
+  StopPlanningSequenceWireClient,
+} from '../features/cockpit/planningSequenceWire'
+import {
   AgentAttemptVerificationEvidenceWireClient,
   AgentAttemptVerificationWindowWireClient,
 } from '../features/cockpit/agentAttemptVerificationWire'
@@ -124,6 +129,10 @@ export const agentAttemptInputMessageClient = () => new AgentAttemptInputMessage
 // Hand the parsed bodies to the whole-answer decoders of the recorded outputs and one selected output message (see the ADR-0054 wire clients).
 export const agentAttemptOutputsClient = () => new AgentAttemptOutputsWireClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptOutputMessageClient = () => new AgentAttemptOutputMessageWireClient(getApiBaseUrl(), authenticatedHttp)
+// Hand the parsed bodies to the whole-answer decoders of the planning-sequence status, arming receipt and Stop answer (ADR-0055).
+export const planningSequenceStatusClient = () => new PlanningSequenceStatusWireClient(getApiBaseUrl(), authenticatedHttp)
+export const armPlanningSequenceClient = () => new ArmPlanningSequenceWireClient(getApiBaseUrl(), authenticatedHttp)
+export const stopPlanningSequenceClient = () => new StopPlanningSequenceWireClient(getApiBaseUrl(), authenticatedHttp)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const agentAttemptVerificationEvidenceClient = () =>
   new AgentAttemptVerificationEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)
@@ -352,6 +361,7 @@ export {
   SetCodexAssignmentPreferenceRequest,
   RequestLocalCommitRequest,
   AbandonManualRunRequest,
+  ArmPlanningSequenceRequest,
   RecordGitHubObservationTargetRequest,
   BindGitHubRepositoryIdentityRequest,
   RecordGitHubBranchPublicationApprovalRequest,

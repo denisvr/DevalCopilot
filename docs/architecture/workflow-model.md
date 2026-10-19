@@ -236,7 +236,8 @@ of whether either attempt later dispatches or succeeds. Exhaustion creates a
 durable escalation; a human may explicitly authorize exactly one additional
 claim, and that authorization is atomically consumed by the claim. This is
 explicit continuation, not generic pause/resume, provider fallback, Gemini,
-snapshots, parallel executors, or automatic orchestration. Token,
+snapshots, parallel executors, or automatic orchestration (the only coordination is the read-only planning sequence of ADR-0055,
+which never starts a correction or implementation). Token,
 account-usage, duration, and the remaining Increment 4 controls remain
 deferred.
 
@@ -304,7 +305,11 @@ flowchart TD
 
 A user records an objective for a registered project, which creates a manual Agent run in `Created`/`Intake` and starts no
 stage ([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)). Each later stage is an
-explicit request that passes its own claim gates. A new objective is admitted only when the project has no run or every run is
+explicit request that passes its own claim gates, except that one explicit, single-use authorization may arm a read-only planning
+sequence in which the host itself claims the Planner, CriticalReviewer and Resolver steps through those same claim gates (at most five
+attempts, ending in Accepted planning or the existing Human escalation) and never any implementation or later stage
+([ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md)). Intake stays inert and the
+execution mode stays immutable. A new objective is admitted only when the project has no run or every run is
 terminal; this is conservative intake admission, not a scheduler or queue, and completion or replacement of a nonterminal manual
 run is not yet defined.
 

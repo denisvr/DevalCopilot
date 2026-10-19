@@ -4,6 +4,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.Abandonment;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +67,13 @@ public sealed class AbandonManualRunCommandHandler(
                 cancellationToken))
         {
             return Result<AbandonManualRunCommandResult>.Failure(RunAbandonmentErrors.RunNotAbandonable());
+        }
+
+        // A planning sequence (ADR-0055) that still holds this run refuses abandonment. This read follows the transaction.s first
+        // write, so it is decided against locked state; the database guard of the same predicate backstops the save.
+        if (await PlanningSequenceFence.IsRunBlockedAsync(dbContext, command.RunId, cancellationToken))
+        {
+            return Result<AbandonManualRunCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
         }
 
         var projectId = await dbContext.Runs.AsNoTracking()

@@ -16,6 +16,8 @@ import { useProjectSummaries } from './features/cockpit/hooks/useProjectSummarie
 import { useProviderRuntimePreflight } from './features/cockpit/hooks/useProviderRuntimePreflight'
 import { useSessionStatus } from './features/cockpit/hooks/useSessionStatus'
 import { useTheme } from './features/cockpit/hooks/useTheme'
+import type { PlanningSequenceControl } from './features/cockpit/planningSequence'
+import { describePlanningSequenceWithholding } from './features/cockpit/planningSequenceCopy'
 import './features/cockpit/cockpit.css'
 
 function StartingState() {
@@ -68,6 +70,16 @@ export default function App() {
   // The Refresh evidence action of the selected project and the verification-dependent status of its current run share one
   // connection owned by that project and run.
   const evidenceRefresh = useEvidenceRefreshConnection(selectedProject?.projectId ?? null, selectedProject?.runId ?? null)
+  // The planning-sequence fence the selected run's cockpit established (ADR-0055). Only a report for exactly the selected run counts;
+  // before it arrives, or after the run changed, the fence is unknown and verification Run is withheld.
+  const [reportedFence, setReportedFence] = useState<{ runId: string; control: PlanningSequenceControl } | null>(null)
+  const reportPlanningSequenceControl = useCallback(
+    (runId: string, control: PlanningSequenceControl) => setReportedFence({ runId, control }),
+    [],
+  )
+  const selectedRunId = selectedProject?.runId ?? null
+  const runFence: PlanningSequenceControl =
+    selectedRunId === null ? 'none' : reportedFence?.runId === selectedRunId ? reportedFence.control : 'unknown'
 
   if (sessionStatus === 'idle' || sessionStatus === 'initializing') {
     return <StartingState />
@@ -118,6 +130,7 @@ export default function App() {
           key={selectedProject.projectId}
           projectId={selectedProject.projectId}
           onEvidenceRefreshRequested={evidenceRefresh.request}
+          runWithheldReason={describePlanningSequenceWithholding(runFence)}
         /> : null}
 
       {selectedProject ? (
@@ -154,6 +167,7 @@ export default function App() {
           runId={selectedProject.runId}
           evidenceRefreshGeneration={evidenceRefresh.generation}
           onProjectChanged={refresh}
+          onPlanningSequenceControlChange={reportPlanningSequenceControl}
         />
       ) : selectedProject ? (
         <p className="dc-empty-state">{selectedProject.projectName} has no run yet.</p>

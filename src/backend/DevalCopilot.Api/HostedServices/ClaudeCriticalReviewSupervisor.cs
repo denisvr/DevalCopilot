@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Runs.Commands.MarkAgentAttemptDispatched
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptCheckpointEvidenceUnavailable;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptSourceChanged;
 using DevalCopilot.Application.Features.Runs.Commands.RecordAgentAttemptWorkspaceIneligible;
+using DevalCopilot.Application.Features.Runs.Commands.RecordPlanningSequenceDispatchRefusal;
 using DevalCopilot.Application.Features.Runs.Commands.RecordClaudeCriticalReviewInputAlreadyReviewed;
 using DevalCopilot.Application.Features.Runs.Commands.RecordClaudeCriticalReviewResult;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -140,6 +141,13 @@ public sealed class ClaudeCriticalReviewSupervisor(
             {
                 await DispatchAsync(
                     new RecordClaudeCriticalReviewInputAlreadyReviewedCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
+            }
+            else if (dispatched.Errors[0].Code == MarkAgentAttemptDispatchedCommandHandler.PlanningSequenceDispatchRefusedCode)
+            {
+                // The linked step of a planning sequence whose authority or deadline no longer permits dispatch (ADR-0055): its own
+                // dedicated outcome, never WorkspaceNoLongerEligible. The recorder independently proves the association.
+                await DispatchAsync(
+                    new RecordPlanningSequenceDispatchRefusalCommand(attempt.RunId, attempt.AttemptId), CancellationToken.None);
             }
 
             return;

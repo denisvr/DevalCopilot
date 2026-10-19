@@ -142,6 +142,14 @@ prove that. The presentation never adds affected paths to the durable
 `ReviewFinding` ledger and never treats malformed or unknown structured content
 as a semantic fact.
 
+### Planning sequence records
+
+An armed planning sequence ([ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md))
+adds two immutable-once-ended tables, `planning_sequences` (one per run, with the pinned workspace, checkpoint, fingerprint and
+objective hash) and `planning_sequence_steps` (the ordinal, role, exact predecessor and input identities, the reserved and claimed
+attempt), plus six `planning_sequence.*` events. They add no collaboration message type and change no ledger envelope; the
+Proposal, Challenge, Decision, Acceptance and escalation messages stay exactly those the existing handlers record.
+
 ## Run execution mode and isolation
 
 Every run carries an immutable execution mode ([ADR-0014](../decisions/0014-add-manual-agent-run-intake-with-durable-execution-mode-isolation.md)):

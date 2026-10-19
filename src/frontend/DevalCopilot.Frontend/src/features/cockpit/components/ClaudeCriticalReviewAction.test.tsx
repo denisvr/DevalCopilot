@@ -229,6 +229,7 @@ describe('ClaudeCriticalReviewAction', () => {
     ['ProviderInvocationFailed', 'Claude could not be invoked'],
     ['CheckpointEvidenceUnavailable', 'Source evidence could not be captured'],
     ['WorkspaceNoLongerEligible', 'Workspace no longer eligible for dispatch'],
+    ['PlanningSequenceDispatchRefused', 'Not started: the planning sequence no longer authorized dispatching it (no provider was invoked, no output recorded, no budget refunded)'],
   ])('labels the %s terminal outcome safely and still allows a retry', (outcome, label) => {
     render(
       <ClaudeCriticalReviewAction

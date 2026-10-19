@@ -7,6 +7,7 @@ using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -153,6 +154,13 @@ public sealed class CreateImplementationAttemptCommandHandler(
         if (executionModeError is not null)
         {
             return Result<CreateImplementationAttemptCommandResult>.Failure(executionModeError);
+        }
+
+        // A planning sequence (ADR-0055) holds the run against every claim that does not carry its own exact step identity; the
+        // database guard of the same predicate decides at the durable commit.
+        if (await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(fenceError);
         }
 
         if (run.Lifecycle != RunLifecycle.Running)
@@ -610,6 +618,17 @@ public sealed class CreateImplementationAttemptCommandHandler(
                         ? CurrentTokenStopPolicy.PolicyChangedDuringClaim()
                         : CurrentClaudeModelPreference.RunChangedDuringClaim());
             }
+
+            if (await PlanningSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+
+            {
+
+                // The database guard of an armed sequence refused this claim at the write seam (ADR-0055).
+
+                return Result<CreateImplementationAttemptCommandResult>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+
+            }
+
 
             var competingRunningAttemptExists = await dbContext.Attempts
                 .AsNoTracking()

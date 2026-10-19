@@ -1860,6 +1860,19 @@ claims, dispatch, controls, or workflow state. See
 ["Agent-attempt history and evidence inspection"](../architecture/agent-collaboration-protocol.md#agent-attempt-history-and-evidence-inspection)
 for the routes, paging, and identity rules.
 
+### Planning sequence
+
+The **Planning sequence** region reads one protected status operation for the selected run and shows, with its pinned workspace,
+checkpoint and fingerprint, either that nothing is armed or the sequence state, its ordered steps and the final references.
+**Arm planning sequence** is offered only for a pristine Created ManualAgent run with a recorded candidate and sends only that
+candidate; the host re-checks the source and arms nothing if it changed. It is the single explicit authorization: the host then
+claims the read-only Planner, CriticalReviewer and Resolver steps itself (at most five attempts) and the page only observes with
+bounded polling. **Stop after current step** is offered while a sequence can still advance; it never cancels a running provider
+process and a stopped, interrupted, failed or ended sequence never resumes. While a sequence holds the run, manual Agent requests,
+verification, local commit and abandonment are withheld, and a click captured for another visit, run, sequence or candidate is
+dropped. The sequence never starts implementation. See
+[ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md).
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

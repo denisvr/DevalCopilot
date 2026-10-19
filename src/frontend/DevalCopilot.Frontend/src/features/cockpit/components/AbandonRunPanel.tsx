@@ -21,6 +21,11 @@ interface AbandonRunPanelProps {
   latestSequence: number | undefined
   /** Advanced by the project's explicit Refresh evidence action; re-reads the status. */
   evidenceRefreshGeneration?: number
+  /**
+   * The fixed reason a planning sequence withholds the request (ADR-0055: it holds automatic authority, or whether it does is not
+   * established). Only the request form is replaced by it; a recorded abandonment stays visible. Null: nothing withheld.
+   */
+  withheldReason?: string | null
   /** Re-queries the authoritative cockpit after a recorded abandonment (only for a still-current interaction). */
   onSaved?: () => unknown
   /** Re-reads the project list after a recorded abandonment, so normal intake can offer another objective. */
@@ -43,7 +48,7 @@ const createOwned = (identityKey: string | null): Owned => ({ identityKey, draft
  * on a replacement, and a request that already reached the host stays real. A recorded abandonment is shown read-only with its
  * persisted reason and time, never as a completion, and an unknown outcome is reconciled only by reading the status again.
  */
-export function AbandonRunPanel({ runId, latestSequence, evidenceRefreshGeneration = 0, onSaved, onProjectChanged }: AbandonRunPanelProps) {
+export function AbandonRunPanel({ runId, latestSequence, evidenceRefreshGeneration = 0, withheldReason = null, onSaved, onProjectChanged }: AbandonRunPanelProps) {
   const { status, loading, error: statusError, current, refresh } = useManualRunAbandonment(runId, latestSequence, evidenceRefreshGeneration)
   const recorded = status?.abandonment ?? null
   const eligible = status?.eligible === true && recorded === null
@@ -65,7 +70,7 @@ export function AbandonRunPanel({ runId, latestSequence, evidenceRefreshGenerati
   )
 
   const validation = validateAbandonReason(owned.draft)
-  const canSubmit = current && eligible && validation.valid && !requesting
+  const canSubmit = current && eligible && validation.valid && !requesting && withheldReason === null
 
   const handleSubmit = () => {
     if (!canSubmit || !validation.valid) {
@@ -95,6 +100,8 @@ export function AbandonRunPanel({ runId, latestSequence, evidenceRefreshGenerati
         <p className="dc-run-abandon-note">{ABANDONED_NOTE}</p>
       </div>
     )
+  } else if (eligible && withheldReason !== null) {
+    body = <p role="status">{withheldReason}</p>
   } else if (eligible) {
     body = (
       <>

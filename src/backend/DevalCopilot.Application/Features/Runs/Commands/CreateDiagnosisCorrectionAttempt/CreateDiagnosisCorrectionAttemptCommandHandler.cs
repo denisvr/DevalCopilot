@@ -6,6 +6,7 @@ using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Commands.CreateReviewCorrectionAttempt;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
@@ -76,6 +77,13 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
         if (executionModeError is not null)
         {
             return Failure(executionModeError);
+        }
+
+        // A planning sequence (ADR-0055) holds the run against every claim that does not carry its own exact step identity; the
+        // database guard of the same predicate decides at the durable commit.
+        if (await PlanningSequenceFence.CheckRunAsync(dbContext, run.Id, cancellationToken) is { } fenceError)
+        {
+            return Failure(fenceError);
         }
 
         if (run.Lifecycle != RunLifecycle.Running)
@@ -620,6 +628,12 @@ public sealed class CreateDiagnosisCorrectionAttemptCommandHandler(
     private async Task<Result<CreateDiagnosisCorrectionAttemptCommandResult>> ClassifyClaimRaceAsync(
         Run run, int agentBudgetSlot, CancellationToken cancellationToken)
     {
+        if (await PlanningSequenceFence.RefusedRunSaveAsync(dbContext, run.Id))
+        {
+            // The database guard of an armed sequence refused this claim at the write seam (ADR-0055).
+            return Failure(PlanningSequenceErrors.ManualControlBlocked());
+        }
+
         if (await dbContext.Attempts.AsNoTracking().AnyAsync(
                 candidate => candidate.RunId == run.Id && candidate.Status == AttemptStatus.Running, cancellationToken))
         {

@@ -128,4 +128,41 @@ describe('the GitHub branch publication approved event', () => {
     expect(parseEventSummary(noTarget, 'run.github_branch_publication_approved')).toBe(noTarget)
     expect(parseEventSummary('garbage', 'run.github_branch_publication_approved')).toBe('garbage')
   })
+
+  describe('planning sequence events', () => {
+    const types = [
+      'planning_sequence.armed',
+      'planning_sequence.step_reserved',
+      'planning_sequence.step_claimed',
+      'planning_sequence.step_concluded',
+      'planning_sequence.stop_requested',
+    ]
+
+    it.each(types)('words %s from its fixed type only, never from the payload', (type) => {
+      const summary = parseEventSummary('{"summary":"payload text that must not appear","sequenceId":"x"}', type)
+
+      expect(summary).not.toContain('payload text')
+      expect(summary.length).toBeGreaterThan(10)
+      expect(parseEventSummary('not json {', type)).toBe(summary)
+      expect(parseEventSummary('null', type)).toBe(summary)
+    })
+
+    it('never words a claim as a running process', () => {
+      expect(parseEventSummary('{}', 'planning_sequence.step_claimed')).toMatch(/not proof that a provider process is running/)
+    })
+
+    it('words the end from its closed state and reason, and as the plain sentence for anything else', () => {
+      expect(parseEventSummary('{"state":"Stopped","reason":"stopped_before_claim","detail":null}', 'planning_sequence.ended')).toBe(
+        'The planning sequence ended: stopped; stopped before the next step was claimed.',
+      )
+      const plain = 'The planning sequence ended.'
+      expect(parseEventSummary('{"state":"Exploded","reason":"stopped_before_claim"}', 'planning_sequence.ended')).toBe(plain)
+      expect(parseEventSummary('{"state":"Stopped","reason":"<b>x</b>"}', 'planning_sequence.ended')).toBe(plain)
+      expect(parseEventSummary('{"summary":"payload"}', 'planning_sequence.ended')).toBe(plain)
+    })
+
+    it('leaves an unknown planning-sequence type to the ordinary payload rule', () => {
+      expect(parseEventSummary('{"summary":"x"}', 'planning_sequence.unknown')).toBe('x')
+    })
+  })
 })

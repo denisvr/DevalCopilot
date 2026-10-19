@@ -4,6 +4,7 @@ using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies.LocalCommit;
+using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
@@ -57,6 +58,13 @@ public sealed class RequestLocalCommitCommandHandler(
             return Result<LocalCommitOperationView>.Failure(early.Error!);
         }
 
+        // A planning sequence (ADR-0055) that still holds this workspace refuses admission before any external preparation; the
+        // locked re-read below and the database guard decide at the durable commit.
+        if (await PlanningSequenceFence.IsWorkspaceBlockedAsync(dbContext, authority.Workspace.Id, cancellationToken))
+        {
+            return Result<LocalCommitOperationView>.Failure(PlanningSequenceErrors.ManualControlBlocked());
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
         var prepared = await preparer.PrepareAsync(
             new LocalCommitPreparationRequest(
@@ -106,6 +114,11 @@ public sealed class RequestLocalCommitCommandHandler(
         if (!string.Equals(current.AuthoritySha256, authority.AuthoritySha256, StringComparison.Ordinal))
         {
             return Result<LocalCommitOperationView>.Failure(LocalCommitErrors.AuthorityChanged());
+        }
+
+        if (await PlanningSequenceFence.IsWorkspaceBlockedAsync(dbContext, current.Workspace.Id, cancellationToken))
+        {
+            return Result<LocalCommitOperationView>.Failure(PlanningSequenceErrors.ManualControlBlocked());
         }
 
         if (await dbContext.LocalCommitOperations.AsNoTracking().AnyAsync(

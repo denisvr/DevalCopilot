@@ -1,5 +1,6 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useRunCockpit } from '../hooks/useRunCockpit'
+import { usePlanningSequence } from '../hooks/usePlanningSequence'
 import { useCollaborationTimeline } from '../hooks/useCollaborationTimeline'
 import { useAgentAttemptStatus } from '../hooks/useAgentAttemptStatus'
 import { useRequestCodexPlanningAttempt } from '../hooks/useRequestCodexPlanningAttempt'
@@ -26,6 +27,8 @@ import { useRequestDiagnosisCorrection } from '../hooks/useRequestDiagnosisCorre
 import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDisclosure'
+import type { PlanningSequenceControl } from '../planningSequence'
+import { derivePlanningSequenceClaimBlock, describePlanningSequenceWithholding } from '../planningSequenceCopy'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import {
   derivePlanningLineage,
@@ -48,6 +51,7 @@ import { CodexPlanningRepairAction } from './CodexPlanningRepairAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
 import { ClaudeCriticalReviewRepairAction } from './ClaudeCriticalReviewRepairAction'
 import { PlanningLineageSummary } from './PlanningLineageSummary'
+import { PlanningSequencePanel } from './PlanningSequencePanel'
 import { PlanningImplementationAuthorizationPanel } from './PlanningImplementationAuthorizationPanel'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
 import { ChallengeResolutionRepairAction } from './ChallengeResolutionRepairAction'
@@ -76,6 +80,11 @@ interface RunCockpitViewProps {
   evidenceRefreshGeneration?: number
   /** Re-reads the project list after the run ended (an abandonment), so normal intake offers another objective. */
   onProjectChanged?: () => void
+  /**
+   * Told which run's planning-sequence fence was established, and again when it changes (ADR-0055): the project-level verification
+   * Run controls withhold themselves from it. A run that is left or unmounted reports `unknown`, so a stale value never enables anything.
+   */
+  onPlanningSequenceControlChange?: (runId: string, control: PlanningSequenceControl) => void
 }
 
 const AUTHORIZED_REQUEST_LABEL = 'Implement the human-authorized final plan with Claude'
@@ -83,8 +92,21 @@ const ABANDONED_ACTIONS_NOTE = 'This run was abandoned, so no further requests a
 const AUTHORIZATION_SPENT_NOTE =
   'The human authorization for this final plan was already used by an implementation claim. It cannot be reused, so no new implementation of this plan can be requested through it.'
 
-export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProjectChanged }: RunCockpitViewProps) {
+export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProjectChanged, onPlanningSequenceControlChange }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
+  // Who holds automatic authority over this run: read once, re-read on every run event and, while a sequence can advance, by bounded
+  // polling. Anything not established withholds every manual mutation below.
+  const planningSequence = usePlanningSequence(runId, cockpit?.latestSequence)
+  const planningSequenceControl = planningSequence.control
+  useEffect(() => {
+    onPlanningSequenceControlChange?.(runId, planningSequenceControl)
+  }, [onPlanningSequenceControlChange, runId, planningSequenceControl])
+  useEffect(
+    () => () => {
+      onPlanningSequenceControlChange?.(runId, 'unknown')
+    },
+    [onPlanningSequenceControlChange, runId],
+  )
   const collaborationTimeline = useCollaborationTimeline(runId, cockpit?.latestSequence)
   const agentAttemptStatus = useAgentAttemptStatus(runId, cockpit?.latestSequence)
   const requestCodexPlanningAttempt = useRequestCodexPlanningAttempt(runId, agentAttemptStatus.refresh)
@@ -210,7 +232,11 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
   // Recomputed synchronously during render from the currently selected `runId`, never from an
   // effect: a cockpit projection still describing the previously selected run must never be
   // read as this run's budget state, even for one render frame (see `deriveGlobalAgentClaimBlock`).
-  const globalClaimBlock = deriveGlobalAgentClaimBlock(cockpit, runId)
+  // The planning-sequence fence is only ever a veto, and it comes first: while a sequence holds automatic authority, or whether it does
+  // is not established, no manual claim is offered. Released and none lift only this fence.
+  const planningSequenceClaimBlock = derivePlanningSequenceClaimBlock(planningSequenceControl)
+  const planningSequenceWithheld = describePlanningSequenceWithholding(planningSequenceControl)
+  const globalClaimBlock = planningSequenceClaimBlock ?? deriveGlobalAgentClaimBlock(cockpit, runId)
   // A separate, additive per-claim-path signal: whether THIS SPECIFIC claim path's own
   // configured invocation timeout fits the run's remaining reserved time. Computed synchronously
   // during render from the same currently selected `runId`, for the exact same stale-projection
@@ -225,8 +251,14 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
   return (
     <>
       <ConnectionBanner state={connection} syncError={syncError} />
-      <RunHeader cockpit={cockpit} />
-      {cockpit.runId === runId && <RunExecutionModeNotice executionMode={cockpit.executionMode} lifecycle={cockpit.lifecycle} />}
+      <RunHeader cockpit={cockpit} planningSequenceControl={planningSequenceControl} />
+      {cockpit.runId === runId && (
+        <RunExecutionModeNotice
+          executionMode={cockpit.executionMode}
+          lifecycle={cockpit.lifecycle}
+          planningSequenceControl={planningSequenceControl}
+        />
+      )}
       {/* A cockpit projection still held from the previously selected run is never rendered as
           evidence for the newly selected one. */}
       {cockpit.runId === runId && (
@@ -289,6 +321,9 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
         <div className="dc-collaboration-column">
+          {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
+            <PlanningSequencePanel runId={runId} planningSequence={planningSequence} />
+          )}
           {agentActionsAllowed ? (
           <>
           <CodexPlanningAction
@@ -336,7 +371,7 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
             timeFit={claudeCriticalReviewTimeFit}
           />
           <PlanningLineageSummary lineage={planningLineage} review={reviewStatusHint} />
-          {planningEscalationId && planningLineage.secondRevision && (
+          {planningEscalationId && planningLineage.secondRevision && !planningSequenceClaimBlock && (
             <PlanningImplementationAuthorizationPanel
               runId={runId}
               escalationMessageId={planningEscalationId}
@@ -484,6 +519,7 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
               projectId={cockpit.projectId}
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}
+              withheldReason={planningSequenceWithheld}
               onSaved={refresh}
             />
           )}
@@ -493,6 +529,7 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
               runId={runId}
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}
+              withheldReason={planningSequenceWithheld}
               onSaved={refresh}
               onProjectChanged={onProjectChanged}
             />
