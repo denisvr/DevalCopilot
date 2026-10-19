@@ -19,6 +19,14 @@ import { injectJourneySession, registerProject, selectProject } from './journey/
 // automatically and adds no provider invocation, no non-GET request, no artifact-window read and no durable or source change.
 // Malformed, oversized, 11/64/65-input and corrupt sets are proven by the SQLite, API and frontend tests, not here. It is not the
 // complete prompt, replay or session recovery.
+//
+// HIST-OUT-01 (ADR-0054) extends the same scene, after the input assertions and with the newer objective still selected: the older
+// resolution attempt's "Recorded collaboration outputs" are opened once through exactly the older run and that attempt (no query), and the
+// complete set the host returns (every Decision of the resolution and its revised Proposal, located by the messages' own attempt
+// reference) equals the stored rows in count, order, identities, types, message sequences and times; then one Decision and the revised
+// Proposal are inspected explicitly, one at a time, and each answer and rendered body equals its stored message row. No output content is
+// read automatically, and the same cross-cutting assertions below cover the outputs: GET only, no artifact-window read, no provider
+// invocation and no durable or source change. Empty, oversized, 11/64/65 and corrupt output sets are proven below the browser.
 
 const PROJECT = 'Historical attempt inputs journey fixture'
 const OBJECTIVE = 'Plan the ledger total and review the plan'
@@ -26,7 +34,9 @@ const NEWER_OBJECTIVE = 'Record a newer objective after the reviewed plan'
 const REASON = 'The reviewed plan is superseded by a newer objective.'
 const INPUTS_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/inputs$/i
 const INPUT_MESSAGE_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/inputs\/([^/]+)$/i
-const TYPE_LABELS: Record<string, string> = { Proposal: 'Proposal', Challenge: 'Challenge' }
+const OUTPUTS_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/outputs$/i
+const OUTPUT_MESSAGE_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/outputs\/([^/]+)$/i
+const TYPE_LABELS: Record<string, string> = { Proposal: 'Proposal', Challenge: 'Challenge', Decision: 'Decision' }
 // The fixed field labels of the two inspected types, in their schema order, restated independently of the product code.
 const FIELD_LABELS: Record<string, [string, string][]> = {
   Proposal: [
@@ -41,6 +51,12 @@ const FIELD_LABELS: Record<string, [string, string][]> = {
     ['materialImpact', 'Material impact'],
     ['reasoning', 'Reasoning'],
     ['alternativeOrQuestion', 'Alternative or question'],
+  ],
+  Decision: [
+    ['resolution', 'Resolution'],
+    ['rationale', 'Rationale'],
+    ['resultingPlanChanges', 'Resulting plan changes'],
+    ['nextAction', 'Next action'],
   ],
 }
 const ROLE_LABELS: Record<string, string> = { Planner: 'Planner', CriticalReviewer: 'Critical reviewer', Resolver: 'Resolver' }
@@ -126,6 +142,32 @@ function participantOf(kind: string, role: string | null, provider: string | nul
   return kind === 'Agent' ? `Agent · ${role === null ? 'role not recorded' : `${ROLE_LABELS[role]} role`} · ${PROVIDER_LABELS[provider!]}` : kind
 }
 
+interface StoredOutput {
+  Position: number
+  MessageId: string
+  Type: string
+  MessageSequence: number
+  OccurredAtUtc: string
+  MessageRunId: string
+  Provenance: string
+  ActorKind: string
+  ActorAgentRole: string | null
+  ActorAgentProvider: string | null
+}
+
+/** The messages that record the attempt as their own attempt, in sequence order (the oracle for its outputs; no input row, event or reply is read). */
+function storedOutputsOf(attemptId: string): StoredOutput[] {
+  const rows = withJourneyDb(
+    (db) =>
+      db
+        .prepare(
+          'select m.Id as MessageId, m.Type, m.Sequence as MessageSequence, m.OccurredAtUtc, m.RunId as MessageRunId, m.Provenance, m.ActorKind, m.ActorAgentRole, m.ActorAgentProvider from collaboration_messages m where m.AttemptId = ? order by m.Sequence',
+        )
+        .all(attemptId) as unknown as Omit<StoredOutput, 'Position'>[],
+  )
+  return rows.map((row, Position) => ({ ...row, Position }))
+}
+
 function inputRowCount(attemptId: string): number {
   return withJourneyDb(
     (db) => (db.prepare('select count(*) as Count from attempt_input_messages where AttemptId = ?').get(attemptId) as { Count: number }).Count,
@@ -207,6 +249,20 @@ test('the historical attempt inputs journey: plan, review and resolve, record a 
     expect(sameId(row.MessageRunId, olderRunId)).toBe(true)
   }
   expect(inputRowCount(resolver.Id)).toBe(resolverInputs.length)
+  // HIST-OUT-01: the resolution's own outputs, found by the messages' attempt reference alone: every Decision and the revised Proposal,
+  // each provider-observed and authored by exactly this Resolver in this run, and none of them one of its inputs.
+  const resolverOutputs = storedOutputsOf(resolver.Id)
+  expect(resolverOutputs.length).toBeGreaterThanOrEqual(2)
+  expect(resolverOutputs.filter((row) => row.Type === 'Proposal')).toHaveLength(1)
+  expect(resolverOutputs.some((row) => row.Type === 'Decision')).toBe(true)
+  expect(resolverOutputs.every((row) => row.Type === 'Decision' || row.Type === 'Proposal')).toBe(true)
+  for (const row of resolverOutputs) {
+    expect(sameId(row.MessageRunId, olderRunId)).toBe(true)
+    expect([row.Provenance, row.ActorKind, row.ActorAgentRole, row.ActorAgentProvider]).toEqual(['ProviderObserved', 'Agent', 'Resolver', 'Codex'])
+    expect(resolverInputs.some((input) => sameId(input.MessageId, row.MessageId))).toBe(false)
+  }
+  expect(storedOutputsOf(planner.Id).map((row) => row.Type)).toEqual(['Proposal'])
+  expect(storedOutputsOf(reviewer.Id).every((row) => row.Type === 'Challenge')).toBe(true)
 
   // 2. The run is abandoned through its form and a newer objective is recorded through the intake: the live cockpit follows it.
   const abandon = page.getByRole('region', { name: 'Abandon run' })
@@ -379,6 +435,143 @@ test('the historical attempt inputs journey: plan, review and resolve, record a 
   expect(empty.answer).toMatchObject({ status: 'Empty', inputMessageTotalCount: 0, inputMessages: [], inputMessagesOmitted: false })
   await expect(empty.section).toContainText('No recorded collaboration inputs — this attempt started from none.')
 
+  // 5. HIST-OUT-01: the older resolution attempt's recorded outputs, then one Decision and the revised Proposal, explicitly.
+  await attempts.getByRole('button', { name: `Inspect attempt ${resolver.AttemptNumber}`, exact: true }).click()
+  const resolverDetail = attempts.getByRole('region', { name: 'Selected Agent attempt evidence' })
+  await expect(resolverDetail).toContainText(`Attempt #${resolver.AttemptNumber} · ${resolver.AgentRole} · ${resolver.AgentProvider}`, { timeout: 15_000 })
+  const outputsSection = resolverDetail.getByRole('region', { name: 'Recorded collaboration outputs' })
+  const outputsToggle = outputsSection.getByRole('button', { name: 'Recorded collaboration outputs', exact: true })
+  // Collapsed, and nothing read for it, until the owner opens it.
+  await expect(outputsToggle).toHaveAttribute('aria-expanded', 'false')
+  expect(requests.filter((request) => OUTPUTS_ROUTE.test(request.path) || OUTPUT_MESSAGE_ROUTE.test(request.path))).toEqual([])
+  const outputsAnswered = page.waitForResponse((response) => OUTPUTS_ROUTE.test(new URL(response.url()).pathname), { timeout: 30_000 })
+  await outputsToggle.click()
+  const outputsResponse = await outputsAnswered
+  expect(outputsResponse.status()).toBe(200)
+  expect(outputsResponse.request().method()).toBe('GET')
+  expect(lower(new URL(outputsResponse.url()).pathname)).toBe(`/api/runs/${lower(olderRunId)}/agent-attempts/${lower(resolver.Id)}/outputs`)
+  // The complete set is requested once per opening with no limit, cursor or filter.
+  expect(new URL(outputsResponse.url()).search).toBe('')
+  await expect(outputsToggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(outputsSection).toContainText('stored collaboration messages attributed to this attempt, as read now')
+  await expect(outputsSection).toContainText('not proof of what it generated or saw')
+
+  // The host's answer and the page equal the stored rows: count, order, positions, types, message sequences, times and identities.
+  const outputsAnswer = (await outputsResponse.json()) as Record<string, unknown>
+  expect(Object.keys(outputsAnswer).sort()).toEqual(['attempt', 'attemptId', 'outputMessageTotalCount', 'outputMessages', 'runId', 'status'])
+  expect(outputsAnswer).toMatchObject({
+    status: 'Recorded',
+    outputMessageTotalCount: resolverOutputs.length,
+    attempt: {
+      attemptNumber: resolver.AttemptNumber,
+      role: resolver.AgentRole,
+      provider: resolver.AgentProvider,
+      responseContract: resolver.AgentResponseContract,
+    },
+  })
+  expect(sameId(outputsAnswer.runId as string, olderRunId)).toBe(true)
+  expect(sameId(outputsAnswer.attemptId as string, resolver.Id)).toBe(true)
+  expect(
+    (outputsAnswer.outputMessages as Record<string, unknown>[]).map((entry) => [
+      entry.position,
+      lower(entry.collaborationMessageId as string),
+      entry.type,
+      entry.collaborationSequence,
+      entry.occurredAtUtc,
+      Object.keys(entry).sort().join(','),
+    ]),
+  ).toEqual(
+    resolverOutputs.map((row) => [
+      row.Position,
+      lower(row.MessageId),
+      row.Type,
+      String(row.MessageSequence),
+      roundTripOf(row.OccurredAtUtc),
+      'collaborationMessageId,collaborationSequence,occurredAtUtc,position,type',
+    ]),
+  )
+  await expect(outputsSection).toContainText(`${resolverOutputs.length} recorded outputs.`)
+  await expect(outputsSection.locator('.dc-attempt-recorded-output-items > li .dc-attempt-recorded-output-reference')).toHaveText(
+    resolverOutputs.map(
+      (row) =>
+        `Output ${row.Position + 1}: ${TYPE_LABELS[row.Type]} · message sequence ${row.MessageSequence} · recorded ${roundTripOf(row.OccurredAtUtc)} · message ${lower(row.MessageId)}`,
+    ),
+  )
+  // Opening the references read no content.
+  expect(requests.filter((request) => OUTPUT_MESSAGE_ROUTE.test(request.path))).toEqual([])
+
+  /** Inspects one output explicitly and checks that the host's answer and the rendered body equal its stored message row. */
+  const inspectOutput = async (output: StoredOutput) => {
+    const before = requests.filter((request) => OUTPUT_MESSAGE_ROUTE.test(request.path)).length
+    const answered = page.waitForResponse((response) => OUTPUT_MESSAGE_ROUTE.test(new URL(response.url()).pathname), { timeout: 30_000 })
+    await outputsSection.getByRole('button', { name: `Inspect output ${output.Position + 1}`, exact: true }).click()
+    const response = await answered
+    expect(response.status()).toBe(200)
+    expect(response.request().method()).toBe('GET')
+    expect(lower(new URL(response.url()).pathname)).toBe(
+      `/api/runs/${lower(olderRunId)}/agent-attempts/${lower(resolver.Id)}/outputs/${lower(output.MessageId)}`,
+    )
+    expect(new URL(response.url()).search).toBe('')
+    expect(requests.filter((request) => OUTPUT_MESSAGE_ROUTE.test(request.path)).length).toBe(before + 1)
+
+    const stored = storedMessage(output.MessageId)
+    const fields = Object.entries(JSON.parse(stored.StructuredContentJson) as Record<string, string>)
+    const sequence = String(stored.Sequence)
+    const occurred = roundTripOf(stored.OccurredAtUtc)
+    const participant = (kind: string, role: string | null, provider: string | null) => ({ kind, role, provider })
+    const answer = (await response.json()) as Record<string, unknown>
+    expect(Object.keys(answer).sort()).toEqual(['attempt', 'attemptId', 'collaborationMessageId', 'message', 'output', 'runId', 'status'])
+    expect(sameId(answer.runId as string, olderRunId)).toBe(true)
+    expect(sameId(answer.attemptId as string, resolver.Id)).toBe(true)
+    expect(sameId(answer.collaborationMessageId as string, output.MessageId)).toBe(true)
+    expect(answer).toMatchObject({
+      status: 'Recorded',
+      attempt: { attemptNumber: resolver.AttemptNumber, role: resolver.AgentRole, provider: resolver.AgentProvider, responseContract: resolver.AgentResponseContract },
+      output: { position: output.Position, type: output.Type, collaborationSequence: sequence, occurredAtUtc: occurred },
+      message: {
+        sequence,
+        occurredAtUtc: occurred,
+        protocolVersion: stored.ProtocolVersion,
+        type: stored.Type,
+        provenance: 'ProviderObserved',
+        actor: participant('Agent', 'Resolver', 'Codex'),
+        recipient: participant(stored.RecipientKind, stored.RecipientAgentRole, stored.RecipientAgentProvider),
+        contentStatus: 'Available',
+        summary: stored.Summary,
+        fields: fields.map(([name, value]) => ({ name, value })),
+      },
+    })
+    const message = answer.message as Record<string, unknown>
+    expect(sameId(message.id as string, output.MessageId)).toBe(true)
+    expect(sameId(message.runId as string, olderRunId)).toBe(true)
+    expect(stored.Provenance).toBe('ProviderObserved')
+    expect([stored.ActorKind, stored.ActorAgentRole, stored.ActorAgentProvider]).toEqual(['Agent', 'Resolver', 'Codex'])
+
+    const inspector = outputsSection.getByRole('region', { name: 'Selected recorded output' })
+    await expect(inspector).toContainText(`Recorded output ${output.Position + 1} · ${TYPE_LABELS[output.Type]} · message sequence ${sequence}`)
+    await expect(inspector).toContainText(`Summary: ${stored.Summary}`, { timeout: 15_000 })
+    await expect(inspector).toContainText(
+      `Sequence ${sequence} · ${TYPE_LABELS[stored.Type]} · Protocol 1.0 · ${PROVENANCE_LABELS[stored.Provenance]} · recorded ${occurred}`,
+    )
+    await expect(inspector).toContainText(
+      `From ${participantOf(stored.ActorKind, stored.ActorAgentRole, stored.ActorAgentProvider)} to ${participantOf(stored.RecipientKind, stored.RecipientAgentRole, stored.RecipientAgentProvider)}`,
+    )
+    await expect(inspector).toContainText("not the attempt's complete provider response, not proof of what it generated or saw")
+    const byName = new Map(fields)
+    await expect(inspector.locator('dt')).toHaveText(FIELD_LABELS[stored.Type].map(([, label]) => label))
+    await expect(inspector.locator('dd')).toHaveText(FIELD_LABELS[stored.Type].map(([name]) => byName.get(name)!))
+    await expect(inspector).toContainText(`Message ${lower(output.MessageId)}`)
+    return inspector
+  }
+
+  const decision = resolverOutputs.find((row) => row.Type === 'Decision')!
+  const revisedProposal = resolverOutputs.find((row) => row.Type === 'Proposal')!
+  await inspectOutput(decision)
+  const proposalInspector = await inspectOutput(revisedProposal)
+  await expect(proposalInspector).not.toContainText(`Message ${lower(decision.MessageId)}`)
+  await proposalInspector.getByRole('button', { name: 'Close recorded output', exact: true }).click()
+  await expect(outputsSection.getByRole('region', { name: 'Selected recorded output' })).toHaveCount(0)
+
   // Every inputs request named the older run and an attempt of it, never the newer run; nothing else changed or was invoked, no artifact
   // text was read, and the newer run stays selected in the live cockpit.
   const inputRequests = requests.filter((request) => INPUTS_ROUTE.test(request.path))
@@ -400,6 +593,19 @@ test('the historical attempt inputs journey: plan, review and resolve, record a 
     ['GET', true, true, lower(resolverInputs[0].MessageId)],
     ['GET', true, true, lower(resolverInputs[1].MessageId)],
   ])
+  // HIST-OUT-01: one outputs read and exactly the two explicit output content reads, all GETs of the older run's resolution attempt.
+  expect(requests.filter((request) => OUTPUTS_ROUTE.test(request.path)).map((request) => {
+    const [, requestedRun, requestedAttempt] = OUTPUTS_ROUTE.exec(request.path)!
+    return [request.method, sameId(requestedRun, olderRunId), sameId(requestedAttempt, resolver.Id), request.search]
+  })).toEqual([['GET', true, true, '']])
+  expect(requests.filter((request) => OUTPUT_MESSAGE_ROUTE.test(request.path)).map((request) => {
+    const [, requestedRun, requestedAttempt, requestedMessage] = OUTPUT_MESSAGE_ROUTE.exec(request.path)!
+    return [request.method, sameId(requestedRun, olderRunId), sameId(requestedAttempt, resolver.Id), request.search, lower(requestedMessage)]
+  })).toEqual([
+    ['GET', true, true, '', lower(decision.MessageId)],
+    ['GET', true, true, '', lower(revisedProposal.MessageId)],
+  ])
+  expect(requests.some((request) => /\/outputs/.test(request.path) && lower(request.path).includes(lower(newerRunId)))).toBe(false)
   expect(inputRequests.some((request) => lower(request.path).includes(lower(newerRunId)))).toBe(false)
   expect(requests.filter((request) => /artifact-window|\/collaboration-messages\//.test(request.path))).toEqual([])
   expect(requests.filter((request) => request.method !== 'GET')).toEqual([])

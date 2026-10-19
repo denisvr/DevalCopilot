@@ -367,6 +367,54 @@ retained Close, retry or show-more of an ended visit or opening acts on nothing.
 `(opening, run, attempt, message, visit)`, so another input, attempt, run or project, A-to-B-to-A, reload and unmount show
 nothing of an earlier answer. Nothing is prefetched, polled, retried automatically, linked, exported or persisted.
 
+**Recorded outputs and selected output content.**
+[ADR-0054](../decisions/0054-inspect-recorded-outputs-of-a-selected-agent-attempt.md) adds the messages a selected Agent attempt
+itself produced, found by the message-level `AttemptId` that result handlers record atomically and by nothing else: no event, reply,
+role, number, time or outcome is used, and a host-constructed escalation (which has no message-level attempt reference) is not found
+here. Two protected, bodyless MVC GET operations dispatch through `IApplicationMediator`, share one feature-owned reader
+(`Policies/AgentAttemptOutputs`) and reuse the unchanged scalar identity evaluation and `CollaborationMessageAuthorPolicy`:
+
+- `GET /api/runs/{runId}/agent-attempts/{attemptId}/outputs` (`agent_attempt_outputs.not_found` for an unknown run and a missing,
+  foreign or non-Agent attempt) returns the complete admitted references: no `limit`, cursor or omission.
+- `GET /api/runs/{runId}/agent-attempts/{attemptId}/outputs/{messageId}` (`agent_attempt_output_message.not_found` for the same
+  cases and for a nonmember of a proved set) reads one admitted member's guarded content.
+
+The reader selects at most 65 ordered scalar message headers whose `AttemptId` is the attempt, through the existing attempt-reference
+index, and inspects at most 64; a 65th is `Unavailable` with no prefix or count. It selects by `AttemptId` before the run is judged and
+filters nothing: every inspected row must be in the selected run with a unique nonempty ID, a strictly increasing positive sequence,
+protocol 1.0, a known type the attempt's role may author, ProviderObserved provenance and an Agent actor whose role and provider equal the
+attempt's, and a nonempty set also requires a recorded dispatch time. One inconsistent row makes the whole set `Unavailable` before any
+reference or text is returned; zero rows is `Empty` for any admitted role, dispatched or not, and states only that no associated
+message was recorded in this read (never that the provider produced nothing, or whether the attempt succeeded). Enums are classified in
+SQL before materialization, no summary, JSON, reply pointer or unrelated attempt/message is selected, and unexpected database,
+cancellation and malformed identity/timestamp storage faults keep the normal fault pipeline.
+
+The API owns both closed graphs. The list is `runId`, `attemptId`, `status` (`Unavailable`: no attempt or count and no reference;
+`Empty`: the immutable header and count 0; `Recorded`: the header, count 1-64 and every reference), `attempt`
+(`id`, `attemptNumber`, `role`, `provider`, `responseContract`), `outputMessageTotalCount` and `outputMessages`, each reference being
+`position` (the zero-based ordinal in this read's sequence order, not a persisted sequence), `collaborationMessageId`, `type`,
+`collaborationSequence` (canonical positive Int64 **string**) and `occurredAtUtc` (UTC round-trip **string**). The content answer is
+`runId`, `attemptId`, `collaborationMessageId`, `status` (`Unavailable` withholds the three nullable members), `attempt`, `output` (exactly
+the selected reference) and `message` (exactly the ADR-0053 message graph with string sequence and time). The content operation proves
+the whole set again, then reads only the selected member constrained to its run **and** `AttemptId` through the unchanged
+`CollaborationHistoryRows` projection and rechecks identity, exact sequence, `EqualsExact` time, version, type, provenance and actor
+against the proved reference: a missing or disagreeing reread is root `Unavailable`, whereas content refused by the unchanged
+admission leaves the proved reference and its siblings (unavailable content versus an unavailable relationship). An unprovable set is
+`Unavailable` before membership is decided, even for a stranger message ID. Separate reads claim no atomic snapshot; they are stored
+messages attributed to the attempt as read now, not its complete provider response, proof of what was generated or seen, a current
+approval or execution success.
+
+The selected attempt has its own collapsed "Recorded collaboration outputs" section beside inputs and verification, independent of the
+evidence answer. Opening requests the list once; ten references are shown first and further loaded references in local groups of ten on
+request without a request (local disclosure, never host truncation). Each shown reference has "Inspect output N" into one replaceable
+inspector with Close and a failure-only retry; no content is prefetched. Operation-scoped facades keep the parsed raw body; the decoders
+validate exact keys at every level, the status tuples, the selected immutable header, every position, unique ID, strictly increasing
+exact sequence, canonical time text and the role/type table, and then selected-member equality (the message provenance must be
+provider-observed and its actor exactly the attempt) before anything is displayed, reusing the unchanged frontend content admission
+without Date revival. The existing owned-lifetime primitives scope selection, opening, disclosure and each numbered visit exactly as the
+inputs do, including queued Close and reselection, retained callbacks, A-to-B-to-A, parent reload and unmount. Nothing is polled,
+retried automatically, linked, followed, exported, logged or persisted.
+
 **Selected-attempt recorded verification evidence.**
 [ADR-0052](../decisions/0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md) adds two protected,
 bodyless GETs, `/api/runs/{runId}/agent-attempts/{attemptId}/verification-evidence` and

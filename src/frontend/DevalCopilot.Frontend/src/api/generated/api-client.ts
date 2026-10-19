@@ -3236,6 +3236,125 @@ export class GetAgentAttemptVerificationEvidenceEndpointClient {
     }
 }
 
+export class GetAgentAttemptOutputsEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentAttemptOutputs(runId: string, attemptId: string): Promise<GetAgentAttemptOutputsResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/{attemptId}/outputs";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (attemptId === undefined || attemptId === null)
+            throw new globalThis.Error("The parameter 'attemptId' must be defined.");
+        url_ = url_.replace("{attemptId}", encodeURIComponent("" + attemptId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentAttemptOutputs(_response);
+        });
+    }
+
+    protected processGetAgentAttemptOutputs(response: Response): Promise<GetAgentAttemptOutputsResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetAgentAttemptOutputsResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetAgentAttemptOutputsResponse>(null as any);
+    }
+}
+
+export class GetAgentAttemptOutputMessageEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentAttemptOutputMessage(runId: string, attemptId: string, messageId: string): Promise<GetAgentAttemptOutputMessageResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-attempts/{attemptId}/outputs/{messageId}";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        if (attemptId === undefined || attemptId === null)
+            throw new globalThis.Error("The parameter 'attemptId' must be defined.");
+        url_ = url_.replace("{attemptId}", encodeURIComponent("" + attemptId));
+        if (messageId === undefined || messageId === null)
+            throw new globalThis.Error("The parameter 'messageId' must be defined.");
+        url_ = url_.replace("{messageId}", encodeURIComponent("" + messageId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentAttemptOutputMessage(_response);
+        });
+    }
+
+    protected processGetAgentAttemptOutputMessage(response: Response): Promise<GetAgentAttemptOutputMessageResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetAgentAttemptOutputMessageResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetAgentAttemptOutputMessageResponse>(null as any);
+    }
+}
+
 export class GetAgentAttemptInputsEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -12740,6 +12859,510 @@ export interface IAgentAttemptStatusResponse {
     configuredRolloutPersistence?: string | undefined;
     repairSourceAttemptId?: string | undefined;
     repairSourceAttemptNumber?: number | undefined;
+}
+
+export class GetAgentAttemptOutputsResponse implements IGetAgentAttemptOutputsResponse {
+    runId?: string;
+    attemptId?: string;
+    status?: string;
+    attempt?: AgentAttemptOutputsHeaderResponse | undefined;
+    outputMessageTotalCount?: number | undefined;
+    outputMessages?: AgentAttemptOutputReferenceResponse[];
+
+    constructor(data?: IGetAgentAttemptOutputsResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.attemptId = _data["attemptId"];
+            this.status = _data["status"];
+            this.attempt = _data["attempt"] ? AgentAttemptOutputsHeaderResponse.fromJS(_data["attempt"]) : undefined as any;
+            this.outputMessageTotalCount = _data["outputMessageTotalCount"];
+            if (Array.isArray(_data["outputMessages"])) {
+                this.outputMessages = [] as any;
+                for (let item of _data["outputMessages"])
+                    this.outputMessages!.push(AgentAttemptOutputReferenceResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): GetAgentAttemptOutputsResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetAgentAttemptOutputsResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["attemptId"] = this.attemptId;
+        data["status"] = this.status;
+        data["attempt"] = this.attempt ? this.attempt.toJSON() : undefined as any;
+        data["outputMessageTotalCount"] = this.outputMessageTotalCount;
+        if (Array.isArray(this.outputMessages)) {
+            data["outputMessages"] = [];
+            for (let item of this.outputMessages)
+                data["outputMessages"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IGetAgentAttemptOutputsResponse {
+    runId?: string;
+    attemptId?: string;
+    status?: string;
+    attempt?: AgentAttemptOutputsHeaderResponse | undefined;
+    outputMessageTotalCount?: number | undefined;
+    outputMessages?: AgentAttemptOutputReferenceResponse[];
+}
+
+export class AgentAttemptOutputsHeaderResponse implements IAgentAttemptOutputsHeaderResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+
+    constructor(data?: IAgentAttemptOutputsHeaderResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptOutputsHeaderResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptOutputsHeaderResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        return data;
+    }
+}
+
+export interface IAgentAttemptOutputsHeaderResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+}
+
+export class AgentAttemptOutputReferenceResponse implements IAgentAttemptOutputReferenceResponse {
+    position?: number;
+    collaborationMessageId?: string;
+    type?: string;
+    collaborationSequence?: string;
+    occurredAtUtc?: string;
+
+    constructor(data?: IAgentAttemptOutputReferenceResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.position = _data["position"];
+            this.collaborationMessageId = _data["collaborationMessageId"];
+            this.type = _data["type"];
+            this.collaborationSequence = _data["collaborationSequence"];
+            this.occurredAtUtc = _data["occurredAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptOutputReferenceResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptOutputReferenceResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["position"] = this.position;
+        data["collaborationMessageId"] = this.collaborationMessageId;
+        data["type"] = this.type;
+        data["collaborationSequence"] = this.collaborationSequence;
+        data["occurredAtUtc"] = this.occurredAtUtc;
+        return data;
+    }
+}
+
+export interface IAgentAttemptOutputReferenceResponse {
+    position?: number;
+    collaborationMessageId?: string;
+    type?: string;
+    collaborationSequence?: string;
+    occurredAtUtc?: string;
+}
+
+export class GetAgentAttemptOutputMessageResponse implements IGetAgentAttemptOutputMessageResponse {
+    runId?: string;
+    attemptId?: string;
+    collaborationMessageId?: string;
+    status?: string;
+    attempt?: AgentAttemptOutputMessageAttemptResponse | undefined;
+    output?: AgentAttemptOutputMessageOutputResponse | undefined;
+    message?: AgentAttemptOutputCollaborationMessageResponse | undefined;
+
+    constructor(data?: IGetAgentAttemptOutputMessageResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.attemptId = _data["attemptId"];
+            this.collaborationMessageId = _data["collaborationMessageId"];
+            this.status = _data["status"];
+            this.attempt = _data["attempt"] ? AgentAttemptOutputMessageAttemptResponse.fromJS(_data["attempt"]) : undefined as any;
+            this.output = _data["output"] ? AgentAttemptOutputMessageOutputResponse.fromJS(_data["output"]) : undefined as any;
+            this.message = _data["message"] ? AgentAttemptOutputCollaborationMessageResponse.fromJS(_data["message"]) : undefined as any;
+        }
+    }
+
+    static fromJS(data: any): GetAgentAttemptOutputMessageResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetAgentAttemptOutputMessageResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["attemptId"] = this.attemptId;
+        data["collaborationMessageId"] = this.collaborationMessageId;
+        data["status"] = this.status;
+        data["attempt"] = this.attempt ? this.attempt.toJSON() : undefined as any;
+        data["output"] = this.output ? this.output.toJSON() : undefined as any;
+        data["message"] = this.message ? this.message.toJSON() : undefined as any;
+        return data;
+    }
+}
+
+export interface IGetAgentAttemptOutputMessageResponse {
+    runId?: string;
+    attemptId?: string;
+    collaborationMessageId?: string;
+    status?: string;
+    attempt?: AgentAttemptOutputMessageAttemptResponse | undefined;
+    output?: AgentAttemptOutputMessageOutputResponse | undefined;
+    message?: AgentAttemptOutputCollaborationMessageResponse | undefined;
+}
+
+export class AgentAttemptOutputMessageAttemptResponse implements IAgentAttemptOutputMessageAttemptResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+
+    constructor(data?: IAgentAttemptOutputMessageAttemptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptOutputMessageAttemptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptOutputMessageAttemptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        return data;
+    }
+}
+
+export interface IAgentAttemptOutputMessageAttemptResponse {
+    id?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+}
+
+export class AgentAttemptOutputMessageOutputResponse implements IAgentAttemptOutputMessageOutputResponse {
+    position?: number;
+    collaborationMessageId?: string;
+    type?: string;
+    collaborationSequence?: string;
+    occurredAtUtc?: string;
+
+    constructor(data?: IAgentAttemptOutputMessageOutputResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.position = _data["position"];
+            this.collaborationMessageId = _data["collaborationMessageId"];
+            this.type = _data["type"];
+            this.collaborationSequence = _data["collaborationSequence"];
+            this.occurredAtUtc = _data["occurredAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptOutputMessageOutputResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptOutputMessageOutputResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["position"] = this.position;
+        data["collaborationMessageId"] = this.collaborationMessageId;
+        data["type"] = this.type;
+        data["collaborationSequence"] = this.collaborationSequence;
+        data["occurredAtUtc"] = this.occurredAtUtc;
+        return data;
+    }
+}
+
+export interface IAgentAttemptOutputMessageOutputResponse {
+    position?: number;
+    collaborationMessageId?: string;
+    type?: string;
+    collaborationSequence?: string;
+    occurredAtUtc?: string;
+}
+
+export class AgentAttemptOutputCollaborationMessageResponse implements IAgentAttemptOutputCollaborationMessageResponse {
+    runId?: string;
+    id?: string;
+    sequence?: string;
+    occurredAtUtc?: string;
+    protocolVersion?: string;
+    type?: string;
+    provenance?: string;
+    actor?: AgentAttemptOutputMessageParticipantResponse;
+    recipient?: AgentAttemptOutputMessageParticipantResponse;
+    contentStatus?: string;
+    summary?: string | undefined;
+    fields?: AgentAttemptOutputMessageFieldResponse[];
+
+    constructor(data?: IAgentAttemptOutputCollaborationMessageResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.id = _data["id"];
+            this.sequence = _data["sequence"];
+            this.occurredAtUtc = _data["occurredAtUtc"];
+            this.protocolVersion = _data["protocolVersion"];
+            this.type = _data["type"];
+            this.provenance = _data["provenance"];
+            this.actor = _data["actor"] ? AgentAttemptOutputMessageParticipantResponse.fromJS(_data["actor"]) : undefined as any;
+            this.recipient = _data["recipient"] ? AgentAttemptOutputMessageParticipantResponse.fromJS(_data["recipient"]) : undefined as any;
+            this.contentStatus = _data["contentStatus"];
+            this.summary = _data["summary"];
+            if (Array.isArray(_data["fields"])) {
+                this.fields = [] as any;
+                for (let item of _data["fields"])
+                    this.fields!.push(AgentAttemptOutputMessageFieldResponse.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptOutputCollaborationMessageResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptOutputCollaborationMessageResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["id"] = this.id;
+        data["sequence"] = this.sequence;
+        data["occurredAtUtc"] = this.occurredAtUtc;
+        data["protocolVersion"] = this.protocolVersion;
+        data["type"] = this.type;
+        data["provenance"] = this.provenance;
+        data["actor"] = this.actor ? this.actor.toJSON() : undefined as any;
+        data["recipient"] = this.recipient ? this.recipient.toJSON() : undefined as any;
+        data["contentStatus"] = this.contentStatus;
+        data["summary"] = this.summary;
+        if (Array.isArray(this.fields)) {
+            data["fields"] = [];
+            for (let item of this.fields)
+                data["fields"].push(item ? item.toJSON() : undefined as any);
+        }
+        return data;
+    }
+}
+
+export interface IAgentAttemptOutputCollaborationMessageResponse {
+    runId?: string;
+    id?: string;
+    sequence?: string;
+    occurredAtUtc?: string;
+    protocolVersion?: string;
+    type?: string;
+    provenance?: string;
+    actor?: AgentAttemptOutputMessageParticipantResponse;
+    recipient?: AgentAttemptOutputMessageParticipantResponse;
+    contentStatus?: string;
+    summary?: string | undefined;
+    fields?: AgentAttemptOutputMessageFieldResponse[];
+}
+
+export class AgentAttemptOutputMessageParticipantResponse implements IAgentAttemptOutputMessageParticipantResponse {
+    kind?: string;
+    role?: string | undefined;
+    provider?: string | undefined;
+
+    constructor(data?: IAgentAttemptOutputMessageParticipantResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.kind = _data["kind"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptOutputMessageParticipantResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptOutputMessageParticipantResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["kind"] = this.kind;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        return data;
+    }
+}
+
+export interface IAgentAttemptOutputMessageParticipantResponse {
+    kind?: string;
+    role?: string | undefined;
+    provider?: string | undefined;
+}
+
+export class AgentAttemptOutputMessageFieldResponse implements IAgentAttemptOutputMessageFieldResponse {
+    name?: string;
+    value?: string;
+
+    constructor(data?: IAgentAttemptOutputMessageFieldResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.name = _data["name"];
+            this.value = _data["value"];
+        }
+    }
+
+    static fromJS(data: any): AgentAttemptOutputMessageFieldResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentAttemptOutputMessageFieldResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["name"] = this.name;
+        data["value"] = this.value;
+        return data;
+    }
+}
+
+export interface IAgentAttemptOutputMessageFieldResponse {
+    name?: string;
+    value?: string;
 }
 
 export class GetAgentAttemptInputsResponse implements IGetAgentAttemptInputsResponse {

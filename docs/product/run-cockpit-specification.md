@@ -1354,7 +1354,7 @@ Inside the selected historical run of the Run history, beside Recorded collabora
 for exactly that run, so a failed or interrupted attempt that emitted no collaboration message stays reachable after a newer objective. It is an
 independent run-level path: the ADR-0037 inspector above is unchanged and does not lead here. Opening it requests one page of
 `GET /api/runs/{runId}/agent-attempts` for the selected run; "Inspect" reads that attempt's evidence, and a sealed window is read only after a
-purpose is chosen and "Load" is pressed. The selected attempt also offers the collapsed **Recorded collaboration inputs** section described
+purpose is chosen and "Load" is pressed. The selected attempt also offers the collapsed **Recorded collaboration inputs** and **Recorded collaboration outputs** sections described
 below and, for a CodeReviewer review or diagnosis, the collapsed **Recorded verification evidence** section, each independent of evidence and any
 producing message. A page or evidence answer that is not coherent for exactly its request is a distinct error that shows none
 of it, including a verified row or answer whose status, role, provider or response contract is unrecognized or unsupported, and evidence whose role,
@@ -1786,6 +1786,31 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   owns its reads and callbacks, so close/reopen, another input, attempt, run or project, A-to-B-to-A, parent reload and unmount cannot
   retain or fetch another owner's references or content. No content prefetch, polling, automatic retry, chain navigation, browser
   persistence, export, artifact read or workflow mutation is added. Validation and wire rules:
+  [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
+- **Recorded collaboration outputs.** The selected attempt has its own collapsed "Recorded collaboration outputs" button beside the
+  inputs
+  ([ADR-0054](../decisions/0054-inspect-recorded-outputs-of-a-selected-agent-attempt.md)), including when it produced no message.
+  Opening reads once for exactly that run and attempt, independently of evidence, inputs, verification and artifacts; closing discards
+  the result. It states that these are the stored collaboration messages attributed to the attempt, as read now, not its complete
+  provider response, not proof of what it generated or saw, and neither a current approval nor proof that it succeeded, and that only
+  references are listed. A recorded set shows its exact count (1-64) and an ordered list of output position, recognized message type,
+  exact timeline sequence, recorded UTC time and message ID, all plain text with no navigation. Ten references are shown first;
+  "Show N more references" reveals up to ten more already loaded references without a request and says the others are only hidden in this
+  view, not missing; closing resets it. The host never omits references of a coherent set. A coherent attempt with no associated message
+  says that no stored message is attributed to it in this read, which does not prove the provider produced no output or whether the
+  attempt succeeded or failed. An unverifiable or oversized set says the outputs are unavailable and that this does not mean the attempt
+  produced no output. Loading, a failed read, a missing attempt and an incoherent answer are explicit; the latter shows no partial list.
+  "Try the recorded outputs again" retries only on request.
+- **Selected recorded output.** Each shown reference has an "Inspect output N" action into the one "Selected recorded output"
+  inspector, which reads only that message, once, and shows the output's position, type and sequence, a caveat that this is a stored
+  message attributed to the attempt, read now, then the recorded sequence, type, protocol, provenance and time, sender and recipient,
+  the summary and the fields under their fixed labels in the type's schema order, all as literal text. Content unavailable (the
+  reference stays), an unavailable output set (the relationship could not be verified, which is distinct), an output no longer
+  recorded, an incoherent answer and a failed read are distinct fixed messages showing no content; "Try the recorded output again"
+  appears only after a failure. Inspecting the current output again does nothing; another output replaces it; "Close recorded output"
+  closes it and inspecting it again reads afresh. Every opening and numbered visit owns its reads and callbacks exactly as the inputs
+  do. No content prefetch, polling, automatic retry, chain navigation, browser persistence, export, artifact read or workflow mutation
+  is added. Validation and wire rules:
   [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
 - **Recorded verification evidence.** A selected CodeReviewer attempt of an ordinary implementation review or a verification
   diagnosis has its own collapsed "Recorded verification evidence" button

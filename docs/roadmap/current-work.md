@@ -6,7 +6,7 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: HIST-INPC-01 complete bounded input references and selected content
+## Active slice: HIST-OUT-01 recorded outputs and selected content of a historical Agent attempt
 
 This document records the implementation delivered for review. Consult
 [planner-handoff.md](planner-handoff.md) for the review decision. Reconcile
@@ -14,66 +14,74 @@ publication with Git and the slice's independent publication-verification
 record, when available. This record alone grants no publication authority.
 
 - **Prepared at** completion of the first delivery, unstaged, uncommitted and unpushed; no GO exists. Preflight matched the
-  planner's: `main`, HEAD/local origin/main/fresh live main `80a2ec22`, divergence 0/0, empty index, the planner's two modified
-  documents (decision index, planner handoff) and new untracked ADR-0053, none edited here. HIST-VER-01 was not reopened.
-- **Outcome.** Inside a selected historical Agent attempt, every reference of an admitted input set of at most 64 is reachable and
-  the owner can read one referenced collaboration message at a time
-  ([ADR-0053](../decisions/0053-inspect-the-content-of-recorded-inputs-of-a-selected-agent-attempt.md)). Rules:
+  planner's: `main`, HEAD/local origin/main/fresh live main `459344d3`, divergence 0/0, empty index, the planner's two modified
+  documents (decision index, planner handoff) and new untracked ADR-0054, none edited here. HIST-INPC-01 was not reopened.
+- **Outcome.** From a selected historical Agent attempt the owner can discover every message of its admitted bounded output set (at
+  most 64) and explicitly read one message at a time, without searching unrelated collaboration-history pages
+  ([ADR-0054](../decisions/0054-inspect-recorded-outputs-of-a-selected-agent-attempt.md)). Rules:
   [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection),
   [cockpit specification](../product/run-cockpit-specification.md#agent-attempt-history-and-evidence).
-- **Backend.** The ADR-0051 set proof moved unchanged (same three bounded scalar reads, same statements) into the feature-owned
-  `Policies/AgentAttemptInputs` reader with its three projection/row types, shared by exactly the two input queries; a test proves the
-  content read's first three statements equal the reference inspection's. `GetAgentAttemptInputs` gains optional `limit` (default 10,
-  1..64): a feature-owned strict binder (absent or one blank value is the default; any repeated value, even repeated blanks, and every
-  non-canonical text bind a rejected value) and an Application validator give the shared `validation.invalid_limit` at `#/limit`
-  without the value; nothing is clamped and the whole set is proved whatever the limit. New `GetAgentAttemptInputMessageQuery`,
-  handler and one MVC endpoint: unknown run, missing/foreign/non-Agent attempt and nonmember share
-  `agent_attempt_input_message.not_found`; an unprovable set is root Unavailable whichever message was asked; only a proved member is
-  read, through the unchanged `CollaborationHistoryRows.Project`/`ToEntry`, and a reread identity/version/type/sequence/time
-  (`EqualsExact`) that differs from the reference is Unavailable. API-owned closed DTO graph; both sequences Int64 strings, both times
-  raw UTC round-trip strings. `ScalarAgentAttemptIdentity`, `CollaborationHistoryRows`, the message-linked reader and every other
-  consumer are unchanged; no Domain, persistence, migration, dependency or shared harness change. The generated client is additive
-  (+408/-2: the optional `limit` argument, the new operation and its models).
-- **Frontend.** The inputs facade passes `limit`; the reference decoder binds prefix length and omission to the requested limit
-  (default ten for old callers). The section requests `limit=64` once per opening, shows ten references and reveals loaded ones in
-  local chunks of ten on request (labeled apart from host omission), with one "Inspect input N" action each into a single
-  "Selected recorded input" inspector (Close, failure-only retry). A new facade keeps the parsed body; a new decoder checks exact keys
-  at every level, the status tuple, the selected header and reference (raw Int64 and time text before any Date conversion), then
-  reuses the unchanged history entry validation for participants, provenance and content schema. The opening owns the disclosure and
-  numbered input visits (decided against the queued choice); the content hook is keyed by `(opening, run, attempt, message, visit)`.
-  Shared `useOwnedLifetime`/`useOwnedState` are unchanged; no forced remount, prefetch, polling, automatic retry, link or storage.
-- **Journey.** `historical-attempt-inputs.journey.ts`, after the newer objective, now also checks each opening requests
-  `?limit=64`, then explicitly inspects the older run's resolution inputs 1 (Proposal) and 2 (Challenge): each answer's root, header,
-  input and message (sequence, time, version, type, provenance, participants, summary, fields) and the rendered header, participants,
-  summary and labeled fields equal the stored `collaboration_messages` row; the inspector is then closed. Exactly those two content
-  GETs occurred, none before the explicit clicks; no non-GET, artifact-window read, provider invocation or durable/source change;
-  the Planner's empty set is preserved. 11/64/65 and corrupt sets stay below the browser.
-- **Checks.** Complete outputs: `logs/executor/hist-inpc-01/` (`dev-*`, `neg-*`, `final-*`, each with its command line and
-  timing). Final matrix on stable inputs: API `--no-incremental` build ran NSwag and left the client at `657bc13c…` (blob
-  `3559032f…`; the generator writes CRLF, Git normalizes) (`final-01`); Application both input handler classes 178 passed in 54 s
-  (`final-03`); API metadata endpoint, Int64 wire, new endpoint and launch-auth 52 passed (`final-14`, after `final-13` rebuilt the
-  escape fix below); architecture 164 passed (`final-05`); lint 0 errors with the same nine warnings in unchanged files
-  (`final-10`); `npm run build` (includes `tsc -b`) passed (`final-11`); whole frontend once, 246 files/5009 passed (`final-12`).
-  Strict e2e `tsc` (recorded flag set) exit 0 (`dev-09`), journey-host build 0/0 with no compiler lock (`dev-10`) and one serialized
-  journey passed in 12.3 s (`dev-11`) ran on the final product inputs and are retained. Bounded negative controls, each restored
-  by SHA-256: backend M1 limit ignored (6 failed), M2 reread time check removed (1), M3 membership ignored (19), M4 repeated limit
-  admitted (2) (`neg-01`); frontend F1 Close not visit-scoped (1), F2 visit missing from the content key (1), F3 disclosure owned by
-  the selection (2), F4 raw time comparison removed (1), F5 limit not sent (5) (`neg-02`); journey expected summary altered failed
-  at that assertion (`neg-03`).
-- **Failures retained.** The first Application test build failed with two EF1002 analyzer errors (interpolated raw SQL in two new test
-  helpers; output printed to the console, not retained in a file); fixed by binding the statement to a local first. Development
-  frontend runs `dev-05` and `dev-06` each failed one rendered test on test defects (input 12 was still behind the local disclosure;
-  a first-frame check ran after the next answer settled). Final `final-08` whole frontend failed one existing composition test that
-  pinned the request arguments without the new `64`; the expectation was updated, the file passed (`final-09`) and the cheap final
-  frontend checks were rerun. The Edit tool wrote two test strings as raw `€`/`٥` instead of `\u` escapes; restored as ASCII escapes
-  and the API filter rerun (`final-14`). No product-code failure occurred.
-- **Retained, unrerun evidence.** `CollaborationHistoryRows`, `ScalarAgentAttemptIdentity` and the message-linked reader are
-  byte-unchanged, so the GetCollaborationHistory/Reply and ADR-0037/0051 attribution/message-evidence consumers keep their prior
-  evidence with its scope; verification handlers, the artifact store and the historical-agent-attempts, sealed-artifact and
-  collaboration journeys are unaffected and not rerun. Journey console output shows the known 45 duplicate-React-key and 3 connection
-  negotiation errors; no HEAD comparison was run, so cause and count equivalence remain unproved.
-- **Not run.** Whole backend/API suites, other journeys, mutation campaign, real providers or P9 experiments. Increments 4/5/6
-  remain incomplete, ADR-0050 stays Proposed, P9 unproven and AI Memory deferred.
+- **Backend.** Two protected bodyless MVC GETs through `IApplicationMediator`, `GetAgentAttemptOutputsQuery` and
+  `GetAgentAttemptOutputMessageQuery`, share one feature-owned `Policies/AgentAttemptOutputs` reader. It reuses the unchanged
+  `ScalarAgentAttemptIdentity` and `CollaborationMessageAuthorPolicy`, selects at most 65 ordered scalar message headers by the message's
+  own `AttemptId` (before the run is judged, through the existing attempt-reference index), inspects 64 and judges the whole set before any
+  reference or text is returned: selected run, unique nonempty ID, strictly increasing positive sequence, protocol 1.0, a type the role may
+  author, ProviderObserved provenance, an Agent actor equal to the attempt's role/provider and, for a nonempty set, a recorded dispatch
+  time. Nothing is filtered; zero rows is `Empty` for any admitted role. The member query repeats that proof, then reads only the
+  admitted selected message constrained to its run and `AttemptId` through the unchanged `CollaborationHistoryRows.Project`/`ToEntry` and
+  rechecks ID, sequence, `EqualsExact` time, version, type, provenance and actor; the fixed 404s are `agent_attempt_outputs.not_found` and
+  `agent_attempt_output_message.not_found`. API-owned closed graphs with canonical Int64 and UTC round-trip strings. No Domain,
+  persistence, migration, index, claim/dispatch/result, artifact-store, provider, dependency, shared lifetime or shared harness change;
+  `ScalarAgentAttemptIdentity`, `CollaborationHistoryRows` and every input, history, reply, attribution and verification reader are
+  byte-unchanged. The generated client is additive (+623/-0, two operations and their models).
+- **Frontend.** Operation-scoped raw-JSON facades (`AgentAttemptOutputsWireClient`, `AgentAttemptOutputMessageWireClient`) and whole-answer
+  decoders check exact keys at every level, the status tuples, the selected immutable header, every position, unique ID, strictly
+  increasing exact Int64 text, canonical time text and the role/type table, then selected-member equality (provenance provider-observed,
+  actor exactly the attempt) over the unchanged history content admission, with raw sequence/time text kept as the host wrote it. New
+  `useAgentAttemptOutputs`/`useAgentAttemptOutputMessage` use the unchanged `useOwnedLifetime`/`useOwnedState`: the opening owns a local
+  disclosure (ten, then groups of ten, no request) and numbered visits decided against the queued choice; the content hook is keyed by
+  `(opening, run, attempt, message, visit)`. The independent collapsed "Recorded collaboration outputs" section (beside inputs and
+  verification) reads once on opening, offers "Inspect output N" per visible reference into one replaceable inspector with Close and
+  failure-only Retry, and renders everything as literal text with the read-now limitations. No prefetch, polling, automatic retry, link,
+  storage or mutation.
+- **Journey.** `historical-attempt-inputs.journey.ts` keeps every input assertion and, after them with the newer objective still selected,
+  opens the older Resolver's outputs once (no query), compares the complete host answer and the rendered references to the stored
+  messages that record that attempt (count, order, identities, types, sequences, times, exact keys), then explicitly inspects a Decision
+  and the revised Proposal and compares each answer and rendered body to its stored row. Exactly one outputs GET and those two content GETs
+  occurred, none before the explicit clicks, none for the newer run; no non-GET, artifact-window read, provider invocation or durable/source
+  change. Empty, oversized, 11/64/65 and corrupt output sets stay below the browser.
+- **Checks.** Execution evidence: `logs/executor/hist-out-01/` (`dev-*`, `neg-*`, `final-*`). Ordinary failed runs retain diagnostics;
+  the negative-control logs mostly retain abridged named failures/counts and restoration hashes, not complete command/mutation/output
+  records. The first M2 compiler diagnostic and the original strict-e2e invocation are not retained; neither can be reconstructed or
+  authenticated from later passes. See the planner review for independent checks and the accepted evidence limits. Final matrix on stable
+  inputs (only two test-only fixture files changed after the input-hash baseline `final-00`, listed in `final-10`): API `--no-incremental`
+  build ran NSwag and reproduced the client byte-for-byte (blob `a18c1e36…`, the generator writes CRLF, Git normalizes) (`final-01`);
+  Application `GetAgentAttemptOutputs`+`GetAgentAttemptOutputMessage` 129 passed in 33 s (`final-03`); API endpoint classes plus launch
+  authentication plus the Int64 wire class 23 passed (`final-04`); architecture 172 passed (`final-05`); lint 0 errors with the same nine
+  warnings in unchanged files (`final-06`); `npm run build` (includes `tsc -b`) passed (`final-08`); whole frontend once, 253 files/5299
+  passed (`final-09`). Strict e2e `tsc` (recorded flag set) exit 0 (`dev-11`), journey-host build 0/0 (`dev-12`) and one serialized
+  journey passed in 11.6 s (`dev-13`) ran on the final product and e2e inputs and are retained (later changes touched only test fixtures
+  and documents). Bounded negative controls, each restored by SHA-256: backend M1 foreign run not refused (3 failed), M2b undispatched
+  nonempty admitted (3), M3 65th row not observed (3), M4 role/type policy ignored (4), M5 reread association dropped (3), M6 reread
+  actor dropped (6), M7 reread time not exact (1) (`neg-01`, `neg-01b`); frontend F1 actor not bound (1), F2 type table ignored (6), F3
+  sequence order unchecked (3), F4 Close not visit-scoped (1), F5 visit missing from the content key (1), F6 disclosure starts at eleven
+  (6), F7 selection not decided against the queued choice (7) (`neg-02`); journey altered expected Decision summary failed at that
+  assertion (`neg-03`).
+- **Failures retained.** First Application run (`dev-02`, 26 failed) and first API run (`dev-05`, 1 failed) exposed defects of the new
+  tests: a run holds one running attempt (`UNIQUE constraint failed: attempts.RunId`) and the tests seeded a second one; an Application
+  parameter assertion also failed to recognize an Int32 limit parameter. The seeding now completes the earlier attempt first and
+  the parameter assertion accepts its actual numeric type; `dev-03`/`dev-06` passed. The first component run (`dev-10`) also failed an
+  existing exact-toggle-list expectation, corrected to include the new outputs toggle. The first backend mutant M2 did not compile
+  (only its failure summary is retained, not the compiler diagnostic) and is not counted as a kill; M2b replaced it (`neg-01b`). The first final
+  `npm run build` (`final-07`) failed with three `tsc` type errors in new tests whose fixture typed the output type as a three-member
+  literal union; the fixture field was widened and `final-08`/`final-09` passed. The retained ordinary failure diagnostics identify test
+  defects; they do not establish a blanket historical absence of product failures or authenticate missing/abridged originals.
+- **Retained, unrerun evidence.** `CollaborationHistoryRows`, `ScalarAgentAttemptIdentity`, the message-linked reader, the input,
+  verification and attribution readers and every other journey are byte-unchanged and keep their prior evidence with its scope; they were
+  not rerun. Journey console output shows 44 duplicate-React-key and 3 connection-negotiation errors; no HEAD comparison was run, so
+  cause and count equivalence remain unproved, as for the earlier journeys.
+- **Not run.** Whole backend/API suites, other journeys, a mutation campaign beyond the bounded controls above, real providers and P9
+  experiments. Increments 4/5/6 remain incomplete, ADR-0050 stays Proposed, P9 unproven and AI Memory deferred.
 
 ## Functional development
 
@@ -84,6 +92,10 @@ challenge and explicit GO: [AGENTS.md](../../AGENTS.md); constraints:
 [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
+
+HIST-INPC-01 `459344d3` (sole parent `80a2ec22`, 66 paths) passed independent publication verification
+(`logs/planner-review/hist-inpc-01/publication-verification.json` and `.log`); its record, committed with pre-review wording, is
+this file at `459344d`.
 
 HIST-VER-01 `80a2ec22` (sole parent `26c3f24a`, 74 paths) passed independent publication verification
 (`logs/planner-review/hist-ver-01/publication-verification.json` and `.log`); its record, committed with pre-review wording, is
@@ -127,6 +139,11 @@ not reopen or republish delivered slices.
 ## Active evidence limits
 
 Archiving, condensation and progressive reading resolve or waive none of these:
+- **HIST-INPC-01 (published).** The two original EF1002 analyzer failures of its first Application test build have no retained
+  output, and later passes neither reconstruct nor authenticate them; its development, final and negative-control failures stay
+  as recorded in this file at `459344d` and its `logs/executor/hist-inpc-01/`. The journey console counts of that slice (45
+  duplicate React keys, three connection negotiations) and those of HIST-OUT-01 (44 and three) have no HEAD comparison, so cause and
+  count equivalence stay unproved.
 - **WF-02A evidence loss.**
   `logs/executor/wf-02a/correction1/development-runs-transcribed.md` is a
   partly abridged derivative chat transcription, not recovered or
@@ -186,9 +203,14 @@ approval.
   (ADR-0011).
 - Raw linked artifact inspection beyond the existing bounded views is open.
 - **Attempt and artifact inspection limits (HIST-ATT-01, ART-WIN-01,
-  HIST-MET-01, HIST-INP-01, HIST-VER-01, HIST-INPC-01).** All read bounded views only: no replay, export,
-  session resume or complete history. HIST-INPC-01 (unpublished, under review) shows at most 64 input references and one stored
-  message at a time as read now, never the exact prompt, all context or what an Agent saw; its set proof and content read are
+  HIST-MET-01, HIST-INP-01, HIST-VER-01, HIST-INPC-01, HIST-OUT-01).** All read bounded views only: no replay, export,
+  session resume or complete history. HIST-OUT-01 (unpublished, under review) shows at most 64 stored collaboration messages that
+  record the attempt as their own attempt and one of them at a time, as read now: not the complete provider response, proof of what was
+  generated or seen, a current approval or execution success. A host-constructed escalation has no message-level attempt reference
+  and is not found; no outcome, event or reply is used to infer an expected output, and an empty set says only that none was recorded
+  in that read. Its set proof and content read are separate reads without an atomic snapshot. Published HIST-INPC-01 shows at most 64
+  input references and one stored message at a time as read now, never the exact prompt, all context or what an Agent saw; its
+  set proof and content read are
   separate reads without an atomic snapshot. Published HIST-VER-01 shows recorded verification membership and
   sealed output as read now, never which bytes an Agent saw or a current approval; at most 32 members are inspected and a
   view keeps at most 256 KiB of one output. The three window defects HIST-ATT-01

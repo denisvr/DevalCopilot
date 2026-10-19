@@ -9,6 +9,7 @@ import { ModelContextLimitsFact } from './ModelContextLimitsFact'
 import { CodexAccountUsageDecisionFact } from './CodexAccountUsageDecisionFact'
 import { SelectedAttemptExecutionFacts } from './SelectedAttemptExecutionFacts'
 import { SelectedAttemptRecordedInputs } from './SelectedAttemptRecordedInputs'
+import { SelectedAttemptRecordedOutputs } from './SelectedAttemptRecordedOutputs'
 import { SelectedAttemptRecordedVerification } from './SelectedAttemptRecordedVerification'
 import { ARTIFACT_PURPOSE_LABELS } from '../artifactPurposes'
 import { describeRepairLineage } from '../describeRepairLineage'
@@ -46,7 +47,7 @@ interface AgentAttemptDetailProps {
 
 /**
  * The selected attempt's bounded evidence metadata, read when its selection lifetime begins, plus the on-demand sealed artifact viewer
- * and the on-demand recorded collaboration inputs, which need neither the evidence answer nor a message the attempt produced.
+ * and the on-demand recorded collaboration inputs and outputs, which need neither the evidence answer nor each other.
  * Everything shown is historical evidence about that past attempt — never the run's current state, a live tail, or proof of what a
  * provider account allows.
  */
@@ -83,6 +84,7 @@ function AgentAttemptDetail({ selectionKey, runId, expected, onClose }: AgentAtt
         <AgentAttemptEvidenceBody target={{ selectionKey, runId, attemptId }} evidence={state.evidence} />
       )}
       <SelectedAttemptRecordedInputs selectionKey={selectionKey} runId={runId} expected={expected} />
+      <SelectedAttemptRecordedOutputs selectionKey={selectionKey} runId={runId} expected={expected} />
       <SelectedAttemptRecordedVerification selectionKey={selectionKey} runId={runId} expected={expected} />
     </section>
   )

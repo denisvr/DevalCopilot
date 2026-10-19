@@ -36,6 +36,15 @@ const SOURCES = [
   './agentAttemptInputMessageWire.ts',
   './hooks/useAgentAttemptInputMessage.ts',
   './components/SelectedAttemptInputMessage.tsx',
+  // HIST-OUT-01: the selected attempt's recorded outputs and the explicit content read of one of them.
+  './agentAttemptOutputs.ts',
+  './agentAttemptOutputsWire.ts',
+  './agentAttemptOutputMessage.ts',
+  './agentAttemptOutputMessageWire.ts',
+  './hooks/useAgentAttemptOutputs.ts',
+  './hooks/useAgentAttemptOutputMessage.ts',
+  './components/SelectedAttemptRecordedOutputs.tsx',
+  './components/SelectedAttemptOutputMessage.tsx',
 ]
 
 describe('the run history region boundary', () => {
@@ -137,6 +146,41 @@ describe('the run history region boundary', () => {
     expect(section).toContain('useAgentAttemptInputMessage({ openingKey, runId, expected, selection })')
     expect(section.match(/useAgentAttemptInputMessage\(/g)).toHaveLength(1)
     expect(section).not.toMatch(/\bkey=\{(?!reference\.collaborationMessageId\})/)
+  })
+
+  it('reads recorded outputs and one selected output only through their factories, scoped by the shared hooks, and follows no chain or artifact', () => {
+    const outputs = read('./hooks/useAgentAttemptOutputs.ts')
+    const message = read('./hooks/useAgentAttemptOutputMessage.ts')
+    const inspector = read('./components/SelectedAttemptOutputMessage.tsx')
+    const section = read('./components/SelectedAttemptRecordedOutputs.tsx')
+    const panel = read('./components/AgentAttemptHistoryPanel.tsx')
+
+    expect(outputs).toContain('agentAttemptOutputsClient()')
+    expect(message).toContain('agentAttemptOutputMessageClient()')
+    for (const hook of [outputs, message]) {
+      expect(hook).toContain('useOwnedLifetime')
+      expect(hook).toContain('useOwnedState')
+      expect(hook).not.toContain('useRef(0)')
+    }
+
+    for (const forbidden of [
+      'agentAttemptEvidenceClient', 'agentAttemptArtifactWindowClient', 'collaborationMessageEvidenceClient', 'collaborationReplyClient',
+      'collaborationAttemptClient', 'collaborationHistoryClient', 'agentAttemptInputsClient', 'agentAttemptInputMessageClient',
+      'console.', '<a ', 'href', 'download', 'useAgentAttemptEvidence', 'useAgentAttemptArtifactWindow', 'useAgentAttemptInputs',
+    ]) {
+      for (const code of [outputs, message, inspector, section]) {
+        expect(code, forbidden).not.toContain(forbidden)
+      }
+    }
+
+    // The section asks for the whole bounded set once per opening with no limit, and content only through the explicit selection.
+    expect(outputs).toContain('.readAgentAttemptOutputs(runId, attemptId)')
+    expect(outputs).not.toContain('limit')
+    expect(section).toContain('useAgentAttemptOutputMessage({ openingKey, runId, expected, selection })')
+    expect(section.match(/useAgentAttemptOutputMessage\(/g)).toHaveLength(1)
+    expect(section).not.toMatch(/\bkey=\{(?!reference\.collaborationMessageId\})/)
+    expect(panel).toContain('<SelectedAttemptRecordedOutputs selectionKey={selectionKey} runId={runId} expected={expected} />')
+    expect(panel).not.toMatch(/<SelectedAttemptRecordedOutputs[^>]*\bkey=/)
   })
 
   it('is composed once in the app without a key or remount workaround, and the receipt decoder and endpoint are untouched', () => {

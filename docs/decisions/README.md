@@ -139,7 +139,10 @@ under [Proposed decisions](#proposed-decisions).
   (accepted, implemented in HIST-VER-01; bounded historical verification membership and manually requested sealed stdout/stderr windows of a selected review or diagnosis attempt, with no current eligibility, snapshot revalidation, mutation, invocation or publication authority; publication is reconciled through the workflow)
 
 - [ADR-0053: Inspect the content of recorded inputs of a selected Agent attempt](0053-inspect-the-content-of-recorded-inputs-of-a-selected-agent-attempt.md)
-  (accepted, selected for HIST-INPC-01, not yet implemented; optional reference prefix limit up to the existing 64-input inspection bound with default ten unchanged, complete bounded reference disclosure and one explicitly requested member's guarded collaboration content after whole-set revalidation; no prompt/session attestation, chain traversal, invocation, mutation or publication authority)
+  (accepted, implemented in HIST-INPC-01; optional reference prefix limit up to the existing 64-input inspection bound with default ten unchanged, complete bounded reference disclosure and one explicitly requested member's guarded collaboration content after whole-set revalidation; no prompt/session attestation, chain traversal, invocation, mutation or publication authority)
+
+- [ADR-0054: Inspect recorded outputs of a selected Agent attempt](0054-inspect-recorded-outputs-of-a-selected-agent-attempt.md)
+  (accepted, implementation delivered for review in HIST-OUT-01; complete bounded references and explicit member-content inspection of messages whose own AttemptId attributes them to the selected Agent attempt, with whole-set relationship proof, unchanged historical content admission and exact wire values; no event-derived attribution, full response/replay claim, invocation, mutation or publication authority; publication is reconciled through the workflow)
 
 ## Partially superseded decisions
 

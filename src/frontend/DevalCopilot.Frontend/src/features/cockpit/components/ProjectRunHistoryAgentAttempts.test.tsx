@@ -5,6 +5,8 @@ import {
   agentAttemptEvidenceClient,
   agentAttemptHistoryClient,
   agentAttemptInputsClient,
+  agentAttemptOutputMessageClient,
+  agentAttemptOutputsClient,
   localDeliveryReceiptClient,
   projectRunHistoryClient,
 } from '../../../api/clients'
@@ -16,6 +18,8 @@ import type {
 import { AgentProcessExecutionResponse, AgentTokenUsageResponse } from '../../../api/generated/api-client'
 import { attemptEvidenceFor, attemptIdFor, attemptPageOf, windowOf } from '../agentAttemptHistoryFixture'
 import { recordedInputsFor } from '../agentAttemptInputsFixture'
+import { recordedOutputMessageFor } from '../agentAttemptOutputMessageFixture'
+import { recordedOutputsFor } from '../agentAttemptOutputsFixture'
 import { availableFor } from '../localDeliveryReceiptFixture'
 import { deliveredEntryFor, entryFor, pageOf } from '../projectRunHistoryFixture'
 import { ProjectRunHistoryPanel } from './ProjectRunHistoryPanel'
@@ -28,6 +32,8 @@ vi.mock('../../../api/clients', async (importOriginal) => ({
   agentAttemptEvidenceClient: vi.fn(),
   agentAttemptArtifactWindowClient: vi.fn(),
   agentAttemptInputsClient: vi.fn(),
+  agentAttemptOutputsClient: vi.fn(),
+  agentAttemptOutputMessageClient: vi.fn(),
 }))
 
 function deferred<T>() {
@@ -42,11 +48,15 @@ type HistoryRead = (runId: string, before: number | null | undefined, limit: num
 type EvidenceRead = (runId: string, attemptId: string) => Promise<AgentAttemptEvidenceResponse>
 type WindowRead = (runId: string, attemptId: string, segment: string, fromOffset: number | undefined) => Promise<SealedAgentArtifactWindowResponse>
 type InputsRead = (runId: string, attemptId: string, limit?: number) => Promise<unknown>
+type OutputsRead = (runId: string, attemptId: string) => Promise<unknown>
+type OutputMessageRead = (runId: string, attemptId: string, messageId: string) => Promise<unknown>
 
 let historyRead: ReturnType<typeof vi.fn<HistoryRead>>
 let evidenceRead: ReturnType<typeof vi.fn<EvidenceRead>>
 let windowRead: ReturnType<typeof vi.fn<WindowRead>>
 let inputsRead: ReturnType<typeof vi.fn<InputsRead>>
+let outputsRead: ReturnType<typeof vi.fn<OutputsRead>>
+let outputMessageRead: ReturnType<typeof vi.fn<OutputMessageRead>>
 let runHistoryRead: ReturnType<typeof vi.fn>
 let view: ReturnType<typeof render>
 
@@ -56,6 +66,9 @@ const defaults = {
   evidence: ((runId, attemptId) => Promise.resolve(attemptEvidenceFor(runId, Number(attemptId.split('-').pop())))) as EvidenceRead,
   window: ((runId, attemptId) => Promise.resolve(windowOf(`manifest of ${runId} ${attemptId}`))) as WindowRead,
   inputs: ((runId, attemptId) => Promise.resolve(recordedInputsFor(runId, Number(attemptId.split('-').pop()), 2))) as InputsRead,
+  outputs: ((runId, attemptId) => Promise.resolve(recordedOutputsFor(runId, Number(attemptId.split('-').pop()), 12))) as OutputsRead,
+  outputMessage: ((runId, attemptId, messageId) =>
+    Promise.resolve(recordedOutputMessageFor(runId, Number(attemptId.split('-').pop()), Number(messageId.split('-').pop())))) as OutputMessageRead,
 }
 
 function installAttempts(overrides: Partial<typeof defaults> = {}) {
@@ -63,6 +76,12 @@ function installAttempts(overrides: Partial<typeof defaults> = {}) {
   evidenceRead = vi.fn(overrides.evidence ?? defaults.evidence)
   windowRead = vi.fn(overrides.window ?? defaults.window)
   inputsRead = vi.fn(overrides.inputs ?? defaults.inputs)
+  outputsRead = vi.fn(overrides.outputs ?? defaults.outputs)
+  outputMessageRead = vi.fn(overrides.outputMessage ?? defaults.outputMessage)
+  vi.mocked(agentAttemptOutputsClient).mockReturnValue({ readAgentAttemptOutputs: outputsRead } as unknown as ReturnType<typeof agentAttemptOutputsClient>)
+  vi.mocked(agentAttemptOutputMessageClient).mockReturnValue(
+    { readAgentAttemptOutputMessage: outputMessageRead } as unknown as ReturnType<typeof agentAttemptOutputMessageClient>,
+  )
   vi.mocked(agentAttemptInputsClient).mockReturnValue({ readAgentAttemptInputs: inputsRead } as unknown as ReturnType<typeof agentAttemptInputsClient>)
   vi.mocked(agentAttemptHistoryClient).mockReturnValue({ getAgentAttemptHistory: historyRead } as unknown as ReturnType<typeof agentAttemptHistoryClient>)
   vi.mocked(agentAttemptEvidenceClient).mockReturnValue({ getAgentAttemptEvidence: evidenceRead } as unknown as ReturnType<typeof agentAttemptEvidenceClient>)
@@ -365,6 +384,91 @@ describe('the Agent attempts of a historical run detail', () => {
     consoleError.mockRestore()
   })
 
+  /** Opens the attempts of the selected run, selects `attemptNumber` and opens its recorded collaboration outputs. */
+  async function openOutputs(attemptNumber: number) {
+    toggleAttempts()
+    await waitFor(() => expect(attemptRows().length).toBeGreaterThan(0))
+    inspectAttempt(attemptNumber)
+    const section = await within(attempts()).findByRole('region', { name: 'Recorded collaboration outputs' })
+    fireEvent.click(within(section).getByRole('button', { name: 'Recorded collaboration outputs' }))
+  }
+
+  it("shows each historical run's own recorded outputs, independent of the inputs section, and none of a replaced run, reload or project", async () => {
+    const late = deferred<unknown>()
+    installAttempts({ outputs: (runId, attemptId) => (runId === 'run-3' ? late.promise : defaults.outputs(runId, attemptId)) })
+    inspectRun(2)
+    await openOutputs(1)
+    expect(await within(attempts()).findByText('12 recorded outputs.')).toBeInTheDocument()
+    expect(within(attempts()).getAllByRole('listitem').some((item) => item.textContent?.includes('run-2-attempt-1-output-0'))).toBe(true)
+    // The sibling inputs section was never opened, so it asked for nothing, and the outputs asked for the whole set once.
+    expect(inputsRead).not.toHaveBeenCalled()
+    expect(outputMessageRead).not.toHaveBeenCalled()
+
+    inspectRun(3)
+    expectNoAttemptData()
+    await openOutputs(2)
+    expect(within(attempts()).getByText('Loading recorded collaboration outputs…')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload latest runs' }))
+    await screen.findByRole('button', { name: 'Inspect run #3' })
+    inspectRun(3)
+    expectNoAttemptData()
+    view.rerender(<ProjectRunHistoryPanel projectId="project-2" />)
+    view.rerender(<ProjectRunHistoryPanel projectId="project-1" />)
+    await act(async () => {
+      late.resolve(recordedOutputsFor('run-3', 2, 9))
+      await late.promise
+    })
+
+    expect(screen.queryByText(/9 recorded outputs/)).toBeNull()
+    expect(screen.queryByText(/run-3-attempt-2-output/)).toBeNull()
+    expect(outputsRead.mock.calls).toEqual([
+      ['run-2', attemptIdFor('run-2', 1)],
+      ['run-3', attemptIdFor('run-3', 2)],
+    ])
+    expect(inputsRead).not.toHaveBeenCalled()
+    expect(windowRead).not.toHaveBeenCalled()
+  })
+
+  it('reads an explicitly inspected output of the selected historical attempt once and ends it with the run', async () => {
+    const late = deferred<unknown>()
+    installAttempts({ outputMessage: () => late.promise })
+    inspectRun(2)
+    await openOutputs(1)
+    await within(attempts()).findByText('12 recorded outputs.')
+
+    fireEvent.click(within(attempts()).getByRole('button', { name: 'Inspect output 2' }))
+    expect(within(attempts()).getByText('Loading the recorded output…')).toBeInTheDocument()
+    inspectRun(3)
+    expectNoAttemptData()
+    await act(async () => {
+      late.resolve(recordedOutputMessageFor('run-2', 1, 1))
+      await late.promise
+    })
+
+    expect(screen.queryByText(/Recorded summary of output/)).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Selected recorded output' })).toBeNull()
+    expect(outputMessageRead.mock.calls).toEqual([['run-2', attemptIdFor('run-2', 1), 'run-2-attempt-1-output-1']])
+  })
+
+  it('settles no recorded-output read and reports no React error after the detail unmounted', async () => {
+    const late = deferred<unknown>()
+    installAttempts({ outputs: () => late.promise })
+    const consoleError = vi.spyOn(console, 'error')
+    inspectRun(3)
+    await openOutputs(1)
+
+    view.unmount()
+    await act(async () => {
+      late.resolve(recordedOutputsFor('run-3', 1, 2))
+      await late.promise
+    })
+
+    expect(consoleError).not.toHaveBeenCalled()
+    expect(outputsRead).toHaveBeenCalledTimes(1)
+    consoleError.mockRestore()
+  })
+
   it('shows an identity-invalid attempt without evidence, an incoherent answer without text, and retries without duplicating rows', async () => {
     let historyReads = 0
     installAttempts({
@@ -545,6 +649,8 @@ describe('the Agent attempts of a historical run detail', () => {
       'Close attempt',
       // HIST-INP-01: the collapsed, read-only recorded-input toggle of the selected attempt.
       'Recorded collaboration inputs',
+      // HIST-OUT-01: the collapsed, read-only recorded-output toggle beside it; no output content control exists until it is opened.
+      'Recorded collaboration outputs',
       'Close selected run',
     ])
     expect(detail().querySelector('form, input, textarea, [role="textbox"]')).toBeNull()
