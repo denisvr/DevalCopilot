@@ -618,6 +618,86 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                     b.ToTable("verification_output_artifacts", (string)null);
                 });
 
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.AgentSupervision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("AttentionAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AttentionReason")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ClosedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClosureReason")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("HostInstanceId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("LastHeartbeatAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ObserverId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PhaseDeadlineUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("PhaseEnteredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_agent_supervisions_attempt");
+
+                    b.HasIndex("HostInstanceId")
+                        .HasDatabaseName("ix_agent_supervisions_open")
+                        .HasFilter("\"ClosedAtUtc\" IS NULL");
+
+                    b.HasIndex("RunId")
+                        .HasDatabaseName("ix_agent_supervisions_run");
+
+                    b.ToTable("agent_supervisions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_agent_supervisions_attention", "(\"AttentionReason\" IS NULL) = (\"AttentionAtUtc\" IS NULL) AND (\"AttentionReason\" IS NULL OR \"AttentionReason\" IN ('stale_heartbeat', 'phase_deadline_elapsed', 'observer_ended_without_terminal_result', 'host_interrupted'))");
+
+                            t.HasCheckConstraint("ck_agent_supervisions_closure", "(\"ClosureReason\" IS NULL) = (\"ClosedAtUtc\" IS NULL) AND (\"ClosureReason\" IS NULL OR \"ClosureReason\" IN ('attempt_terminal', 'observer_ended', 'host_interrupted'))");
+
+                            t.HasCheckConstraint("ck_agent_supervisions_identity", "\"Id\" <> '00000000-0000-0000-0000-000000000000' AND \"RunId\" <> '00000000-0000-0000-0000-000000000000' AND \"AttemptId\" <> '00000000-0000-0000-0000-000000000000' AND \"HostInstanceId\" <> '00000000-0000-0000-0000-000000000000' AND \"ObserverId\" <> '00000000-0000-0000-0000-000000000000'");
+
+                            t.HasCheckConstraint("ck_agent_supervisions_phase", "\"Phase\" IN ('Preparing', 'AwaitingAdapterResult', 'RecordingResult')");
+
+                            t.HasCheckConstraint("ck_agent_supervisions_revision", "\"Revision\" >= 1");
+                        });
+                });
+
             modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.Artifact", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2193,6 +2273,21 @@ namespace DevalCopilot.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("VerificationExecutionId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DevalCopilot.Domain.Features.Runs.AgentSupervision", b =>
+                {
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Attempt", null)
+                        .WithMany()
+                        .HasForeignKey("AttemptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DevalCopilot.Domain.Features.Runs.Run", null)
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

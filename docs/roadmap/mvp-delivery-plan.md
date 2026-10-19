@@ -224,6 +224,12 @@ advances to Accepted planning or the Human escalation. It is a bounded capabilit
 or 5 completion: it starts no implementation, mutating coordination, verification, commit or publication, and every provider-contract
 boundary below stays open.
 
+**Agent supervision observations (partial).** ADR-0056 / AGENT-SUP-01 adds, for all seven existing Agent response contracts, a
+durable disclosure of what the host's own observer last reported for the current Agent attempt (phase, last report, absolute deadline,
+first attention) with an independent bounded sweep and startup closure of a previous host's observations. It is operational evidence
+only, not Increment 5's executor lease, guardian, retry, resume, cancel, takeover or ownership release, not process liveness and not
+provider progress; observation status never gates an action, and every provider-contract boundary below stays open.
+
 **Partial delivery, not completion.** Explicit Human-requested capabilities,
 each bounded by its [ADR](../decisions/README.md):
 

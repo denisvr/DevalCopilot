@@ -598,7 +598,8 @@ public sealed partial class ImplementationReviewSupervisorHostedTests : IDisposa
         IGitWorkspaceEvidenceReader evidenceReader,
         ICodexImplementationReviewAdapter implementationReviewAdapter,
         RecordingFaultInjector? faultInjector = null,
-        ScriptedAccountUsageAdapter? accountUsage = null)
+        ScriptedAccountUsageAdapter? accountUsage = null,
+        Action<ServiceCollection>? configureAdditionalServices = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -614,6 +615,7 @@ public sealed partial class ImplementationReviewSupervisorHostedTests : IDisposa
         services.AddScoped<IAttemptDurabilityProbe>(sp =>
             new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
+        configureAdditionalServices?.Invoke(services);
 
         if (faultInjector is not null)
         {

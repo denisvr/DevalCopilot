@@ -89,7 +89,13 @@ authorization may arm one read-only planning sequence (Planner,
 CriticalReviewer, Resolver; at most five attempts) that the host advances to
 Accepted planning or the existing Human escalation. It never starts
 implementation, verification, commit or publication. PLAN-COORD-01's review
-and publication provenance are recorded in the roadmap checkpoints and Git. Increments 4 to
+and publication provenance are recorded in the roadmap checkpoints and Git.
+ADR-0056 adds only operational evidence for all seven Agent response contracts: a
+durable observation of what the host's own observer last reported (phase, last
+report, absolute deadline, first attention) for the current attempt, an independent
+bounded sweep and the startup closure of a previous host's observations. It is not
+provider progress, process liveness or an execution lease, retries, cancels or
+takes over nothing, and is never an eligibility input. Increments 4 to
 6 stay incomplete; no MVP completion is implied. Text-delivery controls
 (ADR-0021, 0022, 0024, 0027) close named routes, not every filesystem read;
 their physical proofs are Windows-only. Token and account-usage controls are

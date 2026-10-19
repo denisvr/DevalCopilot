@@ -1,298 +1,281 @@
 # Planner/reviewer handoff
 
-[AGENTS.md](../../AGENTS.md) and [workflow](development-workflow.md) apply.
-This is current selection and review state. PLAN-COORD-01 is GO after correction 1.
-Historical records retain their original phase; Git and code prevail.
+[AGENTS.md](../../AGENTS.md) and the [workflow](development-workflow.md) apply.
+Codex remains planner/reviewer; Claude remains executor. Codex performed planning
+and judgment without delegation. AGENT-SUP-01 correction 1 is reviewed GO below.
+Only the exact content identified in the accompanying publication prompt may be
+committed and pushed from its current Claude executor chat. No other slice is
+selected or dispatched.
 
-## Priority and verified baseline
+## Verified baseline and prior publication
 
-Codex remains planner/reviewer; Claude remains executor. Claude returned
-PLAN-COORD-01, and the owner requested independent review of that uncommitted
-diff. Corrections stay in the existing executor chat. No planning or judgment
-was delegated. The exact-content publication GO follows the completed review below.
+Startup on 2026-10-19 independently reconciled main; HEAD, local origin/main
+and a fresh live refs/heads/main all equal
+`a78e572c84e2e7a9a86ac90c1e1b286e6001973e`, tree
+`2c62b12ffa69be55017dbe2b92a8fad224840420`, sole parent
+`1f22a3738976f6b0df0ec59321016be8f5df6115`, divergence 0/0. The real index,
+tracked working tree and nonignored untracked inventory were empty. The first
+sandbox remote query failed with getaddrinfo() thread failed to start; a
+permitted fresh query succeeded. No cause is inferred from that later success.
 
-Startup reconciled on 2026-10-19: branch main; HEAD, local origin/main and a
-fresh live refs/heads/main all 1f22a3738976f6b0df0ec59321016be8f5df6115;
-empty index, clean tracked tree and no nonignored untracked paths. The first
-sandbox remote read failed with getaddrinfo() thread failed to start; the
-subsequent permitted read returned that SHA. This establishes no cause for
-the first failure. No product tests were repeated for unchanged baseline code.
+PLAN-COORD-01 is published and independently verified. Its retained
+`logs/planner-review/plan-coord-01/publication-verification.json` and `.md`
+record the exact 176 GO-approved paths (66 M, 110 A), parent and tree. Startup
+inspected those records and independently confirmed the live baseline; it did
+not rerun the historical review or product tests. Committed review-phase
+checkpoint wording reopens nothing and requires no closure commit. PCO-R1
+through R5 are resolved; PCO-C1 remains accepted/nonblocking. The review,
+validation acceptance adjustment, original/lost/reported/retained provenance
+and all prior restrictions remain as recorded in this file and current-work.md
+at `a78e572` and ignored per-slice evidence. No missing output is authenticated
+or unexplained failure attributed by this selection.
 
-Review preflight also confirms main, HEAD/local origin/main/fresh live main at
-that same SHA, 0/0 and an empty index. The first delivered diff had 171 distinct files
-(62 modified tracked files and 109 nonignored untracked files), including the
-three planner-prepared selection files. The executor's 112 count matches the
-directory-grouped git status entries, not distinct files; the exact reviewed
-list is logs/planner-review/plan-coord-01/reviewed-paths.txt. No unrelated-work
-discrepancy was identified. Nothing was staged, committed or pushed.
-Correction preflight reconciles 176 files (66 tracked modifications, 110 new files): four required routed documents and the new deadline regression class account for the five additional paths. The live remote remains at the same base. Planner review changes this handoff, factual status/provenance wording in three routed documents and ignored review evidence. Three
-temporary reproduction test sources were removed after their outputs and
-source copies were retained; no product correction was implemented by Codex.
-Current context percentage is unavailable; the prior chat's owner-reported
-61.0% transition observation is historical and is not this chat's usage.
+Current chat context percentage is unavailable. The prior publication record's
+27.16% session-metadata ratio and older 61.0% report are historical, not current
+usage. The owner explicitly continued this planner chat. No new publication
+event or context-threshold transition is claimed.
 
-## Latest verified publication
+Selection changes only this handoff, the decision index and new ADR-0056.
+Executor preflight: the same main/HEAD/local/live baseline, empty index, these
+two tracked documentation modifications and one untracked ADR, no other
+nonignored paths. Preserve these planner documents as part of the slice's
+review. Codex changed no source, test, dependency, commit or push.
 
-HIST-OUT-01 is published and independently verified, not reopened by its
-committed pre-publication checkpoint wording. Exact commit
-1f22a3738976f6b0df0ec59321016be8f5df6115, tree
-dc859c2c443b52318b364fb9173100bc7dc298a9, sole parent
-459344d3b0f3311d1d0603a0d26187e22959b256: 69 GO-approved paths without rename
-detection (11 M, 58 A), GO SHA-256
-f779d5543f74165236a8d73d234d1be7eef01ab808f28b7ddc8be70d5ef0a69b.
-Prior independent verification and transition were inspected in
-logs/planner-review/hist-out-01/publication-verification.json/.log,
-independent-published-status.txt and planner-transition.md. This startup
-confirms the clean Git/live-remote baseline, rather than inventing a second
-historical review. Claude's HIST-OUT-01 chat completed publication; no closure
-commit or competing executor work is required.
+## Remaining MVP critical path against code
 
-Independent review evidence: 129 Application, 23 API/auth/Int64, 421 frontend,
-172 architecture and strict e2e TypeScript passed. Preserve the initial testhost
-timeout, frontend ENOENT failures and literal-wildcard TS6053 failure; subsequent
-passes do not prove their causes. HOUT-R1 is resolved by the planner's evidence
-wording corrections before GO: negative controls are mainly abridged summaries,
-the original M2 diagnostic and executor strict-e2e invocation are missing, and
-the executor's blanket raw-output claim is overbroad. Whole frontend 5299,
-build/lint/generation and journey remain inspected executor evidence with their
-actual scope. Journey 44 duplicate-key/three negotiation errors have no HEAD
-comparison; cause and count equivalence remain unproved. Prior HIST-INPC-01's
-two lost EF1002 outputs and all earlier limits remain. Exact previous selection,
-review and publication GO: this file at commit 1f22a37 and the ignored review
-records. Earlier deliveries and decisions: that revision's Latest verified
-publication and its explicit historical routes.
+Increments 4/5/6 remain incomplete. ADR-0050 stays Proposed, P9 unproven and AI
+Memory deferred. No completion percentage or delivery date is defensible.
 
-## PLAN-COORD-01 review: GO after correction 1
+| Front | Actual baseline and remaining dependency |
+|---|---|
+| Planning | PlanningSequenceCoordinator and its three claim/result paths join the complete bounded read-only lineage under ADR-0055. Acceptance or Human escalation ends that grant; it selects no mutating successor. |
+| Local execution | ImplementationSupervisor, VerificationExecutionSupervisor, ImplementationReviewSupervisor, ReviewCorrectionSupervisor and VerificationDiagnosisSupervisor execute existing explicit work. LocalCommitSupervisor has its separate exact-checkpoint authority/recovery. They do not form the full automatic delivery loop. |
+| Current execution truth | Claims set Attempt.Running; MarkAgentAttemptDispatched records a single-use marker. AgentProcessExecutionEvidence arrives after the adapter returns. Seven Agent supervisors await their own work without a common durable current observer/heartbeat/phase record. PlanningSequencePolicy deadlines cover its own sequence only. RunHeader distinguishes coordinated lifecycle, but its ordinary Running treatment/ticking duration can still imply activity. ProviderRuntimePreflight reports version evidence and unknown controls, not current execution; the target runtime strip is not a delivered liveness surface. |
+| Increment 5 autonomy | Mutation grants, verification-recipe/execution-set identity, correction routing, repository/global scheduling, finite execution leases, process-aware controls and ambiguous-write recovery remain separate unresolved contracts. Observation cannot authorize them. |
+| Increment 4 gaps | Claude account usage, eligible session resume, live context capacity, manual compaction and other permission profiles need contracts/evidence. Deterministic doubles do not qualify real providers; experiments are unauthorized. Raw Git observation and non-Windows containment limits remain. |
+| Increment 6 | GitHub observations/binding/consent establish neither branch permission nor push readiness. Source-write denial/P9 and separate Git/GitHub/GCM qualification block the proposed publication path. CI monitoring, diagnosis/correction, rerun and reconciliation remain. |
+| Self-hosting | The stable packaged end-to-end demonstration depends on those capabilities and qualification; local tests/read-only coordination cannot establish it. |
 
-PCO-R1 through PCO-R5 are resolved. PCO-C1 remains an accepted nonblocking
-testing-layer limitation. This supersedes review 1's NO-GO and correction
-prompt, not ADR-0055 or the preserved evidence. The GO applies only to the
-final reviewed substantive diff. Publication authority is bound to the exact
-parent, tree and 176 approved paths in the accompanying planner GO record and
-prompt under logs/planner-review/plan-coord-01/. Nothing has been committed or
-pushed by the planner; publication still requires the executor's identity
-checks, normal push and independent planner verification.
+## Selected slice: AGENT-SUP-01 current Agent supervision observations
 
-- **PCO-R1 [P1], resolved.** Completed results are judged by their own completion
-  time before classification. At or after the deadline ends with attention;
-  one tick before remains timely even when observed later. Terminal attempts
-  and outputs remain recorded, and an already-won Stop keeps Stopped. The read
-  projection also reports genuinely late completions before persistence. Seven
-  permanent Application regressions cover Proposal, Acceptance, Resolution and
-  Stop precedence; the independent PlanningSequence filter passes 128/128.
-- **PCO-R2 [P2], resolved.** Observation owns inFlight only while it runs; the
-  original reservation owns one separate preparation task keyed by step, with
-  the same four preparation slots. A later poll expires a blocked preparation;
-  its late return cannot claim. Hosted tests prove durable revocation while
-  capture stays blocked and zero attempts/provider calls after release. Exact
-  ticket checks and atomic linking remain in the existing claim transactions.
-- **PCO-R3 [P2], resolved.** Context, workflow intake/correction wording, ledger,
-  MVP partial delivery, protocol and cockpit specification state the narrow
-  read-only capability. Intake stays inert, modes immutable, implementation
-  separately authorized and increments 4/5/6 incomplete. Accepted historical
-  ADRs were not rewritten.
-- **PCO-R4 [P2], resolved with evidence loss retained.** Current-work separates
-  original reports, retained outputs, fresh checks and not-run checks. The
-  original whole Application run had one failure, followed only by its 93-test
-  class; there is no full passing rerun on final inputs. Original broad run
-  logs were not saved as files. A transcript location and retained control
-  outputs are identified; the first surviving Application predecessor-mutant
-  output was overwritten and remains lost. Later passes authenticate none of
-  that history. Correction mutation/format claims without separate output logs
-  remain executor-reported. See current-work for exact provenance.
-- **PCO-R5 [P2], resolved.** Query State now equals the effective snapshot State;
-  RecordedState remains separate. The closed frontend decoder was not relaxed.
-  Independent real-query/endpoint exports of both expired preparation and
-  expired running-result responses were serialized, admitted by the actual
-  frontend decoder and rendered as attention before persistence, without Stop.
-  These are direct endpoint-mapping checks, not an additional HTTP auth proof.
+Implement accepted [ADR-0056](../decisions/0056-observe-agent-supervision-without-granting-execution-authority.md).
+The cockpit shows the phase the host last reported for its current Agent
+attempt, the observer's last report and absolute deadline. A stale or hung
+observation becomes attention independently of the blocked role worker. It
+never represents provider progress or execution authority.
 
-**PCO-C1, accepted nonblocking limit:** Application's helper duplicates claim
-composition and misses a wrong Resolver predecessor in the production composer.
-Production still passes ticket.PredecessorAttemptId and the consumer validates
-it; independent hosted two/four/five-step production-mediator paths pass. No
-additional mirror test or Resolver product correction is required. Retained
-hosted mutant output supports its reported kill but does not recover the lost
-surviving Application run or independently authenticate its history.
+**Sizing judgment.** All seven Agent contracts, repairs and manual/coordinated
+paths share Attempt identity and the same observation semantics. Splitting by
+provider/role or shipping the backend without truthful cockpit composition
+leaves the outcome incomplete. Verification, standalone Process and local commit
+cross different identity/recovery lifecycles. Automatic implementation,
+verification, correction and commit require broader mutation authority absent
+here; provider work has experiment restrictions. These are concrete authority
+and validation boundaries, not a file-count limit. Observation is a prerequisite
+for safely judging future coordination, not a substitute for the missing loop.
 
-**Other reviewed boundaries retained:** all three step links are inside claim
-transactions with independent uncertainty probes; early and durable reciprocal
-manual/verification/local-commit/abandonment fences, eight DB guard inventory,
-Stop drain, source binding and startup interruption after attempt recovery were
-reviewed. Prior independent Infrastructure 15, frontend 546 and architecture
-172 passes retain their scope; this is not every race for each guard. Local
-commit early-refusal handler coverage remains unproved beyond inspection and
-the direct DB backstop. Three MVC operations remain protected and individually
-mediated; body, auth, wire and stale-action regressions pass.
+**Resolved architecture.** One non-authoritative AgentSupervision receipt per
+observed Agent attempt; immutable association/original host/observer, guarded
+revision and short independent writes. Forward-only Preparing and RecordingResult
+phases each get two minutes; AwaitingAdapterResult gets the reserved invocation
+timeout plus two minutes. Five-second heartbeats, stale at thirty seconds,
+independent bounded sweep and immediate effective-attention reads. A heartbeat
+cannot extend a phase or clear first attention. Actual terminal Attempt facts
+win current display while attention history remains. No process liveness,
+execution lease, retry, cancel, takeover, ownership release or new eligibility.
+Observation faults cannot suppress the original safety gates/result recorder.
+The complete resolved contract is ADR-0056; challenge it with evidence rather
+than silently redesigning it.
 
-**Independent correction verification:** Application PlanningSequence 128,
-original failing event-history class 93, API PlanningSequence 39, frontend
-three decoder/panel/stale-action files 237, and two actual backend response
-exports plus two frontend admission/render cases passed. Full original
-outputs, exact commands and source copies: review-02.md and adjacent logs in
-logs/planner-review/plan-coord-01/. Two temporary reviewer test sources were
-removed; only ignored source copies and exported fictitious responses remain.
-The first sandbox Application correction run produced no output and was
-interrupted; its cause is unknown, not explained by the subsequent pass.
+**Scope.** Feature-owned Domain receipt/policy; DbContext/EF configuration and
+additive migration/constraints; internal commands/query/events; one small host
+observation-lifetime collaborator across the seven existing Agent supervisors;
+independent sweep and startup closure after existing attempt reconciliation.
+One protected bodyless/queryless GET /api/runs/{runId}/agent-supervision with
+API-owned DTOs, NSwag output, operation-scoped raw-wire validation, owned
+hook/panel and current header/supervision/duration composition. Preserve the
+version-only ProviderRuntimePreflight and historical collaboration cards; add
+no target model/context/permission runtime controls or active-card machinery. Update
+engineering-context, system-overview, data-and-recovery, cockpit specification,
+MVP plan and executor current-work only for this exact partial capability.
+Historical readers, invocation/process contracts, provider permissions,
+artifacts/source admission, claim/dispatch/result rules and ADR-0055 authority
+remain unchanged. No accepted historical ADR or frozen snapshot is rewritten.
 
-**Validation acceptance adjustment:** accept the originally reported full
-Application run with one pinned event-list failure, that class's independent
-93-test pass and the current 128-test feature pass instead of requiring another
-full Application rerun. The changed shared admission consumers were exercised
-in the original broad run; the correction changes only the feature's deadline
-policy/projection/coordinator and tests/docs. These consumers are enumerable,
-with actual hosted paths and the repaired failed class verified independently.
-The unchanged broad API/frontend/migration evidence is retained with its actual
-reported/inspected provenance; it is not recast as a fresh final-input run.
-Domain's additive deadline helper is covered by the Application boundary; its
-older full-project count is not a new full Domain pass. No wider API rerun,
-real provider, P9 or live-clock deadline proof is claimed. The two corrected
-journeys and architecture 172 passes have executor logs; other original broad
-results remain reported evidence. Journey duplicate-key/negotiation console
-errors have no HEAD comparison and their cause/equivalence remain unproved.
-This bounded local acceptance changes no CI or release gate.
+## Proportional validation matrix
 
-## Selected slice: PLAN-COORD-01 bounded read-only planning coordination
+New .NET class/file names contain AgentSupervision for focused filters. Build
+once per stable inputs, use --no-build --no-restore only against current binaries.
+Retain original outputs, commands, source/diff identity, results and elapsed
+times in concise ignored logs/executor/agent-sup-01 evidence. Separate fresh,
+retained and not-run evidence; keep failures without reconstructing losses.
 
-**Decision:** implement accepted
-[ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md).
-One Human arming request for a pristine ManualAgent run coordinates Planner,
-CriticalReviewer, Resolver, one further CriticalReviewer and Resolver as needed
-(maximum five attempts), ending in Accepted planning or the existing depth-two
-Human escalation. No subsequent per-stage click or message transfer is required
-inside that sequence. This selection is not product delivery or publication GO.
+- Domain/Application: AgentSupervision filter, plus full
+  GetRunEventHistoryQueryHandlerTests when constants change. Identity/replay,
+  foreign/stale writers, forward phases, exact deadlines/staleness, overflow/
+  clock refusal, hung phase with fresh heartbeat, effective/recorded attention,
+  timely/late terminal outcomes, uncertainty/rollback. Full projects only if
+  shared admission/dispatch/lifecycle/result semantics change, also a scope stop.
+- Infrastructure: AgentSupervision OR Migration name filters; real file-backed
+  SQLite empty/upgrade/legacy/reopen/constraints, independent-connection races,
+  revision/identity protection and receipt/event atomicity. No fixture caching.
+- API: new AgentSupervision plus existing AgentAttemptSupervisor,
+  ClaudeCriticalReviewSupervisor, ChallengeResolutionSupervisor,
+  SecondChallengeRoundSupervisor, ImplementationSupervisor,
+  ImplementationReviewSupervisor, ReviewCorrectionSupervisor,
+  VerificationDiagnosis, PlanningSequence and LaunchSessionAuthentication
+  substrings; real MVC authorization inventory and affected startup/side-effect-
+  free tests. Retain the expanded actual FullyQualifiedName filter. Hosted new
+  cases exercise every production supervisor, repairs/coordinated paths, blocked
+  preparation/adapter/recorder, observation faults/disposal/restart, unchanged
+  provider cardinality/budgets/results and exclusion. Broaden to full API when
+  shared host/pipeline effects exceed bounded registration/startup wiring or
+  affected consumers cannot be enumerated; stop for authority changes.
+- Frontend: focused decoder/hook/panel, RunHeader and cockpit/
+  selection cases; final whole Vitest once, lint and production build including
+  tsc -b because shared composition changes. Closed wire UTC/Int64/tuple rules,
+  freshness, terminal/attention precedence, A-B-A/remount/pending/stale callbacks
+  and no observation-based action grant. Reproducible NSwag after API build.
+- Browser: extend planning-sequence.journey.ts through the authenticated host
+  and existing deterministic executables; run it and collaboration.journey.ts
+  serially on stable binaries. Prove one real persisted observation for the
+  exact linked attempt and truthful terminal display; no need to catch every
+  transient phase in a fast fixture. Hung/freshness permutations stay at hosted/
+  UI boundaries. Strict e2e TypeScript uses explicitly expanded files. Shared
+  harness/fixture invocation contract changes require planner reassessment.
+- Full architecture; affected format/build/analyzers, existing dependency/
+  security checks without dependency changes, links/inbound fragments, sensitive
+  data and full diff. Three serial compiling controls: heartbeat masks deadline,
+  foreign observer update, stale UI response; hash-verify source restoration.
+  No real provider, P9, packaged-shell or release qualification is claimed.
 
-**Code basis:** CreateManualRun is inert; the three planning supervisors poll
-claimed attempts at 500 ms and do not claim successors. The existing three
-Create*Attempt commands seal context before their commit; Codex claims use short
-manual transactions, whereas ordinary Claude review currently relies on a
-single SaveChanges boundary. Linking a step afterward would permit duplication
-after an ambiguous response. PlanningLineage already validates depth 0/1/2 and
-exact input/reply/provenance; RecordChallengeResolutionResult already records
-the second-round escalation. Startup recovery completes artifact recovery and
-read-only/mutating Agent reconciliation before hosted workers start. Reuse those
-contracts rather than infer execution from the inspection API or loaded timeline.
+Broaden only for changed dependencies, failures or unresolved impact under the
+validation policy. Keep unaffected provider/process/Git/artifact/history and
+other-journey evidence at its actual scope; rerun only invalidated checks after
+correction. No product tests ran for this documentation-only planner selection.
 
-**MVP critical path and sizing:** more inspection/replay does not join stages.
-This sequence delivers the complete existing nonmutating planning dialogue,
-including its bounded second round, together with durable authority, atomic
-step claims, stop races, restart safety, deadlines and visible outcomes. A
-plan-only coordinator or separate backend/UI dispatch would leave the same
-outcome incomplete. Full plan/edit/verify/review/correct/commit automation adds
-mutating grants, recipe/execution-set identity, correction routing, writer and
-scheduler ownership and ambiguous-write recovery; those are concrete separate
-policy/validation boundaries. General scheduling and pause/resume do not select
-next protocol inputs. Provider-gap work remains required, but this sequence
-uses already supported roles and adds no invocation capability.
+Planner selection checks passed: 73 local Markdown paths/fragments across the
+three selected documents, affected current inbound handoff fragments,
+git diff --check and a selected-document sensitive-pattern scan (lexical only).
+Historical missing-fragment statements remain historical. Final Git recheck
+confirmed the same HEAD/local/live main, 0/0 and empty index, with only the
+three expected planner paths changed. The unavailable WindowsApps Python
+launcher rejected an initial handoff-write attempt before writing; the native
+PowerShell write then succeeded. This is tooling history, not a product failure
+or validation pass.
 
-**Resolved authority:** ADR-0055 narrowly supersedes ADR-0014's per-stage
-request rule only for this explicit sequence and narrowly extends ADR-0009's
-ordering only for read-only coordination. Immutable modes, inert intake,
-ADR-0006 exclusion and all existing claim/dispatch/budget/source gates remain.
-One sequence per run lifetime, exact pinned source, five unique step ordinals,
-no historical adoption, retries, repairs, new root or rearm. The same transaction
-must save each attempt, its step association, inputs, artifacts and budget
-consumption. Reserve preparation once, fence stale workers and independently
-resolve persistence uncertainty. A duplicate/failed tick cannot spend another
-claim. Manual Agent/verification/commit/abandonment races are server-enforced.
+## AGENT-SUP-01 review 2: GO after correction 1
 
-**Control and visibility:** Stop after current step revokes an uncommitted
-preparation or drains the already claimed step; it is not process cancellation.
-Two-minute preparation and timeout-plus-two-minute result deadlines close
-advancement with truthful attention. Expired/closed linked attempts cannot
-start a provider; use the dedicated independently proved pre-dispatch refusal,
-not WorkspaceNoLongerEligible. Already dispatched attempts keep their real
-ownership and results. Startup interrupts every formerly advancing sequence,
-including between steps, with no automatic resumption. Preserve existing
-attempt reconciliation and side-effect-free host compositions. No heartbeat or
-executor-lease completion is claimed: coordinated cockpit/header/runtime views
-must distinguish recorded lifecycle, arming, dispatch and awaiting-result from
-live execution, including while status is unavailable. Ordinary manual actions
-return only when their existing gates and the sequence fence both admit them.
+Codex independently reviewed the correction and decides **GO for the exact
+reviewed substantive diff**. Review 1 was NO-GO; ASUP-R1 through R5 are now
+resolved. The detailed first review and pre-update handoff remain under
+`logs/planner-review/agent-sup-01/`, alongside the second review. This decision
+accepts no new execution, provider, dependency or product-publication authority.
+The only authorized repository action is publication of this reviewed slice
+under the content identity in the accompanying executor prompt.
 
-**Scope:** feature-owned Domain state, DbContext sets, EF configurations and an
-additive migration; three protected start/read/stop MVC operations and complete
-owned DTO graphs; internal step tickets on the three existing claim commands;
-common claim/dispatch admission guards only where this sequence owns their
-semantics; dedicated dispatch-refusal recorder and three supervisor branches;
-coordinator/deadline sweep and ordered startup recovery; generated client,
-scoped raw-wire validation, hooks/panel and coordinated header/runtime/manual-
-action composition. Preserve provider adapters, process contracts, schemas,
-source text/artifact admission, historical readers, shared UI lifetimes and
-shared browser harness. Update ledger/workflow/cockpit/engineering-context/MVP
-status only to reflect the exact partial capability; do not declare increments
-complete. Planner-owned ADR/decision selection remain under Codex judgment.
+Review preflight independently confirmed main, HEAD/local origin/main/fresh
+live main `a78e572c84e2e7a9a86ac90c1e1b286e6001973e`, divergence 0/0 and an empty
+index. There are **141 distinct paths: 43 M and 98 new**, equivalent to 95
+directory-grouped status entries. Eight new correction files account for the
+increase from review 1's 133 files; no unrelated work was identified. The
+approved path inventory is `logs/planner-review/agent-sup-01/review-02/reviewed-paths.txt`.
+The expected parent and tree are external to the content they identify and
+will be supplied in the publication prompt; never insert them into this file.
 
-**Stop gates:** inability to compose an atomic step/attempt claim with current
-ports; any need for different provider permissions, real-provider experiments,
-manual-run conversion, automatic mutation, new dependency, general scheduler,
-shared harness/cache, weaker source/budget/recovery semantics or publication;
-material preflight discrepancy or disagreement with this architecture. Report
-evidence and a bounded alternative before dependent work; no silent expansion.
+- **ASUP-R1 [P2], resolved.** Task.Run isolates synchronous provider work before
+  the caller's two-second wait. Each pending operation owns its scope until
+  settled. The observer serializes phase/closure writes and drops heartbeat
+  ticks while a write is pending; the sweep similarly retains pending work
+  without replacing it. The real SQLite registration/phase/closure/shutdown
+  contention cases pass. An additional independent noncooperative async
+  notifier probe also passes: bounded phase/disposal waits, one active write,
+  no queued heartbeats across a real five-second tick, ordered eventual
+  phases/closure, exactly one closure and an unchanged Running attempt. This
+  closes the async evidence requirement without a production-code correction
+  or a new executor dispatch.
+- **ASUP-R2 [P2], resolved.** The operation-owned AbortSignal reaches the actual
+  authenticated fetch through the existing generated operation. Timeout,
+  selection and unmount abort it; the hook waits for actual transport
+  settlement before starting another request of that lifetime. The real
+  hook/wire/generated-client cancellation-aware transport tests pass, including
+  A-B-A and a transport that ignores abort. Existing stale-owner fences remain.
+- **ASUP-R3 [P2], resolved.** Current chronology is validated before historical
+  terminal assessment; future attention, closure and completion are refused,
+  never clamped. The three reviewer cases now return Unavailable. The decoder
+  mirrors successful-answer chronology, while timely results read late, exact
+  boundaries, terminal precedence and attention history remain covered.
+- **ASUP-R4 [P2], resolved.** Registration, each phase entry and every actual
+  closure now append bounded fixed-schema events atomically with the receipt.
+  Heartbeats stay silent. Exact ordering, idempotence and SQLite-trigger
+  rollback tests pass; all seven hosted compositions and the planning journey
+  assert the material events instead of zero. The original executor choice
+  remains rejected and is superseded by this correction.
+- **ASUP-R5 [P3], resolved.** The four supporting types were split into matching
+  feature-owned files; AgentSupervisionHostedSupport retains only its own type.
+  The locus is the API integration test project. Compilation and the retained
+  hosted behavior pass, with no fixture cache or isolation redesign.
 
-**Validation matrix** (record exact commands, names, source and elapsed time;
-focused development checks, then one stable-input final matrix):
+**Independent validation.** Rebuilt Application feature plus complete event
+history class: 201/201 (42 s test duration). Rebuilt API observation feature,
+all three naming spellings and all seven production supervisors: 77/77 (32 s),
+including real SQLite contention/startup/endpoint cases. Eight frontend
+wire/decoder/hook/panel/header/event suites: 292/292 (4.24 s). The extra async
+probe: 1/1 (10 s); its source was copied with matching SHA-256
+`22029c8e2264edf321d54470fe4740a619a3d24a5b44fb9fa76a3ab51c051bc5`, removed
+from the test project and the project rebuilt with zero warnings/errors.
+No reviewer probe remains in returned sources or binaries. Codex implemented
+no product correction. Exact commands/results and probe source are retained
+under `logs/planner-review/agent-sup-01/review-02/`.
 
-- New tests use PlanningSequence in their class/file names so focused .NET
-  filters `FullyQualifiedName~PlanningSequence` enumerate the feature. Use
-  independent file-backed SQLite connections for race/rollback/reopen and real
-  migrations for empty/upgrade/legacy constraints. Exercise all two/four/five-
-  attempt branches, complete exact input sets, duplicates/uncertain commit,
-  both sides of stop/claim and arming/manual/verification/abandonment races,
-  source/mode/lease drift, all restart boundaries and expired pre-dispatch
-  versus already-dispatched results. Assert zero unauthorized external calls
-  and independently verify per-step/budget/membership cardinality.
-- Final Domain and Application projects in full: shared admission and lifecycle
-  consumers are affected. Infrastructure filter
-  `FullyQualifiedName~PlanningSequence|FullyQualifiedName~Migration` covers
-  new persistence plus existing migration compatibility. Add feature constraints
-  to that filter if their names do not contain Migration.
-- Final API filter: new PlanningSequence classes plus
-  AgentAttemptSupervisor, ClaudeCriticalReviewSupervisor,
-  ChallengeResolutionSupervisor, SecondChallengeRoundSupervisor,
-  ManualRunHostedTests, CreateManualRun, RequestCodexPlanning,
-  RequestClaudeCriticalReview, RequestChallengeResolution, RequestReadOnlyFormatRepair,
-  RequestCodeReview, RequestImplementation, ReviewCorrectionEndpoint,
-  RequestVerificationDiagnosis, RequestDiagnosisCorrection,
-  PlanningImplementationAuthorizationEndpoint, LocalCommitEndpoint,
-  AbandonManualRunEndpoint, VerificationCommandsEndpoint,
-  VerificationExecutionSupervisor and LaunchSessionAuthentication. Translate
-  each name to FullyQualifiedName~name joined by | and retain the actual filter.
-  Include a real MVC authorization inventory for new operations and startup/
-  side-effect-free composition tests. Broaden to the full API project if shared
-  host/pipeline behavior changes or affected consumers cannot be enumerated.
-- Frontend: explicit new decoder/hook/panel and header/runtime/cockpit/manual-
-  action files during development; final whole Vitest once because shared
-  cockpit action gating/presentation changes, plus lint and production build
-  (includes tsc -b). Test raw Int64/time/closed tuples, failed status, arming replay,
-  late stop/result, A-B-A, remount and queued stale callbacks. No shared lifetime
-  primitive changes. Reproducible NSwag after API build and inspect exact drift.
-- One new planning-sequence.journey.ts arms once through the real authenticated
-  UI/host with provider executables replaced by existing deterministic doubles,
-  verifies exact durable step/result identities and reaches a terminal planning
-  outcome without per-stage POSTs. Run it and collaboration.journey.ts serially;
-  prove remaining branches/recovery at cheaper hosted boundaries. Strict e2e
-  TypeScript uses an explicitly expanded file list. Shared harness modifications
-  require planner reassessment and, if accepted, the canonical full harness chain.
-- Full architecture suite; applicable incremental builds/analyzers, formatter,
-  dependency/secret checks, changed links/inbound fragments and complete diff.
-  Kill four compiling, restored controls: missing sequence claim fence, separate
-  step link, wrong predecessor and stale UI action. Use named focused tests,
-  retain originals and verify restoration; no broad mutation campaign.
-- Retain unaffected provider-adapter, artifact/source, historical-inspection,
-  other-journey and all previous failure evidence with its actual limitations.
-  Corrections rerun only invalidated checks. No tests were run by the planner
-  for this documentation-only selection; Claude produces implementation evidence.
+**Inspected executor evidence.** Correction final logs support Domain 40/40,
+Application 201/201, API matrix 315/315, Infrastructure 290/290, Architecture
+179/179, frontend focused 518/518 and full 5950/5950, lint/build (including
+typecheck), strict e2e tsc and both serial journeys 1/1. The generated client's
+current SHA-256 matches its retained generation proof. Initial red and
+intermediate development failures remain retained, including the file-delete
+race with an abandoned write before the test's settlement wait was added.
+The e2e log summarizes the initial TS6053 tooling failure in its header; it
+is not complete original failure output. Independent review tooling also
+encountered a restricted remote lookup failure (the permitted live lookup
+passed), an invalid PowerShell pipeline and an unexpanded rg path glob; none
+is a product result or an inferred product cause.
 
-## Remaining MVP work
+**ASUP-C1, accepted nonblocking limitation.** The journey logs contain 136
+and 244 duplicate-key warnings, versus the earlier 72 and 160, plus the
+reported negotiation stops. Contrary to the correction record's singular
+wording, collaboration has two distinct repeated keys, planning one. Source
+inspection confirms LocalCommitPanel and AbandonRunPanel already have the same
+sibling key={runId} in the published baseline. That is pre-existing UI debt;
+it does not establish the cause of the increased counts. The selected
+supervision regressions and journeys pass, with no demonstrated new
+supervision failure. No warning-free journey claim, causal attribution,
+regression-rate conclusion or unrelated UI fix is accepted by this GO.
 
-No defensible completion percentage or delivery date follows from the number
-of past slices. Increments 4/5/6 remain incomplete. After this first coordination
-segment the unresolved fronts still include the mutating local loop and its
-scheduler/control/recovery contracts, provider/account/context/session gaps,
-GitHub publication qualification and CI correction/reconciliation, then the
-packaged self-hosting demonstration. P9 remains unproven, ADR-0050 Proposed and
-AI Memory deferred. None is accepted as a future dispatched slice here.
+**Retained evidence limits.** The negative controls are historical passes
+against the first implementation, not fresh passes against this correction:
+their source files changed, although the original guards are preserved and
+fresh named regressions cover the correction. This clarifies current-work's
+"targets did not change" wording. No routine repeat or broad campaign is
+required. The original complete Application/API failures and isolated passes
+remain unexplained; no clean complete rerun is claimed. Review 1's tooling
+failures, control 3's aborted first run/restoration, earlier evidence losses,
+PCO-C1 and the unchanged dev-only source-map-js advisory all remain. Mandatory
+CI, security, real-provider fidelity and release gates are not waived.
+Increments 4/5/6 remain incomplete, ADR-0050 Proposed, P9 unproven and AI Memory
+deferred. No real-provider experiment, native-shell or release proof is added.
+
+## Stop boundaries and next action
+
+The same Claude executor chat may publish only the reviewed 141-path outcome,
+including these review documents and the executor's review-phase current-work.
+Verify the exact parent, path set and expected tree supplied in the GO prompt
+before committing. Stage only approved paths, compare the staged and committed
+content identity, commit and push main normally, then query the live remote.
+A material diff, identity mismatch, changed baseline, failed push or diverged
+remote stops publication; no force-push, history reconciliation, closure-document
+edit or new slice is authorized. Codex independently verifies publication next;
+executor-reported success does not establish that verification.
 
 ## Retained review and evidence limits
 
@@ -355,7 +338,8 @@ Their old GO/pending statements are not current instructions.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary
-  tests are authorized only for PLAN-COORD-01 under ADR-0055. No dependency, experiment,
+  tests are selected only for AGENT-SUP-01 under ADR-0056; PLAN-COORD-01 is published.
+  This adds observations only, not broader mutation authority. No dependency, experiment,
   capture-limit or standards edits; the old documentation-only production/test
   exclusion is superseded, not the other restrictions.
 

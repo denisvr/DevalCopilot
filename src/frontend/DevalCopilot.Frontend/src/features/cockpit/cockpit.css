@@ -1850,3 +1850,47 @@
   border-left: 3px solid var(--dc-warning);
   padding-left: 0.5rem;
 }
+
+/* Host observation of the current Agent attempt (ADR-0056): what the host's own observer recorded, never provider progress. */
+.dc-agent-supervision {
+  border: 1px solid var(--dc-border);
+  background: var(--dc-surface);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.dc-agent-supervision h2 {
+  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+}
+
+.dc-agent-supervision ul {
+  margin: 0.25rem 0;
+  padding-left: 1.1rem;
+}
+
+.dc-agent-supervision-status {
+  font-weight: 600;
+  margin: 0.2rem 0;
+}
+
+.dc-agent-supervision-disclaimer,
+.dc-agent-supervision-no-action {
+  font-size: 0.8rem;
+  color: var(--dc-text-muted);
+  margin: 0.2rem 0;
+}
+
+.dc-agent-supervision[data-status='NeedsAttention'],
+.dc-agent-supervision[data-status='Unavailable'],
+.dc-agent-supervision[data-status='unavailable'],
+.dc-agent-supervision[data-stale='true'] {
+  border-left: 3px solid var(--dc-warning);
+}
+
+.dc-agent-supervision-attention,
+.dc-agent-supervision-stale {
+  border-left: 3px solid var(--dc-warning);
+  padding-left: 0.5rem;
+}

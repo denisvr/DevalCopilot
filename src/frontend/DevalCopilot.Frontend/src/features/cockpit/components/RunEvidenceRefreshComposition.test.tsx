@@ -48,7 +48,9 @@ import * as useRequestReviewCorrectionModule from '../hooks/useRequestReviewCorr
 import * as useAuthorizeReviewCorrectionModule from '../hooks/useAuthorizeReviewCorrection'
 import * as usePlanningImplementationAuthorizationModule from '../hooks/usePlanningImplementationAuthorization'
 import * as useAuthorizePlanningImplementationModule from '../hooks/useAuthorizePlanningImplementation'
+import * as useAgentSupervisionModule from '../hooks/useAgentSupervision'
 import * as usePlanningSequenceModule from '../hooks/usePlanningSequence'
+import { resultFor } from '../agentSupervisionFixture'
 import { armableStatusFor, hookResultFor } from '../planningSequenceFixture'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 import { RunCockpitView } from './RunCockpitView'
@@ -75,6 +77,7 @@ vi.mock('../hooks/useAuthorizeReviewCorrection')
 vi.mock('../hooks/usePlanningImplementationAuthorization')
 vi.mock('../hooks/useAuthorizePlanningImplementation')
 vi.mock('../hooks/usePlanningSequence')
+vi.mock('../hooks/useAgentSupervision')
 vi.mock('./AgentCollaboration', () => ({ AgentCollaboration: () => null }))
 vi.mock('./UsageEvidenceRail', () => ({ UsageEvidenceRail: () => null }))
 vi.mock('./LiveOutputDrawer', () => ({ LiveOutputDrawer: () => null }))
@@ -325,6 +328,8 @@ async function renderReady(projectId = 'project-1', runId = 'run-1') {
 
 describe('Refresh evidence reaches the run\'s verification-dependent display', () => {
   beforeEach(() => {
+  // The host observation is mocked out of every unrelated test: loading, so it adds no alert, header badge or reading to them.
+  vi.mocked(useAgentSupervisionModule.useAgentSupervision).mockReturnValue(resultFor(null, { loading: true, polling: true }))
     vi.mocked(usePlanningSequenceModule.usePlanningSequence).mockImplementation((runId) =>
       hookResultFor(armableStatusFor(runId ?? 'run-1'), runId ?? 'run-1'),
     )

@@ -744,7 +744,8 @@ public sealed partial class ImplementationSupervisorHostedTests : IDisposable
 
     private ServiceProvider BuildServiceProvider(
         IGitWorkspaceEvidenceReader evidenceReader,
-        IClaudeImplementationAdapter implementationAdapter)
+        IClaudeImplementationAdapter implementationAdapter,
+        Action<ServiceCollection>? configureAdditionalServices = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -759,6 +760,7 @@ public sealed partial class ImplementationSupervisorHostedTests : IDisposable
         services.AddScoped<IAttemptDurabilityProbe>(sp =>
             new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
+        configureAdditionalServices?.Invoke(services);
 
         return services.BuildServiceProvider();
     }

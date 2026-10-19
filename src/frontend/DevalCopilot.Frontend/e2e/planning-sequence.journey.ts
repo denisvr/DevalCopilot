@@ -42,6 +42,16 @@ interface AttemptRow {
   Status: string
   AgentRole: string
 }
+interface ObservationRow {
+  AttemptId: string
+  HostInstanceId: string
+  ObserverId: string
+  Phase: string
+  AttentionReason: string | null
+  ClosureReason: string | null
+  ClosedAtUtc: string | null
+  Revision: number
+}
 
 function runs(): RunRow[] {
   return withJourneyDb(
@@ -59,6 +69,27 @@ function stepsOf(sequenceId: string): StepRow[] {
       db
         .prepare('select Ordinal, Role, State, AttemptId, ReservedAttemptId, PredecessorAttemptId from planning_sequence_steps where SequenceId = ? order by Ordinal')
         .all(sequenceId) as unknown as StepRow[],
+  )
+}
+// The host observations (ADR-0056) of the run's attempts, in attempt order. Only READ: the journey never writes the database.
+function observationsOf(runId: string): ObservationRow[] {
+  return withJourneyDb(
+    (db) =>
+      db
+        .prepare(
+          'select s.AttemptId, s.HostInstanceId, s.ObserverId, s.Phase, s.AttentionReason, s.ClosureReason, s.ClosedAtUtc, s.Revision '
+            + 'from agent_supervisions s join attempts a on a.Id = s.AttemptId where s.RunId = ? order by a.AttemptNumber',
+        )
+        .all(runId) as unknown as ObservationRow[],
+  )
+}
+// The run's supervision timeline events in commit order: only their attempt and fixed type are read.
+function supervisionEventsOf(runId: string): { AttemptId: string; EventType: string }[] {
+  return withJourneyDb(
+    (db) =>
+      db
+        .prepare("select AttemptId, EventType from events where RunId = ? and EventType like 'agent_supervision.%' order by Sequence")
+        .all(runId) as unknown as { AttemptId: string; EventType: string }[],
   )
 }
 function attemptsOf(runId: string): AttemptRow[] {
@@ -144,6 +175,44 @@ test('the planning sequence journey: arm once, the host runs every read-only ste
   expect(readInvocations(mark).filter((entry) => entry.kind !== 'probe')).toHaveLength(5)
   expect(runs()[0].Lifecycle).not.toBe('Completed')
 
+  // ADR-0056: the host's own observer persisted one observation for each of the five exact linked attempts, started by one host launch
+  // with five distinct observers, each closed cleanly once its attempt reached the recorded terminal result and none with an attention
+  // (the doubles answer in seconds, far inside every deadline). Each observation appended exactly its registration, its two phase
+  // entries and its closure as timeline events, in that order, and no heartbeat or attention event; the browser requested none of them:
+  // it only reads what the host recorded.
+  // Closure follows the recorded result by one short write, so the last one is awaited, never assumed.
+  await expect.poll(() => observationsOf(run.Id).filter((observation) => observation.ClosedAtUtc !== null).length, { timeout: 30_000 }).toBe(5)
+  const observations = observationsOf(run.Id)
+  expect(observations).toHaveLength(5)
+  observations.forEach((observation, index) => {
+    expect(sameId(observation.AttemptId, attempts[index].Id)).toBe(true)
+    expect(observation.Phase).toBe('RecordingResult')
+    expect(observation.ClosureReason).toBe('attempt_terminal')
+    expect(observation.ClosedAtUtc).not.toBeNull()
+    expect(observation.AttentionReason).toBeNull()
+    expect(observation.Revision).toBeGreaterThanOrEqual(4)
+  })
+  expect(new Set(observations.map((observation) => observation.HostInstanceId.toLowerCase())).size).toBe(1)
+  expect(new Set(observations.map((observation) => observation.ObserverId.toLowerCase())).size).toBe(5)
+  const supervisionEvents = supervisionEventsOf(run.Id)
+  expect(supervisionEvents).toHaveLength(20)
+  attempts.forEach((attempt) => {
+    expect(supervisionEvents.filter((event) => sameId(event.AttemptId, attempt.Id)).map((event) => event.EventType)).toEqual([
+      'agent_supervision.registered',
+      'agent_supervision.phase_entered',
+      'agent_supervision.phase_entered',
+      'agent_supervision.closed',
+    ])
+  })
+
+  // The cockpit shows the terminal attempt the host recorded and the observation of exactly that attempt, separately from the lifecycle.
+  const supervision = page.getByTestId('agent-supervision-panel')
+  await expect(supervision).toHaveAttribute('data-status', 'Ended', { timeout: 30_000 })
+  await expect(supervision).toContainText('Attempt #5')
+  await expect(supervision).toContainText('The attempt ended as recorded: Completed')
+  await expect(supervision).toContainText('closed after the attempt reached its recorded result')
+  await expect(page.getByTestId('header-host-observation')).toHaveText('Host observation: attempt ended')
+
   // A reload reads the durable result back and never resumes or re-arms anything.
   await page.reload()
   await selectProject(page, PROJECT)
@@ -152,6 +221,9 @@ test('the planning sequence journey: arm once, the host runs every read-only ste
     'AwaitingHumanDecision',
     { timeout: 30_000 },
   )
+  // The durable observation is read back too: the reload shows the same ended attempt and invents no heartbeat.
+  await expect(page.getByTestId('agent-supervision-panel')).toHaveAttribute('data-status', 'Ended', { timeout: 30_000 })
+  expect(observationsOf(run.Id)).toHaveLength(5)
   expect(armRequests).toHaveLength(1)
   expect(attemptsOf(run.Id)).toHaveLength(5)
   expect(readInvocations(mark).filter((entry) => entry.kind !== 'probe')).toHaveLength(5)

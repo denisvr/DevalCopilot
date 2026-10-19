@@ -147,7 +147,10 @@ under [Proposed decisions](#proposed-decisions).
   (accepted, implementation delivered for review in HIST-OUT-01; complete bounded references and explicit member-content inspection of messages whose own AttemptId attributes them to the selected Agent attempt, with whole-set relationship proof, unchanged historical content admission and exact wire values; no event-derived attribution, full response/replay claim, invocation, mutation or publication authority; publication is reconciled through the workflow)
 
 - [ADR-0055: Coordinate one explicitly authorized read-only planning sequence](0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md)
-  (accepted, selected for PLAN-COORD-01, not implemented; one explicit single-use authorization joins at most five existing read-only planning/critique/resolution attempts with exact input identity, atomic step linkage, stop-after-current-step, bounded attention deadlines and restart interruption; narrowly supersedes ADR-0014's per-stage request rule and extends ADR-0009's ordering only for this sequence, with no automatic source mutation, verification, commit or publication)
+  (accepted, delivered in published PLAN-COORD-01; one explicit single-use authorization joins at most five existing read-only planning/critique/resolution attempts with exact input identity, atomic step linkage, stop-after-current-step, bounded attention deadlines and restart interruption; narrowly supersedes ADR-0014's per-stage request rule and extends ADR-0009's ordering only for this sequence, with no automatic source mutation, verification, commit or publication)
+
+- [ADR-0056: Observe Agent supervision without granting execution authority](0056-observe-agent-supervision-without-granting-execution-authority.md)
+  (accepted, selected for AGENT-SUP-01, not implemented; durable current host-supervision observations across all seven existing Agent contracts, independent stale/deadline attention and truthful cockpit disclosure; no provider-progress proof, execution lease, dispatch authority, cancellation, retry, takeover, ownership release, automatic mutation or publication)
 
 ## Partially superseded decisions
 

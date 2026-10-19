@@ -55,7 +55,15 @@ public sealed class ReviewCorrectionSupervisor(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
+    /// <summary>The host observation of ADR-0056 spans exactly this attempt's existing per-attempt execution: it starts at entry, before any
+    /// Git or account preparation, and always ends in disposal. It observes only; every safety check, invocation and result below is unchanged.</summary>
     private async Task ExecuteOneAsync(EligibleReviewCorrectionAttempt attempt, CancellationToken stoppingToken)
+    {
+        await using var observation = await AgentSupervisionObserver.BeginAsync(scopeFactory, attempt.RunId, attempt.AttemptId);
+        await ExecuteObservedAsync(attempt, observation, stoppingToken);
+    }
+
+    private async Task ExecuteObservedAsync(EligibleReviewCorrectionAttempt attempt, AgentObservation observation, CancellationToken stoppingToken)
     {
         var preDispatchEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, stoppingToken);
         if (preDispatchEvidence.Outcome == GitWorkspaceEvidenceOutcome.Success
@@ -92,10 +100,12 @@ public sealed class ReviewCorrectionSupervisor(
 
         if (launchTarget is null)
         {
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, false, false, false, null, null, null, null, stoppingToken);
             return;
         }
 
+        await observation.EnterAwaitingAdapterResultAsync();
         ReviewCorrectionInvocationResult invocation;
         try
         {
@@ -111,12 +121,14 @@ public sealed class ReviewCorrectionSupervisor(
         }
         catch (OperationCanceledException)
         {
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, false, false, false, null, null, null, null, CancellationToken.None);
             return;
         }
         catch (Exception)
         {
             logger.LogError("review_correction_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, false, false, false, null, null, null, null, CancellationToken.None);
             return;
         }
@@ -125,6 +137,7 @@ public sealed class ReviewCorrectionSupervisor(
         // confirms a clean exit; contradictory or missing evidence never becomes a success.
         var processSucceeded = invocation.Outcome == ImplementationInvocationOutcome.Exited
             && invocation.ProcessEvidence is { IsCleanExit: true };
+        await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
             processSucceeded,

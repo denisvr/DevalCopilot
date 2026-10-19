@@ -43,6 +43,10 @@ export const KNOWN_EVENT_TYPES = [
   'planning_sequence.step_concluded',
   'planning_sequence.stop_requested',
   'planning_sequence.ended',
+  'agent_supervision.registered',
+  'agent_supervision.phase_entered',
+  'agent_supervision.attention',
+  'agent_supervision.closed',
 ] as const
 
 export type KnownEventType = (typeof KNOWN_EVENT_TYPES)[number]
@@ -249,6 +253,10 @@ const EVENT_TYPE_LABELS: Record<KnownEventType, string> = {
   'planning_sequence.step_concluded': 'Planning step concluded',
   'planning_sequence.stop_requested': 'Planning sequence stop requested',
   'planning_sequence.ended': 'Planning sequence ended',
+  'agent_supervision.registered': 'Agent supervision registered (host observation)',
+  'agent_supervision.phase_entered': 'Agent supervision phase entered (host observation)',
+  'agent_supervision.attention': 'Agent supervision attention (host observation)',
+  'agent_supervision.closed': 'Agent supervision closed (host observation)',
 }
 
 const ROLE_LABELS: Record<RunEventActorRole, string> = {

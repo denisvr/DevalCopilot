@@ -69,6 +69,8 @@ public sealed class DevalCopilotDbContext(DbContextOptions<DevalCopilotDbContext
 
     public DbSet<PlanningSequenceStep> PlanningSequenceSteps => Set<PlanningSequenceStep>();
 
+    public DbSet<AgentSupervision> AgentSupervisions => Set<AgentSupervision>();
+
     public Task<Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
         Database.BeginTransactionAsync(cancellationToken);
 

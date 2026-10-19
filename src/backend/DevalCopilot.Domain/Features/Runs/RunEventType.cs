@@ -133,4 +133,23 @@ public static class RunEventType
 
     /// <summary>The sequence ended in a terminal, attention or interrupted state with a fixed reason code.</summary>
     public const string PlanningSequenceEnded = "planning_sequence.ended";
+
+    /// <summary>The host registered its own observation of one already claimed Agent attempt in Preparing (ADR-0056). The payload carries
+    /// identities and the phase only. It claims, dispatches or starts nothing and proves no provider progress or live process.</summary>
+    public const string AgentSupervisionRegistered = "agent_supervision.registered";
+
+    /// <summary>The host observer reported entering a later observation phase with its fixed absolute deadline (ADR-0056). The payload
+    /// carries identities and the phase only. Entering AwaitingAdapterResult does not show that a process started; heartbeats append no
+    /// event.</summary>
+    public const string AgentSupervisionPhaseEntered = "agent_supervision.phase_entered";
+
+    /// <summary>The host's own observation of an Agent attempt recorded its first attention (ADR-0056): a stale heartbeat, an elapsed
+    /// phase deadline, an observer that ended without a durable terminal result, or a host interruption. The payload carries identities,
+    /// the phase and the fixed reason only. It proves neither that earlier authorized work stopped nor any provider progress.</summary>
+    public const string AgentSupervisionAttention = "agent_supervision.attention";
+
+    /// <summary>The host closed its observation of an Agent attempt (ADR-0056), with the fixed closure reason: the attempt reached its
+    /// recorded terminal result, the observer ended without one, or the host was interrupted. Every actual closure appends exactly one.
+    /// A closure never terminalizes the Attempt.</summary>
+    public const string AgentSupervisionClosed = "agent_supervision.closed";
 }

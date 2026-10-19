@@ -51,8 +51,10 @@ import * as useLocalCommitStatusModule from '../hooks/useLocalCommitStatus'
 import * as useRequestLocalCommitModule from '../hooks/useRequestLocalCommit'
 import * as useManualRunAbandonmentModule from '../hooks/useManualRunAbandonment'
 import * as useAbandonManualRunModule from '../hooks/useAbandonManualRun'
+import * as useAgentSupervisionModule from '../hooks/useAgentSupervision'
 import * as usePlanningSequenceModule from '../hooks/usePlanningSequence'
 import { armableStatusFor, hookResultFor, statusFor, unknownHookResult } from '../planningSequenceFixture'
+import { endedWire, needsAttentionWire, notObservedWire, observedWire, readingOf, resultFor, unavailableWire } from '../agentSupervisionFixture'
 import type { CollaborationCard, CollaborationTimelineCard } from '../types'
 import { RunCockpitView } from './RunCockpitView'
 
@@ -85,6 +87,7 @@ vi.mock('../hooks/useRequestLocalCommit')
 vi.mock('../hooks/useManualRunAbandonment')
 vi.mock('../hooks/useAbandonManualRun')
 vi.mock('../hooks/usePlanningSequence')
+vi.mock('../hooks/useAgentSupervision')
 vi.mock('../../../api/clients', () => ({
   processAttemptOutputClient: vi.fn(),
   planningImplementationAuthorizationClient: vi.fn(),
@@ -167,6 +170,8 @@ function providerObservedCodexProposal(overrides: Partial<CollaborationTimelineC
 }
 
 beforeEach(() => {
+  // The host observation is mocked out of every unrelated test: loading, so it adds no alert, header badge or reading to them.
+  vi.mocked(useAgentSupervisionModule.useAgentSupervision).mockReturnValue(resultFor(null, { loading: true, polling: true }))
   // No planning sequence is recorded for any run: the fence withholds nothing (its own tests replace this).
   vi.mocked(usePlanningSequenceModule.usePlanningSequence).mockImplementation((runId) =>
     hookResultFor(armableStatusFor(runId ?? 'run-1'), runId ?? 'run-1'),
@@ -3435,8 +3440,8 @@ describe('RunCockpitView PlanningSequence fence', () => {
       expect(screen.queryByTitle('Autonomous session time: excludes paused and terminal time')).not.toBeInTheDocument()
     })
 
-    it('keeps the legacy live treatment for a run with no recorded sequence', () => {
-      mockRun()
+    it('keeps the live treatment only for a simulated demo run, which has no recorded sequence and no Agent attempt', () => {
+      mockRun({ executionMode: 'Simulated' })
       usePlanningSequenceMock.mockReturnValue(control('none'))
 
       render(<RunCockpitView runId="run-1" />)
@@ -3445,7 +3450,24 @@ describe('RunCockpitView PlanningSequence fence', () => {
       expect(badge).toHaveAttribute('data-tone', 'running')
       expect(badge).not.toHaveAttribute('data-recorded-lifecycle')
       expect(screen.getByTitle('Autonomous session time: excludes paused and terminal time')).toBeInTheDocument()
+      expect(screen.queryByTestId('header-host-observation')).not.toBeInTheDocument()
     })
+
+    it.each(['ManualAgent', 'Legacy', 'SomethingNew'])(
+      'shows the lifecycle of a %s Agent run as recorded and its duration as lifecycle elapsed time even with no recorded sequence (ADR-0056)',
+      (executionMode) => {
+        mockRun({ executionMode })
+        usePlanningSequenceMock.mockReturnValue(control('none'))
+
+        render(<RunCockpitView runId="run-1" />)
+
+        const badge = screen.getByText('Running · Plan')
+        expect(badge).toHaveAttribute('data-tone', 'default')
+        expect(badge).toHaveAttribute('data-recorded-lifecycle', 'true')
+        expect(screen.getByTitle('Lifecycle elapsed time as recorded: not measured agent activity')).toBeInTheDocument()
+        expect(screen.queryByTitle('Autonomous session time: excludes paused and terminal time')).not.toBeInTheDocument()
+      },
+    )
 
     it('treats a status that is not established as recorded only, never as live execution', () => {
       mockRun()
@@ -3470,5 +3492,129 @@ describe('RunCockpitView PlanningSequence fence', () => {
         view.unmount()
       }
     })
+  })
+})
+
+describe('RunCockpitView host observation composition (ADR-0056)', () => {
+  const useAgentSupervisionMock = vi.mocked(useAgentSupervisionModule.useAgentSupervision)
+
+  function mockRun(overrides: Record<string, unknown> = {}) {
+    useRunCockpitMock.mockReturnValue({
+      cockpit: new GetRunCockpitResponse({ ...runningCockpit, ...overrides } as ConstructorParameters<typeof GetRunCockpitResponse>[0]),
+      cards: [],
+      connection: 'live',
+      loading: false,
+      error: null,
+      syncError: null,
+      refresh: async () => true,
+    })
+  }
+
+  const supervisionOf = (body: Record<string, unknown>, overrides: Partial<ReturnType<typeof resultFor>> = {}) =>
+    resultFor(readingOf(body, 'run-1'), overrides)
+
+  it.each(['ManualAgent', 'Legacy'])('mounts the observation region and reads it for a %s run, keyed to the selected run and its latest event', (executionMode) => {
+    mockRun({ executionMode })
+    useAgentSupervisionMock.mockReturnValue(supervisionOf(observedWire('run-1')))
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('region', { name: 'Host observation of the current Agent attempt' })).toHaveAttribute('data-status', 'Observed')
+    expect(useAgentSupervisionMock).toHaveBeenLastCalledWith('run-1', runningCockpit.latestSequence)
+    expect(screen.getByTestId('header-host-observation')).toHaveTextContent('Host observation: reporting')
+  })
+
+  it('reads and shows nothing for a simulated demo run', () => {
+    mockRun({ executionMode: 'Simulated' })
+    useAgentSupervisionMock.mockReturnValue(supervisionOf(observedWire('run-1')))
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.queryByRole('region', { name: 'Host observation of the current Agent attempt' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('header-host-observation')).not.toBeInTheDocument()
+    expect(useAgentSupervisionMock).toHaveBeenLastCalledWith(null, runningCockpit.latestSequence)
+  })
+
+  it('never reads a run whose cockpit is still the previous selection’s', () => {
+    mockRun({ runId: 'run-0' })
+    useAgentSupervisionMock.mockReturnValue(resultFor(null, { loading: true }))
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(useAgentSupervisionMock).toHaveBeenLastCalledWith(null, runningCockpit.latestSequence)
+    expect(screen.queryByRole('region', { name: 'Host observation of the current Agent attempt' })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['needs attention', needsAttentionWire('run-1'), 'Host observation: needs attention'],
+    ['ended', endedWire('run-1'), 'Host observation: attempt ended'],
+    ['not observed', notObservedWire('run-1'), 'Host observation: none recorded'],
+    ['unavailable', unavailableWire('run-1'), 'Host observation: unavailable'],
+  ])('words the header badge for an attempt that is %s separately from the recorded lifecycle', (_, body, badge) => {
+    mockRun()
+    useAgentSupervisionMock.mockReturnValue(supervisionOf(body))
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByTestId('header-host-observation')).toHaveTextContent(badge)
+    expect(screen.getByText('Running · Plan')).toHaveAttribute('data-recorded-lifecycle', 'true')
+  })
+
+  it('shows a failed read as unavailable in both the region and the header, never a kept success', () => {
+    mockRun()
+    useAgentSupervisionMock.mockReturnValue(resultFor(null, { failure: 'timeout', polling: false }))
+
+    render(<RunCockpitView runId="run-1" />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('did not answer within ten seconds')
+    expect(screen.getByTestId('header-host-observation')).toHaveTextContent('Host observation: unavailable')
+  })
+
+  it('is never an eligibility input: every observation status leaves the offered actions exactly as they are', () => {
+    const offered = () =>
+      screen
+        .getAllByRole('button')
+        .map((button) => `${button.textContent}:${(button as HTMLButtonElement).disabled}`)
+        .filter((entry) => !entry.startsWith('Read the host observation again'))
+
+    mockRun()
+    useAgentSupervisionMock.mockReturnValue(resultFor(null, { loading: true }))
+    const baseline = render(<RunCockpitView runId="run-1" />)
+    const reference = offered()
+    baseline.unmount()
+    expect(reference.length).toBeGreaterThan(0)
+
+    for (const body of [observedWire('run-1'), needsAttentionWire('run-1'), endedWire('run-1'), notObservedWire('run-1'), unavailableWire('run-1')]) {
+      useAgentSupervisionMock.mockReturnValue(supervisionOf(body))
+      const view = render(<RunCockpitView runId="run-1" />)
+      expect(offered()).toEqual(reference)
+      view.unmount()
+    }
+
+    useAgentSupervisionMock.mockReturnValue(resultFor(null, { failure: 'read', polling: false }))
+    const failed = render(<RunCockpitView runId="run-1" />)
+    expect(offered()).toEqual(reference)
+    failed.unmount()
+  })
+
+  it('shows a reading that has not been refreshed for fifteen seconds as stale in the region and the header', () => {
+    vi.useFakeTimers()
+    try {
+      mockRun()
+      useAgentSupervisionMock.mockReturnValue(supervisionOf(observedWire('run-1'), { receivedAtMilliseconds: performance.now(), polling: true }))
+
+      render(<RunCockpitView runId="run-1" />)
+      expect(screen.getByTestId('header-host-observation')).toHaveTextContent('Host observation: reporting')
+
+      act(() => {
+        vi.advanceTimersByTime(15_000)
+      })
+
+      expect(screen.getByTestId('header-host-observation')).toHaveTextContent('Host observation: stale reading')
+      expect(screen.getByRole('region', { name: 'Host observation of the current Agent attempt' })).toHaveAttribute('data-stale', 'true')
+      expect(screen.getByTestId('agent-supervision-status')).toHaveTextContent('Reading is stale')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

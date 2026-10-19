@@ -165,4 +165,67 @@ describe('the GitHub branch publication approved event', () => {
       expect(parseEventSummary('{"summary":"x"}', 'planning_sequence.unknown')).toBe('x')
     })
   })
+
+  describe('Agent supervision events (ADR-0056)', () => {
+    it.each([
+      ['stale_heartbeat', 'the host observer had not reported for at least thirty seconds'],
+      ['phase_deadline_elapsed', 'the observed phase passed its absolute deadline'],
+      ['observer_ended_without_terminal_result', 'the host observer ended without a recorded terminal result'],
+      ['host_interrupted', 'the host that observed it is no longer running'],
+    ])('words the attention event from its closed reason %s and says it does not show that work stopped', (reason, phrase) => {
+      const summary = parseEventSummary(JSON.stringify({ supervisionId: 'x', attemptId: 'y', phase: 'Preparing', reason }), 'agent_supervision.attention')
+
+      expect(summary).toBe(`The host observation of an Agent attempt recorded its first attention: ${phrase}. It does not show whether earlier work stopped.`)
+    })
+
+    it.each([
+      ['attempt_terminal', 'the attempt reached its recorded terminal result'],
+      ['observer_ended', 'the observer ended without a recorded terminal result'],
+      ['host_interrupted', 'the host that observed it is no longer running'],
+    ])('words the closure event from its closed reason %s and says the attempt is unchanged', (reason, phrase) => {
+      expect(parseEventSummary(JSON.stringify({ reason }), 'agent_supervision.closed')).toBe(
+        `The host closed its observation of an Agent attempt: ${phrase}. The attempt itself is unchanged.`,
+      )
+    })
+
+    it('never echoes a reason outside the closed vocabulary, markup or an unreadable payload', () => {
+      const plainAttention = 'The host observation of an Agent attempt recorded its first attention. It does not show whether earlier work stopped.'
+      expect(parseEventSummary('{"reason":"<b>x</b>"}', 'agent_supervision.attention')).toBe(plainAttention)
+      expect(parseEventSummary('{"reason":"toString"}', 'agent_supervision.attention')).toBe(plainAttention)
+      expect(parseEventSummary('{"summary":"payload"}', 'agent_supervision.attention')).toBe(plainAttention)
+      expect(parseEventSummary('not json', 'agent_supervision.attention')).toBe(plainAttention)
+      expect(parseEventSummary('{"reason":"stale_heartbeat"}', 'agent_supervision.closed')).toBe(
+        'The host closed its observation of an Agent attempt. The attempt itself is unchanged.',
+      )
+    })
+
+    it('says nothing about progress, a running process or an Agent working', () => {
+      for (const type of ['agent_supervision.attention', 'agent_supervision.closed']) {
+        expect(parseEventSummary('{}', type)).not.toMatch(/working|progress|is running/i)
+      }
+    })
+
+    it('words the registration event from its fixed type only and disclaims progress, a live process and permission', () => {
+      const registered = 'The host started observing an Agent attempt. It is not provider progress, a live process or permission to act.'
+      expect(parseEventSummary(JSON.stringify({ supervisionId: 'x', attemptId: 'y', phase: 'Preparing' }), 'agent_supervision.registered')).toBe(registered)
+      expect(parseEventSummary('{"summary":"<b>payload</b>"}', 'agent_supervision.registered')).toBe(registered)
+      expect(parseEventSummary('not json', 'agent_supervision.registered')).toBe(registered)
+    })
+
+    it.each([
+      ['AwaitingAdapterResult', 'awaiting the adapter result'],
+      ['RecordingResult', 'recording the result'],
+    ])('words the phase-entry event from its closed phase %s and never claims a process started', (phase, phrase) => {
+      expect(parseEventSummary(JSON.stringify({ supervisionId: 'x', attemptId: 'y', phase }), 'agent_supervision.phase_entered')).toBe(
+        `The host observation of an Agent attempt entered a later phase: ${phrase}. It is not provider progress, a live process or permission to act.`,
+      )
+    })
+
+    it('never echoes a phase outside the closed vocabulary', () => {
+      const plain = 'The host observation of an Agent attempt entered a later phase. It is not provider progress, a live process or permission to act.'
+      expect(parseEventSummary('{"phase":"<b>x</b>"}', 'agent_supervision.phase_entered')).toBe(plain)
+      expect(parseEventSummary('{"phase":"toString"}', 'agent_supervision.phase_entered')).toBe(plain)
+      expect(parseEventSummary('not json', 'agent_supervision.phase_entered')).toBe(plain)
+    })
+  })
 })

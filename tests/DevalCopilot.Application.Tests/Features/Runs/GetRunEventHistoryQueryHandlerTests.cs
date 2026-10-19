@@ -410,6 +410,7 @@ public sealed class GetRunEventHistoryQueryHandlerTests : IAsyncLifetime
                 "run.github_branch_publication_approved",
                 "planning_sequence.armed", "planning_sequence.step_reserved", "planning_sequence.step_claimed",
                 "planning_sequence.step_concluded", "planning_sequence.stop_requested", "planning_sequence.ended",
+                "agent_supervision.registered", "agent_supervision.phase_entered", "agent_supervision.attention", "agent_supervision.closed",
             ],
             constants);
 

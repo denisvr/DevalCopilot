@@ -92,7 +92,15 @@ public sealed class ClaudeCriticalReviewSupervisor(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
+    /// <summary>The host observation of ADR-0056 spans exactly this attempt's existing per-attempt execution: it starts at entry, before any
+    /// Git or account preparation, and always ends in disposal. It observes only; every safety check, invocation and result below is unchanged.</summary>
     private async Task ExecuteOneAsync(EligibleClaudeCriticalReviewAttempt attempt, CancellationToken stoppingToken)
+    {
+        await using var observation = await AgentSupervisionObserver.BeginAsync(scopeFactory, attempt.RunId, attempt.AttemptId);
+        await ExecuteObservedAsync(attempt, observation, stoppingToken);
+    }
+
+    private async Task ExecuteObservedAsync(EligibleClaudeCriticalReviewAttempt attempt, AgentObservation observation, CancellationToken stoppingToken)
     {
         var preDispatchEvidence = await CaptureEvidenceSafelyAsync(attempt.WorkspacePath, stoppingToken);
         if (preDispatchEvidence.Outcome == GitWorkspaceEvidenceOutcome.Success
@@ -157,11 +165,13 @@ public sealed class ClaudeCriticalReviewSupervisor(
         {
             // Durably committed to dispatch, but there is nothing to invoke: still recorded as a
             // terminal, safe, closed outcome — never left hanging, never silently skipped.
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
             return;
         }
 
+        await observation.EnterAwaitingAdapterResultAsync();
         CriticalReviewInvocationResult invocationResult;
         try
         {
@@ -184,6 +194,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError("claude_critical_review_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, processSucceeded: false, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, modelLimits: null, CancellationToken.None);
             return;
@@ -193,6 +204,7 @@ public sealed class ClaudeCriticalReviewSupervisor(
         // confirms a clean exit; contradictory or missing evidence never becomes a success.
         var processSucceeded = invocationResult.Outcome == CriticalReviewInvocationOutcome.Exited
             && invocationResult.ProcessEvidence is { IsCleanExit: true };
+        await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
             processSucceeded,

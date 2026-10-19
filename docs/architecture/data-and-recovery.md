@@ -220,6 +220,28 @@ Reversing the migration drops only the two columns, by native `ALTER TABLE ... D
 rename of the whole table, which collides with the guard trigger on `attempts`, it keeps every trigger and index, although SQLite still
 rewrites the table content to remove a column.
 
+### Agent supervision observations
+
+An Agent supervision observation ([ADR-0056](../decisions/0056-observe-agent-supervision-without-granting-execution-authority.md))
+is a non-authoritative disclosure of what the host's own observer last reported about one claimed Agent attempt. It is one
+`agent_supervisions` row per observed attempt (a unique, restrictive attempt link; no historical backfill: a missing row is
+`NotObserved`, never a synthesized heartbeat) with the immutable run, attempt, host-instance and observer identity, a guarded revision,
+the start and last committed report, the current phase and its absolute deadline, the first attention and the closure. Database guards
+refuse an observation of a non-Running or non-Agent attempt, a changed identity, a repeated or regressing phase, a deadline moved by a
+heartbeat, a replaced first attention and any change to a closed observation; a writer judges the previous deadline and heartbeat
+freshness under the write lock and records the first attention before it updates, and every material transition (registration, each
+phase entry, the first attention and every closure, clean or not) commits exactly one bounded event with the receipt in one transaction
+(a heartbeat appends no event). A recorded report, closure, first attention or terminal completion later than the current host clock is
+an impossible chronology: the read is unavailable and a closure is refused, never clamped. Every observation call, including the
+independent sweep, runs off its caller's thread and is bounded to two seconds even when the store blocks synchronously.
+
+After the existing attempt reconciliation and before any hosted worker starts, every observation a previous host launch left open is
+closed as interrupted with its facts preserved: nothing is adopted, renewed or resumed, no attempt, run, workspace, budget or ownership
+changes, and an observation whose recorded times do not cohere with the clock stays open and is read as unavailable. An independent
+bounded sweep records the first attention of an open observation even while a supervisor, Git preparation, adapter or result recorder is
+blocked. The observation never claims, dispatches, retries, cancels or terminalizes an attempt, never releases ownership or admits a
+writer, and an observation fault never suppresses an original safety check or discards a known result.
+
 ## Retention and deletion
 
 MVP retention is explicit even for a local tool:

@@ -199,7 +199,8 @@ describe('event type and actor labels', () => {
     'local_commit.needs_attention', 'run.abandoned', 'run.github_observation_target_recorded',
     'run.github_repository_identity_bound', 'run.github_branch_publication_approved', 'planning_sequence.armed',
     'planning_sequence.step_reserved', 'planning_sequence.step_claimed', 'planning_sequence.step_concluded',
-    'planning_sequence.stop_requested', 'planning_sequence.ended',
+    'planning_sequence.stop_requested', 'planning_sequence.ended', 'agent_supervision.registered', 'agent_supervision.phase_entered',
+    'agent_supervision.attention', 'agent_supervision.closed',
   ]
 
   it('names exactly the event types the host admits, each with its own fixed label', () => {

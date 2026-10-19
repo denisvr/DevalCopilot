@@ -1,5 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import { useRunCockpit } from '../hooks/useRunCockpit'
+import { useAgentSupervision } from '../hooks/useAgentSupervision'
+import { useReadingAgeSeconds } from '../hooks/useReadingAge'
 import { usePlanningSequence } from '../hooks/usePlanningSequence'
 import { useCollaborationTimeline } from '../hooks/useCollaborationTimeline'
 import { useAgentAttemptStatus } from '../hooks/useAgentAttemptStatus'
@@ -28,6 +30,7 @@ import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDisclosure'
 import type { PlanningSequenceControl } from '../planningSequence'
+import { AGENT_SUPERVISION_STALE_READING_SECONDS, describeSupervisionBadge } from '../agentSupervisionCopy'
 import { derivePlanningSequenceClaimBlock, describePlanningSequenceWithholding } from '../planningSequenceCopy'
 import { selectCurrentProcessAttemptId } from '../selectCurrentProcessAttempt'
 import {
@@ -51,6 +54,7 @@ import { CodexPlanningRepairAction } from './CodexPlanningRepairAction'
 import { ClaudeCriticalReviewAction } from './ClaudeCriticalReviewAction'
 import { ClaudeCriticalReviewRepairAction } from './ClaudeCriticalReviewRepairAction'
 import { PlanningLineageSummary } from './PlanningLineageSummary'
+import { AgentSupervisionPanel } from './AgentSupervisionPanel'
 import { PlanningSequencePanel } from './PlanningSequencePanel'
 import { PlanningImplementationAuthorizationPanel } from './PlanningImplementationAuthorizationPanel'
 import { ChallengeResolutionAction } from './ChallengeResolutionAction'
@@ -98,6 +102,17 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
   // polling. Anything not established withholds every manual mutation below.
   const planningSequence = usePlanningSequence(runId, cockpit?.latestSequence)
   const planningSequenceControl = planningSequence.control
+  // What the host's own observer last recorded for the current Agent attempt (ADR-0056): read only for a run that executes Agent attempts,
+  // and only once its cockpit is the selected run's own. It is a disclosure; it is never an eligibility input for any action below.
+  const supervisionRunId =
+    cockpit?.runId === runId && deriveRunExecutionModeDisclosure(cockpit.executionMode, cockpit.lifecycle).kind !== 'Simulated' ? runId : null
+  const agentSupervision = useAgentSupervision(supervisionRunId, cockpit?.latestSequence)
+  const supervisionReadingAge = useReadingAgeSeconds(agentSupervision.receivedAtMilliseconds, agentSupervision.polling)
+  const supervisionStale =
+    agentSupervision.reading !== null
+    && agentSupervision.polling
+    && supervisionReadingAge !== null
+    && supervisionReadingAge >= AGENT_SUPERVISION_STALE_READING_SECONDS
   useEffect(() => {
     onPlanningSequenceControlChange?.(runId, planningSequenceControl)
   }, [onPlanningSequenceControlChange, runId, planningSequenceControl])
@@ -251,7 +266,20 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
   return (
     <>
       <ConnectionBanner state={connection} syncError={syncError} />
-      <RunHeader cockpit={cockpit} planningSequenceControl={planningSequenceControl} />
+      <RunHeader
+        cockpit={cockpit}
+        planningSequenceControl={planningSequenceControl}
+        agentRun={supervisionRunId !== null}
+        hostObservation={
+          supervisionRunId === null
+            ? null
+            : describeSupervisionBadge(agentSupervision.reading, {
+                stale: supervisionStale,
+                loading: agentSupervision.loading,
+                failed: agentSupervision.failure !== null,
+              })
+        }
+      />
       {cockpit.runId === runId && (
         <RunExecutionModeNotice
           executionMode={cockpit.executionMode}
@@ -321,6 +349,9 @@ export function RunCockpitView({ runId, evidenceRefreshGeneration = 0, onProject
       <div className="dc-workspace">
         <WorkflowRail stageMap={cockpit.stageMap ?? []} />
         <div className="dc-collaboration-column">
+          {supervisionRunId !== null && (
+            <AgentSupervisionPanel supervision={agentSupervision} readingAgeSeconds={supervisionReadingAge} stale={supervisionStale} />
+          )}
           {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
             <PlanningSequencePanel runId={runId} planningSequence={planningSequence} />
           )}

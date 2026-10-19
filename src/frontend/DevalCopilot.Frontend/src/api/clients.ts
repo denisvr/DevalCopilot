@@ -94,6 +94,7 @@ import { AgentAttemptInputsWireClient } from '../features/cockpit/agentAttemptIn
 import { AgentAttemptInputMessageWireClient } from '../features/cockpit/agentAttemptInputMessageWire'
 import { AgentAttemptOutputsWireClient } from '../features/cockpit/agentAttemptOutputsWire'
 import { AgentAttemptOutputMessageWireClient } from '../features/cockpit/agentAttemptOutputMessageWire'
+import { AgentSupervisionWireClient } from '../features/cockpit/agentSupervisionWire'
 import {
   ArmPlanningSequenceWireClient,
   PlanningSequenceStatusWireClient,
@@ -129,6 +130,8 @@ export const agentAttemptInputMessageClient = () => new AgentAttemptInputMessage
 // Hand the parsed bodies to the whole-answer decoders of the recorded outputs and one selected output message (see the ADR-0054 wire clients).
 export const agentAttemptOutputsClient = () => new AgentAttemptOutputsWireClient(getApiBaseUrl(), authenticatedHttp)
 export const agentAttemptOutputMessageClient = () => new AgentAttemptOutputMessageWireClient(getApiBaseUrl(), authenticatedHttp)
+// Hands the parsed body to the whole-answer decoder of the current Agent supervision read (ADR-0056); its own signal cancels the request.
+export const agentSupervisionClient = (signal?: AbortSignal) => new AgentSupervisionWireClient(getApiBaseUrl(), authenticatedHttp, signal)
 // Hand the parsed bodies to the whole-answer decoders of the planning-sequence status, arming receipt and Stop answer (ADR-0055).
 export const planningSequenceStatusClient = () => new PlanningSequenceStatusWireClient(getApiBaseUrl(), authenticatedHttp)
 export const armPlanningSequenceClient = () => new ArmPlanningSequenceWireClient(getApiBaseUrl(), authenticatedHttp)

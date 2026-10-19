@@ -1,3 +1,4 @@
+import { summarizeAgentSupervisionEvent } from './agentSupervisionCopy'
 import { PLANNING_SEQUENCE_REASON_CODES, PLANNING_SEQUENCE_STATES } from './planningSequence'
 import type { PlanningSequenceReasonCode, PlanningSequenceState } from './planningSequence'
 import {
@@ -59,6 +60,12 @@ export function parseEventSummary(payloadJson: string, eventType?: string): stri
       repositoryNodeId?: unknown
       branchName?: unknown
       target?: unknown
+      phase?: unknown
+    }
+    const supervisionSummary =
+      eventType === undefined ? null : summarizeAgentSupervisionEvent(eventType, { reason: parsed.reason, phase: parsed.phase })
+    if (supervisionSummary !== null) {
+      return supervisionSummary
     }
     if (eventType?.startsWith(PLANNING_SEQUENCE_EVENT_PREFIX)) {
       const planningSummary = summarizePlanningSequenceEvent(eventType, parsed)
@@ -96,6 +103,7 @@ export function parseEventSummary(payloadJson: string, eventType?: string): stri
   } catch {
     // A planning-sequence event is worded from its fixed type even when its payload cannot be read; the payload is never echoed.
     const planningSummary = eventType?.startsWith(PLANNING_SEQUENCE_EVENT_PREFIX) ? summarizePlanningSequenceEvent(eventType, {}) : null
-    return planningSummary ?? payloadJson
+    const supervisionSummary = eventType === undefined ? null : summarizeAgentSupervisionEvent(eventType, {})
+    return planningSummary ?? supervisionSummary ?? payloadJson
   }
 }

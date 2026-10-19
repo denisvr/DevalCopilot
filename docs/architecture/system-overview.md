@@ -294,6 +294,23 @@ executor, last heartbeat, next deadline, and recovery actions at an appropriate
 level of detail. It must distinguish a UI transport disconnect from executor
 health and must retain the last authoritative state while it reconnects.
 
+**Delivered partial slice: host supervision observations (AGENT-SUP-01).**
+[ADR-0056](../decisions/0056-observe-agent-supervision-without-granting-execution-authority.md)
+delivers only the observation evidence below, for the seven existing Agent
+response contracts. The host records which of its own observers last reported
+which phase (`Preparing`, `AwaitingAdapterResult`, `RecordingResult`) of one
+claimed Agent attempt, with a five-second heartbeat and an absolute phase
+deadline, and an independent bounded sweep records the first attention (a stale
+heartbeat, an elapsed phase deadline, an observer that ended without a durable
+terminal result, or a host interruption). The cockpit shows it as "host
+observation", separately from the recorded lifecycle. It is not the target
+contract above: no `Running` state, executor lease, finite lease expiry,
+guardian, retry, resume, cancel, takeover or ownership release exists, a
+heartbeat proves neither provider progress nor a live child process, and an
+attention never proves that earlier authorized work stopped. Observation
+status is never an eligibility input for any claim, dispatch, source,
+provider, budget, result or recovery rule. Increment 5 stays incomplete.
+
 ### Cross-project scheduling
 
 The supervisor may claim eligible work for multiple runs up to the configured

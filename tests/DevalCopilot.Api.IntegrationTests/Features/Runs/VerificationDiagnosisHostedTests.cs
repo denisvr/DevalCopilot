@@ -246,7 +246,8 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
         public ValueTask DisposeAsync() => Provider.DisposeAsync();
     }
 
-    private Host BuildHost(StagedEvidence? evidence = null, ScriptedAccountUsageAdapter? accountUsage = null)
+    private Host BuildHost(
+        StagedEvidence? evidence = null, ScriptedAccountUsageAdapter? accountUsage = null, Action<ServiceCollection>? configureAdditionalServices = null)
     {
         evidence ??= new StagedEvidence();
         var process = new RecordingProcessDouble(evidence);
@@ -272,6 +273,7 @@ public sealed partial class VerificationDiagnosisHostedTests : IDisposable
         services.AddScoped<IAttemptDurabilityProbe>(sp =>
             new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
+        configureAdditionalServices?.Invoke(services);
         return new Host(services.BuildServiceProvider(), evidence, process, review, diagnosis);
     }
 

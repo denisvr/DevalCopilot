@@ -77,7 +77,15 @@ public sealed class AgentAttemptSupervisor(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
+    /// <summary>The host observation of ADR-0056 spans exactly this attempt's existing per-attempt execution: it starts at entry, before any
+    /// Git or account preparation, and always ends in disposal. It observes only; every safety check, invocation and result below is unchanged.</summary>
     private async Task ExecuteOneAsync(EligibleAgentAttempt attempt, CancellationToken stoppingToken)
+    {
+        await using var observation = await AgentSupervisionObserver.BeginAsync(scopeFactory, attempt.RunId, attempt.AttemptId);
+        await ExecuteObservedAsync(attempt, observation, stoppingToken);
+    }
+
+    private async Task ExecuteObservedAsync(EligibleAgentAttempt attempt, AgentObservation observation, CancellationToken stoppingToken)
     {
         // An attempt whose account-usage refusal could not be recorded stays blocked (fail closed): no capture, observation or dispatch.
         if (ResolveAccountUsageGuard().IsBlocked(attempt.AttemptId))
@@ -159,11 +167,13 @@ public sealed class AgentAttemptSupervisor(
         {
             // Durably committed to dispatch, but there is nothing to invoke: still recorded as a
             // terminal, safe, closed outcome — never left hanging, never silently skipped.
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, AgentOutcome.ProviderInvocationFailed, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
         }
 
+        await observation.EnterAwaitingAdapterResultAsync();
         CodexPlanningInvocationResult invocationResult;
         try
         {
@@ -187,6 +197,7 @@ public sealed class AgentAttemptSupervisor(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError("agent_attempt_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, AgentOutcome.ProviderInvocationFailed, standardOutputTruncated: false,
                 standardErrorTruncated: false, providerSessionId: null, processEvidence: null, tokenUsage: null, CancellationToken.None);
             return;
@@ -199,6 +210,7 @@ public sealed class AgentAttemptSupervisor(
                 ? AgentOutcome.Proposed
                 : AgentOutcome.ProviderInvocationFailed;
 
+        await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
             outcome,

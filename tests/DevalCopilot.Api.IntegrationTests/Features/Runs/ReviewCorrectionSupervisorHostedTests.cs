@@ -560,7 +560,8 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         Assert.Equal(AttemptStatus.Running, attempt.Status);
     }
 
-    private ServiceProvider BuildProvider(IGitWorkspaceEvidenceReader evidence, GatedAdapter adapter, TestNotifier notifier)
+    private ServiceProvider BuildProvider(
+        IGitWorkspaceEvidenceReader evidence, GatedAdapter adapter, TestNotifier notifier, Action<ServiceCollection>? configureAdditionalServices = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -575,6 +576,7 @@ public sealed partial class ReviewCorrectionSupervisorHostedTests : IDisposable
         services.AddDevalenteMediator(typeof(ReconcileInterruptedImplementationAttemptsCommand).Assembly);
         services.AddDevalenteRequestValidation(typeof(ReconcileInterruptedImplementationAttemptsCommand).Assembly);
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
+        configureAdditionalServices?.Invoke(services);
         return services.BuildServiceProvider();
     }
 

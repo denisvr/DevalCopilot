@@ -873,7 +873,8 @@ public sealed partial class ClaudeCriticalReviewSupervisorHostedTests : IDisposa
 
     private ServiceProvider BuildServiceProvider(
         IGitWorkspaceEvidenceReader evidenceReader,
-        ICriticalReviewAdapter criticalReviewAdapter)
+        ICriticalReviewAdapter criticalReviewAdapter,
+        Action<ServiceCollection>? configureAdditionalServices = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -888,6 +889,7 @@ public sealed partial class ClaudeCriticalReviewSupervisorHostedTests : IDisposa
         services.AddScoped<IAttemptDurabilityProbe>(sp =>
             new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
+        configureAdditionalServices?.Invoke(services);
 
         return services.BuildServiceProvider();
     }

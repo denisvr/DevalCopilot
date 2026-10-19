@@ -19,12 +19,14 @@ using DevalCopilot.Application.Features.Projects.Commands.ReconcileInterruptedVe
 using DevalCopilot.Application.Features.Projects.Commands.RecoverInterruptedVerificationOutputArtifacts;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Projects.Queries.GetProjectGitHubOrigin;
+using DevalCopilot.Application.Features.Runs.Commands.CloseInterruptedAgentSupervisions;
 using DevalCopilot.Application.Features.Runs.Commands.InterruptPlanningSequences;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedAgentAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.RecoverLocalCommitOperations;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedImplementationAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.ReconcileInterruptedProcessAttempts;
 using DevalCopilot.Application.Features.Runs.Commands.StartSimulatedRun;
+using DevalCopilot.Application.Features.Runs.Policies.AgentSupervisions;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubBranchObservation;
 using DevalCopilot.Application.Features.Runs.Queries.GetGitHubCheckContextsObservation;
@@ -257,6 +259,14 @@ builder.Services.AddHostedService<ReviewCorrectionSupervisor>();
 // formerly advancing sequence before this service starts.
 builder.Services.AddHostedService<PlanningSequenceCoordinator>();
 
+// Current Agent supervision observations (ADR-0056): one host-launch identifier generated here once, the small observation collaborator
+// the seven Agent supervisors above resolve from their own composition, and the independent bounded sweep. They only record what the
+// host's own observer reported; none of them claims, dispatches, retries, cancels or terminalizes an attempt. Startup closure of
+// previous-host observations runs after attempt reconciliation and before any hosted service starts.
+builder.Services.AddSingleton(AgentSupervisionHostInstance.CreateForThisLaunch());
+builder.Services.AddSingleton<AgentSupervisionObserver>();
+builder.Services.AddHostedService<AgentSupervisionSweep>();
+
 builder.Services.AddDevalenteMediator(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteRequestValidation(typeof(StartSimulatedRunCommand).Assembly);
 builder.Services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
@@ -375,6 +385,11 @@ if (!isSideEffectFreeComposition)
     // starts (ADR-0055): every sequence that could still advance or drain, including Armed, preparation-only and between-step sessions,
     // becomes Interrupted. Nothing resumes, redispatches or adopts a result.
     await mediator.SendAsync(new InterruptPlanningSequencesCommand(), CancellationToken.None);
+
+    // Only after the attempt reconciliation above and before any hosted service starts (ADR-0056): every Agent supervision observation
+    // a previous host launch left open is closed as interrupted with its facts preserved. Nothing is adopted, renewed or resumed and no
+    // attempt, run, workspace, budget or ownership changes here.
+    await mediator.SendAsync(new CloseInterruptedAgentSupervisionsCommand(), CancellationToken.None);
 }
 
 if (bootstrapStdin)

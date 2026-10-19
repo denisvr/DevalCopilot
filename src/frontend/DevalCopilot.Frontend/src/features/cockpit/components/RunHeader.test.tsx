@@ -69,4 +69,41 @@ describe('RunHeader', () => {
     expect(screen.getByRole('button', { name: 'Pause' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Stop' })).toBeDisabled()
   })
+
+  describe('an Agent run and the host observation (ADR-0056)', () => {
+    it('shows the lifecycle exactly as recorded and the duration as lifecycle elapsed time that never ticks, even with no planning sequence', () => {
+      vi.useFakeTimers()
+      render(<RunHeader cockpit={buildCockpit()} planningSequenceControl="none" agentRun />)
+
+      const badge = screen.getByText('Running · Plan')
+      expect(badge).toHaveAttribute('data-recorded-lifecycle', 'true')
+      expect(badge).toHaveAttribute('data-tone', 'default')
+      expect(badge).toHaveAttribute('title', expect.stringContaining('not a live-execution indicator'))
+      const duration = screen.getByTitle('Lifecycle elapsed time as recorded: not measured agent activity')
+      expect(screen.queryByTitle('Autonomous session time: excludes paused and terminal time')).not.toBeInTheDocument()
+      const before = duration.textContent
+      act(() => {
+        vi.advanceTimersByTime(120_000)
+      })
+      expect(duration.textContent).toBe(before)
+    })
+
+    it('keeps the live treatment only for a run that is not an Agent run', () => {
+      render(<RunHeader cockpit={buildCockpit()} planningSequenceControl="none" agentRun={false} />)
+
+      expect(screen.getByText('Running · Plan')).toHaveAttribute('data-tone', 'running')
+      expect(screen.getByTitle('Autonomous session time: excludes paused and terminal time')).toBeInTheDocument()
+    })
+
+    it('words the host observation in its own badge, separately from the lifecycle, and shows none when there is nothing to say', () => {
+      const { rerender } = render(<RunHeader cockpit={buildCockpit()} agentRun hostObservation="Host observation: reporting" />)
+
+      expect(screen.getByTestId('header-host-observation')).toHaveTextContent('Host observation: reporting')
+      expect(screen.getByTestId('header-host-observation')).toHaveAttribute('title', expect.stringContaining('not provider progress'))
+      expect(screen.getByText('Running · Plan')).not.toHaveTextContent('Host observation')
+
+      rerender(<RunHeader cockpit={buildCockpit()} agentRun hostObservation={null} />)
+      expect(screen.queryByTestId('header-host-observation')).not.toBeInTheDocument()
+    })
+  })
 })

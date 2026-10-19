@@ -3310,6 +3310,68 @@ export class GetCollaborationHistoryAttemptEndpointClient {
     }
 }
 
+export class GetAgentSupervisionEndpointClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl ?? "";
+    }
+
+    getAgentSupervision(runId: string): Promise<GetAgentSupervisionResponse> {
+        let url_ = this.baseUrl + "/api/runs/{runId}/agent-supervision";
+        if (runId === undefined || runId === null)
+            throw new globalThis.Error("The parameter 'runId' must be defined.");
+        url_ = url_.replace("{runId}", encodeURIComponent("" + runId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetAgentSupervision(_response);
+        });
+    }
+
+    protected processGetAgentSupervision(response: Response): Promise<GetAgentSupervisionResponse> {
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GetAgentSupervisionResponse.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 400) {
+            return response.text().then((_responseText) => {
+            let result400: any = null;
+            let resultData400 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result400 = ApiProblemDetails.fromJS(resultData400);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result400);
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            let result404: any = null;
+            let resultData404 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result404 = ApiProblemDetails.fromJS(resultData404);
+            return throwException("A server side error occurred.", status, _responseText, _headers, result404);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GetAgentSupervisionResponse>(null as any);
+    }
+}
+
 export class GetAgentAttemptVerificationOutputWindowEndpointClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -13042,6 +13104,286 @@ export interface IChallengeResolutionAttemptStatusResponse {
     configuredRolloutPersistence?: string | undefined;
     repairSourceAttemptId?: string | undefined;
     repairSourceAttemptNumber?: number | undefined;
+}
+
+export class GetAgentSupervisionResponse implements IGetAgentSupervisionResponse {
+    runId?: string;
+    status?: string;
+    reasonCode?: string | undefined;
+    reasonText?: string | undefined;
+    nextActionCode?: string;
+    nextActionText?: string;
+    attempt?: AgentSupervisionAttemptResponse | undefined;
+    observation?: AgentSupervisionObservationResponse | undefined;
+    attention?: AgentSupervisionAttentionResponse | undefined;
+    observedAtUtc?: string;
+
+    constructor(data?: IGetAgentSupervisionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.runId = _data["runId"];
+            this.status = _data["status"];
+            this.reasonCode = _data["reasonCode"];
+            this.reasonText = _data["reasonText"];
+            this.nextActionCode = _data["nextActionCode"];
+            this.nextActionText = _data["nextActionText"];
+            this.attempt = _data["attempt"] ? AgentSupervisionAttemptResponse.fromJS(_data["attempt"]) : undefined as any;
+            this.observation = _data["observation"] ? AgentSupervisionObservationResponse.fromJS(_data["observation"]) : undefined as any;
+            this.attention = _data["attention"] ? AgentSupervisionAttentionResponse.fromJS(_data["attention"]) : undefined as any;
+            this.observedAtUtc = _data["observedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): GetAgentSupervisionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new GetAgentSupervisionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["runId"] = this.runId;
+        data["status"] = this.status;
+        data["reasonCode"] = this.reasonCode;
+        data["reasonText"] = this.reasonText;
+        data["nextActionCode"] = this.nextActionCode;
+        data["nextActionText"] = this.nextActionText;
+        data["attempt"] = this.attempt ? this.attempt.toJSON() : undefined as any;
+        data["observation"] = this.observation ? this.observation.toJSON() : undefined as any;
+        data["attention"] = this.attention ? this.attention.toJSON() : undefined as any;
+        data["observedAtUtc"] = this.observedAtUtc;
+        return data;
+    }
+}
+
+export interface IGetAgentSupervisionResponse {
+    runId?: string;
+    status?: string;
+    reasonCode?: string | undefined;
+    reasonText?: string | undefined;
+    nextActionCode?: string;
+    nextActionText?: string;
+    attempt?: AgentSupervisionAttemptResponse | undefined;
+    observation?: AgentSupervisionObservationResponse | undefined;
+    attention?: AgentSupervisionAttentionResponse | undefined;
+    observedAtUtc?: string;
+}
+
+export class AgentSupervisionAttemptResponse implements IAgentSupervisionAttemptResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+    status?: string;
+    outcome?: string | undefined;
+    dispatched?: boolean;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+
+    constructor(data?: IAgentSupervisionAttemptResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.attemptId = _data["attemptId"];
+            this.attemptNumber = _data["attemptNumber"];
+            this.role = _data["role"];
+            this.provider = _data["provider"];
+            this.responseContract = _data["responseContract"];
+            this.status = _data["status"];
+            this.outcome = _data["outcome"];
+            this.dispatched = _data["dispatched"];
+            this.claimedAtUtc = _data["claimedAtUtc"];
+            this.dispatchedAtUtc = _data["dispatchedAtUtc"];
+            this.completedAtUtc = _data["completedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): AgentSupervisionAttemptResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentSupervisionAttemptResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["attemptId"] = this.attemptId;
+        data["attemptNumber"] = this.attemptNumber;
+        data["role"] = this.role;
+        data["provider"] = this.provider;
+        data["responseContract"] = this.responseContract;
+        data["status"] = this.status;
+        data["outcome"] = this.outcome;
+        data["dispatched"] = this.dispatched;
+        data["claimedAtUtc"] = this.claimedAtUtc;
+        data["dispatchedAtUtc"] = this.dispatchedAtUtc;
+        data["completedAtUtc"] = this.completedAtUtc;
+        return data;
+    }
+}
+
+export interface IAgentSupervisionAttemptResponse {
+    attemptId?: string;
+    attemptNumber?: number;
+    role?: string;
+    provider?: string;
+    responseContract?: string;
+    status?: string;
+    outcome?: string | undefined;
+    dispatched?: boolean;
+    claimedAtUtc?: string;
+    dispatchedAtUtc?: string | undefined;
+    completedAtUtc?: string | undefined;
+}
+
+export class AgentSupervisionObservationResponse implements IAgentSupervisionObservationResponse {
+    hostInstanceId?: string;
+    observerId?: string;
+    ownedByCurrentHost?: boolean;
+    revision?: string;
+    phase?: string;
+    startedAtUtc?: string;
+    lastHeartbeatAtUtc?: string;
+    phaseEnteredAtUtc?: string;
+    phaseDeadlineUtc?: string;
+    open?: boolean;
+    closureReason?: string | undefined;
+    closedAtUtc?: string | undefined;
+
+    constructor(data?: IAgentSupervisionObservationResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.hostInstanceId = _data["hostInstanceId"];
+            this.observerId = _data["observerId"];
+            this.ownedByCurrentHost = _data["ownedByCurrentHost"];
+            this.revision = _data["revision"];
+            this.phase = _data["phase"];
+            this.startedAtUtc = _data["startedAtUtc"];
+            this.lastHeartbeatAtUtc = _data["lastHeartbeatAtUtc"];
+            this.phaseEnteredAtUtc = _data["phaseEnteredAtUtc"];
+            this.phaseDeadlineUtc = _data["phaseDeadlineUtc"];
+            this.open = _data["open"];
+            this.closureReason = _data["closureReason"];
+            this.closedAtUtc = _data["closedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): AgentSupervisionObservationResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentSupervisionObservationResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["hostInstanceId"] = this.hostInstanceId;
+        data["observerId"] = this.observerId;
+        data["ownedByCurrentHost"] = this.ownedByCurrentHost;
+        data["revision"] = this.revision;
+        data["phase"] = this.phase;
+        data["startedAtUtc"] = this.startedAtUtc;
+        data["lastHeartbeatAtUtc"] = this.lastHeartbeatAtUtc;
+        data["phaseEnteredAtUtc"] = this.phaseEnteredAtUtc;
+        data["phaseDeadlineUtc"] = this.phaseDeadlineUtc;
+        data["open"] = this.open;
+        data["closureReason"] = this.closureReason;
+        data["closedAtUtc"] = this.closedAtUtc;
+        return data;
+    }
+}
+
+export interface IAgentSupervisionObservationResponse {
+    hostInstanceId?: string;
+    observerId?: string;
+    ownedByCurrentHost?: boolean;
+    revision?: string;
+    phase?: string;
+    startedAtUtc?: string;
+    lastHeartbeatAtUtc?: string;
+    phaseEnteredAtUtc?: string;
+    phaseDeadlineUtc?: string;
+    open?: boolean;
+    closureReason?: string | undefined;
+    closedAtUtc?: string | undefined;
+}
+
+export class AgentSupervisionAttentionResponse implements IAgentSupervisionAttentionResponse {
+    effectiveReasonCode?: string;
+    effectiveReasonText?: string;
+    effectiveAtUtc?: string;
+    recordedReasonCode?: string | undefined;
+    recordedAtUtc?: string | undefined;
+
+    constructor(data?: IAgentSupervisionAttentionResponse) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (this as any)[property] = (data as any)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.effectiveReasonCode = _data["effectiveReasonCode"];
+            this.effectiveReasonText = _data["effectiveReasonText"];
+            this.effectiveAtUtc = _data["effectiveAtUtc"];
+            this.recordedReasonCode = _data["recordedReasonCode"];
+            this.recordedAtUtc = _data["recordedAtUtc"];
+        }
+    }
+
+    static fromJS(data: any): AgentSupervisionAttentionResponse {
+        data = typeof data === 'object' ? data : {};
+        let result = new AgentSupervisionAttentionResponse();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["effectiveReasonCode"] = this.effectiveReasonCode;
+        data["effectiveReasonText"] = this.effectiveReasonText;
+        data["effectiveAtUtc"] = this.effectiveAtUtc;
+        data["recordedReasonCode"] = this.recordedReasonCode;
+        data["recordedAtUtc"] = this.recordedAtUtc;
+        return data;
+    }
+}
+
+export interface IAgentSupervisionAttentionResponse {
+    effectiveReasonCode?: string;
+    effectiveReasonText?: string;
+    effectiveAtUtc?: string;
+    recordedReasonCode?: string | undefined;
+    recordedAtUtc?: string | undefined;
 }
 
 export class GetAgentAttemptVerificationOutputWindowResponse implements IGetAgentAttemptVerificationOutputWindowResponse {

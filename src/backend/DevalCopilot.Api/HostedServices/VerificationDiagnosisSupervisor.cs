@@ -67,7 +67,15 @@ public sealed class VerificationDiagnosisSupervisor(
         while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
+    /// <summary>The host observation of ADR-0056 spans exactly this attempt's existing per-attempt execution: it starts at entry, before any
+    /// Git or account preparation, and always ends in disposal. It observes only; every safety check, invocation and result below is unchanged.</summary>
     private async Task ExecuteOneAsync(EligibleVerificationDiagnosisAttempt attempt, CancellationToken stoppingToken)
+    {
+        await using var observation = await AgentSupervisionObserver.BeginAsync(scopeFactory, attempt.RunId, attempt.AttemptId);
+        await ExecuteObservedAsync(attempt, observation, stoppingToken);
+    }
+
+    private async Task ExecuteObservedAsync(EligibleVerificationDiagnosisAttempt attempt, AgentObservation observation, CancellationToken stoppingToken)
     {
         // An attempt whose account-usage refusal could not be recorded stays blocked (fail closed): no capture, observation or dispatch.
         if (ResolveAccountUsageGuard().IsBlocked(attempt.AttemptId))
@@ -141,10 +149,12 @@ public sealed class VerificationDiagnosisSupervisor(
 
         if (launchTarget is null)
         {
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, processSucceeded: false, false, false, null, null, null);
             return;
         }
 
+        await observation.EnterAwaitingAdapterResultAsync();
         VerificationDiagnosisInvocationResult invocationResult;
         try
         {
@@ -168,6 +178,7 @@ public sealed class VerificationDiagnosisSupervisor(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError("verification_diagnosis_invocation_failed AttemptId={AttemptId}", attempt.AttemptId);
+            await observation.EnterRecordingResultAsync();
             await RecordResultAsync(attempt, processSucceeded: false, false, false, null, null, null);
             return;
         }
@@ -175,6 +186,7 @@ public sealed class VerificationDiagnosisSupervisor(
         // An Exited classification is trusted only when the host-measured evidence independently confirms a clean exit.
         var processSucceeded = invocationResult.Outcome == VerificationDiagnosisInvocationOutcome.Exited
             && invocationResult.ProcessEvidence is { IsCleanExit: true };
+        await observation.EnterRecordingResultAsync();
         await RecordResultAsync(
             attempt,
             processSucceeded,

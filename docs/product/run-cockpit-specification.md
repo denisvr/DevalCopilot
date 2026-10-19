@@ -1873,6 +1873,28 @@ verification, local commit and abandonment are withheld, and a click captured fo
 dropped. The sequence never starts implementation. See
 [ADR-0055](../decisions/0055-coordinate-one-explicitly-authorized-read-only-planning-sequence.md).
 
+### Host observation of the current Agent attempt
+
+The **Host observation** region and a separate header badge describe what the host's own observer last recorded for the run's
+selected Agent attempt (the unique running one, otherwise the latest), from one protected, bodyless and queryless read. It shows the
+phase the observer last reported, its last report with its age on the host clock, the absolute phase deadline, a first attention
+with its fixed reason (and whether it is already recorded or only derived by this read), the observation's closure, and the attempt's
+real recorded status and outcome, which govern once it is terminal; an attention then stays visible only as history. A run
+without a recorded observation reads "not observed", never a heartbeat. It reads when the run is selected and on a durable event, and
+every five seconds while the attempt is not terminal; each read is bounded to ten seconds, a failed, timed-out or incoherent read is
+shown as unavailable instead of keeping an earlier success, and a reading that has not been refreshed for fifteen seconds is shown as
+stale. A read's request is aborted, not merely abandoned, when its ten seconds elapse or the selection or view ends, and the next read
+of that run starts only after the previous request settled. An answer that claims a recorded closure, completion or attention later than
+its own host clock is not coherent and is shown as unavailable. The browser never renews a heartbeat, stores nothing, and a response for
+another selection or visit is dropped. The run timeline shows the observation's registration, each phase entry, its first attention and
+its closure as fixed-wording events (a heartbeat adds none), worded from closed reason and phase codes only.
+
+It is not provider progress, a live process or permission to act: it never says an Agent is "working", it offers no retry, resume,
+cancel or takeover, and it is never an input to any action's eligibility. For a manual Agent run (and a legacy or unrecognized one)
+the header shows the lifecycle exactly as recorded and its duration as lifecycle elapsed time that does not tick as if it measured
+Agent activity; only a simulated demo run keeps the live treatment. The provider runtime preflight remains version evidence only. See
+[ADR-0056](../decisions/0056-observe-agent-supervision-without-granting-execution-authority.md).
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:

@@ -464,7 +464,7 @@ public sealed partial class ChallengeResolutionSupervisorHostedTests : IDisposab
 
     private ServiceProvider BuildServiceProvider(
         IGitWorkspaceEvidenceReader evidenceReader, ICodexChallengeResolutionAdapter challengeResolutionAdapter,
-        ScriptedAccountUsageAdapter? accountUsage = null)
+        ScriptedAccountUsageAdapter? accountUsage = null, Action<ServiceCollection>? configureAdditionalServices = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -480,6 +480,7 @@ public sealed partial class ChallengeResolutionSupervisorHostedTests : IDisposab
         services.AddScoped<IAttemptDurabilityProbe>(sp =>
             new AttemptDurabilityProbe(sp.GetRequiredService<DbContextOptions<DevalCopilotDbContext>>()));
         services.AddDevalenteEfCoreTransactions<DevalCopilotDbContext>();
+        configureAdditionalServices?.Invoke(services);
 
         return services.BuildServiceProvider();
     }
