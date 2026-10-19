@@ -133,10 +133,13 @@ under [Proposed decisions](#proposed-decisions).
   ADR-0043 binding; ephemeral reported access, never permission to push the branch, readiness, an approval or a publication, and it neither requires nor changes an ADR-0048 approval)
 
 - [ADR-0051: Inspect recorded inputs of a selected Agent attempt](0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)
-  (accepted, implemented in HIST-INP-01; one protected, bounded inspection of the selected attempt's recorded collaboration-input references, independent of a producing message, with no persistence, invocation, replay, autonomy or publication authority; publication is reconciled through the workflow)
+  (accepted, implemented in HIST-INP-01; one protected, bounded inspection of the selected attempt's recorded collaboration-input references, independent of a producing message; ADR-0053 extends the prefix limit and adds explicit member-content inspection, retaining the default-ten behavior; no persistence, invocation, replay, autonomy or publication authority)
 
 - [ADR-0052: Inspect recorded verification evidence of a selected Agent attempt](0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md)
-  (accepted, selected for HIST-VER-01, not yet implemented; bounded historical verification membership and manually requested sealed stdout/stderr windows of a selected review or diagnosis attempt, with no current eligibility, snapshot revalidation, mutation, invocation or publication authority)
+  (accepted, implemented in HIST-VER-01; bounded historical verification membership and manually requested sealed stdout/stderr windows of a selected review or diagnosis attempt, with no current eligibility, snapshot revalidation, mutation, invocation or publication authority; publication is reconciled through the workflow)
+
+- [ADR-0053: Inspect the content of recorded inputs of a selected Agent attempt](0053-inspect-the-content-of-recorded-inputs-of-a-selected-agent-attempt.md)
+  (accepted, selected for HIST-INPC-01, not yet implemented; optional reference prefix limit up to the existing 64-input inspection bound with default ten unchanged, complete bounded reference disclosure and one explicitly requested member's guarded collaboration content after whole-set revalidation; no prompt/session attestation, chain traversal, invocation, mutation or publication authority)
 
 ## Partially superseded decisions
 

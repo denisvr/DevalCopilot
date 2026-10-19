@@ -1763,17 +1763,29 @@ no collaboration message can still be inspected. Nothing is fetched until the ow
   [selected-attempt execution facts](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
 - **Recorded collaboration inputs.** The selected attempt has its own collapsed "Recorded collaboration inputs" button
   ([ADR-0051](../decisions/0051-inspect-recorded-inputs-of-a-selected-agent-attempt.md)), including when it failed or was interrupted
-  without producing a message. Opening reads once for exactly that run and attempt, independently of evidence, facts and artifacts;
-  closing discards the result. It shows the recorded-input caveat and says only references are shown, with no content loaded.
-  A recorded set shows its exact inspected count and an ordered list of input position, recognized message type, exact timeline
-  sequence, recorded UTC time and message ID, all plain text with no navigation. Above ten it says only the first ten are shown.
-  A coherent Planner with zero inputs says "No recorded collaboration inputs — this attempt started from none." An unverifiable
-  or oversized set says the inputs are unavailable and that this does not mean the attempt had no inputs. Loading, a failed read,
-  a missing attempt and an incoherent answer are explicit; the latter shows no partial list. "Try the recorded inputs again" retries
-  only on request. The host inspects at most 64 inputs; observing a 65th returns no count or references. The prefix is not pagination,
-  full context or a resumable provider session. Each selection and opening owns its reads and callbacks, so close/reopen, another
-  attempt/run/project, A-to-B-to-A, parent reload and unmount cannot retain or fetch another owner's references. No polling, automatic
-  retry, browser persistence, artifact read or workflow mutation is added. Validation and wire rules:
+  without producing a message. Opening reads once for exactly that run and attempt with `limit=64`
+  ([ADR-0053](../decisions/0053-inspect-the-content-of-recorded-inputs-of-a-selected-agent-attempt.md)), independently of evidence,
+  facts and artifacts; closing discards the result. It shows the recorded-input caveat and says only references are listed and that
+  the content of one input is read only when it is inspected. A recorded set shows its exact inspected count and an ordered list of
+  input position, recognized message type, exact timeline sequence, recorded UTC time and message ID, all plain text with no
+  navigation. Ten references are shown first; "Show N more references" reveals up to ten more already loaded references without a
+  request and says the others are only hidden in this view, not missing; closing resets it. Only an omission by the host (not
+  reachable at 64) would say the host returned only the first ones. A coherent Planner with zero inputs says "No recorded
+  collaboration inputs — this attempt started from none." An unverifiable or oversized set says the inputs are unavailable and that
+  this does not mean the attempt had no inputs. Loading, a failed read, a missing attempt and an incoherent answer are explicit; the
+  latter shows no partial list. "Try the recorded inputs again" retries only on request. The host inspects at most 64 inputs;
+  observing a 65th returns no count or references. The list is not pagination, full context or a resumable provider session.
+- **Selected recorded input.** Each shown reference has an "Inspect input N" action. It opens the one "Selected recorded input"
+  inspector, which reads only that message, once, and shows the input's position, type and sequence, a caveat that this is the stored
+  message read now, not the exact or complete prompt, all the context or proof of what the Agent saw, nor a current approval or
+  provider success, then the recorded sequence, type, protocol, provenance and time, sender and recipient, the summary and the fields
+  under their fixed labels in the type's schema order, all as literal text. Content unavailable (the reference stays), an unavailable
+  input set, an input no longer recorded, an incoherent answer and a failed read are distinct fixed messages showing no content;
+  "Try the recorded input again" appears only after a failure. Inspecting the current input again does nothing; another input
+  replaces it; "Close recorded input" closes it, and inspecting it again reads afresh. Each selection, opening and inspection visit
+  owns its reads and callbacks, so close/reopen, another input, attempt, run or project, A-to-B-to-A, parent reload and unmount cannot
+  retain or fetch another owner's references or content. No content prefetch, polling, automatic retry, chain navigation, browser
+  persistence, export, artifact read or workflow mutation is added. Validation and wire rules:
   [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection).
 - **Recorded verification evidence.** A selected CodeReviewer attempt of an ordinary implementation review or a verification
   diagnosis has its own collapsed "Recorded verification evidence" button

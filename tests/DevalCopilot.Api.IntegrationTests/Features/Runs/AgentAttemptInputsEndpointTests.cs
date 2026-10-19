@@ -27,10 +27,10 @@ public sealed class AgentAttemptInputsEndpointTests(ApiWebApplicationFactory fac
 
     private static string InputsRoute(Guid runId, Guid attemptId) => $"/api/runs/{runId}/agent-attempts/{attemptId}/inputs";
 
-    private async Task<(HttpStatusCode Status, JsonElement Body, string Text)> GetInputsAsync(Guid runId, Guid attemptId)
+    private async Task<(HttpStatusCode Status, JsonElement Body, string Text)> GetInputsAsync(Guid runId, Guid attemptId, string? query = null)
     {
         using var client = AuthenticatedClient();
-        var response = await client.GetAsync(InputsRoute(runId, attemptId));
+        var response = await client.GetAsync(InputsRoute(runId, attemptId) + (query is null ? string.Empty : "?" + query));
         var text = await response.Content.ReadAsStringAsync();
         return (response.StatusCode, text.Length == 0 ? default : JsonDocument.Parse(text).RootElement.Clone(), text);
     }
@@ -309,6 +309,117 @@ public sealed class AgentAttemptInputsEndpointTests(ApiWebApplicationFactory fac
         Assert.DoesNotContain(messages[0].Id.ToString(), unavailable.Text, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData(null, 10, true)]
+    [InlineData("limit=", 10, true)]
+    [InlineData("limit=%20", 10, true)]
+    [InlineData("limit=1", 1, true)]
+    [InlineData("limit=10", 10, true)]
+    [InlineData("limit=11", 11, false)]
+    [InlineData("limit=64", 11, false)]
+    public async Task An_admitted_limit_returns_exactly_that_prefix_and_an_absent_or_single_blank_one_keeps_ten(
+        string? query, int shown, bool omitted)
+    {
+        var runId = await SeedRunAsync();
+        var attempt = await SeedResolverAsync(runId);
+        var messages = await SeedInputsAsync(runId, attempt.Id, 11);
+
+        var response = await GetInputsAsync(runId, attempt.Id, query);
+
+        Assert.Equal(HttpStatusCode.OK, response.Status);
+        Assert.Equal(RootMembers, Names(response.Body));
+        Assert.Equal("Recorded", response.Body.GetProperty("status").GetString());
+        Assert.Equal(11, response.Body.GetProperty("inputMessageTotalCount").GetInt32());
+        Assert.Equal(omitted, response.Body.GetProperty("inputMessagesOmitted").GetBoolean());
+        Assert.Equal(
+            messages.Take(shown).Select(message => message.Id),
+            response.Body.GetProperty("inputMessages").EnumerateArray().Select(entry => entry.GetProperty("collaborationMessageId").GetGuid()));
+        if (query is null)
+        {
+            Assert.Equal(Normalize((await GetInputsAsync(runId, attempt.Id, "limit=10")).Text), Normalize(response.Text));
+        }
+    }
+
+    [Fact]
+    public async Task Sixty_four_inputs_with_limit_sixty_four_return_every_reference_and_sixty_five_stay_unavailable()
+    {
+        var runId = await SeedRunAsync();
+        var attempt = await SeedResolverAsync(runId);
+        var messages = await SeedInputsAsync(runId, attempt.Id, 64);
+
+        var recorded = await GetInputsAsync(runId, attempt.Id, "limit=64");
+        Assert.Equal("Recorded", recorded.Body.GetProperty("status").GetString());
+        Assert.False(recorded.Body.GetProperty("inputMessagesOmitted").GetBoolean());
+        Assert.Equal(
+            messages.Select(message => message.Id),
+            recorded.Body.GetProperty("inputMessages").EnumerateArray().Select(entry => entry.GetProperty("collaborationMessageId").GetGuid()));
+
+        var extra = await AppendAsync(runId, 1);
+        await WithDbAsync(async db =>
+        {
+            db.AttemptInputMessages.Add(AttemptInputMessage.Record(Guid.NewGuid(), attempt.Id, extra[0].Id, 64));
+            return await db.SaveChangesAsync();
+        });
+
+        var unavailable = await GetInputsAsync(runId, attempt.Id, "limit=64");
+        Assert.Equal("Unavailable", unavailable.Body.GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, unavailable.Body.GetProperty("inputMessageTotalCount").ValueKind);
+        Assert.Empty(unavailable.Body.GetProperty("inputMessages").EnumerateArray());
+    }
+
+    public static TheoryData<string, string> RejectedLimits() => new()
+    {
+        { "limit=0", string.Empty },
+        { "limit=65", string.Empty },
+        { "limit=-1", string.Empty },
+        { "limit=%2B5", string.Empty },
+        { "limit=05", string.Empty },
+        { "limit=%205", string.Empty },
+        { "limit=5%20", string.Empty },
+        { "limit=1.5", "1.5" },
+        { "limit=1e1", "1e1" },
+        { "limit=0x10", "0x10" },
+        { "limit=reviewer-invalid-limit", "reviewer-invalid-limit" },
+        { "limit=99999999999999999999", "99999999999999999999" },
+        { "limit=2147483648", "2147483648" },
+        { "limit=%E2%82%AC", "\u20AC" },
+        { "limit=%D9%A5", "\u0665" },
+        { "limit=5&limit=5", string.Empty },
+        { "limit=&limit=", string.Empty },
+        { "limit=5&limit=", string.Empty },
+        { "limit=86420", "86420" },
+    };
+
+    [Theory]
+    [MemberData(nameof(RejectedLimits))]
+    public async Task A_rejected_limit_is_the_shared_validation_problem_without_the_value_and_never_a_clamped_answer(string query, string rejected)
+    {
+        var runId = await SeedRunAsync();
+        var attempt = await SeedResolverAsync(runId);
+        await SeedInputsAsync(runId, attempt.Id, 11);
+
+        foreach (var (run, attemptId) in new[] { (runId, attempt.Id), (Guid.NewGuid(), Guid.NewGuid()) })
+        {
+            var response = await GetInputsAsync(run, attemptId, query);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.Status);
+            Assert.Equal("urn:devalente:problem:validation", response.Body.GetProperty("type").GetString());
+            Assert.Equal(400, response.Body.GetProperty("status").GetInt32());
+            Assert.False(string.IsNullOrWhiteSpace(response.Body.GetProperty("traceId").GetString()));
+            var error = Assert.Single(response.Body.GetProperty("errors").EnumerateArray());
+            Assert.Equal("validation.invalid_limit", error.GetProperty("code").GetString());
+            Assert.Equal("#/limit", error.GetProperty("pointer").GetString());
+            Assert.Equal("The limit must be a whole number from 1 to 64.", error.GetProperty("detail").GetString());
+            Assert.False(response.Body.TryGetProperty("inputMessages", out _));
+            Assert.DoesNotContain("ValidationProblemDetails", response.Text, StringComparison.Ordinal);
+            Assert.DoesNotContain("is not valid", response.Text, StringComparison.Ordinal);
+            if (rejected.Length > 0)
+            {
+                Assert.DoesNotContain(rejected, Normalize(response.Text), StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
     [Fact]
     public async Task Reading_recorded_inputs_writes_nothing()
     {
@@ -343,11 +454,15 @@ public sealed class AgentAttemptInputsEndpointTests(ApiWebApplicationFactory fac
 
         var operation = document["paths"]!["/api/runs/{runId}/agent-attempts/{attemptId}/inputs"]!["get"]!;
         var parameters = operation["parameters"]!.AsArray().Select(p => (p!["name"]!.GetValue<string>(), p["in"]!.GetValue<string>()));
-        Assert.Equal([("attemptId", "path"), ("runId", "path")], parameters.Order());
+        Assert.Equal([("attemptId", "path"), ("limit", "query"), ("runId", "path")], parameters.Order());
+        var limit = operation["parameters"]!.AsArray().Single(p => p!["name"]!.GetValue<string>() == "limit")!;
+        Assert.NotEqual(true, limit["required"]?.GetValue<bool>());
+        Assert.Contains("integer", limit.ToJsonString(), StringComparison.Ordinal);
         Assert.Null(operation["requestBody"]);
         var responses = operation["responses"]!.AsObject();
-        Assert.Equal(["200", "404"], responses.Select(item => item.Key).Order(StringComparer.Ordinal));
+        Assert.Equal(["200", "400", "404"], responses.Select(item => item.Key).Order(StringComparer.Ordinal));
         Assert.Contains("GetAgentAttemptInputsResponse", responses["200"]!.ToJsonString(), StringComparison.Ordinal);
+        Assert.Contains("ApiProblemDetails", responses["400"]!["content"]!.ToJsonString(), StringComparison.Ordinal);
         Assert.Contains("ApiProblemDetails", responses["404"]!["content"]!.ToJsonString(), StringComparison.Ordinal);
 
         JsonObject PropertiesOf(string name)

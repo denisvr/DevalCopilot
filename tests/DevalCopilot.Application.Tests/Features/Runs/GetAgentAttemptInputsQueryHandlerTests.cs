@@ -177,16 +177,20 @@ public sealed class GetAgentAttemptInputsQueryHandlerTests : IAsyncLifetime
     private Task SetPositionAsync(Guid attemptId, int position, object? stored) =>
         ExecuteAsync($"UPDATE attempt_input_messages SET Sequence = {stored} WHERE AttemptId = {attemptId} AND Sequence = {position}");
 
-    private async Task<Result<GetAgentAttemptInputsQueryResult>> SendAsync(Guid runId, Guid attemptId, params IInterceptor[] interceptors)
+    private Task<Result<GetAgentAttemptInputsQueryResult>> SendAsync(Guid runId, Guid attemptId, params IInterceptor[] interceptors) =>
+        SendAsync(runId, attemptId, null, interceptors);
+
+    private async Task<Result<GetAgentAttemptInputsQueryResult>> SendAsync(
+        Guid runId, Guid attemptId, int? limit, params IInterceptor[] interceptors)
     {
         await using var dbContext = _fixture.CreateContext(interceptors);
         return await new GetAgentAttemptInputsQueryHandler(dbContext).HandleAsync(
-            new GetAgentAttemptInputsQuery(runId, attemptId), CancellationToken.None);
+            new GetAgentAttemptInputsQuery(runId, attemptId, limit), CancellationToken.None);
     }
 
-    private async Task<GetAgentAttemptInputsQueryResult> ReadAsync(Guid runId, Guid attemptId)
+    private async Task<GetAgentAttemptInputsQueryResult> ReadAsync(Guid runId, Guid attemptId, int? limit = null)
     {
-        var result = await SendAsync(runId, attemptId);
+        var result = await SendAsync(runId, attemptId, limit);
         Assert.True(result.IsSuccess, string.Join(", ", result.IsSuccess ? [] : result.Errors.Select(error => error.Code)));
         return result.Value;
     }
@@ -213,9 +217,10 @@ public sealed class GetAgentAttemptInputsQueryHandlerTests : IAsyncLifetime
         Assert.Equal(expected.AgentResponseContract, header.ResponseContract);
     }
 
-    private static void AssertReferences(IReadOnlyList<CollaborationMessage> messages, IReadOnlyList<AgentAttemptInputReference> references)
+    private static void AssertReferences(
+        IReadOnlyList<CollaborationMessage> messages, IReadOnlyList<AgentAttemptInputReference> references, int limit = 10)
     {
-        Assert.Equal(Math.Min(messages.Count, 10), references.Count);
+        Assert.Equal(Math.Min(messages.Count, limit), references.Count);
         for (var index = 0; index < references.Count; index++)
         {
             Assert.Equal(index, references[index].Sequence);
@@ -347,21 +352,113 @@ public sealed class GetAgentAttemptInputsQueryHandlerTests : IAsyncLifetime
         AssertReferences(messages, result.InputMessages);
     }
 
-    [Fact]
-    public async Task A_sixty_fifth_input_makes_the_inspection_unavailable_without_a_count_or_a_partial_list()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(64)]
+    [InlineData(1)]
+    public async Task A_sixty_fifth_input_makes_the_inspection_unavailable_without_a_count_or_a_partial_list(int? limit)
     {
         var runId = await SeedRunAsync();
         var attempt = await SeedAttemptAsync(runId, 2);
         await SeedInputsAsync(runId, attempt.Id, 65);
         var recorder = new RecordingInterceptor();
 
-        var result = await SendAsync(runId, attempt.Id, recorder);
+        var result = await SendAsync(runId, attempt.Id, limit, recorder);
 
         Assert.True(result.IsSuccess);
         AssertUnavailable(result.Value, runId, attempt.Id);
         // The refusal needs no message read.
         Assert.Equal(2, recorder.Commands.Count);
         Assert.DoesNotContain(recorder.Commands, command => command.Text.Contains("FROM \"collaboration_messages\"", StringComparison.Ordinal));
+    }
+
+    // ADR-0053: the limit bounds only the returned prefix; the count and omission are exact for every admitted limit and set size.
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(1, 10)]
+    [InlineData(1, 11)]
+    [InlineData(1, 64)]
+    [InlineData(10, 1)]
+    [InlineData(10, 10)]
+    [InlineData(10, 11)]
+    [InlineData(10, 64)]
+    [InlineData(11, 11)]
+    [InlineData(64, 1)]
+    [InlineData(64, 10)]
+    [InlineData(64, 11)]
+    [InlineData(64, 64)]
+    public async Task An_explicit_limit_returns_exactly_that_prefix_of_the_whole_proved_set(int limit, int count)
+    {
+        var runId = await SeedRunAsync();
+        var attempt = await SeedAttemptAsync(runId, 2);
+        var messages = await SeedInputsAsync(runId, attempt.Id, count);
+
+        var result = await ReadAsync(runId, attempt.Id, limit);
+
+        Assert.Equal(AgentAttemptInputsStatus.Recorded, result.Status);
+        AssertHeader(attempt, result.Attempt);
+        Assert.Equal(count, result.InputMessageTotalCount);
+        Assert.Equal(count > limit, result.InputMessagesOmitted);
+        AssertReferences(messages, result.InputMessages, limit);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(10)]
+    [InlineData(11)]
+    [InlineData(64)]
+    [InlineData(65)]
+    public async Task An_absent_limit_is_exactly_the_former_ten_reference_answer(int count)
+    {
+        var runId = await SeedRunAsync();
+        var attempt = await SeedAttemptAsync(runId, count == 0 ? 0 : 2);
+        await SeedInputsAsync(runId, attempt.Id, count);
+
+        var absent = await ReadAsync(runId, attempt.Id);
+        var ten = await ReadAsync(runId, attempt.Id, 10);
+
+        Assert.Equal(JsonSerializer.Serialize(ten), JsonSerializer.Serialize(absent));
+        Assert.True(absent.InputMessages.Count <= 10);
+        Assert.Equal(count > 10 && count <= 64, absent.InputMessagesOmitted);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(64)]
+    public async Task A_corrupt_last_member_is_unavailable_whatever_prefix_was_requested(int limit)
+    {
+        var runId = await SeedRunAsync();
+        var attempt = await SeedAttemptAsync(runId, 2);
+        var messages = await SeedInputsAsync(runId, attempt.Id, 64);
+        Assert.Equal(AgentAttemptInputsStatus.Recorded, (await ReadAsync(runId, attempt.Id, limit)).Status);
+        await ExecuteAsync($"UPDATE collaboration_messages SET ProtocolVersion = '2.0' WHERE Id = {messages[63].Id}");
+
+        AssertUnavailable(await ReadAsync(runId, attempt.Id, limit), runId, attempt.Id);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData(1, true)]
+    [InlineData(10, true)]
+    [InlineData(64, true)]
+    [InlineData(0, false)]
+    [InlineData(-1, false)]
+    [InlineData(65, false)]
+    [InlineData(int.MaxValue, false)]
+    [InlineData(int.MinValue, false)]
+    public void The_application_validator_admits_only_limits_from_one_to_sixty_four_and_never_repeats_a_rejected_one(int? limit, bool valid)
+    {
+        var result = new GetAgentAttemptInputsQueryValidator().Validate(new GetAgentAttemptInputsQuery(Guid.NewGuid(), Guid.NewGuid(), limit));
+
+        Assert.Equal(valid, result.IsValid);
+        if (!valid)
+        {
+            var error = Assert.Single(result.Errors);
+            Assert.Equal("validation.invalid_limit", error.ErrorCode);
+            Assert.Equal("Limit", error.PropertyName);
+            Assert.Equal("The limit must be a whole number from 1 to 64.", error.ErrorMessage);
+        }
     }
 
     public static TheoryData<string> SetDefects() =>
@@ -666,15 +763,19 @@ public sealed class GetAgentAttemptInputsQueryHandlerTests : IAsyncLifetime
             new GetAgentAttemptInputsQuery(runId, attempt.Id), cancellation.Token));
     }
 
-    [Fact]
-    public async Task The_read_is_three_bounded_scalar_selects_through_the_attempt_sequence_index_that_never_touch_content()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(1)]
+    [InlineData(64)]
+    public async Task The_read_is_three_bounded_scalar_selects_through_the_attempt_sequence_index_that_never_touch_content(int? requested)
     {
         var runId = await SeedRunAsync();
         var attempt = await SeedAttemptAsync(runId, 3, maxTurns: 5);
         await SeedInputsAsync(runId, attempt.Id, 12);
         var recorder = new RecordingInterceptor();
 
-        var result = await SendAsync(runId, attempt.Id, recorder);
+        // The requested prefix never changes what is read: the same 65-row bound and the whole referenced set.
+        var result = await SendAsync(runId, attempt.Id, requested, recorder);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AgentAttemptInputsStatus.Recorded, result.Value.Status);

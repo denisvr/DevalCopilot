@@ -55,6 +55,39 @@ describe('toAgentAttemptInputs', () => {
     expect(answer?.status === 'Recorded' && answer.inputs.length).toBe(Math.min(count, 10))
   })
 
+  // ADR-0053: the prefix length and the omission flag are bound to the limit actually requested; the default stays ten.
+  it.each([
+    [1, 1],
+    [1, 11],
+    [10, 11],
+    [11, 11],
+    [64, 1],
+    [64, 10],
+    [64, 11],
+    [64, 64],
+  ])('with limit %i accepts %i recorded inputs with exactly that prefix and omission past it', (limit, count) => {
+    const answer = toAgentAttemptInputs(recordedInputsFor(RUN, 2, count, {}, limit), expected, limit)
+
+    expect(answer).toMatchObject({ status: 'Recorded', totalCount: count, omitted: count > limit })
+    expect(answer?.status === 'Recorded' && answer.inputs.map((input) => input.position)).toEqual(
+      Array.from({ length: Math.min(count, limit) }, (_, position) => position),
+    )
+  })
+
+  it.each([
+    ['a ten-reference answer to a 64 request', recordedInputsFor(RUN, 2, 11), 64],
+    ['a 64-reference answer to the default request', recordedInputsFor(RUN, 2, 11, {}, 64), 10],
+    ['an omitted answer whose prefix fits the request', recordedInputsFor(RUN, 2, 11, { inputMessagesOmitted: true }, 64), 64],
+    ['a one-reference answer to an eleven request', recordedInputsFor(RUN, 2, 11, {}, 1), 11],
+  ])('refuses %s', (_, body, limit) => {
+    expect(toAgentAttemptInputs(body, expected, limit)).toBeNull()
+  })
+
+  it.each([0, -1, 65, 1.5, Number.NaN])('refuses to judge any answer against an impossible requested limit %s', (limit) => {
+    expect(toAgentAttemptInputs(recordedInputsFor(RUN, 2, 1), expected, limit)).toBeNull()
+    expect(toAgentAttemptInputs(unavailableInputsFor(RUN, 2), expected, limit)).toBeNull()
+  })
+
   it('keeps an exact sequence above 2^53 as its own text, never a rounded number', () => {
     const answer = toAgentAttemptInputs(withEntry(2, 1, { collaborationSequence: '9007199254740993' }), expected)
 

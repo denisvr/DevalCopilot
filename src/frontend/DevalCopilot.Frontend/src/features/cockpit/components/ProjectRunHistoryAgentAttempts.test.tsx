@@ -41,7 +41,7 @@ function deferred<T>() {
 type HistoryRead = (runId: string, before: number | null | undefined, limit: number | null | undefined) => Promise<AgentAttemptHistoryResponse>
 type EvidenceRead = (runId: string, attemptId: string) => Promise<AgentAttemptEvidenceResponse>
 type WindowRead = (runId: string, attemptId: string, segment: string, fromOffset: number | undefined) => Promise<SealedAgentArtifactWindowResponse>
-type InputsRead = (runId: string, attemptId: string) => Promise<unknown>
+type InputsRead = (runId: string, attemptId: string, limit?: number) => Promise<unknown>
 
 let historyRead: ReturnType<typeof vi.fn<HistoryRead>>
 let evidenceRead: ReturnType<typeof vi.fn<EvidenceRead>>
@@ -339,9 +339,10 @@ describe('the Agent attempts of a historical run detail', () => {
 
     expect(screen.queryByText(/9 recorded inputs/)).toBeNull()
     expect(screen.queryByText(/run-3-attempt-2-input/)).toBeNull()
+    // ADR-0053: each opening asks for the whole bounded set once, with the explicit limit.
     expect(inputsRead.mock.calls).toEqual([
-      ['run-2', attemptIdFor('run-2', 1)],
-      ['run-3', attemptIdFor('run-3', 2)],
+      ['run-2', attemptIdFor('run-2', 1), 64],
+      ['run-3', attemptIdFor('run-3', 2), 64],
     ])
     expect(windowRead).not.toHaveBeenCalled()
   })

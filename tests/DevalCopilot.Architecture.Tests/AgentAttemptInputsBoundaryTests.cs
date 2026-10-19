@@ -10,6 +10,7 @@ namespace DevalCopilot.Architecture.Tests;
 public sealed partial class AgentAttemptInputsBoundaryTests
 {
     private const string Folder = "DevalCopilot.Application/Features/Runs/Queries/GetAgentAttemptInputs";
+    private const string PolicyFolder = "DevalCopilot.Application/Features/Runs/Policies/AgentAttemptInputs";
     private const string Endpoint = "DevalCopilot.Api/Features/Runs/GetAgentAttemptInputs/GetAgentAttemptInputsEndpoint.cs";
     private const string SharedIdentity = "DevalCopilot.Application/Features/Runs/ScalarAgentAttemptIdentity.cs";
 
@@ -31,12 +32,18 @@ public sealed partial class AgentAttemptInputsBoundaryTests
 
     private static string BackendCode(string relative) => Code(Path.Combine(BackendRoot(), relative.Replace('/', Path.DirectorySeparatorChar)));
 
-    private static string QueryCode()
+    private static string FolderCode(string relative, string message)
     {
-        var folder = Path.Combine(BackendRoot(), Folder.Replace('/', Path.DirectorySeparatorChar));
-        Assert.True(Directory.Exists(folder), "The recorded-input inspection must live in its own operation folder.");
+        var folder = Path.Combine(BackendRoot(), relative.Replace('/', Path.DirectorySeparatorChar));
+        Assert.True(Directory.Exists(folder), message);
         return string.Join('\n', Directory.EnumerateFiles(folder, "*.cs").Order(StringComparer.Ordinal).Select(Code));
     }
+
+    // ADR-0053: the set proof moved unchanged into one feature-owned policy that this operation and the input-message read share, so the
+    // operation is judged together with it.
+    private static string QueryCode() =>
+        FolderCode(Folder, "The recorded-input inspection must live in its own operation folder.") + '\n'
+        + FolderCode(PolicyFolder, "The recorded input-set proof must live in its own feature-owned policy folder.");
 
     [GeneratedRegex(@"dbContext\.([A-Za-z]+)")]
     private static partial Regex DbSetAccess();
@@ -104,12 +111,17 @@ public sealed partial class AgentAttemptInputsBoundaryTests
 
         Assert.Contains("public const int PositionBound = 64;", code, StringComparison.Ordinal);
         Assert.Contains("public const int MaximumInspectedInputs = AgentAttemptInputsProjection.PositionBound;", code, StringComparison.Ordinal);
-        Assert.Contains("public const int MaximumShownInputs = 10;", code, StringComparison.Ordinal);
-        Assert.Contains(".Where(input => input.AttemptId == query.AttemptId)", code, StringComparison.Ordinal);
+        Assert.Contains("public const int DefaultLimit = 10;", code, StringComparison.Ordinal);
+        Assert.Contains("public const int MaximumLimit = 64;", code, StringComparison.Ordinal);
+        Assert.Contains(".InclusiveBetween(1, GetAgentAttemptInputsQuery.MaximumLimit)", code, StringComparison.Ordinal);
+        Assert.Contains("var limit = query.Limit ?? GetAgentAttemptInputsQuery.DefaultLimit;", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("Math.Clamp", code, StringComparison.Ordinal);
+        Assert.DoesNotContain("Math.Min", code, StringComparison.Ordinal);
+        Assert.Contains(".Where(input => input.AttemptId == attemptId)", code, StringComparison.Ordinal);
         Assert.Contains(".OrderBy(input => input.Sequence)", code, StringComparison.Ordinal);
         Assert.Contains(".Take(MaximumInspectedInputs + 1)", code, StringComparison.Ordinal);
-        Assert.Contains("candidate.RunId == query.RunId && candidate.Id == query.AttemptId", code, StringComparison.Ordinal);
-        Assert.Contains("message.RunId == query.RunId && referencedIds.Contains(message.Id)", code, StringComparison.Ordinal);
+        Assert.Contains("candidate.RunId == runId && candidate.Id == attemptId", code, StringComparison.Ordinal);
+        Assert.Contains("message.RunId == runId && referencedIds.Contains(message.Id)", code, StringComparison.Ordinal);
         Assert.Contains("input.Sequence % PositionBound == input.Sequence", code, StringComparison.Ordinal);
         foreach (var forbidden in new[] { "Skip(", "LastOrDefault", "Last(", "Max(", "Min(", "InReplyTo", "RepairSource" })
         {
@@ -146,6 +158,7 @@ public sealed partial class AgentAttemptInputsBoundaryTests
 
         Assert.Single(Regex.Matches(code, @"\[Http[A-Za-z]+\("));
         Assert.Contains("[HttpGet(\"{runId:guid}/agent-attempts/{attemptId:guid}/inputs\")]", code, StringComparison.Ordinal);
+        Assert.Contains("[FromQuery, ModelBinder(typeof(AgentAttemptInputsLimitModelBinder))] int? limit", code, StringComparison.Ordinal);
         Assert.DoesNotContain("[FromBody]", code, StringComparison.Ordinal);
         Assert.DoesNotContain("AllowAnonymous", code, StringComparison.Ordinal);
         Assert.Contains(": RunsBaseEndpoint", code, StringComparison.Ordinal);

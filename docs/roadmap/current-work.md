@@ -6,132 +6,74 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: HIST-VER-01 recorded verification evidence of a selected Agent attempt
+## Active slice: HIST-INPC-01 complete bounded input references and selected content
 
 This document records the implementation delivered for review. Consult
 [planner-handoff.md](planner-handoff.md) for the review decision. Reconcile
 publication with Git and the slice's independent publication-verification
 record, when available. This record alone grants no publication authority.
 
-- **Prepared at** completion of NO-GO correction round 1 (HVR-R1–R3), unstaged, uncommitted and unpushed; no finding is
-  closed and no GO exists until review. Correction preflight matched the planner's: `main`, HEAD/local origin/main `26c3f24a`,
-  divergence 0/0, empty index, nine modified tracked paths and 59 untracked files; the live remote was not rechecked. During the
-  correction `AGENTS.md`, `CLAUDE.md` and `development-workflow.md` changed on disk outside this executor (22:56–22:57, workflow
-  report/continuity rules); they are untouched and not part of this correction. The planner-owned ADR-0052, decision index and
-  planner handoff were not edited. The original delivery began from the same HEAD with only the planner's two modified documents
-  and new ADR-0052. HIST-INP-01 was not reopened.
-- **HVR-R1 correction.** The SQL exit-code guard keeps the same-typed `% int.MaxValue` exactness check and now compares all three
-  Int32 values that are not their own remainder directly (`int.MinValue`, `-int.MaxValue`, `int.MaxValue`); INTEGER affinity
-  stores an integral REAL as INTEGER, so a direct comparison only matches the exact integer and no wider modulus or CAST returns.
-  New file-backed SQLite regressions: the evidence handler records a failed diagnosis member with each of `int.MinValue`,
-  `-int.MaxValue`, `-int.MaxValue + 1`, -2, -1, 1, 2, `int.MaxValue - 1` and `int.MaxValue` exactly, with its Recorded stdout
-  descriptor and the sibling member; the window handler serves that member's stream for seven boundaries with the exact store
-  call. Storage controls stay refused (last-of-32 and window, before any store call): REAL -2147483646.5, -2147483647.5 and
-  2147483646.5, 2147483648, -2147483649, BLOB and TEXT, beside the existing 1.5, 4294967297 and text defects. The API carries the
-  four extreme codes as exact raw JSON numbers with the Recorded stream and serves their windows. Membership and ownership checks
-  are unchanged.
-- **HVR-R2 correction.** Within an opening, every member/stream choice is a numbered visit decided against the queued choice:
-  choosing after Hide or after another stream starts a new visit (even for the same stream in one batch), choosing the current
-  stream keeps it. `clearSelection` (Hide) belongs to the visit it was rendered for and clears only while that visit is still the
-  queued choice, so a retained Hide of A cannot end B (separately or queued before it in one batch) or a later A visit (A-B-A). The
-  selection exposes `visit`, and the window lifetime key is `(opening, run, attempt, member, stream, visit)`, so a same-batch
-  Hide/reselection derives a fresh idle frame before the successor's first frame, its next manual load starts at offset zero, it
-  reads nothing by itself, and a late answer or retained `load` of the ended visit is inert. Feature-owned only: the shared
-  `useOwnedLifetime`/`useOwnedState` primitives, manual paging, overlap guard, decoders and the 256 KiB budget are unchanged; no
-  forced remount. Regressions: seven evidence-hook visit tests (including the current Hide, an equal visit number in a later
-  opening, parent reload and unmount), two window-hook tests for a new visit of the same tuple, six composed two-hook tests
-  (each scenario of the review plus the current Hide) and one rendered-panel test (Hide then View after a pending load).
-- **HVR-R3 correction.** `SeededVerificationMember`, `SeededVerificationScene` (Application tests) and `SeededVerificationLineage`
-  (API tests) moved unchanged, with the same visibility and comments, into files of their own names; no fixture redesign.
-- **Docs.** The inspection contract and cockpit specification now name the visit (Hide then reselection starts from zero; an earlier
-  Hide never hides a later choice).
-- **Correction checks.** Complete outputs: `logs/executor/hist-ver-01/correction-01/` (`c01`–`c19`, each with its command line).
-  Pre-fix controls (the new `-int.MaxValue` comparison temporarily replaced by a duplicate `int.MaxValue` comparison, restored by
-  copy and SHA-256 `c2ca2032…`): Application focused 2 failed (exactly `-2147483647` in each handler)/62 passed (`c01`); API focused 2
-  failed (same value, metadata and window)/6 passed (`c04`). Fixed: Application focused 64 passed (`c02`), API focused 8 (`c03`).
-  Frontend regressions against the unfixed hooks: 11 failed/92 passed (`c05`); fixed 103 passed (`c06`). The planner's two
-  retained lifetime reproductions, copied unchanged into the hooks folder and removed afterwards, now pass 5/5 and 4/4
-  (`c07`, `c08`). On stable corrected inputs: both Application handler classes 150 passed (`c09`); both endpoint classes plus
-  launch-auth inventory 58 (`c10`); architecture 161 (`c11`); affected frontend decoder, contract, hooks, panel and existing
-  attempt/history files 7 files/317 (`c12`); `npm run lint` 0 errors with the same nine warnings in unchanged files (`c13`);
-  `npm run build` passed (`c14`); whole frontend once, 243 files/4852 passed (`c15`); strict e2e `tsc` (recorded flag set) exit 0
-  (`c16`); journey-host build 0 warnings/0 errors, no compiler lock (`c17`); one serialized extended `collaboration.journey.ts`
-  passed in 1.6 min (`c18`); `dotnet build` of the API `--no-incremental` left the generated client at `07d48b80…` (`c19`).
-  Commands: `dotnet test tests/DevalCopilot.Application.Tests --no-restore -m:1 --filter
-  "FullyQualifiedName~GetAgentAttemptVerificationEvidenceQueryHandlerTests|FullyQualifiedName~GetAgentAttemptVerificationOutputWindowQueryHandlerTests"`;
-  `dotnet test tests/DevalCopilot.Api.IntegrationTests --no-restore -m:1 --filter
-  "FullyQualifiedName~AgentAttemptVerificationEvidenceEndpointTests|FullyQualifiedName~AgentAttemptVerificationOutputWindowEndpointTests|FullyQualifiedName~LaunchSessionAuthenticationTests"`;
-  `dotnet test tests/DevalCopilot.Architecture.Tests --no-restore -m:1`; from the frontend folder `npx vitest run <seven files>`,
-  `npm run lint`, `npm run build`, `npx vitest run`, the strict `npx tsc --ignoreConfig …` line, `dotnet build
-  ../../../tests/DevalCopilot.Api.IntegrationTests/BrowserJourney/Host/BrowserJourneyHost.csproj` and `npx playwright test -c
-  playwright.journey.config.ts e2e/collaboration.journey.ts`. The journey log records 154 duplicate-React-key and 14 connection
-  negotiation console errors from the first browser output, before the section is used; the first delivery's journey log captured
-  no console lines, so the counts are not compared, and no HEAD-frontend comparison was run in this round.
-- **Outcome.** A selected CodeReviewer attempt of `ImplementationReview` or
-  `VerificationDiagnosis` has a collapsed "Recorded verification evidence"
-  section, independent of evidence, inputs, Agent artifacts and any produced
-  message. It shows the recorded checkpoint, every member in order (snapshot
-  command name, Passed/Failed, exit code, raw UTC times) and truthful stdout/stderr
-  descriptors (NotRecorded, Unavailable, Recorded with false/true/unknown truncation);
-  a Recorded stream is chosen, loaded and paged manually, with a 256 KiB local view limit
-  disclosed as such. Rules:
+- **Prepared at** completion of the first delivery, unstaged, uncommitted and unpushed; no GO exists. Preflight matched the
+  planner's: `main`, HEAD/local origin/main/fresh live main `80a2ec22`, divergence 0/0, empty index, the planner's two modified
+  documents (decision index, planner handoff) and new untracked ADR-0053, none edited here. HIST-VER-01 was not reopened.
+- **Outcome.** Inside a selected historical Agent attempt, every reference of an admitted input set of at most 64 is reachable and
+  the owner can read one referenced collaboration message at a time
+  ([ADR-0053](../decisions/0053-inspect-the-content-of-recorded-inputs-of-a-selected-agent-attempt.md)). Rules:
   [inspection contract](../architecture/agent-collaboration-evidence-inspection.md#agent-attempt-history-and-evidence-inspection),
-  [cockpit specification](../product/run-cockpit-specification.md#agent-attempt-history-and-evidence),
-  [ADR-0052](../decisions/0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md).
-- **Backend.** Two protected, bodyless GETs and mediator queries
-  (`GetAgentAttemptVerificationEvidence`, `GetAgentAttemptVerificationOutputWindow`), one MVC class each and
-  API-owned response graphs. Both use one feature-owned read policy under
-  `Policies/AgentAttemptVerification` that applies the unchanged `ScalarAgentAttemptIdentity`, reads at most 33
-  memberships by the attempt/sequence index (32 inspected), proves the whole set and the exact historical
-  workspace/checkpoint/fingerprint ownership by recorded identity, and classifies enums and guards numbers and strings
-  in SQL before conversion. The list reads no path, hash or byte; a window reproves the membership, resolves only its
-  stream and passes the admitted path and `sha256:`-plus-64-lowercase-hex hash unchanged to
-  `IArtifactStore.VerifyAndReadSealedAsync`. Offsets outside 0..2^53-1, caps outside 64..65536 and an offset past the
-  recorded length are refused, never clamped. Strict model binders keep rejected raw values out of the response. No
-  Domain, persistence, migration, claim/dispatch, snapshot/digest, recipe, artifact-store, existing-reader or shared
-  test-infrastructure change; the old verification output endpoint is untouched. The NSwag client is generated, additive
-  (+493 lines) and reproducible.
-- **Frontend.** Operation-scoped wire facades keep the parsed bodies; local closed-shape decoders validate the whole
-  answer and each window against the requested identities, selected descriptor and byte cursor without re-encoding
-  text. Two new hooks own the opening/selection and the member/stream window with the existing owned lifetimes. The
-  existing history panel mounts the section only for the two supported contracts.
-- **First-delivery checks (pre-correction inputs; rerun scopes above supersede them).** Complete outputs:
-  `logs/executor/hist-ver-01/` (`dev-*`, `final-*`). Application: evidence handler
-  82 passed (including an EXPLAIN QUERY PLAN proof), window handler 40 passed (file-backed SQLite, real store over disposable files). API: 46 passed (both
-  endpoint classes plus the actual OpenAPI document). Architecture: 161 passed (eight new). Frontend: 215 new tests
-  in five files; whole frontend 243 files / 4836 passed (`final-01`, once, justified by the new factories and
-  composition); lint unchanged at the same nine warnings in unchanged files; `npm run build` (includes `tsc -b`) passed.
-  Strict e2e typecheck exit 0; journey-host build passed (no compiler lock this time). API build `--no-incremental` and the generated client hash are unchanged before/after
-  (`07d48b80…`). The extended `collaboration.journey.ts` passed once (`dev-22`); a negative control that changes the
-  journey's expected passed stdout failed at that assertion (`neg-01`), then the file was restored by hash.
-- **Retained, unrerun evidence.** The 183 ADR-0037/0051 consumer tests (the shared identity is unchanged), the artifact
-  store containment proofs (store unchanged) and the historical-agent-attempts, sealed-artifact and
-  historical-attempt-inputs journeys. The latter three use Planner/Critic/Resolver attempts, which do not show the new
-  section; they were not rerun. The correction changes none of their inputs (shared identity, store and those journeys'
-  files); the collaboration journey file is unchanged by it. The first delivery's journey negative control (`neg-01`) was not
-  repeated.
-- **Journey.** After the newer objective, the older run's diagnosis (attempt 5, two Failed members) and ordinary review
-  (attempt 7, two Passed members) are opened once each through the rendered controls. The wire answer and the page equal
-  the stored membership, checkpoint and stream rows; every recorded stream is loaded explicitly and its returned and
-  rendered text equals the sealed file on disk and the executable's own output. The section's requests were bodyless
-  GETs for the older run only (two membership reads, one window per loaded stream), with no inputs, Agent artifact
-  window, provider invocation, durable change or source change. Malformed, oversized, 33-member and tampered cases stay
-  below the browser. **Pre-existing stale expectation corrected:** the journey's historical-run button list
-  predated HIST-ATT-01's "Show Agent attempt history" toggle and failed at that assertion on the first run
-  (`dev-21`) independently of this slice; it now lists the toggle.
-- **Failures retained.** `dev-01` (test compile error), `dev-02` (seven failures) and `dev-03` (one): three of
-  `dev-02` were one real production defect (a wider modulus constant made EF cast both sides to INTEGER, so REAL execution
-  numbers, checkpoint numbers and exit codes were accepted; fixed with a same-typed modulus), the rest were test defects (NUL
-  text bound C-terminated by the SQLite provider, a duplicate position, a table that is only joined, seed numbering).
-  `dev-07`/`dev-08` architecture assertions and `dev-13`/`dev-15` frontend tests failed on test defects. TypeScript errors found by the first build of the new tests were printed to the console and not retained;
-  that output remains lost and no later pass recovers or stands in for it. The first delivery reported its browser console
-  errors (duplicate React keys, connection negotiation) as the same pre-existing ones. The planner's independent
-  reproductions exposed HVR-R1 and HVR-R2 that the first delivery's tests missed. Correction-round failures are only the
-  intentional pre-fix controls `c01`, `c04` and `c05` above; no other correction run failed.
-- **Not run.** Whole backend/API suites, other journeys, mutation campaign, real providers or P9 experiments. No
-  dependency, schema, capture/store, shared identity, claim/dispatch/result, snapshot, recipe, harness or shared
-  database-fixture change. Increments 4/5/6 remain incomplete, ADR-0050 stays Proposed, P9 unproven and AI Memory
-  deferred.
+  [cockpit specification](../product/run-cockpit-specification.md#agent-attempt-history-and-evidence).
+- **Backend.** The ADR-0051 set proof moved unchanged (same three bounded scalar reads, same statements) into the feature-owned
+  `Policies/AgentAttemptInputs` reader with its three projection/row types, shared by exactly the two input queries; a test proves the
+  content read's first three statements equal the reference inspection's. `GetAgentAttemptInputs` gains optional `limit` (default 10,
+  1..64): a feature-owned strict binder (absent or one blank value is the default; any repeated value, even repeated blanks, and every
+  non-canonical text bind a rejected value) and an Application validator give the shared `validation.invalid_limit` at `#/limit`
+  without the value; nothing is clamped and the whole set is proved whatever the limit. New `GetAgentAttemptInputMessageQuery`,
+  handler and one MVC endpoint: unknown run, missing/foreign/non-Agent attempt and nonmember share
+  `agent_attempt_input_message.not_found`; an unprovable set is root Unavailable whichever message was asked; only a proved member is
+  read, through the unchanged `CollaborationHistoryRows.Project`/`ToEntry`, and a reread identity/version/type/sequence/time
+  (`EqualsExact`) that differs from the reference is Unavailable. API-owned closed DTO graph; both sequences Int64 strings, both times
+  raw UTC round-trip strings. `ScalarAgentAttemptIdentity`, `CollaborationHistoryRows`, the message-linked reader and every other
+  consumer are unchanged; no Domain, persistence, migration, dependency or shared harness change. The generated client is additive
+  (+408/-2: the optional `limit` argument, the new operation and its models).
+- **Frontend.** The inputs facade passes `limit`; the reference decoder binds prefix length and omission to the requested limit
+  (default ten for old callers). The section requests `limit=64` once per opening, shows ten references and reveals loaded ones in
+  local chunks of ten on request (labeled apart from host omission), with one "Inspect input N" action each into a single
+  "Selected recorded input" inspector (Close, failure-only retry). A new facade keeps the parsed body; a new decoder checks exact keys
+  at every level, the status tuple, the selected header and reference (raw Int64 and time text before any Date conversion), then
+  reuses the unchanged history entry validation for participants, provenance and content schema. The opening owns the disclosure and
+  numbered input visits (decided against the queued choice); the content hook is keyed by `(opening, run, attempt, message, visit)`.
+  Shared `useOwnedLifetime`/`useOwnedState` are unchanged; no forced remount, prefetch, polling, automatic retry, link or storage.
+- **Journey.** `historical-attempt-inputs.journey.ts`, after the newer objective, now also checks each opening requests
+  `?limit=64`, then explicitly inspects the older run's resolution inputs 1 (Proposal) and 2 (Challenge): each answer's root, header,
+  input and message (sequence, time, version, type, provenance, participants, summary, fields) and the rendered header, participants,
+  summary and labeled fields equal the stored `collaboration_messages` row; the inspector is then closed. Exactly those two content
+  GETs occurred, none before the explicit clicks; no non-GET, artifact-window read, provider invocation or durable/source change;
+  the Planner's empty set is preserved. 11/64/65 and corrupt sets stay below the browser.
+- **Checks.** Complete outputs: `logs/executor/hist-inpc-01/` (`dev-*`, `neg-*`, `final-*`, each with its command line and
+  timing). Final matrix on stable inputs: API `--no-incremental` build ran NSwag and left the client at `657bc13c…` (blob
+  `3559032f…`; the generator writes CRLF, Git normalizes) (`final-01`); Application both input handler classes 178 passed in 54 s
+  (`final-03`); API metadata endpoint, Int64 wire, new endpoint and launch-auth 52 passed (`final-14`, after `final-13` rebuilt the
+  escape fix below); architecture 164 passed (`final-05`); lint 0 errors with the same nine warnings in unchanged files
+  (`final-10`); `npm run build` (includes `tsc -b`) passed (`final-11`); whole frontend once, 246 files/5009 passed (`final-12`).
+  Strict e2e `tsc` (recorded flag set) exit 0 (`dev-09`), journey-host build 0/0 with no compiler lock (`dev-10`) and one serialized
+  journey passed in 12.3 s (`dev-11`) ran on the final product inputs and are retained. Bounded negative controls, each restored
+  by SHA-256: backend M1 limit ignored (6 failed), M2 reread time check removed (1), M3 membership ignored (19), M4 repeated limit
+  admitted (2) (`neg-01`); frontend F1 Close not visit-scoped (1), F2 visit missing from the content key (1), F3 disclosure owned by
+  the selection (2), F4 raw time comparison removed (1), F5 limit not sent (5) (`neg-02`); journey expected summary altered failed
+  at that assertion (`neg-03`).
+- **Failures retained.** The first Application test build failed with two EF1002 analyzer errors (interpolated raw SQL in two new test
+  helpers; output printed to the console, not retained in a file); fixed by binding the statement to a local first. Development
+  frontend runs `dev-05` and `dev-06` each failed one rendered test on test defects (input 12 was still behind the local disclosure;
+  a first-frame check ran after the next answer settled). Final `final-08` whole frontend failed one existing composition test that
+  pinned the request arguments without the new `64`; the expectation was updated, the file passed (`final-09`) and the cheap final
+  frontend checks were rerun. The Edit tool wrote two test strings as raw `€`/`٥` instead of `\u` escapes; restored as ASCII escapes
+  and the API filter rerun (`final-14`). No product-code failure occurred.
+- **Retained, unrerun evidence.** `CollaborationHistoryRows`, `ScalarAgentAttemptIdentity` and the message-linked reader are
+  byte-unchanged, so the GetCollaborationHistory/Reply and ADR-0037/0051 attribution/message-evidence consumers keep their prior
+  evidence with its scope; verification handlers, the artifact store and the historical-agent-attempts, sealed-artifact and
+  collaboration journeys are unaffected and not rerun. Journey console output shows the known 45 duplicate-React-key and 3 connection
+  negotiation errors; no HEAD comparison was run, so cause and count equivalence remain unproved.
+- **Not run.** Whole backend/API suites, other journeys, mutation campaign, real providers or P9 experiments. Increments 4/5/6
+  remain incomplete, ADR-0050 stays Proposed, P9 unproven and AI Memory deferred.
 
 ## Functional development
 
@@ -142,6 +84,10 @@ challenge and explicit GO: [AGENTS.md](../../AGENTS.md); constraints:
 [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
+
+HIST-VER-01 `80a2ec22` (sole parent `26c3f24a`, 74 paths) passed independent publication verification
+(`logs/planner-review/hist-ver-01/publication-verification.json` and `.log`); its record, committed with pre-review wording, is
+this file at `80a2ec2`.
 
 HIST-INP-01 `26c3f24a` (sole parent `96a21d73`, 49 paths) passed independent publication verification
 (`logs/planner-review/hist-inp-01/publication-verification.log`); its record, committed with pre-review wording, is this file
@@ -240,8 +186,10 @@ approval.
   (ADR-0011).
 - Raw linked artifact inspection beyond the existing bounded views is open.
 - **Attempt and artifact inspection limits (HIST-ATT-01, ART-WIN-01,
-  HIST-MET-01, HIST-INP-01, HIST-VER-01).** All read bounded views only: no replay, export,
-  session resume or complete history. HIST-VER-01 (unpublished, under review) shows recorded verification membership and
+  HIST-MET-01, HIST-INP-01, HIST-VER-01, HIST-INPC-01).** All read bounded views only: no replay, export,
+  session resume or complete history. HIST-INPC-01 (unpublished, under review) shows at most 64 input references and one stored
+  message at a time as read now, never the exact prompt, all context or what an Agent saw; its set proof and content read are
+  separate reads without an atomic snapshot. Published HIST-VER-01 shows recorded verification membership and
   sealed output as read now, never which bytes an Agent saw or a current approval; at most 32 members are inspected and a
   view keeps at most 256 KiB of one output. The three window defects HIST-ATT-01
   found are addressed by the published ART-WIN-01; its window acceptance bounds

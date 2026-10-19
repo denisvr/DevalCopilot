@@ -9,9 +9,12 @@ import type { GetAgentAttemptInputsResponse } from '../../api/generated/api-clie
  * stay the generated operation's own; nothing is logged or stored.
  */
 export class AgentAttemptInputsWireClient extends GetAgentAttemptInputsEndpointClient {
-  /** The parsed 200 body of exactly this run and attempt, to be judged by the decoder; never a generated model. */
-  readAgentAttemptInputs(runId: string, attemptId: string): Promise<unknown> {
-    return this.getAgentAttemptInputs(runId, attemptId)
+  /**
+   * The parsed 200 body of exactly this run and attempt, to be judged by the decoder; never a generated model. `limit` (ADR-0053) is
+   * sent only when given; without it the host keeps its ten-reference default.
+   */
+  readAgentAttemptInputs(runId: string, attemptId: string, limit?: number): Promise<unknown> {
+    return this.getAgentAttemptInputs(runId, attemptId, limit)
   }
 
   protected override processGetAgentAttemptInputs(response: Response): Promise<GetAgentAttemptInputsResponse> {

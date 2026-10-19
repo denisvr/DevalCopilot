@@ -4,10 +4,13 @@ import {
   agentAttemptArtifactWindowClient,
   agentAttemptEvidenceClient,
   agentAttemptHistoryClient,
+  agentAttemptInputMessageClient,
   agentAttemptInputsClient,
 } from '../../../api/clients'
 import { attemptEvidenceFor, attemptIdFor, attemptPageOf, windowOf } from '../agentAttemptHistoryFixture'
 import { emptyInputsFor, inputReferenceFor, recordedInputsFor, unavailableInputsFor } from '../agentAttemptInputsFixture'
+import { inputFieldValue, recordedInputMessageFor, unavailableInputMessageFor } from '../agentAttemptInputMessageFixture'
+import { MESSAGE_SCHEMAS } from '../collaborationHistory'
 import { AgentAttemptHistoryPanel } from './AgentAttemptHistoryPanel'
 
 vi.mock('../../../api/clients', async (importOriginal) => ({
@@ -16,6 +19,7 @@ vi.mock('../../../api/clients', async (importOriginal) => ({
   agentAttemptEvidenceClient: vi.fn(),
   agentAttemptArtifactWindowClient: vi.fn(),
   agentAttemptInputsClient: vi.fn(),
+  agentAttemptInputMessageClient: vi.fn(),
 }))
 
 function deferred<T>() {
@@ -26,14 +30,16 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-type InputsRead = (runId: string, attemptId: string) => Promise<unknown>
+type InputsRead = (runId: string, attemptId: string, limit?: number) => Promise<unknown>
+type MessageRead = (runId: string, attemptId: string, messageId: string) => Promise<unknown>
 
 let historyRead: ReturnType<typeof vi.fn>
 let evidenceRead: ReturnType<typeof vi.fn>
 let windowRead: ReturnType<typeof vi.fn>
 let inputsRead: ReturnType<typeof vi.fn<InputsRead>>
+let messageRead: ReturnType<typeof vi.fn<MessageRead>>
 
-function install(inputs: InputsRead, evidence?: (runId: string, attemptId: string) => Promise<unknown>) {
+function install(inputs: InputsRead, evidence?: (runId: string, attemptId: string) => Promise<unknown>, message?: MessageRead) {
   historyRead = vi.fn((runId: string) => Promise.resolve(attemptPageOf(runId, [2, 1])))
   evidenceRead = vi.fn(evidence ?? ((runId: string, attemptId: string) => Promise.resolve(attemptEvidenceFor(runId, Number(attemptId.split('-').pop())))))
   windowRead = vi.fn((runId: string, attemptId: string) => Promise.resolve(windowOf(`manifest of ${runId} ${attemptId}`)))
@@ -42,10 +48,13 @@ function install(inputs: InputsRead, evidence?: (runId: string, attemptId: strin
   vi.mocked(agentAttemptEvidenceClient).mockReturnValue({ getAgentAttemptEvidence: evidenceRead } as never)
   vi.mocked(agentAttemptArtifactWindowClient).mockReturnValue({ getAgentAttemptArtifactWindow: windowRead } as never)
   vi.mocked(agentAttemptInputsClient).mockReturnValue({ readAgentAttemptInputs: inputsRead } as never)
+  messageRead = vi.fn(message ?? ((runId: string, attemptId: string, messageId: string) =>
+    Promise.resolve(recordedInputMessageFor(runId, numberOf(attemptId), Number(messageId.split("-").pop())))))
+  vi.mocked(agentAttemptInputMessageClient).mockReturnValue({ readAgentAttemptInputMessage: messageRead } as never)
 }
 
 const numberOf = (attemptId: string) => Number(attemptId.split('-').pop())
-const recorded = (count: number) => (runId: string, attemptId: string) => Promise.resolve(recordedInputsFor(runId, numberOf(attemptId), count))
+const recorded = (count: number) => (runId: string, attemptId: string) => Promise.resolve(recordedInputsFor(runId, numberOf(attemptId), count, {}, 64))
 
 const detail = () => screen.getByRole('region', { name: 'Selected Agent attempt evidence' })
 const inputs = () => within(detail()).getByRole('region', { name: 'Recorded collaboration inputs' })
@@ -86,10 +95,11 @@ describe('the recorded collaboration inputs of a selected attempt', () => {
     expect(within(inputs()).getByText('Loading recorded collaboration inputs…')).toBeInTheDocument()
     await waitFor(() => expect(inputItems()).toHaveLength(3))
 
-    expect(inputsRead.mock.calls).toEqual([['run-1', attemptIdFor('run-1', 2)]])
+    expect(inputsRead.mock.calls).toEqual([['run-1', attemptIdFor('run-1', 2), 64]])
     expect(within(inputs()).getByRole('button', { name: 'Recorded collaboration inputs' })).toHaveAttribute('aria-expanded', 'true')
     expect(within(inputs()).getByText(/never the complete prompt, complete context manifest, or a resumable provider session/)).toBeInTheDocument()
-    expect(within(inputs()).getByText(/their content is not loaded/)).toBeInTheDocument()
+    expect(within(inputs()).getByText(/the content of one input is read only when you inspect it/)).toBeInTheDocument()
+    expect(messageRead).not.toHaveBeenCalled()
     expect(within(inputs()).getByText('3 recorded inputs.')).toBeInTheDocument()
     const first = inputReferenceFor('run-1', 2, 0)
     expect(inputItems()[0]).toHaveTextContent(
@@ -105,20 +115,183 @@ describe('the recorded collaboration inputs of a selected attempt', () => {
     expect(inputsRead).toHaveBeenCalledTimes(1)
   })
 
-  it('discloses the exact total and that only the first ten of eleven are shown', async () => {
+  it('reveals eleven loaded references as ten and then one more locally, labeled apart from any host omission, without a request', async () => {
     install(recorded(11))
     render(<AgentAttemptHistoryPanel runId="run-1" />)
     await selectAttempt(null, 2)
 
     toggleInputs()
 
-    expect(await within(inputs()).findByText('11 recorded inputs. Only the first 10 are shown.')).toBeInTheDocument()
+    expect(await within(inputs()).findByText('11 recorded inputs.')).toBeInTheDocument()
     expect(inputItems()).toHaveLength(10)
+    expect(within(inputs()).getByText(/Showing 10 of the 11 loaded references; the others are only hidden in this view, not missing\./))
+      .toBeInTheDocument()
+    expect(within(inputs()).queryByText(/The host returned only/)).toBeNull()
+    fireEvent.click(within(inputs()).getByRole('button', { name: 'Show 1 more references' }))
+
+    expect(inputItems()).toHaveLength(11)
+    expect(inputItems()[10]).toHaveTextContent('Input 11:')
+    expect(within(inputs()).queryByRole('button', { name: /more references/ })).toBeNull()
+    expect(inputsRead).toHaveBeenCalledTimes(1)
+    expect(messageRead).not.toHaveBeenCalled()
+  })
+
+  it('reveals sixty-four references in chunks of ten, resets the disclosure when closed and never prefetches content', async () => {
+    install(recorded(64))
+    render(<AgentAttemptHistoryPanel runId="run-1" />)
+    await selectAttempt(null, 2)
+    toggleInputs()
+    await waitFor(() => expect(inputItems()).toHaveLength(10))
+
+    const seen = [inputItems().length]
+    for (const label of ['Show 10 more references', 'Show 10 more references', 'Show 10 more references', 'Show 10 more references', 'Show 10 more references', 'Show 4 more references']) {
+      fireEvent.click(within(inputs()).getByRole('button', { name: label }))
+      seen.push(inputItems().length)
+    }
+
+    expect(seen).toEqual([10, 20, 30, 40, 50, 60, 64])
+    expect(inputItems()[63]).toHaveTextContent('Input 64:')
+    expect(within(inputs()).getAllByRole('button', { name: /^Inspect input \d+$/ })).toHaveLength(64)
+    expect(inputsRead).toHaveBeenCalledTimes(1)
+    expect(messageRead).not.toHaveBeenCalled()
+
+    toggleInputs()
+    toggleInputs()
+    await waitFor(() => expect(inputItems()).toHaveLength(10))
+    expect(inputsRead).toHaveBeenCalledTimes(2)
+    expect(messageRead).not.toHaveBeenCalled()
+  })
+
+  const inspector = () => within(inputs()).getByRole('region', { name: 'Selected recorded input' })
+  const inspect = (position: number) => fireEvent.click(within(inputs()).getByRole('button', { name: `Inspect input ${position}` }))
+
+  async function openedInputs(count = 12) {
+    render(<AgentAttemptHistoryPanel runId="run-1" />)
+    await selectAttempt(null, 2)
+    toggleInputs()
+    await waitFor(() => expect(inputItems()).toHaveLength(Math.min(count, 10)))
+  }
+
+  it('inspects one explicitly chosen input once and renders its recorded content literally in the schema order with fixed labels', async () => {
+    install(recorded(12), undefined, (runId, attemptId, messageId) => {
+      const position = Number(messageId.split('-').pop())
+      return Promise.resolve(recordedInputMessageFor(runId, numberOf(attemptId), position, {}, { summary: '<b>summary</b> of a recorded input.' }))
+    })
+    await openedInputs()
+
+    inspect(2)
+
+    expect(within(inspector()).getByText('Recorded input 2 · Challenge · message sequence 101')).toBeInTheDocument()
+    expect(within(inspector()).getByText('Loading the recorded input…')).toBeInTheDocument()
+    expect(await within(inspector()).findByText('Summary: <b>summary</b> of a recorded input.')).toBeInTheDocument()
+    expect(inspector().querySelector('b')).toBeNull()
+    expect(messageRead.mock.calls).toEqual([['run-1', attemptIdFor('run-1', 2), inputReferenceFor('run-1', 2, 1).collaborationMessageId]])
+    expect(within(inspector()).getByText(/not the exact or complete prompt, not all the context and not proof of what the Agent saw/)).toBeInTheDocument()
+    expect(within(inspector()).getByText(`Sequence 101 · Challenge · Protocol 1.0 · Provider-observed · recorded ${inputReferenceFor('run-1', 2, 1).occurredAtUtc}`))
+      .toBeInTheDocument()
+    expect(within(inspector()).getByText('From Agent · Planner role · Codex to Orchestrator')).toBeInTheDocument()
+    const terms = within(inspector()).getAllByRole('term').map((term) => term.textContent)
+    const definitions = within(inspector()).getAllByRole('definition').map((definition) => definition.textContent)
+    expect(terms).toEqual(MESSAGE_SCHEMAS.Challenge.map(([, label]) => label))
+    expect(definitions).toEqual(MESSAGE_SCHEMAS.Challenge.map(([name]) => inputFieldValue(name, 1)))
+    expect(within(inputs()).getByRole('button', { name: 'Inspect input 2' })).toHaveAttribute('aria-pressed', 'true')
+
+    // The current input again is a no-op; another input replaces it; Close then the same input again reads afresh.
+    inspect(2)
+    expect(messageRead).toHaveBeenCalledTimes(1)
+    expect(within(inputs()).queryByRole('button', { name: 'Inspect input 12' })).toBeNull()
+    fireEvent.click(within(inputs()).getByRole('button', { name: 'Show 2 more references' }))
+    expect(inspector()).toHaveTextContent('Recorded input 2 · Challenge')
+    expect(messageRead).toHaveBeenCalledTimes(1)
+    inspect(12)
+    // The replacement's first frame shows its own identity and nothing of the previous input's content.
+    expect(within(inspector()).getByText('Recorded input 12 · Challenge · message sequence 111')).toBeInTheDocument()
+    expect(within(inspector()).queryByText(/Summary:/)).toBeNull()
+    expect(within(inspector()).getByText('Loading the recorded input…')).toBeInTheDocument()
+    expect(await within(inspector()).findByText(/^Sequence 111 · /)).toBeInTheDocument()
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Close recorded input' }))
+    expect(within(inputs()).queryByRole('region', { name: 'Selected recorded input' })).toBeNull()
+    inspect(12)
+    expect(within(inspector()).getByText('Loading the recorded input…')).toBeInTheDocument()
+    await within(inspector()).findByText(/Summary:/)
+    expect(messageRead).toHaveBeenCalledTimes(3)
+    expect(evidenceRead).toHaveBeenCalledTimes(1)
+    expect(windowRead).not.toHaveBeenCalled()
+    expect(inputsRead).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['unavailable content', () => Promise.resolve(recordedInputMessageFor('run-1', 2, 0, {}, { contentStatus: 'Unavailable', summary: null, fields: [] })),
+      /Content unavailable: the recorded content is not recognized, coherent, safe or within the recorded bounds.*The recorded input reference itself is unchanged/],
+    ['an unavailable input set', () => Promise.resolve(unavailableInputMessageFor('run-1', 2, 0)),
+      /Recorded input unavailable: the recorded inputs of this attempt could not be verified as a whole.*does not mean the attempt had no inputs/],
+    ['a not-found answer', () => Promise.reject(Object.assign(new Error('missing'), { status: 404 })), /This input is no longer recorded for this attempt\./],
+    ['an incoherent answer', () => Promise.resolve(recordedInputMessageFor('run-1', 2, 1)), /not coherent for this selection, so none of it is shown/],
+    ['a read failure', () => Promise.reject(new Error('boom')), /The recorded input could not be read\./],
+  ] as const)('shows %s as its own fixed state without any content', async (_, respond, text) => {
+    install(recorded(3), undefined, respond)
+    await openedInputs(3)
+
+    inspect(1)
+
+    expect(await within(inspector()).findByText(text)).toBeInTheDocument()
+    expect(within(inspector()).queryByText(/Summary:/)).toBeNull()
+    expect(within(inspector()).queryAllByRole('term')).toHaveLength(0)
+    expect(inputItems()).toHaveLength(3)
+  })
+
+  it('retries a failed input read only on request and for the same input', async () => {
+    const respond = vi.fn<MessageRead>()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockImplementation((runId, attemptId) => Promise.resolve(recordedInputMessageFor(runId, numberOf(attemptId), 0)))
+    install(recorded(3), undefined, respond)
+    await openedInputs(3)
+    inspect(1)
+    expect(await within(inspector()).findByText(/could not be read/)).toBeInTheDocument()
+    expect(within(inspector()).queryByRole('button', { name: 'Try the recorded input again' })).toBeInTheDocument()
+
+    fireEvent.click(within(inspector()).getByRole('button', { name: 'Try the recorded input again' }))
+
+    expect(await within(inspector()).findByText('Summary: Recorded summary of input 0.')).toBeInTheDocument()
+    expect(within(inspector()).queryByRole('button', { name: 'Try the recorded input again' })).toBeNull()
+    expect(messageRead.mock.calls.map(([, , messageId]) => messageId)).toEqual([
+      inputReferenceFor('run-1', 2, 0).collaborationMessageId,
+      inputReferenceFor('run-1', 2, 0).collaborationMessageId,
+    ])
+  })
+
+  it('ends the inspector with its opening, attempt or run, and a late content answer appears nowhere', async () => {
+    const late = deferred<unknown>()
+    install(recorded(3), undefined, () => late.promise)
+    const view = render(<AgentAttemptHistoryPanel runId="run-1" />)
+    await selectAttempt(null, 2)
+    toggleInputs()
+    await waitFor(() => expect(inputItems()).toHaveLength(3))
+    inspect(1)
+
+    toggleInputs()
+    toggleInputs()
+    await waitFor(() => expect(inputItems()).toHaveLength(3))
+    expect(within(inputs()).queryByRole('region', { name: 'Selected recorded input' })).toBeNull()
+
+    inspect(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect attempt 1' }))
+    await within(detail()).findByText(/Context manifest: 21 bytes/)
+    expectCollapsedInputs()
+    view.rerender(<AgentAttemptHistoryPanel runId="run-2" />)
+    await act(async () => {
+      late.resolve(recordedInputMessageFor('run-1', 2, 0))
+      await late.promise
+    })
+
+    expect(screen.queryByText(/Recorded summary of input/)).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Selected recorded input' })).toBeNull()
+    expect(messageRead).toHaveBeenCalledTimes(2)
   })
 
   it('renders an exact sequence above 2^53 and hostile reference text literally', async () => {
     install((runId, attemptId) => {
-      const body = recordedInputsFor(runId, numberOf(attemptId), 2)
+      const body = recordedInputsFor(runId, numberOf(attemptId), 2, {}, 64)
       body.inputMessages[1] = { ...body.inputMessages[1], collaborationSequence: '9007199254740993', collaborationMessageId: '<b>bold</b>' }
       return Promise.resolve(body)
     })
@@ -148,7 +321,7 @@ describe('the recorded collaboration inputs of a selected attempt', () => {
   })
 
   it('shows one fixed error and no partial list for a malformed answer, and retries the same attempt on request', async () => {
-    const malformed = recordedInputsFor('run-1', 2, 3)
+    const malformed = recordedInputsFor('run-1', 2, 3, {}, 64)
     malformed.inputMessages[2] = { ...malformed.inputMessages[2], collaborationSequence: '01' }
     install(vi.fn<InputsRead>().mockResolvedValueOnce(malformed).mockImplementation(recorded(3)))
     render(<AgentAttemptHistoryPanel runId="run-1" />)
@@ -165,8 +338,8 @@ describe('the recorded collaboration inputs of a selected attempt', () => {
     fireEvent.click(within(inputs()).getByRole('button', { name: 'Try the recorded inputs again' }))
     await waitFor(() => expect(inputItems()).toHaveLength(3))
     expect(inputsRead.mock.calls).toEqual([
-      ['run-1', attemptIdFor('run-1', 2)],
-      ['run-1', attemptIdFor('run-1', 2)],
+      ['run-1', attemptIdFor('run-1', 2), 64],
+      ['run-1', attemptIdFor('run-1', 2), 64],
     ])
   })
 

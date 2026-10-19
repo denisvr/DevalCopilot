@@ -1,9 +1,12 @@
 import type { AgentAttemptIdentityExpectation } from './agentAttemptHistory'
 import { toWireInstant } from './agentAttemptEvidenceWire'
 
-/** The most references the host shows and the most inputs it inspects (ADR-0051). */
+/** The most references the host shows by default and the most inputs it inspects (ADR-0051). */
 export const AGENT_ATTEMPT_INPUTS_SHOWN = 10
 export const AGENT_ATTEMPT_INPUTS_INSPECTED = 64
+
+/** The largest prefix a request may ask for (ADR-0053); the selected-attempt view asks for it once per opening. */
+export const AGENT_ATTEMPT_INPUTS_MAX_LIMIT = 64
 
 export type RecordedInputMessageType =
   | 'Proposal'
@@ -81,8 +84,8 @@ function isSelectedHeader(value: unknown, expected: AgentAttemptInputsExpectatio
     && value.responseContract === expected.responseContract
 }
 
-function toReferences(raw: unknown[], totalCount: number): AgentAttemptInputReference[] | null {
-  if (raw.length !== Math.min(totalCount, AGENT_ATTEMPT_INPUTS_SHOWN)) {
+function toReferences(raw: unknown[], totalCount: number, limit: number): AgentAttemptInputReference[] | null {
+  if (raw.length !== Math.min(totalCount, limit)) {
     return null
   }
 
@@ -121,14 +124,21 @@ function toReferences(raw: unknown[], totalCount: number): AgentAttemptInputRefe
 /**
  * Accepts a parsed host answer only when the whole of it is coherent for exactly `expected`: the requested run and attempt, a closed
  * status with exactly its shape (`Unavailable`: no attempt, count or reference and not omitted; `Empty`: the selected Planner attempt,
- * count 0, no reference and not omitted; `Recorded`: the selected attempt, a whole count from 1 to 64, its first at most 10 references
- * and omitted exactly when the count exceeds them), and references at their own ordered positions from zero with unique identities and
+ * count 0, no reference and not omitted; `Recorded`: the selected attempt, a whole count from 1 to 64, its first at most `limit`
+ * references and omitted exactly when the count exceeds them), and references at their own ordered positions from zero with unique identities and
  * sequences, a recognized type, an exact canonical positive Int64 sequence text and a valid UTC round-trip time text. Anything else is
  * null and is never repaired, trimmed or partially accepted.
  */
-export function toAgentAttemptInputs(raw: unknown, expected: AgentAttemptInputsExpectation): AgentAttemptInputs | null {
+export function toAgentAttemptInputs(
+  raw: unknown,
+  expected: AgentAttemptInputsExpectation,
+  limit: number = AGENT_ATTEMPT_INPUTS_SHOWN,
+): AgentAttemptInputs | null {
   if (
-    !isRecord(raw)
+    !Number.isInteger(limit)
+    || limit < 1
+    || limit > AGENT_ATTEMPT_INPUTS_MAX_LIMIT
+    || !isRecord(raw)
     || raw.runId !== expected.runId
     || raw.attemptId !== expected.attemptId
     || !Array.isArray(raw.inputMessages)
@@ -156,12 +166,12 @@ export function toAgentAttemptInputs(raw: unknown, expected: AgentAttemptInputsE
         || !Number.isInteger(totalCount)
         || totalCount < 1
         || totalCount > AGENT_ATTEMPT_INPUTS_INSPECTED
-        || omitted !== totalCount > AGENT_ATTEMPT_INPUTS_SHOWN
+        || omitted !== totalCount > limit
       ) {
         return null
       }
 
-      const inputs = toReferences(inputMessages, totalCount)
+      const inputs = toReferences(inputMessages, totalCount, limit)
       return inputs === null ? null : { status: 'Recorded', totalCount, omitted, inputs }
     }
     default:

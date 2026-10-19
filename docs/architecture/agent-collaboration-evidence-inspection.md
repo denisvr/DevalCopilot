@@ -327,6 +327,46 @@ attempt/run/project changes, A-to-B-to-A, parent reload and unmount discard old 
 frame; late responses and retained callbacks cannot affect successors. Nothing is polled, automatically retried,
 logged or persisted in the browser or URL. Existing message-linked input and attribution contracts stay unchanged.
 
+**Complete references and selected input content.**
+[ADR-0053](../decisions/0053-inspect-the-content-of-recorded-inputs-of-a-selected-agent-attempt.md) extends the operation
+above with an optional `limit` and adds one content read; both share one feature-owned input-set policy
+(`Policies/AgentAttemptInputs`) that holds the ADR-0051 proof unchanged. `limit` is absent or one blank value (the ten-reference
+default) or one canonical ASCII decimal from 1 to 64; signs, padding, leading zeroes, fractions, exponents, non-ASCII digits,
+overflow and any repeated value (even repeated blanks) are the shared `validation.invalid_limit` Problem Details at `#/limit`
+with a fixed detail and no rejected value, refused again by the Application validator and never clamped. The whole set is
+proved whatever the limit; `Recorded` returns exactly `min(count, limit)` references and omission exactly when the count exceeds
+them, so a request without `limit` is the ADR-0051 answer.
+
+The protected, bodyless `GET /api/runs/{runId}/agent-attempts/{attemptId}/inputs/{messageId}` proves the whole set again, then
+requires the message to be a member of it. An unknown run, a missing, foreign or non-Agent attempt and a nonmember of a proved
+set (including any message for a coherent empty Planner set) share the fixed `agent_attempt_input_message.not_found` 404; an
+unprovable, oversized or incoherent set is `Unavailable` with no attempt, input or message, whichever message was requested, and
+is never filtered to make a member appear valid. Only then is exactly that message of the same run read through the unchanged
+`CollaborationHistoryRows` projection and admission (SQL byte guards 1800/15000 on summary and content, in-memory 600/5000,
+classified enums and participants, provenance coherence, safe summary and the closed Domain content policy); no other message's
+text is selected. The reread identity, version, type, exact sequence and time must equal the admitted reference, otherwise the
+answer is `Unavailable`, never a substitute. The separate reads claim no atomic snapshot or claim-time content attestation.
+
+The API owns the closed graph: root `runId`, `attemptId`, `collaborationMessageId`, `status`, `attempt`, `input`, `message`;
+`input` is exactly the selected reference; `message` is `runId`, `id`, `sequence`, `occurredAtUtc`, `protocolVersion`, `type`,
+`provenance`, `actor`, `recipient` (`kind`, `role`, `provider`), `contentStatus`, `summary` and `fields` (`name`, `value`), with
+the ADR-0035 fixed `Unrecognized` disclosures and bare unavailable content (null summary, no fields). Both sequences are canonical
+Int64 **strings** and both times invariant UTC round-trip **strings**. No reply, producing attempt, raw JSON, artifact or session
+is returned, and unavailable content neither invalidates the reference nor hides its siblings.
+
+The section requests `limit=64` once per opening, reveals ten references and further loaded references in local chunks of ten
+only on request, without a request; local disclosure is labeled apart from host omission and from an unavailable set. Each
+revealed reference has an explicit "Inspect input" action into one inspector that reads only the chosen message, with Close and
+a failure-only retry. A facade keeps the parsed body; the decoder judges exact keys at every level, the status tuple, the
+selected immutable header and reference (position, ID, type, Int64 text, raw time text before any Date conversion) and then the
+unchanged history validation of participants, provenance and content schema. Content unavailable, an unavailable set, not
+found, an incoherent answer and a read failure are distinct fixed states; fields render as literal text in the closed schema's
+order with fixed labels. The opening owns its disclosure and input choice; every choice is a numbered visit decided against the
+queued choice, so choosing the current input is a no-op, Close then reselection (even in one batch) starts a fresh visit, and a
+retained Close, retry or show-more of an ended visit or opening acts on nothing. The content read is keyed by
+`(opening, run, attempt, message, visit)`, so another input, attempt, run or project, A-to-B-to-A, reload and unmount show
+nothing of an earlier answer. Nothing is prefetched, polled, retried automatically, linked, exported or persisted.
+
 **Selected-attempt recorded verification evidence.**
 [ADR-0052](../decisions/0052-inspect-recorded-verification-evidence-of-a-selected-agent-attempt.md) adds two protected,
 bodyless GETs, `/api/runs/{runId}/agent-attempts/{attemptId}/verification-evidence` and

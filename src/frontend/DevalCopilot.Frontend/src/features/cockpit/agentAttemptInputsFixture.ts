@@ -24,14 +24,21 @@ export const inputsHeaderFor = (runId: string, attemptNumber: number, patch: Rec
   ...patch,
 })
 
-export const recordedInputsFor = (runId: string, attemptNumber: number, count: number, patch: Record<string, unknown> = {}) => ({
+/** The answer to a request with `limit` (ten when the request sends none, as the host defaults). */
+export const recordedInputsFor = (
+  runId: string,
+  attemptNumber: number,
+  count: number,
+  patch: Record<string, unknown> = {},
+  limit = 10,
+) => ({
   runId,
   attemptId: attemptIdFor(runId, attemptNumber),
   status: 'Recorded',
   attempt: inputsHeaderFor(runId, attemptNumber),
-  inputMessages: Array.from({ length: Math.min(count, 10) }, (_, position) => inputReferenceFor(runId, attemptNumber, position)),
+  inputMessages: Array.from({ length: Math.min(count, limit) }, (_, position) => inputReferenceFor(runId, attemptNumber, position)),
   inputMessageTotalCount: count,
-  inputMessagesOmitted: count > 10,
+  inputMessagesOmitted: count > limit,
   ...patch,
 })
 

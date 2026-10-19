@@ -6,7 +6,8 @@ using Xunit;
 namespace DevalCopilot.Api.IntegrationTests.Features.Runs;
 
 /// <summary>
-/// ADR-0051: referenced message sequences around 2^53 and up to the signed 64-bit maximum roundtrip exactly as canonical strings. A row at
+/// ADR-0051 and ADR-0053: referenced message sequences around 2^53 and up to the signed 64-bit maximum roundtrip exactly as canonical
+/// strings, in the reference list and in the selected input's content. A row at
 /// the maximum saturates SQLite's sequence counter, so this class owns a private host.
 /// </summary>
 public sealed class AgentAttemptInputsInt64WireTests(ApiWebApplicationFactory factory)
@@ -45,6 +46,19 @@ public sealed class AgentAttemptInputsInt64WireTests(ApiWebApplicationFactory fa
             Assert.Equal("Recorded", root.GetProperty("status").GetString());
             Assert.Equal(sequence, root.GetProperty("inputMessages")[0].GetProperty("collaborationSequence").GetString());
             Assert.Contains($"\"collaborationSequence\":\"{sequence}\"", text, StringComparison.Ordinal);
+
+            // ADR-0053: the selected input's content carries the same exact value as both its input and message sequence.
+            var selected = await client.GetAsync($"/api/runs/{runId}/agent-attempts/{attempt.Id}/inputs/{message.Id}");
+            var selectedText = await selected.Content.ReadAsStringAsync();
+
+            Assert.True(selected.IsSuccessStatusCode, selectedText);
+            var selectedRoot = JsonDocument.Parse(selectedText).RootElement;
+            Assert.Equal("Recorded", selectedRoot.GetProperty("status").GetString());
+            Assert.Equal(sequence, selectedRoot.GetProperty("input").GetProperty("collaborationSequence").GetString());
+            Assert.Equal(sequence, selectedRoot.GetProperty("message").GetProperty("sequence").GetString());
+            Assert.Equal("Available", selectedRoot.GetProperty("message").GetProperty("contentStatus").GetString());
+            Assert.Contains($"\"collaborationSequence\":\"{sequence}\"", selectedText, StringComparison.Ordinal);
+            Assert.Contains($"\"sequence\":\"{sequence}\"", selectedText, StringComparison.Ordinal);
         }
     }
 }

@@ -31,6 +31,11 @@ const SOURCES = [
   './agentAttemptInputsWire.ts',
   './hooks/useAgentAttemptInputs.ts',
   './components/SelectedAttemptRecordedInputs.tsx',
+  // HIST-INPC-01: the explicit content read of one selected recorded input.
+  './agentAttemptInputMessage.ts',
+  './agentAttemptInputMessageWire.ts',
+  './hooks/useAgentAttemptInputMessage.ts',
+  './components/SelectedAttemptInputMessage.tsx',
 ]
 
 describe('the run history region boundary', () => {
@@ -107,6 +112,31 @@ describe('the run history region boundary', () => {
     expect(section).not.toContain('useAgentAttemptArtifactWindow')
     expect(panel).toContain('<SelectedAttemptRecordedInputs selectionKey={selectionKey} runId={runId} expected={expected} />')
     expect(panel).not.toMatch(/<SelectedAttemptRecordedInputs[^>]*\bkey=/)
+  })
+
+  it('reads one selected input message only through its factory, scoped by the shared hooks, and follows no chain or artifact', () => {
+    const hook = read('./hooks/useAgentAttemptInputMessage.ts')
+    const inspector = read('./components/SelectedAttemptInputMessage.tsx')
+    const section = read('./components/SelectedAttemptRecordedInputs.tsx')
+
+    expect(hook).toContain('agentAttemptInputMessageClient()')
+    expect(hook).toContain('useOwnedLifetime')
+    expect(hook).toContain('useOwnedState')
+    expect(hook).not.toContain('useRef(0)')
+    for (const forbidden of [
+      'agentAttemptEvidenceClient', 'agentAttemptArtifactWindowClient', 'collaborationMessageEvidenceClient', 'collaborationReplyClient',
+      'collaborationAttemptClient', 'collaborationHistoryClient', 'console.', '<a ', 'href', 'download',
+    ]) {
+      expect(hook, forbidden).not.toContain(forbidden)
+      expect(inspector, forbidden).not.toContain(forbidden)
+      expect(section, forbidden).not.toContain(forbidden)
+    }
+
+    // The section asks for the whole bounded set once per opening, and content only through the explicit selection.
+    expect(read('./hooks/useAgentAttemptInputs.ts')).toContain('.readAgentAttemptInputs(runId, attemptId, AGENT_ATTEMPT_INPUTS_MAX_LIMIT)')
+    expect(section).toContain('useAgentAttemptInputMessage({ openingKey, runId, expected, selection })')
+    expect(section.match(/useAgentAttemptInputMessage\(/g)).toHaveLength(1)
+    expect(section).not.toMatch(/\bkey=\{(?!reference\.collaborationMessageId\})/)
   })
 
   it('is composed once in the app without a key or remount workaround, and the receipt decoder and endpoint are untouched', () => {

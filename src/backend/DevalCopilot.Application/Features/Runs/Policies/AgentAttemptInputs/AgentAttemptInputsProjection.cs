@@ -1,6 +1,6 @@
 using DevalCopilot.Domain.Features.Runs;
 
-namespace DevalCopilot.Application.Features.Runs.Queries.GetAgentAttemptInputs;
+namespace DevalCopilot.Application.Features.Runs.Policies.AgentAttemptInputs;
 
 /// <summary>The bounded, untracked scalar projections of the input-set read. Nothing outside the listed columns is ever selected: no
 /// message summary or content JSON and no attempt data beyond the shared identity projection.</summary>

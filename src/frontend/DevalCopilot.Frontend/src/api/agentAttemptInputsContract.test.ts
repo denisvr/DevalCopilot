@@ -20,7 +20,7 @@ describe('the generated recorded-input operation', () => {
     body.inputMessages[0] = { ...body.inputMessages[0], collaborationSequence: '9007199254740993' }
     const fetch = vi.fn(() => Promise.resolve(answer(JSON.stringify(body), 200)))
 
-    const generated = await new GetAgentAttemptInputsEndpointClient('http://host.invalid', { fetch }).getAgentAttemptInputs('run-1', 'attempt-2')
+    const generated = await new GetAgentAttemptInputsEndpointClient('http://host.invalid', { fetch }).getAgentAttemptInputs('run-1', 'attempt-2', undefined)
 
     expect(generated).toBeInstanceOf(GetAgentAttemptInputsResponse)
     expect(generated.inputMessages?.[0].collaborationSequence).toBe('9007199254740993')
@@ -48,6 +48,21 @@ describe('agentAttemptInputsClient', () => {
     expect(headers.get('Authorization')).toBe('Bearer not-a-real-session')
     expect(headers.get('Accept')).toBe('application/json')
     expect(String(url)).not.toContain('not-a-real-session')
+  })
+
+  it('sends the requested limit as the one canonical query value and nothing else changes', async () => {
+    const fetch = vi.spyOn(window, 'fetch').mockResolvedValue(answer(JSON.stringify(recordedInputsFor('run-1', 2, 64, {}, 64)), 200))
+
+    const read = await agentAttemptInputsClient().readAgentAttemptInputs('run-1', 'attempt-2', 64)
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    const [url, init] = fetch.mock.calls[0]
+    expect(url).toBe('http://127.0.0.1:5099/api/runs/run-1/agent-attempts/attempt-2/inputs?limit=64')
+    expect(init?.method).toBe('GET')
+    expect(init?.body).toBeUndefined()
+    expect(toAgentAttemptInputs(read, inputsExpectationFor('run-1', 2), 64)).toMatchObject({ status: 'Recorded', totalCount: 64, omitted: false })
+    // The same 64-reference answer is incoherent for a reader that asked for the default.
+    expect(toAgentAttemptInputs(read, inputsExpectationFor('run-1', 2))).toBeNull()
   })
 
   it('hands on the parsed body itself, keeping what the generated model would drop or rebuild', async () => {

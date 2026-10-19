@@ -91,6 +91,7 @@ import {
 import { authenticatedHttp, getApiBaseUrl } from './httpClient'
 import { AgentAttemptEvidenceWireClient } from '../features/cockpit/agentAttemptEvidenceWire'
 import { AgentAttemptInputsWireClient } from '../features/cockpit/agentAttemptInputsWire'
+import { AgentAttemptInputMessageWireClient } from '../features/cockpit/agentAttemptInputMessageWire'
 import {
   AgentAttemptVerificationEvidenceWireClient,
   AgentAttemptVerificationWindowWireClient,
@@ -116,6 +117,8 @@ export const agentAttemptHistoryClient = () => new GetAgentAttemptHistoryEndpoin
 export const agentAttemptEvidenceClient = () => new AgentAttemptEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)
 // Hands the parsed body to the whole-answer decoder instead of the generated model (see AgentAttemptInputsWireClient).
 export const agentAttemptInputsClient = () => new AgentAttemptInputsWireClient(getApiBaseUrl(), authenticatedHttp)
+// Hands the parsed body to the whole-answer decoder of one selected input message (see AgentAttemptInputMessageWireClient).
+export const agentAttemptInputMessageClient = () => new AgentAttemptInputMessageWireClient(getApiBaseUrl(), authenticatedHttp)
 // Hand the parsed bodies to the whole-answer decoders instead of the generated models (see the ADR-0052 wire clients).
 export const agentAttemptVerificationEvidenceClient = () =>
   new AgentAttemptVerificationEvidenceWireClient(getApiBaseUrl(), authenticatedHttp)

@@ -12,17 +12,40 @@ import { injectJourneySession, registerProject, selectProject } from './journey/
 // recorded through the intake. The database, the source repository and the doubles' invocation log are only READ, never seeded.
 //
 // It proves: after a reload, with the newer run still selected, the resolution attempt's inputs are read once opened through exactly the
-// older run and that attempt, and the shown positions, types, message sequences, times, identities and count equal the stored rows; the
-// review attempt's single input and the planner's genuine empty set are shown the same way; and the inspection adds no provider
-// invocation, no non-GET request, no artifact-window read and no durable or source change. Malformed, oversized and non-Planner empty
-// sets are proven by the SQLite, API and frontend tests, not here. It is not the complete prompt, replay or session recovery.
+// older run and that attempt with the explicit limit=64 (HIST-INPC-01, ADR-0053), and the shown positions, types, message sequences,
+// times, identities and count equal the stored rows; two of its inputs (the Proposal and a Challenge) are then inspected explicitly, one
+// at a time, and each answer and rendered body (header, participants, provenance, summary and fields) equals the stored message row;
+// the review attempt's single input and the planner's genuine empty set are shown the same way; and the inspection reads no content
+// automatically and adds no provider invocation, no non-GET request, no artifact-window read and no durable or source change.
+// Malformed, oversized, 11/64/65-input and corrupt sets are proven by the SQLite, API and frontend tests, not here. It is not the
+// complete prompt, replay or session recovery.
 
 const PROJECT = 'Historical attempt inputs journey fixture'
 const OBJECTIVE = 'Plan the ledger total and review the plan'
 const NEWER_OBJECTIVE = 'Record a newer objective after the reviewed plan'
 const REASON = 'The reviewed plan is superseded by a newer objective.'
 const INPUTS_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/inputs$/i
+const INPUT_MESSAGE_ROUTE = /\/api\/runs\/([^/]+)\/agent-attempts\/([^/]+)\/inputs\/([^/]+)$/i
 const TYPE_LABELS: Record<string, string> = { Proposal: 'Proposal', Challenge: 'Challenge' }
+// The fixed field labels of the two inspected types, in their schema order, restated independently of the product code.
+const FIELD_LABELS: Record<string, [string, string][]> = {
+  Proposal: [
+    ['scope', 'Scope'],
+    ['implementationSteps', 'Implementation steps'],
+    ['risks', 'Risks'],
+    ['verificationPlan', 'Verification plan'],
+    ['escalationPoints', 'Escalation points'],
+  ],
+  Challenge: [
+    ['disputedItem', 'Disputed item'],
+    ['materialImpact', 'Material impact'],
+    ['reasoning', 'Reasoning'],
+    ['alternativeOrQuestion', 'Alternative or question'],
+  ],
+}
+const ROLE_LABELS: Record<string, string> = { Planner: 'Planner', CriticalReviewer: 'Critical reviewer', Resolver: 'Resolver' }
+const PROVIDER_LABELS: Record<string, string> = { Codex: 'Codex', ClaudeCode: 'Claude Code' }
+const PROVENANCE_LABELS: Record<string, string> = { ProviderObserved: 'Provider-observed', HostConstructed: 'Host-constructed', HumanSubmitted: 'Human-submitted' }
 
 const data = new JourneyData(PROJECT)
 const lower = (value: string) => value.toLowerCase()
@@ -66,6 +89,41 @@ function storedInputsOf(attemptId: string): StoredInput[] {
         )
         .all(attemptId) as unknown as StoredInput[],
   )
+}
+
+interface StoredMessage {
+  Id: string
+  RunId: string
+  Sequence: number
+  OccurredAtUtc: string
+  ProtocolVersion: string
+  Type: string
+  Provenance: string
+  ActorKind: string
+  ActorAgentRole: string | null
+  ActorAgentProvider: string | null
+  RecipientKind: string
+  RecipientAgentRole: string | null
+  RecipientAgentProvider: string | null
+  Summary: string
+  StructuredContentJson: string
+}
+
+/** The stored message row an inspected input references (the oracle for its body and header). */
+function storedMessage(messageId: string): StoredMessage {
+  return withJourneyDb(
+    (db) =>
+      db
+        .prepare(
+          'select Id, RunId, Sequence, OccurredAtUtc, ProtocolVersion, Type, Provenance, ActorKind, ActorAgentRole, ActorAgentProvider, RecipientKind, RecipientAgentRole, RecipientAgentProvider, Summary, StructuredContentJson from collaboration_messages where Id = ?',
+        )
+        .get(messageId) as unknown as StoredMessage,
+  )
+}
+
+/** Words a stored participant as the inspector does, from the stored columns only. */
+function participantOf(kind: string, role: string | null, provider: string | null): string {
+  return kind === 'Agent' ? `Agent · ${role === null ? 'role not recorded' : `${ROLE_LABELS[role]} role`} · ${PROVIDER_LABELS[provider!]}` : kind
 }
 
 function inputRowCount(attemptId: string): number {
@@ -172,11 +230,11 @@ test('the historical attempt inputs journey: plan, review and resolve, record a 
   await selectProject(page, PROJECT)
   await expect(page.getByRole('heading', { name: NEWER_OBJECTIVE })).toBeVisible({ timeout: 30_000 })
 
-  const requests: { method: string; path: string }[] = []
+  const requests: { method: string; path: string; search: string }[] = []
   page.on('request', (request) => {
     const url = new URL(request.url())
     if (url.pathname.startsWith('/api/')) {
-      requests.push({ method: request.method(), path: url.pathname })
+      requests.push({ method: request.method(), path: url.pathname, search: url.search })
     }
   })
   const invocationsBefore = readInvocations(mark).length
@@ -206,6 +264,8 @@ test('the historical attempt inputs journey: plan, review and resolve, record a 
     const response = await answered
     expect(response.status()).toBe(200)
     expect(lower(new URL(response.url()).pathname)).toBe(`/api/runs/${lower(olderRunId)}/agent-attempts/${lower(attempt.Id)}/inputs`)
+    // The whole admitted set is requested once per opening, with the explicit bound.
+    expect(new URL(response.url()).search).toBe('?limit=64')
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
     await expect(section).toContainText('never the complete prompt, complete context manifest, or a resumable provider session')
     return { answer: (await response.json()) as Record<string, unknown>, section }
@@ -233,17 +293,87 @@ test('the historical attempt inputs journey: plan, review and resolve, record a 
     )
 
     await expect(section).toContainText(stored.length === 1 ? '1 recorded input.' : `${stored.length} recorded inputs.`)
-    const items = section.locator('.dc-attempt-recorded-input-items > li')
+    const items = section.locator('.dc-attempt-recorded-input-items > li .dc-attempt-recorded-input-reference')
     await expect(items).toHaveText(
       stored.map(
         (row) =>
           `Input ${row.Position + 1}: ${TYPE_LABELS[row.Type]} · message sequence ${row.MessageSequence} · recorded ${roundTripOf(row.OccurredAtUtc)} · message ${lower(row.MessageId)}`,
       ),
     )
+    return section
+  }
+
+  /** Inspects one input explicitly and checks that the host's answer and the rendered body equal its stored message row. */
+  const inspectInput = async (section: Locator, attempt: StoredAttempt, input: StoredInput) => {
+    const before = requests.filter((request) => INPUT_MESSAGE_ROUTE.test(request.path)).length
+    const answered = page.waitForResponse((response) => INPUT_MESSAGE_ROUTE.test(new URL(response.url()).pathname), { timeout: 30_000 })
+    await section.getByRole('button', { name: `Inspect input ${input.Position + 1}`, exact: true }).click()
+    const response = await answered
+    expect(response.status()).toBe(200)
+    expect(response.request().method()).toBe('GET')
+    expect(lower(new URL(response.url()).pathname)).toBe(
+      `/api/runs/${lower(olderRunId)}/agent-attempts/${lower(attempt.Id)}/inputs/${lower(input.MessageId)}`,
+    )
+    expect(new URL(response.url()).search).toBe('')
+    expect(requests.filter((request) => INPUT_MESSAGE_ROUTE.test(request.path)).length).toBe(before + 1)
+
+    const stored = storedMessage(input.MessageId)
+    const fields = Object.entries(JSON.parse(stored.StructuredContentJson) as Record<string, string>)
+    const sequence = String(stored.Sequence)
+    const occurred = roundTripOf(stored.OccurredAtUtc)
+    const participant = (kind: string, role: string | null, provider: string | null) => ({ kind, role, provider })
+    const answer = (await response.json()) as Record<string, unknown>
+    expect(sameId(answer.runId as string, olderRunId)).toBe(true)
+    expect(sameId(answer.attemptId as string, attempt.Id)).toBe(true)
+    expect(sameId(answer.collaborationMessageId as string, input.MessageId)).toBe(true)
+    expect(answer).toMatchObject({
+      status: 'Recorded',
+      attempt: { attemptNumber: attempt.AttemptNumber, role: attempt.AgentRole, provider: attempt.AgentProvider, responseContract: attempt.AgentResponseContract },
+      input: { sequence: input.Position, type: input.Type, collaborationSequence: sequence, occurredAtUtc: occurred },
+      message: {
+        sequence,
+        occurredAtUtc: occurred,
+        protocolVersion: stored.ProtocolVersion,
+        type: stored.Type,
+        provenance: stored.Provenance,
+        actor: participant(stored.ActorKind, stored.ActorAgentRole, stored.ActorAgentProvider),
+        recipient: participant(stored.RecipientKind, stored.RecipientAgentRole, stored.RecipientAgentProvider),
+        contentStatus: 'Available',
+        summary: stored.Summary,
+        fields: fields.map(([name, value]) => ({ name, value })),
+      },
+    })
+    const message = answer.message as Record<string, unknown>
+    expect(sameId(message.id as string, input.MessageId)).toBe(true)
+    expect(sameId(message.runId as string, olderRunId)).toBe(true)
+    expect(Object.keys(answer).sort()).toEqual(['attempt', 'attemptId', 'collaborationMessageId', 'input', 'message', 'runId', 'status'])
+
+    const inspector = section.getByRole('region', { name: 'Selected recorded input' })
+    await expect(inspector).toContainText(`Recorded input ${input.Position + 1} · ${TYPE_LABELS[input.Type]} · message sequence ${sequence}`)
+    await expect(inspector).toContainText(`Summary: ${stored.Summary}`, { timeout: 15_000 })
+    await expect(inspector).toContainText(
+      `Sequence ${sequence} · ${TYPE_LABELS[stored.Type]} · Protocol 1.0 · ${PROVENANCE_LABELS[stored.Provenance]} · recorded ${occurred}`,
+    )
+    await expect(inspector).toContainText(
+      `From ${participantOf(stored.ActorKind, stored.ActorAgentRole, stored.ActorAgentProvider)} to ${participantOf(stored.RecipientKind, stored.RecipientAgentRole, stored.RecipientAgentProvider)}`,
+    )
+    await expect(inspector).toContainText('not the exact or complete prompt, not all the context and not proof of what the Agent saw')
+    const byName = new Map(fields)
+    await expect(inspector.locator('dt')).toHaveText(FIELD_LABELS[stored.Type].map(([, label]) => label))
+    await expect(inspector.locator('dd')).toHaveText(FIELD_LABELS[stored.Type].map(([name]) => byName.get(name)!))
+    await expect(inspector).toContainText(`Message ${lower(input.MessageId)}`)
+    return inspector
   }
 
   // 4. The resolution attempt's Proposal and Challenges, the review attempt's single reviewed Proposal and the planner's genuine empty set.
-  await expectRecorded(resolver, resolverInputs)
+  const resolverSection = await expectRecorded(resolver, resolverInputs)
+  // Opening the references read no content; two inputs are then inspected explicitly, one at a time, and the inspector is closed.
+  expect(requests.filter((request) => INPUT_MESSAGE_ROUTE.test(request.path))).toEqual([])
+  await inspectInput(resolverSection, resolver, resolverInputs[0])
+  const inspector = await inspectInput(resolverSection, resolver, resolverInputs[1])
+  await expect(inspector).not.toContainText(`Message ${lower(resolverInputs[0].MessageId)}`)
+  await inspector.getByRole('button', { name: 'Close recorded input', exact: true }).click()
+  await expect(resolverSection.getByRole('region', { name: 'Selected recorded input' })).toHaveCount(0)
   await expectRecorded(reviewer, reviewerInputs)
   const empty = await openInputs(planner)
   expect(empty.answer).toMatchObject({ status: 'Empty', inputMessageTotalCount: 0, inputMessages: [], inputMessagesOmitted: false })
@@ -256,9 +386,20 @@ test('the historical attempt inputs journey: plan, review and resolve, record a 
   for (const request of inputRequests) {
     const [, requestedRun, requestedAttempt] = INPUTS_ROUTE.exec(request.path)!
     expect(request.method).toBe('GET')
+    expect(request.search).toBe('?limit=64')
     expect(sameId(requestedRun, olderRunId)).toBe(true)
     expect([planner, reviewer, resolver].some((attempt) => sameId(attempt.Id, requestedAttempt))).toBe(true)
   }
+
+  // Exactly the two explicit content reads happened, both GETs of the older run's resolution attempt for its first two inputs.
+  const contentRequests = requests.filter((request) => INPUT_MESSAGE_ROUTE.test(request.path))
+  expect(contentRequests.map((request) => {
+    const [, requestedRun, requestedAttempt, requestedMessage] = INPUT_MESSAGE_ROUTE.exec(request.path)!
+    return [request.method, sameId(requestedRun, olderRunId), sameId(requestedAttempt, resolver.Id), lower(requestedMessage)]
+  })).toEqual([
+    ['GET', true, true, lower(resolverInputs[0].MessageId)],
+    ['GET', true, true, lower(resolverInputs[1].MessageId)],
+  ])
   expect(inputRequests.some((request) => lower(request.path).includes(lower(newerRunId)))).toBe(false)
   expect(requests.filter((request) => /artifact-window|\/collaboration-messages\//.test(request.path))).toEqual([])
   expect(requests.filter((request) => request.method !== 'GET')).toEqual([])
