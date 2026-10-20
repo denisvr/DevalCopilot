@@ -29,6 +29,8 @@ import { useRequestDiagnosisCorrection } from '../hooks/useRequestDiagnosisCorre
 import { deriveGlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import type { GlobalAgentClaimBlock } from '../deriveGlobalAgentClaimBlock'
 import { WORKSPACE_EXECUTION_WITHHELD_POINTER, deriveWorkspaceExecutionStartGate } from '../workspaceExecution'
+import { EXECUTION_CAPACITY_WITHHELD_POINTER, deriveExecutionCapacityStartGate } from '../executionCapacity'
+import type { ExecutionCapacityState } from '../executionCapacity'
 import type { WorkspaceExecutionState } from '../workspaceExecution'
 import { deriveAgentClaimPathTimeFit } from '../deriveAgentClaimPathTimeFit'
 import { deriveRunExecutionModeDisclosure } from '../deriveRunExecutionModeDisclosure'
@@ -80,6 +82,7 @@ import { RunTokenUsageSummary } from './RunTokenUsageSummary'
 import { UsageEvidenceRail } from './UsageEvidenceRail'
 import { WorkflowRail } from './WorkflowRail'
 import { WorkspaceExecutionGuidance } from './WorkspaceExecutionGuidance'
+import { ExecutionCapacityGuidance } from './ExecutionCapacityGuidance'
 
 interface RunCockpitViewProps {
   runId: string
@@ -101,6 +104,13 @@ interface RunCockpitViewProps {
    */
   /** The selected project's workspace execution status (ADR-0057). Required: null is an explicit "no state" that withholds starting. */
   workspaceExecution: WorkspaceExecutionState | null
+  /**
+   * The host's execution capacity (ADR-0058), owned by the authenticated host session and shared with the candidate workspace panel. Anything
+   * but a validated, current Available withholds only a NEW potentially mutating start here (an implementation request, a review or diagnosis
+   * correction request, a local commit), never a ReadOnly request, a metadata-only authorization, inspection, Refresh, Stop after current
+   * step, abandonment or a recorded result; Available enables nothing by itself. Required: null is an explicit "no state" that withholds.
+   */
+  executionCapacity: ExecutionCapacityState | null
 }
 
 const AUTHORIZED_REQUEST_LABEL = 'Implement the human-authorized final plan with Claude'
@@ -114,11 +124,13 @@ export function RunCockpitView({
   onProjectChanged,
   onPlanningSequenceControlChange,
   workspaceExecution,
+  executionCapacity,
 }: RunCockpitViewProps) {
   const { cockpit, cards, connection, loading, error, syncError, refresh } = useRunCockpit(runId)
   // A run event is a durable hint that the workspace's owner may have changed: the project's status is read again (coalesced by its own
   // lifetime). The first sequence this view sees is not a change.
   const refreshWorkspaceExecution = workspaceExecution?.refresh
+  const refreshExecutionCapacity = executionCapacity?.refresh
   const seenSequence = useRef<number | undefined>(undefined)
   const latestSequence = cockpit?.latestSequence
   useEffect(() => {
@@ -128,9 +140,10 @@ export function RunCockpitView({
 
     if (seenSequence.current !== undefined && seenSequence.current !== latestSequence) {
       refreshWorkspaceExecution?.()
+      refreshExecutionCapacity?.()
     }
     seenSequence.current = latestSequence
-  }, [latestSequence, refreshWorkspaceExecution])
+  }, [latestSequence, refreshWorkspaceExecution, refreshExecutionCapacity])
   // Who holds automatic authority over this run: read once, re-read on every run event and, while a sequence can advance, by bounded
   // polling. Anything not established withholds every manual mutation below.
   const planningSequence = usePlanningSequence(runId, cockpit?.latestSequence)
@@ -290,6 +303,13 @@ export function RunCockpitView({
   const workspaceWithheld = !workspaceGate.allowsExecutionStart
   const workspaceClaimBlock: GlobalAgentClaimBlock | null = workspaceWithheld ? { reason: 'WorkspaceExecutionWithheld' } : null
   const globalClaimBlock = planningSequenceClaimBlock ?? workspaceClaimBlock ?? deriveGlobalAgentClaimBlock(cockpit, runId)
+  // The host's execution capacity is a further, additional veto of a NEW potentially mutating start only (ADR-0058). It is kept apart from
+  // the claim block above, which every ReadOnly request also reads, and it is applied after every earlier reason so their precedence and
+  // wording are unchanged. Its one guidance is shown once below; each control shows only a short pointer to it.
+  const capacityGate = deriveExecutionCapacityStartGate(executionCapacity)
+  const capacityWithheld = !capacityGate.allowsMutatingStart
+  const capacityBlock: GlobalAgentClaimBlock | null = capacityWithheld ? { reason: 'ExecutionCapacityWithheld' } : null
+  const mutatingClaimBlock = globalClaimBlock ?? capacityBlock
   // A separate, additive per-claim-path signal: whether THIS SPECIFIC claim path's own
   // configured invocation timeout fits the run's remaining reserved time. Computed synchronously
   // during render from the same currently selected `runId`, for the exact same stale-projection
@@ -392,6 +412,9 @@ export function RunCockpitView({
           )}
           {(agentActionsAllowed || executionMode.kind === 'ManualAgent') && (
             <WorkspaceExecutionGuidance gate={workspaceGate} state={workspaceExecution ?? null} region="run cockpit" />
+          )}
+          {(agentActionsAllowed || executionMode.kind === 'ManualAgent') && (
+            <ExecutionCapacityGuidance gate={capacityGate} state={executionCapacity ?? null} region="run cockpit" />
           )}
           {cockpit.runId === runId && executionMode.kind === 'ManualAgent' && (
             <PlanningSequencePanel
@@ -497,7 +520,7 @@ export function RunCockpitView({
                 ? requestImplementation.request(runId, implementablePlanMessageId, guidance)
                 : Promise.resolve(false)
             }
-            globalClaimBlock={globalClaimBlock}
+            globalClaimBlock={mutatingClaimBlock}
             timeFit={implementationTimeFit}
             requestLabel={authorizedPlanMessageId ? AUTHORIZED_REQUEST_LABEL : undefined}
             requestWithheldNote={
@@ -543,6 +566,7 @@ export function RunCockpitView({
             authorizing={authorizeReviewCorrection.authorizing}
             authorizationError={authorizeReviewCorrection.error}
             globalClaimBlock={globalClaimBlock}
+            executionCapacityBlock={capacityBlock}
             timeFit={reviewCorrectionTimeFit}
             onAuthorize={() => {
               const escalationId = reviewCorrectionAttemptStatus.status?.escalationId
@@ -579,6 +603,7 @@ export function RunCockpitView({
                 : Promise.resolve(false)
             }
             globalClaimBlock={globalClaimBlock}
+            correctionCapacityBlock={capacityBlock}
             timeFit={codeReviewTimeFit}
             correctionTimeFit={reviewCorrectionTimeFit}
           />
@@ -595,7 +620,11 @@ export function RunCockpitView({
               projectId={cockpit.projectId}
               latestSequence={cockpit.latestSequence}
               evidenceRefreshGeneration={evidenceRefreshGeneration}
-              withheldReason={planningSequenceWithheld ?? (workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : null)}
+              withheldReason={
+                planningSequenceWithheld
+                ?? (workspaceWithheld ? WORKSPACE_EXECUTION_WITHHELD_POINTER : null)
+                ?? (capacityWithheld ? EXECUTION_CAPACITY_WITHHELD_POINTER : null)
+              }
               onSaved={refresh}
             />
           )}

@@ -1,283 +1,327 @@
 # Planner/reviewer handoff
 
 [AGENTS.md](../../AGENTS.md) and the [workflow](development-workflow.md) apply.
-Codex remains planner/reviewer and performed planning and judgment itself.
-WORKSPACE-EXCL-01 correction 1 is reviewed GO below for the exact recorded
-content. Continue publication in its current Claude executor chat, following
-the external approval identity. Codex implemented no product fix; publication
-and independent verification are still pending.
+Codex remains planner/reviewer and performed selection, architecture and
+judgment itself. WORKSPACE-EXCL-01 is published and independently verified.
+GLOBAL-ADMIT-01 correction 1 is reviewed GO below. GAD-R1 and GAD-R2 are
+resolved. Publication belongs to its current replacement Claude executor chat,
+limited to the exact approved tree, parent and paths in the external review-2
+approval. The account-credit recovery remains historical. Codex implemented
+no product correction; independent publication verification is still pending.
 
-## Verified baseline and prior publication
+## Verified publication and executor preflight
 
-AGENT-SUP-01 is published and independently verified. On 2026-10-19, main,
-HEAD, local origin/main and a fresh live refs/heads/main all equal
-`f95e337484d6d50f502647b4abf725be2d7ae184`, tree
-`9171fa7dd286329c1f7f342fd5b33c0a087cafd0`, sole parent
-`a78e572c84e2e7a9a86ac90c1e1b286e6001973e`, divergence 0/0. Exact GO path set:
-141 files, 43 modified and 98 added. The real index, tracked worktree and
-nonignored untracked inventory were clean at independent verification.
-`logs/planner-review/agent-sup-01/publication-verification.json` and `.md`
-retain the independent tree/parent/path/live-ref comparisons. The approval
-inventory bytes still match their original hash; the executor's reported
-line-ending comparison difference affects no approval identity.
+On 2026-10-20, main, HEAD, local origin/main and a freshly queried live
+refs/heads/main all equal **`b3d53bfc3c604711228ade769284911f9d9c2b4b`**.
+WORKSPACE-EXCL-01's exact tree is `b11cb488519202f681849f32b8fcd255471643cd`,
+sole parent `f95e337484d6d50f502647b4abf725be2d7ae184`. Exact GO path set:
+110 files, 64 modified and 46 added. Independent tree, parent, path-set,
+inventory-hash, fresh-live-ref and clean-state comparisons are retained in
+`logs/planner-review/workspace-exclusion-01/publication-verification.json`
+and `.md`. Divergence was 0/0, index empty and worktree clean including all
+nonignored untracked paths. Executor success was independently checked.
 
-ASUP-R1 through R5 are resolved. ASUP-C1 is accepted nonblocking: duplicate-key
-journey counts rose, with no proven cause; pre-existing sibling keys were
-identified, not proven to explain the increase. Review 1/2, validation
-adjustments, temporary-probe removal, full-suite failures and isolated passes,
-negative-control provenance, tooling failures and missing original evidence
-remain as recorded in this file at `f95e337` and its ignored review records.
-The committed current-work remains an implementation-for-review record, not a
-request for a closure commit. Publication reopens no completed slice.
+The published checkpoints retain their implementation/review phase wording.
+This neither reopens WORKSPACE-EXCL-01 nor requires a closure commit. WEX-R1
+through R4 are resolved. WEX-C1 is accepted nonblocking: obsolete prop comments
+still describe the removed test exception; actual required inputs and runtime
+gates withhold. Preserve its initial API binary-provenance uncertainty, lost
+overwritten correction failure log, qualified controls, accepted direct planted
+diagnosis evidence, error precedence, validation adjustments, initial failures,
+format findings and all prior limits. Review details: this file at `b3d53bf`,
+`logs/planner-review/workspace-exclusion-01/review-01/` and `review-02/`.
 
-PLAN-COORD-01 remains independently verified at `a78e572c` (176 exact approved
-paths, 66 M and 110 A), with its records under
-`logs/planner-review/plan-coord-01/`. PCO-R1 through R5 remain resolved;
-PCO-C1 remains accepted nonblocking. All earlier restrictions and evidence
-losses remain; later checks establish no missing original output or cause.
+Prior independently verified deliveries remain AGENT-SUP-01 `f95e337` (141
+paths, 43 M/98 A; ASUP-R1 through R5 resolved, ASUP-C1 nonblocking) and
+PLAN-COORD-01 `a78e572c` (176 paths, 66 M/110 A; PCO-R1 through R5 resolved,
+PCO-C1 nonblocking). Their publication records under the corresponding
+`logs/planner-review/` directories and committed checkpoints preserve the
+exact identities, unexplained failures, missing originals and restrictions.
+Later passes recover or explain none of them.
 
-Continuity at publication: **CONTINUE_THIS_CHAT**. Current-session metadata at
-2026-10-19T21:50:21.154Z reported last total tokens 141294 and context window
-475000 (29.75%). This is an observed local metadata ratio, not an asserted UI
-meter reading; prior 27.16% and 61% figures remain historical. No transition
-threshold above 60% was observed. The completed AGENT-SUP-01 executor chat is
-not reused for a different slice.
+Continuity: **CONTINUE_THIS_CHAT**. Current-chat local token_count metadata at
+2026-10-20T12:36:56.789Z reports last total 127671 / context 475000 = 26.88%.
+This is observed metadata, not an asserted UI meter. Earlier percentages are
+historical. No threshold above 60% or concrete reason for a transition exists.
+The completed WORKSPACE-EXCL-01 executor chat is not reused for another slice.
 
-This selection changes only this handoff, the decision index and new ADR-0057.
-Executor preflight: the same main/HEAD/local/live baseline, empty real index,
-these two tracked documentation modifications and one untracked ADR, with no
-other nonignored paths. Codex created no commit or push and implemented no
-product fix. Preserve the three planner documents for review with the slice.
+Selection changed only this handoff, `docs/decisions/README.md` and new
+ADR-0058. Original selection-time preflight (superseded for recovery below): same branch/HEAD/local/live baseline, divergence
+0/0, real index empty, those two tracked documentation changes and one
+untracked ADR, with no other nonignored paths. Preserve these planner paths
+for delivery with the implementation. Codex created no commit or push.
 
-## Remaining MVP critical path against code
+## Remaining MVP critical path
 
-Increments 4/5/6 remain incomplete. ADR-0050 stays Proposed, P9 unproven and
-AI Memory deferred; no delivery percentage or date is claimed.
+Increments 4/5/6 remain incomplete; ADR-0050 Proposed, P9 unproven, AI Memory
+deferred. No completion percentage, provider qualification or date is claimed.
 
-| Front | Actual baseline and remaining dependency |
-|---|---|
-| Planning | ADR-0055 coordinates at most five existing read-only planning attempts. Accepted planning or Human escalation ends that grant; no mutating successor is authorized. |
-| Operational evidence | ADR-0056 now records current host Agent phases, heartbeat and absolute deadlines for all seven contracts. It proves neither provider progress nor liveness and supplies no execution authority. Verification, standalone Process and local commit retain separate lifecycles. |
-| Existing workspace exclusion | Running Agent attempts are unique per run; Running verification is unique per workspace. These separate sets permit concurrent claim/dispatch on one Ready leased workspace. The selected slice closes that reciprocal safety gap under existing explicit requests. |
-| Local execution loop | Existing implementation, verification, review, diagnosis/correction and local-commit commands execute explicit requests; no complete stage coordinator exists. A single authorization for automatic workspace mutation requires a new owner authority decision and resolved contracts, not inference from ADR-0055/0056. |
-| Scheduling and recovery | Global two-mutating-run capacity, visible queue, finite execution leases and process-aware recovery remain undelivered. This slice adds no queue, slot, takeover, lease release or ambiguous-write resolution. |
-| Provider controls | Claude account usage, eligible resume, live context capacity, manual compaction and other permission profiles require contracts/evidence. Raw Git and non-Windows boundaries remain. Real-provider qualification/experiments are unauthorized. |
-| Remote/self-hosting | GitHub access/binding/consent are neither branch-push authority nor publication. P9/source-write denial and separate Git/GitHub/GCM qualification remain open. The stable packaged complete demonstration depends on the remaining local and remote capabilities. |
+| Front | Verified code and remaining boundary |
+| --- | --- |
+| Planning | ADR-0055 coordinates at most five existing ReadOnly attempts. Accepted planning or Human escalation ends that grant; no mutating successor is authorized. |
+| Supervision | ADR-0056 records current host phase, heartbeat and deadlines for seven Agent contracts. It proves neither provider progress nor liveness and grants no lease, retry, cancellation, takeover or release. |
+| Workspace exclusion | ADR-0057 now serializes Agent/verification/local-commit ownership per workspace at claim and dispatch. Distinct workspaces have no global count. |
+| Global admission | Domain owns ReadOnly/WorkspaceMutating classification; explicit mutating Agent claims, verification and local commit have independent entrances. Three production verification claims persist across three workspaces. Selected work closes their common recorded-admission gap. |
+| Queue and recovery | A durable pending request needs exact pinned intent, expiry, revalidation, replay and recovery contracts. Configurable capacity, queue/fairness, finite execution leases and process-aware recovery remain undelivered. A terminal row or expired observation is no new proof of process death. |
+| Local coordination | Explicit implementation/verification/review/diagnosis/correction and local commit exist, with no complete stage coordinator. Automatic workspace mutation needs a new owner authority decision, never inference from ADR-0055/0056. |
+| Providers and remote | Claude account usage, resume, live context, manual compaction, permission profiles, raw Git/non-Windows proof and separate Git/GitHub/GCM qualification remain open. No real-provider experiment is authorized. Access/consent is not push permission; P9 and ADR-0050 remain unresolved. |
 
-## Selected slice: WORKSPACE-EXCL-01 reciprocal workspace execution exclusion
+## Selected slice: GLOBAL-ADMIT-01 global mutating admission
 
 Implement accepted
-[ADR-0057](../decisions/0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md).
-An existing explicit Agent request and an existing explicit verification request
-cannot acquire or dispatch competing execution on the same owned workspace.
-Both cockpit and workspace controls explain the same recorded blocker. A
-terminal actual owner returns control only through unchanged workspace,
-source, budget and approval gates; an observation never releases it.
+[ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md).
+The observable result is that at most two coherent potentially mutating owners
+can be newly admitted across one authoritative database, and both cockpit
+regions explain a capacity refusal while eligible ReadOnly work can proceed
+under its unchanged gates. Capacity is an additional veto, never a grant.
 
-**Sizing judgment.** A one-way verification guard still permits the reverse
-race. A claim-only or UI-only check leaves stale dispatch and direct API gaps.
-All seven Agent contracts, repairs and coordinated claims intentionally share
-this exclusion; splitting by role/provider leaves another entrance. Include
-verification, local-commit interoperability, protected disclosure and both UI
-regions in one functional outcome. Full scheduling/automatic local delivery
-requires different authority and recovery contracts. Legacy Process attempts
-lack an owned-workspace association, so including them requires an identity
-and effect decision rather than deriving ownership from a path string. These
-are concrete authority/lifecycle boundaries, not arbitrary file limits.
+**Sizing judgment.** A gate for only Agent, verification or local commit leaves
+another writer entrance; a claim-only check leaves stale dispatch; a UI-only
+hint leaves direct API races. Include all mutating entrances, their feeds and
+final dispatch/execution seams, exact own-owner exclusion and the protected
+shared UI disclosure as one outcome. ReadOnly classifications are intentional
+non-consumers, not omitted providers. A durable queue would retain new authority
+for later preparation and needs pinned-request and recovery decisions; a full
+lease/guardian or automatic local delivery needs separate contracts/authority.
+The fixed ceiling is a prerequisite, not the complete scheduler or configurable
+limit of ADR-0006. These are concrete authority/lifecycle boundaries.
 
-**Independent baseline evidence.** The production verification claim and
-single-use dispatch both succeeded beside a persisted dispatched Running
-Implementer on the exact same owned Ready workspace. One focused SQLite
-assertion failed for that gap (2 s test duration). No provider/process/hosted
-worker or Git command was started; the Agent was seeded with Domain factories,
-not through a complete implementation lineage. Evidence and the source hash:
-`logs/planner-review/workspace-exclusion-01/selection-evidence.md`,
-`baseline-probe.cs` and `baseline-probe-02.log`. The original compiler attempt
-failed MSB3026/CS2012 before testing. After a recorded build-server shutdown,
-serial build with shared compilation disabled reached the intended assertion;
-that later result does not establish a cause of the original lock. The probe
-was copied with matching hashes, removed and the API test project rebuilt
-with zero warnings/errors; no reviewer test remains in sources or binaries.
+**Independent baseline evidence.** Production verification claims admit three
+distinct registered projects' Ready leased workspaces on real file-backed
+SQLite. The expected third-refusal assertion fails (2 s). No provider,
+verification process, Git command or hosted supervisor runs. Domain factories
+seed the scene; the three actual claims use their production transaction and
+counter/execution save. Evidence/source/hash:
+`logs/planner-review/global-admission-01/selection-evidence.md`,
+`baseline-probe.cs`, `baseline-probe.log`. The source was hash-verified, removed
+and the project rebuilt without it (zero warnings/errors, 10.35 s); no reviewer
+probe remains in source or binaries. This proves recorded admission only.
 
-**Resolved architecture.** One Application-owned policy under
-Projects/Policies/WorkspaceExecutions derives competing ownership from existing
-Agent/verification rows and ADR-0029's reservation. No new table or migration.
-Fresh early checks plus final write-locked checks in every claim; final dispatch
-excludes only the exact operation kind/ID, never its whole run. Verification's
-SourceChanged pre-dispatch decision retains the same authority check. Existing
-local commit may execute its own valid Committing reservation and no other.
-Conflicting/malformed owners fail closed without choosing, terminalizing or
-releasing anything. Result recording and AgentSupervision keep their contracts.
+**Resolved contract.** One fresh Application policy under
+Runs/Policies/ExecutionCapacity counts existing coherent unresolved mutating
+Agent owners (Domain effect, including both correction origins), verification
+owners and local-commit reservations. Fixed limit two; recognized terminal
+history does not count. ReadOnly Agent/simulation/standalone Process/approval
+waits/idle prepared workspaces do not consume it. Unknown active contract-role,
+unreadable or malformed ownership is Unavailable. Unknown possibly active
+status is never finished. Do not drop an unresolved owner because its run or
+lease ended, or conflate several owners on one workspace into one slot.
+No new table, migration, configuration, queue or counter.
 
-One protected bodyless/queryless project GET, owned DTOs and closed whole-wire
-validation disclose only project, exact latest workspace, status and reason.
-Selected-project owned state with bounded refresh/cancellation feeds both UI
-regions as an additional withholding hint; Idle grants no action. Stop after
-current step, evidence inspection, refresh and metadata-only abandonment keep
-their existing controls. Full tuples and timing behavior are in ADR-0057.
+All mutating claims check before external preparation and under the existing
+SQLite write lock immediately before commit; dispatch and local-commit
+execution re-decide with exact coherent kind-and-ID self-exclusion. One owner
+may execute beside one other; two others withhold dispatch. Preserve losing
+cleanup/cancellation, grants, counters, memberships and ambiguous-save readback;
+known result recording and startup recovery keep their existing authority.
+Use fixed 409 codes `execution_capacity.limit_reached` and
+`execution_capacity.unavailable`. No winner, terminalization or release.
 
-**Allowed changes.** Affected claim/dispatch/feed operations across all seven
-Agent contracts and repair variants, verification and its pre-dispatch
-SourceChanged check; local-commit admission/execution only for the same
-exclusion contract while preserving complete approval identity; new project
-query/MVC/API-owned graph/client/decoder/hook and cockpit/workspace composition;
-feature-owned tests and narrow factual architecture/product/roadmap/current-work
-updates. Adapt a claim's final transaction if necessary, preserving its external
-preparation outside transactions and all existing atomic associations. Do not
-merge supervisors, result contracts, generic pipelines or unrelated readers.
+Protected bodyless/queryless `GET /api/execution-capacity` returns only
+limit/recordedOwners/status/reasonCode; exact tuples and timing are in ADR-0058.
+App owns one host-session lifetime, bounded polling/actual abort/coalescing and
+stale-remount fencing, feeding both regions as required additional state.
+Apply the hint only to mutating starts: split diagnosis from its correction
+and metadata-only authorization from execution. Preserve all other gates,
+ReadOnly requests, approvals, Refresh, inspection, Stop and abandonment.
 
-## Proportional validation matrix
+**Allowed changes.** New capacity policy/query/MVC-owned graph/generated
+client/decoder/hook/guidance; ordinary/authorized Implementation,
+ReviewCorrection, DiagnosisCorrection, verification, relevant dispatch/feed and
+local-commit admission/execution readers; narrow UI composition and feature-owned
+regressions; factual engineering/architecture/product/roadmap/current-work
+updates. Domain's effect contract remains authoritative and is not expanded.
+Do not merge role supervisors, genericize request pipelines, broaden controls
+or clean unrelated WEX-C1/ASUP-C1 warnings.
 
-First add permanent named regressions for the reproduced direction, the
-reciprocal direction and final-seam races, using production claim lineage
-where it is under test. Then fix at the narrowest shared boundary. Retain
-commands, filters, original failures, elapsed times and source identity under
-`logs/executor/workspace-excl-01/`; distinguish fresh/retained/not-run evidence.
+## Proportional validation and acceptance
 
-- Application: new WorkspaceExecution tests plus each affected claim, repair,
-  dispatch, eligibility, planning-step and local-commit class. Real file-backed
-  SQLite and independent connections prove one winner across the two families,
-  stale tracked-state refusal, old conflicting rows, exact self-exclusion,
-  different-run/same-workspace blocking, unrelated-repository progress, no
-  losing budget/counter/grant/artifact/link consumption, and known-result
-  persistence despite a conflict. Run the complete Application project once
-  on stable sources: shared admission semantics change in this slice.
-- API: protected MVC auth/body/query/404/wire and authorization inventory;
-  all seven real supervisor compositions, repairs/coordinated paths and held
-  verifier/Agent overlap with unchanged invocation counts; verification and
-  local-commit reciprocal claim/dispatch races. Run the complete API project
-  once on stable sources because affected shared admission consumers are broad.
-  Preserve all original failures and any isolated diagnostic passes. Neither
-  untouched tests nor later passes explain failures or prove irrelevance.
-- Infrastructure/Domain: real SQLite proofs above exercise the actual new
-  persistence boundary. Retain unchanged migration/provider evidence; run
-  affected policy/mapping/transaction tests only if their inputs change. A need
-  for a new schema or generic transaction pipeline is a scope stop, not an
-  automatic full-infrastructure expansion. Full architecture remains required.
-- Frontend: new whole-answer wire/decoder/hook plus both UI regions, global
-  claim withholding, existing planning/commit controls and project A-B-A/remount,
-  pending/stale/invalid/timeouts and actual transport cancellation. Run whole
-  Vitest once, lint and production build (including tsc -b) because selected
-  project/cockpit composition changes. Strict e2e TypeScript expands its input
-  files explicitly. Regenerate NSwag after a successful API build and prove
-  byte-identical reproduction; do not change generator configuration.
-- Browser: collaboration.journey.ts and planning-sequence.journey.ts, serial on
-  stable binaries, retaining explicit stage requests, provider cardinality,
-  approval/local-commit and coordinator fences. Extend selected-workspace
-  disclosure/Idle recovery through the real authenticated host. Held hosted
-  and UI tests prove the transient busy cases; do not modify shared fixture
-  invocation contracts to stretch a fast browser phase. Other nine journeys
-  stay retained unless an actual shared input change invalidates them.
-- Two serial compiling negative controls: omit the Agent-side final fence,
-  omit the verification-side final fence. The focused independent-connection
-  regressions must fail; hash-verify restoration and rebuild before the final
-  matrix. Compile failures/no-ops do not count as kills. No broad campaign.
-- Affected formatting/analyzers/build, dependency/security checks without new
-  dependencies, local/inbound Markdown links, sensitive-data scan and full
-  diff. One writer to shared build/generation outputs; no routine clean builds
-  or server shutdown without a demonstrated reason. A prior observed compiler
-  lock permits the documented serial/shared-compilation workaround, not an
-  assertion that every future failure has that cause.
+Add permanent named regressions first, then implement the narrow shared gate.
+Retain commands, source phases, full failures, outcomes and elapsed times under
+`logs/executor/global-admit-01/`. Enumerate actual classes/methods: partial-class
+filenames do not select tests by FullyQualifiedName.
 
-## WORKSPACE-EXCL-01 review 2: GO
-
-Codex independently reviewed the correction on 2026-10-20. Main, HEAD/local
-origin/main/fresh live main remain `f95e337484d6d50f502647b4abf725be2d7ae184`,
-divergence 0/0, real index empty. The complete reviewed delivery has **110
-paths: 64 modified and 46 new**. The exact paths, full judgment, checks and
-external publication identity are under
-`logs/planner-review/workspace-exclusion-01/review-02/` (`reviewed-paths.txt`,
-`review-02.md`, `approval.json`). Review 1 remains retained under `review-01/`;
-its NO-GO is superseded by this GO for the exact final reviewed content only.
-Codex implemented no product correction and created no real staging, commit or
-push. The isolated temporary-index tree preparation leaves the real index empty.
-
-- **WEX-R1 [P2], resolved:** verification and open-commit ownership now check
-  both foreign association directions. Permanent policy, admission and real
-  endpoint regressions preserve older same-project workspaces, unrelated
-  repositories, terminal history and exact typed self-exclusion. Four
-  Application cases have red evidence; the endpoint cases were first run green.
-- **WEX-R2 [P2], resolved:** both state props are required, the two gates always
-  apply, and null/omitted/unknown input withholds starts. Explicit Idle test
-  compositions replace the runtime test exception. Refresh, inspection, Stop
-  after current step and abandonment retain their controls. The changed
-  transient-selection expectation observes the earlier pending workspace veto.
-- **WEX-R3 [P2], resolved:** the three ordinary final reads now clean up their
-  own manifest on cancellation/database failure before inserting anything;
-  cancellation propagates, existing persistence errors remain, and disposal
-  rolls back the transaction. Authorized implementation retains its existing
-  durable settlement and original exception. Other seams remain inside their
-  catches; ambiguous-save readback/retention is unchanged. Eight regressions
-  inject the fault at the final policy read. Tests followed the fix; the
-  compiling six-kill cleanup control supplies sensitivity, not red-first history.
-- **WEX-R4 [P3], resolved:** WorkspaceExecutionScene and CompetingOwner have
-  matching files; the two new fault types also satisfy one top-level type per
-  file, with no unrelated split or fixture-cache change.
-
-**Independent checks:** forced Application/API test project rebuilds from
-restored sources, zero warnings/errors (12.09 s / 14.01 s); complete enumerated
-affected Application classes 940/940 (2 m 5 s); API protected status, all seven
-hosted exclusion paths, verification supervisor, planning and complete diagnosis
-classes 114/114 (55 s); architecture with build 185/185 (2 s); affected frontend
-wire/decoder/hook/transport/both regions/App 669/669 (9.93 s). No new reviewer
-probes, product edits, provider/mutation/journey/generation campaign or full
-project repeat by Codex. Nine current mutation-target hashes match the recorded
-originals; generated client hash remains `978e2c30...14dd9`.
-
-**Executor evidence and challenge accepted:** correction full Application
-6818/6818 and API 2944/2944, whole Vitest 6386/6386, lint/build/strict e2e tsc,
-changed-C# format and both serial journeys pass at their recorded scope.
-Repeating the full backend projects was justified by the shared authority-read
-change and discovered binary-provenance defect. Touching restored sources fixes
-the control harness's stale-timestamp problem. The two compiling aggregate
-controls have 36 Agent and four verification kills; the Agent aggregate covers
-all eight handler classes, not an independent mutant per file. R3's six-kill
-control and its earlier noncompiling attempts retain their actual limits.
-
-The initial full API 2938/2940 and repaired class 22/22 remain historical with
-possible mutant-assembly provenance, superseded as current evidence by the
-fresh correction full run. Review 1's results are not retrospectively
-binary-authenticated by later builds. The executor reports an early correction
-run's six stale-mutant failures, but overwrote that log; accept this evidence
-loss explicitly, without reconstructing or independently certifying the missing
-output or cause. The initial 32-failure Application run is development evidence
-on slice inputs, not a pristine `f95e337` baseline comparison. Initial Vitest
-failures/fixture adjustment and format failures in 20 unchanged paths remain.
-
-Review 1's direct planted diagnosis evidence, narrow busy-error precedence and
-transaction-or-save test seam remain accepted with their original limits. No
-concurrent-verification authority, lineage bypass or fixture cache follows.
-**WEX-C1, accepted nonblocking:** two obsolete prop JSDoc paragraphs still
-describe the removed test exception; required signatures, actual gates and
-tests enforce withholding. Those comments grant no exception. Preserve the
-approved content during publication. The project-owned latest-workspace hint
-still has no independent workspace-metadata/source binding; Idle grants nothing.
-Existing console/lint/build warnings, ASUP-C1, PCO-C1, unexplained failures,
-missing original evidence and all earlier restrictions remain.
-
-The executor's current-work retains its implementation-for-review wording.
-This does not reopen review, require a closure edit or prove publication.
-No next slice is selected. Publication is the sole next action; independent
-verification and current-context assessment follow the actual push.
+- Application: policy permutations, every affected claim/authorization/
+  correction/dispatch/feed/local-commit class and unchanged ReadOnly consumers.
+  Real SQLite with independent connections must prove simultaneous final-seam
+  races from one free place across Agent/verification/commit combinations leave
+  no third owner; losing budgets/numbers/grants/artifacts/membership unchanged;
+  exact self-exclusion across tables; two admitted owners may both dispatch;
+  cancelled/failed new capacity reads at each final seam clean up only the
+  operation's unreferenced preparation and preserve authorized durable settlement;
+  old over-capacity facts cannot dispatch another owner and remain unchanged;
+  malformed/unknown relationships and stale tracking fail closed; known results
+  persist at capacity and genuine terminal transitions permit a fresh request
+  only under unchanged workspace/source gates. Prove ReadOnly progress at full
+  capacity and no provider/observation-based classification. Run full
+  Application once on stable sources because shared admission changes.
+- API: complete auth/body/query/wire matrix and MVC authorization inventory for
+  the new GET; real held mutating Agent, verification and local-commit host
+  compositions with invocation counts; direct command/race admissions; unchanged
+  ReadOnly planning/diagnosis behavior and complete local-commit approval gates.
+  Run full API once on stable sources. Use existing production lineage when
+  proving claim/commit authority; no new fixture cache or weakened assertions.
+- Domain/Infrastructure: retain unchanged table/migration/provider evidence;
+  focused Domain effect-classification tests and real SQLite policy/transaction
+  tests above. Full architecture. Broaden only for actual shared mapping,
+  mediator/transaction/lifecycle or provider-input changes. New schema, slot
+  storage or process-liveness mechanisms are scope stops, not automatic work.
+- Frontend: whole-wire tuples, host-owned hook and actual transport abort,
+  failure/remount/stale callbacks, required absent-state withholding, both
+  regions and exact action distinction (ReadOnly/metadata versus mutation).
+  Whole Vitest once, lint, production build including tsc -b, strict e2e tsc.
+  Regenerate NSwag after successful API build and prove byte-identical
+  reproduction; no routine client deletion or duplicate typecheck.
+- Browser: collaboration and planning-sequence journeys serially on stable
+  binaries; extend the former to assert the host's global disclosure and recovery
+  without changing provider counts or explicit authorizations. Controlled hosted
+  and UI tests prove full-capacity behavior; do not stretch shared fixture timing
+  to make a transient phase appear in a browser. Other nine journeys retained
+  unless a changed shared input invalidates them.
+- Two serial compiling negative controls omit the Agent final capacity gate and
+  the verification final capacity gate. Named independent-connection races must
+  fail. Hash-check and touch restored sources, then rebuild before final checks;
+  do not infer binary restoration from source hashes. No broad campaign.
+- Changed formatting/analyzers, build, applicable security/dependency checks
+  without dependency changes, Markdown/inbound links and sensitive-data scan,
+  complete diff. One writer to shared outputs; preserve all failed logs rather
+  than overwriting. Routine incremental builds; forced rebuild only for a
+  demonstrated stale-binary concern. Mandatory CI/release gates remain intact.
 
 ## Stop boundaries and next action
 
-In the existing WORKSPACE-EXCL-01 Claude executor chat, verify the exact GO
-identity and parent, stage only its approved paths, commit, verify tree/sole
-parent/path set, push main normally to origin/main, and verify the live ref.
-Stop on any mismatch, intervening change, failed push or remote divergence; no
-force-push or history reconciliation. Do not change reviewed content or select
-a next slice. Return the publication report for Codex's independent verification.
-The AGENT-SUP-01 executor chat is done.
+Publish only GLOBAL-ADMIT-01's reviewed content in the same replacement Claude
+executor chat using the complete GO prompt and the external approval identity.
+Reconcile branch, HEAD/local/live main, divergence, real index and the exact
+93-path set first. Stage only that set; verify the staged tree, then the
+commit's tree, sole parent and paths before a normal fast-forward push. A
+mismatch, failed push, remote divergence or material content change stops
+publication; no force-push, amend, broader staging or history reconciliation.
+No implementation, documentation or evidence edit belongs to publication.
 
-A material Git discrepancy, missing/contradictory architecture, inability to
-preserve existing claim/result/commit authority, new schema or generic pipeline,
-shared fixture/cache/invocation change, provider/credential/permission operation,
-lease release, automatic claim/retry/cancel/takeover or broader mutation stops
-dependent work for a bounded evidence-based discussion. Independent authorized
-work may continue. An executor proposal is evidence, never architecture
-acceptance. Codex decides any material challenge itself before dispatch changes.
+The implementation-for-review wording in current-work is retained at its
+actual preparation phase. It requires no closure commit. No next slice is
+selected or dispatched. After the executor's report, Codex independently
+verifies the published content and fresh live ref, then checks current chat
+context and provides the matching continuity/next-step prompt.
 
+Queue, execution grant, schema/configuration, generic transaction pipeline,
+lease, process-death inference, automatic retry/successor/release, provider
+experiment, permission/credential operation or broader mutation remains
+outside this slice. Discussion and this publication GO grant none of them.
+
+## GLOBAL-ADMIT-01 review 2: GO
+
+Independent reconciliation on 2026-10-20 confirms main, HEAD/local origin/main
+and fresh live main `b3d53bfc3c604711228ade769284911f9d9c2b4b`, divergence
+0/0, real index empty. The corrected slice has **93 paths: 51 modified and
+42 new**. Relative to review 1, only the stale-classification test and the two
+split type files add paths. The explicit inventory, independent evidence,
+review and exact publication identity are retained under
+`logs/planner-review/global-admission-01/review-02/`: `reviewed-paths.txt`,
+`review-02.md` and `approval.json`. The external identity is computed after
+these planner edits; no file embeds its own future tree/commit identity.
+
+- **GAD-R1 [P2], resolved.** MarkAgentAttemptDispatched compares the freshly
+  persisted role/response-contract pair with the tracked pair before guidance,
+  role branches and the capacity exemption. A mismatch returns existing
+  agent_attempts.invalid_agent_contract Conflict at any occupancy; the guard
+  only reads the tracked entity. It neither refreshes nor overwrites pending
+  tracking. The dispatch transaction retains the write boundary. Six new
+  real-SQLite regressions cover stale ReadOnly/current mutating at full and
+  free capacity, reciprocal drift, role-only drift, valid ReadOnly at capacity
+  and valid mutating self-exclusion/capacity behavior. Refusals pin the fixed
+  code and preserve the stored tuple, marker, outcome and event count. The
+  first red attempt did not compile; the corrected red run has four failures
+  and two passes, then six pass after the fix. Both red logs stay retained.
+- **GAD-R2 [P3], resolved.** OwnerFamily and PlacedOwner now occupy matching
+  feature-owned files; ExecutionCapacitySeed holds its one top-level type.
+  Namespace, visibility and per-test database isolation remain unchanged.
+  The lexical scan finds no multiple top-level types among 31 new C# files.
+
+Independent correction-source checks: affected Application dispatch classes
+**324/324 (45 s)**, protected API, real local commit, verification supervisor,
+mutating/ReadOnly hosted cases and all seven Agent supervision compositions
+**74/74 (58 s)**, architecture **185/185 (2 s)**. The first architecture
+attempt aborted after a 90-second testhost connection timeout, without test
+results; its log is retained. The retry outside command isolation passed;
+that pass does not establish the timeout's cause. No reviewer product edits
+or temporary probes were introduced in this round.
+
+Executor correction evidence was inspected: affected Application 868/868,
+API 339/339, solution build zero warnings/errors, changed-C# format clean
+(55 files), both journeys passing serially. Earlier full Application 6957 and
+API 2978 remain pre-correction product-source results, not fresh full reruns.
+Unchanged frontend (whole Vitest 6743; review-1 independent focused 859),
+Domain, Infrastructure (3155 passed/four skipped), generator and production
+audits retain their actual phases. The byte-identical generated-client hash
+and the original claim-control targets remain unchanged. Claim controls do
+not cover every entrance or the dispatch exemption; the red-before-fix
+regressions supply bounded sensitivity for GAD-R1, not a new mutation control.
+
+Review-1 findings, reproduction and accepted test adjustments remain in
+`logs/planner-review/global-admission-01/review-01/review-01.md`. The two
+neighboring-owner fixtures had conflicting Agent and verification owners on
+one workspace; the mode/guidance repairs split their recorded-state rounds
+while retaining assertions. Direct terminal updates prove recorded facts,
+not process termination. Keep all initial failures, compile/format/build and
+fixture failures, warnings, four skips, unrelated format findings, earlier
+binary-provenance uncertainties and missing/overwritten evidence. Production
+npm audit does not resolve the retained development-only advisory. Later
+passes authenticate or explain none of those historical gaps.
+
+This GO accepts only ADR-0058's fixed two-recorded-owner admission outcome.
+It proves no process liveness, configurable scheduler, queue, executor lease,
+automatic execution or ownership release. Increments 4/5/6 remain incomplete,
+ADR-0050 Proposed, P9 unproven and AI Memory deferred. Publication remains
+pending independent Git verification; no next slice is authorized.
+
+## Executor recovery 1: account credit exhaustion
+
+The owner requested continuation in another Claude account after the original
+executor hit its credit limit. This is the workflow's documented recovery
+exception for the same GLOBAL-ADMIT-01, not a new slice or scope/authority grant.
+Only the replacement executor continues; do not resume the old executor in
+parallel. Codex retains architecture, review and final GO/NO-GO ownership.
+
+Fresh reconciliation on 2026-10-20 confirms main, HEAD/local origin/main/live
+main `b3d53bfc3c604711228ade769284911f9d9c2b4b`, divergence 0/0, real index
+empty; **73 pending paths: 36 modified and 37 new**. Preserve the entire partial
+diff, planner documents and ignored evidence. The recovery inventory and
+checkpoint are `logs/planner-review/global-admission-01/recovery-01-paths.txt`,
+`recovery-01-inventory.json` and `recovery-01.md`; none is a GO or an approved
+publication identity. Verify current files before continuing, never reset or
+recreate them from the original three-path preflight.
+
+The policy/gates/feeds, MVC query/endpoint, generated client, frontend
+decoder/hook/composition and several tests exist as unreviewed partial work.
+Their existence proves neither completion nor acceptance. Current-work still
+describes the prior published slice and has not yet become GLOBAL-ADMIT-01's
+implementation record. Inspect actual coverage and complete only the selected
+ADR-0058 outcome. No GLOBAL-ADMIT-01 review GO or stable finding IDs exist yet.
+
+Retained development logs under `logs/executor/global-admit-01/` include policy
+74/74, claim 23/23, Agent dispatch 17/17, verification dispatch 59/59, feed
+8/8 and endpoint 23/23 passes. Earlier compilation/analyzer and policy failures
+remain. Despite its name, green-01-application.log has 1 failure and 9 passes;
+do not call it green or invent its resolution from later differently filtered
+passes. Frontend build and latest lint/strict e2e tsc logs report exit 0;
+earlier lint/tsc failures remain. These are development/source-phase observations,
+not independent reruns, full-suite results or final acceptance.
+
+The final matrix, controls/restoration, journeys, reproducibility and coverage
+must be reconciled against actual retained evidence. No whole Vitest, full
+Application/API, full architecture, final mutation-control or journey pass is
+established by this recovery check. Preserve missing or unretained worker
+output as unknown; the screenshot and task labels are not test evidence.
+
+Continue the existing scope and final validation matrix in this handoff and
+ADR-0058. Reuse a passing check only if its source/configuration/fixture inputs
+are unchanged and its actual coverage is sufficient. Inspect previous worker
+outputs and pending commands before starting another shared-output writer;
+do not kill unrelated processes. Return unstaged, uncommitted and unpushed for
+Codex review. No new provider experiment, dependency, queue, lease, execution
+grant, ownership release, next-slice selection, commit or push is authorized.
 
 ## Retained review and evidence limits
 
@@ -340,8 +384,8 @@ Their old GO/pending statements are not current instructions.
   hung submissions; retention beside disposal failure is unproven.
 - Increments 4/5/6 incomplete. Account/context, raw Git read, non-Windows limits:
   [current-work](current-work.md#open-risks). Production code and necessary
-  tests are selected only for WORKSPACE-EXCL-01 under ADR-0057; PLAN-COORD-01 and
-  AGENT-SUP-01 are published. This strengthens existing exclusion only, not
+  tests are selected only for GLOBAL-ADMIT-01 under ADR-0058; PLAN-COORD-01,
+  AGENT-SUP-01 and WORKSPACE-EXCL-01 are published. This strengthens existing exclusion only, not
   broader mutation or automatic coordination authority. No dependency, experiment,
   capture-limit or standards edits; the old documentation-only production/test
   exclusion is superseded, not the other restrictions.

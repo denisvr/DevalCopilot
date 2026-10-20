@@ -169,7 +169,6 @@ public sealed partial class CreateImplementationAttemptCommandHandlerTests
         {
             var unrelated = await Projects.WorkspaceExecutionSeed.SeedAsync(other);
             await Projects.WorkspaceExecutionSeed.AddVerificationExecutionAsync(other, unrelated);
-            await Projects.WorkspaceExecutionSeed.AddAgentAttemptAsync(other, unrelated.Run.Id, unrelated.Workspace.Id, unrelated.Checkpoint.Id);
         }
 
         await using var handlerContext = _fixture.CreateContext();

@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
@@ -106,7 +107,11 @@ public sealed class GetEligibleReviewCorrectionAttemptsQueryHandler(IDevalCopilo
         }).ToArray();
 
         // Advisory (ADR-0057): an attempt that something else owns its workspace beside is not proposed; the dispatch gate decides.
-        return await WorkspaceExecutionFeed.WithoutKnownWorkspaceConflictsAsync(
+        var unconflicted = await WorkspaceExecutionFeed.WithoutKnownWorkspaceConflictsAsync(
             dbContext, withInputs, candidate => (candidate.RunId, candidate.GitWorkspaceId, candidate.AttemptId), cancellationToken);
+
+        // Advisory (ADR-0058): a potentially mutating attempt that the global ceiling would not let dispatch is not proposed either.
+        return await ExecutionCapacityFeed.WithoutKnownCapacityRefusalsAsync(
+            dbContext, unconflicted, candidate => new ExecutionOwner(ExecutionOwnerKind.AgentAttempt, candidate.AttemptId), cancellationToken);
     }
 }

@@ -6,181 +6,147 @@ was prepared ([recovery](development-workflow.md#recovery)). Git and code
 prevail; compare branch, `HEAD`, `origin/main` and staged/unstaged/untracked
 state first.
 
-## Active slice: WORKSPACE-EXCL-01 workspace execution exclusion (ADR-0057)
+## Active slice: GLOBAL-ADMIT-01 global mutating admission (ADR-0058)
 
-This document records the implementation delivered for review. Consult
-[planner-handoff.md](planner-handoff.md) for the review decision. Reconcile
-publication with Git and the slice's independent publication-verification
-record, when available. This record alone grants no publication authority.
+This document records the implementation delivered for review. Consult [planner-handoff.md](planner-handoff.md) for the review decision.
+Reconcile publication with Git. This record alone grants no publication authority.
 
-**State: correction 1 (review 1 NO-GO, WEX-R1 to R4) prepared, returned unstaged, uncommitted and unpushed. No GO exists.**
-
-**Latest prior delivered baseline.** AGENT-SUP-01 `f95e337484d6d50f502647b4abf725be2d7ae184` (sole parent `a78e572c`, 141 paths) passed
-independent publication verification (`logs/planner-review/agent-sup-01/publication-verification.json` and `.md`); its record,
-committed with pre-review wording, is this file at `f95e337`. Everything below is development work on top of that unchanged published
-baseline, not published evidence. At the start of the correction `main`, `HEAD`, local `origin/main` and a fresh live `refs/heads/main`
-all equaled `f95e337`, divergence 0/0, real index empty, 99 distinct pending paths (57 modified, 42 new) equal to the reviewed
-inventory (`logs/planner-review/workspace-exclusion-01/review-01/reviewed-paths.txt`). The planner documents and every evidence file
-were preserved. After the correction there are 110 distinct pending paths (the original 99, four new test-support files and seven
-edited frontend test files); nothing is staged, committed, pushed, reset, cleaned or checked out. No schema, dependency, generator
-configuration, real-provider experiment, automatic coordination or lease release was added.
+**State: correction 1 (review 1 NO-GO, GAD-R1 and GAD-R2) prepared by the replacement executor, returned unstaged, uncommitted and
+unpushed. No GO exists.** The pending set at the start of the correction was the 90 reviewed paths
+(`logs/planner-review/global-admission-01/review-01/reviewed-paths.txt`); the correction adds
+`AgentDispatchStaleClassificationTests.cs`, `OwnerFamily.cs` and `PlacedOwner.cs` and edits the dispatch handler, `ExecutionCapacitySeed.cs`
+and this record.
 
 ### Correction 1: finding dispositions
 
-- **WEX-R1 (foreign association, P2): fixed.** `WorkspaceExecutionPolicy` now also reads a potentially active verification execution or
-  open local-commit operation of the requested project that names a workspace the project does not own as an untrusted association
-  (`Unavailable`), in addition to another project's row naming the requested workspace. Valid older workspaces of the same project,
-  unrelated repositories, terminal rows, exact self-exclusion and the existing commit-reservation rule are unchanged. Regressions added:
-  `WorkspaceExecutionPolicyTests` (both families in both directions, a finished foreign row that is history, an older workspace of the
-  same project, an unrelated third project), the admission cases
-  `ClaimVerificationExecutionWorkspaceExecutionTests.A_verification_of_the_project_naming_a_workspace_of_another_project_refuses_the_claim_as_unavailable`
-  and `CreateImplementationAttemptCommandHandlerTests.A_verification_of_the_project_naming_a_workspace_of_another_project_refuses_the_claim_as_unavailable`,
-  and four real-endpoint cases in `WorkspaceExecutionStatusEndpointTests` (verification and open commit, each in both directions).
-  Red first: the four Application cases failed against the unfixed policy for the finding's reason (`r1-red-application.log`; the
-  verification claim case ended in a duplicate-number `DbUpdateException` because the claim proceeded). The four endpoint cases were
-  authored before the fix but were first run after it, so their red state was not observed.
-- **WEX-R2 (absent UI state, P2): fixed.** `workspaceExecution` is now a required prop of `CandidateWorkspacePanel` and `RunCockpitView`
-  (`WorkspaceExecutionState | null`); the gate is always derived and the guidance always shown when withheld. Absent (null or, from a
-  JavaScript caller, undefined), pending, failed, replaced and unknown-status states all withhold, an unknown status or failure is
-  worded as the incoherent answer, and no refresh button appears without a state. Inspection, Refresh evidence, Stop after current step,
-  result recording and abandonment are unchanged. The two tests that pinned "omission enables Run" were replaced by tests that pin the
-  opposite (null and omitted, panel and every start scenario of the run cockpit). 211 existing compositions of the two regions in eight
-  test files were given an explicit coherent Idle state (`idleStateFor(projectId)` in `workspaceExecutionFixture.ts`), with one
-  composition's project and one transient-selection test adjusted (below). `App` already passed the prop: this was a composition
-  defect, not an authentication or backend bypass.
-- **WEX-R3 (cleanup around the new final reads, P2): fixed.** The post-`BeginTransactionAsync` `CheckClaimAsync` reads in the ordinary
-  Implementation, CriticalReview and ReviewCorrection paths are now inside cleanup catches: a cancellation deletes only this
-  operation's prepared manifest and propagates unchanged, a database failure deletes it and returns the existing
-  `attempts.persistence_failed`, and the uncommitted transaction is disposed (rolled back) in both. The authorized Implementation claim
-  holds its own transaction, so its cancellation or read failure is settled from durable state by the existing outer handler (manifest
-  removed after a definite not-persisted probe, grant unconsumed, original exception propagated). Every other claim seam
-  (Challenge, CodeReview, Planning, VerificationDiagnosis, DiagnosisCorrection, the critical-review repair and step seams) was inspected
-  and already reads inside its cleanup catches. Nothing moves external work into a transaction, no other worker's file is deleted, and
-  the uncertain-commit readback and retention paths are untouched. Regressions:
-  `A_failed_or_cancelled_final_workspace_read_...` in the Implementation, CriticalReview and ReviewCorrection classes and the authorized
-  `A_failed_or_cancelled_final_workspace_read_of_an_authorized_claim_...` (Cancel and DatabaseFailure each; the new
-  `FenceReadFaultInterceptor` fails exactly the policy's lease read inside the claim transaction and records that it fired). The fix was
-  written before these tests, so a red-first run is not claimed; instead a targeted control disabled the three new catches (compiling)
-  and the six ordinary regressions failed (`r3-control.log`; the authorized variants are not expected to fail it). The reviewer's own
-  cancellation probe (cancel at transaction start) fell under the same catch.
-- **WEX-R4 (structure, P3): fixed.** `WorkspaceExecutionScene` moved to `WorkspaceExecutionScene.cs` and `CompetingOwner` to
-  `CompetingOwner.cs` with unchanged namespaces and behavior; the new `FenceReadFault` and `FenceReadFaultInterceptor` are likewise one
-  type per file. No unrelated split was made.
+- **GAD-R1 (P2, stale tracked ReadOnly classification at dispatch): fixed.** `MarkAgentAttemptDispatched` already read the persisted
+  assignment afresh and untracked; it now also requires the tracked attempt's role and response contract to equal that current pair
+  before the guidance check, any role-specific branch or the capacity exemption. A mismatch returns the existing fixed
+  `agent_attempts.invalid_agent_contract` Conflict, whatever the occupancy; the tracked entity is only read, so pending tracked writes
+  are untouched. The exemption therefore rests on a currently established coherent ReadOnly pair. Regressions (new class
+  `AgentDispatchStaleClassificationTests`, written first): stale ReadOnly over a current mutating pair at full and at free capacity,
+  the reciprocal drift (stale mutating over a current ReadOnly pair), a role-only drift, and the positive cases (a current ReadOnly
+  pair dispatches at full capacity; a current mutating pair still judges capacity). Each refusal asserts the fixed code, unchanged
+  tracked state, no dispatch marker, no outcome, an unchanged stored tuple and no new event. Red first: against the unfixed handler four
+  of the six failed for the finding's reason (`gad-r1-red-02.log`; the first attempt `gad-r1-red-01.log` did not compile because of a
+  wrong type in my test); after the fix 6 / 6 (`gad-r1-green-01.log`). The reviewer's reproduction (`reproduction-stale-classification.cs`)
+  was not copied into the suite; its capacity-code assertion does not prescribe this correction's mismatch code.
+- **GAD-R2 (P3, one top-level type per file): fixed.** `OwnerFamily` and `PlacedOwner` moved to `OwnerFamily.cs` and `PlacedOwner.cs`
+  with unchanged namespace, visibility and behavior; `ExecutionCapacitySeed.cs` holds only `ExecutionCapacitySeed`. Compilation and the
+  isolated per-test databases are preserved; no mirror test.
 
-Planner decisions applied without change: `PlantNewerFailedVerificationAsync` is controlled out-of-band evidence alteration for the two
-defensive diagnosis tests (their outcome, invocation and evidence assertions and the real post-terminal verification are preserved; it
-does not represent an authorized concurrent execution); the narrower busy-error precedence in three Application test files; the
-transaction-or-save `BeforeFirstSaveInterceptor`; the API result retained as the original 2938/2940 full run plus the repaired class's
-22/22; the 20 unchanged whole-solution formatting failures preserved.
+Accepted decisions applied: the six test repairs stand with their assertions. Corrected rationale: the two neighboring-owner tests
+(`A_competing_owner_in_another_repository_...`, `Terminal_history_and_another_repository_never_refuse_the_claim`) had an Agent and a
+verification owner on one neighboring workspace (conflicting owners), not merely too many owners; the mode and guidance cases test their
+assertions in two recorded-state rounds. The direct terminal-status updates in the new tests prove database facts, not real process
+termination.
 
-### What was built (unchanged by the correction except as above)
+**Latest independently verified published baseline.** WORKSPACE-EXCL-01 `b3d53bfc3c604711228ade769284911f9d9c2b4b` (this file at `b3d53bf`
+holds its record with pre-review wording; verification: `logs/planner-review/workspace-exclusion-01/publication-verification.json`).
+At recovery `main`, `HEAD`, local `origin/main` and live `main` all equaled `b3d53bf`, divergence 0/0, real index empty, 73 pending
+paths (36 modified, 37 new) equal to `logs/planner-review/global-admission-01/recovery-01-paths.txt`
+(SHA-256 `05d91171…e8835`). Everything below is unpublished development work. The original executor ran out of credits mid-slice;
+only the replacement continued (`recovery-01.md`). Nothing is staged, committed, pushed, reset or cleaned. No schema, dependency,
+configuration, queue, execution grant, lease, retry, takeover, release or real-provider experiment was added. The earlier WEX-C1,
+ASUP-C1 and PCO-C1 acceptances, the earlier evidence losses and all standing restrictions are unchanged. Increments 4/5/6 stay
+incomplete, ADR-0050 Proposed, P9 unproven, AI Memory deferred.
 
-- One shared Application policy, `Features/Projects/Policies/WorkspaceExecutions` (`WorkspaceExecutionPolicy`, `Fence`, `Feed`,
-  `Assessment`, `Status`, `Errors`), derived only from existing rows (Agent attempts, verification executions, the local-commit
-  reservation, workspace status). No table, migration, lease, slot counter, queue, Git, provider or process access, and no write.
-- Early check before expensive preparation and a final check under the write lock in all eight Agent claim handlers (the seven
-  contracts plus the planning claim, including the planning repair and the critical-review ordinary, repair and coordinated-step
-  seams) and in the verification claim. The Agent dispatch gate (`MarkAgentAttemptDispatched`) and the verification dispatch authority
-  (`VerificationDispatchAuthority`, shared with the pre-dispatch SourceChanged decision) re-check under their lock and exclude only the
-  exact operation kind and ID. The seven Agent eligibility feeds and the verification feed only filter known conflicts; they never decide.
-- Local-commit interoperability in `LocalCommitAuthorityReader`: preparation requires an Idle workspace and the Committing step requires
-  CommitReserved.
-- Conflicting or incoherent ownership fails closed with safe Conflict errors (`workspace_execution.*`). Nothing is terminalized,
-  cancelled, retried or released, and recording a known result is never gated.
-- `GET /api/projects/{projectId}/workspace-execution-status`: protected, bodyless and queryless, API-owned DTO with exactly
-  `projectId`, `workspaceId`, `status`, `reasonCode`, closed statuses and reason tuples, non-disclosing 404.
-- Frontend: whole-answer decoder, an owned-lifetime hook (5 s refresh, 10 s abort, coalescing, three-failure stop, stale-owner fencing)
-  feeding `CandidateWorkspacePanel` and `RunCockpitView` as an additional withholding hint. Idle grants nothing; inspection, Refresh,
-  Stop after current step, result recording and abandonment stay enabled.
-- Documentation: `engineering-context.md`, `architecture/system-overview.md`, `architecture/data-and-recovery.md`,
-  `product/run-cockpit-specification.md`, `roadmap/mvp-delivery-plan.md`, and this record.
+### What exists
 
-Changed paths: `git status --short`; the C# paths are listed in `logs/executor/workspace-excl-01/changed-cs-files.txt`.
+- `Features/Runs/Policies/ExecutionCapacity` (`ExecutionCapacityPolicy`, `Fence`, `Feed`, `Reading`, `Status`, `Errors`, owner types):
+  one fresh untracked reading of coherent unresolved WorkspaceMutating Agent attempts (Domain's table), verification executions and
+  local-commit reservations; limit two; Unavailable for unknown, incoherent or foreign ownership; recognized terminal exclusion only.
+- Early and write-locked checks in ordinary and authorized Implementation, ReviewCorrection, DiagnosisCorrection, verification and
+  local-commit admission; dispatch and execution gates (Agent, verification, local commit) with exact kind-and-ID self-exclusion; the
+  Agent, verification and local-commit feeds only filter known refusals. Fixed 409 codes `execution_capacity.limit_reached` and
+  `execution_capacity.unavailable`.
+- `GET /api/execution-capacity` (protected, bodyless, queryless, four-member closed wire), generated client, frontend decoder, hook
+  (host-session lifetime, 5 s poll, 10 s abort, coalescing, three-failure stop, stale-remount fencing) and guidance in both regions;
+  only new mutating starts are withheld (diagnosis separated from correction).
+- Documentation: ADR-0058 and its index entry, `engineering-context.md`, `architecture/system-overview.md`,
+  `architecture/data-and-recovery.md`, `product/run-cockpit-specification.md`, `roadmap/mvp-delivery-plan.md`, the planner handoff
+  and this record.
+
+### Work done by the replacement executor
+
+- Reconciled the partial diff with the recovery inventory (identical path set) and read the retained logs. `green-01-application.log`
+  (1 failed, 9 passed: `A_database_already_over_capacity_...`) is **not** green. Its failure was an `Assert.Equal` on a snapshot record
+  holding `List` members (reference equality). The current test snapshots strings and passes in the final runs below. The other early
+  failures stay retained and are not explained beyond their logs.
+- Added missing coverage: `LocalCommitGlobalAdmissionTests` (real host and Git: refusal before preparation, locked-seam race,
+  unattestable ownership, exact self-exclusion at execution, refusal beside two others leaving the operation Prepared, execution once a
+  place is freed); `GlobalAdmissionHostedScenarios` run against the real Implementation and ReviewCorrection supervisors (waits with no
+  capture or adapter call, then runs once with the baseline outcome) and the ReadOnly code-review and verification-diagnosis supervisors
+  (unchanged at full capacity); two hosted verification-supervisor tests (waits beside two recorded owners and launches once one
+  ends; a mediator claim is refused with nothing consumed).
+- The first final full Application run exposed six existing tests whose fixtures ADR-0058 now refuses or does not propose (corrected
+  rationale: the two neighboring-owner tests put conflicting Agent and verification owners on one neighboring workspace; the feed
+  cases claim four or three mutating attempts at once). Repaired in the tests only: `A_competing_owner_in_another_repository_does_not_delay_or_refuse_the_claim`
+  and `Terminal_history_and_another_repository_never_refuse_the_claim` (one unrelated owner instead of two),
+  `ExecutionModeFeedIsolationTests.Each_agent_feed_hands_out_only_manual_and_legacy_runs` and
+  `DirectHumanGuidanceDispatchBoundaryTests.Both_feeds_project_the_claimed_text_or_none_and_a_legacy_attempt_stays_eligible`
+  (claims are made in two rounds with the first genuinely ended). Their mode and guidance assertions are preserved.
 
 ### Evidence
 
-All logs are under `logs/executor/workspace-excl-01/`. **Phase** says which sources a run saw: *initial* is the first delivery
-(before review 1), *correction 1* is the current sources. Nothing here is published evidence; the published baseline is AGENT-SUP-01.
+All logs are under `logs/executor/global-admit-01/`; none overwrote an earlier failure. Phase says which sources a run saw.
 
 | Check | Phase | Result | Log |
 | --- | --- | --- | --- |
-| Application project, full | correction 1, fresh | 6818 / 6818 passed (9 m 15 s) | `corr1-application-full.log` |
-| Application project, full | initial, retained | 6804 / 6804 (precedes R1 to R4) | `final-application-full.log` |
-| Application, enumerated affected classes (940 tests: policy, claim, dispatch, repair, planning, commit, every final-seam claim class, cancellation, ambiguity, authorization) | correction 1, fresh | 940 / 940 | `corr1-application-targeted.log`, filter `corr1-application-filter.txt` |
-| API integration project, full | correction 1, fresh | 2944 / 2944 passed (9 m 39 s); run because the shared authority read changed and because of the stale-binary limit below | `corr1-api-full.log` |
-| API integration project, full | initial, retained | 2938 / 2940 (two failures, below); the repaired class re-ran 22 / 22; no clean full pass is claimed from this phase | `final-api-full.log`, `final-api-diagnosis-rerun.log` |
-| API targeted (protected status including both foreign directions for verification and open commit, all seven hosted exclusion paths, verification supervisor, planning-sequence hosted behavior, planning request endpoint, complete `VerificationDiagnosisHostedTests`) | correction 1, fresh | 114 / 114 | `corr1-api-targeted.log`, filter `corr1-api-filter.txt` |
-| Architecture, full | correction 1, fresh | 185 / 185 | `corr1-architecture.log` |
-| `dotnet format --verify-no-changes`, 73 changed C# files | correction 1, fresh | exit 0 | `corr1-format-changed.log` |
-| Whole-solution format verify | initial, retained | exit 2, whitespace findings only in 20 paths this slice never touched; not changed | `final-format.log` |
-| Vitest, whole, once | correction 1, fresh | 271 files / 6386 tests passed | `corr1-vitest-whole.log` |
-| Vitest, whole | initial, retained | 6370 / 6370 on the second run (the first run failed, below) | `final-vitest-whole.log`, `final-vitest-whole-02.log` |
-| Lint / production build (`tsc -b` plus `vite build`) / strict e2e tsc | correction 1, fresh | exit 0 (the same nine pre-existing warnings) / exit 0 / exit 0 | `corr1-lint.log`, `corr1-build.log`, `corr1-e2e-tsc.log` |
-| Collaboration journey, then planning-sequence journey, serial | correction 1, fresh | both passed (1.7 m, 21 s); the journey host built first without a CS2012 lock | `corr1-journey-host-build.log`, `corr1-journey-collaboration.log`, `corr1-journey-planning-sequence.log` |
-| NSwag reproducibility (client deleted, API rebuilt with `--no-incremental`, identical SHA-256) | initial, retained | no API contract changed in the correction; the client is byte-identical (SHA-256 `978e2c30…14dd9`) after the correction's rebuilds | `nswag-before.txt`, `nswag-after.txt` |
-| Negative control 1, every Agent final fence omitted (8 compiled mutant files) | correction 1, fresh | killed by 36 tests, with kills in every one of the eight handlers' classes | `negative-controls.log`, `control-1-*.test-output.log` |
-| Negative control 2, verification final fence omitted | correction 1, fresh | killed by 4 tests | `negative-controls.log`, `control-2-*.test-output.log` |
-| WEX-R3 control, the three new cleanup catches disabled | correction 1, fresh | killed by the 6 ordinary regressions | `r3-control.log`, `r3-control.test-output.log` |
+| Application, full | first final run | 6951 / 6957, 6 failures (the six tests above), retained | `final-application-tests.log` |
+| Application, full | final sources (after the six test repairs) | 6957 / 6957 (9 m 27 s) | `final-application-tests-02.log`, `final-application-refix-01.log` |
+| Application, 110 capacity and admission tests | after formatting two new test files | 110 / 110 | `final-application-postformat.log` |
+| API integration, full | final product sources | 2978 / 2978 (10 m 35 s) | `final-api-integrationtests.log` |
+| New API tests | development | local commit 5/5, hosted supervisors 4/4, verification supervisor class 35/35 (a first run had 2 failures from my fixture planting a launchable verification; retained) | `rec-commit-02.log`, `rec-hosted-01.log`, `rec-hosted-02.log`, `rec-hosted-03.log` |
+| Architecture, full | final and after doc edits | 185 / 185 both | `final-architecture-tests.log`, `final-architecture-02.log` |
+| Domain, full | final | 1547 / 1547 | `final-domain-tests.log` |
+| Infrastructure integration, full | final | 3155 passed, 4 skipped | `final-infrastructure-integrationtests.log` |
+| Vitest, whole | final frontend sources | 276 files, 6743 tests passed | `rec-vitest-01.log` |
+| Lint / `npm run build` (tsc -b and vite) / strict e2e tsc | final frontend sources | exit 0 (nine warnings, all in unchanged files) / 0 / 0 | `rec-lint-01.log`, `rec-build-fe-01.log`, `rec-e2e-tsc-01.log` |
+| NSwag reproducibility (client deleted, API rebuilt `--no-incremental`) | final | byte-identical, SHA-256 `be6f7a74…01201` | `final-nswag-before.txt`, `final-nswag-after.txt` |
+| Collaboration then planning-sequence journey, serial | final binaries | both passed (1.9 m, 21 s) | `final-journey-collaboration.log`, `final-journey-planning-sequence.log` |
+| Control 1: Agent write-locked capacity check omitted (compiling) | same product sources as final | killed by 3 named tests (two last-place-before-seam cases and one cross-family race) | `rec-control-agent-final-gate.log` |
+| Control 2: verification locked capacity check omitted (compiling) | same | killed by 2 tests (race, last place taken before the lock) | `rec-control-verification-final-gate.log` |
+| Changed-file `dotnet format --verify-no-changes` | final | first run exit 2 for two new test files only (retained); formatted; second run exit 0 | `final-format-changed-01-FAILED.log`, `final-format-changed-02.log` |
+| `dotnet list package --vulnerable`, `npm audit --omit=dev` | final | none / 0 vulnerabilities | `final-vuln-dotnet.log`, `final-npm-audit.log` |
 
-Not run: no live provider, no packaged desktop run, no generator or migration change (none was needed), no broader mutation campaign,
-no repeat of the NSwag deletion proof.
+Controls: hashes before and after matched, the restored sources were touched and rebuilt before the final matrix, and the produced
+assemblies were verified newer than the restored sources. The final full runs followed the restoration. The first whole-solution build
+after it failed once on a transient `rjsmrazor.dswa.cache.json` file lock and succeeded on the immediate retry (`final-build-01.log`,
+`final-build-02.log`).
 
-Control restoration hashes were verified before and after each control. The controls' filter was widened to the enumerated classes
-because a name match on `WorkspaceExecution` does not select the partial-class tests of the claim handlers; the earlier narrow-filter
-control run (8 and 4 kills) is retained as `negative-controls-corr1-narrow-filter.log` and `negative-controls-initial.log`.
+Not run: no live provider, no packaged shell, no whole-solution format verify (the earlier 20 unrelated whitespace findings stand), no
+repeat of the other nine journeys, no broader mutation campaign. The full API run precedes the formatting-only edit to two Application
+test files and the six Application test repairs, which no API test consumes (accepted by review 1).
 
-### Failures, tooling errors and evidence limits retained
+### Correction 1: validation by phase
 
-- *Baseline full Application run (32 failures, initial phase).* Ordinary-path drift tests hit 30 s lock timeouts because the test hook
-  fired at the first save instead of at transaction start; fixed in `ClaudeModelPreferenceTestSupport.BeforeFirstSaveInterceptor` (now
-  also a transaction interceptor). Four precedence tests changed expectation (below).
-- *First whole Vitest run (initial phase, 5 `RunCockpitView` ADR-0056 failures, "stale reading").* A fixture hard-coded
-  `receivedAtMilliseconds: 0` against a 15 s staleness window; `agentSupervisionFixture.ts` now uses `performance.now()`. Original log
-  retained in `final-vitest-whole.log`.
-- *First full API run (initial phase, two failures).* `VerificationDiagnosisHostedTests` started a real verification while a diagnosis
-  attempt was running, which ADR-0057 correctly refuses (`workspace_execution.agent_attempt_active`). The two tests plant the newer
-  finished execution directly (`PlantNewerFailedVerificationAsync`); the fresh-diagnosis tail runs a real newer verification after the
-  attempt ended.
-- *Stale mutant binaries after the initial controls (tooling error, discovered in the correction).* The initial controls restored the
-  original bytes with their old timestamps, so the following "clean rebuild" took under a second and did not recompile: MSBuild kept
-  the mutant assemblies. The kills themselves were real (the mutants compiled and failed tests). The correction's own first targeted
-  Application run after its R3 control definitely ran the mutant assembly (6 failures of the new cleanup regressions; its log
-  `corr1-application-targeted.log` was overwritten by the passing rerun). The initial-phase full API run (`final-api-full.log`) started
-  after the initial controls and may likewise have used mutant Application assemblies; that cannot now be proved or excluded (the
-  later NSwag rebuild with `--no-incremental` rebuilt everything). Both harnesses now `touch` the restored files, the mutated sources were touched and
-  rebuilt, and all correction-phase evidence above ran after that. The initial API evidence is therefore retained with this limit, and
-  the correction-phase full API run replaces it as fresh evidence.
-- *Reviewer tooling error (retained from review 1).* The first review probe build failed on an omitted namespace import; not a product result.
-- *Earlier correction runs.* A first R3 control attempt did not compile (a definitely-assigned local, then an unreachable-code
-  diagnostic) and was not a kill; the compiling form is the recorded one.
+Fresh, on the correction sources (`logs/executor/global-admit-01/`):
 
-### Precedence changes (intended, documented in the tests)
+| Check | Result | Log |
+| --- | --- | --- |
+| GAD-R1 regressions, red then green | 4 failed / 2 passed before the fix; 6 / 6 after | `gad-r1-red-02.log`, `gad-r1-green-01.log` |
+| Affected dispatch consumers, Application project (868 tests: every class invoking the dispatch handler, mode, guidance, turn-limit, account-usage, workspace, abandonment, repair, diagnosis, capacity/policy/feed, claim-time global admission) | 868 / 868 (2 m 7 s) | `gad-affected-Application.Tests.log`, filter `gad-r1-filter.txt` |
+| Same filter, API project (all seven real Agent supervisor compositions with their dispatch cases, hosted authorization, verification supervisor, local-commit global admission) | 339 / 339 (1 m 21 s) | `gad-affected-Api.IntegrationTests.log` |
+| Solution build | 0 warnings, 0 errors | `gad-build-01.log` |
+| Architecture, full | 185 / 185 | `gad-architecture.log` |
+| `dotnet format --verify-no-changes`, 55 changed C# files | exit 0 | `gad-format-01.log` |
+| Collaboration then planning-sequence journey, serial, rebuilt host | both passed (1.9 m, 22 s) | `gad-journey-collaboration.log`, `gad-journey-planning-sequence.log` |
 
-A running or undispatched competing owner is now refused before older drift or corruption evidence in four existing tests:
-`CreateVerificationDiagnosisAttemptCommandHandlerTests` (running execution), `DiagnosisCorrectionChainTests` (Running), and two in
-`PlanningLineageIntegrityTests` (`UnreadableParticipatingRow`; `AssertFixedRefusal` gained a corruption parameter). Accepted by review 1.
-
-One further expectation changed in the correction: `RunCockpitView`'s "never carries a previously selected run's global claim block"
-test now sees the workspace gate's pending guidance (instead of the budget-unconfirmed wording) on the transient frame whose cockpit
-projection still belongs to the previous run, because that frame has no project to judge and the gate is the earlier veto. Nothing is
-offered on that frame, as before.
-
-### Subagent work
-
-The frontend work of the initial delivery was delegated to a subagent whose report is untrusted evidence; its output was verified by the
-whole Vitest run, lint, build, strict e2e tsc and the journeys above. The correction was done directly in this chat.
+Retained at their recorded phases (inputs unchanged by the correction): full Application 6957 / 6957 and full API 2978 / 2978 (pre-correction
+product sources; the correction changes only the dispatch handler, whose consumers are re-run above), Domain, Infrastructure, whole Vitest,
+lint, build, strict e2e tsc, NSwag byte-identical reproduction, audits, and the two claim controls (Agent final check of ordinary
+Implementation only, which proves neither every Agent entrance nor this dispatch exemption, and the verification control). Not run: no
+full-project repeat of Application or API, no new mutation control for the dispatch exemption. The first-attempt red log and every earlier
+failed log remain. Binaries were rebuilt by `dotnet build` from the edited sources; source hashes alone were not used as proof.
 
 ### Limits
 
-- Process attempts are not part of the exclusion; the policy covers Agent attempts, verification and the local-commit reservation only.
-- There is no scheduler or queue: a refused claim is a safe Conflict and nothing is retried or released on its behalf.
-- A pending re-read keeps the last answer (Idle grants nothing); the claim-time checks, not the hint, decide.
-- The UI does not bind the status to a workspace id (a project-owned point-in-time latest-workspace hint); the extended collaboration
-  journey asserts the selected workspace instead. This is neither source nor workspace attestation nor permission.
-- The disclosure is a required prop of the two regions; absence withholds. The hint is additional withholding only and never authorizes
-  an action.
-- The authorized Implementation claim surfaces a raw database failure of the final read as the original exception (after the outer
-  handler's durable settlement), as it already does for its other late reads, rather than as a Failure result.
+- The count discloses only this policy's recorded facts, not liveness, simultaneous activity or a frozen cross-family snapshot. There
+  is no queue, configurable limit or release, and a refused operation is never retried.
+- The earlier failing development logs (`red-01`, `green-01`, compilation, policy-03, first lint and e2e tsc) are original evidence of
+  intermediate states; the final results above supersede them only for the sources they ran on.
+- The previous executor's work cannot be authenticated beyond its retained logs; missing worker output stays unknown.
 
 ## Functional development
 
@@ -191,6 +157,11 @@ challenge and explicit GO: [AGENTS.md](../../AGENTS.md); constraints:
 [planner-handoff.md](planner-handoff.md).
 
 ## Prior published delivery
+
+WORKSPACE-EXCL-01 `b3d53bfc` (sole parent `f95e337`, 110 paths) passed independent publication verification
+(`logs/planner-review/workspace-exclusion-01/publication-verification.json` and `.md`); its record, committed with pre-review wording,
+is this file at `b3d53bf`. WEX-R1 to R4 are resolved; WEX-C1 (obsolete prop comments), the initial API binary-provenance uncertainty
+and the overwritten correction failure log stay accepted limits.
 
 AGENT-SUP-01 `f95e337` (sole parent `a78e572c`, 141 paths) passed independent publication verification
 (`logs/planner-review/agent-sup-01/publication-verification.json` and `.md`); its record, committed with pre-review wording, is this

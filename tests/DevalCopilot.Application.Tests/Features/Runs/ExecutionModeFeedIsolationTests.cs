@@ -9,6 +9,7 @@ using DevalCopilot.Application.Features.Runs.Queries.GetEligibleSimulatedRuns;
 using DevalCopilot.Domain.Features.Projects;
 using DevalCopilot.Domain.Features.Runs;
 using DevalCopilot.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace DevalCopilot.Application.Tests.Features.Runs;
@@ -63,16 +64,27 @@ public sealed class ExecutionModeFeedIsolationTests : IAsyncLifetime
     [MemberData(nameof(AgentFeeds))]
     public async Task Each_agent_feed_hands_out_only_manual_and_legacy_runs(string feed)
     {
+        // ADR-0058: four unresolved mutating claims would exceed the global ceiling and the mutating feeds would propose none, so the
+        // modes are judged two claims at a time and the first pair genuinely ends before the second is claimed.
         var manual = await SeedClaimedAgentAttemptAsync(feed, ManualAgent);
-        var legacy = await SeedClaimedAgentAttemptAsync(feed, Legacy);
         var simulated = await SeedClaimedAgentAttemptAsync(feed, Simulated);
+
+        var firstEligible = await FeedAsync(feed);
+
+        Assert.Contains(manual.AttemptId, firstEligible);
+        Assert.DoesNotContain(simulated.AttemptId, firstEligible);
+        await using (var db = _fixture.CreateContext())
+        {
+            await db.Attempts.Where(attempt => attempt.Id == manual.AttemptId || attempt.Id == simulated.AttemptId)
+                .ExecuteUpdateAsync(set => set.SetProperty(attempt => attempt.Status, AttemptStatus.Interrupted));
+        }
+
+        var legacy = await SeedClaimedAgentAttemptAsync(feed, Legacy);
         var undefined = await SeedClaimedAgentAttemptAsync(feed, Undefined);
 
         var eligible = await FeedAsync(feed);
 
-        Assert.Contains(manual.AttemptId, eligible);
         Assert.Contains(legacy.AttemptId, eligible);
-        Assert.DoesNotContain(simulated.AttemptId, eligible);
         Assert.DoesNotContain(undefined.AttemptId, eligible);
     }
 

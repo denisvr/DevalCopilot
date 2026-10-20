@@ -1,6 +1,7 @@
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -57,7 +58,11 @@ internal static class VerificationDispatchAuthority
 
         // ADR-0057: the one dispatch authority of both pre-launch decisions also requires that nothing but this exact execution owns its
         // workspace (another Agent attempt, a second execution, a local-commit reservation or untrustworthy ownership refuses both).
+        // ADR-0058: and the global ceiling, ignoring only this exact verification execution (validated as a counted owner of its own
+        // table before it is excluded): two other owners recorded anywhere withhold both decisions.
         return await WorkspaceExecutionFence.CheckVerificationDispatchAsync(
-            dbContext, execution.ProjectId, execution.GitWorkspaceId, execution.Id, cancellationToken);
+                dbContext, execution.ProjectId, execution.GitWorkspaceId, execution.Id, cancellationToken)
+            ?? await ExecutionCapacityFence.CheckDispatchAsync(
+                dbContext, new ExecutionOwner(ExecutionOwnerKind.Verification, execution.Id), cancellationToken);
     }
 }

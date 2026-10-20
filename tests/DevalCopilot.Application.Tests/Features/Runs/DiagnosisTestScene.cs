@@ -324,11 +324,11 @@ internal sealed class DiagnosisTestScene
 
     public async Task<Devalente.Shared.Results.Result<CreateDiagnosisCorrectionAttemptCommandResult>> ClaimCorrectionAsync(
         Guid diagnosisAttemptId, IDevalCopilotDbContext? db = null, RepairEvidenceReader? reader = null, DiagnosisArtifactStore? store = null,
-        IRunEventNotifier? notifier = null, Guid? runId = null, string? guidance = null)
+        IRunEventNotifier? notifier = null, Guid? runId = null, string? guidance = null, CancellationToken cancellationToken = default)
     {
         await using var fresh = Fixture.CreateContext();
         return await CorrectionHandler(db ?? fresh, reader, store, notifier).HandleAsync(
-            new CreateDiagnosisCorrectionAttemptCommand(runId ?? Run.Id, diagnosisAttemptId, guidance), CancellationToken.None);
+            new CreateDiagnosisCorrectionAttemptCommand(runId ?? Run.Id, diagnosisAttemptId, guidance), cancellationToken);
     }
 
     // ---- seeded diagnosis attempts -------------------------------------------------------------------------------

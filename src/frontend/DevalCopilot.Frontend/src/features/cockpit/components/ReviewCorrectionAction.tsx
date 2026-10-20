@@ -35,6 +35,10 @@ interface ReviewCorrectionActionProps {
    * claim possible while this global block is present. Never a positive eligibility signal —
    * see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
+  /** ADR-0058: the host's execution capacity withholds a NEW potentially mutating start. It vetoes only the request of a correction (and the
+   * recording of its escalation, which the same claim operation refuses at capacity); it never withholds a human authorization, which is
+   * metadata only, so the authorization controls below read `globalClaimBlock` alone. Never a positive eligibility signal. */
+  executionCapacityBlock?: GlobalAgentClaimBlock | null
   /** The advisory, candidate-specific time-fit result for review correction's own configured
    * timeout — a SEPARATE, additive signal from `globalClaimBlock`. Both the plain request
    * button and the human-escalation button are withheld together when this blocks, exactly like
@@ -75,6 +79,7 @@ export function ReviewCorrectionAction({
   onAuthorize = () => undefined,
   onAuthorizeWithGuidance,
   globalClaimBlock,
+  executionCapacityBlock = null,
   timeFit,
 }: ReviewCorrectionActionProps) {
   if (reviewOutcome !== 'ReviewChangesRequested' || !reviewAttemptId) return null
@@ -93,6 +98,9 @@ export function ReviewCorrectionAction({
   const canAuthorize = !isActive && budgetExhausted && hasCurrentEscalation && !hasAvailableAuthorization
   const timeFitBlocked = isAgentClaimPathTimeFitBlocking(timeFit)
   const anyBlock = Boolean(globalClaimBlock) || timeFitBlocked
+  // The block that decides a new start: the existing global block first (its precedence and wording are unchanged), then the capacity.
+  const requestBlock = globalClaimBlock ?? executionCapacityBlock
+  const requestBlocked = Boolean(requestBlock) || timeFitBlocked
   // Direct guidance exists only within the ordinary budget: the editor is withheld at exhaustion and
   // while an extra authorization is available. Display only: the server refuses a guided request at
   // exhaustion regardless (agent_attempts.direct_guidance_unavailable).
@@ -107,9 +115,9 @@ export function ReviewCorrectionAction({
   return (
     <section className="dc-review-correction-action" aria-label="Review correction">
       {isActive && <p aria-busy="true">Review correction {phaseLabel(status).toLowerCase()}…</p>}
-      {!isActive && canRequest && !hasAvailableAuthorization && globalClaimBlock && (
+      {!isActive && canRequest && !hasAvailableAuthorization && requestBlock && (
         <p className="dc-review-correction-global-block" role="status">
-          {describeGlobalAgentClaimBlock(globalClaimBlock)}
+          {describeGlobalAgentClaimBlock(requestBlock)}
         </p>
       )}
       {!isActive && canRequest && !hasAvailableAuthorization && timeFitBlocked && (
@@ -117,12 +125,12 @@ export function ReviewCorrectionAction({
           {describeAgentClaimPathTimeFitBlock(timeFit)}
         </p>
       )}
-      {!isActive && canRequest && !anyBlock && (
+      {!isActive && canRequest && !requestBlocked && (
         <button type="button" disabled={requesting || statusLoading} onClick={() => void onRequest()}>
           {requesting ? 'Requesting…' : 'Request review correction'}
         </button>
       )}
-      {!isActive && canRequest && !anyBlock && guidanceWithinOrdinaryBudget && (
+      {!isActive && canRequest && !requestBlocked && guidanceWithinOrdinaryBudget && (
         <DirectGuidanceEditor
           runId={runId}
           sourceId={reviewAttemptId}
@@ -140,13 +148,13 @@ export function ReviewCorrectionAction({
           Direct guidance is available only within the ordinary correction budget.
         </p>
       )}
-      {canCreateEscalation && globalClaimBlock && (
+      {canCreateEscalation && requestBlock && (
         // Creating an escalation still calls CreateReviewCorrectionAttempt, whose handler checks
         // the ADR-0012/ADR-0013 global budgets BEFORE its escalation branch — so this control
         // withholds the button here too, for the same known-certain-rejection reason as every
         // other Agent-claim control, rather than offering an action that cannot actually succeed.
         <p className="dc-review-correction-global-block" role="status">
-          {describeGlobalAgentClaimBlock(globalClaimBlock)}
+          {describeGlobalAgentClaimBlock(requestBlock)}
         </p>
       )}
       {canCreateEscalation && timeFitBlocked && (
@@ -157,7 +165,7 @@ export function ReviewCorrectionAction({
           {describeAgentClaimPathTimeFitBlock(timeFit)}
         </p>
       )}
-      {canCreateEscalation && !anyBlock && (
+      {canCreateEscalation && !requestBlocked && (
         <button type="button" disabled={requesting || statusLoading} onClick={() => void onRequest()}>
           {requesting ? 'Creating…' : 'Create human escalation'}
         </button>
@@ -204,13 +212,13 @@ export function ReviewCorrectionAction({
           )}
         </div>
       )}
-      {hasAvailableAuthorization && !isActive && !anyBlock && (
+      {hasAvailableAuthorization && !isActive && !requestBlocked && (
         <p role="status">One additional correction attempt is authorized.</p>
       )}
-      {hasAvailableAuthorization && !isActive && globalClaimBlock && (
+      {hasAvailableAuthorization && !isActive && requestBlock && (
         <p className="dc-review-correction-global-block" role="status">
-          An additional correction attempt is authorized, but {describeGlobalAgentClaimBlock(globalClaimBlock).charAt(0).toLowerCase()}
-          {describeGlobalAgentClaimBlock(globalClaimBlock).slice(1)} The authorization does not override this.
+          An additional correction attempt is authorized, but {describeGlobalAgentClaimBlock(requestBlock).charAt(0).toLowerCase()}
+          {describeGlobalAgentClaimBlock(requestBlock).slice(1)} The authorization does not override this.
         </p>
       )}
       {hasAvailableAuthorization && !isActive && timeFitBlocked && (

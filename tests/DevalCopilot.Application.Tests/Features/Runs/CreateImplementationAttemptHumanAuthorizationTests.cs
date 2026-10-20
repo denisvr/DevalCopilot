@@ -865,4 +865,80 @@ public sealed class CreateImplementationAttemptHumanAuthorizationTests : IAsyncL
         await using var verify = _fixture.CreateContext();
         Assert.Empty(verify.Attempts.Where(attempt => attempt.AgentRole == AgentRole.Implementer));
     }
+
+    /// <summary>ADR-0058: the human-authorized claim is one of at most two recorded potentially mutating owners across the database
+    /// too. A full database refuses it before any external work, the one Human grant it would have spent stays available.</summary>
+    [Fact]
+    public async Task A_database_at_capacity_refuses_the_authorized_claim_early_and_leaves_the_grant_unconsumed()
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        await ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Agent, OwnerFamily.Verification);
+        await using var dbContext = _fixture.CreateContext();
+        var evidence = new CountingEvidenceReader();
+        var store = new RecordingArtifactStore();
+
+        var result = await ClaimAsync(dbContext, lineage, evidence, store);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(result.Errors).Code);
+        Assert.Equal(0, evidence.Captures);
+        Assert.Equal(0, store.Seals);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+    }
+
+    [Theory]
+    [InlineData(OwnerFamily.Agent)]
+    [InlineData(OwnerFamily.Verification)]
+    [InlineData(OwnerFamily.LocalCommit)]
+    public async Task The_last_place_taken_before_the_claim_transaction_refuses_the_authorized_claim_and_leaves_the_grant_unconsumed(OwnerFamily late)
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        await ExecutionCapacitySeed.AddAsync(_fixture, OwnerFamily.Verification);
+        await using var dbContext = _fixture.CreateContext();
+        var faulting = new FaultInjectingDbContext(dbContext)
+        {
+            BeforeBeginTransaction = _ => ExecutionCapacitySeed.AddAsync(_fixture, late),
+        };
+        var store = new RecordingArtifactStore();
+
+        var result = await ClaimHandler(faulting, store: store, probe: Probe).HandleAsync(
+            new CreateImplementationAttemptCommand(lineage.RunId, lineage.FinalProposal.Id), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(result.Errors).Code);
+        Assert.Single(store.DeletedSealedFiles);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+    }
+
+    /// <summary>The authorized claim already holds its own transaction, so a cancelled or failed final capacity read is settled from
+    /// durable state by the outer handler: rolled back, this operation's manifest removed, the grant unconsumed and the original
+    /// exception propagating unchanged.</summary>
+    [Theory]
+    [InlineData(FenceReadFault.Cancel)]
+    [InlineData(FenceReadFault.DatabaseFailure)]
+    public async Task A_failed_or_cancelled_final_capacity_read_of_an_authorized_claim_cleans_the_manifest_and_leaves_the_grant_unconsumed(FenceReadFault fault)
+    {
+        var (lineage, _, _) = await SeedAuthorizedAsync();
+        using var cancellation = new CancellationTokenSource();
+        var interceptor = new CapacityReadFaultInterceptor(fault, cancellation);
+        await using var dbContext = _fixture.CreateContext(interceptor);
+        var store = new RecordingArtifactStore();
+        var handler = ClaimHandler(dbContext, store: store, probe: Probe);
+        var command = new CreateImplementationAttemptCommand(lineage.RunId, lineage.FinalProposal.Id);
+
+        if (fault == FenceReadFault.Cancel)
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.HandleAsync(command, cancellation.Token));
+        }
+        else
+        {
+            await Assert.ThrowsAsync<Microsoft.Data.Sqlite.SqliteException>(() => handler.HandleAsync(command, CancellationToken.None));
+        }
+
+        Assert.True(interceptor.Fired);
+        Assert.Single(store.DeletedSealedFiles);
+        await AssertGrantUnconsumedAsync(lineage.RunId);
+        await using var verify = _fixture.CreateContext();
+        Assert.Empty(verify.Attempts.Where(attempt => attempt.AgentRole == AgentRole.Implementer));
+    }
 }

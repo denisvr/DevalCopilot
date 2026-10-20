@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as useSessionStatusModule from './features/cockpit/hooks/useSessionStatus'
 import { OTHER_PROJECT_ID, PROJECT_ID, idleWire, wireFor } from './features/cockpit/workspaceExecutionFixture'
+import { availableCapacityWire, capacityWireFor } from './features/cockpit/executionCapacityFixture'
 
 vi.mock('./features/cockpit/hooks/useSessionStatus')
 
@@ -520,5 +521,147 @@ describe('App workspace execution composition (ADR-0057)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'refresh evidence' }))
 
     await waitFor(() => expect(readWorkspaceExecutionStatus).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('App execution capacity composition (ADR-0058)', () => {
+  type RegionProps = {
+    projectId?: string
+    runId?: string
+    executionCapacity?: {
+      reading: { status: string; recordedOwners: number | null } | null
+      loading: boolean
+      failure: string | null
+      refresh: () => void
+    }
+    onEvidenceRefreshRequested?: () => void
+  }
+
+  const describeState = (props: RegionProps) => {
+    const state = props.executionCapacity
+    return state === undefined
+      ? 'absent'
+      : state.failure !== null
+        ? `failed ${state.failure}`
+        : state.reading !== null
+          ? `${state.reading.status} with ${state.reading.recordedOwners ?? 'no count'}`
+          : state.loading
+            ? 'pending'
+            : 'none'
+  }
+
+  async function renderApp(read: () => Promise<unknown>, sessionStatus = 'ready') {
+    const readExecutionCapacity = vi.fn(read)
+    vi.resetModules()
+    vi.doMock('./features/cockpit/hooks/useSessionStatus', () => ({ useSessionStatus: () => sessionStatus }))
+    vi.doMock('./features/cockpit/hooks/useProjectSummaries', () => ({
+      useProjectSummaries: () => ({
+        projects: [
+          { projectId: PROJECT_ID, projectName: 'Alpha', runId: 'run-a', lifecycle: 'Running', capabilities: [] },
+          { projectId: OTHER_PROJECT_ID, projectName: 'Beta', runId: 'run-b', lifecycle: 'Running', capabilities: [] },
+        ],
+        loading: false,
+        error: null,
+        refresh: vi.fn(),
+      }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useProviderRuntimePreflight', () => ({
+      useProviderRuntimePreflight: () => ({ providers: [], loading: false, error: null, refresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/hooks/useHostCapabilityRefresh', () => ({
+      useHostCapabilityRefresh: () => ({ refreshingCapability: null, requestRefresh: vi.fn() }),
+    }))
+    vi.doMock('./features/cockpit/components/CandidateWorkspacePanel', () => ({
+      CandidateWorkspacePanel: (props: RegionProps) => (
+        <>
+          <p>{`workspace panel ${props.projectId}: ${describeState(props)}`}</p>
+          <button type="button" onClick={props.onEvidenceRefreshRequested}>
+            refresh evidence
+          </button>
+        </>
+      ),
+    }))
+    vi.doMock('./features/cockpit/components/RunCockpitView', () => ({
+      RunCockpitView: (props: RegionProps) => <p>{`cockpit ${props.runId}: ${describeState(props)}`}</p>,
+    }))
+    vi.doMock('./features/cockpit/hooks/useWorkspaceExecutionStatus', () => ({
+      useWorkspaceExecutionStatus: () => ({ reading: null, loading: false, failure: null, polling: false, refresh: vi.fn() }),
+    }))
+    vi.doMock('./api/clients', async (importOriginal) => ({
+      ...(await importOriginal<typeof import('./api/clients')>()),
+      executionCapacityClient: () => ({ readExecutionCapacity }),
+    }))
+    const { default: FreshApp } = await import('./App')
+    return { ...render(<FreshApp />), readExecutionCapacity }
+  }
+
+  it('reads the host capacity once and hands the same state to both regions, withheld until it is read', async () => {
+    const release = deferredAnswer()
+    const { readExecutionCapacity } = await renderApp(() => release.promise)
+
+    expect(readExecutionCapacity).toHaveBeenCalledTimes(1)
+    expect(readExecutionCapacity).toHaveBeenCalledWith()
+    expect(screen.getByText(`workspace panel ${PROJECT_ID}: pending`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: pending')).toBeInTheDocument()
+
+    await act(async () => release.resolve(availableCapacityWire(1)))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: Available with 1`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: Available with 1')).toBeInTheDocument()
+    expect(readExecutionCapacity).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands a full or unavailable capacity to both regions, and a failed read as a failure, never as Available', async () => {
+    const full = await renderApp(() => Promise.resolve(capacityWireFor('AtCapacity', {}, 3)))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: AtCapacity with 3`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: AtCapacity with 3')).toBeInTheDocument()
+    full.unmount()
+
+    const unavailable = await renderApp(() => Promise.resolve(capacityWireFor('Unavailable')))
+    expect(await screen.findByText('cockpit run-a: Unavailable with no count')).toBeInTheDocument()
+    unavailable.unmount()
+
+    await renderApp(() => Promise.reject(new Error('down')))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: failed read`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: failed read')).toBeInTheDocument()
+  })
+
+  it('refuses an incoherent answer as invalid for both regions', async () => {
+    await renderApp(() => Promise.resolve({ ...availableCapacityWire(), extra: true }))
+
+    expect(await screen.findByText(`workspace panel ${PROJECT_ID}: failed invalid`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-a: failed invalid')).toBeInTheDocument()
+  })
+
+  it('owns one host-session lifetime independent of project selection: selecting another project neither re-reads nor resets it', async () => {
+    const { readExecutionCapacity } = await renderApp(() => Promise.resolve(availableCapacityWire()))
+    expect(await screen.findByText('cockpit run-a: Available with 0')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Beta/ }))
+
+    expect(screen.getByText(`workspace panel ${OTHER_PROJECT_ID}: Available with 0`)).toBeInTheDocument()
+    expect(screen.getByText('cockpit run-b: Available with 0')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Alpha/ }))
+    expect(screen.getByText('cockpit run-a: Available with 0')).toBeInTheDocument()
+    expect(readExecutionCapacity).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads the capacity again on an explicit evidence refresh, which is a durable hint', async () => {
+    const { readExecutionCapacity } = await renderApp(() => Promise.resolve(availableCapacityWire()))
+    await screen.findByText('cockpit run-a: Available with 0')
+    expect(readExecutionCapacity).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByRole('button', { name: 'refresh evidence' }))
+
+    await waitFor(() => expect(readExecutionCapacity).toHaveBeenCalledTimes(2))
+  })
+
+  it('reads nothing while the session is not ready', async () => {
+    const { readExecutionCapacity } = await renderApp(() => Promise.resolve(availableCapacityWire()), 'initializing')
+
+    expect(screen.getByText(/starting the local host/i)).toBeInTheDocument()
+    expect(readExecutionCapacity).not.toHaveBeenCalled()
   })
 })

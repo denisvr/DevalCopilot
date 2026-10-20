@@ -237,6 +237,12 @@ both single-use dispatch gates, and a protected status lets the cockpit and work
 table, queue, slot, scheduler, takeover or lease release, does not cover standalone Process attempts, and is not Increment 5's global
 two-mutating-run scheduler or process-aware recovery.
 
+**Global mutating admission (partial).** ADR-0058 / GLOBAL-ADMIT-01 bounds recorded potentially mutating owners at two per authoritative
+database across the existing mutating Agent claims, verification and local commit, with the same early, write-locked and dispatch-time
+decisions, a protected disclosure and withholding of new mutating starts in both cockpit regions. It adds no configuration, queue,
+lease, takeover or release, and is not ADR-0006's configurable scheduler, durable queue or process-aware recovery; Increment 5 stays
+incomplete.
+
 **Partial delivery, not completion.** Explicit Human-requested capabilities,
 each bounded by its [ADR](../decisions/README.md):
 

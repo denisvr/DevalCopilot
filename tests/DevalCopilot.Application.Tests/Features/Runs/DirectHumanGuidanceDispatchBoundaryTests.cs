@@ -68,13 +68,24 @@ public sealed class DirectHumanGuidanceDispatchBoundaryTests : IAsyncLifetime
     {
         var (_, guided) = await SeedAsync(path, Guidance);
         var (_, plain) = await SeedAsync(path, null);
+
+        // ADR-0058: three unresolved mutating claims would exceed the global ceiling and no feed would propose any of them, so the legacy
+        // attempt is claimed after the plain one has genuinely ended.
+        var first = await EligibleAsync(path);
+        Assert.Equal(2, first.Count);
+        Assert.Equal(Guidance, first.Single(item => item.AttemptId == guided).DirectGuidance);
+        Assert.Null(first.Single(item => item.AttemptId == plain).DirectGuidance);
+        await using (var db = _fixture.CreateContext())
+        {
+            await db.Attempts.Where(attempt => attempt.Id == plain).ExecuteUpdateAsync(set => set.SetProperty(attempt => attempt.Status, AttemptStatus.Interrupted));
+        }
+
         var (_, legacy) = await SeedAsync(path, null, legacyV1: true);
 
         var eligible = await EligibleAsync(path);
 
-        Assert.Equal(3, eligible.Count);
+        Assert.Equal(2, eligible.Count);
         Assert.Equal(Guidance, eligible.Single(item => item.AttemptId == guided).DirectGuidance);
-        Assert.Null(eligible.Single(item => item.AttemptId == plain).DirectGuidance);
         Assert.Null(eligible.Single(item => item.AttemptId == legacy).DirectGuidance);
     }
 

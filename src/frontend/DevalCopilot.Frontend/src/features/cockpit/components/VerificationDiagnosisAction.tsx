@@ -29,6 +29,9 @@ interface VerificationDiagnosisActionProps {
   /** A known global Agent-claim hard stop (ADR-0012/ADR-0013), or `null` when none is known.
    * Never a positive eligibility signal — see `deriveGlobalAgentClaimBlock`. */
   globalClaimBlock: GlobalAgentClaimBlock | null
+  /** ADR-0058: the host's execution capacity withholds a NEW potentially mutating start. It vetoes only the correction (a Claude
+   * implementation) and the recording of its escalation, never the read-only diagnosis, which keeps reading `globalClaimBlock` alone. */
+  correctionCapacityBlock?: GlobalAgentClaimBlock | null
   /** The advisory time-fit result for the diagnosis, which runs under the code-review timeout. */
   timeFit: AgentClaimPathTimeFit
   /** The advisory time-fit result for the correction, which runs under the review-correction timeout. */
@@ -135,6 +138,7 @@ export function VerificationDiagnosisAction({
   onRequestCorrection,
   onRequestCorrectionWithGuidance,
   globalClaimBlock,
+  correctionCapacityBlock = null,
   timeFit,
   correctionTimeFit,
 }: VerificationDiagnosisActionProps) {
@@ -157,7 +161,9 @@ export function VerificationDiagnosisAction({
   const budgetExhausted = findingsRecorded && status?.correctionBudgetExhausted === true
   const hasCorrectionEscalation = Boolean(status?.correctionEscalationId)
   const correctionApplicable = findingsRecorded && status?.correctionApplicable === true
-  const correctionBlocked = Boolean(globalClaimBlock) || correctionTimeFitBlocked
+  // The block that decides a correction start: the existing global block first (precedence and wording unchanged), then the capacity.
+  const correctionBlock = globalClaimBlock ?? correctionCapacityBlock
+  const correctionBlocked = Boolean(correctionBlock) || correctionTimeFitBlocked
   const canRequestCorrection = correctionApplicable && !anyRunning && !budgetExhausted
   const canRecordEscalation = correctionApplicable && !anyRunning && budgetExhausted && !hasCorrectionEscalation
   const correctionTerminal = hasCorrectionAttempt && status?.correctionStatus !== 'Running'
@@ -270,9 +276,9 @@ export function VerificationDiagnosisAction({
               Diagnosis correction {correctionPhaseLabel(status).toLowerCase()}…
             </p>
           )}
-          {!anyRunning && (canRequestCorrection || canRecordEscalation) && globalClaimBlock && (
+          {!anyRunning && (canRequestCorrection || canRecordEscalation) && correctionBlock && (
             <p className="dc-verification-diagnosis-global-block" role="status">
-              {describeGlobalAgentClaimBlock(globalClaimBlock)}
+              {describeGlobalAgentClaimBlock(correctionBlock)}
             </p>
           )}
           {!anyRunning && (canRequestCorrection || canRecordEscalation) && correctionTimeFitBlocked && (

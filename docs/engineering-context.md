@@ -104,7 +104,7 @@ claim is admitted only into an Idle workspace and a single-use dispatch gate
 only beside no owner other than its exact operation; conflicting or
 untrustworthy ownership fails closed and nothing is terminalized, cancelled,
 retried or released. It adds no table, queue, slot or scheduler and no
-standalone Process ownership. Increments 4 to 6 stay incomplete; no MVP
+standalone Process ownership. ADR-0058 / GLOBAL-ADMIT-01 bounds recorded potentially mutating owners at two per authoritative database (existing Agent, verification and local-commit rows only; no queue, lease or release) and withholds new mutating starts in both cockpit regions. Increments 4 to 6 stay incomplete; no MVP
 completion is implied. Text-delivery controls
 (ADR-0021, 0022, 0024, 0027) close named routes, not every filesystem read;
 their physical proofs are Windows-only. Token and account-usage controls are

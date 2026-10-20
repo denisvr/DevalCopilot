@@ -146,6 +146,14 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
       workspaceStatusReads.push({ method: request.method(), search: url.search, body: request.postData() })
     }
   })
+  // ADR-0058: every read of the host-wide execution capacity the page makes, judged afterwards to be a bodyless, queryless GET.
+  const capacityReads: { method: string; search: string; body: string | null }[] = []
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    if (/^\/api\/execution-capacity$/i.test(url.pathname)) {
+      capacityReads.push({ method: request.method(), search: url.search, body: request.postData() })
+    }
+  })
   await page.goto('/')
   await expect(page.getByText('No launch session is available')).toHaveCount(0)
 
@@ -3234,6 +3242,57 @@ test('the collaboration journey: failed verification, diagnosis, correction, fre
   expect(sameId(idle.workspaceId as string, selectedWorkspaceId)).toBe(true)
   expect(idle.reasonCode).toBeNull()
   expect(idle.status).toBe('Idle')
+
+  // ADR-0058: the host's execution capacity was read only as bodyless, queryless GETs, and once every execution completed it reads
+  // Available with no recorded owner, in the closed four-member shape with an explicit null reason. Available is rendered as nothing at
+  // all: no guidance appears and no control is enabled by it.
+  expect(capacityReads.length).toBeGreaterThan(0)
+  for (const read of capacityReads) {
+    expect(read).toEqual({ method: 'GET', search: '', body: null })
+  }
+
+  const availableRead = await page.waitForResponse(
+    async (response) => {
+      if (new URL(response.url()).pathname.toLowerCase() !== '/api/execution-capacity' || response.status() !== 200) {
+        return false
+      }
+
+      return ((await response.json()) as { status?: string }).status === 'Available'
+    },
+    { timeout: 30_000 },
+  )
+  const capacityAvailable = (await availableRead.json()) as Record<string, unknown>
+  expect(Object.keys(capacityAvailable).sort()).toEqual(['limit', 'reasonCode', 'recordedOwners', 'status'])
+  expect(capacityAvailable).toEqual({ limit: 2, recordedOwners: 0, status: 'Available', reasonCode: null })
+  await expect(page.getByRole('status', { name: /^Execution capacity:/ })).toHaveCount(0)
+
+  // ADR-0058 disclosure and recovery: while the capacity cannot be read, the candidate workspace region shows its one fixed guidance and
+  // withholds every verification Run; planning-free reads and evidence stay operable. An explicit refresh recovers it once the host
+  // answers again. Nothing here starts, cancels, queues or releases anything, so no provider is invoked and no row is added.
+  const invocationsBeforeDisclosure = stageInvocations().length
+  const rowsBeforeDisclosure = verificationRowCounts()
+  await page.route('**/api/execution-capacity', (route) => route.abort())
+  const capacityGuidance = page.getByRole('status', { name: 'Execution capacity: candidate workspace' })
+  await expect(capacityGuidance).toBeVisible({ timeout: 30_000 })
+  await expect(capacityGuidance).toContainText('could not be read')
+  const runButtons = verification.getByRole('button', { name: 'Run', exact: true })
+  for (const button of await runButtons.all()) {
+    await expect(button).toBeDisabled()
+  }
+
+  await page.unroute('**/api/execution-capacity')
+  const recoveredRead = page.waitForResponse(
+    async (response) =>
+      new URL(response.url()).pathname.toLowerCase() === '/api/execution-capacity'
+      && response.status() === 200
+      && ((await response.json()) as { status?: string }).status === 'Available',
+    { timeout: 30_000 },
+  )
+  await capacityGuidance.getByRole('button', { name: 'Refresh execution capacity' }).click()
+  await recoveredRead
+  await expect(capacityGuidance).toHaveCount(0)
+  expect(stageInvocations()).toHaveLength(invocationsBeforeDisclosure)
+  expect(verificationRowCounts()).toEqual(rowsBeforeDisclosure)
 
   // The launch secret never reached the page URL, browser storage, or any file under the owned root.
   expect(page.url()).not.toContain(journeySecret())

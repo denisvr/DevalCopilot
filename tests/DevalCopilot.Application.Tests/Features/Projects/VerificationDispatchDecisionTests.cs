@@ -351,6 +351,111 @@ public sealed class VerificationDispatchDecisionTests : IAsyncLifetime
         await other.SaveChangesAsync(CancellationToken.None);
     }
 
+    // ---- ADR-0058: at most one owner beside this exact execution anywhere in the database -----------------------------------
+
+    [Theory]
+    [InlineData(OwnerFamily.Agent, OwnerFamily.Verification)]
+    [InlineData(OwnerFamily.Verification, OwnerFamily.LocalCommit)]
+    [InlineData(OwnerFamily.LocalCommit, OwnerFamily.Agent)]
+    public async Task Two_other_recorded_owners_anywhere_refuse_the_dispatch_and_leave_the_execution_pending(
+        OwnerFamily first, OwnerFamily second)
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, _ => ExecutionCapacitySeed.AddAsync(fixture, first, second));
+
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(outcome.Result.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
+    [Fact]
+    public async Task One_other_recorded_owner_still_lets_the_exact_execution_dispatch()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await MarkAsync(
+            dbContext, scene, scene.Expected,
+            _ => ExecutionCapacitySeed.AddAsync(fixture, OwnerFamily.Agent));
+
+        Assert.True(outcome.Result.IsSuccess);
+        await using var verify = fixture.CreateContext();
+        Assert.NotNull((await verify.VerificationExecutions.SingleAsync(execution => execution.Id == scene.ExecutionId)).DispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task Two_other_recorded_owners_also_refuse_the_pre_dispatch_source_change_that_shares_the_authority()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await SourceChangedAsync(
+            dbContext, scene, scene.Expected,
+            _ => ExecutionCapacitySeed.AddAsync(
+                fixture,
+                OwnerFamily.Agent,
+                OwnerFamily.Verification));
+
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(outcome.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
+    [Fact]
+    public async Task An_Agent_attempt_with_the_executions_own_identifier_is_not_the_exact_execution_and_is_not_excluded()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, async other =>
+        {
+            var planted = await ExecutionCapacitySeed.AddAsync(fixture, OwnerFamily.Agent);
+            await other.Database.ExecuteSqlInterpolatedAsync($"UPDATE attempts SET Id = {scene.ExecutionId} WHERE Id = {planted.Id}");
+            await ExecutionCapacitySeed.AddAsync(fixture, OwnerFamily.Verification);
+        });
+
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(outcome.Result.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
+    [Fact]
+    public async Task A_genuine_terminal_transition_of_another_owner_frees_the_place_for_a_fresh_dispatch()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+        IReadOnlyList<PlacedOwner> placed = [];
+
+        var refused = await MarkAsync(dbContext, scene, scene.Expected, async _ =>
+            placed = await ExecutionCapacitySeed.AddAsync(
+                fixture,
+                OwnerFamily.Agent,
+                OwnerFamily.Verification));
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(refused.Result.Errors).Code);
+        await AssertPendingAsync(scene);
+
+        await ExecutionCapacitySeed.FinishAsync(fixture, placed[0]);
+        await using var fresh = fixture.CreateContext();
+        var admitted = await MarkAsync(fresh, scene, scene.Expected, drift: null);
+
+        Assert.True(admitted.Result.IsSuccess);
+    }
+
+    [Fact]
+    public async Task A_malformed_recorded_owner_refuses_the_dispatch_as_unavailable()
+    {
+        await using var dbContext = fixture.CreateContext();
+        var scene = await SeedAsync(dbContext);
+
+        var outcome = await MarkAsync(dbContext, scene, scene.Expected, async other =>
+        {
+            var planted = await ExecutionCapacitySeed.AddAsync(fixture, OwnerFamily.Agent);
+            await other.Database.ExecuteSqlInterpolatedAsync($"UPDATE attempts SET AgentGitWorkspaceId = NULL WHERE Id = {planted.Id}");
+        });
+
+        Assert.Equal("execution_capacity.unavailable", Assert.Single(outcome.Result.Errors).Code);
+        await AssertPendingAsync(scene);
+    }
+
     // ---- Harness ------------------------------------------------------------------------------------------------------
 
     private sealed record Scene(Guid ProjectId, Guid ExecutionId, Guid CheckpointId, GitWorkspace Workspace, Guid OtherWorkspaceId, VerificationDispatchSnapshot Expected);

@@ -17,6 +17,7 @@ import { useProviderRuntimePreflight } from './features/cockpit/hooks/useProvide
 import { useSessionStatus } from './features/cockpit/hooks/useSessionStatus'
 import { useTheme } from './features/cockpit/hooks/useTheme'
 import { useWorkspaceExecutionStatus } from './features/cockpit/hooks/useWorkspaceExecutionStatus'
+import { useExecutionCapacity } from './features/cockpit/hooks/useExecutionCapacity'
 import type { PlanningSequenceControl } from './features/cockpit/planningSequence'
 import { describePlanningSequenceWithholding } from './features/cockpit/planningSequenceCopy'
 import './features/cockpit/cockpit.css'
@@ -74,6 +75,10 @@ export default function App() {
   // Who owns execution in the selected project's workspace (ADR-0057): one read owned by the selected project's lifetime, handed to both
   // the candidate workspace panel and the run cockpit as an additional veto of starting work. An explicit Refresh evidence is a hint.
   const workspaceExecution = useWorkspaceExecutionStatus(selectedProject?.projectId ?? null, evidenceRefresh.generation)
+  // How many potentially mutating executions the host records across its whole database (ADR-0058): one read owned by the authenticated
+  // host session, independent of which project is selected, handed to both regions as an additional veto of new mutating starts only.
+  // An explicit Refresh evidence is a hint, and the run cockpit hints on every durable run event.
+  const executionCapacity = useExecutionCapacity(sessionStatus === 'ready', evidenceRefresh.generation)
   // The planning-sequence fence the selected run's cockpit established (ADR-0055). Only a report for exactly the selected run counts;
   // before it arrives, or after the run changed, the fence is unknown and verification Run is withheld.
   const [reportedFence, setReportedFence] = useState<{ runId: string; control: PlanningSequenceControl } | null>(null)
@@ -136,6 +141,7 @@ export default function App() {
           onEvidenceRefreshRequested={evidenceRefresh.request}
           runWithheldReason={describePlanningSequenceWithholding(runFence)}
           workspaceExecution={workspaceExecution}
+          executionCapacity={executionCapacity}
         /> : null}
 
       {selectedProject ? (
@@ -174,6 +180,7 @@ export default function App() {
           onProjectChanged={refresh}
           onPlanningSequenceControlChange={reportPlanningSequenceControl}
           workspaceExecution={workspaceExecution}
+          executionCapacity={executionCapacity}
         />
       ) : selectedProject ? (
         <p className="dc-empty-state">{selectedProject.projectName} has no run yet.</p>

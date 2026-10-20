@@ -270,6 +270,62 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
         Assert.Equal(1, await verify.Projects.Where(project => project.Id == scene.ProjectId).Select(project => project.NextVerificationExecutionNumber).SingleAsync());
     }
 
+    // ---- ADR-0058: the global ceiling of two recorded potentially mutating owners ---------------------------------------------
+
+    [Fact]
+    public async Task A_pending_execution_beside_two_other_recorded_owners_waits_without_a_capture_or_a_process_and_launches_once_one_ends()
+    {
+        await using var host = await BuildHostAsync();
+        var scene = await SeedClaimAsync(host, ["wait"], timeoutSeconds: 60);
+        var first = await PlantUnrelatedOwnerAsync(agent: true);
+        await PlantUnrelatedOwnerAsync(agent: false);
+
+        await RunForAWhileAsync(host);
+
+        // The feed does not propose it, so the supervisor neither captures Git nor reaches the dispatch gate for it, and the claim is
+        // neither terminalized, cancelled nor launched.
+        Assert.Equal(0, host.Evidence.Captures);
+        Assert.Empty(host.Process.Requests);
+        await AssertStillPendingAsync(scene.ExecutionId);
+
+        await using (var other = CreateContext())
+        {
+            await other.Attempts.Where(attempt => attempt.Id == first)
+                .ExecuteUpdateAsync(set => set.SetProperty(attempt => attempt.Status, DevalCopilot.Domain.Features.Runs.AttemptStatus.Interrupted));
+        }
+
+        host.Process.Results.Enqueue((0, "out", "err"));
+        await RunUntilTerminalAsync(host, scene.ExecutionId);
+
+        Assert.Single(host.Process.Requests);
+        await using var verify = CreateContext();
+        Assert.Equal(
+            VerificationExecutionStatus.Passed, (await verify.VerificationExecutions.SingleAsync(e => e.Id == scene.ExecutionId)).Status);
+    }
+
+    [Fact]
+    public async Task A_claim_made_through_the_real_mediator_is_refused_beside_two_other_recorded_owners_before_any_capture_and_consumes_nothing()
+    {
+        await using var host = await BuildHostAsync();
+        var scene = await SeedClaimAsync(host, ["claimed"], timeoutSeconds: 60, claim: false);
+        await PlantUnrelatedOwnerAsync(agent: true);
+        await PlantUnrelatedOwnerAsync(agent: false);
+
+        await using var scope = host.Provider.CreateAsyncScope();
+        var claimed = await scope.ServiceProvider.GetRequiredService<IApplicationMediator>().SendAsync(
+            new ClaimVerificationExecutionCommand(scene.ProjectId, scene.Recipe.Id, scene.CheckpointId), CancellationToken.None);
+
+        Assert.True(claimed.IsFailure);
+        Assert.Equal("execution_capacity.limit_reached", Assert.Single(claimed.Errors).Code);
+        Assert.Equal(0, host.Evidence.Captures);
+        await RunForAWhileAsync(host);
+        Assert.Empty(host.Process.Requests);
+        await using var verify = CreateContext();
+        Assert.Equal(1, await verify.VerificationExecutions.CountAsync());
+        Assert.Equal(
+            1, await verify.Projects.Where(project => project.Id == scene.ProjectId).Select(project => project.NextVerificationExecutionNumber).SingleAsync());
+    }
+
     // ---- Single use and restart --------------------------------------------------------------------------------------
 
     [Fact]
@@ -433,6 +489,43 @@ public sealed class VerificationExecutionSupervisorHostedTests : IDisposable
 
         other.Attempts.Add(attempt);
         await other.SaveChangesAsync(CancellationToken.None);
+    }
+
+    /// <summary>An owner on its own unrelated project and workspace: a Running dispatched Agent implementation attempt (returned id is that
+    /// attempt) or a Running verification execution (returned id is that execution), as production rows look.</summary>
+    private async Task<Guid> PlantUnrelatedOwnerAsync(bool agent)
+    {
+        await using var db = CreateContext();
+        var project = Project.Register(Guid.NewGuid(), "Neighbour", $@"C:\repos\{Guid.NewGuid():N}", Now);
+        var workspace = ReadyWorkspace(project.Id, 1);
+        var checkpoint = GitCheckpoint.Capture(Guid.NewGuid(), workspace.Id, 1, Now, Head, Fingerprint, []);
+        var recipe = VerificationCommand.Configure(
+            Guid.NewGuid(), project.Id, project.ReserveVerificationCommandNumber(), "Unit", @"C:\tools\verify.exe", ["x"], 60, true, Now);
+        var run = DevalCopilot.Domain.Features.Runs.Run.RecordIntent(Guid.NewGuid(), project.Id, 1, "Neighbour run", Now);
+        run.Claim(Now);
+        db.Projects.Add(project);
+        db.Runs.Add(run);
+        db.GitWorkspaces.Add(workspace);
+        db.GitCheckpoints.Add(checkpoint);
+        db.VerificationCommands.Add(recipe);
+        db.RepositoryMutationLeases.Add(
+            RepositoryMutationLease.Acquire(Guid.NewGuid(), project.Id, workspace.Id, 1, Guid.NewGuid().ToByteArray(), Now));
+        await db.SaveChangesAsync(CancellationToken.None);
+        if (agent)
+        {
+            var attempt = DevalCopilot.Domain.Features.Runs.Attempt.ClaimAgentImplementation(
+                Guid.NewGuid(), run.Id, 1, workspace.Id, checkpoint.Id, Fingerprint, Guid.NewGuid(), TimeSpan.FromMinutes(10), 1024, 2048, Now, 1);
+            attempt.MarkAgentDispatched(Now);
+            db.Attempts.Add(attempt);
+            await db.SaveChangesAsync(CancellationToken.None);
+            return attempt.Id;
+        }
+
+        var execution = VerificationExecution.Claim(Guid.NewGuid(), project.Id, 1, workspace, checkpoint, recipe, Now);
+        execution.MarkDispatched(Now);
+        db.VerificationExecutions.Add(execution);
+        await db.SaveChangesAsync(CancellationToken.None);
+        return execution.Id;
     }
 
     private async Task AssertStillPendingAsync(Guid executionId)

@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,8 +42,12 @@ public sealed class GetEligibleVerificationExecutionsQueryHandler(IDevalCopilotD
         var eligible = new List<EligibleVerificationExecution>(candidates.Count);
         foreach (var candidate in candidates)
         {
+            // Advisory (ADR-0058): the global ceiling is read too, ignoring only this exact execution, so a pending execution that two
+            // other owners recorded anywhere would withhold is not proposed either.
             if (await WorkspaceExecutionFence.CheckVerificationDispatchAsync(
-                    dbContext, candidate.ProjectId, candidate.WorkspaceId, candidate.VerificationExecutionId, cancellationToken) is null)
+                    dbContext, candidate.ProjectId, candidate.WorkspaceId, candidate.VerificationExecutionId, cancellationToken) is null
+                && await ExecutionCapacityFence.CheckDispatchAsync(
+                    dbContext, new ExecutionOwner(ExecutionOwnerKind.Verification, candidate.VerificationExecutionId), cancellationToken) is null)
             {
                 eligible.Add(candidate);
             }

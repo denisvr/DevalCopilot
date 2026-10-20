@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.LocalCommit;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.Projects;
@@ -43,6 +44,13 @@ public sealed class ExecuteLocalCommitCommandHandler(
         }
 
         var marked = await TryMarkExecutingAsync(operation, cancellationToken);
+        if (marked.Capacity is { } capacity)
+        {
+            // ADR-0058: not a failed authority and not proof about Git. Nothing was marked (the transaction rolled back), so the
+            // operation stays Prepared and its reservation stays recorded; nothing is terminalized, released or retried here.
+            return Result<LocalCommitOperationView>.Failure(capacity);
+        }
+
         if (marked.Refusal is { } refusal)
         {
             // Authority refusal is a database fact, not proof that a previous process did not move Git.  Release the durable
@@ -249,7 +257,7 @@ public sealed class ExecuteLocalCommitCommandHandler(
         return true;
     }
 
-    private sealed record Marking(bool Marked, string? Refusal);
+    private sealed record Marking(bool Marked, string? Refusal, Error? Capacity = null);
 
     /// <summary>One write-locked transaction: the operation moves Prepared to Executing (the single-use marker) only after the
     /// complete authority is read again and equals the pinned identity. A refusal rolls everything back.</summary>
@@ -280,6 +288,15 @@ public sealed class ExecuteLocalCommitCommandHandler(
             || !string.Equals(authority.ExpectedParentCommitSha, operation.ParentCommitSha, StringComparison.Ordinal))
         {
             return new Marking(false, "local_commit.authority_changed");
+        }
+
+        // ADR-0058: decided under the same write lock, after the complete authority proved this reservation is the workspace's own, and
+        // ignoring only this exact operation (validated as a counted reservation of its own table). Two other recorded owners anywhere
+        // withhold execution; the transaction is disposed uncommitted, so the marker above is not consumed.
+        if (await ExecutionCapacityFence.CheckDispatchAsync(
+                dbContext, new ExecutionOwner(ExecutionOwnerKind.LocalCommit, operation.Id), cancellationToken) is { } capacityRefusal)
+        {
+            return new Marking(false, null, capacityRefusal);
         }
 
         var executing = RunEvent.Record(

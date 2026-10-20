@@ -9,6 +9,7 @@ using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
@@ -161,6 +162,12 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken) is { } workspaceBusy)
         {
             return Failure(workspaceBusy);
+        }
+
+        // ADR-0058: an additional veto, decided before any Git work or sealing and again at the commit seam below.
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityRefusal)
+        {
+            return Failure(capacityRefusal);
         }
 
         var evidence = await evidenceReader.CaptureForAgentContextAsync(
@@ -366,7 +373,9 @@ public sealed class CreateReviewCorrectionAttemptCommandHandler(
         Error? workspaceBusyAtSeam;
         try
         {
-            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken);
+            // ADR-0058: the global ceiling is decided under the same write lock, in the same cleanup, right after the workspace's ownership.
+            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken)
+                ?? await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken);
         }
         catch (OperationCanceledException)
         {

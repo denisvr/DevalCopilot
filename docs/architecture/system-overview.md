@@ -329,6 +329,20 @@ withhold execution-start actions. It adds no table, lease, queue, slot or
 scheduler, does not include standalone Process attempts, and does not implement
 the global two-mutating-run scheduler. Increment 5 stays incomplete.
 
+**Delivered partial slice: global mutating admission (GLOBAL-ADMIT-01).**
+[ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md) adds one fixed ceiling of two recorded potentially mutating execution owners per authoritative database, derived only from
+existing rows: unresolved Agent attempts whose coherent contract and role Domain classifies WorkspaceMutating (implementation and
+both correction origins), unresolved verification executions and ADR-0029's local-commit reservation. Recognized ReadOnly attempts,
+simulated and standalone Process attempts, approval waits and idle prepared workspaces consume nothing, and an unknown or malformed
+ownership reading is Unavailable rather than a count. Every mutating claim and the local-commit admission check before external
+preparation and again under the existing short write lock; both single-use dispatch gates and the local-commit execution gate
+decide again and exclude only their own validated kind and identifier. A refusal is a fixed Conflict
+(`execution_capacity.limit_reached` or `execution_capacity.unavailable`) that consumes nothing and terminalizes, cancels, retries or
+releases nothing; recording a known result is never gated. A protected read (`GET /api/execution-capacity`) discloses only the limit,
+the recorded count, a status and a reason code, and both cockpit regions use it solely to withhold new mutating starts. It adds no
+table, queue, configuration, lease or slot, and is not the configurable scheduler, queue or process-aware recovery of ADR-0006.
+Increment 5 stays incomplete.
+
 ### Cross-project scheduling
 
 The supervisor may claim eligible work for multiple runs up to the configured

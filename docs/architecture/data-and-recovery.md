@@ -266,6 +266,17 @@ to conflict, so a supervisor neither captures Git nor reaches the gate for it on
 unchanged. Startup reconciliation remains the only recovery authority: nothing here terminalizes an attempt, cancels a process, clears a
 marker or releases a lease.
 
+### Global execution capacity
+
+How many potentially mutating owners are recorded across the database ([ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md)) is derived, never stored: a fresh, untracked reading
+counts unresolved Agent attempts of a coherent WorkspaceMutating contract-role pair (Domain's table, never the provider), unresolved
+verification executions and coherent local-commit reservations, each excluding only the recognized terminal statuses. The ceiling is two.
+A missing or incoherent contract-role pair, an owner whose run, project or workspace association cannot be attested, an orphan open
+operation or reservation, or two owners on one workspace make the reading Unavailable instead of a convenient count. Claims check it
+before preparation and again under the existing write lock; dispatch and execution gates read it again and ignore exactly their own
+owner. A refusal consumes no identity, budget, grant, number, membership, artifact or event, and an over-capacity database is never
+rewritten to fit. Heartbeat or deadline expiry never releases capacity; only a genuine terminal transition does.
+
 ## Retention and deletion
 
 MVP retention is explicit even for a local tool:

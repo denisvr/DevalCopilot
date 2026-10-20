@@ -5,6 +5,9 @@ import { WorkspaceEvidencePanel } from './WorkspaceEvidencePanel'
 import { VerificationCommandsPanel } from './VerificationCommandsPanel'
 import { CheckpointReviewPanel } from './CheckpointReviewPanel'
 import { WorkspaceExecutionGuidance } from './WorkspaceExecutionGuidance'
+import { ExecutionCapacityGuidance } from './ExecutionCapacityGuidance'
+import { EXECUTION_CAPACITY_WITHHELD_POINTER, deriveExecutionCapacityStartGate } from '../executionCapacity'
+import type { ExecutionCapacityState } from '../executionCapacity'
 import { WORKSPACE_EXECUTION_WITHHELD_POINTER, deriveWorkspaceExecutionStartGate } from '../workspaceExecution'
 import type { WorkspaceExecutionState } from '../workspaceExecution'
 
@@ -21,6 +24,13 @@ interface CandidateWorkspacePanelProps {
    */
   /** The selected project's workspace execution status (ADR-0057). Required: null is an explicit "no state" that withholds starting. */
   workspaceExecution: WorkspaceExecutionState | null
+  /**
+   * The host's execution capacity (ADR-0058), owned by the authenticated host session and shared with the run cockpit. Anything but a
+   * validated, current Available withholds verification Run (a configured command may mutate) and shows one fixed guidance here; Available
+   * enables nothing by itself. Required: null is an explicit "no state" that withholds starting. Evidence capture and Refresh evidence are
+   * never gated by it.
+   */
+  executionCapacity: ExecutionCapacityState | null
 }
 
 function abbreviate(sha: string | undefined): string {
@@ -48,6 +58,7 @@ export function CandidateWorkspacePanel({
   onEvidenceRefreshRequested,
   runWithheldReason = null,
   workspaceExecution,
+  executionCapacity,
 }: CandidateWorkspacePanelProps) {
   const { workspace, loading, preparing, rechecking, error, prepare, recheckIdentity } = useProjectWorkspace(projectId)
   const refreshOwner = useOwnedLifetime(projectId)
@@ -71,7 +82,12 @@ export function CandidateWorkspacePanel({
   // The workspace execution status is an additional veto of verification Run (ADR-0057): the planning-sequence fence keeps its own
   // reason first, and the region's one guidance is shown below, so the Run control only points to it.
   const workspaceGate = deriveWorkspaceExecutionStartGate(workspaceExecution, projectId)
-  const effectiveRunWithheldReason = runWithheldReason ?? (workspaceGate.allowsExecutionStart ? null : WORKSPACE_EXECUTION_WITHHELD_POINTER)
+  // The host's execution capacity is a third, additional veto of the same shape (ADR-0058); the earlier reasons keep their precedence.
+  const capacityGate = deriveExecutionCapacityStartGate(executionCapacity)
+  const effectiveRunWithheldReason =
+    runWithheldReason
+    ?? (workspaceGate.allowsExecutionStart ? null : WORKSPACE_EXECUTION_WITHHELD_POINTER)
+    ?? (capacityGate.allowsMutatingStart ? null : EXECUTION_CAPACITY_WITHHELD_POINTER)
 
   return (
     <div className="dc-candidate-workspace" aria-label="Candidate workspace">
@@ -121,6 +137,7 @@ export function CandidateWorkspacePanel({
       ) : null}
 
       <WorkspaceExecutionGuidance gate={workspaceGate} state={workspaceExecution ?? null} region="candidate workspace" />
+      <ExecutionCapacityGuidance gate={capacityGate} state={executionCapacity ?? null} region="candidate workspace" />
 
       <WorkspaceEvidencePanel
         key={`evidence:${projectId}`}

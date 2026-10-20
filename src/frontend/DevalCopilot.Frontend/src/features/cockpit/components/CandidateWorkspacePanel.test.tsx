@@ -21,6 +21,7 @@ import {
 } from '../../../api/generated/api-client'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 import { idleStateFor } from '../workspaceExecutionFixture'
+import { availableCapacityState } from '../executionCapacityFixture'
 
 vi.mock('../../../api/clients', () => ({
   projectWorkspaceClient: vi.fn(),
@@ -81,7 +82,7 @@ describe('CandidateWorkspacePanel', () => {
       recheckProjectPhysicalIdentity,
     } as unknown as ReturnType<typeof recheckPhysicalIdentityClient>)
 
-    render(<CandidateWorkspacePanel projectId="project-1" workspaceExecution={idleStateFor('project-1')} />)
+    render(<CandidateWorkspacePanel projectId="project-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(await screen.findByText("This project's path could not be verified.")).toBeInTheDocument()
     expect(screen.queryByText('Prepare workspace')).not.toBeInTheDocument()
@@ -107,7 +108,7 @@ describe('CandidateWorkspacePanel', () => {
       prepareRepositoryWorkspace,
     } as unknown as ReturnType<typeof prepareWorkspaceClient>)
 
-    render(<CandidateWorkspacePanel projectId="project-1" workspaceExecution={idleStateFor('project-1')} />)
+    render(<CandidateWorkspacePanel projectId="project-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(await screen.findByText('Prepare workspace')).toBeInTheDocument()
 
@@ -128,7 +129,7 @@ describe('CandidateWorkspacePanel', () => {
       }),
     )
 
-    render(<CandidateWorkspacePanel projectId="project-1" workspaceExecution={idleStateFor('project-1')} />)
+    render(<CandidateWorkspacePanel projectId="project-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(await screen.findByText(String.raw`C:\Users\dev\AppData\Local\DevalCopilot\workspaces\p\1`)).toBeInTheDocument()
     expect(screen.getByText(/devalcopilot\/workspace\/p\/1 @ ccccccc/)).toBeInTheDocument()
@@ -147,7 +148,7 @@ describe('CandidateWorkspacePanel', () => {
       }),
     )
 
-    render(<CandidateWorkspacePanel projectId="project-1" workspaceExecution={idleStateFor('project-1')} />)
+    render(<CandidateWorkspacePanel projectId="project-1" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-1')} />)
 
     expect(await screen.findByText("This workspace's content changed outside DevalCopilot and needs review.")).toBeInTheDocument()
   })

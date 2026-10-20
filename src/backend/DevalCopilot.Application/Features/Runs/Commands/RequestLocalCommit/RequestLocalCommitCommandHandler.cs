@@ -3,6 +3,7 @@ using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.LocalCommit;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Ports;
@@ -65,6 +66,13 @@ public sealed class RequestLocalCommitCommandHandler(
             return Result<LocalCommitOperationView>.Failure(PlanningSequenceErrors.ManualControlBlocked());
         }
 
+        // ADR-0058: a local commit is one of at most two recorded potentially mutating owners across the database, decided before any
+        // external preparation and again under the write lock below. An additional veto only; the approval identity is unchanged.
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityRefusal)
+        {
+            return Result<LocalCommitOperationView>.Failure(capacityRefusal);
+        }
+
         var nowUtc = timeProvider.GetUtcNow();
         var prepared = await preparer.PrepareAsync(
             new LocalCommitPreparationRequest(
@@ -92,6 +100,14 @@ public sealed class RequestLocalCommitCommandHandler(
         }
 
         await using var transaction = await dbContext.BeginTransactionAsync(cancellationToken);
+
+        // ADR-0058: the transaction already holds the database write lock, and the reservation below is not yet taken, so the reading holds
+        // only owners other than this admission. A refusal disposes the transaction uncommitted and consumes nothing; the prepared artifact
+        // stays inert exactly as for every other refusal after preparation.
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityAtSeam)
+        {
+            return Result<LocalCommitOperationView>.Failure(capacityAtSeam);
+        }
 
         // The reservation is the transaction's first statement: one atomic Ready-to-Committing UPDATE that also takes the
         // database write lock, so no competing claim, capture, review or recipe write can commit between the re-read below and

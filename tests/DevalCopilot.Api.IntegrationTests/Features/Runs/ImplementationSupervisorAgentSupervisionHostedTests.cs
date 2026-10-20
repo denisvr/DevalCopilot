@@ -35,6 +35,10 @@ public sealed partial class ImplementationSupervisorHostedTests
         WorkspaceExecutionHostedScenarios.AClaimedAttemptWaitsForAnExistingOwnerAndThenRunsOnceAsync(AgentSupervisionComposition());
 
     [Fact]
+    public Task A_claimed_implementer_attempt_waits_for_two_other_recorded_owners_without_capture_or_dispatch_and_then_runs_once() =>
+        GlobalAdmissionHostedScenarios.AMutatingAttemptWaitsForTwoOtherOwnersAndThenRunsOnceAsync(AgentSupervisionComposition());
+
+    [Fact]
     public Task Agent_supervision_spans_the_implementer_through_its_terminal_result() =>
         AgentSupervisionHostedScenarios.ObservedThroughToItsTerminalResultAsync(AgentSupervisionComposition());
 

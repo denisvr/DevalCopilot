@@ -1,6 +1,7 @@
 using Devalente.Shared.Cqrs;
 using Devalente.Shared.Results;
 using DevalCopilot.Application.Data;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Domain.Features.Runs;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +18,20 @@ public sealed class GetEligibleLocalCommitOperationsQueryHandler(IDevalCopilotDb
             .Where(operation => operation.Status == LocalCommitStatus.Prepared)
             .Select(operation => new { operation.Id, operation.CreatedAtUtc })
             .ToListAsync(cancellationToken);
-        IReadOnlyList<Guid> identifiers = pending.OrderBy(operation => operation.CreatedAtUtc).Select(operation => operation.Id).ToList();
+        var ordered = pending.OrderBy(operation => operation.CreatedAtUtc).Select(operation => operation.Id).ToList();
+
+        // Advisory (ADR-0058): an operation the global ceiling would not let execute is not proposed. The single-use execution gate decides
+        // again under its own write lock, and nothing here terminalizes, cancels or releases a reservation.
+        var identifiers = new List<Guid>(ordered.Count);
+        foreach (var operationId in ordered)
+        {
+            if (await ExecutionCapacityFence.CheckDispatchAsync(
+                    dbContext, new ExecutionOwner(ExecutionOwnerKind.LocalCommit, operationId), cancellationToken) is null)
+            {
+                identifiers.Add(operationId);
+            }
+        }
+
         return Result<IReadOnlyList<Guid>>.Success(identifiers);
     }
 }

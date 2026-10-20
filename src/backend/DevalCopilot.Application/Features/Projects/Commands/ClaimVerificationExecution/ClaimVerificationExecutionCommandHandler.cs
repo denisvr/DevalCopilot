@@ -4,6 +4,7 @@ using DevalCopilot.Application.Data;
 using DevalCopilot.Application.Features.Projects.Policies.WorkspaceExecutions;
 using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs.Errors;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.Projects;
 using Microsoft.EntityFrameworkCore;
@@ -140,6 +141,13 @@ public sealed class ClaimVerificationExecutionCommandHandler(
         if (await WorkspaceExecutionFence.CheckClaimAsync(dbContext, command.ProjectId, workspace.Id, cancellationToken) is { } busy)
         {
             return new AuthorityRead(busy, null);
+        }
+
+        // ADR-0058: a verification command may mutate, so the claim is also one of at most two recorded potentially mutating owners across
+        // the database. Like the reads above, it runs before the Git capture and again under the claim transaction's write lock.
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityRefusal)
+        {
+            return new AuthorityRead(capacityRefusal, null);
         }
 
         return new AuthorityRead(null, new Authority(recipe, workspace, checkpoint));

@@ -1,5 +1,6 @@
 import type { GetRunCockpitResponse } from '../../api/clients'
 import { PLANNING_SEQUENCE_CLAIM_BLOCK_MESSAGES } from './planningSequenceCopy'
+import { EXECUTION_CAPACITY_WITHHELD_POINTER } from './executionCapacity'
 import { WORKSPACE_EXECUTION_WITHHELD_POINTER } from './workspaceExecution'
 
 /**
@@ -25,6 +26,10 @@ export type GlobalAgentClaimBlockReason =
   /** ADR-0057: the workspace execution status of the project is not a validated, current Idle (pending, failed, replaced, or an owner is
    * recorded). An additional veto only; its one fixed guidance is shown once by the region, not by each control. */
   | 'WorkspaceExecutionWithheld'
+  /** ADR-0058: the host's execution capacity is not a validated, current Available (pending, failed, at capacity or unavailable). An
+   * additional veto of a new potentially mutating start only (never of a ReadOnly request or a metadata-only authorization); its one fixed
+   * guidance is shown once by the region, not by each control. */
+  | 'ExecutionCapacityWithheld'
 
 export interface GlobalAgentClaimBlock {
   reason: GlobalAgentClaimBlockReason
@@ -155,6 +160,7 @@ export function deriveGlobalAgentClaimBlock(
 const BLOCK_MESSAGE: Record<GlobalAgentClaimBlockReason, string> = {
   ...PLANNING_SEQUENCE_CLAIM_BLOCK_MESSAGES,
   WorkspaceExecutionWithheld: WORKSPACE_EXECUTION_WITHHELD_POINTER,
+  ExecutionCapacityWithheld: EXECUTION_CAPACITY_WITHHELD_POINTER,
   CountBudgetExhausted: 'Blocked by the run-wide Agent claim budget: no further Agent attempt can be claimed for this run.',
   TimeBudgetExhausted:
     'Blocked by the run-wide Agent invocation-time budget: no reserved invocation time remains for this run.',

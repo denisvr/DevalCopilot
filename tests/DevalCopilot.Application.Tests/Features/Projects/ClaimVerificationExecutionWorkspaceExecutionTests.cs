@@ -198,7 +198,6 @@ public sealed class ClaimVerificationExecutionWorkspaceExecutionTests : IAsyncLi
             var finished = await WorkspaceExecutionSeed.AddAgentAttemptAsync(db, scene.Run.Id, scene.Workspace.Id, scene.Checkpoint.Id);
             await WorkspaceExecutionSeed.SetAttemptStatusAsync(db, finished, AttemptStatus.Interrupted);
             await WorkspaceExecutionSeed.AddAgentAttemptAsync(db, unrelated.Run.Id, unrelated.Workspace.Id, unrelated.Checkpoint.Id);
-            await WorkspaceExecutionSeed.AddVerificationExecutionAsync(db, unrelated);
         }
 
         var result = await ClaimAsync(scene, new CountingReader());

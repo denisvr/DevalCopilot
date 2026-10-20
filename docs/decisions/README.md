@@ -153,7 +153,10 @@ under [Proposed decisions](#proposed-decisions).
   (accepted, delivered in published AGENT-SUP-01; durable current host-supervision observations across all seven existing Agent contracts, independent stale/deadline attention and truthful cockpit disclosure; no provider-progress proof, execution lease, dispatch authority, cancellation, retry, takeover, ownership release, automatic mutation or publication)
 
 - [ADR-0057: Serialize Agent and verification execution within an owned workspace](0057-serialize-agent-and-verification-execution-within-an-owned-workspace.md)
-  (accepted, implemented in WORKSPACE-EXCL-01 and reviewed GO; publication must be reconciled with Git and the planner record; reciprocal atomic claim/dispatch exclusion across the seven Agent contracts, verification and the existing local-commit reservation, with a protected project-owned disclosure and consistent cockpit withholding; strengthens existing writer exclusion without a scheduler, new execution grant, observation-based authority, lease release, automatic stage advancement or publication)
+  (accepted, delivered in published WORKSPACE-EXCL-01; reciprocal atomic claim/dispatch exclusion across the seven Agent contracts, verification and the existing local-commit reservation, with a protected project-owned disclosure and consistent cockpit withholding; strengthens existing writer exclusion without a scheduler, new execution grant, observation-based authority, lease release, automatic stage advancement or publication)
+
+- [ADR-0058: Bound global admission of existing workspace mutators](0058-bound-global-admission-of-existing-workspace-mutators.md)
+  (accepted, implemented in GLOBAL-ADMIT-01 and reviewed GO; reconcile publication with Git and the planner handoff; a fixed two-owner admission ceiling derived from existing mutating Agent, verification and local-commit facts, atomic claim/dispatch checks and protected global disclosure; no queue, configuration, executor lease, process-liveness proof, automatic execution grant, ownership release or publication)
 
 ## Partially superseded decisions
 

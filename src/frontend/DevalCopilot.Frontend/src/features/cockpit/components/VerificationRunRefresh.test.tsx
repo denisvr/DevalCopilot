@@ -21,6 +21,7 @@ import {
 } from '../../../api/generated/api-client'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 import { idleStateFor } from '../workspaceExecutionFixture'
+import { availableCapacityState } from '../executionCapacityFixture'
 
 // Run needs settled, successful source AND verification-execution reads of the displayed refresh generation and no Running
 // execution in the current workspace (whatever its recipe), in the rendered button and in its handler. A start request whose
@@ -136,7 +137,7 @@ function retainedHandlerOf(button: HTMLElement): () => Promise<void> {
 }
 
 async function renderSettled(projectId = 'project-a') {
-  const view = render(<CandidateWorkspacePanel projectId={projectId} workspaceExecution={idleStateFor(projectId)} />)
+  const view = render(<CandidateWorkspacePanel projectId={projectId} executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor(projectId)} />)
   await waitFor(() => expect(runButton()).toBeEnabled())
   return view
 }
@@ -156,7 +157,7 @@ describe('VerificationCommandsPanel Run authority', () => {
     const executions = deferred<VerificationExecutionResponse[]>()
     const clients = installClients({ executions: () => executions.promise })
 
-    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
+    render(<CandidateWorkspacePanel projectId="project-a" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(within(verification()).getByText('Reading verification status…')).toBeInTheDocument())
     await waitFor(() => expect(within(verification()).queryByText('Reading the current source checkpoint…')).not.toBeInTheDocument())
     expect(runButton()).toBeDisabled()
@@ -216,7 +217,7 @@ describe('VerificationCommandsPanel Run authority', () => {
     const clients = installClients({
       executions: (projectId) => Promise.resolve(mode === 'running' ? [executionOf(projectId, 'lint', 1, 'Running')] : [executionOf(projectId, 'lint', 1, 'Passed')]),
     })
-    render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
+    render(<CandidateWorkspacePanel projectId="project-a" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(within(verification()).getByText(/A verification is running in this workspace/)).toBeInTheDocument())
 
     expect(runButton('unit')).toBeDisabled()
@@ -234,13 +235,13 @@ describe('VerificationCommandsPanel Run authority', () => {
     installClients({
       executions: (projectId) => Promise.resolve([executionOf(projectId, 'lint', 1, 'Running', workspaceId)]),
     })
-    const view = render(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
+    const view = render(<CandidateWorkspacePanel projectId="project-a" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(runButton()).toBeEnabled())
     expect(within(verification()).queryByText(/A verification is running in this workspace/)).not.toBeInTheDocument()
 
     workspaceId = workspaceOf('project-a')
-    view.rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
-    view.rerender(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-b" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-b')} />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-a" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(within(verification()).getByText(/A verification is running in this workspace/)).toBeInTheDocument())
     expect(runButton()).toBeDisabled()
   })
@@ -365,7 +366,7 @@ describe('VerificationCommandsPanel Run authority', () => {
     fireEvent.click(runButton())
     await waitFor(() => expect(clients.claimVerificationExecution).toHaveBeenCalledTimes(1))
 
-    view.rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-b" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-b')} />)
     await waitFor(() => expect(within(verification()).getByText('unit check', { exact: false })).toBeInTheDocument())
     await waitFor(() => expect(runButton()).toBeEnabled())
     await act(async () => claim.resolve({ executionNumber: 4 }))
@@ -375,7 +376,7 @@ describe('VerificationCommandsPanel Run authority', () => {
     expect(clients.claimVerificationExecution).toHaveBeenCalledTimes(1)
     expect(clients.claimVerificationExecution.mock.calls[0][0]).toBe('project-a')
 
-    view.rerender(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-a" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-a')} />)
     await waitFor(() => expect(runButton()).toBeEnabled())
     expect(within(verification()).queryByText(/Verification #4 was requested/)).not.toBeInTheDocument()
   })
@@ -386,10 +387,10 @@ describe('VerificationCommandsPanel Run authority', () => {
     installClients({ executions: (projectId) => (holdA && projectId === 'project-a' ? returning.promise : Promise.resolve([])) })
     const view = await renderSettled('project-a')
 
-    view.rerender(<CandidateWorkspacePanel projectId="project-b" workspaceExecution={idleStateFor('project-b')} />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-b" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-b')} />)
     await waitFor(() => expect(runButton()).toBeEnabled())
     holdA = true
-    view.rerender(<CandidateWorkspacePanel projectId="project-a" workspaceExecution={idleStateFor('project-a')} />)
+    view.rerender(<CandidateWorkspacePanel projectId="project-a" executionCapacity={availableCapacityState()} workspaceExecution={idleStateFor('project-a')} />)
 
     await waitFor(() => expect(within(verification()).getByText('Reading verification status…')).toBeInTheDocument())
     await waitFor(() => expect(runButton()).toBeDisabled())

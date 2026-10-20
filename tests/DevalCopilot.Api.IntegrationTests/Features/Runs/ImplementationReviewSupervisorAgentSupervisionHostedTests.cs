@@ -35,6 +35,10 @@ public sealed partial class ImplementationReviewSupervisorHostedTests
         WorkspaceExecutionHostedScenarios.AClaimedAttemptWaitsForAnExistingOwnerAndThenRunsOnceAsync(AgentSupervisionComposition());
 
     [Fact]
+    public Task A_code_reviewer_attempt_runs_unchanged_while_two_mutating_owners_are_recorded() =>
+        GlobalAdmissionHostedScenarios.AReadOnlyAttemptRunsUnchangedAtFullCapacityAsync(AgentSupervisionComposition());
+
+    [Fact]
     public Task Agent_supervision_spans_the_code_reviewer_through_its_terminal_result() =>
         AgentSupervisionHostedScenarios.ObservedThroughToItsTerminalResultAsync(AgentSupervisionComposition());
 

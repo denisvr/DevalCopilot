@@ -4,6 +4,7 @@ using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Commands.RecordCodexAccountUsageStop;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.FormatRepair;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Application.Features.Runs.Policies.VerificationDiagnosis;
@@ -148,6 +149,19 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 Guidance = EF.Property<string?>(candidate, Attempt.AgentDirectHumanGuidanceStorageProperty),
             })
             .SingleAsync(cancellationToken);
+
+        // ADR-0058 (GAD-R1): the role and response contract the branches below and the capacity exemption rest on are the tracked
+        // entity's, so they must still be exactly the persisted pair now. A tracked/current mismatch means another writer changed the
+        // stored assignment after this context loaded it; no exemption or role-specific decision may rest on the stale classification.
+        // The tracked entity is only read, so pending tracked writes are preserved.
+        if (fresh.AgentResponseContract != attempt.AgentResponseContract || fresh.AgentRole != attempt.AgentRole)
+        {
+            return Result<DateTimeOffset>.Failure(
+                Error.Conflict(
+                    "agent_attempts.invalid_agent_contract",
+                    "The attempt's role, provider, and response contract are not a valid, coherent combination."));
+        }
+
         var guidanceReading = DirectHumanGuidance.Read(fresh.Guidance);
         if (!ClaudeMutationAdapterContract.IsDirectGuidanceDispatchCoherent(
                 fresh.AgentResponseContract, fresh.AgentRole, fresh.AgentProvider, fresh.AgentPermissionProfile,
@@ -441,6 +455,14 @@ public sealed class MarkAgentAttemptDispatchedCommandHandler(IDevalCopilotDbCont
                 dbContext, run.ProjectId, workspace.Id, attempt.Id, cancellationToken) is { } workspaceBusy)
         {
             return Result<DateTimeOffset>.Failure(workspaceBusy);
+        }
+
+        // ADR-0058: a potentially mutating attempt also dispatches only while no more than one owner other than this exact attempt is
+        // recorded anywhere in the database. A recognized ReadOnly attempt is never counted and never refused here. A refusal leaves the
+        // attempt exactly as recorded, undispatched, and no adapter is ever invoked for it.
+        if (await ExecutionCapacityFence.CheckAgentDispatchAsync(dbContext, attempt, cancellationToken) is { } capacityRefusal)
+        {
+            return Result<DateTimeOffset>.Failure(capacityRefusal);
         }
 
         var nowUtc = timeProvider.GetUtcNow();

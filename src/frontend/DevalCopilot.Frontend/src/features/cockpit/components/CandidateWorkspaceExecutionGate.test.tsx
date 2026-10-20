@@ -16,6 +16,7 @@ import { GetProjectGitEvidenceResponse, GetProjectWorkspaceResponse, Verificatio
 import { WORKSPACE_EXECUTION_GUIDANCE, WORKSPACE_EXECUTION_WITHHELD_POINTER } from '../workspaceExecution'
 import type { WorkspaceExecutionReadFailure, WorkspaceExecutionState, WorkspaceExecutionStatus } from '../workspaceExecution'
 import { OTHER_PROJECT_ID, PROJECT_ID, readingOf, stateFor } from '../workspaceExecutionFixture'
+import { availableCapacityState } from '../executionCapacityFixture'
 import { CandidateWorkspacePanel } from './CandidateWorkspacePanel'
 
 // ADR-0057 in the candidate workspace region: the workspace execution status is an additional veto of verification Run. Anything but a
@@ -84,7 +85,7 @@ const guidanceRegion = () => screen.queryByRole('status', { name: 'Workspace exe
 
 // A JavaScript caller may omit the required prop, so the helper can render undefined (cast) to prove it withholds like an explicit null.
 async function renderPanel(workspaceExecution: WorkspaceExecutionState | null | undefined, props: { runWithheldReason?: string | null; onEvidenceRefreshRequested?: () => void } = {}) {
-  const view = render(<CandidateWorkspacePanel projectId={PROJECT_ID} workspaceExecution={workspaceExecution as WorkspaceExecutionState | null} {...props} />)
+  const view = render(<CandidateWorkspacePanel projectId={PROJECT_ID} executionCapacity={availableCapacityState()} workspaceExecution={workspaceExecution as WorkspaceExecutionState | null} {...props} />)
   await waitFor(() => expect(source()).toHaveTextContent('Checkpoint #1'))
   await waitFor(() => expect(within(verification()).getByText('#1 unit')).toBeInTheDocument())
   await waitFor(() => expect(within(verification()).queryByText('Reading verification status…')).not.toBeInTheDocument())
@@ -112,7 +113,7 @@ describe('CandidateWorkspacePanel workspace execution gate', () => {
 
   it('does not enable Run for an Idle status when the ordinary gates disable it: Idle enables nothing by itself', async () => {
     installClients({ checkpoint: false })
-    render(<CandidateWorkspacePanel projectId={PROJECT_ID} workspaceExecution={stateFor('Idle')} />)
+    render(<CandidateWorkspacePanel projectId={PROJECT_ID} executionCapacity={availableCapacityState()} workspaceExecution={stateFor('Idle')} />)
     await waitFor(() => expect(within(source()).getByText('No source checkpoint has been captured yet.')).toBeInTheDocument())
 
     expect(runButton()).toBeDisabled()

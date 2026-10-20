@@ -8,6 +8,7 @@ using DevalCopilot.Application.Features.Projects.Ports;
 using DevalCopilot.Application.Features.Runs;
 using DevalCopilot.Application.Features.Runs.Errors;
 using DevalCopilot.Application.Features.Runs.Policies;
+using DevalCopilot.Application.Features.Runs.Policies.ExecutionCapacity;
 using DevalCopilot.Application.Features.Runs.Policies.PlanningSequences;
 using DevalCopilot.Domain.Features.EnvironmentReadiness;
 using DevalCopilot.Domain.Features.Projects;
@@ -275,6 +276,12 @@ public sealed class CreateImplementationAttemptCommandHandler(
             return Result<CreateImplementationAttemptCommandResult>.Failure(workspaceBusy);
         }
 
+        // ADR-0058: an additional veto, decided before any provider observation, Git work or sealing and again at the commit seam below.
+        if (await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken) is { } capacityRefusal)
+        {
+            return Result<CreateImplementationAttemptCommandResult>.Failure(capacityRefusal);
+        }
+
         var claudeSnapshot = await dbContext.HostCapabilitySnapshots
             .SingleOrDefaultAsync(candidate => candidate.Capability == Capability.ClaudeCli, cancellationToken);
         if (claudeSnapshot is null || claudeSnapshot.ReasonCode != CapabilityProbeReason.None || string.IsNullOrWhiteSpace(claudeSnapshot.ResolvedExecutablePath))
@@ -507,7 +514,9 @@ public sealed class CreateImplementationAttemptCommandHandler(
         Error? workspaceBusyAtSeam;
         try
         {
-            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken);
+            // ADR-0058: the global ceiling is decided under the same write lock, in the same cleanup, right after the workspace's ownership.
+            workspaceBusyAtSeam = await WorkspaceExecutionFence.CheckClaimAsync(dbContext, run.ProjectId, workspace.Id, cancellationToken)
+                ?? await ExecutionCapacityFence.CheckClaimAsync(dbContext, cancellationToken);
         }
         catch (OperationCanceledException) when (fenceTransaction is not null)
         {

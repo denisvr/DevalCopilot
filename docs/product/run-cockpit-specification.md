@@ -1913,6 +1913,19 @@ project is selected (verification transitions emit no run event). Reads never ov
 selection or view ends, polling stops after three consecutive failures until an explicit refresh, remount or hint, a response for another
 selection or visit is dropped, a failed or timed-out read masks an earlier `Idle`, and nothing is stored in the browser.
 
+### Execution capacity (GLOBAL-ADMIT-01)
+
+One protected, bodyless and queryless read of the host's recorded potentially mutating executions ([ADR-0058](../decisions/0058-bound-global-admission-of-existing-workspace-mutators.md)) returns exactly `limit`,
+`recordedOwners`, `status` (`Available`, `AtCapacity` or `Unavailable`) and `reasonCode`. The browser accepts it only as a whole
+closed tuple, owns one read per authenticated host session independent of the selected project, and refreshes on mount, explicit
+refresh, durable run or evidence hints and every five seconds, with reads that never overlap, a ten-second abort, a stop after three
+consecutive failures until refresh, remount or hint, and dropped stale responses. Both regions require it: while it is absent, pending,
+failed, invalid, at capacity or unavailable, only new potentially mutating starts are withheld (implementation, review and
+diagnosis-origin corrections, verification Run and local-commit start), with one fixed guidance sentence per region and a control that
+only reads again. A panel that holds both a diagnosis and its correction gates only the correction. `Available` enables nothing by
+itself. Planning, critique, resolution, code review, verification diagnosis, metadata-only authorizations and approvals, inspection,
+Refresh, Stop after current step, abandonment and recording a known result are never withheld by it.
+
 ## Evidence surface
 
 The right rail provides contextual evidence categories:
